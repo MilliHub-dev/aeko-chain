@@ -28,5 +28,5 @@ If you are new, start with **Vision** → **Architecture Overview** → **Chain 
 - Designed for **consumer apps + enterprise + military-grade security**
 - Developer-first SDKs and APIs
 
-AEKO is not just a blockchain.  
+AEKO CHAIN is not just a blockchain.  
 It is a **trust infrastructure for digital communication**.
