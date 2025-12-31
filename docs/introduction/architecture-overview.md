@@ -1,73 +1,35 @@
 # Architecture Overview
 
-AEKO CHAIN is a modular ecosystem composed of independent but interoperable components.
+AEKO Chain utilizes a modular, layered architecture to achieve its unique blend of speed and security.
 
----
+```mermaid
+graph TD
+    User[User / Client] --> AppLayer[Application Layer<br/>(Aeko Social, SDKs)]
+    AppLayer --> PermLayer[Permission Layer<br/>(Identity & Access Control)]
+    PermLayer --> Runtime[AEKO SVM Runtime<br/>(Transaction Execution)]
+    Runtime --> Consensus[Consensus Layer<br/>(PoH + Tower BFT)]
+    Runtime --> ContentLayer[Content Signature Layer<br/>(Off-chain Storage + On-chain Proofs)]
+```
 
-## High-Level Architecture
+## 1. Permission Layer (The Gatekeeper)
+Unlike standard blockchains where anyone with a key can submit any transaction, AEKO Chain intercepts transactions at the **Permission Layer**.
+*   **Public Zone**: Standard transactions (transfers, basic posts). Open to all.
+*   **Verified Zone**: Requires KYC/Identity proofs (SBTs).
+*   **Sovereign Zone**: Restricted to whitelisted keys (Government/Enterprise).
 
-+--------------------+
-| AEKO SOCIAL |
-| (Node.js Backend) |
-+---------+----------+
-|
-| Post Signature / Verification
-|
-+---------v----------+
-| AEKO CHAIN |
-| (SVM Runtime L1) |
-+----+----+----+-----+
-| | |
-| | |
-v v v
-Wallet Bridge Explorer
-APIs Layer APIs
+## 2. AEKO SVM Runtime (The Engine)
+We leverage the **Solana Virtual Machine (SVM)** for parallel transaction processing.
+*   **Sealevel**: Parallel smart contract execution.
+*   **Pipelining**: Optimized transaction validation unit (TPU).
+*   **AccountsDB**: Modified to store social graph data efficiently.
 
+## 3. Content Signature Layer (The Truth)
+To avoid bloating the chain, we use a hybrid storage model:
+*   **Heavy Media** (Images/Video) -> IPFS / Arweave / Private Cloud.
+*   **Metadata & Hashes** -> Stored on AEKO Chain.
+*   **Signatures** -> Verified natively by the runtime.
 
----
-
-## Component Breakdown
-
-### AEKO Social
-- Standalone Node.js backend
-- Handles posts, feeds, users, moderation
-- Uses AEKO Chain for:
-  - Post signature anchoring
-  - Identity verification
-  - Reputation proofs
-
-### AEKO Chain(Stateless Signature Model)
-- High-performance Layer-1
-- Solana-VM–style runtime (AEKO-SVM)
-- Parallel transaction execution
-- Native token & NFT standards
-
-### Permission Layer
-- Optional encryption & clearance system
-- Used for:
-  - Secure messaging
-  - Financial institutions
-  - Military communication
-
-### Wallet
-- Key management
-- Transaction signing
-- Permission handling
-- dApp connection
-
-### Explorer
-- Transaction visibility
-- Post verification
-- Token & NFT tracking
-
-### Bridge
-- Cross-chain asset and message transfer
-- Ethereum, Solana, BNB, others
-
----
-
-## Design Philosophy
-
-- **Loose coupling**: systems can evolve independently
-- **Clear interfaces**: RPC, APIs, SDKs
-- **Security boundaries**: social ≠ chain ≠ permission layer
+## 4. Consensus Layer (The Judge)
+*   **Proof of History (PoH)**: For cryptographic time-stamping.
+*   **Tower BFT**: For rapid finality.
+*   **Weighted Staking**: Validators are weighted not just by tokens, but by **Reputation Score** (in specific governance sub-nets).

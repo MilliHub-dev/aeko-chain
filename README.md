@@ -5,7 +5,15 @@
 Unlike general-purpose blockchains focused solely on DeFi or payments, AEKO Chain is purpose-built to serve as the foundational infrastructure for high-integrity digital content, social economies, and secure communications.
 
 ---
+## Core Principles
 
+Stateless cryptographic signatures
+
+Multi-layer permission system
+
+Social-first blockchain design
+
+Military & fintech-grade security
 ## Core Architecture
 
 AEKO Chain operates on a modular, layered architecture designed to balance scalability with cryptographic integrity.

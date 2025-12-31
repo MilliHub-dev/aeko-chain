@@ -1,32 +1,26 @@
-# AEKO Developer Documentation
+# Overview
 
-Welcome to the official developer documentation for **AEKO** — a high-performance blockchain ecosystem powering **SocialFi, secure communications, digital identity, and on-chain creator economies**.
+**AEKO Chain** is a high-performance Layer-1 blockchain specifically engineered to bridge the gap between high-frequency social interaction and high-security financial/enterprise compliance. Built on a modified **Solana Virtual Machine (SVM)** runtime, AEKO Chain offers the throughput required for social media (thousands of transactions per second) while introducing a novel **Permission Layer** and **Content Signature Layer** not found in general-purpose chains.
 
-AEKO consists of two primary layers:
+## Why AEKO Chain?
 
-1. **AEKO Chain** – A Solana-VM–based Layer-1 blockchain optimized for speed, security, and parallel execution.
-2. **AEKO Social** – A standalone Node.js–based social platform that integrates with AEKO Chain through cryptographic signatures and verification proofs.
+Traditional blockchains are often optimized for one of two things:
+1.  **DeFi**: High security, high cost, low throughput.
+2.  **Gaming/NFTs**: High throughput, variable security, limited programmability for identity.
 
-This documentation is intended for:
-- Blockchain developers
-- Backend engineers
-- dApp builders
-- Wallet & SDK developers
-- Security engineers
-- Researchers and auditors
+AEKO Chain targets a third vertical: **Verifiable Social Trust**.
 
-If you are new, start with **Vision** → **Architecture Overview** → **Chain Basics**.
+### Core Value Props
 
----
+*   **Content Authenticity**: Native primitives for hashing and signing content (posts, videos, messages) to prove authorship and integrity.
+*   **Graduated Permissions**: A single chain that can handle public permissionless traffic (social media) and private permissioned traffic (military/enterprise) via its Multi-Tier Permission Layer.
+*   **SocialFi Economics**: Gas and fee models optimized for micro-transactions (tipping, liking) rather than just heavy financial swaps.
 
-## What Makes AEKO Different?
+## The AEKO Difference
 
-- Every social post is **cryptographically signed**
-- Native **SocialFi** primitives
-- High-throughput **SVM runtime**
-- Built-in **permission & encryption layer**
-- Designed for **consumer apps + enterprise + military-grade security**
-- Developer-first SDKs and APIs
-
-AEKO CHAIN is not just a blockchain.  
-It is a **trust infrastructure for digital communication**.
+| Feature | Ethereum/EVM | Solana/SVM | AEKO Chain |
+| :--- | :--- | :--- | :--- |
+| **Throughput** | Low | High | **High** |
+| **Identity** | Wallet Address | Wallet Address | **Reputation & ID Layer** |
+| **Content** | Arbitrary Data (expensive) | Arbitrary Data | **Native Content Primitives** |
+| **Permissions** | Public Only | Public Only | **Hybrid (Public/Private/Sovereign)** |

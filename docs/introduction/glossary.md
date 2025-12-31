@@ -1,37 +1,13 @@
 # Glossary
 
-### AEKO Chain
-The Layer-1 blockchain powering the AEKO ecosystem.
-
-### AEKO Social
-A standalone social platform integrated with AEKO Chain via cryptographic proofs.
-
-### AEKO Coin
-The native token used for gas, staking, governance, and rewards.
-
-### AEKO-SVM
-AEKO’s Solana-VM–compatible runtime for smart contracts.
-
-### SocialFi
-Social applications with native financial incentives and on-chain ownership.
-
-### Post Signature
-A cryptographic signature proving the authenticity and timestamp of a post.
-
-### Permission Layer
-An encryption and access-control layer for secure communication.
-
-### Validator
-A node that participates in consensus and block production.
-
-### RPC
-Remote Procedure Call interface used to interact with the chain.
-
-### SDK
-Software Development Kit for interacting with AEKO.
-
-### NFT
-Non-fungible token, defined by AEKO-721.
-
-### AEKO-20
-Fungible token standard on AEKO Chain.
+*   **AEKO**: The native utility token of the AEKO Chain.
+*   **SVM (Solana Virtual Machine)**: The high-performance execution environment used by AEKO Chain.
+*   **PoH (Proof of History)**: A cryptographic clock that allows nodes to agree on time order without communicating.
+*   **SocialFi**: The intersection of Social Media and Decentralized Finance.
+*   **Permission Layer**: A protocol layer that validates the authority of a sender before executing a transaction.
+*   **SBT (Soulbound Token)**: A non-transferable token representing identity or credentials.
+*   **Content Hash**: A unique cryptographic fingerprint of a piece of content (e.g., SHA-256).
+*   **Validator**: A node that participates in consensus and secures the network.
+*   **RPC (Remote Procedure Call)**: The interface for applications to communicate with the blockchain.
+*   **Sovereign Zone**: A restricted memory space on the blockchain accessible only to authorized entities (e.g., for military use).
+*   **Reputation Score**: An on-chain metric derived from a user's behavior, staking, and content quality.

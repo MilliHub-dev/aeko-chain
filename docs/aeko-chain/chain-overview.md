@@ -1,37 +1,24 @@
 # AEKO Chain Overview
 
-AEKO Chain is a high-performance Layer-1 blockchain designed for **real-time applications**, **SocialFi**, and **secure communications**.
+AEKO Chain is a Layer-1 blockchain built for speed, scale, and social integrity. It is not just a ledger of financial transactions but a ledger of *social truth*.
 
-It is built around a **Solana-VM–style execution model (AEKO-SVM)**, enabling:
-- Parallel transaction execution
-- Low latency
-- Predictable fees
-- High throughput
+## Technical Specifications
 
-AEKO Chain serves as the **trust and settlement layer** for AEKO Social and third-party applications.
+*   **Block Time**: ~400ms
+*   **Throughput**: 65,000+ TPS (Theoretical peak)
+*   **Finality**: ~800ms
+*   **Consensus**: Proof of History (PoH) + Tower BFT
+*   **Smart Contract Engine**: AEKO SVM (Solana Virtual Machine)
+*   **Programming Languages**: Rust, C, C++ (via LLVM)
 
----
+## The "Social" Difference
 
-## Core Objectives
+Most blockchains treat all data as equal bytes. AEKO Chain distinguishes between:
+1.  **Financial State**: Token balances, AMM pools.
+2.  **Social State**: Identity graphs, content hashes, reputation scores.
 
-- Verify identity and content authenticity
-- Execute token & NFT logic at scale
-- Anchor social and communication proofs
-- Support developer-friendly smart contracts
-- Enable permissioned encryption for sensitive systems
+By optimizing the runtime to handle these distinct state types efficiently, AEKO Chain prevents "social spam" from clogging "financial settlement" lanes, ensuring that a viral meme doesn't spike gas fees for a critical payment.
 
----
+## Network Topology
 
-## Key Characteristics
-
-| Feature | Description |
-|------|------------|
-| Runtime | AEKO-SVM (Solana-VM compatible) |
-| Consensus | Hybrid Proof-of-Stake + Proof-of-History |
-| Smart Contracts | BPF bytecode |
-| Token Standards | AEKO-20, AEKO-721 |
-| Finality | Sub-second (optimistic) |
-| Throughput | 50k–100k+ TPS (target) |
-| Fee Model | Compute-unit based |
-
-AEKO Chain is optimized for **consumer-scale workloads** while maintaining **institutional-grade security**.
+The network consists of a decentralized mesh of **Validators** who produce blocks and **RPC Nodes** that serve data to applications. Unlike Ethereum's single global state, AEKO Chain uses **Sealevel** parallel processing to execute non-overlapping transactions simultaneously.
