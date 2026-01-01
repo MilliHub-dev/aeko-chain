@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Search, Box, Activity, Clock, Shield, Database, ArrowRight, Filter } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Explorer = () => {
   // Mock Data
@@ -117,7 +118,9 @@ const Explorer = () => {
                     <span className="font-mono text-sm font-bold text-white">{block.height.toString().slice(-4)}</span>
                   </div>
                   <div>
-                    <div className="text-aeko-accent font-mono text-sm hover:underline cursor-pointer">#{block.height}</div>
+                    <Link to={`/explorer/block/${block.height}`} className="text-aeko-accent font-mono text-sm hover:underline cursor-pointer">
+                      #{block.height}
+                    </Link>
                     <div className="text-xs text-gray-400 mt-1">
                       Proposer: <span className="text-white hover:text-aeko-accent cursor-pointer">{block.proposer}</span>
                     </div>
@@ -163,7 +166,9 @@ const Explorer = () => {
                     <span className="font-bold text-xs text-gray-400">Tx</span>
                   </div>
                   <div>
-                    <div className="text-aeko-accent font-mono text-sm hover:underline cursor-pointer">{tx.hash}</div>
+                    <Link to={`/explorer/tx/${tx.hash}`} className="text-aeko-accent font-mono text-sm hover:underline cursor-pointer">
+                      {tx.hash}
+                    </Link>
                     <div className="text-xs text-gray-400 mt-1">
                       From <span className="text-white hover:text-aeko-accent cursor-pointer">{tx.from}</span>
                       <span className="mx-1">→</span>

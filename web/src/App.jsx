@@ -6,6 +6,8 @@ import Token from './pages/Token';
 import Developers from './pages/Developers';
 import Contact from './pages/Contact';
 import Explorer from './pages/Explorer';
+import TransactionDetails from './pages/TransactionDetails';
+import BlockDetails from './pages/BlockDetails';
 import ScrollToTop from './components/ScrollToTop';
 
 function App() {
@@ -19,6 +21,8 @@ function App() {
         <Route path="/developers" element={<Developers />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/explorer" element={<Explorer />} />
+        <Route path="/explorer/tx/:hash" element={<TransactionDetails />} />
+        <Route path="/explorer/block/:height" element={<BlockDetails />} />
       </Routes>
     </Layout>
   );
