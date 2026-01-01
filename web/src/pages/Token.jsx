@@ -74,8 +74,8 @@ export default function Token() {
 
         {/* Key Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-24">
-          <TokenMetric label="Total Supply" value="1,000,000,000" subtext="Fixed Cap" delay={0.1} />
-          <TokenMetric label="Initial Circulating" value="150,000,000" subtext="15% of Total" delay={0.2} />
+          <TokenMetric label="Total Supply" value="10,000,000,000" subtext="Fixed Cap" delay={0.1} />
+          <TokenMetric label="Initial Circulating" value="1,500,000,000" subtext="15% of Total" delay={0.2} />
           <TokenMetric label="Staking APY" value="8% - 12%" subtext="Dynamic Rate" delay={0.3} />
           <TokenMetric label="Deflation Rate" value="~1.5%" subtext="Annual Burn" delay={0.4} />
         </div>
