@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import docsData from '../data/docs.json';
 
 export default function Docs() {
-  const [activeTab, setActiveTab] = useState("Introduction to AEKO");
+  const [activeTab, setActiveTab] = useState("Introduction to AEKO Chain");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const sections = docsData.sections;
