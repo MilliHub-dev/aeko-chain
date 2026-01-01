@@ -8,6 +8,7 @@ import Contact from './pages/Contact';
 import Explorer from './pages/Explorer';
 import TransactionDetails from './pages/TransactionDetails';
 import BlockDetails from './pages/BlockDetails';
+import Bridge from './pages/Bridge';
 import ScrollToTop from './components/ScrollToTop';
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
         <Route path="/explorer" element={<Explorer />} />
         <Route path="/explorer/tx/:hash" element={<TransactionDetails />} />
         <Route path="/explorer/block/:height" element={<BlockDetails />} />
+        <Route path="/bridge" element={<Bridge />} />
       </Routes>
     </Layout>
   );

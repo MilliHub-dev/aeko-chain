@@ -13,6 +13,7 @@ const Navbar = () => {
     { name: 'Docs', path: '/docs' },
     { name: 'Token', path: '/token' },
     { name: 'Developers', path: '/developers' },
+    { name: 'Bridge', path: '/bridge' },
     { name: 'Contact', path: '/contact' },
   ];
 
@@ -143,7 +144,7 @@ const Footer = () => {
               <li><Link to="/token" className="hover:text-aeko-accent">Tokenomics</Link></li>
               <li><Link to="/developers" className="hover:text-aeko-accent">Build on Aeko</Link></li>
               <li><Link to="/explorer" className="hover:text-aeko-accent">Explorer/Aeko Scan</Link></li>
-              <li><a href="#" className="hover:text-aeko-accent">Bridge</a></li>
+              <li><Link to="/bridge" className="hover:text-aeko-accent">Bridge</Link></li>
             </ul>
           </div>
 
