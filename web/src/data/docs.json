@@ -1,0 +1,130 @@
+{
+  "sections": [
+    {
+      "title": "Getting Started",
+      "items": ["Introduction to AEKO Chain", "Architecture Overview", "Wallet Setup", "Testnet Faucet"]
+    },
+    {
+      "title": "Permission Layer",
+      "items": ["Identity & Clearance", "Gatekeeper Programs", "Soulbound Tokens", "Compliance Hooks"]
+    },
+    {
+      "title": "SocialFi Features",
+      "items": ["Content Layer Storage", "Reputation Protocol", "Proof of Engagement", "Content Signatures"]
+    },
+    {
+      "title": "Core Protocol",
+      "items": ["AEKO SVM Runtime", "Sealevel Parallelization", "Consensus Mechanism", "Validator Guide"]
+    },
+    {
+      "title": "Smart Contracts",
+      "items": ["Rust SDK", "Program Architecture", "Native Syscalls", "Security Best Practices"]
+    },
+    {
+      "title": "Governance",
+      "items": ["Token House vs Citizen House", "Proposal Lifecycle", "Treasury Management", "Staking"]
+    }
+  ],
+  "content": {
+    "Introduction to AEKO Chain": {
+      "title": "Introduction to AEKO Chain",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Introduction to AEKO</h1><p class='text-xl text-gray-300'>AEKO Chain is the first Layer-1 blockchain built specifically for the <span class='text-aeko-accent'>SocialFi era</span>. It combines the high-performance execution of the Solana Virtual Machine (SVM) with a native Permission Layer to enable compliant, scalable, and identity-aware decentralized applications.</p><div class='grid grid-cols-1 md:grid-cols-2 gap-6 my-8'><div class='bg-white/5 p-6 rounded-xl border border-white/10'><h3 class='text-lg font-bold mb-2 text-white'>Performance</h3><p class='text-gray-400'>65,000+ TPS with sub-second finality using Sealevel parallelization.</p></div><div class='bg-white/5 p-6 rounded-xl border border-white/10'><h3 class='text-lg font-bold mb-2 text-white'>Identity</h3><p class='text-gray-400'>Native Permission Layer with varying clearance levels (L0-L5) for Sybil resistance.</p></div></div><h2 class='text-2xl font-bold mt-8 mb-4'>Why AEKO?</h2><p class='text-gray-300'>Traditional blockchains treat all users anonymously, which leads to bot spam and lack of accountability. AEKO introduces <strong>Proof of Humanity</strong> and <strong>Clearance Levels</strong> directly into the protocol, allowing developers to build apps that require specific user verifications without managing the infrastructure themselves.</p></div>"
+    },
+    "Architecture Overview": {
+      "title": "Architecture Overview",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Architecture Overview</h1><p class='text-gray-300'>AEKO's architecture consists of three primary layers working in unison:</p><div class='space-y-8 mt-8'><div class='relative pl-8 border-l-2 border-aeko-accent'><h3 class='text-xl font-bold text-white mb-2'>1. The Execution Layer (SVM)</h3><p class='text-gray-400'>A forked and optimized version of the Solana Virtual Machine. It handles transaction processing, smart contract execution, and state management. It utilizes Proof of History (PoH) for timekeeping and Sealevel for parallel transaction processing.</p></div><div class='relative pl-8 border-l-2 border-aeko-purple'><h3 class='text-xl font-bold text-white mb-2'>2. The Permission Layer</h3><p class='text-gray-400'>A set of native eBPF programs that intercept transactions before they reach the execution state. It validates user Clearance Levels (L0-L5) and enforces compliance rules defined by the network or specific dApps.</p></div><div class='relative pl-8 border-l-2 border-pink-500'><h3 class='text-xl font-bold text-white mb-2'>3. The Social Graph Layer</h3><p class='text-gray-400'>An indexed data layer that maps on-chain identities to social interactions. It uses Content Signatures to verify the authenticity of posts and interactions, feeding into the Reputation Protocol.</p></div></div></div>"
+    },
+    "Wallet Setup": {
+      "title": "Wallet Setup",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Wallet Setup</h1><p class='text-gray-300'>To interact with AEKO Chain, you need a compatible wallet. While AEKO supports standard SPL wallets, we recommend the official AEKO CLI or partner wallets for full identity feature support.</p><h3 class='text-xl font-bold text-white mt-8 mb-4'>CLI Wallet</h3><pre class='bg-black/50 p-4 rounded-lg overflow-x-auto text-sm text-gray-300'><code># Install AEKO CLI\ncurl -fsSL https://release.aeko.chain/install | bash\n\n# Generate a new keypair\naeko-keygen new --outfile ~/.config/aeko/id.json\n\n# Set config to devnet\naeko config set --url https://api.devnet.aeko.chain</code></pre><h3 class='text-xl font-bold text-white mt-8 mb-4'>Browser Wallets</h3><ul class='list-disc list-inside space-y-2 text-gray-400'><li><strong>Phantom (AEKO Fork)</strong>: Supports native L1 clearance display.</li><li><strong>Backpack</strong>: Integrated xNFT support for SocialFi apps.</li></ul></div>"
+    },
+    "Testnet Faucet": {
+      "title": "Testnet Faucet",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Testnet Faucet</h1><p class='text-gray-300'>Get free test AEKO to start building on the Devnet or Testnet.</p><div class='bg-white/5 p-6 rounded-xl border border-white/10 mt-6'><h3 class='text-lg font-bold mb-4 text-white'>Request Airdrop</h3><div class='flex gap-4'><input type='text' placeholder='Enter your wallet address' class='flex-1 bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-aeko-accent' /><button class='bg-aeko-accent text-black font-bold px-6 py-2 rounded-lg hover:bg-aeko-accent/80 transition-colors'>Request 10 AEKO</button></div><p class='text-xs text-gray-500 mt-2'>Limit: 10 AEKO per hour per IP.</p></div><h3 class='text-xl font-bold text-white mt-8 mb-4'>CLI Command</h3><pre class='bg-black/50 p-4 rounded-lg overflow-x-auto text-sm text-gray-300'><code>aeko airdrop 10 <recipient-address> --url devnet</code></pre></div>"
+    },
+    "Identity & Clearance": {
+      "title": "Identity & Clearance Levels",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Identity & Clearance Levels</h1><p class='text-gray-300'>AEKO replaces the standard 'anyone can interact' model with a tiered clearance system. This allows applications to gate access based on trust and verification.</p><div class='overflow-x-auto mt-8'><table class='w-full text-left border-collapse'><thead><tr class='border-b border-white/10'><th class='py-4 px-4 text-aeko-accent'>Level</th><th class='py-4 px-4 text-white'>Name</th><th class='py-4 px-4 text-white'>Requirement</th><th class='py-4 px-4 text-white'>Capabilities</th></tr></thead><tbody class='text-gray-400 text-sm'><tr class='border-b border-white/5 bg-white/5'><td class='py-4 px-4 font-mono text-aeko-accent'>L0</td><td class='py-4 px-4 font-bold text-white'>Guest</td><td class='py-4 px-4'>None (Public Key only)</td><td class='py-4 px-4'>Read-only access, no transaction capability.</td></tr><tr class='border-b border-white/5'><td class='py-4 px-4 font-mono text-aeko-accent'>L1</td><td class='py-4 px-4 font-bold text-white'>User</td><td class='py-4 px-4'>Basic Captcha / Email</td><td class='py-4 px-4'>Basic token transfers, low-value interactions.</td></tr><tr class='border-b border-white/5 bg-white/5'><td class='py-4 px-4 font-mono text-aeko-accent'>L2</td><td class='py-4 px-4 font-bold text-white'>Verified</td><td class='py-4 px-4'>Social Login / Phone</td><td class='py-4 px-4'>Standard dApp usage, posting content.</td></tr><tr class='border-b border-white/5'><td class='py-4 px-4 font-mono text-aeko-accent'>L3</td><td class='py-4 px-4 font-bold text-white'>Citizen</td><td class='py-4 px-4'>Gov ID / KYC</td><td class='py-4 px-4'>Governance voting, running a validator node.</td></tr></tbody></table></div></div>"
+    },
+    "Gatekeeper Programs": {
+      "title": "Gatekeeper Programs",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Gatekeeper Programs</h1><p class='text-gray-300'>Gatekeepers are specialized on-chain programs that verify user credentials and issue Clearance Levels. They act as the bridge between off-chain identity providers and on-chain permissions.</p><h3 class='text-xl font-bold text-white mt-6 mb-4'>How it Works</h3><ol class='list-decimal list-inside space-y-4 text-gray-400'><li><strong>User Request</strong>: A user requests a clearance upgrade via a client app.</li><li><strong>Off-Chain Verification</strong>: The app verifies the user's identity (e.g., via OAuth or Civic).</li><li><strong>On-Chain Issue</strong>: The Gatekeeper program validates the proof and mints a Soulbound Token (SBT) to the user's wallet.</li><li><strong>Permission Check</strong>: Subsequent transactions check for this SBT to authorize actions.</li></ol></div>"
+    },
+    "Soulbound Tokens": {
+      "title": "Soulbound Tokens",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Soulbound Tokens (SBTs)</h1><p class='text-gray-300'>SBTs are non-transferable NFTs that represent a user's identity, reputation, or achievements. On AEKO, they are the technical implementation of Clearance Levels.</p><ul class='space-y-4 text-gray-400 mt-6'><li class='bg-white/5 p-4 rounded-lg border border-white/10'><strong class='text-white block mb-1'>Non-Transferable</strong><br>Cannot be sent to another wallet, ensuring identity integrity.</li><li class='bg-white/5 p-4 rounded-lg border border-white/10'><strong class='text-white block mb-1'>Revocable</strong><br>Issuers can revoke SBTs if a user violates community guidelines or loses their clearance status.</li><li class='bg-white/5 p-4 rounded-lg border border-white/10'><strong class='text-white block mb-1'>Composable</strong><br>Smart contracts can query a user's SBT balance to instantly determine their eligibility for features.</li></ul></div>"
+    },
+    "Compliance Hooks": {
+      "title": "Compliance Hooks",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Compliance Hooks</h1><p class='text-gray-300'>Compliance Hooks are pre-transaction checks that enforce regulatory or community rules. They run at the protocol level, ensuring that no transaction can bypass required checks.</p><h3 class='text-xl font-bold text-white mt-6 mb-4'>Use Cases</h3><ul class='list-disc list-inside space-y-2 text-gray-400'><li><strong>KYC/AML Checks</strong>: Ensure sender and receiver are not on sanctions lists.</li><li><strong>Spending Limits</strong>: Enforce daily transaction limits for lower clearance levels.</li><li><strong>Content Moderation</strong>: Prevent interactions with flagged or banned content IDs.</li></ul></div>"
+    },
+    "Content Layer Storage": {
+      "title": "Content Layer Storage",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Content Layer Storage</h1><p class='text-gray-300'>AEKO utilizes a hybrid storage model to handle the massive data requirements of SocialFi applications efficiently.</p><div class='grid grid-cols-1 md:grid-cols-2 gap-6 mt-6'><div class='p-6 bg-white/5 border border-white/10 rounded-xl'><h3 class='text-lg font-bold text-white mb-2'>On-Chain (Hot)</h3><p class='text-sm text-gray-400'>Critical metadata, content hashes, and interaction pointers are stored directly in Solana account state for sub-second access.</p></div><div class='p-6 bg-white/5 border border-white/10 rounded-xl'><h3 class='text-lg font-bold text-white mb-2'>Off-Chain (Cold)</h3><p class='text-sm text-gray-400'>Actual media files (images, videos) and long-form text are stored on decentralized networks like Arweave or IPFS, anchored by their hashes on AEKO.</p></div></div></div>"
+    },
+    "Reputation Protocol": {
+      "title": "Reputation Protocol",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Reputation Protocol</h1><p class='text-gray-300'>The Reputation Protocol aggregates a user's on-chain activity into a quantifiable score. This score influences visibility, governance weight, and platform rewards.</p><h3 class='text-xl font-bold text-white mt-6 mb-4'>Scoring Factors</h3><ul class='list-disc list-inside space-y-2 text-gray-400'><li><strong>Clearance Level</strong>: Higher clearance provides a higher base score.</li><li><strong>Engagement Quality</strong>: 'Likes' from high-reputation users weigh more than those from low-reputation users.</li><li><strong>Tenure</strong>: Long-term active users gain a 'Time Multiplier'.</li></ul></div>"
+    },
+    "Proof of Engagement": {
+      "title": "Proof of Engagement",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Proof of Engagement (PoE)</h1><p class='text-gray-300'>PoE is AEKO's mechanism for distributing rewards to active participants. Unlike 'Click-to-Earn', PoE focuses on meaningful interactions verified by the Social Graph.</p><p class='text-gray-400 mt-4'>Validators analyze the engagement graph at the end of each epoch. Users who contributed high-quality content (measured by the Reputation Protocol) receive a portion of the network's inflation rewards.</p></div>"
+    },
+    "Content Signatures": {
+      "title": "Content Signatures",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Content Signatures</h1><p class='text-gray-300'>Every piece of content on AEKO is cryptographically signed by the creator's private key. This ensures provenance and authenticity.</p><h3 class='text-xl font-bold text-white mt-6 mb-4'>Benefits</h3><ul class='list-disc list-inside space-y-2 text-gray-400'><li><strong>Anti-Impersonation</strong>: Users can easily verify if a post is truly from a creator.</li><li><strong>Copyright</strong>: On-chain proof of authorship for digital assets.</li><li><strong>Censorship Resistance</strong>: Signed content cannot be altered by third parties, only hidden by frontend filters.</li></ul></div>"
+    },
+    "AEKO SVM Runtime": {
+      "title": "AEKO SVM Runtime",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>AEKO SVM Runtime</h1><p class='text-gray-300'>The core of AEKO Chain is a highly optimized fork of the Solana Virtual Machine (SVM). It is designed to handle the high throughput required for social media scale.</p><h3 class='text-xl font-bold text-white mt-6 mb-4'>Key Optimizations</h3><ul class='list-disc list-inside space-y-2 text-gray-400'><li><strong>Compute Budget</strong>: Increased compute units per block to allow for complex social graph traversals.</li><li><strong>Account Indexing</strong>: Native indexing for social relationships (followers/following).</li><li><strong>Fee Markets</strong>: Localized fee markets prevent one viral dApp from congesting the entire network.</li></ul></div>"
+    },
+    "Sealevel Parallelization": {
+      "title": "Sealevel Parallelization",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Sealevel Parallelization</h1><p class='text-gray-300'>Unlike EVM chains that process transactions sequentially, AEKO uses Sealevel to process thousands of smart contracts in parallel.</p><p class='text-gray-400 mt-4'>Transactions describe all the states they will read or write during execution. This allows the runtime to find non-overlapping transactions and execute them concurrently, utilizing all available validator cores.</p></div>"
+    },
+    "Consensus Mechanism": {
+      "title": "Consensus Mechanism",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Consensus Mechanism</h1><p class='text-gray-300'>AEKO uses <strong>Proof of History (PoH)</strong> combined with <strong>Tower BFT</strong> to achieve consensus.</p><div class='bg-white/5 p-6 rounded-xl border border-white/10 mt-6'><h3 class='text-lg font-bold text-white mb-2'>Proof of History</h3><p class='text-sm text-gray-400'>A cryptographic clock that allows validators to agree on the passage of time without communicating. This reduces messaging overhead and enables sub-second block times.</p></div><div class='bg-white/5 p-6 rounded-xl border border-white/10 mt-4'><h3 class='text-lg font-bold text-white mb-2'>Tower BFT</h3><p class='text-sm text-gray-400'>A PBFT-like consensus algorithm that leverages the PoH clock to reach finality quickly. Validators vote on forks, and votes have a lock-out period that increases exponentially.</p></div></div>"
+    },
+    "Validator Guide": {
+      "title": "Validator Guide",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Validator Guide</h1><p class='text-gray-300'>Help secure the AEKO network by running a validator node. Validators earn rewards for processing transactions and participating in consensus.</p><h3 class='text-xl font-bold text-white mt-6 mb-4'>Requirements</h3><ul class='list-disc list-inside space-y-2 text-gray-400'><li><strong>CPU</strong>: 12+ cores / 24+ threads (AMD Ryzen 9 or Threadripper recommended).</li><li><strong>RAM</strong>: 128GB+ DDR4/DDR5.</li><li><strong>Storage</strong>: 2TB+ NVMe SSD (PCIe Gen4).</li><li><strong>Clearance</strong>: L3 (Citizen) Identity Verification.</li></ul></div>"
+    },
+    "Rust SDK": {
+      "title": "Rust SDK",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Rust SDK</h1><p class='text-gray-300'>The primary language for developing on AEKO is Rust. The AEKO SDK provides all the necessary tools to write, test, and deploy high-performance programs.</p><h3 class='text-xl font-bold text-white mt-6 mb-4'>Example Program</h3><pre class='bg-black/50 p-4 rounded-lg overflow-x-auto text-sm text-gray-300'><code>use aeko_program::{\n    account_info::AccountInfo,\n    entrypoint,\n    entrypoint::ProgramResult,\n    pubkey::Pubkey,\n};\n\nentrypoint!(process_instruction);\n\nfn process_instruction(\n    program_id: &Pubkey,\n    accounts: &[AccountInfo],\n    instruction_data: &[u8],\n) -> ProgramResult {\n    // Your logic here\n    Ok(())\n}</code></pre></div>"
+    },
+    "Program Architecture": {
+      "title": "Program Architecture",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Program Architecture</h1><p class='text-gray-300'>AEKO programs are stateless. All state is stored in separate 'Accounts' passed to the program during execution.</p><h3 class='text-xl font-bold text-white mt-6 mb-4'>Key Components</h3><ul class='list-disc list-inside space-y-2 text-gray-400'><li><strong>Program ID</strong>: The public key of the executable account.</li><li><strong>Instruction Data</strong>: A byte array containing the command and arguments.</li><li><strong>Accounts</strong>: The data accounts the program will read from or write to.</li></ul></div>"
+    },
+    "Native Syscalls": {
+      "title": "Native Syscalls",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Native Syscalls</h1><p class='text-gray-300'>AEKO introduces specific syscalls for the Permission Layer that are not found in standard Solana.</p><ul class='list-disc list-inside space-y-2 text-gray-400 mt-4'><li><code>sol_get_clearance_level(pubkey)</code>: Returns the L0-L5 clearance of a user.</li><li><code>sol_verify_content_signature(data, signature, pubkey)</code>: Verifies a content signature on-chain cheaply.</li></ul></div>"
+    },
+    "Security Best Practices": {
+      "title": "Security Best Practices",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Security Best Practices</h1><p class='text-gray-300'>Writing secure smart contracts is critical. Follow these guidelines to prevent exploits.</p><ul class='list-disc list-inside space-y-2 text-gray-400 mt-4'><li><strong>Check Signers</strong>: Always verify that critical accounts have signed the transaction.</li><li><strong>Validate Owners</strong>: Ensure accounts are owned by the expected program.</li><li><strong>Integer Overflow</strong>: Use <code>checked_add</code> and <code>checked_sub</code> for math operations.</li><li><strong>PDA Validation</strong>: Always derive Program Derived Addresses on-chain to verify they are correct.</li></ul></div>"
+    },
+    "Governance": {
+      "title": "Governance",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Governance</h1><p class='text-gray-300'>AEKO utilizes a bicameral (two-house) governance system to balance economic interests with social integrity.</p></div>"
+    },
+    "Token House vs Citizen House": {
+      "title": "Token House vs Citizen House",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Token House vs Citizen House</h1><p class='text-gray-300'>To prevent plutocracy, AEKO splits governance into two houses:</p><div class='grid grid-cols-1 md:grid-cols-2 gap-6 mt-6'><div class='p-6 bg-white/5 border border-white/10 rounded-xl'><h3 class='text-lg font-bold text-white mb-2'>Token House</h3><p class='text-sm text-gray-400'><strong>Voting Power</strong>: 1 Token = 1 Vote.<br><strong>Scope</strong>: Protocol upgrades, inflation rates, treasury allocation.<br><strong>Goal</strong>: Economic security and growth.</p></div><div class='p-6 bg-white/5 border border-white/10 rounded-xl'><h3 class='text-lg font-bold text-white mb-2'>Citizen House</h3><p class='text-sm text-gray-400'><strong>Voting Power</strong>: 1 Citizen (L3+) = 1 Vote.<br><strong>Scope</strong>: Public goods funding, code of conduct, clearance criteria.<br><strong>Goal</strong>: Community alignment and fairness.</p></div></div></div>"
+    },
+    "Proposal Lifecycle": {
+      "title": "Proposal Lifecycle",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Proposal Lifecycle</h1><p class='text-gray-300'>How an idea becomes law on AEKO Chain.</p><ol class='list-decimal list-inside space-y-4 text-gray-400 mt-6'><li><strong>Discussion</strong>: Post the idea on the governance forum for feedback.</li><li><strong>Draft</strong>: Create a formal proposal with executable code or text.</li><li><strong>Submission</strong>: Submit to the relevant House (Token or Citizen).</li><li><strong>Voting</strong>: A 3-day voting period where delegates cast votes.</li><li><strong>Execution</strong>: If passed, the proposal is executed on-chain after a timelock.</li></ol></div>"
+    },
+    "Treasury Management": {
+      "title": "Treasury Management",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Treasury Management</h1><p class='text-gray-300'>The AEKO Community Treasury holds 15% of the initial token supply and receives a portion of transaction fees.</p><p class='text-gray-400 mt-4'>Funds are used for:</p><ul class='list-disc list-inside space-y-2 text-gray-400'><li><strong>Grants</strong>: Funding developers building on AEKO.</li><li><strong>Liquidity</strong>: Providing liquidity to official AMM pools.</li><li><strong>Operations</strong>: Marketing and legal expenses.</li></ul></div>"
+    },
+    "Staking": {
+      "title": "Staking",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Staking</h1><p class='text-gray-300'>Stake your AEKO to help secure the network and earn rewards.</p><h3 class='text-xl font-bold text-white mt-6 mb-4'>How to Stake</h3><ul class='list-disc list-inside space-y-2 text-gray-400'><li><strong>Delegation</strong>: You can delegate your tokens to a Validator without giving up custody.</li><li><strong>Lockup</strong>: Tokens are locked for an epoch (approx 2 days).</li><li><strong>Rewards</strong>: Rewards are automatically compounded into your stake account.</li></ul></div>"
+    }
+  }
+}

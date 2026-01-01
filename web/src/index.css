@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  --color-aeko-dark: #052E2B;
+  --color-aeko-light: #073d39;
+  --color-aeko-accent: #5FB51F;
+  --color-aeko-purple: #7000ff;
+  
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "Fira Code", monospace;
+}
+
+:root {
+  background-color: var(--color-aeko-dark);
+  color: #ffffff;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+@utility text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-aeko-accent to-aeko-purple;
+}
