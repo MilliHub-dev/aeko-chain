@@ -57,7 +57,7 @@ export default function Bridge() {
   
   const networks = {
     ethereum: { name: 'Ethereum', color: 'bg-blue-600', icon: 'E' },
-    aeko: { name: 'AEKO Chain', color: 'bg-aeko-accent text-black', icon: 'A' },
+    aeko: { name: 'AEKO ', color: 'bg-aeko-accent text-black', icon: 'A' },
     solana: { name: 'Solana', color: 'bg-purple-600', icon: 'S' },
   };
 
