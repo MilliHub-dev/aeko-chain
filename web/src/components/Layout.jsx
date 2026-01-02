@@ -113,6 +113,30 @@ const Navbar = () => {
                     {link.name}
                   </Link>
                 ))}
+                
+                <div className="border-t border-white/10 my-2 pt-2">
+                  <Link
+                    to="/explorer"
+                    onClick={() => setIsOpen(false)}
+                    className={`flex items-center gap-2 px-4 py-3 rounded-xl text-base font-medium transition-colors ${
+                      location.pathname === '/explorer'
+                        ? 'bg-aeko-accent/10 text-aeko-accent'
+                        : 'text-gray-300 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <Activity size={20} />
+                    Aeko Scan
+                  </Link>
+                  <a
+                    href="https://github.com/MilliHub-dev/aeko-chain"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-3 rounded-xl text-base font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+                  >
+                    <Github size={20} />
+                    GitHub
+                  </a>
+                </div>
               </div>
             </motion.div>
           )}
