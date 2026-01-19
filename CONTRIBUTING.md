@@ -1,4 +1,4 @@
-# Solana Coding Guidelines
+# AEKO Chain Coding Guidelines
 
 The goal of these guidelines is to improve developer productivity by allowing
 developers to jump into any file in the codebase and not need to adapt to
@@ -45,8 +45,8 @@ $ git pull --rebase upstream master
 
 If there are no functional changes, PRs can be very large and that's no
 problem. If, however, your changes are making meaningful changes or additions,
-then about 1,000 lines of changes is about the most you should ask a Solana
-maintainer to review.
+then about 1,000 lines of changes is about the most you should ask a maintainer
+to review.
 
 ### Should I send small PRs as I develop large, new components?
 

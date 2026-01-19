@@ -88,7 +88,7 @@ export default function Home() {
     {
       icon: Code,
       title: "Developer Friendly",
-      description: "Write smart contracts in Rust. Full compatibility with existing Solana tooling while adding powerful identity hooks."
+      description: "Write smart contracts in Rust. Full compatibility with existing SVM tooling while adding powerful identity hooks."
     },
     {
       icon: Users,
