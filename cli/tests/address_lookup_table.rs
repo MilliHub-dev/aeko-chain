@@ -1,20 +1,20 @@
 use {
-    solana_cli::{
+    aeko_cli::{
         address_lookup_table::{
             AddressLookupTableCliCommand, DEACTIVATE_LOOKUP_TABLE_WARNING,
             FREEZE_LOOKUP_TABLE_WARNING,
         },
         cli::{process_command, CliCommand, CliConfig},
     },
-    solana_cli_output::{CliAddressLookupTable, CliAddressLookupTableCreated, OutputFormat},
-    solana_faucet::faucet::run_local_faucet,
-    solana_sdk::{
-        native_token::LAMPORTS_PER_SOL,
+    aeko_cli_output::{CliAddressLookupTable, CliAddressLookupTableCreated, OutputFormat},
+    aeko_faucet::faucet::run_local_faucet,
+    aeko_sdk::{
+        native_token::LAMPORTS_PER_AEKO,
         pubkey::Pubkey,
         signature::{Keypair, Signer},
     },
-    solana_streamer::socket::SocketAddrSpace,
-    solana_test_validator::TestValidator,
+    aeko_streamer::socket::SocketAddrSpace,
+    aeko_test_validator::TestValidator,
     std::str::FromStr,
 };
 
@@ -35,7 +35,7 @@ fn test_cli_create_extend_and_freeze_address_lookup_table() {
     // Airdrop SOL for transaction fees
     config.command = CliCommand::Airdrop {
         pubkey: None,
-        lamports: 10 * LAMPORTS_PER_SOL,
+        lamports: 10 * LAMPORTS_PER_AEKO,
     };
     process_command(&config).unwrap();
 
@@ -150,7 +150,7 @@ fn test_cli_create_and_deactivate_address_lookup_table() {
     // Airdrop SOL for transaction fees
     config.command = CliCommand::Airdrop {
         pubkey: None,
-        lamports: 10 * LAMPORTS_PER_SOL,
+        lamports: 10 * LAMPORTS_PER_AEKO,
     };
     process_command(&config).unwrap();
 

@@ -7,7 +7,7 @@ use {
             RemoteWalletType,
         },
     },
-    solana_sdk::{
+    aeko_sdk::{
         derivation_path::DerivationPath,
         pubkey::Pubkey,
         signature::{Signature, Signer, SignerError},

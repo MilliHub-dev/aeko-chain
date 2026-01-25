@@ -1,7 +1,7 @@
 [package]
-name = "solana-program-runtime"
-description = "Solana program runtime"
-documentation = "https://docs.rs/solana-program-runtime"
+name = "aeko-program-runtime"
+description = "AEKO program runtime"
+documentation = "https://docs.rs/aeko-program-runtime"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -22,27 +22,29 @@ num-traits = { workspace = true }
 percentage = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
-solana-frozen-abi = { workspace = true }
-solana-frozen-abi-macro = { workspace = true }
-solana-measure = { workspace = true }
-solana-metrics = { workspace = true }
-solana-sdk = { workspace = true }
+aeko-frozen-abi = { workspace = true }
+aeko-frozen-abi-macro = { workspace = true }
+aeko-measure = { workspace = true }
+aeko-metrics = { workspace = true }
+aeko-sdk = { workspace = true }
 solana_rbpf = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 assert_matches = { workspace = true }
 libsecp256k1 = { workspace = true }
-solana-logger = { workspace = true }
-solana-sdk = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-logger = { workspace = true }
+aeko-sdk = { workspace = true, features = ["dev-context-only-utils"] }
 test-case = { workspace = true }
 
 [lib]
 crate-type = ["lib"]
-name = "solana_program_runtime"
+name = "aeko_program_runtime"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
 rustc_version = { workspace = true }
+
+

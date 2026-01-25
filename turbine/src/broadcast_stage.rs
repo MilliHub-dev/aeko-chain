@@ -12,22 +12,22 @@ use {
     bytes::Bytes,
     crossbeam_channel::{unbounded, Receiver, RecvError, RecvTimeoutError, Sender},
     itertools::{Either, Itertools},
-    solana_gossip::{
+    aeko_gossip::{
         cluster_info::{ClusterInfo, ClusterInfoError},
         contact_info::Protocol,
     },
-    solana_ledger::{blockstore::Blockstore, shred::Shred},
-    solana_measure::measure::Measure,
-    solana_metrics::{inc_new_counter_error, inc_new_counter_info},
-    solana_poh::poh_recorder::WorkingBankEntry,
-    solana_runtime::bank_forks::BankForks,
-    solana_sdk::{
+    aeko_ledger::{blockstore::Blockstore, shred::Shred},
+    aeko_measure::measure::Measure,
+    aeko_metrics::{inc_new_counter_error, inc_new_counter_info},
+    aeko_poh::poh_recorder::WorkingBankEntry,
+    aeko_runtime::bank_forks::BankForks,
+    aeko_sdk::{
         clock::Slot,
         pubkey::Pubkey,
         signature::Keypair,
         timing::{timestamp, AtomicInterval},
     },
-    solana_streamer::{
+    aeko_streamer::{
         sendmmsg::{batch_send, SendPktsError},
         socket::SocketAddrSpace,
     },
@@ -63,9 +63,9 @@ pub(crate) type TransmitReceiver = Receiver<(Arc<Vec<Shred>>, Option<BroadcastSh
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
-    Blockstore(#[from] solana_ledger::blockstore::BlockstoreError),
+    Blockstore(#[from] aeko_ledger::blockstore::BlockstoreError),
     #[error(transparent)]
-    ClusterInfo(#[from] solana_gossip::cluster_info::ClusterInfoError),
+    ClusterInfo(#[from] aeko_gossip::cluster_info::ClusterInfoError),
     #[error("Invalid Merkle root, slot: {slot}, index: {index}")]
     InvalidMerkleRoot { slot: Slot, index: u64 },
     #[error(transparent)]
@@ -81,7 +81,7 @@ pub enum Error {
     #[error("Shred not found, slot: {slot}, index: {index}")]
     ShredNotFound { slot: Slot, index: u64 },
     #[error(transparent)]
-    TransportError(#[from] solana_sdk::transport::TransportError),
+    TransportError(#[from] aeko_sdk::transport::TransportError),
     #[error("Unknown last index, slot: {0}")]
     UnknownLastIndex(Slot),
     #[error("Unknown slot meta, slot: {0}")]
@@ -512,16 +512,16 @@ pub mod test {
         super::*,
         crossbeam_channel::unbounded,
         rand::Rng,
-        solana_entry::entry::create_ticks,
-        solana_gossip::cluster_info::{ClusterInfo, Node},
-        solana_ledger::{
+        aeko_entry::entry::create_ticks,
+        aeko_gossip::cluster_info::{ClusterInfo, Node},
+        aeko_ledger::{
             blockstore::Blockstore,
             genesis_utils::{create_genesis_config, GenesisConfigInfo},
             get_tmp_ledger_path_auto_delete,
             shred::{max_ticks_per_n_shreds, ProcessShredsStats, ReedSolomonCache, Shredder},
         },
-        solana_runtime::bank::Bank,
-        solana_sdk::{
+        aeko_runtime::bank::Bank,
+        aeko_sdk::{
             hash::Hash,
             signature::{Keypair, Signer},
         },
@@ -707,7 +707,7 @@ pub mod test {
 
     #[test]
     fn test_broadcast_ledger() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let ledger_path = get_tmp_ledger_path_auto_delete!();
 
         // Create the leader scheduler

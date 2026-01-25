@@ -4,7 +4,7 @@ extern crate lazy_static;
 
 use {
     clap::{crate_description, crate_name, App, AppSettings, Arg, ArgMatches, SubCommand},
-    solana_clap_utils::{
+    aeko_clap_utils::{
         input_parsers::pubkey_of,
         input_validators::{is_pubkey, is_url},
     },
@@ -83,11 +83,11 @@ fn handle_init(matches: &ArgMatches<'_>, config_file: &str) -> Result<(), String
 }
 
 pub fn main() -> Result<(), String> {
-    solana_logger::setup();
+    aeko_logger::setup();
 
     let matches = App::new(crate_name!())
         .about(crate_description!())
-        .version(solana_version::version!())
+        .version(aeko_version::version!())
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .arg({
             let arg = Arg::with_name("config_file")
@@ -279,11 +279,11 @@ pub fn main() -> Result<(), String> {
 }
 
 pub fn main_init() -> Result<(), String> {
-    solana_logger::setup();
+    aeko_logger::setup();
 
     let matches = App::new("solana-install-init")
         .about("Initializes a new installation")
-        .version(solana_version::version!())
+        .version(aeko_version::version!())
         .arg({
             let arg = Arg::with_name("config_file")
                 .short("c")

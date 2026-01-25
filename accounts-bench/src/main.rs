@@ -5,7 +5,7 @@ extern crate log;
 use {
     clap::{crate_description, crate_name, value_t, App, Arg},
     rayon::prelude::*,
-    solana_accounts_db::{
+    aeko_accounts_db::{
         accounts::Accounts,
         accounts_db::{
             test_utils::{create_test_accounts, update_accounts_bench},
@@ -15,8 +15,8 @@ use {
         accounts_index::AccountSecondaryIndexes,
         ancestors::Ancestors,
     },
-    solana_measure::measure::Measure,
-    solana_sdk::{
+    aeko_measure::measure::Measure,
+    aeko_sdk::{
         genesis_config::ClusterType, pubkey::Pubkey, rent_collector::RentCollector,
         sysvar::epoch_schedule::EpochSchedule,
     },
@@ -24,11 +24,11 @@ use {
 };
 
 fn main() {
-    solana_logger::setup();
+    aeko_logger::setup();
 
     let matches = App::new(crate_name!())
         .about(crate_description!())
-        .version(solana_version::version!())
+        .version(aeko_version::version!())
         .arg(
             Arg::with_name("num_slots")
                 .long("num_slots")
@@ -133,7 +133,7 @@ fn main() {
             let results_store = accounts.accounts_db.update_accounts_hash_with_verify(
                 CalcAccountsHashDataSource::Storages,
                 false,
-                solana_sdk::clock::Slot::default(),
+                aeko_sdk::clock::Slot::default(),
                 &ancestors,
                 None,
                 &EpochSchedule::default(),

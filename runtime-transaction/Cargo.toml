@@ -1,7 +1,7 @@
 [package]
-name = "solana-runtime-transaction"
-description = "Solana runtime-transaction"
-documentation = "https://docs.rs/solana-runtime-transaction"
+name = "aeko-runtime-transaction"
+description = "AEKO runtime-transaction"
+documentation = "https://docs.rs/aeko-runtime-transaction"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -11,21 +11,22 @@ edition = { workspace = true }
 
 [dependencies]
 log = { workspace = true }
-solana-program-runtime = { workspace = true }
-solana-sdk = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
 thiserror = { workspace = true }
 
 [lib]
 crate-type = ["lib"]
-name = "solana_runtime_transaction"
+name = "aeko_runtime_transaction"
 
 [dev-dependencies]
 bincode = { workspace = true }
 rand = { workspace = true }
-solana-program ={ workspace = true }
+aeko-program ={ workspace = true }
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
 rustc_version = { workspace = true }
+

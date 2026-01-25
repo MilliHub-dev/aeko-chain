@@ -6,13 +6,13 @@ use {
         snapshot_utils::{self, ArchiveFormat, BankSnapshotInfo, SnapshotVersion},
     },
     log::*,
-    solana_accounts_db::{
+    aeko_accounts_db::{
         accounts::Accounts,
         accounts_db::{AccountStorageEntry, AccountsDb},
         accounts_hash::{AccountsHash, AccountsHashKind},
         epoch_accounts_hash::EpochAccountsHash,
     },
-    solana_sdk::{
+    aeko_sdk::{
         clock::Slot, feature_set, rent_collector::RentCollector,
         sysvar::epoch_schedule::EpochSchedule,
     },

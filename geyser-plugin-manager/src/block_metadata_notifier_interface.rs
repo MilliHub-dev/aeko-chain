@@ -1,5 +1,5 @@
 use {
-    solana_sdk::{clock::UnixTimestamp, pubkey::Pubkey, reward_info::RewardInfo},
+    aeko_sdk::{clock::UnixTimestamp, pubkey::Pubkey, reward_info::RewardInfo},
     std::sync::{Arc, RwLock},
 };
 

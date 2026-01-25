@@ -1,7 +1,7 @@
 [package]
-name = "solana-account-decoder"
+name = "aeko-account-decoder"
 description = "Solana account decoder"
-documentation = "https://docs.rs/solana-account-decoder"
+documentation = "https://docs.rs/aeko-account-decoder"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -19,8 +19,8 @@ lazy_static = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
-solana-config-program = { workspace = true }
-solana-sdk = { workspace = true }
+aeko-config-program = { workspace = true }
+aeko-sdk = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 spl-token-2022 = { workspace = true, features = ["no-entrypoint"] }
 spl-token-group-interface = { workspace = true }
@@ -34,3 +34,4 @@ spl-pod = { workspace = true }
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+

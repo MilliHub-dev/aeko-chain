@@ -1,6 +1,6 @@
 //! A type to hold data for the [`EpochRewards` sysvar][sv].
 //!
-//! [sv]: https://docs.solanalabs.com/runtime/sysvars#epochrewards
+//! [sv]: https://docs.aeko.network/runtime/sysvars#epochrewards
 //!
 //! The sysvar ID is declared in [`sysvar::epoch_rewards`].
 //!

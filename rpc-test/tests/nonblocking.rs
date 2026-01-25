@@ -1,11 +1,11 @@
 use {
-    solana_client::{
+    aeko_client::{
         connection_cache::Protocol,
         nonblocking::tpu_client::{LeaderTpuService, TpuClient},
         tpu_client::TpuClientConfig,
     },
-    solana_sdk::{clock::DEFAULT_MS_PER_SLOT, pubkey::Pubkey, system_transaction},
-    solana_test_validator::TestValidatorGenesis,
+    aeko_sdk::{clock::DEFAULT_MS_PER_SLOT, pubkey::Pubkey, system_transaction},
+    aeko_test_validator::TestValidatorGenesis,
     std::sync::{
         atomic::{AtomicBool, Ordering},
         Arc,

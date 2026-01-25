@@ -1,7 +1,7 @@
 use {
     crate::{StoredExtendedRewards, StoredTransactionStatusMeta},
-    solana_account_decoder::parse_token::{real_number_string_trimmed, UiTokenAmount},
-    solana_sdk::{
+    aeko_account_decoder::parse_token::{real_number_string_trimmed, UiTokenAmount},
+    aeko_sdk::{
         hash::Hash,
         instruction::{CompiledInstruction, InstructionError},
         message::{
@@ -14,7 +14,7 @@ use {
         transaction::{Transaction, TransactionError, VersionedTransaction},
         transaction_context::TransactionReturnData,
     },
-    solana_transaction_status::{
+    aeko_transaction_status::{
         ConfirmedBlock, EntrySummary, InnerInstruction, InnerInstructions, Reward, RewardType,
         TransactionByAddrInfo, TransactionStatusMeta, TransactionTokenBalance,
         TransactionWithStatusMeta, VersionedConfirmedBlock, VersionedTransactionWithStatusMeta,

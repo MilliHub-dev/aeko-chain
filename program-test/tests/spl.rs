@@ -1,6 +1,6 @@
 use {
-    solana_program_test::{programs::spl_programs, ProgramTest},
-    solana_sdk::{
+    aeko_program_test::{programs::spl_programs, ProgramTest},
+    aeko_sdk::{
         bpf_loader, bpf_loader_upgradeable,
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,

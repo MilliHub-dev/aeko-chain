@@ -1,6 +1,6 @@
 [package]
-name = "solana-sbf-rust-remaining-compute-units"
-documentation = "https://docs.rs/solana-sbf-rust-remaining-compute-units"
+name = "aeko-sbf-rust-remaining-compute-units"
+documentation = "https://docs.rs/aeko-sbf-rust-remaining-compute-units"
 version = { workspace = true }
 description = { workspace = true }
 authors = { workspace = true }
@@ -15,12 +15,12 @@ test-bpf = []
 dummy-for-ci-check = ["test-bpf"]
 
 [dependencies]
-solana-program = { workspace = true }
+aeko-program = { workspace = true }
 
 [dev-dependencies]
-solana-program-runtime = { workspace = true }
-solana-program-test = { workspace = true }
-solana-sdk = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-program-test = { workspace = true }
+aeko-sdk = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "lib"]

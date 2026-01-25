@@ -6,9 +6,9 @@ use {
         latest_validator_votes_for_frozen_banks::LatestValidatorVotesForFrozenBanks,
         progress_map::ProgressMap, tree_diff::TreeDiff, Tower,
     },
-    solana_measure::measure::Measure,
-    solana_runtime::{bank::Bank, bank_forks::BankForks, epoch_stakes::EpochStakes},
-    solana_sdk::{
+    aeko_measure::measure::Measure,
+    aeko_runtime::{bank::Bank, bank_forks::BankForks, epoch_stakes::EpochStakes},
+    aeko_sdk::{
         clock::{Epoch, Slot},
         epoch_schedule::EpochSchedule,
         hash::Hash,
@@ -1421,8 +1421,8 @@ mod test {
         super::*,
         crate::vote_simulator::VoteSimulator,
         itertools::Itertools,
-        solana_runtime::{bank::Bank, bank_utils},
-        solana_sdk::{hash::Hash, slot_history::SlotHistory},
+        aeko_runtime::{bank::Bank, bank_utils},
+        aeko_sdk::{hash::Hash, slot_history::SlotHistory},
         std::{collections::HashSet, ops::Range},
         trees::tr,
     };

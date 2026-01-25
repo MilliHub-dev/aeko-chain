@@ -1,7 +1,7 @@
 [package]
-name = "solana-metrics"
-description = "Solana Metrics"
-documentation = "https://docs.rs/solana-metrics"
+name = "aeko-metrics"
+description = "AEKO Metrics"
+documentation = "https://docs.rs/aeko-metrics"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -15,7 +15,7 @@ gethostname = { workspace = true }
 lazy_static = { workspace = true }
 log = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "brotli", "deflate", "gzip", "rustls-tls", "json"] }
-solana-sdk = { workspace = true }
+aeko-sdk = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
@@ -24,10 +24,11 @@ rand = { workspace = true }
 serial_test = { workspace = true }
 
 [lib]
-name = "solana_metrics"
+name = "aeko_metrics"
 
 [[bench]]
 name = "metrics"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+

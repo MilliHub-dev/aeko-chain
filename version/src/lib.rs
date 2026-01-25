@@ -4,11 +4,11 @@ extern crate serde_derive;
 pub use self::legacy::{LegacyVersion1, LegacyVersion2};
 use {
     serde_derive::{Deserialize, Serialize},
-    solana_sdk::{sanitize::Sanitize, serde_varint},
+    aeko_sdk::{sanitize::Sanitize, serde_varint},
     std::{convert::TryInto, fmt},
 };
 #[macro_use]
-extern crate solana_frozen_abi_macro;
+extern crate aeko_frozen_abi_macro;
 
 mod legacy;
 
@@ -52,7 +52,7 @@ fn compute_commit(sha1: Option<&'static str>) -> Option<u32> {
 impl Default for Version {
     fn default() -> Self {
         let feature_set = u32::from_le_bytes(
-            solana_sdk::feature_set::ID.as_ref()[..4]
+            aeko_sdk::feature_set::ID.as_ref()[..4]
                 .try_into()
                 .unwrap(),
         );

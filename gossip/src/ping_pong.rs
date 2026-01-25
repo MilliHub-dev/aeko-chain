@@ -3,7 +3,7 @@ use {
     lru::LruCache,
     rand::{CryptoRng, Fill, Rng},
     serde::Serialize,
-    solana_sdk::{
+    aeko_sdk::{
         hash::{self, Hash},
         pubkey::Pubkey,
         sanitize::{Sanitize, SanitizeError},

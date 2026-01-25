@@ -4,14 +4,14 @@ extern crate test;
 
 use {
     rand::{thread_rng, Rng},
-    solana_accounts_db::{
+    aeko_accounts_db::{
         account_info::AccountInfo,
         accounts_index::{
             AccountSecondaryIndexes, AccountsIndex, UpsertReclaim,
             ACCOUNTS_INDEX_CONFIG_FOR_BENCHMARKS,
         },
     },
-    solana_sdk::{account::AccountSharedData, pubkey},
+    aeko_sdk::{account::AccountSharedData, pubkey},
     std::sync::Arc,
     test::Bencher,
 };

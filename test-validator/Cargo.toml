@@ -1,6 +1,6 @@
 [package]
-name = "solana-test-validator"
-description = "Blockchain, Rebuilt for Scale"
+name = "aeko-test-validator"
+description = "AEKO Chain, Rebuilt for SocialFi Scale"
 readme = "../README.md"
 version = { workspace = true }
 authors = { workspace = true }
@@ -16,23 +16,23 @@ crossbeam-channel = { workspace = true }
 log = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
-solana-accounts-db = { workspace = true }
-solana-cli-output = { workspace = true }
-solana-client = { workspace = true }
-solana-core = { workspace = true }
-solana-geyser-plugin-manager = { workspace = true }
-solana-gossip = { workspace = true }
-solana-ledger = { workspace = true }
-solana-logger = { workspace = true }
-solana-net-utils = { workspace = true }
-solana-program-runtime = { workspace = true }
-solana-program-test = { workspace = true }
-solana-rpc = { workspace = true }
-solana-rpc-client = { workspace = true }
-solana-runtime = { workspace = true }
-solana-sdk = { workspace = true }
-solana-streamer = { workspace = true }
-solana-tpu-client = { workspace = true }
+aeko-accounts-db = { workspace = true }
+aeko-cli-output = { workspace = true }
+aeko-client = { workspace = true }
+aeko-core = { workspace = true }
+aeko-geyser-plugin-manager = { workspace = true }
+aeko-gossip = { workspace = true }
+aeko-ledger = { workspace = true }
+aeko-logger = { workspace = true }
+aeko-net-utils = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-program-test = { workspace = true }
+aeko-rpc = { workspace = true }
+aeko-rpc-client = { workspace = true }
+aeko-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-streamer = { workspace = true }
+aeko-tpu-client = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 
 [package.metadata.docs.rs]

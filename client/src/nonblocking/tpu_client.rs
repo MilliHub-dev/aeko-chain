@@ -1,19 +1,19 @@
-pub use solana_tpu_client::nonblocking::tpu_client::{LeaderTpuService, TpuSenderError};
+pub use aeko_tpu_client::nonblocking::tpu_client::{LeaderTpuService, TpuSenderError};
 use {
     crate::{connection_cache::ConnectionCache, tpu_client::TpuClientConfig},
-    solana_connection_cache::connection_cache::{
+    aeko_connection_cache::connection_cache::{
         ConnectionCache as BackendConnectionCache, ConnectionManager, ConnectionPool,
         NewConnectionConfig,
     },
-    solana_quic_client::{QuicConfig, QuicConnectionManager, QuicPool},
-    solana_rpc_client::nonblocking::rpc_client::RpcClient,
-    solana_sdk::{
+    aeko_quic_client::{QuicConfig, QuicConnectionManager, QuicPool},
+    aeko_rpc_client::nonblocking::rpc_client::RpcClient,
+    aeko_sdk::{
         message::Message,
         signers::Signers,
         transaction::{Transaction, TransactionError},
         transport::Result as TransportResult,
     },
-    solana_tpu_client::nonblocking::tpu_client::{Result, TpuClient as BackendTpuClient},
+    aeko_tpu_client::nonblocking::tpu_client::{Result, TpuClient as BackendTpuClient},
     std::sync::Arc,
 };
 

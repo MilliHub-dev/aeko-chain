@@ -3,7 +3,7 @@
 use {
     bip39::{Mnemonic, MnemonicType, Seed},
     clap::{crate_description, crate_name, value_parser, Arg, ArgMatches, Command},
-    solana_clap_v3_utils::{
+    aeko_clap_v3_utils::{
         input_parsers::STDOUT_OUTFILE_TOKEN,
         input_validators::is_prompt_signer_source,
         keygen::{
@@ -21,9 +21,9 @@ use {
         },
         DisplayError,
     },
-    solana_cli_config::{Config, CONFIG_FILE},
-    solana_remote_wallet::remote_wallet::RemoteWalletManager,
-    solana_sdk::{
+    aeko_cli_config::{Config, CONFIG_FILE},
+    aeko_remote_wallet::remote_wallet::RemoteWalletManager,
+    aeko_sdk::{
         instruction::{AccountMeta, Instruction},
         message::Message,
         pubkey::{write_pubkey_file, Pubkey},
@@ -46,7 +46,7 @@ use {
 };
 
 mod smallest_length_44_public_key {
-    use solana_sdk::{pubkey, pubkey::Pubkey};
+    use aeko_sdk::{pubkey, pubkey::Pubkey};
 
     pub(super) static PUBKEY: Pubkey = pubkey!("21111111111111111111111111111111111111111111");
 
@@ -429,7 +429,7 @@ fn app<'a>(num_threads: &'a str, crate_version: &'a str) -> Command<'a> {
 
 fn main() -> Result<(), Box<dyn error::Error>> {
     let default_num_threads = num_cpus::get().to_string();
-    let matches = app(&default_num_threads, solana_version::version!())
+    let matches = app(&default_num_threads, aeko_version::version!())
         .try_get_matches()
         .unwrap_or_else(|e| e.exit());
     do_main(&matches).map_err(|err| DisplayError::new_as_boxed(err).into())
@@ -753,8 +753,8 @@ mod tests {
 
     fn process_test_command(args: &[&str]) -> Result<(), Box<dyn error::Error>> {
         let default_num_threads = num_cpus::get().to_string();
-        let solana_version = solana_version::version!();
-        let app_matches = app(&default_num_threads, solana_version).get_matches_from(args);
+        let aeko_version = aeko_version::version!();
+        let app_matches = app(&default_num_threads, aeko_version).get_matches_from(args);
         do_main(&app_matches)
     }
 
@@ -790,10 +790,10 @@ mod tests {
     #[test]
     fn test_arguments() {
         let default_num_threads = num_cpus::get().to_string();
-        let solana_version = solana_version::version!();
+        let aeko_version = aeko_version::version!();
 
         // run clap internal assert statements
-        app(&default_num_threads, solana_version).debug_assert();
+        app(&default_num_threads, aeko_version).debug_assert();
     }
 
     #[test]
@@ -902,7 +902,7 @@ mod tests {
             ])
             .unwrap();
 
-            let result_pubkey = solana_sdk::pubkey::read_pubkey_file(&outfile_path).unwrap();
+            let result_pubkey = aeko_sdk::pubkey::read_pubkey_file(&outfile_path).unwrap();
             assert_eq!(result_pubkey, expected_pubkey);
         }
 
@@ -921,7 +921,7 @@ mod tests {
             ])
             .unwrap();
 
-            let result_pubkey = solana_sdk::pubkey::read_pubkey_file(&outfile_path).unwrap();
+            let result_pubkey = aeko_sdk::pubkey::read_pubkey_file(&outfile_path).unwrap();
             assert_eq!(result_pubkey, expected_pubkey);
         }
 
@@ -945,7 +945,7 @@ mod tests {
             ])
             .unwrap();
 
-            let result_pubkey = solana_sdk::pubkey::read_pubkey_file(&outfile_path).unwrap();
+            let result_pubkey = aeko_sdk::pubkey::read_pubkey_file(&outfile_path).unwrap();
             assert_eq!(result_pubkey, expected_pubkey);
         }
 

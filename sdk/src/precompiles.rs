@@ -1,4 +1,4 @@
-//! Solana precompiled programs.
+//! AEKO precompiled programs.
 
 #![cfg(feature = "full")]
 

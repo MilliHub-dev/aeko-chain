@@ -5,13 +5,13 @@ extern crate test;
 
 use {
     rand::Rng,
-    solana_entry::entry::{create_ticks, Entry},
-    solana_ledger::shred::{
+    aeko_entry::entry::{create_ticks, Entry},
+    aeko_ledger::shred::{
         max_entries_per_n_shred, max_ticks_per_n_shreds, ProcessShredsStats, ReedSolomonCache,
         Shred, ShredFlags, Shredder, DATA_SHREDS_PER_FEC_BLOCK, LEGACY_SHRED_DATA_CAPACITY,
     },
-    solana_perf::test_tx,
-    solana_sdk::{hash::Hash, signature::Keypair},
+    aeko_perf::test_tx,
+    aeko_sdk::{hash::Hash, signature::Keypair},
     test::Bencher,
 };
 

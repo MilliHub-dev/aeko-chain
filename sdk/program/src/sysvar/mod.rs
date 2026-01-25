@@ -10,7 +10,7 @@
 //! directly from the runtime, as in this example that logs the `clock` sysvar:
 //!
 //! ```
-//! use solana_program::{
+//! use aeko_program::{
 //!     account_info::AccountInfo,
 //!     clock,
 //!     entrypoint::ProgramResult,
@@ -36,7 +36,7 @@
 //! again logs the [`clock`] sysvar.
 //!
 //! ```
-//! use solana_program::{
+//! use aeko_program::{
 //!     account_info::{next_account_info, AccountInfo},
 //!     clock,
 //!     entrypoint::ProgramResult,
@@ -79,7 +79,7 @@
 //!
 //! For more details see the Solana [documentation on sysvars][sysvardoc].
 //!
-//! [sysvardoc]: https://docs.solanalabs.com/runtime/sysvars
+//! [sysvardoc]: https://docs.aeko.network/runtime/sysvars
 
 use {
     crate::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey},

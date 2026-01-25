@@ -7,7 +7,7 @@
 //!
 //! [`legacy`]: crate::message::legacy
 //! [`v0`]: crate::message::v0
-//! [future message format]: https://docs.solanalabs.com/proposals/versioned-transactions
+//! [future message format]: https://docs.aeko.network/proposals/versioned-transactions
 
 #![allow(clippy::arithmetic_side_effects)]
 
@@ -169,19 +169,19 @@ impl Message {
     ///
     /// # Examples
     ///
-    /// This example uses the [`solana_sdk`], [`solana_rpc_client`] and [`anyhow`] crates.
+    /// This example uses the [`aeko_sdk`], [`aeko_rpc_client`] and [`anyhow`] crates.
     ///
-    /// [`solana_sdk`]: https://docs.rs/solana-sdk
-    /// [`solana_rpc_client`]: https://docs.rs/solana-rpc-client
+    /// [`aeko_sdk`]: https://docs.rs/solana-sdk
+    /// [`aeko_rpc_client`]: https://docs.rs/solana-rpc-client
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```
-    /// # use solana_program::example_mocks::solana_sdk;
-    /// # use solana_program::example_mocks::solana_rpc_client;
+    /// # use aeko_program::example_mocks::aeko_sdk;
+    /// # use aeko_program::example_mocks::aeko_rpc_client;
     /// use anyhow::Result;
     /// use borsh::{BorshSerialize, BorshDeserialize};
-    /// use solana_rpc_client::rpc_client::RpcClient;
-    /// use solana_sdk::{
+    /// use aeko_rpc_client::rpc_client::RpcClient;
+    /// use aeko_sdk::{
     ///     instruction::Instruction,
     ///     message::Message,
     ///     pubkey::Pubkey,
@@ -241,19 +241,19 @@ impl Message {
     ///
     /// # Examples
     ///
-    /// This example uses the [`solana_sdk`], [`solana_rpc_client`] and [`anyhow`] crates.
+    /// This example uses the [`aeko_sdk`], [`aeko_rpc_client`] and [`anyhow`] crates.
     ///
-    /// [`solana_sdk`]: https://docs.rs/solana-sdk
-    /// [`solana_rpc_client`]: https://docs.rs/solana-rpc-client
+    /// [`aeko_sdk`]: https://docs.rs/solana-sdk
+    /// [`aeko_rpc_client`]: https://docs.rs/solana-rpc-client
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```
-    /// # use solana_program::example_mocks::solana_sdk;
-    /// # use solana_program::example_mocks::solana_rpc_client;
+    /// # use aeko_program::example_mocks::aeko_sdk;
+    /// # use aeko_program::example_mocks::aeko_rpc_client;
     /// use anyhow::Result;
     /// use borsh::{BorshSerialize, BorshDeserialize};
-    /// use solana_rpc_client::rpc_client::RpcClient;
-    /// use solana_sdk::{
+    /// use aeko_rpc_client::rpc_client::RpcClient;
+    /// use aeko_sdk::{
     ///     instruction::Instruction,
     ///     message::Message,
     ///     pubkey::Pubkey,
@@ -330,7 +330,7 @@ impl Message {
 
     /// Create a new message for a [nonced transaction].
     ///
-    /// [nonced transaction]: https://docs.solanalabs.com/implemented-proposals/durable-tx-nonces
+    /// [nonced transaction]: https://docs.aeko.network/implemented-proposals/durable-tx-nonces
     ///
     /// In this type of transaction, the blockhash is replaced with a _durable
     /// transaction nonce_, allowing for extended time to pass between the
@@ -338,19 +338,19 @@ impl Message {
     ///
     /// # Examples
     ///
-    /// This example uses the [`solana_sdk`], [`solana_rpc_client`] and [`anyhow`] crates.
+    /// This example uses the [`aeko_sdk`], [`aeko_rpc_client`] and [`anyhow`] crates.
     ///
-    /// [`solana_sdk`]: https://docs.rs/solana-sdk
-    /// [`solana_rpc_client`]: https://docs.rs/solana-client
+    /// [`aeko_sdk`]: https://docs.rs/solana-sdk
+    /// [`aeko_rpc_client`]: https://docs.rs/solana-client
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```
-    /// # use solana_program::example_mocks::solana_sdk;
-    /// # use solana_program::example_mocks::solana_rpc_client;
+    /// # use aeko_program::example_mocks::aeko_sdk;
+    /// # use aeko_program::example_mocks::aeko_rpc_client;
     /// use anyhow::Result;
     /// use borsh::{BorshSerialize, BorshDeserialize};
-    /// use solana_rpc_client::rpc_client::RpcClient;
-    /// use solana_sdk::{
+    /// use aeko_rpc_client::rpc_client::RpcClient;
+    /// use aeko_sdk::{
     ///     hash::Hash,
     ///     instruction::Instruction,
     ///     message::Message,

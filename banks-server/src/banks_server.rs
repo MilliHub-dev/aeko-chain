@@ -2,18 +2,18 @@ use {
     bincode::{deserialize, serialize},
     crossbeam_channel::{unbounded, Receiver, Sender},
     futures::{future, prelude::stream::StreamExt},
-    solana_banks_interface::{
+    aeko_banks_interface::{
         Banks, BanksRequest, BanksResponse, BanksTransactionResultWithMetadata,
         BanksTransactionResultWithSimulation, TransactionConfirmationStatus, TransactionMetadata,
         TransactionSimulationDetails, TransactionStatus,
     },
-    solana_client::connection_cache::ConnectionCache,
-    solana_runtime::{
+    aeko_client::connection_cache::ConnectionCache,
+    aeko_runtime::{
         bank::{Bank, TransactionSimulationResult},
         bank_forks::BankForks,
         commitment::BlockCommitmentCache,
     },
-    solana_sdk::{
+    aeko_sdk::{
         account::Account,
         clock::Slot,
         commitment_config::CommitmentLevel,
@@ -25,11 +25,11 @@ use {
         signature::Signature,
         transaction::{self, MessageHash, SanitizedTransaction, VersionedTransaction},
     },
-    solana_send_transaction_service::{
+    aeko_send_transaction_service::{
         send_transaction_service::{SendTransactionService, TransactionInfo},
         tpu_info::NullTpuInfo,
     },
-    solana_svm::transaction_results::TransactionExecutionResult,
+    aeko_svm::transaction_results::TransactionExecutionResult,
     std::{
         io,
         net::{Ipv4Addr, SocketAddr},

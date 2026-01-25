@@ -11,10 +11,10 @@ use {
     },
     rustls::{Certificate, PrivateKey},
     serde_bytes::ByteBuf,
-    solana_quic_client::nonblocking::quic_client::SkipServerVerification,
-    solana_runtime::bank_forks::BankForks,
-    solana_sdk::{packet::PACKET_DATA_SIZE, pubkey::Pubkey, signature::Keypair},
-    solana_streamer::{quic::SkipClientVerification, tls_certificates::new_dummy_x509_certificate},
+    aeko_quic_client::nonblocking::quic_client::SkipServerVerification,
+    aeko_runtime::bank_forks::BankForks,
+    aeko_sdk::{packet::PACKET_DATA_SIZE, pubkey::Pubkey, signature::Keypair},
+    aeko_streamer::{quic::SkipClientVerification, tls_certificates::new_dummy_x509_certificate},
     std::{
         cmp::Reverse,
         collections::{hash_map::Entry, HashMap},
@@ -656,7 +656,7 @@ async fn make_connection(
 }
 
 fn get_remote_pubkey(connection: &Connection) -> Result<Pubkey, Error> {
-    match solana_streamer::nonblocking::quic::get_remote_pubkey(connection) {
+    match aeko_streamer::nonblocking::quic::get_remote_pubkey(connection) {
         Some(remote_pubkey) => Ok(remote_pubkey),
         None => {
             connection.close(
@@ -1013,9 +1013,9 @@ mod tests {
     use {
         super::*,
         itertools::{izip, multiunzip},
-        solana_ledger::genesis_utils::{create_genesis_config, GenesisConfigInfo},
-        solana_runtime::bank::Bank,
-        solana_sdk::signature::Signer,
+        aeko_ledger::genesis_utils::{create_genesis_config, GenesisConfigInfo},
+        aeko_runtime::bank::Bank,
+        aeko_sdk::signature::Signer,
         std::{iter::repeat_with, net::Ipv4Addr, time::Duration},
     };
 

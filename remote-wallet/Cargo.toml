@@ -1,7 +1,7 @@
 [package]
-name = "solana-remote-wallet"
+name = "aeko-remote-wallet"
 description = "Blockchain, Rebuilt for Scale"
-documentation = "https://docs.rs/solana-remote-wallet"
+documentation = "https://docs.rs/aeko-remote-wallet"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -19,7 +19,7 @@ num-traits = { workspace = true }
 parking_lot = { workspace = true }
 qstring = { workspace = true }
 semver = { workspace = true }
-solana-sdk = { workspace = true }
+aeko-sdk = { workspace = true }
 thiserror = { workspace = true }
 uriparse = { workspace = true }
 
@@ -34,8 +34,9 @@ linux-static-hidraw = ["hidapi/linux-static-hidraw"]
 linux-static-libusb = ["hidapi/linux-static-libusb"]
 
 [[bin]]
-name = "solana-ledger-udev"
+name = "aeko-ledger-udev"
 path = "src/bin/ledger-udev.rs"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+

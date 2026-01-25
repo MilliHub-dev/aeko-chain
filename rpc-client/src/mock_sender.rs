@@ -5,8 +5,8 @@ use {
     async_trait::async_trait,
     base64::{prelude::BASE64_STANDARD, Engine},
     serde_json::{json, Number, Value},
-    solana_account_decoder::{UiAccount, UiAccountEncoding},
-    solana_rpc_client_api::{
+    aeko_account_decoder::{UiAccount, UiAccountEncoding},
+    aeko_rpc_client_api::{
         client_error::Result,
         config::RpcBlockProductionConfig,
         request::RpcRequest,
@@ -19,7 +19,7 @@ use {
             RpcVoteAccountStatus, StakeActivationState,
         },
     },
-    solana_sdk::{
+    aeko_sdk::{
         account::Account,
         clock::{Slot, UnixTimestamp},
         epoch_info::EpochInfo,
@@ -31,14 +31,14 @@ use {
         sysvar::epoch_schedule::EpochSchedule,
         transaction::{self, Transaction, TransactionError, TransactionVersion},
     },
-    solana_transaction_status::{
+    aeko_transaction_status::{
         option_serializer::OptionSerializer, EncodedConfirmedBlock,
         EncodedConfirmedTransactionWithStatusMeta, EncodedTransaction,
         EncodedTransactionWithStatusMeta, Rewards, TransactionBinaryEncoding,
         TransactionConfirmationStatus, TransactionStatus, UiCompiledInstruction, UiMessage,
         UiRawMessage, UiTransaction, UiTransactionStatusMeta,
     },
-    solana_version::Version,
+    aeko_version::Version,
     std::{collections::HashMap, net::SocketAddr, str::FromStr, sync::RwLock},
 };
 
@@ -357,7 +357,7 @@ impl RpcSender for MockSender {
             "getVersion" => {
                 let version = Version::default();
                 json!(RpcVersionInfo {
-                    solana_core: version.to_string(),
+                    aeko_core: version.to_string(),
                     feature_set: Some(version.feature_set),
                 })
             }

@@ -18,12 +18,12 @@ use {
     bip39::{Language, Mnemonic, Seed},
     clap::ArgMatches,
     rpassword::prompt_password,
-    solana_remote_wallet::{
+    aeko_remote_wallet::{
         locator::{Locator as RemoteWalletLocator, LocatorError as RemoteWalletLocatorError},
         remote_keypair::generate_remote_keypair,
         remote_wallet::{maybe_wallet_manager, RemoteWalletError, RemoteWalletManager},
     },
-    solana_sdk::{
+    aeko_sdk::{
         derivation_path::{DerivationPath, DerivationPathError},
         hash::Hash,
         message::Message,
@@ -135,8 +135,8 @@ impl DefaultSigner {
     ///
     /// ```no_run
     /// use clap::{App, Arg, value_t_or_exit};
-    /// use solana_clap_utils::keypair::DefaultSigner;
-    /// use solana_clap_utils::offline::OfflineArgs;
+    /// use aeko_clap_utils::keypair::DefaultSigner;
+    /// use aeko_clap_utils::offline::OfflineArgs;
     ///
     /// let clap_app = App::new("my-program")
     ///     // The argument we'll parse as a signer "path"
@@ -205,9 +205,9 @@ impl DefaultSigner {
     ///
     /// ```no_run
     /// use clap::{App, Arg, value_t_or_exit};
-    /// use solana_clap_utils::keypair::{DefaultSigner, signer_from_path};
-    /// use solana_clap_utils::offline::OfflineArgs;
-    /// use solana_sdk::signer::Signer;
+    /// use aeko_clap_utils::keypair::{DefaultSigner, signer_from_path};
+    /// use aeko_clap_utils::offline::OfflineArgs;
+    /// use aeko_sdk::signer::Signer;
     ///
     /// let clap_app = App::new("my-program")
     ///     // The argument we'll parse as a signer "path"
@@ -280,8 +280,8 @@ impl DefaultSigner {
     ///
     /// ```no_run
     /// use clap::{App, Arg, value_t_or_exit};
-    /// use solana_clap_utils::keypair::DefaultSigner;
-    /// use solana_clap_utils::offline::OfflineArgs;
+    /// use aeko_clap_utils::keypair::DefaultSigner;
+    /// use aeko_clap_utils::offline::OfflineArgs;
     ///
     /// let clap_app = App::new("my-program")
     ///     // The argument we'll parse as a signer "path"
@@ -327,8 +327,8 @@ impl DefaultSigner {
     ///
     /// ```no_run
     /// use clap::{App, Arg, value_t_or_exit};
-    /// use solana_clap_utils::keypair::{SignerFromPathConfig, DefaultSigner};
-    /// use solana_clap_utils::offline::OfflineArgs;
+    /// use aeko_clap_utils::keypair::{SignerFromPathConfig, DefaultSigner};
+    /// use aeko_clap_utils::offline::OfflineArgs;
     ///
     /// let clap_app = App::new("my-program")
     ///     // The argument we'll parse as a signer "path"
@@ -662,8 +662,8 @@ pub struct SignerFromPathConfig {
 ///
 /// ```no_run
 /// use clap::{App, Arg, value_t_or_exit};
-/// use solana_clap_utils::keypair::signer_from_path;
-/// use solana_clap_utils::offline::OfflineArgs;
+/// use aeko_clap_utils::keypair::signer_from_path;
+/// use aeko_clap_utils::offline::OfflineArgs;
 ///
 /// let clap_app = App::new("my-program")
 ///     // The argument we'll parse as a signer "path"
@@ -722,8 +722,8 @@ pub fn signer_from_path(
 ///
 /// ```no_run
 /// use clap::{App, Arg, value_t_or_exit};
-/// use solana_clap_utils::keypair::{signer_from_path_with_config, SignerFromPathConfig};
-/// use solana_clap_utils::offline::OfflineArgs;
+/// use aeko_clap_utils::keypair::{signer_from_path_with_config, SignerFromPathConfig};
+/// use aeko_clap_utils::offline::OfflineArgs;
 ///
 /// let clap_app = App::new("my-program")
 ///     // The argument we'll parse as a signer "path"
@@ -838,7 +838,7 @@ pub fn signer_from_path_with_config(
 ///
 /// ```no_run
 /// use clap::{App, Arg, value_t_or_exit};
-/// use solana_clap_utils::keypair::pubkey_from_path;
+/// use aeko_clap_utils::keypair::pubkey_from_path;
 ///
 /// let clap_app = App::new("my-program")
 ///     // The argument we'll parse as a signer "path"
@@ -976,7 +976,7 @@ pub fn prompt_passphrase(prompt: &str) -> Result<String, Box<dyn error::Error>> 
 ///
 /// ```no_run
 /// use clap::{App, Arg, value_t_or_exit};
-/// use solana_clap_utils::keypair::keypair_from_path;
+/// use aeko_clap_utils::keypair::keypair_from_path;
 ///
 /// let clap_app = App::new("my-program")
 ///     // The argument we'll parse as a signer "path"
@@ -1123,8 +1123,8 @@ mod tests {
         crate::offline::OfflineArgs,
         assert_matches::assert_matches,
         clap::{value_t_or_exit, App, Arg},
-        solana_remote_wallet::{locator::Manufacturer, remote_wallet::initialize_wallet_manager},
-        solana_sdk::{signer::keypair::write_keypair_file, system_instruction},
+        aeko_remote_wallet::{locator::Manufacturer, remote_wallet::initialize_wallet_manager},
+        aeko_sdk::{signer::keypair::write_keypair_file, system_instruction},
         tempfile::{NamedTempFile, TempDir},
     };
 

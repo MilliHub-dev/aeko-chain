@@ -37,8 +37,8 @@
 //! methods are disabled, the RPC server will return a "Method not found" error
 //! message.
 //!
-//! [`block_subscribe`]: https://docs.rs/solana-rpc/latest/solana_rpc/rpc_pubsub/trait.RpcSolPubSub.html#tymethod.block_subscribe
-//! [`vote_subscribe`]: https://docs.rs/solana-rpc/latest/solana_rpc/rpc_pubsub/trait.RpcSolPubSub.html#tymethod.vote_subscribe
+//! [`block_subscribe`]: https://docs.rs/solana-rpc/latest/aeko_rpc/rpc_pubsub/trait.RpcSolPubSub.html#tymethod.block_subscribe
+//! [`vote_subscribe`]: https://docs.rs/solana-rpc/latest/aeko_rpc/rpc_pubsub/trait.RpcSolPubSub.html#tymethod.vote_subscribe
 //!
 //! # Examples
 //!
@@ -52,7 +52,7 @@
 //! ```
 //! use anyhow::Result;
 //! use futures_util::StreamExt;
-//! use solana_pubsub_client::nonblocking::pubsub_client::PubsubClient;
+//! use aeko_pubsub_client::nonblocking::pubsub_client::PubsubClient;
 //! use std::sync::Arc;
 //! use tokio::io::AsyncReadExt;
 //! use tokio::sync::mpsc::unbounded_channel;
@@ -175,8 +175,8 @@ use {
     log::*,
     serde::de::DeserializeOwned,
     serde_json::{json, Map, Value},
-    solana_account_decoder::UiAccount,
-    solana_rpc_client_api::{
+    aeko_account_decoder::UiAccount,
+    aeko_rpc_client_api::{
         config::{
             RpcAccountInfoConfig, RpcBlockSubscribeConfig, RpcBlockSubscribeFilter,
             RpcProgramAccountsConfig, RpcSignatureSubscribeConfig, RpcTransactionLogsConfig,
@@ -189,7 +189,7 @@ use {
             RpcSignatureResult, RpcVersionInfo, RpcVote, SlotInfo, SlotUpdate,
         },
     },
-    solana_sdk::{clock::Slot, pubkey::Pubkey, signature::Signature},
+    aeko_sdk::{clock::Slot, pubkey::Pubkey, signature::Signature},
     std::collections::BTreeMap,
     thiserror::Error,
     tokio::{
@@ -329,7 +329,7 @@ impl PubsubClient {
             .await
             .map_err(|err| PubsubClientError::ConnectionClosed(err.to_string()))??;
         let node_version: RpcVersionInfo = serde_json::from_value(result)?;
-        let node_version = semver::Version::parse(&node_version.solana_core).map_err(|e| {
+        let node_version = semver::Version::parse(&node_version.aeko_core).map_err(|e| {
             PubsubClientError::RequestFailed {
                 reason: format!("failed to parse cluster version: {e}"),
                 message: "getVersion".to_string(),

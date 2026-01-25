@@ -9,9 +9,9 @@ use {
     crossbeam_channel::unbounded,
     indicatif::{ProgressBar, ProgressStyle},
     serde::{Deserialize, Serialize},
-    solana_config_program::{config_instruction, get_config_data, ConfigState},
-    solana_rpc_client::rpc_client::RpcClient,
-    solana_sdk::{
+    aeko_config_program::{config_instruction, get_config_data, ConfigState},
+    aeko_rpc_client::rpc_client::RpcClient,
+    aeko_sdk::{
         hash::{Hash, Hasher},
         message::Message,
         pubkey::Pubkey,
@@ -568,7 +568,7 @@ pub fn init(
 
 fn github_release_download_url(release_semver: &str) -> String {
     format!(
-        "https://github.com/solana-labs/solana/releases/download/v{}/solana-release-{}.tar.bz2",
+        "https://github.com/aeko-chain/solana/releases/download/v{}/solana-release-{}.tar.bz2",
         release_semver,
         crate::build_env::TARGET
     )
@@ -901,7 +901,7 @@ fn check_for_newer_github_release(
 
     while page == 1 || releases.len() == PER_PAGE {
         let url = reqwest::Url::parse_with_params(
-            "https://api.github.com/repos/solana-labs/solana/releases",
+            "https://api.github.com/repos/aeko-chain/solana/releases",
             &[
                 ("per_page", &format!("{PER_PAGE}")),
                 ("page", &format!("{page}")),

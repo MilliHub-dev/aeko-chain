@@ -1,8 +1,8 @@
 //! Fee structures.
 
-use crate::native_token::sol_to_lamports;
-#[cfg(not(target_os = "solana"))]
-use solana_program::message::SanitizedMessage;
+use crate::native_token::aeko_to_lamports;
+#[cfg(not(target_os = "AEKO"))]
+use aeko_program::message::SanitizedMessage;
 
 /// A fee and its associated compute unit limit
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
@@ -61,12 +61,12 @@ impl FeeStructure {
             .iter()
             .map(|(limit, sol)| FeeBin {
                 limit: *limit,
-                fee: sol_to_lamports(*sol),
+                fee: aeko_to_lamports(*sol),
             })
             .collect::<Vec<_>>();
         FeeStructure {
-            lamports_per_signature: sol_to_lamports(sol_per_signature),
-            lamports_per_write_lock: sol_to_lamports(sol_per_write_lock),
+            lamports_per_signature: aeko_to_lamports(sol_per_signature),
+            lamports_per_write_lock: aeko_to_lamports(sol_per_write_lock),
             compute_fee_bins,
         }
     }
@@ -94,7 +94,7 @@ impl FeeStructure {
     }
 
     /// Calculate fee for `SanitizedMessage`
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(not(target_os = "AEKO"))]
     pub fn calculate_fee(
         &self,
         message: &SanitizedMessage,
@@ -120,7 +120,7 @@ impl FeeStructure {
     }
 
     /// Calculate fee details for `SanitizedMessage`
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(not(target_os = "AEKO"))]
     pub fn calculate_fee_details(
         &self,
         message: &SanitizedMessage,
@@ -174,7 +174,7 @@ impl Default for FeeStructure {
 }
 
 #[cfg(RUSTC_WITH_SPECIALIZATION)]
-impl ::solana_frozen_abi::abi_example::AbiExample for FeeStructure {
+impl ::aeko_frozen_abi::abi_example::AbiExample for FeeStructure {
     fn example() -> Self {
         FeeStructure::default()
     }
@@ -231,3 +231,4 @@ mod tests {
         assert_ne!(large_fee_details.total_fee(false), expected_large_fee);
     }
 }
+

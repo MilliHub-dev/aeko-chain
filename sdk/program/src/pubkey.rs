@@ -66,7 +66,7 @@ impl From<u64> for PubkeyError {
 /// [acc]: https://solana.com/docs/core/accounts
 /// [ed25519]: https://ed25519.cr.yp.to/
 /// [pdas]: https://solana.com/docs/core/cpi#program-derived-addresses
-/// [`Keypair`]: https://docs.rs/solana-sdk/latest/solana_sdk/signer/keypair/struct.Keypair.html
+/// [`Keypair`]: https://docs.rs/solana-sdk/latest/aeko_sdk/signer/keypair/struct.Keypair.html
 #[wasm_bindgen]
 #[repr(transparent)]
 #[derive(
@@ -317,7 +317,7 @@ impl Pubkey {
     ///
     /// ```
     /// # use borsh::{BorshSerialize, BorshDeserialize};
-    /// # use solana_program::{
+    /// # use aeko_program::{
     /// #     pubkey::Pubkey,
     /// #     entrypoint::ProgramResult,
     /// #     program::invoke_signed,
@@ -397,20 +397,20 @@ impl Pubkey {
     ///
     /// ```
     /// # use borsh::{BorshSerialize, BorshDeserialize};
-    /// # use solana_program::example_mocks::{solana_sdk, solana_rpc_client};
-    /// # use solana_program::{
+    /// # use aeko_program::example_mocks::{aeko_sdk, aeko_rpc_client};
+    /// # use aeko_program::{
     /// #     pubkey::Pubkey,
     /// #     instruction::Instruction,
     /// #     hash::Hash,
     /// #     instruction::AccountMeta,
     /// #     system_program,
     /// # };
-    /// # use solana_sdk::{
+    /// # use aeko_sdk::{
     /// #     signature::Keypair,
     /// #     signature::{Signer, Signature},
     /// #     transaction::Transaction,
     /// # };
-    /// # use solana_rpc_client::rpc_client::RpcClient;
+    /// # use aeko_rpc_client::rpc_client::RpcClient;
     /// # use std::convert::TryFrom;
     /// # use anyhow::Result;
     /// #
@@ -575,7 +575,7 @@ impl Pubkey {
     /// that the returned `Pubkey` has the expected value.
     ///
     /// ```
-    /// # use solana_program::pubkey::Pubkey;
+    /// # use aeko_program::pubkey::Pubkey;
     /// # let program_id = Pubkey::new_unique();
     /// let (expected_pda, bump_seed) = Pubkey::find_program_address(&[b"vault"], &program_id);
     /// let actual_pda = Pubkey::create_program_address(&[b"vault", &[bump_seed]], &program_id)?;

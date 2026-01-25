@@ -14,7 +14,7 @@ use {
 use {
     base64::{prelude::BASE64_STANDARD, Engine},
     sha3::{Digest, Sha3_512},
-    solana_sdk::{
+    aeko_sdk::{
         derivation_path::DerivationPath,
         signature::Signature,
         signer::{
@@ -255,7 +255,7 @@ impl fmt::Display for AeCiphertext {
 mod tests {
     use {
         super::*,
-        solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::null_signer::NullSigner},
+        aeko_sdk::{pubkey::Pubkey, signature::Keypair, signer::null_signer::NullSigner},
     };
 
     #[test]

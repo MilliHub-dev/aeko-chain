@@ -1,20 +1,20 @@
-pub use solana_connection_cache::connection_cache::Protocol;
+pub use aeko_connection_cache::connection_cache::Protocol;
 use {
     quinn::Endpoint,
-    solana_connection_cache::{
+    aeko_connection_cache::{
         client_connection::ClientConnection,
         connection_cache::{
             BaseClientConnection, ConnectionCache as BackendConnectionCache, ConnectionPool,
             NewConnectionConfig,
         },
     },
-    solana_quic_client::{QuicConfig, QuicConnectionManager, QuicPool},
-    solana_sdk::{
+    aeko_quic_client::{QuicConfig, QuicConnectionManager, QuicPool},
+    aeko_sdk::{
         pubkey::Pubkey, quic::NotifyKeyUpdate, signature::Keypair,
         transport::Result as TransportResult,
     },
-    solana_streamer::streamer::StakedNodes,
-    solana_udp_client::{UdpConfig, UdpConnectionManager, UdpPool},
+    aeko_streamer::streamer::StakedNodes,
+    aeko_udp_client::{UdpConfig, UdpConnectionManager, UdpPool},
     std::{
         error::Error,
         net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -199,7 +199,7 @@ impl ClientConnection for BlockingClientConnection {
 }
 
 #[async_trait::async_trait]
-impl solana_connection_cache::nonblocking::client_connection::ClientConnection
+impl aeko_connection_cache::nonblocking::client_connection::ClientConnection
     for NonblockingClientConnection
 {
     dispatch!(fn server_addr(&self) -> &SocketAddr);
@@ -225,8 +225,8 @@ mod tests {
         super::*,
         crate::connection_cache::ConnectionCache,
         crossbeam_channel::unbounded,
-        solana_sdk::{net::DEFAULT_TPU_COALESCE, signature::Keypair},
-        solana_streamer::{
+        aeko_sdk::{net::DEFAULT_TPU_COALESCE, signature::Keypair},
+        aeko_streamer::{
             nonblocking::quic::DEFAULT_WAIT_FOR_CHUNK_TIMEOUT, quic::SpawnServerResult,
             streamer::StakedNodes,
         },
@@ -259,7 +259,7 @@ mod tests {
             endpoint: response_recv_endpoint,
             thread: response_recv_thread,
             key_updater: _,
-        } = solana_streamer::quic::spawn_server(
+        } = aeko_streamer::quic::spawn_server(
             "solQuicTest",
             "quic_streamer_test",
             response_recv_socket,

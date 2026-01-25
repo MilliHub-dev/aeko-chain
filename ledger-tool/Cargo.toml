@@ -1,7 +1,7 @@
 [package]
-name = "solana-ledger-tool"
-description = "Blockchain, Rebuilt for Scale"
-documentation = "https://docs.rs/solana-ledger-tool"
+name = "aeko-ledger-tool"
+description = "AEKO Chain, Rebuilt for SocialFi Scale"
+documentation = "https://docs.rs/aeko-ledger-tool"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -24,30 +24,30 @@ num_cpus = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-solana-account-decoder = { workspace = true }
-solana-accounts-db = { workspace = true }
-solana-bpf-loader-program = { workspace = true }
-solana-clap-utils = { workspace = true }
-solana-cli-output = { workspace = true }
-solana-core = { workspace = true }
-solana-cost-model = { workspace = true }
-solana-entry = { workspace = true }
-solana-geyser-plugin-manager = { workspace = true }
-solana-gossip = { workspace = true }
-solana-ledger = { workspace = true }
-solana-logger = { workspace = true }
-solana-measure = { workspace = true }
-solana-program-runtime = { workspace = true }
-solana-rpc = { workspace = true }
-solana-runtime = { workspace = true, features = ["dev-context-only-utils"] }
-solana-sdk = { workspace = true }
-solana-stake-program = { workspace = true }
-solana-storage-bigtable = { workspace = true }
-solana-streamer = { workspace = true }
-solana-transaction-status = { workspace = true }
-solana-unified-scheduler-pool = { workspace = true }
-solana-version = { workspace = true }
-solana-vote-program = { workspace = true }
+aeko-account-decoder = { workspace = true }
+aeko-accounts-db = { workspace = true }
+aeko-bpf-loader-program = { workspace = true }
+aeko-clap-utils = { workspace = true }
+aeko-cli-output = { workspace = true }
+aeko-core = { workspace = true }
+aeko-cost-model = { workspace = true }
+aeko-entry = { workspace = true }
+aeko-geyser-plugin-manager = { workspace = true }
+aeko-gossip = { workspace = true }
+aeko-ledger = { workspace = true }
+aeko-logger = { workspace = true }
+aeko-measure = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-rpc = { workspace = true }
+aeko-runtime = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-sdk = { workspace = true }
+aeko-stake-program = { workspace = true }
+aeko-storage-bigtable = { workspace = true }
+aeko-streamer = { workspace = true }
+aeko-transaction-status = { workspace = true }
+aeko-unified-scheduler-pool = { workspace = true }
+aeko-version = { workspace = true }
+aeko-vote-program = { workspace = true }
 solana_rbpf = { workspace = true, features = ["debugger"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
@@ -67,3 +67,4 @@ signal-hook = { workspace = true }
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+

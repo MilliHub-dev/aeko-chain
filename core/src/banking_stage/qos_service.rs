@@ -5,10 +5,10 @@
 
 use {
     super::{committer::CommitTransactionDetails, BatchedTransactionDetails},
-    solana_cost_model::{cost_model::CostModel, transaction_cost::TransactionCost},
-    solana_measure::measure::Measure,
-    solana_runtime::bank::Bank,
-    solana_sdk::{
+    aeko_cost_model::{cost_model::CostModel, transaction_cost::TransactionCost},
+    aeko_measure::measure::Measure,
+    aeko_runtime::bank::Bank,
+    aeko_sdk::{
         clock::Slot,
         feature_set::FeatureSet,
         saturating_add_assign,
@@ -573,20 +573,20 @@ mod tests {
     use {
         super::*,
         itertools::Itertools,
-        solana_cost_model::transaction_cost::UsageCostDetails,
-        solana_runtime::genesis_utils::{create_genesis_config, GenesisConfigInfo},
-        solana_sdk::{
+        aeko_cost_model::transaction_cost::UsageCostDetails,
+        aeko_runtime::genesis_utils::{create_genesis_config, GenesisConfigInfo},
+        aeko_sdk::{
             hash::Hash,
             signature::{Keypair, Signer},
             system_transaction,
         },
-        solana_vote_program::vote_transaction,
+        aeko_vote_program::vote_transaction,
         std::sync::Arc,
     };
 
     #[test]
     fn test_compute_transaction_costs() {
-        solana_logger::setup();
+        aeko_logger::setup();
 
         // make a vec of txs
         let keypair = Keypair::new();
@@ -629,7 +629,7 @@ mod tests {
 
     #[test]
     fn test_select_transactions_per_cost() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let GenesisConfigInfo { genesis_config, .. } = create_genesis_config(10);
         let bank = Arc::new(Bank::new_for_tests(&genesis_config));
 
@@ -681,7 +681,7 @@ mod tests {
 
     #[test]
     fn test_update_and_remove_transaction_costs_committed() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let GenesisConfigInfo { genesis_config, .. } = create_genesis_config(10);
         let bank = Arc::new(Bank::new_for_tests(&genesis_config));
 
@@ -750,7 +750,7 @@ mod tests {
 
     #[test]
     fn test_update_and_remove_transaction_costs_not_committed() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let GenesisConfigInfo { genesis_config, .. } = create_genesis_config(10);
         let bank = Arc::new(Bank::new_for_tests(&genesis_config));
 
@@ -803,7 +803,7 @@ mod tests {
 
     #[test]
     fn test_update_and_remove_transaction_costs_mixed_execution() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let GenesisConfigInfo { genesis_config, .. } = create_genesis_config(10);
         let bank = Arc::new(Bank::new_for_tests(&genesis_config));
 

@@ -2,11 +2,11 @@ pub mod cluster_slots;
 use {
     cluster_slots::ClusterSlots,
     crossbeam_channel::{Receiver, RecvTimeoutError, Sender},
-    solana_gossip::cluster_info::ClusterInfo,
-    solana_ledger::blockstore::Blockstore,
-    solana_measure::measure::Measure,
-    solana_runtime::bank_forks::BankForks,
-    solana_sdk::clock::Slot,
+    aeko_gossip::cluster_info::ClusterInfo,
+    aeko_ledger::blockstore::Blockstore,
+    aeko_measure::measure::Measure,
+    aeko_runtime::bank_forks::BankForks,
+    aeko_sdk::clock::Slot,
     std::{
         sync::{
             atomic::{AtomicBool, Ordering},
@@ -182,9 +182,9 @@ impl ClusterSlotsService {
 mod test {
     use {
         super::*,
-        solana_gossip::{cluster_info::Node, crds_value::LowestSlot},
-        solana_sdk::signature::{Keypair, Signer},
-        solana_streamer::socket::SocketAddrSpace,
+        aeko_gossip::{cluster_info::Node, crds_value::LowestSlot},
+        aeko_sdk::signature::{Keypair, Signer},
+        aeko_streamer::socket::SocketAddrSpace,
     };
 
     #[test]

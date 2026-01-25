@@ -3,12 +3,12 @@
 
 use {
     rand::{thread_rng, Rng},
-    solana_client::{
+    aeko_client::{
         connection_cache::{ConnectionCache, Protocol},
         tpu_connection::TpuConnection,
     },
-    solana_gossip::cluster_info::ClusterInfo,
-    solana_poh::poh_recorder::PohRecorder,
+    aeko_gossip::cluster_info::ClusterInfo,
+    aeko_poh::poh_recorder::PohRecorder,
     std::{
         sync::{
             atomic::{AtomicBool, Ordering},

@@ -1,6 +1,6 @@
 use {
-    solana_runtime::bank::Bank,
-    solana_sdk::{account::AccountSharedData, pubkey::Pubkey},
+    aeko_runtime::bank::Bank,
+    aeko_sdk::{account::AccountSharedData, pubkey::Pubkey},
     std::collections::HashMap,
 };
 

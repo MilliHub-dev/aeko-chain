@@ -6,21 +6,21 @@ use {
     bincode::serialize,
     dashmap::DashMap,
     futures_util::future::{join_all, TryFutureExt},
-    solana_quic_client::{QuicConfig, QuicConnectionManager, QuicPool},
-    solana_rpc_client::spinner::{self, SendTransactionProgress},
-    solana_rpc_client_api::{
+    aeko_quic_client::{QuicConfig, QuicConnectionManager, QuicPool},
+    aeko_rpc_client::spinner::{self, SendTransactionProgress},
+    aeko_rpc_client_api::{
         client_error::ErrorKind,
         request::{RpcError, RpcResponseErrorData, MAX_GET_SIGNATURE_STATUSES_QUERY_ITEMS},
         response::RpcSimulateTransactionResult,
     },
-    solana_sdk::{
+    aeko_sdk::{
         hash::Hash,
         message::Message,
         signature::{Signature, SignerError},
         signers::Signers,
         transaction::{Transaction, TransactionError},
     },
-    solana_tpu_client::tpu_client::{Result, TpuSenderError},
+    aeko_tpu_client::tpu_client::{Result, TpuSenderError},
     std::{
         sync::{
             atomic::{AtomicU64, AtomicUsize, Ordering},

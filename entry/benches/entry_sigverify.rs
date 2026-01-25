@@ -1,9 +1,9 @@
 #![feature(test)]
 extern crate test;
 use {
-    solana_entry::entry::{self, VerifyRecyclers},
-    solana_perf::test_tx::test_tx,
-    solana_sdk::{
+    aeko_entry::entry::{self, VerifyRecyclers},
+    aeko_perf::test_tx::test_tx,
+    aeko_sdk::{
         hash::Hash,
         transaction::{
             Result, SanitizedTransaction, SimpleAddressLoader, TransactionVerificationMode,

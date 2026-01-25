@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
 use {
-    solana_program_test::*,
-    solana_sdk::{
+    aeko_program_test::*,
+    aeko_sdk::{
         account::AccountSharedData,
         account_utils::StateMut,
         bpf_loader_upgradeable::{id, UpgradeableLoaderState},
@@ -14,7 +14,7 @@ use {
 };
 
 pub async fn setup_test_context() -> ProgramTestContext {
-    let program_test = ProgramTest::new("", id(), Some(solana_bpf_loader_program::Entrypoint::vm));
+    let program_test = ProgramTest::new("", id(), Some(aeko_bpf_loader_program::Entrypoint::vm));
     program_test.start_with_context().await
 }
 

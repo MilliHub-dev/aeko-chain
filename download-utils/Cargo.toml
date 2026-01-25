@@ -1,7 +1,7 @@
 [package]
-name = "solana-download-utils"
+name = "aeko-download-utils"
 description = "Solana Download Utils"
-documentation = "https://docs.rs/solana-download-utils"
+documentation = "https://docs.rs/aeko-download-utils"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -14,15 +14,16 @@ console = { workspace = true }
 indicatif = { workspace = true }
 log = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "brotli", "deflate", "gzip", "rustls-tls", "json"] }
-solana-runtime = { workspace = true }
-solana-sdk = { workspace = true }
+aeko-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
 
 [dev-dependencies]
-solana-runtime = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-runtime = { workspace = true, features = ["dev-context-only-utils"] }
 
 [lib]
 crate-type = ["lib"]
-name = "solana_download_utils"
+name = "aeko_download_utils"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+

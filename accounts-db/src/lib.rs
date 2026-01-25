@@ -44,9 +44,9 @@ mod verify_accounts_hash_in_background;
 pub mod waitable_condvar;
 
 #[macro_use]
-extern crate solana_metrics;
+extern crate aeko_metrics;
 #[macro_use]
 extern crate serde_derive;
 
 #[macro_use]
-extern crate solana_frozen_abi_macro;
+extern crate aeko_frozen_abi_macro;

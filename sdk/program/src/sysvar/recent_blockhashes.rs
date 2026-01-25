@@ -10,11 +10,11 @@
 //! see the [Comprehensive Compute Fees proposal][ccf].
 //!
 //! [`getFeeForMessage`]: https://solana.com/docs/rpc/http/getfeeformessage
-//! [ccf]: https://docs.solanalabs.com/proposals/comprehensive-compute-fees
+//! [ccf]: https://docs.aeko.network/proposals/comprehensive-compute-fees
 //!
 //! See also the Solana [documentation on the recent blockhashes sysvar][sdoc].
 //!
-//! [sdoc]: https://docs.solanalabs.com/runtime/sysvars#recentblockhashes
+//! [sdoc]: https://docs.aeko.network/runtime/sysvars#recentblockhashes
 
 #![allow(deprecated)]
 #![allow(clippy::arithmetic_side_effects)]

@@ -9,12 +9,12 @@ use {
         },
         replay_stage::DUPLICATE_THRESHOLD,
     },
-    solana_ledger::{
+    aeko_ledger::{
         ancestor_iterator::AncestorIterator, blockstore::Blockstore, blockstore_meta::SlotMeta,
     },
-    solana_measure::measure::Measure,
-    solana_runtime::epoch_stakes::EpochStakes,
-    solana_sdk::{
+    aeko_measure::measure::Measure,
+    aeko_runtime::epoch_stakes::EpochStakes,
+    aeko_sdk::{
         clock::Slot,
         epoch_schedule::{Epoch, EpochSchedule},
         hash::Hash,
@@ -978,13 +978,13 @@ mod test {
     use {
         super::*,
         itertools::Itertools,
-        solana_accounts_db::contains::Contains,
-        solana_ledger::{
+        aeko_accounts_db::contains::Contains,
+        aeko_ledger::{
             blockstore::{make_chaining_slot_entries, Blockstore},
             get_tmp_ledger_path,
         },
-        solana_runtime::{bank::Bank, bank_utils},
-        solana_sdk::hash::Hash,
+        aeko_runtime::{bank::Bank, bank_utils},
+        aeko_sdk::hash::Hash,
         trees::tr,
     };
 

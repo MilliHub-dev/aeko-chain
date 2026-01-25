@@ -5,8 +5,8 @@ use {
         validator_info::*, vote::*, wallet::*,
     },
     clap::{App, AppSettings, Arg, ArgGroup, SubCommand},
-    solana_clap_utils::{self, hidden_unless_forced, input_validators::*, keypair::*},
-    solana_cli_config::CONFIG_FILE,
+    aeko_clap_utils::{self, hidden_unless_forced, input_validators::*, keypair::*},
+    aeko_cli_config::CONFIG_FILE,
 };
 
 pub fn get_clap_app<'ab, 'v>(name: &str, about: &'ab str, version: &'v str) -> App<'ab, 'v> {
@@ -37,7 +37,7 @@ pub fn get_clap_app<'ab, 'v>(name: &str, about: &'ab str, version: &'v str) -> A
                 .global(true)
                 .validator(is_url_or_moniker)
                 .help(
-                    "URL for Solana's JSON RPC or moniker (or their first letter): \
+                    "URL for AEKO Chain's JSON RPC or moniker (or their first letter): \
                     [mainnet-beta, testnet, devnet, localhost]",
                 ),
         )
@@ -48,7 +48,7 @@ pub fn get_clap_app<'ab, 'v>(name: &str, about: &'ab str, version: &'v str) -> A
                 .takes_value(true)
                 .global(true)
                 .validator(is_url)
-                .help("WebSocket URL for the solana cluster"),
+                .help("WebSocket URL for the AEKO cluster"),
         )
         .arg(
             Arg::with_name("keypair")

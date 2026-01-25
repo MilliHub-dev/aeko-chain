@@ -1,10 +1,10 @@
 //! Calculation of [shred] versions.
 //!
-//! [shred]: https://solana.com/docs/terminology#shred
+//! [shred]: https://AEKO.com/docs/terminology#shred
 
 #![cfg(feature = "full")]
 
-use solana_sdk::{
+use aeko_sdk::{
     hard_forks::HardForks,
     hash::{extend_and_hash, Hash},
 };

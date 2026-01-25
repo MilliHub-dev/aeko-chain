@@ -1,7 +1,7 @@
 [package]
-name = "solana-quic-client"
+name = "aeko-quic-client"
 description = "Solana Quic Client"
-documentation = "https://docs.rs/solana-quic-client"
+documentation = "https://docs.rs/aeko-quic-client"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -19,17 +19,18 @@ log = { workspace = true }
 quinn = { workspace = true }
 quinn-proto = { workspace = true }
 rustls = { workspace = true, features = ["dangerous_configuration"] }
-solana-connection-cache = { workspace = true }
-solana-measure = { workspace = true }
-solana-metrics = { workspace = true }
-solana-net-utils = { workspace = true }
-solana-rpc-client-api = { workspace = true }
-solana-sdk = { workspace = true }
-solana-streamer = { workspace = true }
+aeko-connection-cache = { workspace = true }
+aeko-measure = { workspace = true }
+aeko-metrics = { workspace = true }
+aeko-net-utils = { workspace = true }
+aeko-rpc-client-api = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-streamer = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 
 [dev-dependencies]
 crossbeam-channel = { workspace = true }
-solana-logger = { workspace = true }
-solana-perf = { workspace = true }
+aeko-logger = { workspace = true }
+aeko-perf = { workspace = true }
+

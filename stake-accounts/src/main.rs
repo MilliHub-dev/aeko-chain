@@ -10,19 +10,19 @@ use {
             resolve_command, AuthorizeArgs, Command, MoveArgs, NewArgs, RebaseArgs, SetLockupArgs,
         },
     },
-    solana_cli_config::Config,
-    solana_rpc_client::rpc_client::RpcClient,
-    solana_rpc_client_api::client_error::Error as ClientError,
-    solana_sdk::{
+    aeko_cli_config::Config,
+    aeko_rpc_client::rpc_client::RpcClient,
+    aeko_rpc_client_api::client_error::Error as ClientError,
+    aeko_sdk::{
         message::Message,
-        native_token::lamports_to_sol,
+        native_token::lamports_to_aeko,
         pubkey::Pubkey,
         signature::{unique_signers, Signature, Signer},
         signers::Signers,
         stake::{instruction::LockupArgs, state::Lockup},
         transaction::Transaction,
     },
-    solana_stake_program::stake_state,
+    aeko_stake_program::stake_state,
     std::{env, error::Error},
 };
 
@@ -263,8 +263,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             );
             let balances = get_balances(&client, addresses)?;
             let lamports: u64 = balances.into_iter().map(|(_, bal)| bal).sum();
-            let sol = lamports_to_sol(lamports);
-            println!("{sol} SOL");
+            let sol = lamports_to_aeko(lamports);
+            println!("{sol} AEKO");
         }
         Command::Authorize(args) => {
             process_authorize_stake_accounts(&client, &args)?;

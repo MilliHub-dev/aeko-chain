@@ -1,7 +1,7 @@
 [package]
-name = "solana-turbine"
+name = "aeko-turbine"
 description = "Blockchain, Rebuilt for Scale"
-documentation = "https://docs.rs/solana-turbine"
+documentation = "https://docs.rs/aeko-turbine"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -22,27 +22,27 @@ rand = { workspace = true }
 rand_chacha = { workspace = true }
 rayon = { workspace = true }
 rustls = { workspace = true }
-solana-entry = { workspace = true }
-solana-gossip = { workspace = true }
-solana-ledger = { workspace = true }
-solana-measure = { workspace = true }
-solana-metrics = { workspace = true }
-solana-perf = { workspace = true }
-solana-poh = { workspace = true }
-solana-quic-client = { workspace = true }
-solana-rayon-threadlimit = { workspace = true }
-solana-rpc = { workspace = true }
-solana-rpc-client-api = { workspace = true }
-solana-runtime = { workspace = true }
-solana-sdk = { workspace = true }
-solana-streamer = { workspace = true }
+aeko-entry = { workspace = true }
+aeko-gossip = { workspace = true }
+aeko-ledger = { workspace = true }
+aeko-measure = { workspace = true }
+aeko-metrics = { workspace = true }
+aeko-perf = { workspace = true }
+aeko-poh = { workspace = true }
+aeko-quic-client = { workspace = true }
+aeko-rayon-threadlimit = { workspace = true }
+aeko-rpc = { workspace = true }
+aeko-rpc-client-api = { workspace = true }
+aeko-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-streamer = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
 assert_matches = { workspace = true }
-solana-logger = { workspace = true }
-solana-runtime = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-logger = { workspace = true }
+aeko-runtime = { workspace = true, features = ["dev-context-only-utils"] }
 test-case = { workspace = true }
 
 [[bench]]

@@ -100,7 +100,7 @@ where
     }
 }
 
-fn test_solana_package(
+fn test_aeko_package(
     config: &Config,
     target_directory: &Path,
     package: &cargo_metadata::Package,
@@ -216,7 +216,7 @@ fn test_solana(config: Config, manifest_path: Option<PathBuf>) {
                     .any(|p| root_package.id.repr.contains(p)))
         {
             debug!("test root package {:?}", root_package.id);
-            test_solana_package(&config, metadata.target_directory.as_ref(), root_package);
+            test_aeko_package(&config, metadata.target_directory.as_ref(), root_package);
             return;
         }
     }
@@ -240,13 +240,13 @@ fn test_solana(config: Config, manifest_path: Option<PathBuf>) {
         if config.packages.is_empty() || config.packages.iter().any(|p| package.id.repr.contains(p))
         {
             debug!("test package {:?}", package.id);
-            test_solana_package(&config, metadata.target_directory.as_ref(), package);
+            test_aeko_package(&config, metadata.target_directory.as_ref(), package);
         }
     }
 }
 
 fn main() {
-    solana_logger::setup();
+    aeko_logger::setup();
     let mut args = env::args().collect::<Vec<_>>();
     // When run as a cargo subcommand, the first program argument is the subcommand name.
     // Remove it

@@ -1,18 +1,18 @@
 use {
     clap::{crate_description, crate_name, value_t, value_t_or_exit, App, Arg, ArgMatches},
-    solana_clap_utils::{
+    aeko_clap_utils::{
         hidden_unless_forced,
         input_validators::is_url_or_moniker,
         keypair::{DefaultSigner, SignerIndex},
     },
-    solana_cli::{
+    aeko_cli::{
         cli::{DEFAULT_CONFIRM_TX_TIMEOUT_SECONDS, DEFAULT_RPC_TIMEOUT_SECONDS},
         program_v4::ProgramV4CommandConfig,
     },
-    solana_cli_config::{Config, ConfigInput},
-    solana_cli_output::OutputFormat,
-    solana_rpc_client::rpc_client::RpcClient,
-    solana_sdk::{
+    aeko_cli_config::{Config, ConfigInput},
+    aeko_cli_output::OutputFormat,
+    aeko_rpc_client::rpc_client::RpcClient,
+    aeko_sdk::{
         commitment_config,
         signature::{read_keypair_file, Keypair},
     },
@@ -165,7 +165,7 @@ impl Client {
         let matches = Self::get_clap_app(
             crate_name!(),
             crate_description!(),
-            solana_version::version!(),
+            aeko_version::version!(),
         )
         .get_matches();
 

@@ -19,7 +19,7 @@ use {
 
 // Inline zk token program id since it isn't available in the sdk
 mod zk_token_proof_program {
-    solana_sdk::declare_id!("ZkTokenProof1111111111111111111111111111111");
+    AEKO_sdk::declare_id!("ZkTokenProof1111111111111111111111111111111");
 }
 
 /// `ReservedAccountKeys` holds the set of currently active/inactive
@@ -180,7 +180,7 @@ lazy_static! {
 mod tests {
     use {
         super::*,
-        solana_program::{message::legacy::BUILTIN_PROGRAMS_KEYS, sysvar::ALL_IDS},
+        AEKO_program::{message::legacy::BUILTIN_PROGRAMS_KEYS, sysvar::ALL_IDS},
     };
 
     #[test]

@@ -5,8 +5,8 @@ use {
     crate::{accounts_hash::CalculateHashIntermediate, cache_hash_data_stats::CacheHashDataStats},
     bytemuck::{Pod, Zeroable},
     memmap2::MmapMut,
-    solana_measure::measure::Measure,
-    solana_sdk::clock::Slot,
+    aeko_measure::measure::Measure,
+    aeko_sdk::clock::Slot,
     std::{
         collections::HashSet,
         fs::{self, remove_file, File, OpenOptions},
@@ -562,14 +562,14 @@ mod tests {
                                 let mut pk;
                                 loop {
                                     // expensive, but small numbers and for tests, so ok
-                                    pk = solana_sdk::pubkey::new_rand();
+                                    pk = aeko_sdk::pubkey::new_rand();
                                     if binner.bin_from_pubkey(&pk) == bin {
                                         break;
                                     }
                                 }
 
                                 CalculateHashIntermediate {
-                                    hash: AccountHash(solana_sdk::hash::Hash::new_unique()),
+                                    hash: AccountHash(aeko_sdk::hash::Hash::new_unique()),
                                     lamports: ct as u64,
                                     pubkey: pk,
                                 }

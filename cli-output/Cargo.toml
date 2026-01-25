@@ -1,7 +1,7 @@
 [package]
-name = "solana-cli-output"
-description = "Blockchain, Rebuilt for Scale"
-documentation = "https://docs.rs/solana-cli-output"
+name = "aeko-cli-output"
+description = "AEKO Chain, Rebuilt for SocialFi Scale"
+documentation = "https://docs.rs/aeko-cli-output"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -21,13 +21,13 @@ pretty-hex = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-solana-account-decoder = { workspace = true }
-solana-clap-utils = { workspace = true }
-solana-cli-config = { workspace = true }
-solana-rpc-client-api = { workspace = true }
-solana-sdk = { workspace = true }
-solana-transaction-status = { workspace = true }
-solana-vote-program = { workspace = true }
+aeko-account-decoder = { workspace = true }
+aeko-clap-utils = { workspace = true }
+aeko-cli-config = { workspace = true }
+aeko-rpc-client-api = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-transaction-status = { workspace = true }
+aeko-vote-program = { workspace = true }
 spl-memo = { workspace = true, features = ["no-entrypoint"] }
 
 [dev-dependencies]

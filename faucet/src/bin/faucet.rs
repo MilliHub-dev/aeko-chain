@@ -1,12 +1,12 @@
 use {
     clap::{crate_description, crate_name, values_t, App, Arg},
     log::*,
-    solana_clap_utils::input_parsers::{lamports_of_sol, value_of},
-    solana_faucet::{
+    aeko_clap_utils::input_parsers::{lamports_of_aeko, value_of},
+    aeko_faucet::{
         faucet::{run_faucet, Faucet, FAUCET_PORT},
         socketaddr,
     },
-    solana_sdk::signature::read_keypair_file,
+    aeko_sdk::signature::read_keypair_file,
     std::{
         collections::HashSet,
         net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -17,13 +17,13 @@ use {
 
 #[tokio::main]
 async fn main() {
-    let default_keypair = solana_cli_config::Config::default().keypair_path;
+    let default_keypair = aeko_cli_config::Config::default().keypair_path;
 
-    solana_logger::setup_with_default("solana=info");
-    solana_metrics::set_panic_hook("faucet", /*version:*/ None);
+    aeko_logger::setup_with_default("solana=info");
+    aeko_metrics::set_panic_hook("faucet", /*version:*/ None);
     let matches = App::new(crate_name!())
         .about(crate_description!())
-        .version(solana_version::version!())
+        .version(aeko_version::version!())
         .arg(
             Arg::with_name("keypair")
                 .short("k")
@@ -73,8 +73,8 @@ async fn main() {
         .expect("failed to read client keypair");
 
     let time_slice = value_of(&matches, "slice");
-    let per_time_cap = lamports_of_sol(&matches, "per_time_cap");
-    let per_request_cap = lamports_of_sol(&matches, "per_request_cap");
+    let per_time_cap = lamports_of_aeko(&matches, "per_time_cap");
+    let per_request_cap = lamports_of_aeko(&matches, "per_request_cap");
 
     let allowed_ips: HashSet<_> = values_t!(matches.values_of("allowed_ip"), IpAddr)
         .unwrap_or_default()

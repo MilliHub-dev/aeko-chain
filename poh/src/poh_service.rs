@@ -4,9 +4,9 @@ use {
     crate::poh_recorder::{PohRecorder, Record},
     crossbeam_channel::Receiver,
     log::*,
-    solana_entry::poh::Poh,
-    solana_measure::{measure, measure::Measure},
-    solana_sdk::poh_config::PohConfig,
+    aeko_entry::poh::Poh,
+    aeko_measure::{measure, measure::Measure},
+    aeko_sdk::poh_config::PohConfig,
     std::{
         sync::{
             atomic::{AtomicBool, Ordering},
@@ -382,16 +382,16 @@ mod tests {
     use {
         super::*,
         rand::{thread_rng, Rng},
-        solana_ledger::{
+        aeko_ledger::{
             blockstore::Blockstore,
             genesis_utils::{create_genesis_config, GenesisConfigInfo},
             get_tmp_ledger_path_auto_delete,
             leader_schedule_cache::LeaderScheduleCache,
         },
-        solana_measure::measure::Measure,
-        solana_perf::test_tx::test_tx,
-        solana_runtime::bank::Bank,
-        solana_sdk::{
+        aeko_measure::measure::Measure,
+        aeko_perf::test_tx::test_tx,
+        aeko_runtime::bank::Bank,
+        aeko_sdk::{
             clock, hash::hash, pubkey::Pubkey, timing, transaction::VersionedTransaction,
         },
         std::{thread::sleep, time::Duration},
@@ -400,7 +400,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_poh_service() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let GenesisConfigInfo { genesis_config, .. } = create_genesis_config(2);
         let bank = Bank::new_no_wallclock_throttle_for_tests(&genesis_config).0;
         let prev_hash = bank.last_blockhash();

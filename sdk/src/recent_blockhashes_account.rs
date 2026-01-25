@@ -1,7 +1,7 @@
 //! Helpers for the recent blockhashes sysvar.
 
 #[allow(deprecated)]
-use solana_program::sysvar::recent_blockhashes::{
+use aeko_program::sysvar::recent_blockhashes::{
     IntoIterSorted, IterItem, RecentBlockhashes, MAX_ENTRIES,
 };
 use {
@@ -89,7 +89,7 @@ mod tests {
         super::*,
         crate::account::from_account,
         rand::{seq::SliceRandom, thread_rng},
-        solana_program::{
+        aeko_program::{
             hash::{Hash, HASH_BYTES},
             sysvar::recent_blockhashes::Entry,
         },
@@ -170,3 +170,4 @@ mod tests {
         assert_eq!(*recent_blockhashes, expected_recent_blockhashes);
     }
 }
+

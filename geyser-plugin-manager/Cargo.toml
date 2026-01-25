@@ -1,7 +1,7 @@
 [package]
-name = "solana-geyser-plugin-manager"
+name = "aeko-geyser-plugin-manager"
 description = "The Solana Geyser plugin manager."
-documentation = "https://docs.rs/solana-geyser-plugin-manager"
+documentation = "https://docs.rs/aeko-geyser-plugin-manager"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -17,18 +17,19 @@ jsonrpc-core = { workspace = true }
 libloading = { workspace = true }
 log = { workspace = true }
 serde_json = { workspace = true }
-solana-accounts-db = { workspace = true }
-solana-entry = { workspace = true }
-solana-geyser-plugin-interface = { workspace = true }
-solana-ledger = { workspace = true }
-solana-measure = { workspace = true }
-solana-metrics = { workspace = true }
-solana-rpc = { workspace = true }
-solana-runtime = { workspace = true }
-solana-sdk = { workspace = true }
-solana-transaction-status = { workspace = true }
+aeko-accounts-db = { workspace = true }
+aeko-entry = { workspace = true }
+aeko-geyser-plugin-interface = { workspace = true }
+aeko-ledger = { workspace = true }
+aeko-measure = { workspace = true }
+aeko-metrics = { workspace = true }
+aeko-rpc = { workspace = true }
+aeko-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-transaction-status = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+

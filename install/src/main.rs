@@ -1,3 +1,3 @@
 fn main() -> Result<(), String> {
-    solana_install::main()
+    aeko_install::main()
 }

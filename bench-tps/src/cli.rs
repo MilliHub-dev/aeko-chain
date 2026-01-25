@@ -1,24 +1,24 @@
 use {
     clap::{crate_description, crate_name, value_t_or_exit, App, Arg, ArgMatches},
-    solana_clap_utils::{
+    aeko_clap_utils::{
         hidden_unless_forced,
         input_validators::{is_keypair, is_url, is_url_or_moniker, is_within_range},
     },
-    solana_cli_config::{ConfigInput, CONFIG_FILE},
-    solana_sdk::{
+    aeko_cli_config::{ConfigInput, CONFIG_FILE},
+    aeko_sdk::{
         commitment_config::CommitmentConfig,
         fee_calculator::FeeRateGovernor,
         pubkey::Pubkey,
         signature::{read_keypair_file, Keypair},
     },
-    solana_tpu_client::tpu_client::{DEFAULT_TPU_CONNECTION_POOL_SIZE, DEFAULT_TPU_USE_QUIC},
+    aeko_tpu_client::tpu_client::{DEFAULT_TPU_CONNECTION_POOL_SIZE, DEFAULT_TPU_USE_QUIC},
     std::{
         net::{IpAddr, Ipv4Addr},
         time::Duration,
     },
 };
 
-const NUM_LAMPORTS_PER_ACCOUNT_DEFAULT: u64 = solana_sdk::native_token::LAMPORTS_PER_SOL;
+const NUM_LAMPORTS_PER_ACCOUNT_DEFAULT: u64 = aeko_sdk::native_token::LAMPORTS_PER_AEKO;
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum ExternalClientType {
@@ -398,7 +398,7 @@ pub fn build_args<'a>(version: &'_ str) -> App<'a, '_> {
                 .long("bind-address")
                 .value_name("HOST")
                 .takes_value(true)
-                .validator(solana_net_utils::is_host)
+                .validator(aeko_net_utils::is_host)
                 .requires("client_node_id")
                 .help("IP address to use with connection cache"),
         )
@@ -426,9 +426,9 @@ pub fn parse_args(matches: &ArgMatches) -> Result<Config, &'static str> {
     let mut args = Config::default();
 
     let config = if let Some(config_file) = matches.value_of("config_file") {
-        solana_cli_config::Config::load(config_file).unwrap_or_default()
+        aeko_cli_config::Config::load(config_file).unwrap_or_default()
     } else {
-        solana_cli_config::Config::default()
+        aeko_cli_config::Config::default()
     };
     let (_, json_rpc_url) = ConfigInput::compute_json_rpc_url_setting(
         matches.value_of("json_rpc_url").unwrap_or(""),
@@ -577,7 +577,7 @@ pub fn parse_args(matches: &ArgMatches) -> Result<Config, &'static str> {
 
     if let Some(addr) = matches.value_of("bind_address") {
         args.bind_address =
-            solana_net_utils::parse_host(addr).map_err(|_| "Failed to parse bind-address")?;
+            aeko_net_utils::parse_host(addr).map_err(|_| "Failed to parse bind-address")?;
     }
 
     if let Some(client_node_id_filename) = matches.value_of("client_node_id") {
@@ -595,7 +595,7 @@ pub fn parse_args(matches: &ArgMatches) -> Result<Config, &'static str> {
 mod tests {
     use {
         super::*,
-        solana_sdk::signature::{read_keypair_file, write_keypair_file, Keypair, Signer},
+        aeko_sdk::signature::{read_keypair_file, write_keypair_file, Keypair, Signer},
         std::{
             net::{IpAddr, Ipv4Addr},
             time::Duration,

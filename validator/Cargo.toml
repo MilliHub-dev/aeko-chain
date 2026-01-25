@@ -1,8 +1,8 @@
 [package]
-name = "solana-validator"
-description = "Blockchain, Rebuilt for Scale"
-documentation = "https://docs.rs/solana-validator"
-default-run = "solana-validator"
+name = "aeko-validator"
+description = "AEKO Chain, Rebuilt for SocialFi Scale"
+documentation = "https://docs.rs/aeko-validator"
+default-run = "aeko-validator"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -32,45 +32,45 @@ rayon = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
-solana-accounts-db = { workspace = true }
-solana-clap-utils = { workspace = true }
-solana-cli-config = { workspace = true }
-solana-core = { workspace = true }
-solana-download-utils = { workspace = true }
-solana-entry = { workspace = true }
-solana-faucet = { workspace = true }
-solana-genesis-utils = { workspace = true }
-solana-geyser-plugin-interface = { workspace = true }
-solana-geyser-plugin-manager = { workspace = true }
-solana-gossip = { workspace = true }
-solana-ledger = { workspace = true }
-solana-logger = { workspace = true }
-solana-metrics = { workspace = true }
-solana-net-utils = { workspace = true }
-solana-perf = { workspace = true }
-solana-poh = { workspace = true }
-solana-program-runtime = { workspace = true }
-solana-rayon-threadlimit = { workspace = true }
-solana-rpc = { workspace = true }
-solana-rpc-client = { workspace = true }
-solana-rpc-client-api = { workspace = true }
-solana-runtime = { workspace = true }
-solana-sdk = { workspace = true }
-solana-send-transaction-service = { workspace = true }
-solana-storage-bigtable = { workspace = true }
-solana-streamer = { workspace = true }
-solana-test-validator = { workspace = true }
-solana-tpu-client = { workspace = true }
-solana-unified-scheduler-pool = { workspace = true }
-solana-version = { workspace = true }
-solana-vote-program = { workspace = true }
+aeko-accounts-db = { workspace = true }
+aeko-clap-utils = { workspace = true }
+aeko-cli-config = { workspace = true }
+aeko-core = { workspace = true }
+aeko-download-utils = { workspace = true }
+aeko-entry = { workspace = true }
+aeko-faucet = { workspace = true }
+aeko-genesis-utils = { workspace = true }
+aeko-geyser-plugin-interface = { workspace = true }
+aeko-geyser-plugin-manager = { workspace = true }
+aeko-gossip = { workspace = true }
+aeko-ledger = { workspace = true }
+aeko-logger = { workspace = true }
+aeko-metrics = { workspace = true }
+aeko-net-utils = { workspace = true }
+aeko-perf = { workspace = true }
+aeko-poh = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-rayon-threadlimit = { workspace = true }
+aeko-rpc = { workspace = true }
+aeko-rpc-client = { workspace = true }
+aeko-rpc-client-api = { workspace = true }
+aeko-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-send-transaction-service = { workspace = true }
+aeko-storage-bigtable = { workspace = true }
+aeko-streamer = { workspace = true }
+aeko-test-validator = { workspace = true }
+aeko-tpu-client = { workspace = true }
+aeko-unified-scheduler-pool = { workspace = true }
+aeko-version = { workspace = true }
+aeko-vote-program = { workspace = true }
 symlink = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
-solana-account-decoder = { workspace = true }
-solana-runtime = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-account-decoder = { workspace = true }
+aeko-runtime = { workspace = true, features = ["dev-context-only-utils"] }
 spl-token-2022 = { workspace = true, features = ["no-entrypoint"] }
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]

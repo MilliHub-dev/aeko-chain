@@ -18,12 +18,12 @@ use {
     dashmap::DashMap,
     log::*,
     serde::Serialize,
-    solana_account_decoder::UiAccountEncoding,
-    solana_accounts_db::{
+    aeko_account_decoder::UiAccountEncoding,
+    aeko_accounts_db::{
         accounts_db::CalcAccountsHashDataSource, accounts_index::ScanConfig,
         hardened_unpack::MAX_GENESIS_ARCHIVE_UNPACKED_SIZE,
     },
-    solana_clap_utils::{
+    aeko_clap_utils::{
         hidden_unless_forced,
         input_parsers::{cluster_type_of, pubkey_of, pubkeys_of},
         input_validators::{
@@ -32,20 +32,20 @@ use {
             validate_maximum_incremental_snapshot_archives_to_retain,
         },
     },
-    solana_cli_output::OutputFormat,
-    solana_core::{
+    aeko_cli_output::OutputFormat,
+    aeko_core::{
         system_monitor_service::{SystemMonitorService, SystemMonitorStatsReportConfig},
         validator::BlockVerificationMethod,
     },
-    solana_cost_model::{cost_model::CostModel, cost_tracker::CostTracker},
-    solana_ledger::{
+    aeko_cost_model::{cost_model::CostModel, cost_tracker::CostTracker},
+    aeko_ledger::{
         blockstore::{create_new_ledger, Blockstore},
         blockstore_options::{AccessType, LedgerColumnOptions},
         blockstore_processor::ProcessSlotCallback,
         use_snapshot_archives_at_startup,
     },
-    solana_measure::{measure, measure::Measure},
-    solana_runtime::{
+    aeko_measure::{measure, measure::Measure},
+    aeko_runtime::{
         bank::{bank_hash_details, Bank, RewardCalculationEvent},
         bank_forks::BankForks,
         snapshot_archive_info::SnapshotArchiveInfoGetter,
@@ -56,7 +56,7 @@ use {
             SUPPORTED_ARCHIVE_COMPRESSION,
         },
     },
-    solana_sdk::{
+    aeko_sdk::{
         account::{AccountSharedData, ReadableAccount, WritableAccount},
         account_utils::StateMut,
         clock::{Epoch, Slot},
@@ -64,7 +64,7 @@ use {
         feature_set::{self, FeatureSet},
         genesis_config::ClusterType,
         inflation::Inflation,
-        native_token::{lamports_to_sol, sol_to_lamports, Sol},
+        native_token::{lamports_to_aeko, aeko_to_lamports, Aeko},
         pubkey::Pubkey,
         rent::Rent,
         shred_version::compute_shred_version,
@@ -72,9 +72,9 @@ use {
         system_program,
         transaction::{MessageHash, SanitizedTransaction, SimpleAddressLoader},
     },
-    solana_stake_program::{points::PointValue, stake_state},
-    solana_unified_scheduler_pool::DefaultSchedulerPool,
-    solana_vote_program::{
+    aeko_stake_program::{points::PointValue, stake_state},
+    aeko_unified_scheduler_pool::DefaultSchedulerPool,
+    aeko_vote_program::{
         self,
         vote_state::{self, VoteState},
     },
@@ -284,7 +284,7 @@ fn graph_forks(bank_forks: &BankForks, config: &GraphConfig) -> String {
                         format!(
                             "\nvotes: {}, stake: {:.1} SOL ({:.1}%)",
                             votes,
-                            lamports_to_sol(*stake),
+                            lamports_to_aeko(*stake),
                             *stake as f64 / *total_stake as f64 * 100.,
                         )
                     } else {
@@ -382,7 +382,7 @@ fn graph_forks(bank_forks: &BankForks, config: &GraphConfig) -> String {
                 r#"  "last vote {}"[shape=box,label="Latest validator vote: {}\nstake: {} SOL\nroot slot: {}\n{}"];"#,
                 node_pubkey,
                 node_pubkey,
-                lamports_to_sol(*stake),
+                lamports_to_aeko(*stake),
                 vote_state.root_slot.unwrap_or(0),
                 vote_history,
             ));
@@ -404,7 +404,7 @@ fn graph_forks(bank_forks: &BankForks, config: &GraphConfig) -> String {
         dot.push(format!(
             r#"    "..."[label="...\nvotes: {}, stake: {:.1} SOL {:.1}%"];"#,
             absent_votes,
-            lamports_to_sol(absent_stake),
+            lamports_to_aeko(absent_stake),
             absent_stake as f64 / lowest_total_stake as f64 * 100.,
         ));
     }
@@ -555,7 +555,7 @@ fn main() {
     const DEFAULT_MAX_FULL_SNAPSHOT_ARCHIVES_TO_RETAIN: usize = std::usize::MAX;
     const DEFAULT_MAX_INCREMENTAL_SNAPSHOT_ARCHIVES_TO_RETAIN: usize = std::usize::MAX;
 
-    solana_logger::setup_with_default("solana=info");
+    aeko_logger::setup_with_default("solana=info");
 
     let no_snapshot_arg = Arg::with_name("no_snapshot")
         .long("no-snapshot")
@@ -767,10 +767,10 @@ fn main() {
         .help("Print account data in specified format when printing account contents.");
 
     let rent = Rent::default();
-    let default_bootstrap_validator_lamports = &sol_to_lamports(500.0)
+    let default_bootstrap_validator_lamports = &aeko_to_lamports(500.0)
         .max(VoteState::get_rent_exempt_reserve(&rent))
         .to_string();
-    let default_bootstrap_validator_stake_lamports = &sol_to_lamports(0.5)
+    let default_bootstrap_validator_stake_lamports = &aeko_to_lamports(0.5)
         .max(rent.minimum_balance(StakeStateV2::size_of()))
         .to_string();
     let default_graph_vote_account_mode = GraphVoteAccountMode::default();
@@ -779,7 +779,7 @@ fn main() {
 
     let matches = App::new(crate_name!())
         .about(crate_description!())
-        .version(solana_version::version!())
+        .version(aeko_version::version!())
         .setting(AppSettings::InferSubcommands)
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .setting(AppSettings::VersionlessSubcommands)
@@ -1488,7 +1488,7 @@ fn main() {
         .program_subcommand()
         .get_matches();
 
-    info!("{} {}", crate_name!(), solana_version::version!());
+    info!("{} {}", crate_name!(), aeko_version::version!());
 
     let ledger_path = PathBuf::from(value_t_or_exit!(matches, "ledger_path", String));
     let snapshot_archive_path = value_t!(matches, "snapshots", String)
@@ -1573,7 +1573,7 @@ fn main() {
                     create_new_ledger(
                         &output_directory,
                         &genesis_config,
-                        solana_accounts_db::hardened_unpack::MAX_GENESIS_ARCHIVE_UNPACKED_SIZE,
+                        aeko_accounts_db::hardened_unpack::MAX_GENESIS_ARCHIVE_UNPACKED_SIZE,
                         LedgerColumnOptions::default(),
                     )
                     .unwrap_or_else(|err| {
@@ -2138,7 +2138,7 @@ fn main() {
                         // Delete existing vote accounts
                         for (address, mut account) in bank
                             .get_program_accounts(
-                                &solana_vote_program::id(),
+                                &aeko_vote_program::id(),
                                 &ScanConfig::default(),
                             )
                             .unwrap()
@@ -2457,7 +2457,7 @@ fn main() {
                         println!("Recalculating capitalization");
                         let old_capitalization = bank.set_capitalization();
                         if old_capitalization == bank.capitalization() {
-                            eprintln!("Capitalization was identical: {}", Sol(old_capitalization));
+                            eprintln!("Capitalization was identical: {}", Aeko(old_capitalization));
                         }
                     }
 
@@ -2590,7 +2590,7 @@ fn main() {
                             new_credits_observed: Option<u64>,
                             skipped_reasons: String,
                         }
-                        use solana_stake_program::points::InflationPointCalculationEvent;
+                        use aeko_stake_program::points::InflationPointCalculationEvent;
                         let stake_calculation_details: DashMap<Pubkey, CalculationDetail> =
                             DashMap::new();
                         let last_point_value = Arc::new(RwLock::new(None));
@@ -2767,7 +2767,7 @@ fn main() {
                         for (pubkey, warped_account) in all_accounts {
                             // Don't output sysvars; it's always updated but not related to
                             // inflation.
-                            if solana_sdk::sysvar::is_sysvar_id(&pubkey) {
+                            if aeko_sdk::sysvar::is_sysvar_id(&pubkey) {
                                 continue;
                             }
 
@@ -2933,7 +2933,7 @@ fn main() {
                         assert_capitalization(&bank);
                         println!("Inflation: {:?}", bank.inflation());
                         println!("RentCollector: {:?}", bank.rent_collector());
-                        println!("Capitalization: {}", Sol(bank.capitalization()));
+                        println!("Capitalization: {}", Aeko(bank.capitalization()));
                     }
                 }
                 ("compute-slot-cost", Some(arg_matches)) => {

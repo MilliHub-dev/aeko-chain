@@ -1,9 +1,9 @@
 //! @brief curve25519 syscall tests
 
-extern crate solana_program;
+extern crate aeko_program;
 use {
-    solana_program::{custom_heap_default, custom_panic_default, msg},
-    solana_zk_token_sdk::curve25519::{edwards, ristretto, scalar},
+    aeko_program::{custom_heap_default, custom_panic_default, msg},
+    aeko_zk_token_sdk::curve25519::{edwards, ristretto, scalar},
 };
 
 #[no_mangle]

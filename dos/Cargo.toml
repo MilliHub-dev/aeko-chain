@@ -1,5 +1,5 @@
 [package]
-name = "solana-dos"
+name = "aeko-dos"
 publish = false
 description = "Tool to send various requests to cluster in order to evaluate the effect on performance"
 version = { workspace = true }
@@ -17,25 +17,25 @@ itertools = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
-solana-bench-tps = { workspace = true }
-solana-client = { workspace = true }
-solana-core = { workspace = true }
-solana-faucet = { workspace = true }
-solana-gossip = { workspace = true }
-solana-logger = { workspace = true }
-solana-measure = { workspace = true }
-solana-net-utils = { workspace = true }
-solana-perf = { workspace = true }
-solana-quic-client = { workspace = true }
-solana-rpc = { workspace = true }
-solana-rpc-client = { workspace = true }
-solana-sdk = { workspace = true }
-solana-streamer = { workspace = true }
-solana-tpu-client = { workspace = true }
-solana-version = { workspace = true }
+aeko-bench-tps = { workspace = true }
+aeko-client = { workspace = true }
+aeko-core = { workspace = true }
+aeko-faucet = { workspace = true }
+aeko-gossip = { workspace = true }
+aeko-logger = { workspace = true }
+aeko-measure = { workspace = true }
+aeko-net-utils = { workspace = true }
+aeko-perf = { workspace = true }
+aeko-quic-client = { workspace = true }
+aeko-rpc = { workspace = true }
+aeko-rpc-client = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-streamer = { workspace = true }
+aeko-tpu-client = { workspace = true }
+aeko-version = { workspace = true }
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dev-dependencies]
-solana-local-cluster = { workspace = true }
+aeko-local-cluster = { workspace = true }

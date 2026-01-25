@@ -3,8 +3,8 @@ use {
     crate::config::{
         EncodingConfig, RpcBlockConfig, RpcEncodingConfigWrapper, RpcTransactionConfig,
     },
-    solana_sdk::{clock::Slot, commitment_config::CommitmentConfig},
-    solana_transaction_status::{TransactionDetails, UiTransactionEncoding},
+    aeko_sdk::{clock::Slot, commitment_config::CommitmentConfig},
+    aeko_transaction_status::{TransactionDetails, UiTransactionEncoding},
 };
 
 #[deprecated(

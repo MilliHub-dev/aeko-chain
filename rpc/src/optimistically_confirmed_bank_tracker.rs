@@ -11,11 +11,11 @@
 use {
     crate::rpc_subscriptions::RpcSubscriptions,
     crossbeam_channel::{Receiver, RecvTimeoutError, Sender},
-    solana_rpc_client_api::response::{SlotTransactionStats, SlotUpdate},
-    solana_runtime::{
+    aeko_rpc_client_api::response::{SlotTransactionStats, SlotUpdate},
+    aeko_runtime::{
         bank::Bank, bank_forks::BankForks, prioritization_fee_cache::PrioritizationFeeCache,
     },
-    solana_sdk::{clock::Slot, timing::timestamp},
+    aeko_sdk::{clock::Slot, timing::timestamp},
     std::{
         collections::HashSet,
         sync::{
@@ -401,11 +401,11 @@ mod tests {
     use {
         super::*,
         crossbeam_channel::unbounded,
-        solana_ledger::genesis_utils::{create_genesis_config, GenesisConfigInfo},
-        solana_runtime::{
+        aeko_ledger::genesis_utils::{create_genesis_config, GenesisConfigInfo},
+        aeko_runtime::{
             accounts_background_service::AbsRequestSender, commitment::BlockCommitmentCache,
         },
-        solana_sdk::pubkey::Pubkey,
+        aeko_sdk::pubkey::Pubkey,
         std::sync::atomic::AtomicU64,
     };
 

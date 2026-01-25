@@ -2,14 +2,14 @@ use {
     super::{Error, Result},
     bincode::serialized_size,
     crossbeam_channel::Receiver,
-    solana_entry::entry::Entry,
-    solana_ledger::{
+    aeko_entry::entry::Entry,
+    aeko_ledger::{
         blockstore::Blockstore,
         shred::{self, ShredData},
     },
-    solana_poh::poh_recorder::WorkingBankEntry,
-    solana_runtime::bank::Bank,
-    solana_sdk::{clock::Slot, hash::Hash},
+    aeko_poh::poh_recorder::WorkingBankEntry,
+    aeko_runtime::bank::Bank,
+    aeko_sdk::{clock::Slot, hash::Hash},
     std::{
         sync::Arc,
         time::{Duration, Instant},
@@ -133,8 +133,8 @@ mod tests {
     use {
         super::*,
         crossbeam_channel::unbounded,
-        solana_ledger::genesis_utils::{create_genesis_config, GenesisConfigInfo},
-        solana_sdk::{
+        aeko_ledger::genesis_utils::{create_genesis_config, GenesisConfigInfo},
+        aeko_sdk::{
             genesis_config::GenesisConfig, pubkey::Pubkey, system_transaction,
             transaction::Transaction,
         },
@@ -149,7 +149,7 @@ mod tests {
         let bank0 = Arc::new(Bank::new_for_tests(&genesis_config));
         let tx = system_transaction::transfer(
             &mint_keypair,
-            &solana_sdk::pubkey::new_rand(),
+            &aeko_sdk::pubkey::new_rand(),
             1,
             genesis_config.hash(),
         );

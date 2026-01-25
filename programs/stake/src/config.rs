@@ -1,16 +1,16 @@
 //! config for staking
 //!  carries variables that the stake program cares about
 #[allow(deprecated)]
-use solana_sdk::stake::config;
+use aeko_sdk::stake::config;
 #[deprecated(
     since = "1.8.0",
-    note = "Please use `solana_sdk::stake::config` or `solana_program::stake::config` instead"
+    note = "Please use `aeko_sdk::stake::config` or `aeko_program::stake::config` instead"
 )]
-pub use solana_sdk::stake::config::*;
+pub use aeko_sdk::stake::config::*;
 use {
     bincode::deserialize,
-    solana_config_program::{create_config_account, get_config_data},
-    solana_sdk::{
+    aeko_config_program::{create_config_account, get_config_data},
+    aeko_sdk::{
         account::{AccountSharedData, ReadableAccount, WritableAccount},
         genesis_config::GenesisConfig,
         transaction_context::BorrowedAccount,

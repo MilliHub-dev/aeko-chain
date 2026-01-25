@@ -1,6 +1,6 @@
 //! Configuration for network [rent].
 //!
-//! [rent]: https://docs.solanalabs.com/implemented-proposals/rent
+//! [rent]: https://docs.aeko.network/implemented-proposals/rent
 //!
 //! The _rent sysvar_ provides access to the [`Rent`] type, which defines
 //! storage rent fees.
@@ -10,14 +10,14 @@
 //!
 //! See also the Solana [documentation on the rent sysvar][sdoc].
 //!
-//! [sdoc]: https://docs.solanalabs.com/runtime/sysvars#rent
+//! [sdoc]: https://docs.aeko.network/runtime/sysvars#rent
 //!
 //! # Examples
 //!
 //! Accessing via on-chain program directly:
 //!
 //! ```no_run
-//! # use solana_program::{
+//! # use aeko_program::{
 //! #    account_info::{AccountInfo, next_account_info},
 //! #    entrypoint::ProgramResult,
 //! #    msg,
@@ -25,7 +25,7 @@
 //! #    sysvar::rent::{self, Rent},
 //! #    sysvar::Sysvar,
 //! # };
-//! # use solana_program::program_error::ProgramError;
+//! # use aeko_program::program_error::ProgramError;
 //! #
 //! fn process_instruction(
 //!     program_id: &Pubkey,
@@ -39,7 +39,7 @@
 //!     Ok(())
 //! }
 //! #
-//! # use solana_program::sysvar::SysvarId;
+//! # use aeko_program::sysvar::SysvarId;
 //! # let p = Rent::id();
 //! # let l = &mut 1009200;
 //! # let d = &mut vec![152, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 100];
@@ -56,7 +56,7 @@
 //! Accessing via on-chain program's parameters:
 //!
 //! ```
-//! # use solana_program::{
+//! # use aeko_program::{
 //! #    account_info::{AccountInfo, next_account_info},
 //! #    entrypoint::ProgramResult,
 //! #    msg,
@@ -64,7 +64,7 @@
 //! #    sysvar::rent::{self, Rent},
 //! #    sysvar::Sysvar,
 //! # };
-//! # use solana_program::program_error::ProgramError;
+//! # use aeko_program::program_error::ProgramError;
 //! #
 //! fn process_instruction(
 //!     program_id: &Pubkey,
@@ -82,7 +82,7 @@
 //!     Ok(())
 //! }
 //! #
-//! # use solana_program::sysvar::SysvarId;
+//! # use aeko_program::sysvar::SysvarId;
 //! # let p = Rent::id();
 //! # let l = &mut 1009200;
 //! # let d = &mut vec![152, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 100];
@@ -99,18 +99,18 @@
 //! Accessing via the RPC client:
 //!
 //! ```
-//! # use solana_program::example_mocks::solana_sdk;
-//! # use solana_program::example_mocks::solana_rpc_client;
-//! # use solana_sdk::account::Account;
-//! # use solana_rpc_client::rpc_client::RpcClient;
-//! # use solana_sdk::sysvar::rent::{self, Rent};
+//! # use aeko_program::example_mocks::aeko_sdk;
+//! # use aeko_program::example_mocks::aeko_rpc_client;
+//! # use aeko_sdk::account::Account;
+//! # use aeko_rpc_client::rpc_client::RpcClient;
+//! # use aeko_sdk::sysvar::rent::{self, Rent};
 //! # use anyhow::Result;
 //! #
 //! fn print_sysvar_rent(client: &RpcClient) -> Result<()> {
 //! #   client.set_get_account_response(rent::ID, Account {
 //! #       lamports: 1009200,
 //! #       data: vec![152, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 100],
-//! #       owner: solana_sdk::system_program::ID,
+//! #       owner: aeko_sdk::system_program::ID,
 //! #       executable: false,
 //! #       rent_epoch: 307,
 //! # });

@@ -1,6 +1,6 @@
 use {
-    solana_sdk::{clock::Slot, commitment_config::CommitmentLevel},
-    solana_vote_program::vote_state::MAX_LOCKOUT_HISTORY,
+    aeko_sdk::{clock::Slot, commitment_config::CommitmentLevel},
+    aeko_vote_program::vote_state::MAX_LOCKOUT_HISTORY,
     std::collections::HashMap,
 };
 

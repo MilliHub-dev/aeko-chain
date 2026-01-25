@@ -1,12 +1,12 @@
-// Re-exported since these have moved to `solana_sdk`.
+// Re-exported since these have moved to `aeko_sdk`.
 #[deprecated(
     since = "1.18.0",
-    note = "Please use `solana_sdk::inner_instruction` types instead"
+    note = "Please use `aeko_sdk::inner_instruction` types instead"
 )]
-pub use solana_sdk::inner_instruction::{InnerInstruction, InnerInstructionsList};
+pub use aeko_sdk::inner_instruction::{InnerInstruction, InnerInstructionsList};
 use {
-    solana_program_runtime::loaded_programs::LoadedProgramsForTxBatch,
-    solana_sdk::{
+    aeko_program_runtime::loaded_programs::LoadedProgramsForTxBatch,
+    aeko_sdk::{
         nonce_info::{NonceFull, NonceInfo},
         rent_debits::RentDebits,
         transaction::{self, TransactionError},

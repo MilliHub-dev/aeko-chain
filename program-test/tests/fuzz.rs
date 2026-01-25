@@ -1,7 +1,7 @@
 use {
-    solana_banks_client::BanksClient,
-    solana_program_test::{processor, ProgramTest},
-    solana_sdk::{
+    aeko_banks_client::BanksClient,
+    aeko_program_test::{processor, ProgramTest},
+    aeko_sdk::{
         account_info::AccountInfo,
         entrypoint::ProgramResult,
         hash::Hash,

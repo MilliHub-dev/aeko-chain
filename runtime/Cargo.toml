@@ -1,7 +1,7 @@
 [package]
-name = "solana-runtime"
-description = "Solana runtime"
-documentation = "https://docs.rs/solana-runtime"
+name = "aeko-runtime"
+description = "AEKO runtime"
+documentation = "https://docs.rs/aeko-runtime"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -46,30 +46,30 @@ regex = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
-solana-accounts-db = { workspace = true }
-solana-address-lookup-table-program = { workspace = true }
-solana-bpf-loader-program = { workspace = true }
-solana-bucket-map = { workspace = true }
-solana-compute-budget-program = { workspace = true }
-solana-config-program = { workspace = true }
-solana-cost-model = { workspace = true }
-solana-frozen-abi = { workspace = true }
-solana-frozen-abi-macro = { workspace = true }
-solana-loader-v4-program = { workspace = true }
-solana-measure = { workspace = true }
-solana-metrics = { workspace = true }
-solana-perf = { workspace = true }
-solana-program-runtime = { workspace = true }
-solana-rayon-threadlimit = { workspace = true }
-solana-sdk = { workspace = true }
-solana-stake-program = { workspace = true }
-solana-svm = { workspace = true }
-solana-system-program = { workspace = true }
-solana-version = { workspace = true }
-solana-vote = { workspace = true }
-solana-vote-program = { workspace = true }
-solana-zk-token-proof-program = { workspace = true }
-solana-zk-token-sdk = { workspace = true }
+aeko-accounts-db = { workspace = true }
+aeko-address-lookup-table-program = { workspace = true }
+aeko-bpf-loader-program = { workspace = true }
+aeko-bucket-map = { workspace = true }
+aeko-compute-budget-program = { workspace = true }
+aeko-config-program = { workspace = true }
+aeko-cost-model = { workspace = true }
+aeko-frozen-abi = { workspace = true }
+aeko-frozen-abi-macro = { workspace = true }
+aeko-loader-v4-program = { workspace = true }
+aeko-measure = { workspace = true }
+aeko-metrics = { workspace = true }
+aeko-perf = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-rayon-threadlimit = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-stake-program = { workspace = true }
+aeko-svm = { workspace = true }
+aeko-system-program = { workspace = true }
+aeko-version = { workspace = true }
+aeko-vote = { workspace = true }
+aeko-vote-program = { workspace = true }
+aeko-zk-token-proof-program = { workspace = true }
+aeko-zk-token-sdk = { workspace = true }
 static_assertions = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 strum_macros = { workspace = true }
@@ -81,7 +81,7 @@ zstd = { workspace = true }
 
 [lib]
 crate-type = ["lib"]
-name = "solana_runtime"
+name = "aeko_runtime"
 
 [dev-dependencies]
 assert_matches = { workspace = true }
@@ -89,11 +89,11 @@ ed25519-dalek = { workspace = true }
 libsecp256k1 = { workspace = true }
 memoffset = { workspace = true }
 rand_chacha = { workspace = true }
-solana-accounts-db = { workspace = true, features = ["dev-context-only-utils"] }
-solana-logger = { workspace = true }
+aeko-accounts-db = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-logger = { workspace = true }
 # See order-crates-for-publishing.py for using this unusual `path = "."`
-solana-runtime = { path = ".", features = ["dev-context-only-utils"] }
-solana-sdk = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-runtime = { path = ".", features = ["dev-context-only-utils"] }
+aeko-sdk = { workspace = true, features = ["dev-context-only-utils"] }
 static_assertions = { workspace = true }
 test-case = { workspace = true }
 

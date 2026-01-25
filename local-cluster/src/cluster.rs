@@ -1,10 +1,10 @@
 use {
-    solana_client::{thin_client::ThinClient, tpu_client::QuicTpuClient},
-    solana_core::validator::{Validator, ValidatorConfig},
-    solana_gossip::{cluster_info::Node, contact_info::ContactInfo},
-    solana_ledger::shred::Shred,
-    solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Keypair},
-    solana_streamer::socket::SocketAddrSpace,
+    aeko_client::{thin_client::ThinClient, tpu_client::QuicTpuClient},
+    aeko_core::validator::{Validator, ValidatorConfig},
+    aeko_gossip::{cluster_info::Node, contact_info::ContactInfo},
+    aeko_ledger::shred::Shred,
+    aeko_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Keypair},
+    aeko_streamer::socket::SocketAddrSpace,
     std::{io::Result, path::PathBuf, sync::Arc},
 };
 

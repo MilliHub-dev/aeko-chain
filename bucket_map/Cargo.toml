@@ -1,7 +1,7 @@
 [package]
-name = "solana-bucket-map"
-description = "solana-bucket-map"
-documentation = "https://docs.rs/solana-bucket-map"
+name = "aeko-bucket-map"
+description = "aeko-bucket-map"
+documentation = "https://docs.rs/aeko-bucket-map"
 readme = "../README.md"
 version = { workspace = true }
 authors = { workspace = true }
@@ -18,18 +18,19 @@ memmap2 = { workspace = true }
 modular-bitfield = { workspace = true }
 num_enum = { workspace = true }
 rand = { workspace = true }
-solana-measure = { workspace = true }
-solana-sdk = { workspace = true }
+aeko-measure = { workspace = true }
+aeko-sdk = { workspace = true }
 tempfile = { workspace = true }
 
 [dev-dependencies]
 fs_extra = { workspace = true }
 rayon = { workspace = true }
-solana-logger = { workspace = true }
+aeko-logger = { workspace = true }
 
 [lib]
 crate-type = ["lib"]
-name = "solana_bucket_map"
+name = "aeko_bucket_map"
 
 [[bench]]
 name = "bucket_map"
+

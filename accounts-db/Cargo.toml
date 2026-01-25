@@ -1,7 +1,7 @@
 [package]
-name = "solana-accounts-db"
-description = "Solana accounts db"
-documentation = "https://docs.rs/solana-acounts-db"
+name = "aeko-accounts-db"
+description = "AEKO accounts db"
+documentation = "https://docs.rs/aeko-accounts-db"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -43,20 +43,20 @@ seqlock = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_derive = { workspace = true }
 smallvec = { workspace = true, features = ["const_generics"] }
-solana-bucket-map = { workspace = true }
-solana-config-program = { workspace = true }
-solana-frozen-abi = { workspace = true }
-solana-frozen-abi-macro = { workspace = true }
-solana-measure = { workspace = true }
-solana-metrics = { workspace = true }
-solana-nohash-hasher = { workspace = true }
-solana-program-runtime = { workspace = true }
-solana-rayon-threadlimit = { workspace = true }
-solana-sdk = { workspace = true }
-solana-stake-program = { workspace = true }
-solana-svm = { workspace = true }
-solana-system-program = { workspace = true }
-solana-vote-program = { workspace = true }
+aeko-bucket-map = { workspace = true }
+aeko-config-program = { workspace = true }
+aeko-frozen-abi = { workspace = true }
+aeko-frozen-abi-macro = { workspace = true }
+aeko-measure = { workspace = true }
+aeko-metrics = { workspace = true }
+aeko-nohash-hasher = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-rayon-threadlimit = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-stake-program = { workspace = true }
+aeko-svm = { workspace = true }
+aeko-system-program = { workspace = true }
+aeko-vote-program = { workspace = true }
 static_assertions = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 strum_macros = { workspace = true }
@@ -66,7 +66,7 @@ thiserror = { workspace = true }
 
 [lib]
 crate-type = ["lib"]
-name = "solana_accounts_db"
+name = "aeko_accounts_db"
 
 [dev-dependencies]
 assert_matches = { workspace = true }
@@ -76,9 +76,9 @@ libsecp256k1 = { workspace = true }
 memoffset = { workspace = true }
 rand_chacha = { workspace = true }
 # See order-crates-for-publishing.py for using this unusual `path = "."`
-solana-accounts-db = { path = ".", features = ["dev-context-only-utils"] }
-solana-logger = { workspace = true }
-solana-sdk = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-accounts-db = { path = ".", features = ["dev-context-only-utils"] }
+aeko-logger = { workspace = true }
+aeko-sdk = { workspace = true, features = ["dev-context-only-utils"] }
 static_assertions = { workspace = true }
 test-case = { workspace = true }
 

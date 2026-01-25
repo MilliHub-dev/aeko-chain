@@ -1,7 +1,7 @@
 [package]
-name = "solana-compute-budget-program"
-description = "Solana Compute Budget program"
-documentation = "https://docs.rs/solana-compute-budget-program"
+name = "aeko-compute-budget-program"
+description = "AEKO Compute Budget program"
+documentation = "https://docs.rs/aeko-compute-budget-program"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -10,12 +10,12 @@ license = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-solana-program-runtime = { workspace = true }
-solana-sdk = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
 
 [lib]
 crate-type = ["lib"]
-name = "solana_compute_budget_program"
+name = "aeko_compute_budget_program"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]

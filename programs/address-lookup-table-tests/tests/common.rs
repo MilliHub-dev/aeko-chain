@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use {
-    solana_program_test::*,
-    solana_sdk::{
+    aeko_program_test::*,
+    aeko_sdk::{
         account::AccountSharedData,
         address_lookup_table::{
             program::id,
@@ -22,7 +22,7 @@ pub async fn setup_test_context() -> ProgramTestContext {
     let program_test = ProgramTest::new(
         "",
         id(),
-        Some(solana_address_lookup_table_program::processor::Entrypoint::vm),
+        Some(aeko_address_lookup_table_program::processor::Entrypoint::vm),
     );
     program_test.start_with_context().await
 }

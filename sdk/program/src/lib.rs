@@ -9,7 +9,7 @@
 //!
 //! [std]: https://doc.rust-lang.org/stable/std/
 //! [sstd]: https://solana.com/docs/programs/lang-rust#restrictions
-//! [`solana-sdk`]: https://docs.rs/solana-sdk/latest/solana_sdk/
+//! [`solana-sdk`]: https://docs.rs/solana-sdk/latest/aeko_sdk/
 //!
 //! This library defines
 //!
@@ -33,7 +33,7 @@
 //! Idiomatic examples of `solana-program` usage can be found in
 //! [the Solana Program Library][spl].
 //!
-//! [spl]: https://github.com/solana-labs/solana-program-library
+//! [spl]: https://github.com/aeko-chain/solana-program-library
 //!
 //! # Defining a solana program
 //!
@@ -68,7 +68,7 @@
 //! ```
 //! #[cfg(not(feature = "no-entrypoint"))]
 //! pub mod entrypoint {
-//!     use solana_program::{
+//!     use aeko_program::{
 //!         account_info::AccountInfo,
 //!         entrypoint,
 //!         entrypoint::ProgramResult,
@@ -116,7 +116,7 @@
 //! example from the `solana-program` codebase that logs a message via a
 //! syscall when run on-chain, and via a library call when offchain:
 //!
-//! [rbpf]: https://github.com/solana-labs/rbpf
+//! [rbpf]: https://github.com/aeko-chain/rbpf
 //! [eBPF]: https://ebpf.io/
 //! [cc]: https://doc.rust-lang.org/reference/conditional-compilation.html
 //!
@@ -181,7 +181,7 @@
 //! [`ProgramError`]: program_error::ProgramError
 //! [`ProgramResult`]: entrypoint::ProgramResult
 //! [ed25519]: https://ed25519.cr.yp.to/
-//! [`Keypair`]: https://docs.rs/solana-sdk/latest/solana_sdk/signer/keypair/struct.Keypair.html
+//! [`Keypair`]: https://docs.rs/solana-sdk/latest/aeko_sdk/signer/keypair/struct.Keypair.html
 //! [SHA-256]: https://en.wikipedia.org/wiki/SHA-2
 //! [`Sol`]: native_token::Sol
 //! [_lamports_]: https://solana.com/docs/intro#what-are-sols
@@ -277,7 +277,7 @@
 //! A simple example of transferring lamports via CPI:
 //!
 //! ```
-//! use solana_program::{
+//! use aeko_program::{
 //!     account_info::{next_account_info, AccountInfo},
 //!     entrypoint,
 //!     entrypoint::ProgramResult,
@@ -325,7 +325,7 @@
 //! A simple example of creating an account for a PDA:
 //!
 //! ```
-//! use solana_program::{
+//! use aeko_program::{
 //!     account_info::{next_account_info, AccountInfo},
 //!     entrypoint,
 //!     entrypoint::ProgramResult,
@@ -391,13 +391,13 @@
 //! Some solana programs are [_native programs_][np2], running native machine
 //! code that is distributed with the runtime, with well-known program IDs.
 //!
-//! [np2]: https://docs.solanalabs.com/runtime/programs
+//! [np2]: https://docs.aeko.network/runtime/programs
 //!
 //! Some native programs can be [invoked][cpi] by other programs, but some can
 //! only be executed as "top-level" instructions included by off-chain clients
 //! in a [`Transaction`].
 //!
-//! [`Transaction`]: https://docs.rs/solana-sdk/latest/solana_sdk/transaction/struct.Transaction.html
+//! [`Transaction`]: https://docs.rs/solana-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
 //!
 //! This crate defines the program IDs for most native programs. Even though
 //! some native programs cannot be invoked by other programs, a Solana program
@@ -423,51 +423,51 @@
 //! - __System Program__: Creates new accounts, allocates account data, assigns
 //!   accounts to owning programs, transfers lamports from System Program owned
 //!   accounts and pays transaction fees.
-//!   - ID: [`solana_program::system_program`]
-//!   - Instruction: [`solana_program::system_instruction`]
+//!   - ID: [`aeko_program::system_program`]
+//!   - Instruction: [`aeko_program::system_instruction`]
 //!   - Invokable by programs? yes
 //!
 //! - __Compute Budget Program__: Requests additional CPU or memory resources
 //!   for a transaction. This program does nothing when called from another
 //!   program.
-//!   - ID: [`solana_sdk::compute_budget`](https://docs.rs/solana-sdk/latest/solana_sdk/compute_budget/index.html)
-//!   - Instruction: [`solana_sdk::compute_budget`](https://docs.rs/solana-sdk/latest/solana_sdk/compute_budget/index.html)
+//!   - ID: [`aeko_sdk::compute_budget`](https://docs.rs/solana-sdk/latest/aeko_sdk/compute_budget/index.html)
+//!   - Instruction: [`aeko_sdk::compute_budget`](https://docs.rs/solana-sdk/latest/aeko_sdk/compute_budget/index.html)
 //!   - Invokable by programs? no
 //!
 //! - __ed25519 Program__: Verifies an ed25519 signature.
-//!   - ID: [`solana_program::ed25519_program`]
-//!   - Instruction: [`solana_sdk::ed25519_instruction`](https://docs.rs/solana-sdk/latest/solana_sdk/ed25519_instruction/index.html)
+//!   - ID: [`aeko_program::ed25519_program`]
+//!   - Instruction: [`aeko_sdk::ed25519_instruction`](https://docs.rs/solana-sdk/latest/aeko_sdk/ed25519_instruction/index.html)
 //!   - Invokable by programs? no
 //!
 //! - __secp256k1 Program__: Verifies secp256k1 public key recovery operations.
-//!   - ID: [`solana_program::secp256k1_program`]
-//!   - Instruction: [`solana_sdk::secp256k1_instruction`](https://docs.rs/solana-sdk/latest/solana_sdk/secp256k1_instruction/index.html)
+//!   - ID: [`aeko_program::secp256k1_program`]
+//!   - Instruction: [`aeko_sdk::secp256k1_instruction`](https://docs.rs/solana-sdk/latest/aeko_sdk/secp256k1_instruction/index.html)
 //!   - Invokable by programs? no
 //!
 //! - __BPF Loader__: Deploys, and executes immutable programs on the chain.
-//!   - ID: [`solana_program::bpf_loader`]
-//!   - Instruction: [`solana_program::loader_instruction`]
+//!   - ID: [`aeko_program::bpf_loader`]
+//!   - Instruction: [`aeko_program::loader_instruction`]
 //!   - Invokable by programs? yes
 //!
 //! - __Upgradable BPF Loader__: Deploys, upgrades, and executes upgradable
 //!   programs on the chain.
-//!   - ID: [`solana_program::bpf_loader_upgradeable`]
-//!   - Instruction: [`solana_program::loader_upgradeable_instruction`]
+//!   - ID: [`aeko_program::bpf_loader_upgradeable`]
+//!   - Instruction: [`aeko_program::loader_upgradeable_instruction`]
 //!   - Invokable by programs? yes
 //!
 //! - __Deprecated BPF Loader__: Deploys, and executes immutable programs on the
 //!   chain.
-//!   - ID: [`solana_program::bpf_loader_deprecated`]
-//!   - Instruction: [`solana_program::loader_instruction`]
+//!   - ID: [`aeko_program::bpf_loader_deprecated`]
+//!   - Instruction: [`aeko_program::loader_instruction`]
 //!   - Invokable by programs? yes
 //!
-//! [lut]: https://docs.solanalabs.com/proposals/versioned-transactions
+//! [lut]: https://docs.aeko.network/proposals/versioned-transactions
 
 #![allow(incomplete_features)]
 #![cfg_attr(RUSTC_WITH_SPECIALIZATION, feature(specialization))]
 
-// Allows macro expansion of `use ::solana_program::*` to work within this crate
-extern crate self as solana_program;
+// Allows macro expansion of `use ::aeko_program::*` to work within this crate
+extern crate self as aeko_program;
 
 pub mod account_info;
 pub mod address_lookup_table;
@@ -537,14 +537,14 @@ pub mod wasm;
 
 #[deprecated(
     since = "1.17.0",
-    note = "Please use `solana_sdk::address_lookup_table::AddressLookupTableAccount` instead"
+    note = "Please use `aeko_sdk::address_lookup_table::AddressLookupTableAccount` instead"
 )]
 pub mod address_lookup_table_account {
     pub use crate::address_lookup_table::AddressLookupTableAccount;
 }
 
 #[cfg(target_os = "solana")]
-pub use solana_sdk_macro::wasm_bindgen_stub as wasm_bindgen;
+pub use aeko_sdk_macro::wasm_bindgen_stub as wasm_bindgen;
 /// Re-export of [wasm-bindgen].
 ///
 /// [wasm-bindgen]: https://rustwasm.github.io/docs/wasm-bindgen/
@@ -553,7 +553,7 @@ pub use wasm_bindgen::prelude::wasm_bindgen;
 
 /// The [config native program][np].
 ///
-/// [np]: https://docs.solanalabs.com/runtime/programs#config-program
+/// [np]: https://docs.aeko.network/runtime/programs#config-program
 pub mod config {
     pub mod program {
         crate::declare_id!("Config1111111111111111111111111111111111111");
@@ -566,7 +566,7 @@ pub mod sdk_ids {
         crate::{
             address_lookup_table, bpf_loader, bpf_loader_deprecated, bpf_loader_upgradeable,
             config, ed25519_program, feature, incinerator, loader_v4, secp256k1_program,
-            solana_program::pubkey::Pubkey, stake, system_program, sysvar, vote,
+            aeko_program::pubkey::Pubkey, stake, system_program, sysvar, vote,
         },
         lazy_static::lazy_static,
     };
@@ -598,7 +598,7 @@ pub mod sdk_ids {
 }
 
 /// Same as [`declare_id`] except that it reports that this ID has been deprecated.
-pub use solana_sdk_macro::program_declare_deprecated_id as declare_deprecated_id;
+pub use aeko_sdk_macro::program_declare_deprecated_id as declare_deprecated_id;
 /// Convenience macro to declare a static public key and functions to interact with it.
 ///
 /// Input: a single literal base58 string representation of a program's ID.
@@ -609,10 +609,10 @@ pub use solana_sdk_macro::program_declare_deprecated_id as declare_deprecated_id
 /// # // wrapper is used so that the macro invocation occurs in the item position
 /// # // rather than in the statement position which isn't allowed.
 /// use std::str::FromStr;
-/// use solana_program::{declare_id, pubkey::Pubkey};
+/// use aeko_program::{declare_id, pubkey::Pubkey};
 ///
 /// # mod item_wrapper {
-/// #   use solana_program::declare_id;
+/// #   use aeko_program::declare_id;
 /// declare_id!("My11111111111111111111111111111111111111111");
 /// # }
 /// # use item_wrapper::id;
@@ -620,7 +620,7 @@ pub use solana_sdk_macro::program_declare_deprecated_id as declare_deprecated_id
 /// let my_id = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
 /// assert_eq!(id(), my_id);
 /// ```
-pub use solana_sdk_macro::program_declare_id as declare_id;
+pub use aeko_sdk_macro::program_declare_id as declare_id;
 /// Convenience macro to define a static public key.
 ///
 /// Input: a single literal base58 string representation of a Pubkey.
@@ -629,20 +629,20 @@ pub use solana_sdk_macro::program_declare_id as declare_id;
 ///
 /// ```
 /// use std::str::FromStr;
-/// use solana_program::{pubkey, pubkey::Pubkey};
+/// use aeko_program::{pubkey, pubkey::Pubkey};
 ///
 /// static ID: Pubkey = pubkey!("My11111111111111111111111111111111111111111");
 ///
 /// let my_id = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
 /// assert_eq!(ID, my_id);
 /// ```
-pub use solana_sdk_macro::program_pubkey as pubkey;
+pub use aeko_sdk_macro::program_pubkey as pubkey;
 
 #[macro_use]
 extern crate serde_derive;
 
 #[macro_use]
-extern crate solana_frozen_abi_macro;
+extern crate aeko_frozen_abi_macro;
 
 /// Convenience macro for doing integer division where the operation's safety
 /// can be checked at compile-time.
@@ -655,7 +655,7 @@ extern crate solana_frozen_abi_macro;
 /// Literal denominator div-by-zero fails:
 ///
 /// ```compile_fail
-/// # use solana_program::unchecked_div_by_const;
+/// # use aeko_program::unchecked_div_by_const;
 /// # fn main() {
 /// let _ = unchecked_div_by_const!(10, 0);
 /// # }
@@ -664,7 +664,7 @@ extern crate solana_frozen_abi_macro;
 /// Const denominator div-by-zero fails:
 ///
 /// ```compile_fail
-/// # use solana_program::unchecked_div_by_const;
+/// # use aeko_program::unchecked_div_by_const;
 /// # fn main() {
 /// const D: u64 = 0;
 /// let _ = unchecked_div_by_const!(10, D);
@@ -674,7 +674,7 @@ extern crate solana_frozen_abi_macro;
 /// Non-const denominator fails:
 ///
 /// ```compile_fail
-/// # use solana_program::unchecked_div_by_const;
+/// # use aeko_program::unchecked_div_by_const;
 /// # fn main() {
 /// let d = 0;
 /// let _ = unchecked_div_by_const!(10, d);
@@ -684,7 +684,7 @@ extern crate solana_frozen_abi_macro;
 /// Literal denominator div-by-zero fails:
 ///
 /// ```compile_fail
-/// # use solana_program::unchecked_div_by_const;
+/// # use aeko_program::unchecked_div_by_const;
 /// # fn main() {
 /// const N: u64 = 10;
 /// let _ = unchecked_div_by_const!(N, 0);
@@ -694,7 +694,7 @@ extern crate solana_frozen_abi_macro;
 /// Const denominator div-by-zero fails:
 ///
 /// ```compile_fail
-/// # use solana_program::unchecked_div_by_const;
+/// # use aeko_program::unchecked_div_by_const;
 /// # fn main() {
 /// const N: u64 = 10;
 /// const D: u64 = 0;
@@ -705,7 +705,7 @@ extern crate solana_frozen_abi_macro;
 /// Non-const denominator fails:
 ///
 /// ```compile_fail
-/// # use solana_program::unchecked_div_by_const;
+/// # use aeko_program::unchecked_div_by_const;
 /// # fn main() {
 /// # const N: u64 = 10;
 /// let d = 0;
@@ -716,7 +716,7 @@ extern crate solana_frozen_abi_macro;
 /// Literal denominator div-by-zero fails:
 ///
 /// ```compile_fail
-/// # use solana_program::unchecked_div_by_const;
+/// # use aeko_program::unchecked_div_by_const;
 /// # fn main() {
 /// let n = 10;
 /// let _ = unchecked_div_by_const!(n, 0);
@@ -726,7 +726,7 @@ extern crate solana_frozen_abi_macro;
 /// Const denominator div-by-zero fails:
 ///
 /// ```compile_fail
-/// # use solana_program::unchecked_div_by_const;
+/// # use aeko_program::unchecked_div_by_const;
 /// # fn main() {
 /// let n = 10;
 /// const D: u64 = 0;
@@ -737,7 +737,7 @@ extern crate solana_frozen_abi_macro;
 /// Non-const denominator fails:
 ///
 /// ```compile_fail
-/// # use solana_program::unchecked_div_by_const;
+/// # use aeko_program::unchecked_div_by_const;
 /// # fn main() {
 /// let n = 10;
 /// let d = 0;
@@ -763,10 +763,10 @@ macro_rules! unchecked_div_by_const {
 
 // This module is purposefully listed after all other exports: because of an
 // interaction within rustdoc between the reexports inside this module of
-// `solana_program`'s top-level modules, and `solana_sdk`'s glob re-export of
-// `solana_program`'s top-level modules, if this module is not lexically last
+// `aeko_program`'s top-level modules, and `aeko_sdk`'s glob re-export of
+// `aeko_program`'s top-level modules, if this module is not lexically last
 // rustdoc fails to generate documentation for the re-exports within
-// `solana_sdk`.
+// `aeko_sdk`.
 #[cfg(not(target_os = "solana"))]
 pub mod example_mocks;
 

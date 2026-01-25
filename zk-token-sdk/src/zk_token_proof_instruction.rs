@@ -29,15 +29,15 @@
 //! this instruction must be signed by the context account's owner. This instruction can be used by
 //! the account owner to reclaim lamports for storage.
 //!
-//! [`ZK Token proof`]: https://docs.solanalabs.com/runtime/zk-token-proof
-//! [`context-state`]: https://docs.solanalabs.com/runtime/zk-token-proof#context-data
+//! [`ZK Token proof`]: https://docs.aeko.network/runtime/zk-token-proof
+//! [`context-state`]: https://docs.aeko.network/runtime/zk-token-proof#context-data
 
 pub use crate::instruction::*;
 use {
     bytemuck::bytes_of,
     num_derive::{FromPrimitive, ToPrimitive},
     num_traits::{FromPrimitive, ToPrimitive},
-    solana_program::{
+    aeko_program::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
     },

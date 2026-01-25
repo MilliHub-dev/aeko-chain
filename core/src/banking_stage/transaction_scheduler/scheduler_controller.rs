@@ -19,11 +19,11 @@ use {
         TOTAL_BUFFERED_PACKETS,
     },
     crossbeam_channel::RecvTimeoutError,
-    solana_cost_model::cost_model::CostModel,
-    solana_measure::measure_us,
-    solana_program_runtime::compute_budget_processor::process_compute_budget_instructions,
-    solana_runtime::{bank::Bank, bank_forks::BankForks},
-    solana_sdk::{
+    aeko_cost_model::cost_model::CostModel,
+    aeko_measure::measure_us,
+    aeko_program_runtime::compute_budget_processor::process_compute_budget_instructions,
+    aeko_runtime::{bank::Bank, bank_forks::BankForks},
+    aeko_sdk::{
         clock::MAX_PROCESSING_AGE,
         feature_set::{
             include_loaded_accounts_data_size_in_fee_calculation,
@@ -33,7 +33,7 @@ use {
         saturating_add_assign,
         transaction::SanitizedTransaction,
     },
-    solana_svm::transaction_error_metrics::TransactionErrorMetrics,
+    aeko_svm::transaction_error_metrics::TransactionErrorMetrics,
     std::{
         sync::{Arc, RwLock},
         time::Duration,
@@ -522,14 +522,14 @@ mod tests {
         },
         crossbeam_channel::{unbounded, Receiver, Sender},
         itertools::Itertools,
-        solana_ledger::{
+        aeko_ledger::{
             blockstore::Blockstore, genesis_utils::GenesisConfigInfo,
             get_tmp_ledger_path_auto_delete, leader_schedule_cache::LeaderScheduleCache,
         },
-        solana_perf::packet::{to_packet_batches, PacketBatch, NUM_PACKETS},
-        solana_poh::poh_recorder::{PohRecorder, Record, WorkingBankEntry},
-        solana_runtime::bank::Bank,
-        solana_sdk::{
+        aeko_perf::packet::{to_packet_batches, PacketBatch, NUM_PACKETS},
+        aeko_poh::poh_recorder::{PohRecorder, Record, WorkingBankEntry},
+        aeko_runtime::bank::Bank,
+        aeko_sdk::{
             compute_budget::ComputeBudgetInstruction, hash::Hash, message::Message,
             poh_config::PohConfig, pubkey::Pubkey, signature::Keypair, signer::Signer,
             system_instruction, system_transaction, transaction::Transaction,

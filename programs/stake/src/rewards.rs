@@ -6,7 +6,7 @@ use {
         calculate_stake_points_and_credits, CalculatedStakePoints, InflationPointCalculationEvent,
         PointValue, SkippedReason,
     },
-    solana_sdk::{
+    aeko_sdk::{
         account::{AccountSharedData, WritableAccount},
         account_utils::StateMut,
         clock::Epoch,
@@ -17,7 +17,7 @@ use {
         },
         stake_history::StakeHistory,
     },
-    solana_vote_program::vote_state::VoteState,
+    aeko_vote_program::vote_state::VoteState,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -229,7 +229,7 @@ mod tests {
     use {
         super::*,
         crate::{points::null_tracer, stake_state::new_stake},
-        solana_sdk::{native_token, pubkey::Pubkey},
+        aeko_sdk::{native_token, pubkey::Pubkey},
     };
 
     #[test]
@@ -621,7 +621,7 @@ mod tests {
         // bootstrap means fully-vested stake at epoch 0 with
         //  10_000_000 SOL is a big but not unreasaonable stake
         let stake = new_stake(
-            native_token::sol_to_lamports(10_000_000f64),
+            native_token::aeko_to_lamports(10_000_000f64),
             &Pubkey::default(),
             &vote_state,
             std::u64::MAX,

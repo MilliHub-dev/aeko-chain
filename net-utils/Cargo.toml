@@ -1,7 +1,7 @@
 [package]
-name = "solana-net-utils"
+name = "aeko-net-utils"
 description = "Solana Network Utilities"
-documentation = "https://docs.rs/solana-net-utils"
+documentation = "https://docs.rs/aeko-net-utils"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -19,22 +19,23 @@ rand = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 socket2 = { workspace = true }
-solana-logger = { workspace = true }
-solana-sdk = { workspace = true }
-solana-version = { workspace = true }
+aeko-logger = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-version = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 url = { workspace = true }
 
 [lib]
-name = "solana_net_utils"
+name = "aeko_net_utils"
 
 [[bin]]
-name = "solana-ip-address"
+name = "aeko-ip-address"
 path = "src/bin/ip_address.rs"
 
 [[bin]]
-name = "solana-ip-address-server"
+name = "aeko-ip-address-server"
 path = "src/bin/ip_address_server.rs"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+

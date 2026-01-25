@@ -5,12 +5,12 @@ extern crate test;
 use {
     rand::{thread_rng, Rng},
     rayon::ThreadPoolBuilder,
-    solana_gossip::{
+    aeko_gossip::{
         crds::{Crds, GossipRoute},
         crds_gossip_pull::{CrdsTimeouts, CRDS_GOSSIP_PULL_CRDS_TIMEOUT_MS},
         crds_value::CrdsValue,
     },
-    solana_sdk::pubkey::Pubkey,
+    aeko_sdk::pubkey::Pubkey,
     std::{collections::HashMap, time::Duration},
     test::Bencher,
 };

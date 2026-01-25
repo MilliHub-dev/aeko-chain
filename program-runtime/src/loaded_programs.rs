@@ -6,14 +6,14 @@ use {
     log::{debug, error, log_enabled, trace},
     percentage::PercentageInteger,
     rand::{thread_rng, Rng},
-    solana_measure::measure::Measure,
-    solana_rbpf::{
+    aeko_measure::measure::Measure,
+    aeko_rbpf::{
         elf::Executable,
         program::{BuiltinProgram, FunctionRegistry},
         verifier::RequisiteVerifier,
         vm::Config,
     },
-    solana_sdk::{
+    aeko_sdk::{
         bpf_loader, bpf_loader_deprecated, bpf_loader_upgradeable,
         clock::{Epoch, Slot},
         loader_v4,
@@ -1138,7 +1138,7 @@ impl<FG: ForkGraph> ProgramCache<FG> {
 }
 
 #[cfg(RUSTC_WITH_SPECIALIZATION)]
-impl solana_frozen_abi::abi_example::AbiExample for LoadedProgram {
+impl aeko_frozen_abi::abi_example::AbiExample for LoadedProgram {
     fn example() -> Self {
         // LoadedProgram isn't serializable by definition.
         Self::default()
@@ -1146,7 +1146,7 @@ impl solana_frozen_abi::abi_example::AbiExample for LoadedProgram {
 }
 
 #[cfg(RUSTC_WITH_SPECIALIZATION)]
-impl<FG: ForkGraph> solana_frozen_abi::abi_example::AbiExample for ProgramCache<FG> {
+impl<FG: ForkGraph> aeko_frozen_abi::abi_example::AbiExample for ProgramCache<FG> {
     fn example() -> Self {
         // ProgramCache isn't serializable by definition.
         Self::new(Slot::default(), Epoch::default())
@@ -1163,8 +1163,8 @@ mod tests {
         },
         assert_matches::assert_matches,
         percentage::Percentage,
-        solana_rbpf::program::BuiltinProgram,
-        solana_sdk::{clock::Slot, pubkey::Pubkey},
+        aeko_rbpf::program::BuiltinProgram,
+        aeko_sdk::{clock::Slot, pubkey::Pubkey},
         std::{
             ops::ControlFlow,
             sync::{

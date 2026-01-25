@@ -1,7 +1,7 @@
 [package]
-name = "solana-cli"
-description = "Blockchain, Rebuilt for Scale"
-documentation = "https://docs.rs/solana-cli"
+name = "aeko-cli"
+description = "AEKO Chain, Rebuilt for SocialFi Scale"
+documentation = "https://docs.rs/aeko-cli"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -28,27 +28,27 @@ semver = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
-solana-account-decoder = { workspace = true }
-solana-bpf-loader-program = { workspace = true }
-solana-clap-utils = { workspace = true }
-solana-cli-config = { workspace = true }
-solana-cli-output = { workspace = true }
-solana-client = { workspace = true }
-solana-config-program = { workspace = true }
-solana-faucet = { workspace = true }
-solana-loader-v4-program = { workspace = true }
-solana-logger = { workspace = true }
-solana-program-runtime = { workspace = true }
-solana-pubsub-client = { workspace = true }
-solana-remote-wallet = { workspace = true, features = ["default"] }
-solana-rpc-client = { workspace = true, features = ["default"] }
-solana-rpc-client-api = { workspace = true }
-solana-rpc-client-nonce-utils = { workspace = true }
-solana-sdk = { workspace = true }
-solana-tpu-client = { workspace = true, features = ["default"] }
-solana-transaction-status = { workspace = true }
-solana-version = { workspace = true }
-solana-vote-program = { workspace = true }
+aeko-account-decoder = { workspace = true }
+aeko-bpf-loader-program = { workspace = true }
+aeko-clap-utils = { workspace = true }
+aeko-cli-config = { workspace = true }
+aeko-cli-output = { workspace = true }
+aeko-client = { workspace = true }
+aeko-config-program = { workspace = true }
+aeko-faucet = { workspace = true }
+aeko-loader-v4-program = { workspace = true }
+aeko-logger = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-pubsub-client = { workspace = true }
+aeko-remote-wallet = { workspace = true, features = ["default"] }
+aeko-rpc-client = { workspace = true, features = ["default"] }
+aeko-rpc-client-api = { workspace = true }
+aeko-rpc-client-nonce-utils = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-tpu-client = { workspace = true, features = ["default"] }
+aeko-transaction-status = { workspace = true }
+aeko-version = { workspace = true }
+aeko-vote-program = { workspace = true }
 solana_rbpf = { workspace = true }
 spl-memo = { workspace = true, features = ["no-entrypoint"] }
 thiserror = { workspace = true }
@@ -56,14 +56,15 @@ tiny-bip39 = { workspace = true }
 
 [dev-dependencies]
 assert_matches = { workspace = true }
-solana-streamer = { workspace = true }
-solana-test-validator = { workspace = true }
+aeko-streamer = { workspace = true }
+aeko-test-validator = { workspace = true }
 tempfile = { workspace = true }
 test-case = { workspace = true }
 
 [[bin]]
-name = "solana"
+name = "aeko"
 path = "src/main.rs"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+

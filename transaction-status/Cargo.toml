@@ -1,7 +1,7 @@
 [package]
-name = "solana-transaction-status"
-description = "Solana transaction status types"
-documentation = "https://docs.rs/solana-transaction-status"
+name = "aeko-transaction-status"
+description = "AEKO transaction status types"
+documentation = "https://docs.rs/aeko-transaction-status"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -22,8 +22,8 @@ log = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
-solana-account-decoder = { workspace = true }
-solana-sdk = { workspace = true }
+aeko-account-decoder = { workspace = true }
+aeko-sdk = { workspace = true }
 spl-associated-token-account = { workspace = true, features = ["no-entrypoint"] }
 spl-memo = { workspace = true, features = ["no-entrypoint"] }
 spl-token = { workspace = true, features = ["no-entrypoint"] }

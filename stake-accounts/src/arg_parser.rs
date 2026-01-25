@@ -6,17 +6,17 @@ use {
     clap::{
         crate_description, crate_name, value_t, value_t_or_exit, App, Arg, ArgMatches, SubCommand,
     },
-    solana_clap_utils::{
+    aeko_clap_utils::{
         input_parsers::unix_timestamp_from_rfc3339_datetime,
         input_validators::{is_amount, is_rfc3339_datetime, is_valid_pubkey, is_valid_signer},
     },
-    solana_cli_config::CONFIG_FILE,
-    solana_sdk::native_token::sol_to_lamports,
+    aeko_cli_config::CONFIG_FILE,
+    aeko_sdk::native_token::aeko_to_lamports,
     std::{ffi::OsString, process::exit},
 };
 
 fn fee_payer_arg<'a, 'b>() -> Arg<'a, 'b> {
-    solana_clap_utils::fee_payer::fee_payer_arg().required(true)
+    aeko_clap_utils::fee_payer::fee_payer_arg().required(true)
 }
 
 fn funding_keypair_arg<'a, 'b>() -> Arg<'a, 'b> {
@@ -137,7 +137,7 @@ where
     let default_config_file = CONFIG_FILE.as_ref().unwrap();
     App::new(crate_name!())
         .about(crate_description!())
-        .version(solana_version::version!())
+        .version(aeko_version::version!())
         .arg(
             Arg::with_name("config_file")
                 .long("config")
@@ -283,7 +283,7 @@ fn parse_new_args(matches: &ArgMatches<'_>) -> NewArgs<String, String> {
     NewArgs {
         fee_payer: value_t_or_exit!(matches, "fee_payer", String),
         funding_keypair: value_t_or_exit!(matches, "funding_keypair", String),
-        lamports: sol_to_lamports(value_t_or_exit!(matches, "amount", f64)),
+        lamports: aeko_to_lamports(value_t_or_exit!(matches, "amount", f64)),
         base_keypair: value_t_or_exit!(matches, "base_keypair", String),
         stake_authority: value_t_or_exit!(matches, "stake_authority", String),
         withdraw_authority: value_t_or_exit!(matches, "withdraw_authority", String),

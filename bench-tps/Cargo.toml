@@ -1,5 +1,5 @@
 [package]
-name = "solana-bench-tps"
+name = "aeko-bench-tps"
 publish = false
 version = { workspace = true }
 authors = { workspace = true }
@@ -16,37 +16,38 @@ rand = { workspace = true }
 rayon = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
-solana-clap-utils = { workspace = true }
-solana-cli-config = { workspace = true }
-solana-client = { workspace = true }
-solana-connection-cache = { workspace = true }
-solana-core = { workspace = true }
-solana-faucet = { workspace = true }
-solana-genesis = { workspace = true }
-solana-gossip = { workspace = true }
-solana-logger = { workspace = true }
-solana-measure = { workspace = true }
-solana-metrics = { workspace = true }
-solana-net-utils = { workspace = true }
-solana-rpc = { workspace = true }
-solana-rpc-client = { workspace = true }
-solana-rpc-client-api = { workspace = true }
-solana-rpc-client-nonce-utils = { workspace = true }
-solana-runtime = { workspace = true }
-solana-sdk = { workspace = true }
-solana-streamer = { workspace = true }
-solana-tpu-client = { workspace = true }
-solana-transaction-status = { workspace = true }
-solana-version = { workspace = true }
+aeko-clap-utils = { workspace = true }
+aeko-cli-config = { workspace = true }
+aeko-client = { workspace = true }
+aeko-connection-cache = { workspace = true }
+aeko-core = { workspace = true }
+aeko-faucet = { workspace = true }
+aeko-genesis = { workspace = true }
+aeko-gossip = { workspace = true }
+aeko-logger = { workspace = true }
+aeko-measure = { workspace = true }
+aeko-metrics = { workspace = true }
+aeko-net-utils = { workspace = true }
+aeko-rpc = { workspace = true }
+aeko-rpc-client = { workspace = true }
+aeko-rpc-client-api = { workspace = true }
+aeko-rpc-client-nonce-utils = { workspace = true }
+aeko-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-streamer = { workspace = true }
+aeko-tpu-client = { workspace = true }
+aeko-transaction-status = { workspace = true }
+aeko-version = { workspace = true }
 spl-instruction-padding = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }
-solana-local-cluster = { workspace = true }
-solana-runtime = { workspace = true, features = ["dev-context-only-utils"] }
-solana-test-validator = { workspace = true }
+aeko-local-cluster = { workspace = true }
+aeko-runtime = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-test-validator = { workspace = true }
 tempfile = { workspace = true }
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+

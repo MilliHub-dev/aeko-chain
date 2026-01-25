@@ -9,7 +9,7 @@ use {
         header::{self, CONTENT_TYPE, RETRY_AFTER},
         StatusCode,
     },
-    solana_rpc_client_api::{
+    aeko_rpc_client_api::{
         client_error::Result,
         custom_error,
         error_object::RpcErrorObject,
@@ -76,7 +76,7 @@ impl HttpSender {
         default_headers.append(
             header::HeaderName::from_static("solana-client"),
             header::HeaderValue::from_str(
-                format!("rust/{}", solana_version::Version::default()).as_str(),
+                format!("rust/{}", aeko_version::Version::default()).as_str(),
             )
             .unwrap(),
         );

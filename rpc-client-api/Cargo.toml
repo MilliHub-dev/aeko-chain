@@ -1,7 +1,7 @@
 [package]
-name = "solana-rpc-client-api"
-description = "Solana Client Common Utilities"
-documentation = "https://docs.rs/solana-rpc-client-api"
+name = "aeko-rpc-client-api"
+description = "AEKO Client Common Utilities"
+documentation = "https://docs.rs/aeko-rpc-client-api"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -18,10 +18,10 @@ semver = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
-solana-account-decoder = { workspace = true }
-solana-sdk = { workspace = true }
-solana-transaction-status = { workspace = true }
-solana-version = { workspace = true }
+aeko-account-decoder = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-transaction-status = { workspace = true }
+aeko-version = { workspace = true }
 spl-token-2022 = { workspace = true, features = ["no-entrypoint"] }
 thiserror = { workspace = true }
 

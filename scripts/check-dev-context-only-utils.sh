@@ -29,9 +29,9 @@ source ci/rust-version.sh nightly
 # reason to bend dev-context-only-utils's original intention and that listed
 # package isn't part of released binaries.
 declare tainted_packages=(
-  solana-accounts-bench
-  solana-banking-bench
-  solana-ledger-tool
+  aeko-accounts-bench
+  aeko-banking-bench
+  aeko-ledger-tool
 )
 
 # convert to comma separeted (ref: https://stackoverflow.com/a/53839433)

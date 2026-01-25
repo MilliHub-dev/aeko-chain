@@ -5,7 +5,7 @@ use {
     fnv::FnvHasher,
     rand::{self, Rng},
     serde::{Deserialize, Serialize},
-    solana_sdk::{
+    aeko_sdk::{
         sanitize::{Sanitize, SanitizeError},
         timing::AtomicInterval,
     },
@@ -272,7 +272,7 @@ mod test {
     use {
         super::*,
         rayon::prelude::*,
-        solana_sdk::hash::{hash, Hash},
+        aeko_sdk::hash::{hash, Hash},
     };
 
     #[test]
@@ -357,7 +357,7 @@ mod test {
 
     fn generate_random_hash() -> Hash {
         let mut rng = rand::thread_rng();
-        let mut hash = [0u8; solana_sdk::hash::HASH_BYTES];
+        let mut hash = [0u8; aeko_sdk::hash::HASH_BYTES];
         rng.fill(&mut hash);
         Hash::new_from_array(hash)
     }

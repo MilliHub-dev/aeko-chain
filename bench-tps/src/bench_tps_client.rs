@@ -1,12 +1,12 @@
 use {
-    solana_rpc_client_api::{client_error::Error as ClientError, config::RpcBlockConfig},
-    solana_sdk::{
+    aeko_rpc_client_api::{client_error::Error as ClientError, config::RpcBlockConfig},
+    aeko_sdk::{
         account::Account, commitment_config::CommitmentConfig, epoch_info::EpochInfo, hash::Hash,
         message::Message, pubkey::Pubkey, signature::Signature, slot_history::Slot,
         transaction::Transaction, transport::TransportError,
     },
-    solana_tpu_client::tpu_client::TpuSenderError,
-    solana_transaction_status::UiConfirmedBlock,
+    aeko_tpu_client::tpu_client::TpuSenderError,
+    aeko_transaction_status::UiConfirmedBlock,
     thiserror::Error,
 };
 

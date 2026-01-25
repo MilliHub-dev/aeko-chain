@@ -3,17 +3,17 @@
 use {
     crate::result::{Error, Result},
     crossbeam_channel::{unbounded, RecvTimeoutError},
-    solana_metrics::{inc_new_counter_debug, inc_new_counter_info},
-    solana_perf::{packet::PacketBatchRecycler, recycler::Recycler},
-    solana_poh::poh_recorder::PohRecorder,
-    solana_sdk::{
+    aeko_metrics::{inc_new_counter_debug, inc_new_counter_info},
+    aeko_perf::{packet::PacketBatchRecycler, recycler::Recycler},
+    aeko_poh::poh_recorder::PohRecorder,
+    aeko_sdk::{
         clock::{DEFAULT_TICKS_PER_SLOT, HOLD_TRANSACTIONS_SLOT_OFFSET},
         packet::{Packet, PacketFlags},
     },
-    solana_streamer::streamer::{
+    aeko_streamer::streamer::{
         self, PacketBatchReceiver, PacketBatchSender, StreamerReceiveStats,
     },
-    solana_tpu_client::tpu_client::DEFAULT_TPU_ENABLE_UDP,
+    aeko_tpu_client::tpu_client::DEFAULT_TPU_ENABLE_UDP,
     std::{
         net::UdpSocket,
         sync::{

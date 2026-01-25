@@ -5,8 +5,8 @@ use {
     base64::{prelude::BASE64_STANDARD, Engine},
     clap::{crate_description, crate_name, value_t, value_t_or_exit, App, Arg, ArgMatches},
     itertools::Itertools,
-    solana_accounts_db::hardened_unpack::MAX_GENESIS_ARCHIVE_UNPACKED_SIZE,
-    solana_clap_utils::{
+    aeko_accounts_db::hardened_unpack::MAX_GENESIS_ARCHIVE_UNPACKED_SIZE,
+    aeko_clap_utils::{
         input_parsers::{
             cluster_type_of, pubkey_of, pubkeys_of, unix_timestamp_from_rfc3339_datetime,
         },
@@ -14,10 +14,10 @@ use {
             is_pubkey_or_keypair, is_rfc3339_datetime, is_slot, is_valid_percentage,
         },
     },
-    solana_entry::poh::compute_hashes_per_tick,
-    solana_genesis::{genesis_accounts::add_genesis_accounts, Base64Account},
-    solana_ledger::{blockstore::create_new_ledger, blockstore_options::LedgerColumnOptions},
-    solana_sdk::{
+    aeko_entry::poh::compute_hashes_per_tick,
+    aeko_genesis::{genesis_accounts::add_genesis_accounts, Base64Account},
+    aeko_ledger::{blockstore::create_new_ledger, blockstore_options::LedgerColumnOptions},
+    aeko_sdk::{
         account::{Account, AccountSharedData, ReadableAccount, WritableAccount},
         bpf_loader_upgradeable::UpgradeableLoaderState,
         clock,
@@ -25,7 +25,7 @@ use {
         fee_calculator::FeeRateGovernor,
         genesis_config::{ClusterType, GenesisConfig},
         inflation::Inflation,
-        native_token::sol_to_lamports,
+        native_token::aeko_to_lamports,
         poh_config::PohConfig,
         pubkey::Pubkey,
         rent::Rent,
@@ -34,8 +34,8 @@ use {
         stake::state::StakeStateV2,
         system_program, timing,
     },
-    solana_stake_program::stake_state,
-    solana_vote_program::vote_state::{self, VoteState},
+    aeko_stake_program::stake_state,
+    aeko_vote_program::vote_state::{self, VoteState},
     std::{
         collections::HashMap,
         error,
@@ -108,7 +108,7 @@ pub fn load_genesis_accounts(file: &str, genesis_config: &mut GenesisConfig) -> 
 
 #[allow(clippy::cognitive_complexity)]
 fn main() -> Result<(), Box<dyn error::Error>> {
-    let default_faucet_pubkey = solana_cli_config::Config::default().keypair_path;
+    let default_faucet_pubkey = aeko_cli_config::Config::default().keypair_path;
     let fee_rate_governor = FeeRateGovernor::default();
     let (
         default_target_lamports_per_signature,
@@ -136,11 +136,11 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     };
 
     // vote account
-    let default_bootstrap_validator_lamports = &sol_to_lamports(500.0)
+    let default_bootstrap_validator_lamports = &aeko_to_lamports(500.0)
         .max(VoteState::get_rent_exempt_reserve(&rent))
         .to_string();
     // stake account
-    let default_bootstrap_validator_stake_lamports = &sol_to_lamports(0.5)
+    let default_bootstrap_validator_stake_lamports = &aeko_to_lamports(0.5)
         .max(rent.minimum_balance(StakeStateV2::size_of()))
         .to_string();
 
@@ -152,7 +152,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     let matches = App::new(crate_name!())
         .about(crate_description!())
-        .version(solana_version::version!())
+        .version(aeko_version::version!())
         .arg(
             Arg::with_name("creation_time")
                 .long("creation-time")
@@ -577,9 +577,9 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         );
     }
 
-    solana_stake_program::add_genesis_accounts(&mut genesis_config);
+    aeko_stake_program::add_genesis_accounts(&mut genesis_config);
     if genesis_config.cluster_type == ClusterType::Development {
-        solana_runtime::genesis_utils::activate_all_features(&mut genesis_config);
+        aeko_runtime::genesis_utils::activate_all_features(&mut genesis_config);
     }
 
     if let Some(files) = matches.values_of("primordial_accounts_file") {
@@ -691,7 +691,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         }
     }
 
-    solana_logger::setup();
+    aeko_logger::setup();
     create_new_ledger(
         &ledger_path,
         &genesis_config,
@@ -707,7 +707,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 mod tests {
     use {
         super::*,
-        solana_sdk::genesis_config::GenesisConfig,
+        aeko_sdk::genesis_config::GenesisConfig,
         std::{collections::HashMap, fs::remove_file, io::Write, path::Path},
     };
 
@@ -720,27 +720,27 @@ mod tests {
 
         let mut genesis_accounts = HashMap::new();
         genesis_accounts.insert(
-            solana_sdk::pubkey::new_rand().to_string(),
+            aeko_sdk::pubkey::new_rand().to_string(),
             Base64Account {
-                owner: solana_sdk::pubkey::new_rand().to_string(),
+                owner: aeko_sdk::pubkey::new_rand().to_string(),
                 balance: 2,
                 executable: false,
                 data: String::from("aGVsbG8="),
             },
         );
         genesis_accounts.insert(
-            solana_sdk::pubkey::new_rand().to_string(),
+            aeko_sdk::pubkey::new_rand().to_string(),
             Base64Account {
-                owner: solana_sdk::pubkey::new_rand().to_string(),
+                owner: aeko_sdk::pubkey::new_rand().to_string(),
                 balance: 1,
                 executable: true,
                 data: String::from("aGVsbG8gd29ybGQ="),
             },
         );
         genesis_accounts.insert(
-            solana_sdk::pubkey::new_rand().to_string(),
+            aeko_sdk::pubkey::new_rand().to_string(),
             Base64Account {
-                owner: solana_sdk::pubkey::new_rand().to_string(),
+                owner: aeko_sdk::pubkey::new_rand().to_string(),
                 balance: 3,
                 executable: true,
                 data: String::from("bWUgaGVsbG8gdG8gd29ybGQ="),
@@ -794,27 +794,27 @@ mod tests {
         // Test more accounts can be appended
         let mut genesis_accounts1 = HashMap::new();
         genesis_accounts1.insert(
-            solana_sdk::pubkey::new_rand().to_string(),
+            aeko_sdk::pubkey::new_rand().to_string(),
             Base64Account {
-                owner: solana_sdk::pubkey::new_rand().to_string(),
+                owner: aeko_sdk::pubkey::new_rand().to_string(),
                 balance: 6,
                 executable: true,
                 data: String::from("eW91IGFyZQ=="),
             },
         );
         genesis_accounts1.insert(
-            solana_sdk::pubkey::new_rand().to_string(),
+            aeko_sdk::pubkey::new_rand().to_string(),
             Base64Account {
-                owner: solana_sdk::pubkey::new_rand().to_string(),
+                owner: aeko_sdk::pubkey::new_rand().to_string(),
                 balance: 5,
                 executable: false,
                 data: String::from("bWV0YSBzdHJpbmc="),
             },
         );
         genesis_accounts1.insert(
-            solana_sdk::pubkey::new_rand().to_string(),
+            aeko_sdk::pubkey::new_rand().to_string(),
             Base64Account {
-                owner: solana_sdk::pubkey::new_rand().to_string(),
+                owner: aeko_sdk::pubkey::new_rand().to_string(),
                 balance: 10,
                 executable: false,
                 data: String::from("YmFzZTY0IHN0cmluZw=="),
@@ -880,7 +880,7 @@ mod tests {
         genesis_accounts2.insert(
             serde_json::to_string(&account_keypairs[0].to_bytes().to_vec()).unwrap(),
             Base64Account {
-                owner: solana_sdk::pubkey::new_rand().to_string(),
+                owner: aeko_sdk::pubkey::new_rand().to_string(),
                 balance: 20,
                 executable: true,
                 data: String::from("Y2F0IGRvZw=="),
@@ -889,7 +889,7 @@ mod tests {
         genesis_accounts2.insert(
             serde_json::to_string(&account_keypairs[1].to_bytes().to_vec()).unwrap(),
             Base64Account {
-                owner: solana_sdk::pubkey::new_rand().to_string(),
+                owner: aeko_sdk::pubkey::new_rand().to_string(),
                 balance: 15,
                 executable: false,
                 data: String::from("bW9ua2V5IGVsZXBoYW50"),
@@ -898,7 +898,7 @@ mod tests {
         genesis_accounts2.insert(
             serde_json::to_string(&account_keypairs[2].to_bytes().to_vec()).unwrap(),
             Base64Account {
-                owner: solana_sdk::pubkey::new_rand().to_string(),
+                owner: aeko_sdk::pubkey::new_rand().to_string(),
                 balance: 30,
                 executable: true,
                 data: String::from("Y29tYSBtb2Nh"),

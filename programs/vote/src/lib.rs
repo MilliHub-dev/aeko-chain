@@ -5,12 +5,12 @@ pub mod vote_state;
 pub mod vote_transaction;
 
 #[macro_use]
-extern crate solana_metrics;
+extern crate aeko_metrics;
 
 #[macro_use]
-extern crate solana_frozen_abi_macro;
+extern crate aeko_frozen_abi_macro;
 
-pub use solana_sdk::vote::{
+pub use aeko_sdk::vote::{
     authorized_voters, error as vote_error, instruction as vote_instruction,
     program::{check_id, id},
 };

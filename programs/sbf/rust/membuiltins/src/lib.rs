@@ -5,8 +5,8 @@
 
 extern crate compiler_builtins;
 use {
-    solana_program::{custom_heap_default, custom_panic_default, entrypoint::SUCCESS},
-    solana_sbf_rust_mem::{run_mem_tests, MemOps},
+    aeko_program::{custom_heap_default, custom_panic_default, entrypoint::SUCCESS},
+    aeko_sbf_rust_mem::{run_mem_tests, MemOps},
 };
 
 #[no_mangle]

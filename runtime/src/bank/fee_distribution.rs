@@ -1,15 +1,15 @@
 use {
     super::Bank,
     log::{debug, warn},
-    solana_sdk::{
+    aeko_sdk::{
         account::{ReadableAccount, WritableAccount},
         pubkey::Pubkey,
         reward_info::RewardInfo,
         reward_type::RewardType,
         system_program,
     },
-    solana_svm::account_rent_state::RentState,
-    solana_vote::vote_account::VoteAccountsHashMap,
+    aeko_svm::account_rent_state::RentState,
+    aeko_vote::vote_account::VoteAccountsHashMap,
     std::{result::Result, sync::atomic::Ordering::Relaxed},
     thiserror::Error,
 };
@@ -294,8 +294,8 @@ pub mod tests {
             create_genesis_config, create_genesis_config_with_leader,
             create_genesis_config_with_vote_accounts, ValidatorVoteKeypairs,
         },
-        solana_sdk::{
-            account::AccountSharedData, feature_set, native_token::sol_to_lamports, pubkey,
+        aeko_sdk::{
+            account::AccountSharedData, feature_set, native_token::aeko_to_lamports, pubkey,
             rent::Rent, signature::Signer,
         },
     };
@@ -609,7 +609,7 @@ pub mod tests {
 
     #[test]
     fn test_distribute_rent_to_validators_rent_paying() {
-        solana_logger::setup();
+        aeko_logger::setup();
 
         const RENT_PER_VALIDATOR: u64 = 55;
         const TOTAL_RENT: u64 = RENT_PER_VALIDATOR * 4;
@@ -625,9 +625,9 @@ pub mod tests {
             &rent_exempt_validator,
         ];
         let genesis_config_info = create_genesis_config_with_vote_accounts(
-            sol_to_lamports(1000.),
+            aeko_to_lamports(1000.),
             &keypairs,
-            vec![sol_to_lamports(1000.); 4],
+            vec![aeko_to_lamports(1000.); 4],
         );
         let mut genesis_config = genesis_config_info.genesis_config;
         genesis_config.rent = Rent::default(); // Ensure rent is non-zero, as genesis_utils sets Rent::free by default

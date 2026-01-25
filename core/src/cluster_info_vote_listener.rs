@@ -12,24 +12,24 @@ use {
     },
     crossbeam_channel::{unbounded, Receiver, RecvTimeoutError, Select, Sender},
     log::*,
-    solana_gossip::{
+    aeko_gossip::{
         cluster_info::{ClusterInfo, GOSSIP_SLEEP_MILLIS},
         crds::Cursor,
     },
-    solana_ledger::blockstore::Blockstore,
-    solana_measure::measure::Measure,
-    solana_metrics::inc_new_counter_debug,
-    solana_perf::packet,
-    solana_poh::poh_recorder::PohRecorder,
-    solana_rpc::{
+    aeko_ledger::blockstore::Blockstore,
+    aeko_measure::measure::Measure,
+    aeko_metrics::inc_new_counter_debug,
+    aeko_perf::packet,
+    aeko_poh::poh_recorder::PohRecorder,
+    aeko_rpc::{
         optimistically_confirmed_bank_tracker::{BankNotification, BankNotificationSender},
         rpc_subscriptions::RpcSubscriptions,
     },
-    solana_runtime::{
+    aeko_runtime::{
         bank::Bank, bank_forks::BankForks, commitment::VOTE_THRESHOLD_SIZE,
         epoch_stakes::EpochStakes,
     },
-    solana_sdk::{
+    aeko_sdk::{
         clock::{Slot, DEFAULT_MS_PER_SLOT, DEFAULT_TICKS_PER_SLOT},
         hash::Hash,
         pubkey::Pubkey,
@@ -38,7 +38,7 @@ use {
         timing::AtomicInterval,
         transaction::Transaction,
     },
-    solana_vote::{
+    aeko_vote::{
         vote_parser::{self, ParsedVote},
         vote_sender_types::ReplayVoteReceiver,
         vote_transaction::VoteTransaction,
@@ -899,22 +899,22 @@ mod tests {
         super::*,
         crate::banking_trace::BankingTracer,
         itertools::Itertools,
-        solana_perf::packet,
-        solana_rpc::optimistically_confirmed_bank_tracker::OptimisticallyConfirmedBank,
-        solana_runtime::{
+        aeko_perf::packet,
+        aeko_rpc::optimistically_confirmed_bank_tracker::OptimisticallyConfirmedBank,
+        aeko_runtime::{
             bank::Bank,
             commitment::BlockCommitmentCache,
             genesis_utils::{
                 self, create_genesis_config, GenesisConfigInfo, ValidatorVoteKeypairs,
             },
         },
-        solana_sdk::{
+        aeko_sdk::{
             hash::Hash,
             pubkey::Pubkey,
             signature::{Keypair, Signature, Signer},
         },
-        solana_vote::vote_sender_types::ReplayVoteSender,
-        solana_vote_program::{
+        aeko_vote::vote_sender_types::ReplayVoteSender,
+        aeko_vote_program::{
             vote_state::{Vote, VoteStateUpdate},
             vote_transaction,
         },
@@ -927,7 +927,7 @@ mod tests {
 
     #[test]
     fn test_max_vote_tx_fits() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let node_keypair = Keypair::new();
         let vote_keypair = Keypair::new();
         let slots: Vec<_> = (0..31).collect();
@@ -955,7 +955,7 @@ mod tests {
         let (vote_tracker, bank, _, _) = setup();
 
         // Check outdated slots are purged with new root
-        let new_voter = solana_sdk::pubkey::new_rand();
+        let new_voter = aeko_sdk::pubkey::new_rand();
         // Make separate copy so the original doesn't count toward
         // the ref count, which would prevent cleanup
         let new_voter_ = new_voter;
@@ -1620,7 +1620,7 @@ mod tests {
 
     #[test]
     fn test_verify_votes_empty() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let GenesisConfigInfo { genesis_config, .. } = create_genesis_config(10_000);
         let bank = Bank::new_for_tests(&genesis_config);
         let bank_forks = BankForks::new_rw_arc(bank);

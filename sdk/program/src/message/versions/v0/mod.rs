@@ -7,7 +7,7 @@
 //!
 //! [`legacy`]: crate::message::legacy
 //! [`v0`]: crate::message::v0
-//! [future message format]: https://docs.solanalabs.com/proposals/versioned-transactions
+//! [future message format]: https://docs.aeko.network/proposals/versioned-transactions
 
 use crate::{
     address_lookup_table_account::AddressLookupTableAccount,
@@ -179,23 +179,23 @@ impl Message {
     ///
     /// # Examples
     ///
-    /// This example uses the [`solana_rpc_client`], [`solana_sdk`], and [`anyhow`] crates.
+    /// This example uses the [`aeko_rpc_client`], [`aeko_sdk`], and [`anyhow`] crates.
     ///
-    /// [`solana_rpc_client`]: https://docs.rs/solana-rpc-client
-    /// [`solana_sdk`]: https://docs.rs/solana-sdk
+    /// [`aeko_rpc_client`]: https://docs.rs/solana-rpc-client
+    /// [`aeko_sdk`]: https://docs.rs/solana-sdk
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```
-    /// # use solana_program::example_mocks::{
-    /// #     solana_rpc_client,
-    /// #     solana_sdk,
+    /// # use aeko_program::example_mocks::{
+    /// #     aeko_rpc_client,
+    /// #     aeko_sdk,
     /// # };
     /// # use std::borrow::Cow;
-    /// # use solana_sdk::account::Account;
+    /// # use aeko_sdk::account::Account;
     /// use anyhow::Result;
-    /// use solana_rpc_client::rpc_client::RpcClient;
-    /// use solana_program::address_lookup_table::{self, state::{AddressLookupTable, LookupTableMeta}};
-    /// use solana_sdk::{
+    /// use aeko_rpc_client::rpc_client::RpcClient;
+    /// use aeko_program::address_lookup_table::{self, state::{AddressLookupTable, LookupTableMeta}};
+    /// use aeko_sdk::{
     ///      address_lookup_table_account::AddressLookupTableAccount,
     ///      instruction::{AccountMeta, Instruction},
     ///      message::{VersionedMessage, v0},

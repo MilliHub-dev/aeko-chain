@@ -17,11 +17,11 @@
 //! Calling via the RPC client:
 //!
 //! ```
-//! # use solana_program::example_mocks::solana_sdk;
-//! # use solana_program::example_mocks::solana_rpc_client;
-//! # use solana_sdk::account::Account;
-//! # use solana_rpc_client::rpc_client::RpcClient;
-//! # use solana_sdk::sysvar::slot_history::{self, SlotHistory};
+//! # use aeko_program::example_mocks::aeko_sdk;
+//! # use aeko_program::example_mocks::aeko_rpc_client;
+//! # use aeko_sdk::account::Account;
+//! # use aeko_rpc_client::rpc_client::RpcClient;
+//! # use aeko_sdk::sysvar::slot_history::{self, SlotHistory};
 //! # use anyhow::Result;
 //! #
 //! fn print_sysvar_slot_history(client: &RpcClient) -> Result<()> {
@@ -30,7 +30,7 @@
 //! #   client.set_get_account_response(slot_history::ID, Account {
 //! #       lamports: 913326000,
 //! #       data,
-//! #       owner: solana_sdk::system_program::ID,
+//! #       owner: aeko_sdk::system_program::ID,
 //! #       executable: false,
 //! #       rent_epoch: 307,
 //! #   });

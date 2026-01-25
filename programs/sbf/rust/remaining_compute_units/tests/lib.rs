@@ -1,9 +1,9 @@
 #![cfg(feature = "test-bpf")]
 
 use {
-    solana_program_test::*,
-    solana_sbf_rust_remaining_compute_units::process_instruction,
-    solana_sdk::{
+    aeko_program_test::*,
+    aeko_sbf_rust_remaining_compute_units::process_instruction,
+    aeko_sdk::{
         instruction::Instruction, pubkey::Pubkey, signature::Signer, transaction::Transaction,
     },
 };
@@ -12,7 +12,7 @@ use {
 async fn test_remaining_compute_units() {
     let program_id = Pubkey::new_unique();
     let program_test = ProgramTest::new(
-        "solana_sbf_rust_remaining_compute_units",
+        "aeko_sbf_rust_remaining_compute_units",
         program_id,
         processor!(process_instruction),
     );

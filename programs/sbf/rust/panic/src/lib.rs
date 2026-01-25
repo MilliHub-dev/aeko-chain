@@ -4,14 +4,14 @@
 #[no_mangle]
 fn custom_panic(info: &core::panic::PanicInfo<'_>) {
     // Note: Full panic reporting is included here for testing purposes
-    solana_program::msg!("program custom panic enabled");
-    solana_program::msg!(&format!("{info}"));
+    aeko_program::msg!("program custom panic enabled");
+    aeko_program::msg!(&format!("{info}"));
 }
 
-extern crate solana_program;
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
+extern crate aeko_program;
+use aeko_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
-solana_program::entrypoint!(process_instruction);
+aeko_program::entrypoint!(process_instruction);
 #[allow(clippy::unnecessary_wraps)]
 fn process_instruction(
     _program_id: &Pubkey,

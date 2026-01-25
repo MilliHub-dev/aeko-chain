@@ -1,5 +1,5 @@
 [package]
-name = "solana-transaction-dos"
+name = "aeko-transaction-dos"
 publish = false
 version = { workspace = true }
 authors = { workspace = true }
@@ -14,24 +14,24 @@ clap = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
-solana-clap-utils = { workspace = true }
-solana-cli = { workspace = true }
-solana-client = { workspace = true }
-solana-core = { workspace = true }
-solana-faucet = { workspace = true }
-solana-gossip = { workspace = true }
-solana-logger = { workspace = true }
-solana-measure = { workspace = true }
-solana-net-utils = { workspace = true }
-solana-rpc-client = { workspace = true }
-solana-runtime = { workspace = true }
-solana-sdk = { workspace = true }
-solana-streamer = { workspace = true }
-solana-transaction-status = { workspace = true }
-solana-version = { workspace = true }
+aeko-clap-utils = { workspace = true }
+aeko-cli = { workspace = true }
+aeko-client = { workspace = true }
+aeko-core = { workspace = true }
+aeko-faucet = { workspace = true }
+aeko-gossip = { workspace = true }
+aeko-logger = { workspace = true }
+aeko-measure = { workspace = true }
+aeko-net-utils = { workspace = true }
+aeko-rpc-client = { workspace = true }
+aeko-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-streamer = { workspace = true }
+aeko-transaction-status = { workspace = true }
+aeko-version = { workspace = true }
 
 [dev-dependencies]
-solana-local-cluster = { workspace = true }
+aeko-local-cluster = { workspace = true }
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]

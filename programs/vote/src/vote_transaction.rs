@@ -1,9 +1,9 @@
 use {
-    solana_program::vote::{
+    aeko_program::vote::{
         self,
         state::{Vote, VoteStateUpdate},
     },
-    solana_sdk::{
+    aeko_sdk::{
         clock::Slot,
         hash::Hash,
         signature::{Keypair, Signer},

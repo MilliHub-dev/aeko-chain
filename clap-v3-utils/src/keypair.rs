@@ -18,11 +18,11 @@ use {
     bip39::{Language, Mnemonic, Seed},
     clap::ArgMatches,
     rpassword::prompt_password,
-    solana_remote_wallet::{
+    aeko_remote_wallet::{
         remote_keypair::generate_remote_keypair,
         remote_wallet::{maybe_wallet_manager, RemoteWalletError, RemoteWalletManager},
     },
-    solana_sdk::{
+    aeko_sdk::{
         derivation_path::DerivationPath,
         hash::Hash,
         message::Message,
@@ -33,7 +33,7 @@ use {
             Signature, Signer,
         },
     },
-    solana_zk_token_sdk::encryption::{auth_encryption::AeKey, elgamal::ElGamalKeypair},
+    aeko_zk_token_sdk::encryption::{auth_encryption::AeKey, elgamal::ElGamalKeypair},
     std::{
         cell::RefCell,
         error,
@@ -132,8 +132,8 @@ impl DefaultSigner {
     ///
     /// ```no_run
     /// use clap::{Arg, Command};
-    /// use solana_clap_v3_utils::keypair::DefaultSigner;
-    /// use solana_clap_v3_utils::offline::OfflineArgs;
+    /// use aeko_clap_v3_utils::keypair::DefaultSigner;
+    /// use aeko_clap_v3_utils::offline::OfflineArgs;
     ///
     /// let clap_app = Command::new("my-program")
     ///     // The argument we'll parse as a signer "path"
@@ -202,9 +202,9 @@ impl DefaultSigner {
     ///
     /// ```no_run
     /// use clap::{Arg, Command};
-    /// use solana_clap_v3_utils::keypair::{DefaultSigner, signer_from_path};
-    /// use solana_clap_v3_utils::offline::OfflineArgs;
-    /// use solana_sdk::signer::Signer;
+    /// use aeko_clap_v3_utils::keypair::{DefaultSigner, signer_from_path};
+    /// use aeko_clap_v3_utils::offline::OfflineArgs;
+    /// use aeko_sdk::signer::Signer;
     ///
     /// let clap_app = Command::new("my-program")
     ///     // The argument we'll parse as a signer "path"
@@ -277,8 +277,8 @@ impl DefaultSigner {
     ///
     /// ```no_run
     /// use clap::{Arg, Command};
-    /// use solana_clap_v3_utils::keypair::DefaultSigner;
-    /// use solana_clap_v3_utils::offline::OfflineArgs;
+    /// use aeko_clap_v3_utils::keypair::DefaultSigner;
+    /// use aeko_clap_v3_utils::offline::OfflineArgs;
     ///
     /// let clap_app = Command::new("my-program")
     ///     // The argument we'll parse as a signer "path"
@@ -324,8 +324,8 @@ impl DefaultSigner {
     ///
     /// ```no_run
     /// use clap::{Arg, Command};
-    /// use solana_clap_v3_utils::keypair::{SignerFromPathConfig, DefaultSigner};
-    /// use solana_clap_v3_utils::offline::OfflineArgs;
+    /// use aeko_clap_v3_utils::keypair::{SignerFromPathConfig, DefaultSigner};
+    /// use aeko_clap_v3_utils::offline::OfflineArgs;
     ///
     /// let clap_app = Command::new("my-program")
     ///     // The argument we'll parse as a signer "path"
@@ -520,8 +520,8 @@ pub struct SignerFromPathConfig {
 ///
 /// ```no_run
 /// use clap::{Arg, Command};
-/// use solana_clap_v3_utils::keypair::signer_from_path;
-/// use solana_clap_v3_utils::offline::OfflineArgs;
+/// use aeko_clap_v3_utils::keypair::signer_from_path;
+/// use aeko_clap_v3_utils::offline::OfflineArgs;
 ///
 /// let clap_app = Command::new("my-program")
 ///     // The argument we'll parse as a signer "path"
@@ -590,8 +590,8 @@ pub fn signer_from_source(
 ///
 /// ```no_run
 /// use clap::{Arg, Command};
-/// use solana_clap_v3_utils::keypair::{signer_from_path_with_config, SignerFromPathConfig};
-/// use solana_clap_v3_utils::offline::OfflineArgs;
+/// use aeko_clap_v3_utils::keypair::{signer_from_path_with_config, SignerFromPathConfig};
+/// use aeko_clap_v3_utils::offline::OfflineArgs;
 ///
 /// let clap_app = Command::new("my-program")
 ///     // The argument we'll parse as a signer "path"
@@ -718,7 +718,7 @@ pub fn signer_from_source_with_config(
 ///
 /// ```no_run
 /// use clap::{Arg, Command};
-/// use solana_clap_v3_utils::keypair::pubkey_from_path;
+/// use aeko_clap_v3_utils::keypair::pubkey_from_path;
 ///
 /// let clap_app = Command::new("my-program")
 ///     // The argument we'll parse as a signer "path"
@@ -876,7 +876,7 @@ pub fn prompt_passphrase(prompt: &str) -> Result<String, Box<dyn error::Error>> 
 ///
 /// ```no_run
 /// use clap::{Arg, Command};
-/// use solana_clap_v3_utils::keypair::keypair_from_path;
+/// use aeko_clap_v3_utils::keypair::keypair_from_path;
 ///
 /// let clap_app = Command::new("my-program")
 ///     // The argument we'll parse as a signer "path"
@@ -938,7 +938,7 @@ pub fn keypair_from_source(
 ///
 /// ```no_run`
 /// use clap::{Arg, Command};
-/// use solana_clap_v3_utils::keypair::elgamal_keypair_from_path;
+/// use aeko_clap_v3_utils::keypair::elgamal_keypair_from_path;
 ///
 /// let clap_app = Command::new("my-program")
 ///     // The argument we'll parse as a signer "path"
@@ -1009,7 +1009,7 @@ fn confirm_encodable_keypair_pubkey<K: EncodableKeypair>(keypair: &K, pubkey_lab
 ///
 /// ```no_run`
 /// use clap::{Arg, Command};
-/// use solana_clap_v3_utils::keypair::ae_key_from_path;
+/// use aeko_clap_v3_utils::keypair::ae_key_from_path;
 ///
 /// let clap_app = Command::new("my-program")
 ///     // The argument we'll parse as a signer "path"
@@ -1211,8 +1211,8 @@ mod tests {
         super::*,
         crate::offline::OfflineArgs,
         clap::{Arg, Command},
-        solana_remote_wallet::remote_wallet::initialize_wallet_manager,
-        solana_sdk::{signer::keypair::write_keypair_file, system_instruction},
+        aeko_remote_wallet::remote_wallet::initialize_wallet_manager,
+        aeko_sdk::{signer::keypair::write_keypair_file, system_instruction},
         tempfile::TempDir,
     };
 

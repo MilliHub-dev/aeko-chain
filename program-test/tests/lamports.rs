@@ -1,6 +1,6 @@
 use {
-    solana_program_test::{processor, ProgramTest},
-    solana_sdk::{
+    aeko_program_test::{processor, ProgramTest},
+    aeko_sdk::{
         account_info::{next_account_info, AccountInfo},
         entrypoint::ProgramResult,
         instruction::{AccountMeta, Instruction},

@@ -6,14 +6,14 @@ use {
     clap::{
         crate_description, crate_name, value_t, value_t_or_exit, App, Arg, ArgMatches, SubCommand,
     },
-    solana_clap_utils::{
+    aeko_clap_utils::{
         input_parsers::{pubkey_of_signer, value_of},
         input_validators::{is_amount, is_url_or_moniker, is_valid_pubkey, is_valid_signer},
         keypair::{pubkey_from_path, signer_from_path},
     },
-    solana_cli_config::CONFIG_FILE,
-    solana_remote_wallet::remote_wallet::maybe_wallet_manager,
-    solana_sdk::native_token::sol_to_lamports,
+    aeko_cli_config::CONFIG_FILE,
+    aeko_remote_wallet::remote_wallet::maybe_wallet_manager,
+    aeko_sdk::native_token::aeko_to_lamports,
     std::{error::Error, ffi::OsString, process::exit},
 };
 
@@ -25,7 +25,7 @@ where
     let default_config_file = CONFIG_FILE.as_ref().unwrap();
     App::new(crate_name!())
         .about(crate_description!())
-        .version(solana_version::version!())
+        .version(aeko_version::version!())
         .arg(
             Arg::with_name("config_file")
                 .short("C")
@@ -439,7 +439,7 @@ fn parse_distribute_tokens_args(
         fee_payer,
         stake_args: None,
         spl_token_args: None,
-        transfer_amount: value_of(matches, "transfer_amount").map(sol_to_lamports),
+        transfer_amount: value_of(matches, "transfer_amount").map(aeko_to_lamports),
     })
 }
 
@@ -478,7 +478,7 @@ fn parse_create_stake_args(
         .transpose()?;
 
     let stake_args = StakeArgs {
-        unlocked_sol: sol_to_lamports(value_t_or_exit!(matches, "unlocked_sol", f64)),
+        unlocked_sol: aeko_to_lamports(value_t_or_exit!(matches, "unlocked_sol", f64)),
         lockup_authority,
         sender_stake_args: None,
     };
@@ -562,7 +562,7 @@ fn parse_distribute_stake_args(
         rent_exempt_reserve: None,
     };
     let stake_args = StakeArgs {
-        unlocked_sol: sol_to_lamports(value_t_or_exit!(matches, "unlocked_sol", f64)),
+        unlocked_sol: aeko_to_lamports(value_t_or_exit!(matches, "unlocked_sol", f64)),
         lockup_authority: lockup_authority_address,
         sender_stake_args: Some(sender_stake_args),
     };

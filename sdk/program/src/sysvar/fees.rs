@@ -12,11 +12,11 @@
 //! proposal][ccf].
 //!
 //! [`getFeeForMessage`]: https://solana.com/docs/rpc/http/getfeeformessage
-//! [ccf]: https://docs.solanalabs.com/proposals/comprehensive-compute-fees
+//! [ccf]: https://docs.aeko.network/proposals/comprehensive-compute-fees
 //!
 //! See also the Solana [documentation on the fees sysvar][sdoc].
 //!
-//! [sdoc]: https://docs.solanalabs.com/runtime/sysvars#fees
+//! [sdoc]: https://docs.aeko.network/runtime/sysvars#fees
 
 #![allow(deprecated)]
 
@@ -24,7 +24,7 @@ use {
     crate::{
         fee_calculator::FeeCalculator, impl_sysvar_get, program_error::ProgramError, sysvar::Sysvar,
     },
-    solana_sdk_macro::CloneZeroed,
+    aeko_sdk_macro::CloneZeroed,
 };
 
 crate::declare_deprecated_sysvar_id!("SysvarFees111111111111111111111111111111111", Fees);

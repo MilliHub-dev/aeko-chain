@@ -26,7 +26,7 @@ use {
     },
     bincode::{config::Options, serialize_into},
     log::*,
-    solana_accounts_db::{
+    aeko_accounts_db::{
         accounts_db::{
             AccountShrinkThreshold, AccountStorageEntry, AccountsDbConfig, AtomicAppendVecId,
             CalcAccountsHashDataSource,
@@ -36,9 +36,9 @@ use {
         accounts_update_notifier_interface::AccountsUpdateNotifier,
         utils::delete_contents_of_path,
     },
-    solana_measure::{measure, measure::Measure},
-    solana_program_runtime::runtime_config::RuntimeConfig,
-    solana_sdk::{
+    aeko_measure::{measure, measure::Measure},
+    aeko_program_runtime::runtime_config::RuntimeConfig,
+    aeko_sdk::{
         clock::Slot,
         feature_set,
         genesis_config::GenesisConfig,
@@ -1268,14 +1268,14 @@ mod tests {
             },
             status_cache::Status,
         },
-        solana_accounts_db::{
+        aeko_accounts_db::{
             accounts_db::ACCOUNTS_DB_CONFIG_FOR_TESTING,
             accounts_hash::{CalcAccountsHashConfig, HashStats},
             sorted_storages::SortedStorages,
         },
-        solana_sdk::{
+        aeko_sdk::{
             genesis_config::create_genesis_config,
-            native_token::{sol_to_lamports, LAMPORTS_PER_SOL},
+            native_token::{aeko_to_lamports, LAMPORTS_PER_AEKO},
             signature::{Keypair, Signer},
             system_transaction,
             transaction::SanitizedTransaction,
@@ -1363,16 +1363,16 @@ mod tests {
         let key4 = Keypair::new();
         let key5 = Keypair::new();
 
-        let (genesis_config, mint_keypair) = create_genesis_config(sol_to_lamports(1_000_000.));
+        let (genesis_config, mint_keypair) = create_genesis_config(aeko_to_lamports(1_000_000.));
         let (bank0, bank_forks) = Bank::new_with_bank_forks_for_tests(&genesis_config);
         bank0
-            .transfer(sol_to_lamports(1.), &mint_keypair, &key1.pubkey())
+            .transfer(aeko_to_lamports(1.), &mint_keypair, &key1.pubkey())
             .unwrap();
         bank0
-            .transfer(sol_to_lamports(2.), &mint_keypair, &key2.pubkey())
+            .transfer(aeko_to_lamports(2.), &mint_keypair, &key2.pubkey())
             .unwrap();
         bank0
-            .transfer(sol_to_lamports(3.), &mint_keypair, &key3.pubkey())
+            .transfer(aeko_to_lamports(3.), &mint_keypair, &key3.pubkey())
             .unwrap();
         while !bank0.is_complete() {
             bank0.register_unique_tick();
@@ -1382,13 +1382,13 @@ mod tests {
         let bank1 =
             new_bank_from_parent_with_bank_forks(bank_forks.as_ref(), bank0, &collector, slot);
         bank1
-            .transfer(sol_to_lamports(3.), &mint_keypair, &key3.pubkey())
+            .transfer(aeko_to_lamports(3.), &mint_keypair, &key3.pubkey())
             .unwrap();
         bank1
-            .transfer(sol_to_lamports(4.), &mint_keypair, &key4.pubkey())
+            .transfer(aeko_to_lamports(4.), &mint_keypair, &key4.pubkey())
             .unwrap();
         bank1
-            .transfer(sol_to_lamports(5.), &mint_keypair, &key5.pubkey())
+            .transfer(aeko_to_lamports(5.), &mint_keypair, &key5.pubkey())
             .unwrap();
         while !bank1.is_complete() {
             bank1.register_unique_tick();
@@ -1398,7 +1398,7 @@ mod tests {
         let bank2 =
             new_bank_from_parent_with_bank_forks(bank_forks.as_ref(), bank1, &collector, slot);
         bank2
-            .transfer(sol_to_lamports(1.), &mint_keypair, &key1.pubkey())
+            .transfer(aeko_to_lamports(1.), &mint_keypair, &key1.pubkey())
             .unwrap();
         while !bank2.is_complete() {
             bank2.register_unique_tick();
@@ -1408,7 +1408,7 @@ mod tests {
         let bank3 =
             new_bank_from_parent_with_bank_forks(bank_forks.as_ref(), bank2, &collector, slot);
         bank3
-            .transfer(sol_to_lamports(1.), &mint_keypair, &key1.pubkey())
+            .transfer(aeko_to_lamports(1.), &mint_keypair, &key1.pubkey())
             .unwrap();
         while !bank3.is_complete() {
             bank3.register_unique_tick();
@@ -1418,7 +1418,7 @@ mod tests {
         let bank4 =
             new_bank_from_parent_with_bank_forks(bank_forks.as_ref(), bank3, &collector, slot);
         bank4
-            .transfer(sol_to_lamports(1.), &mint_keypair, &key1.pubkey())
+            .transfer(aeko_to_lamports(1.), &mint_keypair, &key1.pubkey())
             .unwrap();
         while !bank4.is_complete() {
             bank4.register_unique_tick();
@@ -1485,16 +1485,16 @@ mod tests {
         let key4 = Keypair::new();
         let key5 = Keypair::new();
 
-        let (genesis_config, mint_keypair) = create_genesis_config(sol_to_lamports(1_000_000.));
+        let (genesis_config, mint_keypair) = create_genesis_config(aeko_to_lamports(1_000_000.));
         let (bank0, bank_forks) = Bank::new_with_bank_forks_for_tests(&genesis_config);
         bank0
-            .transfer(sol_to_lamports(1.), &mint_keypair, &key1.pubkey())
+            .transfer(aeko_to_lamports(1.), &mint_keypair, &key1.pubkey())
             .unwrap();
         bank0
-            .transfer(sol_to_lamports(2.), &mint_keypair, &key2.pubkey())
+            .transfer(aeko_to_lamports(2.), &mint_keypair, &key2.pubkey())
             .unwrap();
         bank0
-            .transfer(sol_to_lamports(3.), &mint_keypair, &key3.pubkey())
+            .transfer(aeko_to_lamports(3.), &mint_keypair, &key3.pubkey())
             .unwrap();
         while !bank0.is_complete() {
             bank0.register_unique_tick();
@@ -1504,13 +1504,13 @@ mod tests {
         let bank1 =
             new_bank_from_parent_with_bank_forks(bank_forks.as_ref(), bank0, &collector, slot);
         bank1
-            .transfer(sol_to_lamports(3.), &mint_keypair, &key3.pubkey())
+            .transfer(aeko_to_lamports(3.), &mint_keypair, &key3.pubkey())
             .unwrap();
         bank1
-            .transfer(sol_to_lamports(4.), &mint_keypair, &key4.pubkey())
+            .transfer(aeko_to_lamports(4.), &mint_keypair, &key4.pubkey())
             .unwrap();
         bank1
-            .transfer(sol_to_lamports(5.), &mint_keypair, &key5.pubkey())
+            .transfer(aeko_to_lamports(5.), &mint_keypair, &key5.pubkey())
             .unwrap();
         while !bank1.is_complete() {
             bank1.register_unique_tick();
@@ -1539,7 +1539,7 @@ mod tests {
         let bank2 =
             new_bank_from_parent_with_bank_forks(bank_forks.as_ref(), bank1, &collector, slot);
         bank2
-            .transfer(sol_to_lamports(1.), &mint_keypair, &key1.pubkey())
+            .transfer(aeko_to_lamports(1.), &mint_keypair, &key1.pubkey())
             .unwrap();
         while !bank2.is_complete() {
             bank2.register_unique_tick();
@@ -1549,7 +1549,7 @@ mod tests {
         let bank3 =
             new_bank_from_parent_with_bank_forks(bank_forks.as_ref(), bank2, &collector, slot);
         bank3
-            .transfer(sol_to_lamports(1.), &mint_keypair, &key1.pubkey())
+            .transfer(aeko_to_lamports(1.), &mint_keypair, &key1.pubkey())
             .unwrap();
         while !bank3.is_complete() {
             bank3.register_unique_tick();
@@ -1559,7 +1559,7 @@ mod tests {
         let bank4 =
             new_bank_from_parent_with_bank_forks(bank_forks.as_ref(), bank3, &collector, slot);
         bank4
-            .transfer(sol_to_lamports(1.), &mint_keypair, &key1.pubkey())
+            .transfer(aeko_to_lamports(1.), &mint_keypair, &key1.pubkey())
             .unwrap();
         while !bank4.is_complete() {
             bank4.register_unique_tick();
@@ -1611,16 +1611,16 @@ mod tests {
         let key2 = Keypair::new();
         let key3 = Keypair::new();
 
-        let (genesis_config, mint_keypair) = create_genesis_config(sol_to_lamports(1_000_000.));
+        let (genesis_config, mint_keypair) = create_genesis_config(aeko_to_lamports(1_000_000.));
         let (bank0, bank_forks) = Bank::new_with_bank_forks_for_tests(&genesis_config);
         bank0
-            .transfer(sol_to_lamports(1.), &mint_keypair, &key1.pubkey())
+            .transfer(aeko_to_lamports(1.), &mint_keypair, &key1.pubkey())
             .unwrap();
         bank0
-            .transfer(sol_to_lamports(2.), &mint_keypair, &key2.pubkey())
+            .transfer(aeko_to_lamports(2.), &mint_keypair, &key2.pubkey())
             .unwrap();
         bank0
-            .transfer(sol_to_lamports(3.), &mint_keypair, &key3.pubkey())
+            .transfer(aeko_to_lamports(3.), &mint_keypair, &key3.pubkey())
             .unwrap();
         while !bank0.is_complete() {
             bank0.register_unique_tick();
@@ -1630,13 +1630,13 @@ mod tests {
         let bank1 =
             new_bank_from_parent_with_bank_forks(bank_forks.as_ref(), bank0, &collector, slot);
         bank1
-            .transfer(sol_to_lamports(1.), &mint_keypair, &key1.pubkey())
+            .transfer(aeko_to_lamports(1.), &mint_keypair, &key1.pubkey())
             .unwrap();
         bank1
-            .transfer(sol_to_lamports(2.), &mint_keypair, &key2.pubkey())
+            .transfer(aeko_to_lamports(2.), &mint_keypair, &key2.pubkey())
             .unwrap();
         bank1
-            .transfer(sol_to_lamports(3.), &mint_keypair, &key3.pubkey())
+            .transfer(aeko_to_lamports(3.), &mint_keypair, &key3.pubkey())
             .unwrap();
         while !bank1.is_complete() {
             bank1.register_unique_tick();
@@ -1665,7 +1665,7 @@ mod tests {
         let bank2 =
             new_bank_from_parent_with_bank_forks(bank_forks.as_ref(), bank1, &collector, slot);
         bank2
-            .transfer(sol_to_lamports(1.), &mint_keypair, &key1.pubkey())
+            .transfer(aeko_to_lamports(1.), &mint_keypair, &key1.pubkey())
             .unwrap();
         while !bank2.is_complete() {
             bank2.register_unique_tick();
@@ -1675,7 +1675,7 @@ mod tests {
         let bank3 =
             new_bank_from_parent_with_bank_forks(bank_forks.as_ref(), bank2, &collector, slot);
         bank3
-            .transfer(sol_to_lamports(2.), &mint_keypair, &key2.pubkey())
+            .transfer(aeko_to_lamports(2.), &mint_keypair, &key2.pubkey())
             .unwrap();
         while !bank3.is_complete() {
             bank3.register_unique_tick();
@@ -1685,7 +1685,7 @@ mod tests {
         let bank4 =
             new_bank_from_parent_with_bank_forks(bank_forks.as_ref(), bank3, &collector, slot);
         bank4
-            .transfer(sol_to_lamports(3.), &mint_keypair, &key3.pubkey())
+            .transfer(aeko_to_lamports(3.), &mint_keypair, &key3.pubkey())
             .unwrap();
         while !bank4.is_complete() {
             bank4.register_unique_tick();
@@ -1763,11 +1763,11 @@ mod tests {
         let incremental_snapshot_archives_dir = tempfile::TempDir::new().unwrap();
         let snapshot_archive_format = ArchiveFormat::Tar;
 
-        let (mut genesis_config, mint_keypair) = create_genesis_config(sol_to_lamports(1_000_000.));
+        let (mut genesis_config, mint_keypair) = create_genesis_config(aeko_to_lamports(1_000_000.));
         // test expects 0 transaction fee
-        genesis_config.fee_rate_governor = solana_sdk::fee_calculator::FeeRateGovernor::new(0, 0);
+        genesis_config.fee_rate_governor = aeko_sdk::fee_calculator::FeeRateGovernor::new(0, 0);
 
-        let lamports_to_transfer = sol_to_lamports(123_456.);
+        let lamports_to_transfer = aeko_to_lamports(123_456.);
         let (bank0, bank_forks) = Bank::new_with_paths_for_tests(
             &genesis_config,
             Arc::<RuntimeConfig>::default(),
@@ -1954,7 +1954,7 @@ mod tests {
         let collector = Pubkey::new_unique();
         let key1 = Keypair::new();
 
-        let (genesis_config, mint_keypair) = create_genesis_config(sol_to_lamports(1_000_000.));
+        let (genesis_config, mint_keypair) = create_genesis_config(aeko_to_lamports(1_000_000.));
         let (bank0, bank_forks) = Bank::new_with_bank_forks_for_tests(&genesis_config);
         while !bank0.is_complete() {
             bank0.register_unique_tick();
@@ -1987,7 +1987,7 @@ mod tests {
         let bank2 =
             new_bank_from_parent_with_bank_forks(bank_forks.as_ref(), bank1, &collector, slot);
         bank2
-            .transfer(sol_to_lamports(1.), &mint_keypair, &key1.pubkey())
+            .transfer(aeko_to_lamports(1.), &mint_keypair, &key1.pubkey())
             .unwrap();
         while !bank2.is_complete() {
             bank2.register_unique_tick();
@@ -2167,9 +2167,9 @@ mod tests {
         let incremental_snapshot_archives_dir = tempfile::TempDir::new().unwrap();
 
         let genesis_config_info = genesis_utils::create_genesis_config_with_leader(
-            1_000_000 * LAMPORTS_PER_SOL,
+            1_000_000 * LAMPORTS_PER_AEKO,
             &Pubkey::new_unique(),
-            100 * LAMPORTS_PER_SOL,
+            100 * LAMPORTS_PER_AEKO,
         );
         let mint = &genesis_config_info.mint_keypair;
 

@@ -22,10 +22,10 @@ extern crate log;
 extern crate assert_matches;
 
 #[macro_use]
-extern crate solana_metrics;
+extern crate aeko_metrics;
 
 #[macro_use]
-extern crate solana_frozen_abi_macro;
+extern crate aeko_frozen_abi_macro;
 
 fn is_rosetta_emulated() -> bool {
     #[cfg(target_os = "macos")]

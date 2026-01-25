@@ -1,15 +1,15 @@
 #![feature(test)]
 
-extern crate solana_core;
+extern crate aeko_core;
 extern crate test;
 
 use {
-    solana_core::{
+    aeko_core::{
         consensus::{tower_storage::FileTowerStorage, Tower},
         vote_simulator::VoteSimulator,
     },
-    solana_runtime::{bank::Bank, bank_forks::BankForks},
-    solana_sdk::{
+    aeko_runtime::{bank::Bank, bank_forks::BankForks},
+    aeko_sdk::{
         pubkey::Pubkey,
         signature::{Keypair, Signer},
     },

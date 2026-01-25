@@ -140,7 +140,7 @@ impl PubkeyValidityProof {
 mod test {
     use {
         super::*,
-        solana_sdk::{pubkey::Pubkey, signature::Keypair},
+        aeko_sdk::{pubkey::Pubkey, signature::Keypair},
     };
 
     #[test]

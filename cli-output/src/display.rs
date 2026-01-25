@@ -4,20 +4,20 @@ use {
     chrono::{Local, NaiveDateTime, SecondsFormat, TimeZone, Utc},
     console::style,
     indicatif::{ProgressBar, ProgressStyle},
-    solana_cli_config::SettingType,
-    solana_sdk::{
+    aeko_cli_config::SettingType,
+    aeko_sdk::{
         clock::UnixTimestamp,
         hash::Hash,
         instruction::CompiledInstruction,
         message::v0::MessageAddressTableLookup,
-        native_token::lamports_to_sol,
+        native_token::lamports_to_aeko,
         program_utils::limited_deserialize,
         pubkey::Pubkey,
         signature::Signature,
         stake,
         transaction::{TransactionError, TransactionVersion, VersionedTransaction},
     },
-    solana_transaction_status::{
+    aeko_transaction_status::{
         Rewards, UiReturnDataEncoding, UiTransactionReturnData, UiTransactionStatusMeta,
     },
     spl_memo::{id as spl_memo_id, v1::id as spl_memo_v1_id},
@@ -53,15 +53,15 @@ pub fn build_balance_message_with_config(
     let value = if config.use_lamports_unit {
         lamports.to_string()
     } else {
-        let sol = lamports_to_sol(lamports);
-        let sol_str = format!("{sol:.9}");
+        let aeko = lamports_to_aeko(lamports);
+        let aeko_str = format!("{aeko:.9}");
         if config.trim_trailing_zeros {
-            sol_str
+            aeko_str
                 .trim_end_matches('0')
                 .trim_end_matches('.')
                 .to_string()
         } else {
-            sol_str
+            aeko_str
         }
     };
     let unit = if config.show_unit {
@@ -69,7 +69,7 @@ pub fn build_balance_message_with_config(
             let ess = if lamports == 1 { "" } else { "s" };
             format!(" lamport{ess}")
         } else {
-            " SOL".to_string()
+            " AEKO".to_string()
         }
     } else {
         "".to_string()
@@ -441,9 +441,9 @@ fn write_instruction<'a, W: io::Write>(
 
     let mut raw = true;
     if let AccountKeyType::Known(program_pubkey) = program_pubkey {
-        if program_pubkey == &solana_vote_program::id() {
+        if program_pubkey == &aeko_vote_program::id() {
             if let Ok(vote_instruction) = limited_deserialize::<
-                solana_vote_program::vote_instruction::VoteInstruction,
+                aeko_vote_program::vote_instruction::VoteInstruction,
             >(&instruction.data)
             {
                 writeln!(w, "{prefix}  {vote_instruction:?}")?;
@@ -456,9 +456,9 @@ fn write_instruction<'a, W: io::Write>(
                 writeln!(w, "{prefix}  {stake_instruction:?}")?;
                 raw = false;
             }
-        } else if program_pubkey == &solana_sdk::system_program::id() {
+        } else if program_pubkey == &aeko_sdk::system_program::id() {
             if let Ok(system_instruction) = limited_deserialize::<
-                solana_sdk::system_instruction::SystemInstruction,
+                aeko_sdk::system_instruction::SystemInstruction,
             >(&instruction.data)
             {
                 writeln!(w, "{prefix}  {system_instruction:?}")?;
@@ -520,7 +520,7 @@ fn write_rewards<W: io::Write>(
                 let sign = if reward.lamports < 0 { "-" } else { "" };
                 writeln!(
                     w,
-                    "{}  {:<44}  {:^15}  {}◎{:<14.9}  ◎{:<18.9}",
+                    "{}  {:<44}  {:^15}  {}AEKO {:<14.9}  AEKO {:<18.9}",
                     prefix,
                     reward.pubkey,
                     if let Some(reward_type) = reward.reward_type {
@@ -529,8 +529,8 @@ fn write_rewards<W: io::Write>(
                         "-".to_string()
                     },
                     sign,
-                    lamports_to_sol(reward.lamports.unsigned_abs()),
-                    lamports_to_sol(reward.post_balance)
+                    lamports_to_aeko(reward.lamports.unsigned_abs()),
+                    lamports_to_aeko(reward.post_balance)
                 )?;
             }
         }
@@ -555,7 +555,7 @@ fn write_status<W: io::Write>(
 }
 
 fn write_fees<W: io::Write>(w: &mut W, transaction_fee: u64, prefix: &str) -> io::Result<()> {
-    writeln!(w, "{}  Fee: ◎{}", prefix, lamports_to_sol(transaction_fee))
+    writeln!(w, "{}  Fee: AEKO {}", prefix, lamports_to_aeko(transaction_fee))
 }
 
 fn write_balances<W: io::Write>(
@@ -576,19 +576,19 @@ fn write_balances<W: io::Write>(
         if pre == post {
             writeln!(
                 w,
-                "{}  Account {} balance: ◎{}",
+                "{}  Account {} balance: AEKO {}",
                 prefix,
                 i,
-                lamports_to_sol(*pre)
+                lamports_to_aeko(*pre)
             )?;
         } else {
             writeln!(
                 w,
-                "{}  Account {} balance: ◎{} -> ◎{}",
+                "{}  Account {} balance: AEKO {} -> AEKO {}",
                 prefix,
                 i,
-                lamports_to_sol(*pre),
-                lamports_to_sol(*post)
+                lamports_to_aeko(*pre),
+                lamports_to_aeko(*post)
             )?;
         }
     }
@@ -727,7 +727,7 @@ pub fn unix_timestamp_to_string(unix_timestamp: UnixTimestamp) -> String {
 mod test {
     use {
         super::*,
-        solana_sdk::{
+        aeko_sdk::{
             message::{
                 v0::{self, LoadedAddresses},
                 Message as LegacyMessage, MessageHeader, VersionedMessage,
@@ -737,7 +737,7 @@ mod test {
             transaction::Transaction,
             transaction_context::TransactionReturnData,
         },
-        solana_transaction_status::{Reward, RewardType, TransactionStatusMeta},
+        aeko_transaction_status::{Reward, RewardType, TransactionStatusMeta},
         std::io::BufWriter,
     };
 

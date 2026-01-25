@@ -5,23 +5,23 @@ use {
         ser::{Impossible, SerializeSeq, SerializeStruct, Serializer},
         Deserialize, Serialize,
     },
-    solana_account_decoder::{UiAccount, UiAccountData, UiAccountEncoding},
-    solana_accounts_db::accounts_index::ScanConfig,
-    solana_cli_output::{
+    aeko_account_decoder::{UiAccount, UiAccountData, UiAccountEncoding},
+    aeko_accounts_db::accounts_index::ScanConfig,
+    aeko_cli_output::{
         display::writeln_transaction, CliAccount, CliAccountNewConfig, OutputFormat, QuietDisplay,
         VerboseDisplay,
     },
-    solana_entry::entry::Entry,
-    solana_ledger::blockstore::Blockstore,
-    solana_runtime::bank::{Bank, TotalAccountsStats},
-    solana_sdk::{
+    aeko_entry::entry::Entry,
+    aeko_ledger::blockstore::Blockstore,
+    aeko_runtime::bank::{Bank, TotalAccountsStats},
+    aeko_sdk::{
         account::{AccountSharedData, ReadableAccount},
         clock::{Slot, UnixTimestamp},
         hash::Hash,
-        native_token::lamports_to_sol,
+        native_token::lamports_to_aeko,
         pubkey::Pubkey,
     },
-    solana_transaction_status::{
+    aeko_transaction_status::{
         EncodedConfirmedBlock, EncodedTransactionWithStatusMeta, EntrySummary, Rewards,
     },
     std::{
@@ -232,14 +232,14 @@ impl fmt::Display for CliBlockWithEntries {
                     format!(
                         "{}◎{:<14.9}",
                         sign,
-                        lamports_to_sol(reward.lamports.unsigned_abs())
+                        lamports_to_aeko(reward.lamports.unsigned_abs())
                     ),
                     if reward.post_balance == 0 {
                         "          -                 -".to_string()
                     } else {
                         format!(
                             "◎{:<19.9}  {:>13.9}%",
-                            lamports_to_sol(reward.post_balance),
+                            lamports_to_aeko(reward.post_balance),
                             (reward.lamports.abs() as f64
                                 / (reward.post_balance as f64 - reward.lamports as f64))
                                 * 100.0
@@ -257,7 +257,7 @@ impl fmt::Display for CliBlockWithEntries {
                 f,
                 "Total Rewards: {}◎{:<12.9}",
                 sign,
-                lamports_to_sol(total_rewards.unsigned_abs())
+                lamports_to_aeko(total_rewards.unsigned_abs())
             )?;
         }
         for (index, entry) in self.encoded_confirmed_block.entries.iter().enumerate() {
@@ -349,8 +349,8 @@ pub fn output_slot_rewards(blockstore: &Blockstore, slot: Slot, method: &OutputF
                             "-".to_string()
                         },
                         sign,
-                        lamports_to_sol(reward.lamports.unsigned_abs()),
-                        lamports_to_sol(reward.post_balance),
+                        lamports_to_aeko(reward.lamports.unsigned_abs()),
+                        lamports_to_aeko(reward.post_balance),
                         reward
                             .commission
                             .map(|commission| format!("{commission:>9}%"))
@@ -392,7 +392,7 @@ pub fn output_entry(
                     })
                     .map(|meta| meta.into());
 
-                solana_cli_output::display::println_transaction(
+                aeko_cli_output::display::println_transaction(
                     &transaction,
                     tx_status_meta.as_ref(),
                     "      ",
@@ -644,8 +644,8 @@ struct AccountsScanner {
 impl AccountsScanner {
     /// Returns true if this account should be included in the output
     fn should_process_account(&self, account: &AccountSharedData, pubkey: &Pubkey) -> bool {
-        solana_accounts_db::accounts::Accounts::is_loadable(account.lamports())
-            && (self.config.include_sysvars || !solana_sdk::sysvar::is_sysvar_id(pubkey))
+        aeko_accounts_db::accounts::Accounts::is_loadable(account.lamports())
+            && (self.config.include_sysvars || !aeko_sdk::sysvar::is_sysvar_id(pubkey))
     }
 
     fn maybe_output_account<S>(
@@ -761,7 +761,7 @@ pub fn output_account(
     encoding: UiAccountEncoding,
 ) {
     println!("{pubkey}:");
-    println!("  balance: {} SOL", lamports_to_sol(account.lamports()));
+    println!("  balance: {} AEKO", lamports_to_aeko(account.lamports()));
     println!("  owner: '{}'", account.owner());
     println!("  executable: {}", account.executable());
     if let Some(slot) = modified_slot {

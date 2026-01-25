@@ -2,13 +2,13 @@
 #![allow(clippy::arithmetic_side_effects)]
 #[deprecated(
     since = "1.8.0",
-    note = "Please use `solana_sdk::stake::program::id` or `solana_program::stake::program::id` instead"
+    note = "Please use `aeko_sdk::stake::program::id` or `aeko_program::stake::program::id` instead"
 )]
-pub use solana_sdk::stake::program::{check_id, id};
-use solana_sdk::{
+pub use aeko_sdk::stake::program::{check_id, id};
+use aeko_sdk::{
     feature_set::{self, FeatureSet},
     genesis_config::GenesisConfig,
-    native_token::LAMPORTS_PER_SOL,
+    native_token::LAMPORTS_PER_AEKO,
 };
 
 pub mod config;
@@ -29,9 +29,9 @@ pub fn add_genesis_accounts(genesis_config: &mut GenesisConfig) -> u64 {
 pub fn get_minimum_delegation(feature_set: &FeatureSet) -> u64 {
     if feature_set.is_active(&feature_set::stake_raise_minimum_delegation_to_1_sol::id()) {
         const MINIMUM_DELEGATION_SOL: u64 = 1;
-        MINIMUM_DELEGATION_SOL * LAMPORTS_PER_SOL
+        MINIMUM_DELEGATION_SOL * LAMPORTS_PER_AEKO
     } else {
         #[allow(deprecated)]
-        solana_sdk::stake::MINIMUM_STAKE_DELEGATION
+        aeko_sdk::stake::MINIMUM_STAKE_DELEGATION
     }
 }

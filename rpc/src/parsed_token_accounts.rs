@@ -1,13 +1,13 @@
 use {
     crate::rpc::account_resolver,
     jsonrpc_core::{Error, Result},
-    solana_account_decoder::{
+    aeko_account_decoder::{
         parse_account_data::AccountAdditionalData, parse_token::get_token_account_mint, UiAccount,
         UiAccountData, UiAccountEncoding,
     },
-    solana_rpc_client_api::response::RpcKeyedAccount,
-    solana_runtime::bank::Bank,
-    solana_sdk::{
+    aeko_rpc_client_api::response::RpcKeyedAccount,
+    aeko_runtime::bank::Bank,
+    aeko_sdk::{
         account::{AccountSharedData, ReadableAccount},
         pubkey::Pubkey,
     },

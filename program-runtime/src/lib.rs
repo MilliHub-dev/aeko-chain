@@ -7,9 +7,9 @@
 extern crate eager;
 
 #[macro_use]
-extern crate solana_metrics;
+extern crate aeko_metrics;
 
-pub use solana_rbpf;
+pub use aeko_rbpf;
 pub mod compute_budget;
 pub mod compute_budget_processor;
 pub mod invoke_context;

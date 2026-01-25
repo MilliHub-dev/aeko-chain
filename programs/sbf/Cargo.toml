@@ -1,9 +1,9 @@
 [workspace.package]
 version = "2.0.0"
-description = "Solana SBF test program written in Rust"
-authors = ["Solana Labs Maintainers <maintainers@solanalabs.com>"]
-repository = "https://github.com/solana-labs/solana"
-homepage = "https://solanalabs.com/"
+description = "AEKO SBF test program written in Rust"
+authors = ["AEKO Chain Maintainers <maintainers@aeko.chain>"]
+repository = "https://github.com/aeko-chain/aeko"
+homepage = "https://aeko.chain/"
 license = "Apache-2.0"
 edition = "2021"
 
@@ -25,46 +25,42 @@ rand = "0.8"
 rustversion = "1.0.14"
 serde = "1.0.112"
 serde_json = "1.0.56"
-solana-account-decoder = { path = "../../account-decoder", version = "=2.0.0" }
-solana-accounts-db = { path = "../../accounts-db", version = "=2.0.0" }
-solana-bpf-loader-program = { path = "../bpf_loader", version = "=2.0.0" }
-solana-cli-output = { path = "../../cli-output", version = "=2.0.0" }
-solana-ledger = { path = "../../ledger", version = "=2.0.0" }
-solana-logger = { path = "../../logger", version = "=2.0.0" }
-solana-measure = { path = "../../measure", version = "=2.0.0" }
-solana-program = { path = "../../sdk/program", version = "=2.0.0" }
-solana-program-runtime = { path = "../../program-runtime", version = "=2.0.0" }
-solana-program-test = { path = "../../program-test", version = "=2.0.0" }
-solana-runtime = { path = "../../runtime", version = "=2.0.0" }
-solana-sbf-rust-128bit-dep = { path = "rust/128bit_dep", version = "=2.0.0" }
-solana-sbf-rust-invoke = { path = "rust/invoke", version = "=2.0.0" }
-solana-sbf-rust-invoked = { path = "rust/invoked", version = "=2.0.0", default-features = false }
-solana-sbf-rust-many-args-dep = { path = "rust/many_args_dep", version = "=2.0.0" }
-solana-sbf-rust-mem = { path = "rust/mem", version = "=2.0.0" }
-solana-sbf-rust-param-passing-dep = { path = "rust/param_passing_dep", version = "=2.0.0" }
-solana-sbf-rust-realloc = { path = "rust/realloc", version = "=2.0.0", default-features = false }
-solana-sbf-rust-realloc-invoke = { path = "rust/realloc_invoke", version = "=2.0.0" }
-solana-sdk = { path = "../../sdk", version = "=2.0.0" }
-solana-svm = { path = "../../svm", version = "=2.0.0" }
-solana-transaction-status = { path = "../../transaction-status", version = "=2.0.0" }
-solana-validator = { path = "../../validator", version = "=2.0.0" }
-solana-zk-token-sdk = { path = "../../zk-token-sdk", version = "=2.0.0" }
+aeko-account-decoder = { path = "../../account-decoder", version = "=2.0.0" }
+aeko-accounts-db = { path = "../../accounts-db", version = "=2.0.0" }
+aeko-bpf-loader-program = { path = "../bpf_loader", version = "=2.0.0" }
+aeko-cli-output = { path = "../../cli-output", version = "=2.0.0" }
+aeko-ledger = { path = "../../ledger", version = "=2.0.0" }
+aeko-logger = { path = "../../logger", version = "=2.0.0" }
+aeko-measure = { path = "../../measure", version = "=2.0.0" }
+aeko-program = { path = "../../sdk/program", version = "=2.0.0" }
+aeko-program-runtime = { path = "../../program-runtime", version = "=2.0.0" }
+aeko-program-test = { path = "../../program-test", version = "=2.0.0" }
+aeko-runtime = { path = "../../runtime", version = "=2.0.0" }
+aeko-sbf-rust-128bit-dep = { path = "rust/128bit_dep", version = "=2.0.0" }
+aeko-sbf-rust-invoke = { path = "rust/invoke", version = "=2.0.0" }
+aeko-sbf-rust-invoked = { path = "rust/invoked", version = "=2.0.0", default-features = false }
+aeko-sbf-rust-many-args-dep = { path = "rust/many_args_dep", version = "=2.0.0" }
+aeko-sbf-rust-mem = { path = "rust/mem", version = "=2.0.0" }
+aeko-sbf-rust-param-passing-dep = { path = "rust/param_passing_dep", version = "=2.0.0" }
+aeko-sbf-rust-realloc = { path = "rust/realloc", version = "=2.0.0", default-features = false }
+aeko-sbf-rust-realloc-invoke = { path = "rust/realloc_invoke", version = "=2.0.0" }
+aeko-sdk = { path = "../../sdk", version = "=2.0.0" }
+aeko-svm = { path = "../../svm", version = "=2.0.0" }
+aeko-transaction-status = { path = "../../transaction-status", version = "=2.0.0" }
+aeko-validator = { path = "../../validator", version = "=2.0.0" }
+aeko-zk-token-sdk = { path = "../../zk-token-sdk", version = "=2.0.0" }
 solana_rbpf = "=0.8.0"
 static_assertions = "1.1.0"
 thiserror = "1.0"
 
 [package]
-name = "solana-sbf-programs"
-description = "Blockchain, Rebuilt for Scale"
-documentation = "https://docs.rs/solana"
+name = "aeko-sbf-programs"
+description = "AEKO SBF program written in Rust"
+documentation = "https://docs.rs/aeko-sbf-programs"
 readme = "README.md"
 publish = false
 version = { workspace = true }
 authors = { workspace = true }
-repository = { workspace = true }
-homepage = { workspace = true }
-license = { workspace = true }
-edition = { workspace = true }
 
 [features]
 sbf_c = []
@@ -85,26 +81,26 @@ itertools = { workspace = true }
 log = { workspace = true }
 miow = { workspace = true }
 net2 = { workspace = true }
-solana-account-decoder = { workspace = true }
-solana-accounts-db = { workspace = true }
-solana-bpf-loader-program = { workspace = true }
-solana-cli-output = { workspace = true }
-solana-logger = { workspace = true }
-solana-measure = { workspace = true }
-solana-program-runtime = { workspace = true }
-solana-runtime = { workspace = true, features = ["dev-context-only-utils"] }
-solana-sbf-rust-invoke = { workspace = true }
-solana-sbf-rust-realloc = { workspace = true, features = ["default"] }
-solana-sbf-rust-realloc-invoke = { workspace = true }
-solana-sdk = { workspace = true }
-solana-svm = { workspace = true }
-solana-transaction-status = { workspace = true }
+aeko-account-decoder = { workspace = true }
+aeko-accounts-db = { workspace = true }
+aeko-bpf-loader-program = { workspace = true }
+aeko-cli-output = { workspace = true }
+aeko-logger = { workspace = true }
+aeko-measure = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-runtime = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-sbf-rust-invoke = { workspace = true }
+aeko-sbf-rust-realloc = { workspace = true, features = ["default"] }
+aeko-sbf-rust-realloc-invoke = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-svm = { workspace = true }
+aeko-transaction-status = { workspace = true }
 solana_rbpf = { workspace = true }
 
 [dev-dependencies]
-solana-ledger = { workspace = true }
-solana-runtime = { workspace = true, features = ["dev-context-only-utils"] }
-solana-sdk = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-ledger = { workspace = true }
+aeko-runtime = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-sdk = { workspace = true, features = ["dev-context-only-utils"] }
 
 [[bench]]
 name = "bpf_loader"
@@ -181,7 +177,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 #
 # They are included indirectly, for example, `account-decoder` depends on
 #
-#     solana-sdk = { workspace = true }
+#     aeko-sdk = { workspace = true }
 #
 # and that is specified as
 #
@@ -189,25 +185,27 @@ targets = ["x86_64-unknown-linux-gnu"]
 #
 # in `../../Cargo.toml`.
 #
-# `spl-token`, in turn, depends on `solana-program`, which we explicitly specify
+# `spl-token`, in turn, depends on `aeko-program`, which we explicitly specify
 # above as a local path dependency:
 #
-#     solana-program = { path = "../../sdk/program", version = "=1.16.0" }
+#     aeko-program = { path = "../../sdk/program", version = "=1.16.0" }
 #
-# Unfortunately, Cargo will try to resolve the `spl-token` `solana-program`
+# Unfortunately, Cargo will try to resolve the `spl-token` `aeko-program`
 # dependency only using what is available on crates.io.  Crates.io normally
 # contains a previous version of these crates, and we end up with two versions
-# of `solana-program` and `solana-zk-token-sdk` and all of their dependencies in
+# of `aeko-program` and `aeko-zk-token-sdk` and all of their dependencies in
 # our build tree.
 #
-# If you are developing downstream using non-crates-io solana-program (local or
+# If you are developing downstream using non-crates-io aeko-program (local or
 # forked repo, or from github rev, eg), duplicate the following patch statements
 # in your Cargo.toml. If you still hit duplicate-type errors with the patch
-# statements in place, run `cargo update -p solana-program` and/or `cargo update
-# -p solana-zk-token-sdk` to remove extraneous versions from your Cargo.lock
+# statements in place, run `cargo update -p aeko-program` and/or `cargo update
+# -p aeko-zk-token-sdk` to remove extraneous versions from your Cargo.lock
 # file.
 #
 # There is a similar override in `../../Cargo.toml`.  Please keep both comments
 # and the overrides in sync.
-solana-program = { path = "../../sdk/program" }
-solana-zk-token-sdk = { path = "../../zk-token-sdk" }
+aeko-program = { path = "../../sdk/program" }
+aeko-zk-token-sdk = { path = "../../zk-token-sdk" }
+
+

@@ -91,7 +91,7 @@ use crate::{
 /// A simple example of transferring lamports via CPI:
 ///
 /// ```
-/// use solana_program::{
+/// use aeko_program::{
 ///     account_info::{next_account_info, AccountInfo},
 ///     entrypoint,
 ///     entrypoint::ProgramResult,
@@ -184,7 +184,7 @@ pub fn invoke_unchecked(instruction: &Instruction, account_infos: &[AccountInfo]
 /// A simple example of creating an account for a PDA:
 ///
 /// ```
-/// use solana_program::{
+/// use aeko_program::{
 ///     account_info::{next_account_info, AccountInfo},
 ///     entrypoint,
 ///     entrypoint::ProgramResult,
@@ -361,7 +361,7 @@ pub fn set_return_data(data: &[u8]) {
 ///
 /// For more about return data see the [documentation for the return data proposal][rdp].
 ///
-/// [rdp]: https://docs.solanalabs.com/proposals/return-data
+/// [rdp]: https://docs.aeko.network/proposals/return-data
 pub fn get_return_data() -> Option<(Pubkey, Vec<u8>)> {
     #[cfg(target_os = "solana")]
     {

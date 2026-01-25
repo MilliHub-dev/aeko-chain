@@ -1,6 +1,6 @@
-//! The `faucet` module provides an object for launching a Solana Faucet,
+//! The `faucet` module provides an object for launching a AEKO Faucet,
 //! which is the custodian of any remaining lamports in a mint.
-//! The Solana Faucet builds and sends airdrop transactions,
+//! The AEKO Faucet builds and sends airdrop transactions,
 //! checking requests against a single-request cap and a per-IP limit
 //! for a given time time_slice.
 
@@ -10,12 +10,12 @@ use {
     crossbeam_channel::{unbounded, Sender},
     log::*,
     serde_derive::{Deserialize, Serialize},
-    solana_metrics::datapoint_info,
-    solana_sdk::{
+    aeko_metrics::datapoint_info,
+    aeko_sdk::{
         hash::Hash,
         instruction::Instruction,
         message::Message,
-        native_token::lamports_to_sol,
+        native_token::lamports_to_aeko,
         packet::PACKET_DATA_SIZE,
         pubkey::Pubkey,
         signature::{Keypair, Signer},
@@ -128,8 +128,8 @@ impl Faucet {
                 warn!(
                     "per_time_cap {} SOL < per_request_cap {} SOL; \
                     maximum single requests will fail",
-                    lamports_to_sol(per_time_cap),
-                    lamports_to_sol(per_request_cap),
+                    lamports_to_aeko(per_time_cap),
+                    lamports_to_aeko(per_request_cap),
                 );
             }
         }
@@ -154,10 +154,10 @@ impl Faucet {
         if let Some(cap) = self.per_time_cap {
             if new_total > cap {
                 return Err(FaucetError::PerTimeCapExceeded(
-                    lamports_to_sol(request_amount),
+                    lamports_to_aeko(request_amount),
                     to.to_string(),
-                    lamports_to_sol(new_total),
-                    lamports_to_sol(cap),
+                    lamports_to_aeko(new_total),
+                    lamports_to_aeko(cap),
                 ));
             }
         }
@@ -172,7 +172,7 @@ impl Faucet {
     /// Checks per-request and per-time-ip limits; if both pass, this method returns a signed
     /// SystemProgram::Transfer transaction from the faucet keypair to the requested recipient. If
     /// the request exceeds this per-request limit, this method returns a signed SPL Memo
-    /// transaction with the memo: `"request too large; req: <REQUEST> SOL cap: <CAP> SOL"`
+    /// transaction with the memo: `"request too large; req: <REQUEST> AEKO cap: <CAP> AEKO"`
     pub fn build_airdrop_transaction(
         &mut self,
         req: FaucetRequest,
@@ -187,8 +187,8 @@ impl Faucet {
             } => {
                 let mint_pubkey = self.faucet_keypair.pubkey();
                 info!(
-                    "Requesting airdrop of {} SOL to {:?}",
-                    lamports_to_sol(lamports),
+                    "Requesting airdrop of {} AEKO to {:?}",
+                    lamports_to_aeko(lamports),
                     to
                 );
 
@@ -197,8 +197,8 @@ impl Faucet {
                         let memo = format!(
                             "{}",
                             FaucetError::PerRequestCapExceeded(
-                                lamports_to_sol(lamports),
-                                lamports_to_sol(cap),
+                                lamports_to_aeko(lamports),
+                                lamports_to_aeko(cap),
                             )
                         );
                         let memo_instruction = Instruction {
@@ -270,7 +270,7 @@ impl Faucet {
 
 impl Drop for Faucet {
     fn drop(&mut self) {
-        solana_metrics::flush();
+        aeko_metrics::flush();
     }
 }
 
@@ -492,7 +492,7 @@ impl LimitByTime for Pubkey {
 
 #[cfg(test)]
 mod tests {
-    use {super::*, solana_sdk::system_instruction::SystemInstruction, std::time::Duration};
+    use {super::*, aeko_sdk::system_instruction::SystemInstruction, std::time::Duration};
 
     #[test]
     fn test_check_time_request_limit() {
@@ -649,7 +649,7 @@ mod tests {
 
     #[test]
     fn test_process_faucet_request() {
-        let to = solana_sdk::pubkey::new_rand();
+        let to = aeko_sdk::pubkey::new_rand();
         let blockhash = Hash::new(to.as_ref());
         let lamports = 50;
         let req = FaucetRequest::GetAirdrop {

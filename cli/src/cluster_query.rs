@@ -9,14 +9,14 @@ use {
     console::style,
     crossbeam_channel::unbounded,
     serde::{Deserialize, Serialize},
-    solana_clap_utils::{
+    aeko_clap_utils::{
         compute_unit_price::{compute_unit_price_arg, COMPUTE_UNIT_PRICE_ARG},
         input_parsers::*,
         input_validators::*,
         keypair::DefaultSigner,
         offline::{blockhash_arg, BLOCKHASH_ARG},
     },
-    solana_cli_output::{
+    aeko_cli_output::{
         cli_version::CliVersion,
         display::{
             build_balance_message, format_labeled_address, new_spinner_progress_bar,
@@ -24,10 +24,10 @@ use {
         },
         *,
     },
-    solana_pubsub_client::pubsub_client::PubsubClient,
-    solana_remote_wallet::remote_wallet::RemoteWalletManager,
-    solana_rpc_client::rpc_client::{GetConfirmedSignaturesForAddress2Config, RpcClient},
-    solana_rpc_client_api::{
+    aeko_pubsub_client::pubsub_client::PubsubClient,
+    aeko_remote_wallet::remote_wallet::RemoteWalletManager,
+    aeko_rpc_client::rpc_client::{GetConfirmedSignaturesForAddress2Config, RpcClient},
+    aeko_rpc_client_api::{
         client_error::ErrorKind as ClientErrorKind,
         config::{
             RpcAccountInfoConfig, RpcBlockConfig, RpcGetVoteAccountsConfig,
@@ -38,7 +38,7 @@ use {
         request::DELINQUENT_VALIDATOR_SLOT_DISTANCE,
         response::SlotInfo,
     },
-    solana_sdk::{
+    aeko_sdk::{
         account::from_account,
         account_utils::StateMut,
         clock::{self, Clock, Slot},
@@ -47,7 +47,7 @@ use {
         feature_set,
         hash::Hash,
         message::Message,
-        native_token::lamports_to_sol,
+        native_token::lamports_to_aeko,
         nonce::State as NonceState,
         pubkey::Pubkey,
         rent::Rent,
@@ -63,10 +63,10 @@ use {
         },
         transaction::Transaction,
     },
-    solana_transaction_status::{
+    aeko_transaction_status::{
         EncodableWithMeta, EncodedConfirmedTransactionWithStatusMeta, UiTransactionEncoding,
     },
-    solana_vote_program::vote_state::VoteState,
+    aeko_vote_program::vote_state::VoteState,
     std::{
         collections::{BTreeMap, HashMap, VecDeque},
         fmt,
@@ -1400,7 +1400,7 @@ pub fn process_supply(
 
 pub fn process_total_supply(rpc_client: &RpcClient, _config: &CliConfig) -> ProcessResult {
     let supply = rpc_client.supply()?.value;
-    Ok(format!("{} SOL", lamports_to_sol(supply.total)))
+    Ok(format!("{} AEKO", lamports_to_aeko(supply.total)))
 }
 
 pub fn process_get_transaction_count(rpc_client: &RpcClient, _config: &CliConfig) -> ProcessResult {
@@ -1783,7 +1783,7 @@ pub fn process_show_stakes(
 
     let mut program_accounts_config = RpcProgramAccountsConfig {
         account_config: RpcAccountInfoConfig {
-            encoding: Some(solana_account_decoder::UiAccountEncoding::Base64),
+            encoding: Some(aeko_account_decoder::UiAccountEncoding::Base64),
             ..RpcAccountInfoConfig::default()
         },
         ..RpcProgramAccountsConfig::default()
@@ -2230,7 +2230,7 @@ mod tests {
     use {
         super::*,
         crate::{clap_app::get_clap_app, cli::parse_command},
-        solana_sdk::signature::{write_keypair, Keypair},
+        aeko_sdk::signature::{write_keypair, Keypair},
         std::str::FromStr,
         tempfile::NamedTempFile,
     };

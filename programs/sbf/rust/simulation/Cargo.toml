@@ -1,7 +1,7 @@
 [package]
-name = "solana-sbf-rust-simulation"
-description = "Solana SBF Program Simulation Differences"
-documentation = "https://docs.rs/solana-sbf-rust-simulation"
+name = "aeko-sbf-rust-simulation"
+description = "AEKO SBF Program Simulation Differences"
+documentation = "https://docs.rs/aeko-sbf-rust-simulation"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -13,13 +13,13 @@ edition = { workspace = true }
 test-bpf = []
 
 [dependencies]
-solana-program = { workspace = true }
+aeko-program = { workspace = true }
 
 [dev-dependencies]
-solana-logger = { workspace = true }
-solana-program-test = { workspace = true }
-solana-sdk = { workspace = true }
-solana-validator = { workspace = true }
+aeko-logger = { workspace = true }
+aeko-program-test = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-validator = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "lib"]

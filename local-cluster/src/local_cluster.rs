@@ -6,31 +6,31 @@ use {
     },
     itertools::izip,
     log::*,
-    solana_accounts_db::utils::create_accounts_run_and_snapshot_dirs,
-    solana_client::{
+    aeko_accounts_db::utils::create_accounts_run_and_snapshot_dirs,
+    aeko_client::{
         connection_cache::ConnectionCache,
         rpc_client::RpcClient,
         thin_client::ThinClient,
         tpu_client::{QuicTpuClient, TpuClient, TpuClientConfig},
     },
-    solana_core::{
+    aeko_core::{
         consensus::tower_storage::FileTowerStorage,
         validator::{Validator, ValidatorConfig, ValidatorStartProgress},
     },
-    solana_gossip::{
+    aeko_gossip::{
         cluster_info::Node,
         contact_info::{ContactInfo, LegacyContactInfo, Protocol},
         gossip_service::discover_cluster,
     },
-    solana_ledger::{create_new_tmp_ledger, shred::Shred},
-    solana_runtime::{
+    aeko_ledger::{create_new_tmp_ledger, shred::Shred},
+    aeko_runtime::{
         genesis_utils::{
             create_genesis_config_with_vote_accounts_and_cluster_type, GenesisConfigInfo,
             ValidatorVoteKeypairs,
         },
         snapshot_config::SnapshotConfig,
     },
-    solana_sdk::{
+    aeko_sdk::{
         account::{Account, AccountSharedData},
         client::SyncClient,
         clock::{DEFAULT_DEV_SLOTS_PER_EPOCH, DEFAULT_TICKS_PER_SLOT},
@@ -49,12 +49,12 @@ use {
         system_transaction,
         transaction::Transaction,
     },
-    solana_stake_program::stake_state,
-    solana_streamer::socket::SocketAddrSpace,
-    solana_tpu_client::tpu_client::{
+    aeko_stake_program::stake_state,
+    aeko_streamer::socket::SocketAddrSpace,
+    aeko_tpu_client::tpu_client::{
         DEFAULT_TPU_CONNECTION_POOL_SIZE, DEFAULT_TPU_ENABLE_UDP, DEFAULT_TPU_USE_QUIC,
     },
-    solana_vote_program::{
+    aeko_vote_program::{
         vote_instruction,
         vote_state::{self, VoteInit},
     },

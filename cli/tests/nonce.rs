@@ -1,25 +1,25 @@
 #![allow(clippy::arithmetic_side_effects)]
 use {
-    solana_cli::{
+    aeko_cli::{
         check_balance,
         cli::{process_command, request_and_confirm_airdrop, CliCommand, CliConfig},
         spend_utils::SpendAmount,
         test_utils::check_ready,
     },
-    solana_cli_output::{parse_sign_only_reply_string, OutputFormat},
-    solana_faucet::faucet::run_local_faucet,
-    solana_rpc_client::rpc_client::RpcClient,
-    solana_rpc_client_nonce_utils::blockhash_query::{self, BlockhashQuery},
-    solana_sdk::{
+    aeko_cli_output::{parse_sign_only_reply_string, OutputFormat},
+    aeko_faucet::faucet::run_local_faucet,
+    aeko_rpc_client::rpc_client::RpcClient,
+    aeko_rpc_client_nonce_utils::blockhash_query::{self, BlockhashQuery},
+    aeko_sdk::{
         commitment_config::CommitmentConfig,
         hash::Hash,
-        native_token::sol_to_lamports,
+        native_token::aeko_to_lamports,
         pubkey::Pubkey,
         signature::{keypair_from_seed, Keypair, Signer},
         system_program,
     },
-    solana_streamer::socket::SocketAddrSpace,
-    solana_test_validator::TestValidator,
+    aeko_streamer::socket::SocketAddrSpace,
+    aeko_test_validator::TestValidator,
 };
 
 #[test]
@@ -73,11 +73,11 @@ fn full_battery_tests(
         &rpc_client,
         &config_payer,
         &config_payer.signers[0].pubkey(),
-        sol_to_lamports(2000.0),
+        aeko_to_lamports(2000.0),
     )
     .unwrap();
     check_balance!(
-        sol_to_lamports(2000.0),
+        aeko_to_lamports(2000.0),
         &rpc_client,
         &config_payer.signers[0].pubkey(),
     );
@@ -112,17 +112,17 @@ fn full_battery_tests(
         seed,
         nonce_authority: optional_authority,
         memo: None,
-        amount: SpendAmount::Some(sol_to_lamports(1000.0)),
+        amount: SpendAmount::Some(aeko_to_lamports(1000.0)),
         compute_unit_price: None,
     };
 
     process_command(&config_payer).unwrap();
     check_balance!(
-        sol_to_lamports(1000.0),
+        aeko_to_lamports(1000.0),
         &rpc_client,
         &config_payer.signers[0].pubkey(),
     );
-    check_balance!(sol_to_lamports(1000.0), &rpc_client, &nonce_account);
+    check_balance!(aeko_to_lamports(1000.0), &rpc_client, &nonce_account);
 
     // Get nonce
     config_payer.signers.pop();
@@ -164,24 +164,24 @@ fn full_battery_tests(
     assert_ne!(first_nonce, third_nonce);
 
     // Withdraw from nonce account
-    let payee_pubkey = solana_sdk::pubkey::new_rand();
+    let payee_pubkey = aeko_sdk::pubkey::new_rand();
     config_payer.signers = authorized_signers;
     config_payer.command = CliCommand::WithdrawFromNonceAccount {
         nonce_account,
         nonce_authority: index,
         memo: None,
         destination_account_pubkey: payee_pubkey,
-        lamports: sol_to_lamports(100.0),
+        lamports: aeko_to_lamports(100.0),
         compute_unit_price: None,
     };
     process_command(&config_payer).unwrap();
     check_balance!(
-        sol_to_lamports(1000.0),
+        aeko_to_lamports(1000.0),
         &rpc_client,
         &config_payer.signers[0].pubkey(),
     );
-    check_balance!(sol_to_lamports(900.0), &rpc_client, &nonce_account);
-    check_balance!(sol_to_lamports(100.0), &rpc_client, &payee_pubkey);
+    check_balance!(aeko_to_lamports(900.0), &rpc_client, &nonce_account);
+    check_balance!(aeko_to_lamports(100.0), &rpc_client, &payee_pubkey);
 
     // Show nonce account
     config_payer.command = CliCommand::ShowNonceAccount {
@@ -226,30 +226,30 @@ fn full_battery_tests(
         nonce_authority: 1,
         memo: None,
         destination_account_pubkey: payee_pubkey,
-        lamports: sol_to_lamports(100.0),
+        lamports: aeko_to_lamports(100.0),
         compute_unit_price: None,
     };
     process_command(&config_payer).unwrap();
     check_balance!(
-        sol_to_lamports(1000.0),
+        aeko_to_lamports(1000.0),
         &rpc_client,
         &config_payer.signers[0].pubkey(),
     );
-    check_balance!(sol_to_lamports(800.0), &rpc_client, &nonce_account);
-    check_balance!(sol_to_lamports(200.0), &rpc_client, &payee_pubkey);
+    check_balance!(aeko_to_lamports(800.0), &rpc_client, &nonce_account);
+    check_balance!(aeko_to_lamports(200.0), &rpc_client, &payee_pubkey);
 }
 
 #[test]
 #[allow(clippy::redundant_closure)]
 fn test_create_account_with_seed() {
     const ONE_SIG_FEE: f64 = 0.000005;
-    solana_logger::setup();
+    aeko_logger::setup();
     let mint_keypair = Keypair::new();
     let mint_pubkey = mint_keypair.pubkey();
     let faucet_addr = run_local_faucet(mint_keypair, None);
     let test_validator = TestValidator::with_custom_fees(
         mint_pubkey,
-        sol_to_lamports(ONE_SIG_FEE),
+        aeko_to_lamports(ONE_SIG_FEE),
         Some(faucet_addr),
         SocketAddrSpace::Unspecified,
     );
@@ -265,23 +265,23 @@ fn test_create_account_with_seed() {
         &rpc_client,
         &CliConfig::recent_for_tests(),
         &offline_nonce_authority_signer.pubkey(),
-        sol_to_lamports(42.0),
+        aeko_to_lamports(42.0),
     )
     .unwrap();
     request_and_confirm_airdrop(
         &rpc_client,
         &CliConfig::recent_for_tests(),
         &online_nonce_creator_signer.pubkey(),
-        sol_to_lamports(4242.0),
+        aeko_to_lamports(4242.0),
     )
     .unwrap();
     check_balance!(
-        sol_to_lamports(42.0),
+        aeko_to_lamports(42.0),
         &rpc_client,
         &offline_nonce_authority_signer.pubkey(),
     );
     check_balance!(
-        sol_to_lamports(4242.0),
+        aeko_to_lamports(4242.0),
         &rpc_client,
         &online_nonce_creator_signer.pubkey(),
     );
@@ -305,30 +305,30 @@ fn test_create_account_with_seed() {
         seed: Some(seed),
         nonce_authority: Some(authority_pubkey),
         memo: None,
-        amount: SpendAmount::Some(sol_to_lamports(241.0)),
+        amount: SpendAmount::Some(aeko_to_lamports(241.0)),
         compute_unit_price: None,
     };
     process_command(&creator_config).unwrap();
-    check_balance!(sol_to_lamports(241.0), &rpc_client, &nonce_address);
+    check_balance!(aeko_to_lamports(241.0), &rpc_client, &nonce_address);
     check_balance!(
-        sol_to_lamports(42.0),
+        aeko_to_lamports(42.0),
         &rpc_client,
         &offline_nonce_authority_signer.pubkey(),
     );
     check_balance!(
-        sol_to_lamports(4001.0 - ONE_SIG_FEE),
+        aeko_to_lamports(4001.0 - ONE_SIG_FEE),
         &rpc_client,
         &online_nonce_creator_signer.pubkey(),
     );
     check_balance!(0, &rpc_client, &to_address);
 
     // Fetch nonce hash
-    let nonce_hash = solana_rpc_client_nonce_utils::get_account_with_commitment(
+    let nonce_hash = aeko_rpc_client_nonce_utils::get_account_with_commitment(
         &rpc_client,
         &nonce_address,
         CommitmentConfig::processed(),
     )
-    .and_then(|ref a| solana_rpc_client_nonce_utils::data_from_account(a))
+    .and_then(|ref a| aeko_rpc_client_nonce_utils::data_from_account(a))
     .unwrap()
     .blockhash();
 
@@ -340,7 +340,7 @@ fn test_create_account_with_seed() {
     authority_config.command = CliCommand::ClusterVersion;
     process_command(&authority_config).unwrap_err();
     authority_config.command = CliCommand::Transfer {
-        amount: SpendAmount::Some(sol_to_lamports(10.0)),
+        amount: SpendAmount::Some(aeko_to_lamports(10.0)),
         to: to_address,
         from: 0,
         sign_only: true,
@@ -367,7 +367,7 @@ fn test_create_account_with_seed() {
     submit_config.json_rpc_url = test_validator.rpc_url();
     submit_config.signers = vec![&authority_presigner];
     submit_config.command = CliCommand::Transfer {
-        amount: SpendAmount::Some(sol_to_lamports(10.0)),
+        amount: SpendAmount::Some(aeko_to_lamports(10.0)),
         to: to_address,
         from: 0,
         sign_only: false,
@@ -387,16 +387,16 @@ fn test_create_account_with_seed() {
         compute_unit_price: None,
     };
     process_command(&submit_config).unwrap();
-    check_balance!(sol_to_lamports(241.0), &rpc_client, &nonce_address);
+    check_balance!(aeko_to_lamports(241.0), &rpc_client, &nonce_address);
     check_balance!(
-        sol_to_lamports(32.0 - ONE_SIG_FEE),
+        aeko_to_lamports(32.0 - ONE_SIG_FEE),
         &rpc_client,
         &offline_nonce_authority_signer.pubkey(),
     );
     check_balance!(
-        sol_to_lamports(4001.0 - ONE_SIG_FEE),
+        aeko_to_lamports(4001.0 - ONE_SIG_FEE),
         &rpc_client,
         &online_nonce_creator_signer.pubkey(),
     );
-    check_balance!(sol_to_lamports(10.0), &rpc_client, &to_address);
+    check_balance!(aeko_to_lamports(10.0), &rpc_client, &to_address);
 }

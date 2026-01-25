@@ -1,5 +1,5 @@
 [package]
-name = "solana-accounts-cluster-bench"
+name = "aeko-accounts-cluster-bench"
 publish = false
 version = { workspace = true }
 authors = { workspace = true }
@@ -13,29 +13,30 @@ clap = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
-solana-account-decoder = { workspace = true }
-solana-accounts-db = { workspace = true }
-solana-clap-utils = { workspace = true }
-solana-cli-config = { workspace = true }
-solana-client = { workspace = true }
-solana-faucet = { workspace = true }
-solana-gossip = { workspace = true }
-solana-logger = { workspace = true }
-solana-measure = { workspace = true }
-solana-net-utils = { workspace = true }
-solana-rpc-client = { workspace = true, features = ["default"] }
-solana-runtime = { workspace = true }
-solana-sdk = { workspace = true }
-solana-streamer = { workspace = true }
-solana-transaction-status = { workspace = true }
-solana-version = { workspace = true }
+aeko-account-decoder = { workspace = true }
+aeko-accounts-db = { workspace = true }
+aeko-clap-utils = { workspace = true }
+aeko-cli-config = { workspace = true }
+aeko-client = { workspace = true }
+aeko-faucet = { workspace = true }
+aeko-gossip = { workspace = true }
+aeko-logger = { workspace = true }
+aeko-measure = { workspace = true }
+aeko-net-utils = { workspace = true }
+aeko-rpc-client = { workspace = true, features = ["default"] }
+aeko-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-streamer = { workspace = true }
+aeko-transaction-status = { workspace = true }
+aeko-version = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 
 [dev-dependencies]
-solana-core = { workspace = true }
-solana-local-cluster = { workspace = true }
-solana-runtime = { workspace = true, features = ["dev-context-only-utils"] }
-solana-test-validator = { workspace = true }
+aeko-core = { workspace = true }
+aeko-local-cluster = { workspace = true }
+aeko-runtime = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-test-validator = { workspace = true }
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+

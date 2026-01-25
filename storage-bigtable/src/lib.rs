@@ -4,8 +4,8 @@ use {
     crate::bigtable::RowKey,
     log::*,
     serde::{Deserialize, Serialize},
-    solana_metrics::datapoint_info,
-    solana_sdk::{
+    aeko_metrics::datapoint_info,
+    aeko_sdk::{
         clock::{Slot, UnixTimestamp},
         deserialize_utils::default_on_eof,
         message::v0::LoadedAddresses,
@@ -15,8 +15,8 @@ use {
         timing::AtomicInterval,
         transaction::{TransactionError, VersionedTransaction},
     },
-    solana_storage_proto::convert::{entries, generated, tx_by_addr},
-    solana_transaction_status::{
+    aeko_storage_proto::convert::{entries, generated, tx_by_addr},
+    aeko_transaction_status::{
         extract_and_fmt_memos, ConfirmedBlock, ConfirmedTransactionStatusWithSignature,
         ConfirmedTransactionWithStatusMeta, EntrySummary, Reward, TransactionByAddrInfo,
         TransactionConfirmationStatus, TransactionStatus, TransactionStatusMeta,
@@ -37,7 +37,7 @@ use {
 };
 
 #[macro_use]
-extern crate solana_metrics;
+extern crate aeko_metrics;
 
 #[macro_use]
 extern crate serde_derive;

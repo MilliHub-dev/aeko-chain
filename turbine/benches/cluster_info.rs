@@ -4,22 +4,22 @@ extern crate test;
 
 use {
     rand::{thread_rng, Rng},
-    solana_gossip::{
+    aeko_gossip::{
         cluster_info::{ClusterInfo, Node},
         contact_info::ContactInfo,
     },
-    solana_ledger::{
+    aeko_ledger::{
         genesis_utils::{create_genesis_config, GenesisConfigInfo},
         shred::{Shred, ShredFlags},
     },
-    solana_runtime::{bank::Bank, bank_forks::BankForks},
-    solana_sdk::{
+    aeko_runtime::{bank::Bank, bank_forks::BankForks},
+    aeko_sdk::{
         pubkey,
         signature::{Keypair, Signer},
         timing::{timestamp, AtomicInterval},
     },
-    solana_streamer::socket::SocketAddrSpace,
-    solana_turbine::{
+    aeko_streamer::socket::SocketAddrSpace,
+    aeko_turbine::{
         broadcast_stage::{
             broadcast_metrics::TransmitShredsStats, broadcast_shreds, BroadcastStage,
         },
@@ -31,7 +31,7 @@ use {
 
 #[bench]
 fn broadcast_shreds_bench(bencher: &mut Bencher) {
-    solana_logger::setup();
+    aeko_logger::setup();
     let leader_keypair = Arc::new(Keypair::new());
     let (quic_endpoint_sender, _quic_endpoint_receiver) =
         tokio::sync::mpsc::channel(/*capacity:*/ 128);

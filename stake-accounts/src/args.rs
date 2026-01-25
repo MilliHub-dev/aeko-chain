@@ -1,8 +1,8 @@
 use {
     clap::ArgMatches,
-    solana_clap_utils::keypair::{pubkey_from_path, signer_from_path},
-    solana_remote_wallet::remote_wallet::RemoteWalletManager,
-    solana_sdk::{
+    aeko_clap_utils::keypair::{pubkey_from_path, signer_from_path},
+    aeko_remote_wallet::remote_wallet::RemoteWalletManager,
+    aeko_sdk::{
         clock::{Epoch, UnixTimestamp},
         pubkey::Pubkey,
         signature::Signer,

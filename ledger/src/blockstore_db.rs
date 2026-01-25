@@ -27,13 +27,13 @@ use {
         WriteBatch as RWriteBatch, DB,
     },
     serde::{de::DeserializeOwned, Serialize},
-    solana_accounts_db::hardened_unpack::UnpackError,
-    solana_sdk::{
+    aeko_accounts_db::hardened_unpack::UnpackError,
+    aeko_sdk::{
         clock::{Slot, UnixTimestamp},
         pubkey::Pubkey,
         signature::Signature,
     },
-    solana_storage_proto::convert::generated,
+    aeko_storage_proto::convert::generated,
     std::{
         collections::{HashMap, HashSet},
         ffi::{CStr, CString},
@@ -2309,7 +2309,7 @@ pub mod tests {
 
     #[test]
     fn test_open_unknown_columns() {
-        solana_logger::setup();
+        aeko_logger::setup();
 
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path();

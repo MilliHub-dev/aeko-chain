@@ -37,6 +37,2582 @@ dependencies = [
 ]
 
 [[package]]
+name = "aeko-account-decoder"
+version = "2.0.0"
+dependencies = [
+ "Inflector",
+ "aeko-config-program",
+ "aeko-sdk",
+ "assert_matches",
+ "base64 0.22.0",
+ "bincode",
+ "bs58",
+ "bv",
+ "lazy_static",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "spl-pod",
+ "spl-token",
+ "spl-token-2022",
+ "spl-token-group-interface",
+ "spl-token-metadata-interface",
+ "thiserror",
+ "zstd",
+]
+
+[[package]]
+name = "aeko-accounts-bench"
+version = "2.0.0"
+dependencies = [
+ "aeko-accounts-db",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-sdk",
+ "aeko-version",
+ "clap 2.33.3",
+ "log",
+ "rayon",
+]
+
+[[package]]
+name = "aeko-accounts-cluster-bench"
+version = "2.0.0"
+dependencies = [
+ "aeko-account-decoder",
+ "aeko-accounts-db",
+ "aeko-clap-utils",
+ "aeko-cli-config",
+ "aeko-client",
+ "aeko-core",
+ "aeko-faucet",
+ "aeko-gossip",
+ "aeko-local-cluster",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-net-utils",
+ "aeko-rpc-client",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-test-validator",
+ "aeko-transaction-status",
+ "aeko-version",
+ "clap 2.33.3",
+ "log",
+ "rand 0.8.5",
+ "rayon",
+ "spl-token",
+]
+
+[[package]]
+name = "aeko-accounts-db"
+version = "2.0.0"
+dependencies = [
+ "aeko-accounts-db",
+ "aeko-bucket-map",
+ "aeko-config-program",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-program-runtime",
+ "aeko-rayon-threadlimit",
+ "aeko-sdk",
+ "aeko-stake-program",
+ "aeko-svm",
+ "aeko-system-program",
+ "aeko-vote-program",
+ "arrayref",
+ "assert_matches",
+ "bincode",
+ "blake3",
+ "bv",
+ "bytemuck",
+ "byteorder",
+ "bzip2",
+ "criterion",
+ "crossbeam-channel",
+ "dashmap",
+ "ed25519-dalek",
+ "flate2",
+ "fnv",
+ "im",
+ "index_list",
+ "indexmap 2.2.5",
+ "itertools",
+ "lazy_static",
+ "libsecp256k1",
+ "log",
+ "lz4",
+ "memmap2",
+ "memoffset 0.9.0",
+ "modular-bitfield",
+ "num-derive",
+ "num-traits",
+ "num_cpus",
+ "num_enum",
+ "percentage",
+ "qualifier_attr",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rayon",
+ "regex",
+ "rustc_version 0.4.0",
+ "seqlock",
+ "serde",
+ "serde_derive",
+ "smallvec",
+ "solana-nohash-hasher",
+ "static_assertions",
+ "strum",
+ "strum_macros",
+ "tar",
+ "tempfile",
+ "test-case",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-address-lookup-table-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "bincode",
+ "bytemuck",
+ "log",
+ "num-derive",
+ "num-traits",
+ "rustc_version 0.4.0",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-address-lookup-table-program-tests"
+version = "2.0.0"
+dependencies = [
+ "aeko-address-lookup-table-program",
+ "aeko-program-test",
+ "aeko-sdk",
+ "assert_matches",
+ "bincode",
+]
+
+[[package]]
+name = "aeko-banking-bench"
+version = "2.0.0"
+dependencies = [
+ "aeko-client",
+ "aeko-core",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-perf",
+ "aeko-poh",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-tpu-client",
+ "aeko-version",
+ "clap 3.2.23",
+ "crossbeam-channel",
+ "log",
+ "rand 0.8.5",
+ "rayon",
+]
+
+[[package]]
+name = "aeko-banks-client"
+version = "2.0.0"
+dependencies = [
+ "aeko-banks-interface",
+ "aeko-banks-server",
+ "aeko-program",
+ "aeko-runtime",
+ "aeko-sdk",
+ "borsh 1.2.1",
+ "futures 0.3.30",
+ "tarpc",
+ "thiserror",
+ "tokio",
+ "tokio-serde",
+]
+
+[[package]]
+name = "aeko-banks-interface"
+version = "2.0.0"
+dependencies = [
+ "aeko-sdk",
+ "serde",
+ "tarpc",
+]
+
+[[package]]
+name = "aeko-banks-server"
+version = "2.0.0"
+dependencies = [
+ "aeko-banks-interface",
+ "aeko-client",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-send-transaction-service",
+ "aeko-svm",
+ "bincode",
+ "crossbeam-channel",
+ "futures 0.3.30",
+ "tarpc",
+ "tokio",
+ "tokio-serde",
+]
+
+[[package]]
+name = "aeko-bench-streamer"
+version = "2.0.0"
+dependencies = [
+ "aeko-net-utils",
+ "aeko-streamer",
+ "aeko-version",
+ "clap 3.2.23",
+ "crossbeam-channel",
+]
+
+[[package]]
+name = "aeko-bench-tps"
+version = "2.0.0"
+dependencies = [
+ "aeko-clap-utils",
+ "aeko-cli-config",
+ "aeko-client",
+ "aeko-connection-cache",
+ "aeko-core",
+ "aeko-faucet",
+ "aeko-genesis",
+ "aeko-gossip",
+ "aeko-local-cluster",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-net-utils",
+ "aeko-rpc",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-rpc-client-nonce-utils",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-test-validator",
+ "aeko-tpu-client",
+ "aeko-transaction-status",
+ "aeko-version",
+ "clap 2.33.3",
+ "crossbeam-channel",
+ "log",
+ "rand 0.8.5",
+ "rayon",
+ "serde_json",
+ "serde_yaml 0.9.32",
+ "serial_test",
+ "spl-instruction-padding",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-bloom"
+version = "2.0.0"
+dependencies = [
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-sdk",
+ "bv",
+ "fnv",
+ "log",
+ "rand 0.8.5",
+ "rayon",
+ "rustc_version 0.4.0",
+ "serde",
+ "serde_derive",
+]
+
+[[package]]
+name = "aeko-bpf-loader-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-measure",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "aeko-zk-token-sdk",
+ "assert_matches",
+ "bincode",
+ "byteorder",
+ "libsecp256k1",
+ "log",
+ "memoffset 0.9.0",
+ "rand 0.8.5",
+ "scopeguard",
+ "solana_rbpf",
+ "test-case",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-bpf-loader-program-tests"
+version = "2.0.0"
+dependencies = [
+ "aeko-bpf-loader-program",
+ "aeko-program-test",
+ "aeko-sdk",
+ "assert_matches",
+ "bincode",
+]
+
+[[package]]
+name = "aeko-bucket-map"
+version = "2.0.0"
+dependencies = [
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-sdk",
+ "bv",
+ "bytemuck",
+ "fs_extra",
+ "log",
+ "memmap2",
+ "modular-bitfield",
+ "num_enum",
+ "rand 0.8.5",
+ "rayon",
+ "tempfile",
+]
+
+[[package]]
+name = "aeko-cargo-build-bpf"
+version = "2.0.0"
+dependencies = [
+ "aeko-logger",
+ "log",
+]
+
+[[package]]
+name = "aeko-cargo-build-sbf"
+version = "2.0.0"
+dependencies = [
+ "aeko-download-utils",
+ "aeko-logger",
+ "aeko-sdk",
+ "assert_cmd",
+ "bzip2",
+ "cargo_metadata",
+ "clap 3.2.23",
+ "itertools",
+ "log",
+ "predicates",
+ "regex",
+ "reqwest",
+ "semver 1.0.22",
+ "serial_test",
+ "tar",
+]
+
+[[package]]
+name = "aeko-cargo-registry"
+version = "2.0.0"
+dependencies = [
+ "aeko-clap-utils",
+ "aeko-cli",
+ "aeko-cli-config",
+ "aeko-cli-output",
+ "aeko-logger",
+ "aeko-remote-wallet",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "aeko-version",
+ "clap 2.33.3",
+ "flate2",
+ "hex",
+ "hyper",
+ "log",
+ "rustc_version 0.4.0",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "tar",
+ "tempfile",
+ "tokio",
+ "toml 0.8.10",
+]
+
+[[package]]
+name = "aeko-cargo-test-bpf"
+version = "2.0.0"
+
+[[package]]
+name = "aeko-cargo-test-sbf"
+version = "2.0.0"
+dependencies = [
+ "aeko-logger",
+ "cargo_metadata",
+ "clap 3.2.23",
+ "itertools",
+ "log",
+]
+
+[[package]]
+name = "aeko-clap-utils"
+version = "2.0.0"
+dependencies = [
+ "aeko-remote-wallet",
+ "aeko-sdk",
+ "assert_matches",
+ "chrono",
+ "clap 2.33.3",
+ "rpassword",
+ "tempfile",
+ "thiserror",
+ "tiny-bip39",
+ "uriparse",
+ "url 2.5.0",
+]
+
+[[package]]
+name = "aeko-clap-v3-utils"
+version = "2.0.0"
+dependencies = [
+ "aeko-remote-wallet",
+ "aeko-sdk",
+ "aeko-zk-token-sdk",
+ "assert_matches",
+ "chrono",
+ "clap 3.2.23",
+ "rpassword",
+ "tempfile",
+ "thiserror",
+ "tiny-bip39",
+ "uriparse",
+ "url 2.5.0",
+]
+
+[[package]]
+name = "aeko-cli"
+version = "2.0.0"
+dependencies = [
+ "aeko-account-decoder",
+ "aeko-bpf-loader-program",
+ "aeko-clap-utils",
+ "aeko-cli-config",
+ "aeko-cli-output",
+ "aeko-client",
+ "aeko-config-program",
+ "aeko-faucet",
+ "aeko-loader-v4-program",
+ "aeko-logger",
+ "aeko-program-runtime",
+ "aeko-pubsub-client",
+ "aeko-remote-wallet",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-rpc-client-nonce-utils",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-test-validator",
+ "aeko-tpu-client",
+ "aeko-transaction-status",
+ "aeko-version",
+ "aeko-vote-program",
+ "assert_matches",
+ "bincode",
+ "bs58",
+ "clap 2.33.3",
+ "console",
+ "const_format",
+ "criterion-stats",
+ "crossbeam-channel",
+ "ctrlc",
+ "hex",
+ "humantime",
+ "log",
+ "num-traits",
+ "pretty-hex",
+ "reqwest",
+ "semver 1.0.22",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "solana_rbpf",
+ "spl-memo",
+ "tempfile",
+ "test-case",
+ "thiserror",
+ "tiny-bip39",
+]
+
+[[package]]
+name = "aeko-cli-config"
+version = "2.0.0"
+dependencies = [
+ "aeko-clap-utils",
+ "aeko-sdk",
+ "anyhow",
+ "dirs-next",
+ "lazy_static",
+ "serde",
+ "serde_derive",
+ "serde_yaml 0.9.32",
+ "url 2.5.0",
+]
+
+[[package]]
+name = "aeko-cli-output"
+version = "2.0.0"
+dependencies = [
+ "Inflector",
+ "aeko-account-decoder",
+ "aeko-clap-utils",
+ "aeko-cli-config",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "aeko-transaction-status",
+ "aeko-vote-program",
+ "base64 0.22.0",
+ "chrono",
+ "clap 2.33.3",
+ "console",
+ "ed25519-dalek",
+ "humantime",
+ "indicatif",
+ "pretty-hex",
+ "semver 1.0.22",
+ "serde",
+ "serde_json",
+ "spl-memo",
+]
+
+[[package]]
+name = "aeko-client"
+version = "2.0.0"
+dependencies = [
+ "aeko-connection-cache",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-pubsub-client",
+ "aeko-quic-client",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-rpc-client-nonce-utils",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-thin-client",
+ "aeko-tpu-client",
+ "aeko-udp-client",
+ "async-trait",
+ "bincode",
+ "crossbeam-channel",
+ "dashmap",
+ "futures 0.3.30",
+ "futures-util",
+ "indexmap 2.2.5",
+ "indicatif",
+ "log",
+ "quinn",
+ "rayon",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-client-test"
+version = "2.0.0"
+dependencies = [
+ "aeko-client",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-merkle-tree",
+ "aeko-metrics",
+ "aeko-perf",
+ "aeko-pubsub-client",
+ "aeko-rayon-threadlimit",
+ "aeko-rpc",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-test-validator",
+ "aeko-transaction-status",
+ "aeko-version",
+ "futures-util",
+ "rand 0.8.5",
+ "serde_json",
+ "systemstat",
+ "tokio",
+ "tungstenite",
+]
+
+[[package]]
+name = "aeko-compute-budget-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-program-runtime",
+ "aeko-sdk",
+]
+
+[[package]]
+name = "aeko-config-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-logger",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "bincode",
+ "chrono",
+ "serde",
+ "serde_derive",
+]
+
+[[package]]
+name = "aeko-connection-cache"
+version = "2.0.0"
+dependencies = [
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-net-utils",
+ "aeko-sdk",
+ "async-trait",
+ "bincode",
+ "crossbeam-channel",
+ "futures-util",
+ "indexmap 2.2.5",
+ "indicatif",
+ "log",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rayon",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-core"
+version = "2.0.0"
+dependencies = [
+ "aeko-accounts-db",
+ "aeko-bloom",
+ "aeko-client",
+ "aeko-core",
+ "aeko-cost-model",
+ "aeko-entry",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-geyser-plugin-manager",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-net-utils",
+ "aeko-perf",
+ "aeko-poh",
+ "aeko-program-runtime",
+ "aeko-quic-client",
+ "aeko-rayon-threadlimit",
+ "aeko-rpc",
+ "aeko-rpc-client-api",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-send-transaction-service",
+ "aeko-stake-program",
+ "aeko-streamer",
+ "aeko-svm",
+ "aeko-tpu-client",
+ "aeko-transaction-status",
+ "aeko-turbine",
+ "aeko-unified-scheduler-pool",
+ "aeko-version",
+ "aeko-vote",
+ "aeko-vote-program",
+ "aeko-wen-restart",
+ "assert_matches",
+ "base64 0.22.0",
+ "bincode",
+ "bs58",
+ "bytes",
+ "chrono",
+ "crossbeam-channel",
+ "dashmap",
+ "eager",
+ "etcd-client",
+ "fs_extra",
+ "futures 0.3.30",
+ "histogram",
+ "itertools",
+ "lazy_static",
+ "log",
+ "lru",
+ "min-max-heap",
+ "num_enum",
+ "prio-graph",
+ "quinn",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rayon",
+ "rolling-file",
+ "rustc_version 0.4.0",
+ "rustls",
+ "serde",
+ "serde_bytes",
+ "serde_derive",
+ "serde_json",
+ "serial_test",
+ "static_assertions",
+ "strum",
+ "strum_macros",
+ "sys-info",
+ "sysctl",
+ "systemstat",
+ "tempfile",
+ "test-case",
+ "thiserror",
+ "tokio",
+ "trees",
+]
+
+[[package]]
+name = "aeko-cost-model"
+version = "2.0.0"
+dependencies = [
+ "aeko-address-lookup-table-program",
+ "aeko-bpf-loader-program",
+ "aeko-compute-budget-program",
+ "aeko-config-program",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-loader-v4-program",
+ "aeko-logger",
+ "aeko-metrics",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "aeko-stake-program",
+ "aeko-system-program",
+ "aeko-vote-program",
+ "lazy_static",
+ "log",
+ "rustc_version 0.4.0",
+ "static_assertions",
+ "test-case",
+]
+
+[[package]]
+name = "aeko-dos"
+version = "2.0.0"
+dependencies = [
+ "aeko-bench-tps",
+ "aeko-client",
+ "aeko-core",
+ "aeko-faucet",
+ "aeko-gossip",
+ "aeko-local-cluster",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-net-utils",
+ "aeko-perf",
+ "aeko-quic-client",
+ "aeko-rpc",
+ "aeko-rpc-client",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-tpu-client",
+ "aeko-version",
+ "bincode",
+ "clap 3.2.23",
+ "crossbeam-channel",
+ "itertools",
+ "log",
+ "rand 0.8.5",
+ "serde",
+]
+
+[[package]]
+name = "aeko-download-utils"
+version = "2.0.0"
+dependencies = [
+ "aeko-runtime",
+ "aeko-sdk",
+ "console",
+ "indicatif",
+ "log",
+ "reqwest",
+]
+
+[[package]]
+name = "aeko-ed25519-program-tests"
+version = "2.0.0"
+dependencies = [
+ "aeko-program-test",
+ "aeko-sdk",
+ "assert_matches",
+ "ed25519-dalek",
+ "rand 0.8.5",
+]
+
+[[package]]
+name = "aeko-entry"
+version = "2.0.0"
+dependencies = [
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-merkle-tree",
+ "aeko-metrics",
+ "aeko-perf",
+ "aeko-rayon-threadlimit",
+ "aeko-sdk",
+ "assert_matches",
+ "bincode",
+ "crossbeam-channel",
+ "dlopen2",
+ "lazy_static",
+ "log",
+ "rand 0.8.5",
+ "rayon",
+ "serde",
+]
+
+[[package]]
+name = "aeko-faucet"
+version = "2.0.0"
+dependencies = [
+ "aeko-clap-utils",
+ "aeko-cli-config",
+ "aeko-logger",
+ "aeko-metrics",
+ "aeko-sdk",
+ "aeko-version",
+ "bincode",
+ "byteorder",
+ "clap 2.33.3",
+ "crossbeam-channel",
+ "log",
+ "serde",
+ "serde_derive",
+ "spl-memo",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-frozen-abi"
+version = "2.0.0"
+dependencies = [
+ "aeko-frozen-abi-macro",
+ "aeko-logger",
+ "bitflags 2.4.2",
+ "block-buffer 0.10.4",
+ "bs58",
+ "bv",
+ "either",
+ "generic-array 0.14.7",
+ "im",
+ "log",
+ "memmap2",
+ "rustc_version 0.4.0",
+ "serde",
+ "serde_bytes",
+ "serde_derive",
+ "sha2 0.10.8",
+ "subtle",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-frozen-abi-macro"
+version = "2.0.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "rustc_version 0.4.0",
+ "syn 2.0.52",
+]
+
+[[package]]
+name = "aeko-genesis"
+version = "2.0.0"
+dependencies = [
+ "aeko-accounts-db",
+ "aeko-clap-utils",
+ "aeko-cli-config",
+ "aeko-entry",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-stake-program",
+ "aeko-version",
+ "aeko-vote-program",
+ "base64 0.22.0",
+ "bincode",
+ "clap 2.33.3",
+ "itertools",
+ "serde",
+ "serde_json",
+ "serde_yaml 0.9.32",
+ "tempfile",
+]
+
+[[package]]
+name = "aeko-genesis-utils"
+version = "2.0.0"
+dependencies = [
+ "aeko-accounts-db",
+ "aeko-download-utils",
+ "aeko-rpc-client",
+ "aeko-sdk",
+ "log",
+]
+
+[[package]]
+name = "aeko-geyser-plugin-interface"
+version = "2.0.0"
+dependencies = [
+ "aeko-sdk",
+ "aeko-transaction-status",
+ "log",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-geyser-plugin-manager"
+version = "2.0.0"
+dependencies = [
+ "aeko-accounts-db",
+ "aeko-entry",
+ "aeko-geyser-plugin-interface",
+ "aeko-ledger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-rpc",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-transaction-status",
+ "bs58",
+ "crossbeam-channel",
+ "json5",
+ "jsonrpc-core",
+ "libloading",
+ "log",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-gossip"
+version = "2.0.0"
+dependencies = [
+ "aeko-bloom",
+ "aeko-clap-utils",
+ "aeko-client",
+ "aeko-connection-cache",
+ "aeko-entry",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-net-utils",
+ "aeko-perf",
+ "aeko-rayon-threadlimit",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-tpu-client",
+ "aeko-version",
+ "aeko-vote",
+ "aeko-vote-program",
+ "assert_matches",
+ "bincode",
+ "bv",
+ "clap 2.33.3",
+ "crossbeam-channel",
+ "flate2",
+ "indexmap 2.2.5",
+ "itertools",
+ "log",
+ "lru",
+ "num-traits",
+ "num_cpus",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rayon",
+ "rustc_version 0.4.0",
+ "rustversion",
+ "serde",
+ "serde_bytes",
+ "serde_derive",
+ "serial_test",
+ "static_assertions",
+ "test-case",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-install"
+version = "2.0.0"
+dependencies = [
+ "aeko-clap-utils",
+ "aeko-config-program",
+ "aeko-logger",
+ "aeko-rpc-client",
+ "aeko-sdk",
+ "aeko-version",
+ "atty",
+ "bincode",
+ "bzip2",
+ "chrono",
+ "clap 2.33.3",
+ "console",
+ "crossbeam-channel",
+ "ctrlc",
+ "dirs-next",
+ "indicatif",
+ "lazy_static",
+ "nix 0.26.4",
+ "reqwest",
+ "scopeguard",
+ "semver 1.0.22",
+ "serde",
+ "serde_yaml 0.8.26",
+ "serde_yaml 0.9.32",
+ "tar",
+ "tempfile",
+ "url 2.5.0",
+ "winapi 0.3.9",
+ "winreg",
+]
+
+[[package]]
+name = "aeko-keygen"
+version = "2.0.0"
+dependencies = [
+ "aeko-clap-v3-utils",
+ "aeko-cli-config",
+ "aeko-remote-wallet",
+ "aeko-sdk",
+ "aeko-version",
+ "bs58",
+ "clap 3.2.23",
+ "dirs-next",
+ "num_cpus",
+ "tempfile",
+ "tiny-bip39",
+]
+
+[[package]]
+name = "aeko-ledger"
+version = "2.0.0"
+dependencies = [
+ "aeko-account-decoder",
+ "aeko-accounts-db",
+ "aeko-bpf-loader-program",
+ "aeko-cost-model",
+ "aeko-entry",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-perf",
+ "aeko-program-runtime",
+ "aeko-rayon-threadlimit",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-stake-program",
+ "aeko-storage-bigtable",
+ "aeko-storage-proto",
+ "aeko-svm",
+ "aeko-transaction-status",
+ "aeko-vote",
+ "aeko-vote-program",
+ "assert_matches",
+ "chrono",
+ "crossbeam-channel",
+ "futures 0.3.30",
+ "itertools",
+ "lazy_static",
+ "libc",
+ "log",
+ "num_cpus",
+ "prost",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rayon",
+ "rustc_version 0.4.0",
+ "serde",
+ "serde_bytes",
+ "sha2 0.10.8",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "trees",
+]
+
+[[package]]
+name = "aeko-ledger-tool"
+version = "2.0.0"
+dependencies = [
+ "aeko-account-decoder",
+ "aeko-accounts-db",
+ "aeko-bpf-loader-program",
+ "aeko-clap-utils",
+ "aeko-cli-output",
+ "aeko-core",
+ "aeko-cost-model",
+ "aeko-entry",
+ "aeko-geyser-plugin-manager",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-program-runtime",
+ "aeko-rpc",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-stake-program",
+ "aeko-storage-bigtable",
+ "aeko-streamer",
+ "aeko-transaction-status",
+ "aeko-unified-scheduler-pool",
+ "aeko-version",
+ "aeko-vote-program",
+ "assert_cmd",
+ "bs58",
+ "bytecount",
+ "chrono",
+ "clap 2.33.3",
+ "crossbeam-channel",
+ "csv",
+ "dashmap",
+ "futures 0.3.30",
+ "histogram",
+ "itertools",
+ "log",
+ "num_cpus",
+ "regex",
+ "serde",
+ "serde_json",
+ "signal-hook",
+ "solana_rbpf",
+ "thiserror",
+ "tikv-jemallocator",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-loader-v4-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-measure",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "bincode",
+ "log",
+ "solana_rbpf",
+]
+
+[[package]]
+name = "aeko-local-cluster"
+version = "2.0.0"
+dependencies = [
+ "aeko-accounts-db",
+ "aeko-client",
+ "aeko-config-program",
+ "aeko-core",
+ "aeko-download-utils",
+ "aeko-entry",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-pubsub-client",
+ "aeko-quic-client",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-stake-program",
+ "aeko-streamer",
+ "aeko-thin-client",
+ "aeko-tpu-client",
+ "aeko-turbine",
+ "aeko-vote",
+ "aeko-vote-program",
+ "assert_matches",
+ "crossbeam-channel",
+ "fs_extra",
+ "gag",
+ "itertools",
+ "log",
+ "rand 0.8.5",
+ "rayon",
+ "serial_test",
+ "static_assertions",
+ "tempfile",
+ "trees",
+]
+
+[[package]]
+name = "aeko-log-analyzer"
+version = "2.0.0"
+dependencies = [
+ "aeko-logger",
+ "aeko-version",
+ "byte-unit",
+ "clap 3.2.23",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "aeko-logger"
+version = "2.0.0"
+dependencies = [
+ "env_logger",
+ "lazy_static",
+ "log",
+]
+
+[[package]]
+name = "aeko-measure"
+version = "2.0.0"
+dependencies = [
+ "aeko-sdk",
+ "log",
+]
+
+[[package]]
+name = "aeko-memory-management"
+version = "2.0.0"
+
+[[package]]
+name = "aeko-merkle-root-bench"
+version = "2.0.0"
+dependencies = [
+ "aeko-accounts-db",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-sdk",
+ "aeko-version",
+ "clap 2.33.3",
+ "log",
+]
+
+[[package]]
+name = "aeko-merkle-tree"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+ "fast-math",
+ "hex",
+]
+
+[[package]]
+name = "aeko-metrics"
+version = "2.0.0"
+dependencies = [
+ "aeko-sdk",
+ "crossbeam-channel",
+ "env_logger",
+ "gethostname",
+ "lazy_static",
+ "log",
+ "rand 0.8.5",
+ "reqwest",
+ "serial_test",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-net-shaper"
+version = "2.0.0"
+dependencies = [
+ "aeko-logger",
+ "clap 3.2.23",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "aeko-net-utils"
+version = "2.0.0"
+dependencies = [
+ "aeko-logger",
+ "aeko-sdk",
+ "aeko-version",
+ "bincode",
+ "clap 3.2.23",
+ "crossbeam-channel",
+ "log",
+ "nix 0.26.4",
+ "rand 0.8.5",
+ "serde",
+ "serde_derive",
+ "socket2 0.5.6",
+ "tokio",
+ "url 2.5.0",
+]
+
+[[package]]
+name = "aeko-notifier"
+version = "2.0.0"
+dependencies = [
+ "aeko-sdk",
+ "log",
+ "reqwest",
+ "serde_json",
+]
+
+[[package]]
+name = "aeko-perf"
+version = "2.0.0"
+dependencies = [
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-logger",
+ "aeko-metrics",
+ "aeko-rayon-threadlimit",
+ "aeko-sdk",
+ "aeko-vote-program",
+ "ahash 0.8.10",
+ "assert_matches",
+ "bincode",
+ "bv",
+ "caps",
+ "curve25519-dalek",
+ "dlopen2",
+ "fnv",
+ "lazy_static",
+ "libc",
+ "log",
+ "nix 0.26.4",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rayon",
+ "rustc_version 0.4.0",
+ "serde",
+ "test-case",
+]
+
+[[package]]
+name = "aeko-poh"
+version = "2.0.0"
+dependencies = [
+ "aeko-entry",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-perf",
+ "aeko-poh",
+ "aeko-runtime",
+ "aeko-sdk",
+ "assert_matches",
+ "bincode",
+ "core_affinity",
+ "crossbeam-channel",
+ "log",
+ "rand 0.8.5",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-poh-bench"
+version = "2.0.0"
+dependencies = [
+ "aeko-entry",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-perf",
+ "aeko-sdk",
+ "aeko-version",
+ "clap 3.2.23",
+ "log",
+ "rayon",
+]
+
+[[package]]
+name = "aeko-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-logger",
+ "aeko-sdk-macro",
+ "anyhow",
+ "arbitrary",
+ "ark-bn254",
+ "ark-ec",
+ "ark-ff",
+ "ark-serialize",
+ "array-bytes",
+ "assert_matches",
+ "base64 0.22.0",
+ "bincode",
+ "bitflags 2.4.2",
+ "blake3",
+ "borsh 0.10.3",
+ "borsh 0.9.3",
+ "borsh 1.2.1",
+ "bs58",
+ "bv",
+ "bytemuck",
+ "cc",
+ "console_error_panic_hook",
+ "console_log",
+ "curve25519-dalek",
+ "getrandom 0.2.10",
+ "itertools",
+ "js-sys",
+ "lazy_static",
+ "libc",
+ "libsecp256k1",
+ "light-poseidon",
+ "log",
+ "memoffset 0.9.0",
+ "num-bigint 0.4.4",
+ "num-derive",
+ "num-traits",
+ "parking_lot 0.12.1",
+ "rand 0.8.5",
+ "rustc_version 0.4.0",
+ "rustversion",
+ "serde",
+ "serde_bytes",
+ "serde_derive",
+ "serde_json",
+ "sha2 0.10.8",
+ "sha3 0.10.8",
+ "static_assertions",
+ "thiserror",
+ "tiny-bip39",
+ "wasm-bindgen",
+ "zeroize",
+]
+
+[[package]]
+name = "aeko-program-runtime"
+version = "2.0.0"
+dependencies = [
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-sdk",
+ "assert_matches",
+ "base64 0.22.0",
+ "bincode",
+ "eager",
+ "enum-iterator",
+ "itertools",
+ "libc",
+ "libsecp256k1",
+ "log",
+ "num-derive",
+ "num-traits",
+ "percentage",
+ "rand 0.8.5",
+ "rustc_version 0.4.0",
+ "serde",
+ "solana_rbpf",
+ "test-case",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-program-test"
+version = "2.0.0"
+dependencies = [
+ "aeko-accounts-db",
+ "aeko-banks-client",
+ "aeko-banks-interface",
+ "aeko-banks-server",
+ "aeko-bpf-loader-program",
+ "aeko-logger",
+ "aeko-program-runtime",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-stake-program",
+ "aeko-svm",
+ "aeko-vote-program",
+ "assert_matches",
+ "async-trait",
+ "base64 0.22.0",
+ "bincode",
+ "chrono-humanize",
+ "crossbeam-channel",
+ "log",
+ "serde",
+ "solana_rbpf",
+ "test-case",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-pubsub-client"
+version = "2.0.0"
+dependencies = [
+ "aeko-account-decoder",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "anyhow",
+ "crossbeam-channel",
+ "futures-util",
+ "log",
+ "reqwest",
+ "semver 1.0.22",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "tungstenite",
+ "url 2.5.0",
+]
+
+[[package]]
+name = "aeko-quic-client"
+version = "2.0.0"
+dependencies = [
+ "aeko-connection-cache",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-net-utils",
+ "aeko-perf",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "aeko-streamer",
+ "async-mutex",
+ "async-trait",
+ "crossbeam-channel",
+ "futures 0.3.30",
+ "itertools",
+ "lazy_static",
+ "log",
+ "quinn",
+ "quinn-proto",
+ "rustls",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-rayon-threadlimit"
+version = "2.0.0"
+dependencies = [
+ "lazy_static",
+ "num_cpus",
+]
+
+[[package]]
+name = "aeko-remote-wallet"
+version = "2.0.0"
+dependencies = [
+ "aeko-sdk",
+ "assert_matches",
+ "console",
+ "dialoguer",
+ "hidapi",
+ "log",
+ "num-derive",
+ "num-traits",
+ "parking_lot 0.12.1",
+ "qstring",
+ "semver 1.0.22",
+ "thiserror",
+ "uriparse",
+]
+
+[[package]]
+name = "aeko-rpc"
+version = "2.0.0"
+dependencies = [
+ "aeko-account-decoder",
+ "aeko-accounts-db",
+ "aeko-client",
+ "aeko-entry",
+ "aeko-faucet",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-net-utils",
+ "aeko-perf",
+ "aeko-poh",
+ "aeko-rayon-threadlimit",
+ "aeko-rpc-client-api",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-send-transaction-service",
+ "aeko-stake-program",
+ "aeko-storage-bigtable",
+ "aeko-streamer",
+ "aeko-svm",
+ "aeko-tpu-client",
+ "aeko-transaction-status",
+ "aeko-version",
+ "aeko-vote",
+ "aeko-vote-program",
+ "base64 0.22.0",
+ "bincode",
+ "bs58",
+ "crossbeam-channel",
+ "dashmap",
+ "itertools",
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "jsonrpc-http-server",
+ "jsonrpc-pubsub",
+ "libc",
+ "log",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "serial_test",
+ "soketto",
+ "spl-pod",
+ "spl-token",
+ "spl-token-2022",
+ "stream-cancel",
+ "symlink",
+ "thiserror",
+ "tokio",
+ "tokio-util 0.6.9",
+]
+
+[[package]]
+name = "aeko-rpc-client"
+version = "2.0.0"
+dependencies = [
+ "aeko-account-decoder",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "aeko-transaction-status",
+ "aeko-version",
+ "aeko-vote-program",
+ "assert_matches",
+ "async-trait",
+ "base64 0.22.0",
+ "bincode",
+ "bs58",
+ "crossbeam-channel",
+ "futures 0.3.30",
+ "indicatif",
+ "jsonrpc-core",
+ "jsonrpc-http-server",
+ "log",
+ "reqwest",
+ "semver 1.0.22",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-rpc-client-api"
+version = "2.0.0"
+dependencies = [
+ "aeko-account-decoder",
+ "aeko-sdk",
+ "aeko-transaction-status",
+ "aeko-version",
+ "base64 0.22.0",
+ "bs58",
+ "jsonrpc-core",
+ "reqwest",
+ "semver 1.0.22",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "spl-token-2022",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-rpc-client-nonce-utils"
+version = "2.0.0"
+dependencies = [
+ "aeko-account-decoder",
+ "aeko-clap-utils",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "anyhow",
+ "clap 2.33.3",
+ "futures 0.3.30",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-rpc-test"
+version = "2.0.0"
+dependencies = [
+ "aeko-account-decoder",
+ "aeko-client",
+ "aeko-logger",
+ "aeko-pubsub-client",
+ "aeko-rpc",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-test-validator",
+ "aeko-tpu-client",
+ "aeko-transaction-status",
+ "bincode",
+ "bs58",
+ "crossbeam-channel",
+ "futures-util",
+ "log",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-runtime"
+version = "2.0.0"
+dependencies = [
+ "aeko-accounts-db",
+ "aeko-address-lookup-table-program",
+ "aeko-bpf-loader-program",
+ "aeko-bucket-map",
+ "aeko-compute-budget-program",
+ "aeko-config-program",
+ "aeko-cost-model",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-loader-v4-program",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-perf",
+ "aeko-program-runtime",
+ "aeko-rayon-threadlimit",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-stake-program",
+ "aeko-svm",
+ "aeko-system-program",
+ "aeko-version",
+ "aeko-vote",
+ "aeko-vote-program",
+ "aeko-zk-token-proof-program",
+ "aeko-zk-token-sdk",
+ "aquamarine",
+ "arrayref",
+ "assert_matches",
+ "base64 0.22.0",
+ "bincode",
+ "blake3",
+ "bv",
+ "bytemuck",
+ "byteorder",
+ "bzip2",
+ "crossbeam-channel",
+ "dashmap",
+ "dir-diff",
+ "ed25519-dalek",
+ "flate2",
+ "fnv",
+ "im",
+ "index_list",
+ "itertools",
+ "lazy_static",
+ "libsecp256k1",
+ "log",
+ "lru",
+ "lz4",
+ "memmap2",
+ "memoffset 0.9.0",
+ "mockall",
+ "modular-bitfield",
+ "num-derive",
+ "num-traits",
+ "num_cpus",
+ "num_enum",
+ "percentage",
+ "qualifier_attr",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rayon",
+ "regex",
+ "rustc_version 0.4.0",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "static_assertions",
+ "strum",
+ "strum_macros",
+ "symlink",
+ "tar",
+ "tempfile",
+ "test-case",
+ "thiserror",
+ "zstd",
+]
+
+[[package]]
+name = "aeko-runtime-transaction"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "bincode",
+ "log",
+ "rand 0.8.5",
+ "rustc_version 0.4.0",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-sdk"
+version = "2.0.0"
+dependencies = [
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-logger",
+ "aeko-program",
+ "aeko-sdk",
+ "aeko-sdk-macro",
+ "anyhow",
+ "assert_matches",
+ "base64 0.22.0",
+ "bincode",
+ "bitflags 2.4.2",
+ "borsh 1.2.1",
+ "bs58",
+ "bytemuck",
+ "byteorder",
+ "chrono",
+ "curve25519-dalek",
+ "derivation-path",
+ "digest 0.10.7",
+ "ed25519-dalek",
+ "ed25519-dalek-bip32",
+ "generic-array 0.14.7",
+ "hex",
+ "hmac 0.12.1",
+ "itertools",
+ "js-sys",
+ "lazy_static",
+ "libsecp256k1",
+ "log",
+ "memmap2",
+ "num-derive",
+ "num-traits",
+ "num_enum",
+ "pbkdf2 0.11.0",
+ "qstring",
+ "qualifier_attr",
+ "rand 0.7.3",
+ "rand 0.8.5",
+ "rustc_version 0.4.0",
+ "rustversion",
+ "serde",
+ "serde_bytes",
+ "serde_derive",
+ "serde_json",
+ "serde_with",
+ "sha2 0.10.8",
+ "sha3 0.10.8",
+ "siphasher",
+ "static_assertions",
+ "thiserror",
+ "tiny-bip39",
+ "uriparse",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "aeko-sdk-macro"
+version = "2.0.0"
+dependencies = [
+ "bs58",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn 2.0.52",
+]
+
+[[package]]
+name = "aeko-send-transaction-service"
+version = "2.0.0"
+dependencies = [
+ "aeko-client",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-tpu-client",
+ "crossbeam-channel",
+ "log",
+]
+
+[[package]]
+name = "aeko-stake-accounts"
+version = "2.0.0"
+dependencies = [
+ "aeko-clap-utils",
+ "aeko-cli-config",
+ "aeko-remote-wallet",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-stake-program",
+ "aeko-version",
+ "clap 2.33.3",
+]
+
+[[package]]
+name = "aeko-stake-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-config-program",
+ "aeko-logger",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "aeko-vote-program",
+ "assert_matches",
+ "bincode",
+ "log",
+ "proptest",
+ "rustc_version 0.4.0",
+ "test-case",
+]
+
+[[package]]
+name = "aeko-storage-bigtable"
+version = "2.0.0"
+dependencies = [
+ "aeko-metrics",
+ "aeko-sdk",
+ "aeko-storage-proto",
+ "aeko-transaction-status",
+ "backoff",
+ "bincode",
+ "bytes",
+ "bzip2",
+ "enum-iterator",
+ "flate2",
+ "futures 0.3.30",
+ "goauth",
+ "http",
+ "hyper",
+ "hyper-proxy",
+ "log",
+ "openssl",
+ "prost",
+ "prost-types",
+ "serde",
+ "serde_derive",
+ "smpl_jwt",
+ "thiserror",
+ "tokio",
+ "tonic",
+ "zstd",
+]
+
+[[package]]
+name = "aeko-storage-proto"
+version = "2.0.0"
+dependencies = [
+ "aeko-account-decoder",
+ "aeko-sdk",
+ "aeko-transaction-status",
+ "bincode",
+ "bs58",
+ "enum-iterator",
+ "prost",
+ "protobuf-src",
+ "serde",
+ "tonic-build",
+]
+
+[[package]]
+name = "aeko-store-tool"
+version = "2.0.0"
+dependencies = [
+ "aeko-accounts-db",
+ "aeko-logger",
+ "aeko-sdk",
+ "aeko-version",
+ "clap 2.33.3",
+ "log",
+]
+
+[[package]]
+name = "aeko-streamer"
+version = "2.0.0"
+dependencies = [
+ "aeko-logger",
+ "aeko-metrics",
+ "aeko-perf",
+ "aeko-sdk",
+ "assert_matches",
+ "async-channel",
+ "bytes",
+ "crossbeam-channel",
+ "futures-util",
+ "histogram",
+ "indexmap 2.2.5",
+ "itertools",
+ "libc",
+ "log",
+ "nix 0.26.4",
+ "pem",
+ "percentage",
+ "quinn",
+ "quinn-proto",
+ "rand 0.8.5",
+ "rustls",
+ "thiserror",
+ "tokio",
+ "x509-parser",
+]
+
+[[package]]
+name = "aeko-svm"
+version = "2.0.0"
+dependencies = [
+ "aeko-bpf-loader-program",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-loader-v4-program",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "aeko-system-program",
+ "bincode",
+ "itertools",
+ "log",
+ "percentage",
+ "rustc_version 0.4.0",
+]
+
+[[package]]
+name = "aeko-system-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-logger",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "assert_matches",
+ "bincode",
+ "log",
+ "serde",
+ "serde_derive",
+]
+
+[[package]]
+name = "aeko-test-validator"
+version = "2.0.0"
+dependencies = [
+ "aeko-accounts-db",
+ "aeko-cli-output",
+ "aeko-client",
+ "aeko-core",
+ "aeko-geyser-plugin-manager",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-net-utils",
+ "aeko-program-runtime",
+ "aeko-program-test",
+ "aeko-rpc",
+ "aeko-rpc-client",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-tpu-client",
+ "base64 0.22.0",
+ "bincode",
+ "crossbeam-channel",
+ "log",
+ "serde_derive",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-thin-client"
+version = "2.0.0"
+dependencies = [
+ "aeko-connection-cache",
+ "aeko-logger",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "bincode",
+ "log",
+ "rayon",
+]
+
+[[package]]
+name = "aeko-tokens"
+version = "2.0.0"
+dependencies = [
+ "aeko-account-decoder",
+ "aeko-clap-utils",
+ "aeko-cli-config",
+ "aeko-logger",
+ "aeko-remote-wallet",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-test-validator",
+ "aeko-transaction-status",
+ "aeko-version",
+ "assert_matches",
+ "bincode",
+ "chrono",
+ "clap 2.33.3",
+ "console",
+ "csv",
+ "ctrlc",
+ "indexmap 2.2.5",
+ "indicatif",
+ "pickledb",
+ "serde",
+ "spl-associated-token-account",
+ "spl-token",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-tpu-client"
+version = "2.0.0"
+dependencies = [
+ "aeko-connection-cache",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-pubsub-client",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "async-trait",
+ "bincode",
+ "futures-util",
+ "indexmap 2.2.5",
+ "indicatif",
+ "log",
+ "rayon",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-transaction-dos"
+version = "2.0.0"
+dependencies = [
+ "aeko-clap-utils",
+ "aeko-cli",
+ "aeko-client",
+ "aeko-core",
+ "aeko-faucet",
+ "aeko-gossip",
+ "aeko-local-cluster",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-net-utils",
+ "aeko-rpc-client",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-transaction-status",
+ "aeko-version",
+ "bincode",
+ "clap 2.33.3",
+ "log",
+ "rand 0.8.5",
+ "rayon",
+]
+
+[[package]]
+name = "aeko-transaction-status"
+version = "2.0.0"
+dependencies = [
+ "Inflector",
+ "aeko-account-decoder",
+ "aeko-sdk",
+ "base64 0.22.0",
+ "bincode",
+ "borsh 0.10.3",
+ "bs58",
+ "lazy_static",
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "spl-associated-token-account",
+ "spl-memo",
+ "spl-token",
+ "spl-token-2022",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-turbine"
+version = "2.0.0"
+dependencies = [
+ "aeko-entry",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-perf",
+ "aeko-poh",
+ "aeko-quic-client",
+ "aeko-rayon-threadlimit",
+ "aeko-rpc",
+ "aeko-rpc-client-api",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-streamer",
+ "assert_matches",
+ "bincode",
+ "bytes",
+ "crossbeam-channel",
+ "futures 0.3.30",
+ "itertools",
+ "log",
+ "lru",
+ "quinn",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rayon",
+ "rustls",
+ "test-case",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-udp-client"
+version = "2.0.0"
+dependencies = [
+ "aeko-connection-cache",
+ "aeko-net-utils",
+ "aeko-sdk",
+ "aeko-streamer",
+ "async-trait",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-unified-scheduler-logic"
+version = "2.0.0"
+dependencies = [
+ "aeko-sdk",
+]
+
+[[package]]
+name = "aeko-unified-scheduler-pool"
+version = "2.0.0"
+dependencies = [
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-program-runtime",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-unified-scheduler-logic",
+ "aeko-vote",
+ "assert_matches",
+ "crossbeam-channel",
+ "derivative",
+ "log",
+]
+
+[[package]]
+name = "aeko-upload-perf"
+version = "2.0.0"
+dependencies = [
+ "aeko-metrics",
+ "serde_json",
+]
+
+[[package]]
+name = "aeko-validator"
+version = "2.0.0"
+dependencies = [
+ "aeko-account-decoder",
+ "aeko-accounts-db",
+ "aeko-clap-utils",
+ "aeko-cli-config",
+ "aeko-core",
+ "aeko-download-utils",
+ "aeko-entry",
+ "aeko-faucet",
+ "aeko-genesis-utils",
+ "aeko-geyser-plugin-interface",
+ "aeko-geyser-plugin-manager",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-metrics",
+ "aeko-net-utils",
+ "aeko-perf",
+ "aeko-poh",
+ "aeko-program-runtime",
+ "aeko-rayon-threadlimit",
+ "aeko-rpc",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-send-transaction-service",
+ "aeko-storage-bigtable",
+ "aeko-streamer",
+ "aeko-test-validator",
+ "aeko-tpu-client",
+ "aeko-unified-scheduler-pool",
+ "aeko-version",
+ "aeko-vote-program",
+ "chrono",
+ "clap 2.33.3",
+ "console",
+ "core_affinity",
+ "crossbeam-channel",
+ "fd-lock",
+ "indicatif",
+ "itertools",
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "jsonrpc-ipc-server",
+ "lazy_static",
+ "libc",
+ "libloading",
+ "log",
+ "num_cpus",
+ "rand 0.8.5",
+ "rayon",
+ "serde",
+ "serde_json",
+ "serde_yaml 0.9.32",
+ "signal-hook",
+ "spl-token-2022",
+ "symlink",
+ "thiserror",
+ "tikv-jemallocator",
+ "tokio",
+]
+
+[[package]]
+name = "aeko-version"
+version = "2.0.0"
+dependencies = [
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-sdk",
+ "log",
+ "rustc_version 0.4.0",
+ "semver 1.0.22",
+ "serde",
+ "serde_derive",
+]
+
+[[package]]
+name = "aeko-vote"
+version = "2.0.0"
+dependencies = [
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-sdk",
+ "aeko-vote-program",
+ "bincode",
+ "crossbeam-channel",
+ "itertools",
+ "log",
+ "rand 0.8.5",
+ "rustc_version 0.4.0",
+ "serde",
+ "serde_derive",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-vote-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-logger",
+ "aeko-metrics",
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "assert_matches",
+ "bincode",
+ "log",
+ "num-derive",
+ "num-traits",
+ "rustc_version 0.4.0",
+ "serde",
+ "serde_derive",
+ "test-case",
+ "thiserror",
+]
+
+[[package]]
+name = "aeko-watchtower"
+version = "2.0.0"
+dependencies = [
+ "aeko-clap-utils",
+ "aeko-cli-config",
+ "aeko-cli-output",
+ "aeko-logger",
+ "aeko-metrics",
+ "aeko-notifier",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "aeko-version",
+ "clap 2.33.3",
+ "humantime",
+ "log",
+]
+
+[[package]]
+name = "aeko-wen-restart"
+version = "2.0.0"
+dependencies = [
+ "aeko-accounts-db",
+ "aeko-entry",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-program",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-vote-program",
+ "anyhow",
+ "assert_matches",
+ "log",
+ "prost",
+ "prost-build",
+ "prost-types",
+ "protobuf-src",
+ "rand 0.8.5",
+ "rustc_version 0.4.0",
+ "serial_test",
+ "tempfile",
+]
+
+[[package]]
+name = "aeko-zk-keygen"
+version = "2.0.0"
+dependencies = [
+ "aeko-clap-v3-utils",
+ "aeko-cli-config",
+ "aeko-remote-wallet",
+ "aeko-sdk",
+ "aeko-version",
+ "aeko-zk-token-sdk",
+ "bs58",
+ "clap 3.2.23",
+ "dirs-next",
+ "num_cpus",
+ "tempfile",
+ "thiserror",
+ "tiny-bip39",
+]
+
+[[package]]
+name = "aeko-zk-token-proof-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "aeko-zk-token-sdk",
+ "bytemuck",
+ "criterion",
+ "curve25519-dalek",
+ "num-derive",
+ "num-traits",
+]
+
+[[package]]
+name = "aeko-zk-token-proof-program-tests"
+version = "2.0.0"
+dependencies = [
+ "aeko-program-runtime",
+ "aeko-program-test",
+ "aeko-sdk",
+ "aeko-zk-token-sdk",
+ "bytemuck",
+ "curve25519-dalek",
+]
+
+[[package]]
+name = "aeko-zk-token-sdk"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+ "aeko-sdk",
+ "aes-gcm-siv",
+ "base64 0.22.0",
+ "bincode",
+ "bytemuck",
+ "byteorder",
+ "curve25519-dalek",
+ "getrandom 0.1.16",
+ "itertools",
+ "lazy_static",
+ "merlin",
+ "num-derive",
+ "num-traits",
+ "rand 0.7.3",
+ "serde",
+ "serde_json",
+ "sha3 0.9.1",
+ "subtle",
+ "thiserror",
+ "tiny-bip39",
+ "zeroize",
+]
+
+[[package]]
 name = "aes"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -590,27 +3166,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bindgen"
-version = "0.65.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfdf7b466f9a4903edc73f95d6d2bcd5baf8ae620638762244d3f60143643cc5"
-dependencies = [
- "bitflags 1.3.2",
- "cexpr",
- "clang-sys",
- "lazy_static",
- "lazycell",
- "peeking_take_while",
- "prettyplease 0.2.4",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash",
- "shlex",
- "syn 2.0.52",
-]
-
-[[package]]
 name = "bit-set"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1036,15 +3591,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cexpr"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fac387a98bb7c37292057cffc56d62ecb629900026402633ae9160df93a8766"
-dependencies = [
- "nom",
-]
-
-[[package]]
 name = "cfg-if"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1120,17 +3666,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ee52072ec15386f770805afd189a01c8841be8696bed250fa2f13c4c0d6dfb7"
 dependencies = [
  "generic-array 0.14.7",
-]
-
-[[package]]
-name = "clang-sys"
-version = "1.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10612c0ec0e0a1ff0e97980647cb058a6e7aedb913d01d009c406b8b7d0b26ee"
-dependencies = [
- "glob",
- "libc",
- "libloading",
 ]
 
 [[package]]
@@ -2238,12 +4773,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c80984affa11d98d1b88b66ac8853f143217b399d3c74116778ff8fdb4ed2e"
 
 [[package]]
-name = "glob"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
-
-[[package]]
 name = "globset"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2912,12 +5441,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
-name = "lazycell"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
-
-[[package]]
 name = "libc"
 version = "0.2.153"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2938,21 +5461,6 @@ name = "libm"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7d73b3f436185384286bd8098d17ec07c9a7d2388a6599f824d8502b529702a"
-
-[[package]]
-name = "librocksdb-sys"
-version = "0.11.0+8.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3386f101bcb4bd252d8e9d2fb41ec3b0862a15a62b478c355b2982efa469e3e"
-dependencies = [
- "bindgen",
- "bzip2-sys",
- "cc",
- "glob",
- "libc",
- "libz-sys",
- "lz4-sys",
-]
 
 [[package]]
 name = "libsecp256k1"
@@ -3000,17 +5508,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67abfe149395e3aa1c48a2beb32b068e2334402df8181f818d3aee2b304c4f5d"
 dependencies = [
  "libsecp256k1-core",
-]
-
-[[package]]
-name = "libz-sys"
-version = "1.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de5435b8549c16d423ed0c03dbaafe57cf6c3344744f1242520d59c9d8ecec66"
-dependencies = [
- "cc",
- "pkg-config",
- "vcpkg",
 ]
 
 [[package]]
@@ -3676,12 +6173,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "peeking_take_while"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
-
-[[package]]
 name = "pem"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3917,16 +6408,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "prettyplease"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ceca8aaf45b5c46ec7ed39fff75f57290368c1846d33d24a122ca81416ab058"
-dependencies = [
- "proc-macro2",
- "syn 2.0.52",
-]
-
-[[package]]
 name = "prio-graph"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4026,7 +6507,7 @@ dependencies = [
  "log",
  "multimap",
  "petgraph",
- "prettyplease 0.1.9",
+ "prettyplease",
  "prost",
  "prost-types",
  "regex",
@@ -4336,21 +6817,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "reed-solomon-erasure"
-version = "6.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7263373d500d4d4f505d43a2a662d475a894aa94503a1ee28e9188b5f3960d4f"
-dependencies = [
- "cc",
- "libc",
- "libm",
- "lru",
- "parking_lot 0.11.2",
- "smallvec",
- "spin 0.9.2",
-]
-
-[[package]]
 name = "regex"
 version = "1.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4457,16 +6923,6 @@ dependencies = [
  "spin 0.9.2",
  "untrusted 0.9.0",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "rocksdb"
-version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb6f170a4041d50a0ce04b0d2e14916d6ca863ea2e422689a5b694395d299ffe"
-dependencies = [
- "libc",
- "librocksdb-sys",
 ]
 
 [[package]]
@@ -4983,12 +7439,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24188a676b6ae68c3b2cb3a01be17fbf7240ce009799bb56d5b1409051e78fde"
 
 [[package]]
-name = "shlex"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
-
-[[package]]
 name = "signal-hook"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5099,888 +7549,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-account-decoder"
-version = "2.0.0"
-dependencies = [
- "Inflector",
- "assert_matches",
- "base64 0.22.0",
- "bincode",
- "bs58",
- "bv",
- "lazy_static",
- "serde",
- "serde_derive",
- "serde_json",
- "solana-config-program",
- "solana-sdk",
- "spl-pod",
- "spl-token",
- "spl-token-2022",
- "spl-token-group-interface",
- "spl-token-metadata-interface",
- "thiserror",
- "zstd",
-]
-
-[[package]]
-name = "solana-accounts-bench"
-version = "2.0.0"
-dependencies = [
- "clap 2.33.3",
- "log",
- "rayon",
- "solana-accounts-db",
- "solana-logger",
- "solana-measure",
- "solana-sdk",
- "solana-version",
-]
-
-[[package]]
-name = "solana-accounts-cluster-bench"
-version = "2.0.0"
-dependencies = [
- "clap 2.33.3",
- "log",
- "rand 0.8.5",
- "rayon",
- "solana-account-decoder",
- "solana-accounts-db",
- "solana-clap-utils",
- "solana-cli-config",
- "solana-client",
- "solana-core",
- "solana-faucet",
- "solana-gossip",
- "solana-local-cluster",
- "solana-logger",
- "solana-measure",
- "solana-net-utils",
- "solana-rpc-client",
- "solana-runtime",
- "solana-sdk",
- "solana-streamer",
- "solana-test-validator",
- "solana-transaction-status",
- "solana-version",
- "spl-token",
-]
-
-[[package]]
-name = "solana-accounts-db"
-version = "2.0.0"
-dependencies = [
- "arrayref",
- "assert_matches",
- "bincode",
- "blake3",
- "bv",
- "bytemuck",
- "byteorder",
- "bzip2",
- "criterion",
- "crossbeam-channel",
- "dashmap",
- "ed25519-dalek",
- "flate2",
- "fnv",
- "im",
- "index_list",
- "indexmap 2.2.5",
- "itertools",
- "lazy_static",
- "libsecp256k1",
- "log",
- "lz4",
- "memmap2",
- "memoffset 0.9.0",
- "modular-bitfield",
- "num-derive",
- "num-traits",
- "num_cpus",
- "num_enum",
- "percentage",
- "qualifier_attr",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rayon",
- "regex",
- "rustc_version 0.4.0",
- "seqlock",
- "serde",
- "serde_derive",
- "smallvec",
- "solana-accounts-db",
- "solana-bucket-map",
- "solana-config-program",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-nohash-hasher",
- "solana-program-runtime",
- "solana-rayon-threadlimit",
- "solana-sdk",
- "solana-stake-program",
- "solana-svm",
- "solana-system-program",
- "solana-vote-program",
- "static_assertions",
- "strum",
- "strum_macros",
- "tar",
- "tempfile",
- "test-case",
- "thiserror",
-]
-
-[[package]]
-name = "solana-address-lookup-table-program"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "bytemuck",
- "log",
- "num-derive",
- "num-traits",
- "rustc_version 0.4.0",
- "serde",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-program",
- "solana-program-runtime",
- "solana-sdk",
- "thiserror",
-]
-
-[[package]]
-name = "solana-address-lookup-table-program-tests"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "bincode",
- "solana-address-lookup-table-program",
- "solana-program-test",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-banking-bench"
-version = "2.0.0"
-dependencies = [
- "clap 3.2.23",
- "crossbeam-channel",
- "log",
- "rand 0.8.5",
- "rayon",
- "solana-client",
- "solana-core",
- "solana-gossip",
- "solana-ledger",
- "solana-logger",
- "solana-measure",
- "solana-perf",
- "solana-poh",
- "solana-runtime",
- "solana-sdk",
- "solana-streamer",
- "solana-tpu-client",
- "solana-version",
-]
-
-[[package]]
-name = "solana-banks-client"
-version = "2.0.0"
-dependencies = [
- "borsh 1.2.1",
- "futures 0.3.30",
- "solana-banks-interface",
- "solana-banks-server",
- "solana-program",
- "solana-runtime",
- "solana-sdk",
- "tarpc",
- "thiserror",
- "tokio",
- "tokio-serde",
-]
-
-[[package]]
-name = "solana-banks-interface"
-version = "2.0.0"
-dependencies = [
- "serde",
- "solana-sdk",
- "tarpc",
-]
-
-[[package]]
-name = "solana-banks-server"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "crossbeam-channel",
- "futures 0.3.30",
- "solana-banks-interface",
- "solana-client",
- "solana-runtime",
- "solana-sdk",
- "solana-send-transaction-service",
- "solana-svm",
- "tarpc",
- "tokio",
- "tokio-serde",
-]
-
-[[package]]
-name = "solana-bench-streamer"
-version = "2.0.0"
-dependencies = [
- "clap 3.2.23",
- "crossbeam-channel",
- "solana-net-utils",
- "solana-streamer",
- "solana-version",
-]
-
-[[package]]
-name = "solana-bench-tps"
-version = "2.0.0"
-dependencies = [
- "clap 2.33.3",
- "crossbeam-channel",
- "log",
- "rand 0.8.5",
- "rayon",
- "serde_json",
- "serde_yaml 0.9.32",
- "serial_test",
- "solana-clap-utils",
- "solana-cli-config",
- "solana-client",
- "solana-connection-cache",
- "solana-core",
- "solana-faucet",
- "solana-genesis",
- "solana-gossip",
- "solana-local-cluster",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-net-utils",
- "solana-rpc",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-rpc-client-nonce-utils",
- "solana-runtime",
- "solana-sdk",
- "solana-streamer",
- "solana-test-validator",
- "solana-tpu-client",
- "solana-transaction-status",
- "solana-version",
- "spl-instruction-padding",
- "tempfile",
- "thiserror",
-]
-
-[[package]]
-name = "solana-bloom"
-version = "2.0.0"
-dependencies = [
- "bv",
- "fnv",
- "log",
- "rand 0.8.5",
- "rayon",
- "rustc_version 0.4.0",
- "serde",
- "serde_derive",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-bpf-loader-program"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "bincode",
- "byteorder",
- "libsecp256k1",
- "log",
- "memoffset 0.9.0",
- "rand 0.8.5",
- "scopeguard",
- "solana-measure",
- "solana-program-runtime",
- "solana-sdk",
- "solana-zk-token-sdk",
- "solana_rbpf",
- "test-case",
- "thiserror",
-]
-
-[[package]]
-name = "solana-bpf-loader-program-tests"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "bincode",
- "solana-bpf-loader-program",
- "solana-program-test",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-bucket-map"
-version = "2.0.0"
-dependencies = [
- "bv",
- "bytemuck",
- "fs_extra",
- "log",
- "memmap2",
- "modular-bitfield",
- "num_enum",
- "rand 0.8.5",
- "rayon",
- "solana-logger",
- "solana-measure",
- "solana-sdk",
- "tempfile",
-]
-
-[[package]]
-name = "solana-cargo-build-bpf"
-version = "2.0.0"
-dependencies = [
- "log",
- "solana-logger",
-]
-
-[[package]]
-name = "solana-cargo-build-sbf"
-version = "2.0.0"
-dependencies = [
- "assert_cmd",
- "bzip2",
- "cargo_metadata",
- "clap 3.2.23",
- "itertools",
- "log",
- "predicates",
- "regex",
- "reqwest",
- "semver 1.0.22",
- "serial_test",
- "solana-download-utils",
- "solana-logger",
- "solana-sdk",
- "tar",
-]
-
-[[package]]
-name = "solana-cargo-registry"
-version = "2.0.0"
-dependencies = [
- "clap 2.33.3",
- "flate2",
- "hex",
- "hyper",
- "log",
- "rustc_version 0.4.0",
- "serde",
- "serde_json",
- "sha2 0.10.8",
- "solana-clap-utils",
- "solana-cli",
- "solana-cli-config",
- "solana-cli-output",
- "solana-logger",
- "solana-remote-wallet",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-sdk",
- "solana-version",
- "tar",
- "tempfile",
- "tokio",
- "toml 0.8.10",
-]
-
-[[package]]
-name = "solana-cargo-test-bpf"
-version = "2.0.0"
-
-[[package]]
-name = "solana-cargo-test-sbf"
-version = "2.0.0"
-dependencies = [
- "cargo_metadata",
- "clap 3.2.23",
- "itertools",
- "log",
- "solana-logger",
-]
-
-[[package]]
-name = "solana-clap-utils"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "chrono",
- "clap 2.33.3",
- "rpassword",
- "solana-remote-wallet",
- "solana-sdk",
- "tempfile",
- "thiserror",
- "tiny-bip39",
- "uriparse",
- "url 2.5.0",
-]
-
-[[package]]
-name = "solana-clap-v3-utils"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "chrono",
- "clap 3.2.23",
- "rpassword",
- "solana-remote-wallet",
- "solana-sdk",
- "solana-zk-token-sdk",
- "tempfile",
- "thiserror",
- "tiny-bip39",
- "uriparse",
- "url 2.5.0",
-]
-
-[[package]]
-name = "solana-cli"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "bincode",
- "bs58",
- "clap 2.33.3",
- "console",
- "const_format",
- "criterion-stats",
- "crossbeam-channel",
- "ctrlc",
- "hex",
- "humantime",
- "log",
- "num-traits",
- "pretty-hex",
- "reqwest",
- "semver 1.0.22",
- "serde",
- "serde_derive",
- "serde_json",
- "solana-account-decoder",
- "solana-bpf-loader-program",
- "solana-clap-utils",
- "solana-cli-config",
- "solana-cli-output",
- "solana-client",
- "solana-config-program",
- "solana-faucet",
- "solana-loader-v4-program",
- "solana-logger",
- "solana-program-runtime",
- "solana-pubsub-client",
- "solana-remote-wallet",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-rpc-client-nonce-utils",
- "solana-sdk",
- "solana-streamer",
- "solana-test-validator",
- "solana-tpu-client",
- "solana-transaction-status",
- "solana-version",
- "solana-vote-program",
- "solana_rbpf",
- "spl-memo",
- "tempfile",
- "test-case",
- "thiserror",
- "tiny-bip39",
-]
-
-[[package]]
-name = "solana-cli-config"
-version = "2.0.0"
-dependencies = [
- "anyhow",
- "dirs-next",
- "lazy_static",
- "serde",
- "serde_derive",
- "serde_yaml 0.9.32",
- "solana-clap-utils",
- "solana-sdk",
- "url 2.5.0",
-]
-
-[[package]]
-name = "solana-cli-output"
-version = "2.0.0"
-dependencies = [
- "Inflector",
- "base64 0.22.0",
- "chrono",
- "clap 2.33.3",
- "console",
- "ed25519-dalek",
- "humantime",
- "indicatif",
- "pretty-hex",
- "semver 1.0.22",
- "serde",
- "serde_json",
- "solana-account-decoder",
- "solana-clap-utils",
- "solana-cli-config",
- "solana-rpc-client-api",
- "solana-sdk",
- "solana-transaction-status",
- "solana-vote-program",
- "spl-memo",
-]
-
-[[package]]
-name = "solana-client"
-version = "2.0.0"
-dependencies = [
- "async-trait",
- "bincode",
- "crossbeam-channel",
- "dashmap",
- "futures 0.3.30",
- "futures-util",
- "indexmap 2.2.5",
- "indicatif",
- "log",
- "quinn",
- "rayon",
- "solana-connection-cache",
- "solana-measure",
- "solana-metrics",
- "solana-pubsub-client",
- "solana-quic-client",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-rpc-client-nonce-utils",
- "solana-sdk",
- "solana-streamer",
- "solana-thin-client",
- "solana-tpu-client",
- "solana-udp-client",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "solana-client-test"
-version = "2.0.0"
-dependencies = [
- "futures-util",
- "rand 0.8.5",
- "serde_json",
- "solana-client",
- "solana-ledger",
- "solana-logger",
- "solana-measure",
- "solana-merkle-tree",
- "solana-metrics",
- "solana-perf",
- "solana-pubsub-client",
- "solana-rayon-threadlimit",
- "solana-rpc",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-runtime",
- "solana-sdk",
- "solana-streamer",
- "solana-test-validator",
- "solana-transaction-status",
- "solana-version",
- "systemstat",
- "tokio",
- "tungstenite",
-]
-
-[[package]]
-name = "solana-compute-budget-program"
-version = "2.0.0"
-dependencies = [
- "solana-program-runtime",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-config-program"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "chrono",
- "serde",
- "serde_derive",
- "solana-logger",
- "solana-program-runtime",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-connection-cache"
-version = "2.0.0"
-dependencies = [
- "async-trait",
- "bincode",
- "crossbeam-channel",
- "futures-util",
- "indexmap 2.2.5",
- "indicatif",
- "log",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rayon",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-net-utils",
- "solana-sdk",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "solana-core"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "base64 0.22.0",
- "bincode",
- "bs58",
- "bytes",
- "chrono",
- "crossbeam-channel",
- "dashmap",
- "eager",
- "etcd-client",
- "fs_extra",
- "futures 0.3.30",
- "histogram",
- "itertools",
- "lazy_static",
- "log",
- "lru",
- "min-max-heap",
- "num_enum",
- "prio-graph",
- "quinn",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rayon",
- "rolling-file",
- "rustc_version 0.4.0",
- "rustls",
- "serde",
- "serde_bytes",
- "serde_derive",
- "serde_json",
- "serial_test",
- "solana-accounts-db",
- "solana-bloom",
- "solana-client",
- "solana-core",
- "solana-cost-model",
- "solana-entry",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-geyser-plugin-manager",
- "solana-gossip",
- "solana-ledger",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-net-utils",
- "solana-perf",
- "solana-poh",
- "solana-program-runtime",
- "solana-quic-client",
- "solana-rayon-threadlimit",
- "solana-rpc",
- "solana-rpc-client-api",
- "solana-runtime",
- "solana-sdk",
- "solana-send-transaction-service",
- "solana-stake-program",
- "solana-streamer",
- "solana-svm",
- "solana-tpu-client",
- "solana-transaction-status",
- "solana-turbine",
- "solana-unified-scheduler-pool",
- "solana-version",
- "solana-vote",
- "solana-vote-program",
- "solana-wen-restart",
- "static_assertions",
- "strum",
- "strum_macros",
- "sys-info",
- "sysctl",
- "systemstat",
- "tempfile",
- "test-case",
- "thiserror",
- "tokio",
- "trees",
-]
-
-[[package]]
-name = "solana-cost-model"
-version = "2.0.0"
-dependencies = [
- "lazy_static",
- "log",
- "rustc_version 0.4.0",
- "solana-address-lookup-table-program",
- "solana-bpf-loader-program",
- "solana-compute-budget-program",
- "solana-config-program",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-loader-v4-program",
- "solana-logger",
- "solana-metrics",
- "solana-program-runtime",
- "solana-sdk",
- "solana-stake-program",
- "solana-system-program",
- "solana-vote-program",
- "static_assertions",
- "test-case",
-]
-
-[[package]]
-name = "solana-dos"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "clap 3.2.23",
- "crossbeam-channel",
- "itertools",
- "log",
- "rand 0.8.5",
- "serde",
- "solana-bench-tps",
- "solana-client",
- "solana-core",
- "solana-faucet",
- "solana-gossip",
- "solana-local-cluster",
- "solana-logger",
- "solana-measure",
- "solana-net-utils",
- "solana-perf",
- "solana-quic-client",
- "solana-rpc",
- "solana-rpc-client",
- "solana-sdk",
- "solana-streamer",
- "solana-tpu-client",
- "solana-version",
-]
-
-[[package]]
-name = "solana-download-utils"
-version = "2.0.0"
-dependencies = [
- "console",
- "indicatif",
- "log",
- "reqwest",
- "solana-runtime",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-ed25519-program-tests"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "ed25519-dalek",
- "rand 0.8.5",
- "solana-program-test",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-entry"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "bincode",
- "crossbeam-channel",
- "dlopen2",
- "lazy_static",
- "log",
- "rand 0.8.5",
- "rayon",
- "serde",
- "solana-logger",
- "solana-measure",
- "solana-merkle-tree",
- "solana-metrics",
- "solana-perf",
- "solana-rayon-threadlimit",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-faucet"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "byteorder",
- "clap 2.33.3",
- "crossbeam-channel",
- "log",
- "serde",
- "serde_derive",
- "solana-clap-utils",
- "solana-cli-config",
- "solana-logger",
- "solana-metrics",
- "solana-sdk",
- "solana-version",
- "spl-memo",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "solana-frozen-abi"
-version = "2.0.0"
+version = "1.18.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03ab2c30c15311b511c0d1151e4ab6bc9a3e080a37e7c6e7c2d96f5784cf9434"
 dependencies = [
- "bitflags 2.4.2",
  "block-buffer 0.10.4",
  "bs58",
  "bv",
  "either",
  "generic-array 0.14.7",
  "im",
+ "lazy_static",
  "log",
  "memmap2",
  "rustc_version 0.4.0",
@@ -5989,14 +7569,15 @@ dependencies = [
  "serde_derive",
  "sha2 0.10.8",
  "solana-frozen-abi-macro",
- "solana-logger",
  "subtle",
  "thiserror",
 ]
 
 [[package]]
 name = "solana-frozen-abi-macro"
-version = "2.0.0"
+version = "1.18.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c142f779c3633ac83c84d04ff06c70e1f558c876f13358bed77ba629c7417932"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6005,452 +7586,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-genesis"
-version = "2.0.0"
-dependencies = [
- "base64 0.22.0",
- "bincode",
- "clap 2.33.3",
- "itertools",
- "serde",
- "serde_json",
- "serde_yaml 0.9.32",
- "solana-accounts-db",
- "solana-clap-utils",
- "solana-cli-config",
- "solana-entry",
- "solana-ledger",
- "solana-logger",
- "solana-runtime",
- "solana-sdk",
- "solana-stake-program",
- "solana-version",
- "solana-vote-program",
- "tempfile",
-]
-
-[[package]]
-name = "solana-genesis-utils"
-version = "2.0.0"
-dependencies = [
- "log",
- "solana-accounts-db",
- "solana-download-utils",
- "solana-rpc-client",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-geyser-plugin-interface"
-version = "2.0.0"
-dependencies = [
- "log",
- "solana-sdk",
- "solana-transaction-status",
- "thiserror",
-]
-
-[[package]]
-name = "solana-geyser-plugin-manager"
-version = "2.0.0"
-dependencies = [
- "bs58",
- "crossbeam-channel",
- "json5",
- "jsonrpc-core",
- "libloading",
- "log",
- "serde_json",
- "solana-accounts-db",
- "solana-entry",
- "solana-geyser-plugin-interface",
- "solana-ledger",
- "solana-measure",
- "solana-metrics",
- "solana-rpc",
- "solana-runtime",
- "solana-sdk",
- "solana-transaction-status",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "solana-gossip"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "bincode",
- "bv",
- "clap 2.33.3",
- "crossbeam-channel",
- "flate2",
- "indexmap 2.2.5",
- "itertools",
- "log",
- "lru",
- "num-traits",
- "num_cpus",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rayon",
- "rustc_version 0.4.0",
- "rustversion",
- "serde",
- "serde_bytes",
- "serde_derive",
- "serial_test",
- "solana-bloom",
- "solana-clap-utils",
- "solana-client",
- "solana-connection-cache",
- "solana-entry",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-ledger",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-net-utils",
- "solana-perf",
- "solana-rayon-threadlimit",
- "solana-runtime",
- "solana-sdk",
- "solana-streamer",
- "solana-tpu-client",
- "solana-version",
- "solana-vote",
- "solana-vote-program",
- "static_assertions",
- "test-case",
- "thiserror",
-]
-
-[[package]]
-name = "solana-install"
-version = "2.0.0"
-dependencies = [
- "atty",
- "bincode",
- "bzip2",
- "chrono",
- "clap 2.33.3",
- "console",
- "crossbeam-channel",
- "ctrlc",
- "dirs-next",
- "indicatif",
- "lazy_static",
- "nix 0.26.4",
- "reqwest",
- "scopeguard",
- "semver 1.0.22",
- "serde",
- "serde_yaml 0.8.26",
- "serde_yaml 0.9.32",
- "solana-clap-utils",
- "solana-config-program",
- "solana-logger",
- "solana-rpc-client",
- "solana-sdk",
- "solana-version",
- "tar",
- "tempfile",
- "url 2.5.0",
- "winapi 0.3.9",
- "winreg",
-]
-
-[[package]]
-name = "solana-keygen"
-version = "2.0.0"
-dependencies = [
- "bs58",
- "clap 3.2.23",
- "dirs-next",
- "num_cpus",
- "solana-clap-v3-utils",
- "solana-cli-config",
- "solana-remote-wallet",
- "solana-sdk",
- "solana-version",
- "tempfile",
- "tiny-bip39",
-]
-
-[[package]]
-name = "solana-ledger"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "bincode",
- "bitflags 2.4.2",
- "bs58",
- "byteorder",
- "chrono",
- "chrono-humanize",
- "crossbeam-channel",
- "dashmap",
- "fs_extra",
- "futures 0.3.30",
- "itertools",
- "lazy_static",
- "libc",
- "log",
- "lru",
- "mockall",
- "num_cpus",
- "num_enum",
- "prost",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rayon",
- "reed-solomon-erasure",
- "rocksdb",
- "rustc_version 0.4.0",
- "scopeguard",
- "serde",
- "serde_bytes",
- "sha2 0.10.8",
- "solana-account-decoder",
- "solana-accounts-db",
- "solana-bpf-loader-program",
- "solana-cost-model",
- "solana-entry",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-perf",
- "solana-program-runtime",
- "solana-rayon-threadlimit",
- "solana-runtime",
- "solana-sdk",
- "solana-stake-program",
- "solana-storage-bigtable",
- "solana-storage-proto",
- "solana-svm",
- "solana-transaction-status",
- "solana-vote",
- "solana-vote-program",
- "spl-pod",
- "spl-token",
- "spl-token-2022",
- "static_assertions",
- "strum",
- "strum_macros",
- "tempfile",
- "test-case",
- "thiserror",
- "tokio",
- "tokio-stream",
- "trees",
-]
-
-[[package]]
-name = "solana-ledger-tool"
-version = "2.0.0"
-dependencies = [
- "assert_cmd",
- "bs58",
- "bytecount",
- "chrono",
- "clap 2.33.3",
- "crossbeam-channel",
- "csv",
- "dashmap",
- "futures 0.3.30",
- "histogram",
- "itertools",
- "log",
- "num_cpus",
- "regex",
- "serde",
- "serde_json",
- "signal-hook",
- "solana-account-decoder",
- "solana-accounts-db",
- "solana-bpf-loader-program",
- "solana-clap-utils",
- "solana-cli-output",
- "solana-core",
- "solana-cost-model",
- "solana-entry",
- "solana-geyser-plugin-manager",
- "solana-gossip",
- "solana-ledger",
- "solana-logger",
- "solana-measure",
- "solana-program-runtime",
- "solana-rpc",
- "solana-runtime",
- "solana-sdk",
- "solana-stake-program",
- "solana-storage-bigtable",
- "solana-streamer",
- "solana-transaction-status",
- "solana-unified-scheduler-pool",
- "solana-version",
- "solana-vote-program",
- "solana_rbpf",
- "thiserror",
- "tikv-jemallocator",
- "tokio",
-]
-
-[[package]]
-name = "solana-loader-v4-program"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "log",
- "solana-measure",
- "solana-program-runtime",
- "solana-sdk",
- "solana_rbpf",
-]
-
-[[package]]
-name = "solana-local-cluster"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "crossbeam-channel",
- "fs_extra",
- "gag",
- "itertools",
- "log",
- "rand 0.8.5",
- "rayon",
- "serial_test",
- "solana-accounts-db",
- "solana-client",
- "solana-config-program",
- "solana-core",
- "solana-download-utils",
- "solana-entry",
- "solana-gossip",
- "solana-ledger",
- "solana-logger",
- "solana-pubsub-client",
- "solana-quic-client",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-runtime",
- "solana-sdk",
- "solana-stake-program",
- "solana-streamer",
- "solana-thin-client",
- "solana-tpu-client",
- "solana-turbine",
- "solana-vote",
- "solana-vote-program",
- "static_assertions",
- "tempfile",
- "trees",
-]
-
-[[package]]
-name = "solana-log-analyzer"
-version = "2.0.0"
-dependencies = [
- "byte-unit",
- "clap 3.2.23",
- "serde",
- "serde_json",
- "solana-logger",
- "solana-version",
-]
-
-[[package]]
 name = "solana-logger"
-version = "2.0.0"
+version = "1.18.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "121d36ffb3c6b958763312cbc697fbccba46ee837d3a0aa4fc0e90fcb3b884f3"
 dependencies = [
  "env_logger",
  "lazy_static",
  "log",
-]
-
-[[package]]
-name = "solana-measure"
-version = "2.0.0"
-dependencies = [
- "log",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-memory-management"
-version = "2.0.0"
-
-[[package]]
-name = "solana-merkle-root-bench"
-version = "2.0.0"
-dependencies = [
- "clap 2.33.3",
- "log",
- "solana-accounts-db",
- "solana-logger",
- "solana-measure",
- "solana-sdk",
- "solana-version",
-]
-
-[[package]]
-name = "solana-merkle-tree"
-version = "2.0.0"
-dependencies = [
- "fast-math",
- "hex",
- "solana-program",
-]
-
-[[package]]
-name = "solana-metrics"
-version = "2.0.0"
-dependencies = [
- "crossbeam-channel",
- "env_logger",
- "gethostname",
- "lazy_static",
- "log",
- "rand 0.8.5",
- "reqwest",
- "serial_test",
- "solana-sdk",
- "thiserror",
-]
-
-[[package]]
-name = "solana-net-shaper"
-version = "2.0.0"
-dependencies = [
- "clap 3.2.23",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "solana-logger",
-]
-
-[[package]]
-name = "solana-net-utils"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "clap 3.2.23",
- "crossbeam-channel",
- "log",
- "nix 0.26.4",
- "rand 0.8.5",
- "serde",
- "serde_derive",
- "socket2 0.5.6",
- "solana-logger",
- "solana-sdk",
- "solana-version",
- "tokio",
- "url 2.5.0",
 ]
 
 [[package]]
@@ -6460,96 +7603,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b8a731ed60e89177c8a7ab05fe0f1511cedd3e70e773f288f9de33a9cfdc21e"
 
 [[package]]
-name = "solana-notifier"
-version = "2.0.0"
-dependencies = [
- "log",
- "reqwest",
- "serde_json",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-perf"
-version = "2.0.0"
-dependencies = [
- "ahash 0.8.10",
- "assert_matches",
- "bincode",
- "bv",
- "caps",
- "curve25519-dalek",
- "dlopen2",
- "fnv",
- "lazy_static",
- "libc",
- "log",
- "nix 0.26.4",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rayon",
- "rustc_version 0.4.0",
- "serde",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-logger",
- "solana-metrics",
- "solana-rayon-threadlimit",
- "solana-sdk",
- "solana-vote-program",
- "test-case",
-]
-
-[[package]]
-name = "solana-poh"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "bincode",
- "core_affinity",
- "crossbeam-channel",
- "log",
- "rand 0.8.5",
- "solana-entry",
- "solana-ledger",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-perf",
- "solana-poh",
- "solana-runtime",
- "solana-sdk",
- "thiserror",
-]
-
-[[package]]
-name = "solana-poh-bench"
-version = "2.0.0"
-dependencies = [
- "clap 3.2.23",
- "log",
- "rayon",
- "solana-entry",
- "solana-logger",
- "solana-measure",
- "solana-perf",
- "solana-sdk",
- "solana-version",
-]
-
-[[package]]
 name = "solana-program"
-version = "2.0.0"
+version = "1.18.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c10f4588cefd716b24a1a40dd32c278e43a560ab8ce4de6b5805c9d113afdfa1"
 dependencies = [
- "anyhow",
- "arbitrary",
  "ark-bn254",
  "ark-ec",
  "ark-ff",
  "ark-serialize",
- "array-bytes",
- "assert_matches",
- "base64 0.22.0",
+ "base64 0.21.7",
  "bincode",
  "bitflags 2.4.2",
  "blake3",
@@ -6587,9 +7650,7 @@ dependencies = [
  "sha3 0.10.8",
  "solana-frozen-abi",
  "solana-frozen-abi-macro",
- "solana-logger",
  "solana-sdk-macro",
- "static_assertions",
  "thiserror",
  "tiny-bip39",
  "wasm-bindgen",
@@ -6597,400 +7658,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-program-runtime"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "base64 0.22.0",
- "bincode",
- "eager",
- "enum-iterator",
- "itertools",
- "libc",
- "libsecp256k1",
- "log",
- "num-derive",
- "num-traits",
- "percentage",
- "rand 0.8.5",
- "rustc_version 0.4.0",
- "serde",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-sdk",
- "solana_rbpf",
- "test-case",
- "thiserror",
-]
-
-[[package]]
-name = "solana-program-test"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "async-trait",
- "base64 0.22.0",
- "bincode",
- "chrono-humanize",
- "crossbeam-channel",
- "log",
- "serde",
- "solana-accounts-db",
- "solana-banks-client",
- "solana-banks-interface",
- "solana-banks-server",
- "solana-bpf-loader-program",
- "solana-logger",
- "solana-program-runtime",
- "solana-runtime",
- "solana-sdk",
- "solana-stake-program",
- "solana-svm",
- "solana-vote-program",
- "solana_rbpf",
- "test-case",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "solana-pubsub-client"
-version = "2.0.0"
-dependencies = [
- "anyhow",
- "crossbeam-channel",
- "futures-util",
- "log",
- "reqwest",
- "semver 1.0.22",
- "serde",
- "serde_derive",
- "serde_json",
- "solana-account-decoder",
- "solana-rpc-client-api",
- "solana-sdk",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tokio-tungstenite",
- "tungstenite",
- "url 2.5.0",
-]
-
-[[package]]
-name = "solana-quic-client"
-version = "2.0.0"
-dependencies = [
- "async-mutex",
- "async-trait",
- "crossbeam-channel",
- "futures 0.3.30",
- "itertools",
- "lazy_static",
- "log",
- "quinn",
- "quinn-proto",
- "rustls",
- "solana-connection-cache",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-net-utils",
- "solana-perf",
- "solana-rpc-client-api",
- "solana-sdk",
- "solana-streamer",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "solana-rayon-threadlimit"
-version = "2.0.0"
-dependencies = [
- "lazy_static",
- "num_cpus",
-]
-
-[[package]]
-name = "solana-remote-wallet"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "console",
- "dialoguer",
- "hidapi",
- "log",
- "num-derive",
- "num-traits",
- "parking_lot 0.12.1",
- "qstring",
- "semver 1.0.22",
- "solana-sdk",
- "thiserror",
- "uriparse",
-]
-
-[[package]]
-name = "solana-rpc"
-version = "2.0.0"
-dependencies = [
- "base64 0.22.0",
- "bincode",
- "bs58",
- "crossbeam-channel",
- "dashmap",
- "itertools",
- "jsonrpc-core",
- "jsonrpc-core-client",
- "jsonrpc-derive",
- "jsonrpc-http-server",
- "jsonrpc-pubsub",
- "libc",
- "log",
- "rayon",
- "regex",
- "serde",
- "serde_derive",
- "serde_json",
- "serial_test",
- "soketto",
- "solana-account-decoder",
- "solana-accounts-db",
- "solana-client",
- "solana-entry",
- "solana-faucet",
- "solana-gossip",
- "solana-ledger",
- "solana-measure",
- "solana-metrics",
- "solana-net-utils",
- "solana-perf",
- "solana-poh",
- "solana-rayon-threadlimit",
- "solana-rpc-client-api",
- "solana-runtime",
- "solana-sdk",
- "solana-send-transaction-service",
- "solana-stake-program",
- "solana-storage-bigtable",
- "solana-streamer",
- "solana-svm",
- "solana-tpu-client",
- "solana-transaction-status",
- "solana-version",
- "solana-vote",
- "solana-vote-program",
- "spl-pod",
- "spl-token",
- "spl-token-2022",
- "stream-cancel",
- "symlink",
- "thiserror",
- "tokio",
- "tokio-util 0.6.9",
-]
-
-[[package]]
-name = "solana-rpc-client"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "async-trait",
- "base64 0.22.0",
- "bincode",
- "bs58",
- "crossbeam-channel",
- "futures 0.3.30",
- "indicatif",
- "jsonrpc-core",
- "jsonrpc-http-server",
- "log",
- "reqwest",
- "semver 1.0.22",
- "serde",
- "serde_derive",
- "serde_json",
- "solana-account-decoder",
- "solana-rpc-client-api",
- "solana-sdk",
- "solana-transaction-status",
- "solana-version",
- "solana-vote-program",
- "tokio",
-]
-
-[[package]]
-name = "solana-rpc-client-api"
-version = "2.0.0"
-dependencies = [
- "base64 0.22.0",
- "bs58",
- "jsonrpc-core",
- "reqwest",
- "semver 1.0.22",
- "serde",
- "serde_derive",
- "serde_json",
- "solana-account-decoder",
- "solana-sdk",
- "solana-transaction-status",
- "solana-version",
- "spl-token-2022",
- "thiserror",
-]
-
-[[package]]
-name = "solana-rpc-client-nonce-utils"
-version = "2.0.0"
-dependencies = [
- "anyhow",
- "clap 2.33.3",
- "futures 0.3.30",
- "serde_json",
- "solana-account-decoder",
- "solana-clap-utils",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-sdk",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "solana-rpc-test"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "bs58",
- "crossbeam-channel",
- "futures-util",
- "log",
- "reqwest",
- "serde",
- "serde_json",
- "solana-account-decoder",
- "solana-client",
- "solana-logger",
- "solana-pubsub-client",
- "solana-rpc",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-sdk",
- "solana-streamer",
- "solana-test-validator",
- "solana-tpu-client",
- "solana-transaction-status",
- "tokio",
-]
-
-[[package]]
-name = "solana-runtime"
-version = "2.0.0"
-dependencies = [
- "aquamarine",
- "arrayref",
- "assert_matches",
- "base64 0.22.0",
- "bincode",
- "blake3",
- "bv",
- "bytemuck",
- "byteorder",
- "bzip2",
- "crossbeam-channel",
- "dashmap",
- "dir-diff",
- "ed25519-dalek",
- "flate2",
- "fnv",
- "im",
- "index_list",
- "itertools",
- "lazy_static",
- "libsecp256k1",
- "log",
- "lru",
- "lz4",
- "memmap2",
- "memoffset 0.9.0",
- "mockall",
- "modular-bitfield",
- "num-derive",
- "num-traits",
- "num_cpus",
- "num_enum",
- "percentage",
- "qualifier_attr",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rayon",
- "regex",
- "rustc_version 0.4.0",
- "serde",
- "serde_derive",
- "serde_json",
- "solana-accounts-db",
- "solana-address-lookup-table-program",
- "solana-bpf-loader-program",
- "solana-bucket-map",
- "solana-compute-budget-program",
- "solana-config-program",
- "solana-cost-model",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-loader-v4-program",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-perf",
- "solana-program-runtime",
- "solana-rayon-threadlimit",
- "solana-runtime",
- "solana-sdk",
- "solana-stake-program",
- "solana-svm",
- "solana-system-program",
- "solana-version",
- "solana-vote",
- "solana-vote-program",
- "solana-zk-token-proof-program",
- "solana-zk-token-sdk",
- "static_assertions",
- "strum",
- "strum_macros",
- "symlink",
- "tar",
- "tempfile",
- "test-case",
- "thiserror",
- "zstd",
-]
-
-[[package]]
-name = "solana-runtime-transaction"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "log",
- "rand 0.8.5",
- "rustc_version 0.4.0",
- "solana-program",
- "solana-program-runtime",
- "solana-sdk",
- "thiserror",
-]
-
-[[package]]
 name = "solana-sdk"
-version = "2.0.0"
+version = "1.18.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "580ad66c2f7a4c3cb3244fe21440546bd500f5ecb955ad9826e92a78dded8009"
 dependencies = [
- "anyhow",
  "assert_matches",
- "base64 0.22.0",
+ "base64 0.21.7",
  "bincode",
  "bitflags 2.4.2",
  "borsh 1.2.1",
@@ -6998,13 +7672,11 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "chrono",
- "curve25519-dalek",
  "derivation-path",
  "digest 0.10.7",
  "ed25519-dalek",
  "ed25519-dalek-bip32",
  "generic-array 0.14.7",
- "hex",
  "hmac 0.12.1",
  "itertools",
  "js-sys",
@@ -7034,18 +7706,17 @@ dependencies = [
  "solana-frozen-abi-macro",
  "solana-logger",
  "solana-program",
- "solana-sdk",
  "solana-sdk-macro",
- "static_assertions",
  "thiserror",
- "tiny-bip39",
  "uriparse",
  "wasm-bindgen",
 ]
 
 [[package]]
 name = "solana-sdk-macro"
-version = "2.0.0"
+version = "1.18.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b75d0f193a27719257af19144fdaebec0415d1c9e9226ae4bd29b791be5e9bd"
 dependencies = [
  "bs58",
  "proc-macro2",
@@ -7061,629 +7732,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "468aa43b7edb1f9b7b7b686d5c3aeb6630dc1708e86e31343499dd5c4d775183"
 
 [[package]]
-name = "solana-send-transaction-service"
-version = "2.0.0"
-dependencies = [
- "crossbeam-channel",
- "log",
- "solana-client",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-runtime",
- "solana-sdk",
- "solana-tpu-client",
-]
-
-[[package]]
-name = "solana-stake-accounts"
-version = "2.0.0"
-dependencies = [
- "clap 2.33.3",
- "solana-clap-utils",
- "solana-cli-config",
- "solana-remote-wallet",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-runtime",
- "solana-sdk",
- "solana-stake-program",
- "solana-version",
-]
-
-[[package]]
-name = "solana-stake-program"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "bincode",
- "log",
- "proptest",
- "rustc_version 0.4.0",
- "solana-config-program",
- "solana-logger",
- "solana-program-runtime",
- "solana-sdk",
- "solana-vote-program",
- "test-case",
-]
-
-[[package]]
-name = "solana-storage-bigtable"
-version = "2.0.0"
-dependencies = [
- "backoff",
- "bincode",
- "bytes",
- "bzip2",
- "enum-iterator",
- "flate2",
- "futures 0.3.30",
- "goauth",
- "http",
- "hyper",
- "hyper-proxy",
- "log",
- "openssl",
- "prost",
- "prost-types",
- "serde",
- "serde_derive",
- "smpl_jwt",
- "solana-metrics",
- "solana-sdk",
- "solana-storage-proto",
- "solana-transaction-status",
- "thiserror",
- "tokio",
- "tonic",
- "zstd",
-]
-
-[[package]]
-name = "solana-storage-proto"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "bs58",
- "enum-iterator",
- "prost",
- "protobuf-src",
- "serde",
- "solana-account-decoder",
- "solana-sdk",
- "solana-transaction-status",
- "tonic-build",
-]
-
-[[package]]
-name = "solana-store-tool"
-version = "2.0.0"
-dependencies = [
- "clap 2.33.3",
- "log",
- "solana-accounts-db",
- "solana-logger",
- "solana-sdk",
- "solana-version",
-]
-
-[[package]]
-name = "solana-streamer"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "async-channel",
- "bytes",
- "crossbeam-channel",
- "futures-util",
- "histogram",
- "indexmap 2.2.5",
- "itertools",
- "libc",
- "log",
- "nix 0.26.4",
- "pem",
- "percentage",
- "quinn",
- "quinn-proto",
- "rand 0.8.5",
- "rustls",
- "solana-logger",
- "solana-metrics",
- "solana-perf",
- "solana-sdk",
- "thiserror",
- "tokio",
- "x509-parser",
-]
-
-[[package]]
-name = "solana-svm"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "itertools",
- "log",
- "percentage",
- "rustc_version 0.4.0",
- "solana-bpf-loader-program",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-loader-v4-program",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-program-runtime",
- "solana-sdk",
- "solana-system-program",
-]
-
-[[package]]
-name = "solana-system-program"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "bincode",
- "log",
- "serde",
- "serde_derive",
- "solana-logger",
- "solana-program-runtime",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-test-validator"
-version = "2.0.0"
-dependencies = [
- "base64 0.22.0",
- "bincode",
- "crossbeam-channel",
- "log",
- "serde_derive",
- "serde_json",
- "solana-accounts-db",
- "solana-cli-output",
- "solana-client",
- "solana-core",
- "solana-geyser-plugin-manager",
- "solana-gossip",
- "solana-ledger",
- "solana-logger",
- "solana-net-utils",
- "solana-program-runtime",
- "solana-program-test",
- "solana-rpc",
- "solana-rpc-client",
- "solana-runtime",
- "solana-sdk",
- "solana-streamer",
- "solana-tpu-client",
- "tokio",
-]
-
-[[package]]
-name = "solana-thin-client"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "log",
- "rayon",
- "solana-connection-cache",
- "solana-logger",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-tokens"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "bincode",
- "chrono",
- "clap 2.33.3",
- "console",
- "csv",
- "ctrlc",
- "indexmap 2.2.5",
- "indicatif",
- "pickledb",
- "serde",
- "solana-account-decoder",
- "solana-clap-utils",
- "solana-cli-config",
- "solana-logger",
- "solana-remote-wallet",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-sdk",
- "solana-streamer",
- "solana-test-validator",
- "solana-transaction-status",
- "solana-version",
- "spl-associated-token-account",
- "spl-token",
- "tempfile",
- "thiserror",
-]
-
-[[package]]
-name = "solana-tpu-client"
-version = "2.0.0"
-dependencies = [
- "async-trait",
- "bincode",
- "futures-util",
- "indexmap 2.2.5",
- "indicatif",
- "log",
- "rayon",
- "solana-connection-cache",
- "solana-measure",
- "solana-metrics",
- "solana-pubsub-client",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-sdk",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "solana-transaction-dos"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "clap 2.33.3",
- "log",
- "rand 0.8.5",
- "rayon",
- "solana-clap-utils",
- "solana-cli",
- "solana-client",
- "solana-core",
- "solana-faucet",
- "solana-gossip",
- "solana-local-cluster",
- "solana-logger",
- "solana-measure",
- "solana-net-utils",
- "solana-rpc-client",
- "solana-runtime",
- "solana-sdk",
- "solana-streamer",
- "solana-transaction-status",
- "solana-version",
-]
-
-[[package]]
-name = "solana-transaction-status"
-version = "2.0.0"
-dependencies = [
- "Inflector",
- "base64 0.22.0",
- "bincode",
- "borsh 0.10.3",
- "bs58",
- "lazy_static",
- "log",
- "serde",
- "serde_derive",
- "serde_json",
- "solana-account-decoder",
- "solana-sdk",
- "spl-associated-token-account",
- "spl-memo",
- "spl-token",
- "spl-token-2022",
- "thiserror",
-]
-
-[[package]]
-name = "solana-turbine"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "bincode",
- "bytes",
- "crossbeam-channel",
- "futures 0.3.30",
- "itertools",
- "log",
- "lru",
- "quinn",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rayon",
- "rustls",
- "solana-entry",
- "solana-gossip",
- "solana-ledger",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-perf",
- "solana-poh",
- "solana-quic-client",
- "solana-rayon-threadlimit",
- "solana-rpc",
- "solana-rpc-client-api",
- "solana-runtime",
- "solana-sdk",
- "solana-streamer",
- "test-case",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "solana-udp-client"
-version = "2.0.0"
-dependencies = [
- "async-trait",
- "solana-connection-cache",
- "solana-net-utils",
- "solana-sdk",
- "solana-streamer",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "solana-unified-scheduler-logic"
-version = "2.0.0"
-dependencies = [
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-unified-scheduler-pool"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "crossbeam-channel",
- "derivative",
- "log",
- "solana-ledger",
- "solana-logger",
- "solana-program-runtime",
- "solana-runtime",
- "solana-sdk",
- "solana-unified-scheduler-logic",
- "solana-vote",
-]
-
-[[package]]
-name = "solana-upload-perf"
-version = "2.0.0"
-dependencies = [
- "serde_json",
- "solana-metrics",
-]
-
-[[package]]
-name = "solana-validator"
-version = "2.0.0"
-dependencies = [
- "chrono",
- "clap 2.33.3",
- "console",
- "core_affinity",
- "crossbeam-channel",
- "fd-lock",
- "indicatif",
- "itertools",
- "jsonrpc-core",
- "jsonrpc-core-client",
- "jsonrpc-derive",
- "jsonrpc-ipc-server",
- "lazy_static",
- "libc",
- "libloading",
- "log",
- "num_cpus",
- "rand 0.8.5",
- "rayon",
- "serde",
- "serde_json",
- "serde_yaml 0.9.32",
- "signal-hook",
- "solana-account-decoder",
- "solana-accounts-db",
- "solana-clap-utils",
- "solana-cli-config",
- "solana-core",
- "solana-download-utils",
- "solana-entry",
- "solana-faucet",
- "solana-genesis-utils",
- "solana-geyser-plugin-interface",
- "solana-geyser-plugin-manager",
- "solana-gossip",
- "solana-ledger",
- "solana-logger",
- "solana-metrics",
- "solana-net-utils",
- "solana-perf",
- "solana-poh",
- "solana-program-runtime",
- "solana-rayon-threadlimit",
- "solana-rpc",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-runtime",
- "solana-sdk",
- "solana-send-transaction-service",
- "solana-storage-bigtable",
- "solana-streamer",
- "solana-test-validator",
- "solana-tpu-client",
- "solana-unified-scheduler-pool",
- "solana-version",
- "solana-vote-program",
- "spl-token-2022",
- "symlink",
- "thiserror",
- "tikv-jemallocator",
- "tokio",
-]
-
-[[package]]
-name = "solana-version"
-version = "2.0.0"
-dependencies = [
- "log",
- "rustc_version 0.4.0",
- "semver 1.0.22",
- "serde",
- "serde_derive",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-sdk",
-]
-
-[[package]]
-name = "solana-vote"
-version = "2.0.0"
-dependencies = [
- "bincode",
- "crossbeam-channel",
- "itertools",
- "log",
- "rand 0.8.5",
- "rustc_version 0.4.0",
- "serde",
- "serde_derive",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-sdk",
- "solana-vote-program",
- "thiserror",
-]
-
-[[package]]
-name = "solana-vote-program"
-version = "2.0.0"
-dependencies = [
- "assert_matches",
- "bincode",
- "log",
- "num-derive",
- "num-traits",
- "rustc_version 0.4.0",
- "serde",
- "serde_derive",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-logger",
- "solana-metrics",
- "solana-program",
- "solana-program-runtime",
- "solana-sdk",
- "test-case",
- "thiserror",
-]
-
-[[package]]
-name = "solana-watchtower"
-version = "2.0.0"
-dependencies = [
- "clap 2.33.3",
- "humantime",
- "log",
- "solana-clap-utils",
- "solana-cli-config",
- "solana-cli-output",
- "solana-logger",
- "solana-metrics",
- "solana-notifier",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-sdk",
- "solana-version",
-]
-
-[[package]]
-name = "solana-wen-restart"
-version = "2.0.0"
-dependencies = [
- "anyhow",
- "assert_matches",
- "log",
- "prost",
- "prost-build",
- "prost-types",
- "protobuf-src",
- "rand 0.8.5",
- "rustc_version 0.4.0",
- "serial_test",
- "solana-accounts-db",
- "solana-entry",
- "solana-gossip",
- "solana-ledger",
- "solana-logger",
- "solana-program",
- "solana-runtime",
- "solana-sdk",
- "solana-streamer",
- "solana-vote-program",
- "tempfile",
-]
-
-[[package]]
-name = "solana-zk-keygen"
-version = "2.0.0"
-dependencies = [
- "bs58",
- "clap 3.2.23",
- "dirs-next",
- "num_cpus",
- "solana-clap-v3-utils",
- "solana-cli-config",
- "solana-remote-wallet",
- "solana-sdk",
- "solana-version",
- "solana-zk-token-sdk",
- "tempfile",
- "thiserror",
- "tiny-bip39",
-]
-
-[[package]]
-name = "solana-zk-token-proof-program"
-version = "2.0.0"
-dependencies = [
- "bytemuck",
- "criterion",
- "curve25519-dalek",
- "num-derive",
- "num-traits",
- "solana-program-runtime",
- "solana-sdk",
- "solana-zk-token-sdk",
-]
-
-[[package]]
-name = "solana-zk-token-proof-program-tests"
-version = "2.0.0"
-dependencies = [
- "bytemuck",
- "curve25519-dalek",
- "solana-program-runtime",
- "solana-program-test",
- "solana-sdk",
- "solana-zk-token-sdk",
-]
-
-[[package]]
 name = "solana-zk-token-sdk"
-version = "2.0.0"
+version = "1.18.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7cbdf4249b6dfcbba7d84e2b53313698043f60f8e22ce48286e6fbe8a17c8d16"
 dependencies = [
  "aes-gcm-siv",
- "base64 0.22.0",
+ "base64 0.21.7",
  "bincode",
  "bytemuck",
  "byteorder",
@@ -7702,7 +7757,6 @@ dependencies = [
  "solana-sdk",
  "subtle",
  "thiserror",
- "tiny-bip39",
  "zeroize",
 ]
 
@@ -8591,7 +8645,7 @@ version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6fdaae4c2c638bb70fe42803a26fbd6fc6ac8c72f5c59f67ecc2a2dcabf4b07"
 dependencies = [
- "prettyplease 0.1.9",
+ "prettyplease",
  "proc-macro2",
  "prost-build",
  "quote",

@@ -1,9 +1,9 @@
 use {
-    solana_ledger::{
+    aeko_ledger::{
         blockstore::Blockstore,
         shred::{Nonce, SIZE_OF_NONCE},
     },
-    solana_sdk::{clock::Slot, packet::Packet},
+    aeko_sdk::{clock::Slot, packet::Packet},
     std::{io, net::SocketAddr},
 };
 
@@ -53,11 +53,11 @@ pub(crate) fn nonce(packet: &Packet) -> Option<Nonce> {
 mod test {
     use {
         super::*,
-        solana_ledger::{
+        aeko_ledger::{
             shred::{Shred, ShredFlags},
             sigverify_shreds::verify_shred_cpu,
         },
-        solana_sdk::{
+        aeko_sdk::{
             packet::PacketFlags,
             signature::{Keypair, Signer},
         },
@@ -68,7 +68,7 @@ mod test {
     };
 
     fn run_test_sigverify_shred_cpu_repair(slot: Slot) {
-        solana_logger::setup();
+        aeko_logger::setup();
         let mut shred = Shred::new_from_data(
             slot,
             0xc0de,

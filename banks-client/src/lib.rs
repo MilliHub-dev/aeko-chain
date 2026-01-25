@@ -7,20 +7,20 @@
 
 pub use {
     crate::error::BanksClientError,
-    solana_banks_interface::{BanksClient as TarpcClient, TransactionStatus},
+    aeko_banks_interface::{BanksClient as TarpcClient, TransactionStatus},
 };
 use {
     borsh::BorshDeserialize,
     futures::{future::join_all, Future, FutureExt, TryFutureExt},
-    solana_banks_interface::{
+    aeko_banks_interface::{
         BanksRequest, BanksResponse, BanksTransactionResultWithMetadata,
         BanksTransactionResultWithSimulation,
     },
-    solana_program::{
+    aeko_program::{
         clock::Slot, fee_calculator::FeeCalculator, hash::Hash, program_pack::Pack, pubkey::Pubkey,
         rent::Rent, sysvar::Sysvar,
     },
-    solana_sdk::{
+    aeko_sdk::{
         account::{from_account, Account},
         commitment_config::CommitmentLevel,
         message::Message,
@@ -552,12 +552,12 @@ pub async fn start_tcp_client<T: ToSocketAddrs>(addr: T) -> Result<BanksClient, 
 mod tests {
     use {
         super::*,
-        solana_banks_server::banks_server::start_local_server,
-        solana_runtime::{
+        aeko_banks_server::banks_server::start_local_server,
+        aeko_runtime::{
             bank::Bank, bank_forks::BankForks, commitment::BlockCommitmentCache,
             genesis_utils::create_genesis_config,
         },
-        solana_sdk::{
+        aeko_sdk::{
             message::Message, signature::Signer, system_instruction, transaction::Transaction,
         },
         std::sync::{Arc, RwLock},
@@ -589,7 +589,7 @@ mod tests {
         ));
         let bank_forks = BankForks::new_rw_arc(bank);
 
-        let bob_pubkey = solana_sdk::pubkey::new_rand();
+        let bob_pubkey = aeko_sdk::pubkey::new_rand();
         let mint_pubkey = genesis.mint_keypair.pubkey();
         let instruction = system_instruction::transfer(&mint_pubkey, &bob_pubkey, 1);
         let message = Message::new(&[instruction], Some(&mint_pubkey));
@@ -629,7 +629,7 @@ mod tests {
         let bank_forks = BankForks::new_rw_arc(bank);
 
         let mint_pubkey = &genesis.mint_keypair.pubkey();
-        let bob_pubkey = solana_sdk::pubkey::new_rand();
+        let bob_pubkey = aeko_sdk::pubkey::new_rand();
         let instruction = system_instruction::transfer(mint_pubkey, &bob_pubkey, 1);
         let message = Message::new(&[instruction], Some(mint_pubkey));
 

@@ -1,27 +1,27 @@
 #![allow(clippy::arithmetic_side_effects)]
 use {
     log::*,
-    solana_bench_tps::{
+    aeko_bench_tps::{
         bench::{do_bench_tps, max_lamports_for_prioritization},
         bench_tps_client::BenchTpsClient,
         cli::{self, ExternalClientType},
         keypairs::get_keypairs,
         send_batch::{generate_durable_nonce_accounts, generate_keypairs},
     },
-    solana_client::{
+    aeko_client::{
         connection_cache::ConnectionCache,
         tpu_client::{TpuClient, TpuClientConfig},
     },
-    solana_genesis::Base64Account,
-    solana_rpc_client::rpc_client::RpcClient,
-    solana_sdk::{
+    aeko_genesis::Base64Account,
+    aeko_rpc_client::rpc_client::RpcClient,
+    aeko_sdk::{
         commitment_config::CommitmentConfig,
         fee_calculator::FeeRateGovernor,
         pubkey::Pubkey,
         signature::{Keypair, Signer},
         system_program,
     },
-    solana_streamer::streamer::StakedNodes,
+    aeko_streamer::streamer::StakedNodes,
     std::{
         collections::HashMap,
         fs::File,
@@ -168,10 +168,10 @@ fn create_client(
 }
 
 fn main() {
-    solana_logger::setup_with_default("solana=info");
-    solana_metrics::set_panic_hook("bench-tps", /*version:*/ None);
+    aeko_logger::setup_with_default("solana=info");
+    aeko_metrics::set_panic_hook("bench-tps", /*version:*/ None);
 
-    let matches = cli::build_args(solana_version::version!()).get_matches();
+    let matches = cli::build_args(aeko_version::version!()).get_matches();
     let cli_config = match cli::parse_args(&matches) {
         Ok(config) => config,
         Err(error) => {

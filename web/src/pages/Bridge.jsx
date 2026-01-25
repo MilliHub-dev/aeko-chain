@@ -58,7 +58,6 @@ export default function Bridge() {
   const networks = {
     ethereum: { name: 'Ethereum', color: 'bg-blue-600', icon: 'E' },
     aeko: { name: 'AEKO ', color: 'bg-aeko-accent text-black', icon: 'A' },
-    solana: { name: 'Solana', color: 'bg-purple-600', icon: 'S' },
   };
 
   const [fromNetwork, setFromNetwork] = useState(networks.ethereum);
@@ -84,7 +83,7 @@ export default function Bridge() {
             AEKO <span className="text-gradient">Bridge</span>
           </motion.h1>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            Securely transfer assets between Ethereum, Solana, and AEKO Chain with low latency and minimal fees.
+            Securely transfer assets between Ethereum and AEKO Chain with low latency and minimal fees.
           </p>
         </div>
 
@@ -194,10 +193,6 @@ export default function Bridge() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400">Ethereum ↔ AEKO</span>
-                  <span className="text-green-400 bg-green-400/10 px-2 py-1 rounded text-xs">Active</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">Solana ↔ AEKO</span>
                   <span className="text-green-400 bg-green-400/10 px-2 py-1 rounded text-xs">Active</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">

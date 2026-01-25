@@ -6,11 +6,11 @@ use {
     },
     itertools::Itertools,
     log::warn,
-    solana_program_runtime::{
+    aeko_program_runtime::{
         compute_budget_processor::process_compute_budget_instructions,
         loaded_programs::LoadedProgramsForTxBatch,
     },
-    solana_sdk::{
+    aeko_sdk::{
         account::{Account, AccountSharedData, ReadableAccount, WritableAccount},
         feature_set::{
             self, include_loaded_accounts_data_size_in_fee_calculation,
@@ -30,7 +30,7 @@ use {
         transaction::{self, Result, SanitizedTransaction, TransactionError},
         transaction_context::{IndexOfAccount, TransactionAccount},
     },
-    solana_system_program::{get_system_account_kind, SystemAccountKind},
+    aeko_system_program::{get_system_account_kind, SystemAccountKind},
     std::{collections::HashMap, num::NonZeroUsize},
 };
 
@@ -213,7 +213,7 @@ fn load_transaction_accounts<CB: TransactionProcessingCallback>(
         .map(|(i, key)| {
             let mut account_found = true;
             #[allow(clippy::collapsible_else_if)]
-            let account = if solana_sdk::sysvar::instructions::check_id(key) {
+            let account = if aeko_sdk::sysvar::instructions::check_id(key) {
                 construct_instructions_account(message)
             } else {
                 let instruction_account = u8::try_from(i)
@@ -462,13 +462,13 @@ mod tests {
             transaction_processor::TransactionProcessingCallback,
         },
         nonce::state::Versions as NonceVersions,
-        solana_program_runtime::{
+        aeko_program_runtime::{
             compute_budget::ComputeBudget,
             compute_budget_processor,
             loaded_programs::{LoadedProgram, LoadedProgramsForTxBatch},
             prioritization_fee::{PrioritizationFeeDetails, PrioritizationFeeType},
         },
-        solana_sdk::{
+        aeko_sdk::{
             account::{AccountSharedData, ReadableAccount, WritableAccount},
             bpf_loader_upgradeable,
             compute_budget::ComputeBudgetInstruction,
@@ -482,7 +482,7 @@ mod tests {
                 LegacyMessage, Message, MessageHeader, SanitizedMessage,
             },
             native_loader,
-            native_token::sol_to_lamports,
+            native_token::aeko_to_lamports,
             nonce,
             nonce_info::{NonceFull, NoncePartial},
             pubkey::Pubkey,
@@ -723,7 +723,7 @@ mod tests {
         let keypair = Keypair::new();
         let key0 = keypair.pubkey();
 
-        let account = AccountSharedData::new(1, 1, &solana_sdk::pubkey::new_rand()); // <-- owner is not the system program
+        let account = AccountSharedData::new(1, 1, &aeko_sdk::pubkey::new_rand()); // <-- owner is not the system program
         accounts.push((key0, account));
 
         let instructions = vec![CompiledInstruction::new(1, &(), vec![0])];
@@ -1037,13 +1037,13 @@ mod tests {
 
     #[test]
     fn test_instructions() {
-        solana_logger::setup();
-        let instructions_key = solana_sdk::sysvar::instructions::id();
+        aeko_logger::setup();
+        let instructions_key = aeko_sdk::sysvar::instructions::id();
         let keypair = Keypair::new();
         let instructions = vec![CompiledInstruction::new(1, &(), vec![0, 1])];
         let tx = Transaction::new_with_compiled_instructions(
             &[&keypair],
-            &[solana_sdk::pubkey::new_rand(), instructions_key],
+            &[aeko_sdk::pubkey::new_rand(), instructions_key],
             Hash::default(),
             vec![native_loader::id()],
             instructions,
@@ -1056,7 +1056,7 @@ mod tests {
 
     #[test]
     fn test_overrides() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let mut account_overrides = AccountOverrides::default();
         let slot_history_id = sysvar::slot_history::id();
         let account = AccountSharedData::new(42, 0, &Pubkey::default());
@@ -1136,7 +1136,7 @@ mod tests {
     fn test_get_requested_loaded_accounts_data_size_limit() {
         // an prrivate helper function
         fn test(
-            instructions: &[solana_sdk::instruction::Instruction],
+            instructions: &[aeko_sdk::instruction::Instruction],
             expected_result: &Result<Option<NonZeroUsize>>,
         ) {
             let payer_keypair = Keypair::new();
@@ -1151,20 +1151,20 @@ mod tests {
             );
         }
 
-        let tx_not_set_limit = &[solana_sdk::instruction::Instruction::new_with_bincode(
+        let tx_not_set_limit = &[aeko_sdk::instruction::Instruction::new_with_bincode(
             Pubkey::new_unique(),
             &0_u8,
             vec![],
         )];
         let tx_set_limit_99 =
             &[
-                solana_sdk::compute_budget::ComputeBudgetInstruction::set_loaded_accounts_data_size_limit(99u32),
-                solana_sdk::instruction::Instruction::new_with_bincode(Pubkey::new_unique(), &0_u8, vec![]),
+                aeko_sdk::compute_budget::ComputeBudgetInstruction::set_loaded_accounts_data_size_limit(99u32),
+                aeko_sdk::instruction::Instruction::new_with_bincode(Pubkey::new_unique(), &0_u8, vec![]),
             ];
         let tx_set_limit_0 =
             &[
-                solana_sdk::compute_budget::ComputeBudgetInstruction::set_loaded_accounts_data_size_limit(0u32),
-                solana_sdk::instruction::Instruction::new_with_bincode(Pubkey::new_unique(), &0_u8, vec![]),
+                aeko_sdk::compute_budget::ComputeBudgetInstruction::set_loaded_accounts_data_size_limit(0u32),
+                aeko_sdk::instruction::Instruction::new_with_bincode(Pubkey::new_unique(), &0_u8, vec![]),
             ];
 
         let result_default_limit = Ok(Some(
@@ -1189,7 +1189,7 @@ mod tests {
 
     #[test]
     fn test_load_accounts_too_high_prioritization_fee() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let lamports_per_signature = 5000_u64;
         let request_units = 1_000_000_u32;
         let request_unit_price = 2_000_000_000_u64;
@@ -1392,7 +1392,7 @@ mod tests {
     #[test]
     fn test_construct_instructions_account() {
         let loaded_message = LoadedMessage {
-            message: Cow::Owned(solana_sdk::message::v0::Message::default()),
+            message: Cow::Owned(aeko_sdk::message::v0::Message::default()),
             loaded_addresses: Cow::Owned(LoadedAddresses::default()),
             is_writable_account_cache: vec![false],
         };
@@ -2045,7 +2045,7 @@ mod tests {
         let tx = system_transaction::transfer(
             &mint_keypair,
             &recipient,
-            sol_to_lamports(1.),
+            aeko_to_lamports(1.),
             last_block_hash,
         );
         let num_accounts = tx.message().account_keys.len();

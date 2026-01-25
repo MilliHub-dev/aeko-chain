@@ -11,7 +11,7 @@ use {
     },
     clap::{value_t_or_exit, App, Arg, ArgMatches, SubCommand},
     hex::FromHex,
-    solana_clap_utils::{
+    aeko_clap_utils::{
         compute_unit_price::{compute_unit_price_arg, COMPUTE_UNIT_PRICE_ARG},
         fee_payer::*,
         hidden_unless_forced,
@@ -22,17 +22,17 @@ use {
         nonce::*,
         offline::*,
     },
-    solana_cli_output::{
+    aeko_cli_output::{
         display::{build_balance_message, BuildBalanceMessageConfig},
         return_signers_with_config, CliAccount, CliBalance, CliFindProgramDerivedAddress,
         CliSignatureVerificationStatus, CliTransaction, CliTransactionConfirmation, OutputFormat,
         ReturnSignersConfig,
     },
-    solana_remote_wallet::remote_wallet::RemoteWalletManager,
-    solana_rpc_client::rpc_client::RpcClient,
-    solana_rpc_client_api::config::RpcTransactionConfig,
-    solana_rpc_client_nonce_utils::blockhash_query::BlockhashQuery,
-    solana_sdk::{
+    aeko_remote_wallet::remote_wallet::RemoteWalletManager,
+    aeko_rpc_client::rpc_client::RpcClient,
+    aeko_rpc_client_api::config::RpcTransactionConfig,
+    aeko_rpc_client_nonce_utils::blockhash_query::BlockhashQuery,
+    aeko_sdk::{
         commitment_config::CommitmentConfig,
         message::Message,
         offchain_message::OffchainMessage,
@@ -43,7 +43,7 @@ use {
         system_program,
         transaction::{Transaction, VersionedTransaction},
     },
-    solana_transaction_status::{
+    aeko_transaction_status::{
         EncodableWithMeta, EncodedConfirmedTransactionWithStatusMeta, EncodedTransaction,
         TransactionBinaryEncoding, UiTransactionEncoding,
     },
@@ -79,7 +79,7 @@ impl WalletSubCommands for App<'_, '_> {
                     Arg::with_name("lamports")
                         .long("lamports")
                         .takes_value(false)
-                        .help("Display balance in lamports instead of SOL"),
+                        .help("Display balance in lamports instead of AEKO"),
                 ),
         )
         .subcommand(
@@ -94,7 +94,7 @@ impl WalletSubCommands for App<'_, '_> {
         )
         .subcommand(
             SubCommand::with_name("airdrop")
-                .about("Request SOL from a faucet")
+                .about("Request AEKO from a faucet")
                 .arg(
                     Arg::with_name("amount")
                         .index(1)
@@ -394,7 +394,7 @@ fn resolve_derived_address_program_id(matches: &ArgMatches<'_>, arg_name: &str) 
         match upper.as_str() {
             "NONCE" | "SYSTEM" => Some(system_program::id()),
             "STAKE" => Some(stake::program::id()),
-            "VOTE" => Some(solana_vote_program::id()),
+            "VOTE" => Some(aeko_vote_program::id()),
             _ => pubkey_of(matches, arg_name),
         }
     })
@@ -970,7 +970,7 @@ pub fn process_transfer(
         )
     } else {
         if let Some(nonce_account) = &nonce_account {
-            let nonce_account = solana_rpc_client_nonce_utils::get_account_with_commitment(
+            let nonce_account = aeko_rpc_client_nonce_utils::get_account_with_commitment(
                 rpc_client,
                 nonce_account,
                 config.commitment,

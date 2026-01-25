@@ -1,6 +1,6 @@
 use {
-    solana_sdk::{clock::Slot, signature::Signature, transaction::SanitizedTransaction},
-    solana_transaction_status::TransactionStatusMeta,
+    aeko_sdk::{clock::Slot, signature::Signature, transaction::SanitizedTransaction},
+    aeko_transaction_status::TransactionStatusMeta,
     std::sync::Arc,
 };
 

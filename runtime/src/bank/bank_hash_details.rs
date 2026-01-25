@@ -8,11 +8,11 @@ use {
         de::{self, Deserialize, Deserializer},
         ser::{Serialize, SerializeSeq, Serializer},
     },
-    solana_accounts_db::{
+    aeko_accounts_db::{
         accounts_db::PubkeyHashAccount,
         accounts_hash::{AccountHash, AccountsDeltaHash},
     },
-    solana_sdk::{
+    aeko_sdk::{
         account::{Account, AccountSharedData, ReadableAccount},
         clock::{Epoch, Slot},
         hash::Hash,
@@ -34,7 +34,7 @@ pub struct BankHashDetails {
 impl BankHashDetails {
     pub fn new(bank_hash_details: Vec<BankHashSlotDetails>) -> Self {
         Self {
-            version: solana_version::version!().to_string(),
+            version: aeko_version::version!().to_string(),
             account_data_encoding: "base64".to_string(),
             bank_hash_details,
         }
@@ -291,7 +291,7 @@ pub mod tests {
     use super::*;
 
     fn build_details(num_slots: usize) -> BankHashDetails {
-        use solana_sdk::hash::{hash, hashv};
+        use aeko_sdk::hash::{hash, hashv};
 
         let slot_details: Vec<_> = (0..num_slots)
             .map(|slot| {

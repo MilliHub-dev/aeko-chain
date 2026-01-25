@@ -1,7 +1,7 @@
 [package]
-name = "solana-vote-program"
-description = "Solana Vote program"
-documentation = "https://docs.rs/solana-vote-program"
+name = "aeko-vote-program"
+description = "AEKO Vote program"
+documentation = "https://docs.rs/aeko-vote-program"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -16,17 +16,17 @@ num-derive = { workspace = true }
 num-traits = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
-solana-frozen-abi = { workspace = true }
-solana-frozen-abi-macro = { workspace = true }
-solana-metrics = { workspace = true }
-solana-program = { workspace = true }
-solana-program-runtime = { workspace = true }
-solana-sdk = { workspace = true }
+aeko-frozen-abi = { workspace = true }
+aeko-frozen-abi-macro = { workspace = true }
+aeko-metrics = { workspace = true }
+aeko-program = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 assert_matches = { workspace = true }
-solana-logger = { workspace = true }
+aeko-logger = { workspace = true }
 test-case = { workspace = true }
 
 [build-dependencies]
@@ -34,7 +34,7 @@ rustc_version = { workspace = true }
 
 [lib]
 crate-type = ["lib"]
-name = "solana_vote_program"
+name = "aeko_vote_program"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]

@@ -5,8 +5,8 @@ use {
     itertools::Itertools,
     log::*,
     regex::Regex,
-    solana_download_utils::download_file,
-    solana_sdk::signature::{write_keypair_file, Keypair},
+    aeko_download_utils::download_file,
+    aeko_sdk::signature::{write_keypair_file, Keypair},
     std::{
         borrow::Cow,
         collections::{HashMap, HashSet},
@@ -156,7 +156,7 @@ fn find_installed_platform_tools() -> Vec<String> {
 }
 
 fn get_latest_platform_tools_version() -> Result<String, String> {
-    let url = "https://github.com/solana-labs/platform-tools/releases/latest";
+    let url = "https://github.com/aeko-chain/platform-tools/releases/latest";
     let resp = reqwest::blocking::get(url).map_err(|err| format!("Failed to GET {url}: {err}"))?;
     let path = std::path::Path::new(resp.url().path());
     let version = path.file_name().unwrap().to_string_lossy().to_string();
@@ -476,7 +476,7 @@ fn check_undefined_symbols(config: &Config, program: &Path) {
 }
 
 // check whether custom solana toolchain is linked, and link it if it is not.
-fn link_solana_toolchain(config: &Config) {
+fn link_aeko_toolchain(config: &Config) {
     let toolchain_path = config
         .sbf_sdk
         .join("dependencies")
@@ -532,7 +532,7 @@ fn link_solana_toolchain(config: &Config) {
     }
 }
 
-fn build_solana_package(
+fn build_aeko_package(
     config: &Config,
     target_directory: &Path,
     package: &cargo_metadata::Package,
@@ -618,7 +618,7 @@ fn build_solana_package(
     install_if_missing(
         config,
         package,
-        "https://github.com/solana-labs/platform-tools/releases/download",
+        "https://github.com/aeko-chain/platform-tools/releases/download",
         platform_tools_download_file_name.as_str(),
         &target_path,
     )
@@ -639,7 +639,7 @@ fn build_solana_package(
         error!("Failed to install platform-tools: {}", err);
         exit(1);
     });
-    link_solana_toolchain(config);
+    link_aeko_toolchain(config);
 
     let llvm_bin = config
         .sbf_sdk
@@ -872,7 +872,7 @@ fn build_solana(config: Config, manifest_path: Option<PathBuf>) {
 
     if let Some(root_package) = metadata.root_package() {
         if !config.workspace {
-            build_solana_package(&config, target_dir.as_ref(), root_package);
+            build_aeko_package(&config, target_dir.as_ref(), root_package);
             return;
         }
     }
@@ -893,12 +893,12 @@ fn build_solana(config: Config, manifest_path: Option<PathBuf>) {
         .collect::<Vec<_>>();
 
     for package in all_sbf_packages {
-        build_solana_package(&config, target_dir.as_ref(), package);
+        build_aeko_package(&config, target_dir.as_ref(), package);
     }
 }
 
 fn main() {
-    solana_logger::setup();
+    aeko_logger::setup();
     let default_config = Config::default();
     let default_sbf_sdk = format!("{}", default_config.sbf_sdk.display());
 

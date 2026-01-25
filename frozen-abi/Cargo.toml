@@ -1,7 +1,7 @@
 [package]
-name = "solana-frozen-abi"
+name = "aeko-frozen-abi"
 description = "Solana Frozen ABI"
-documentation = "https://docs.rs/solana-frozen-abi"
+documentation = "https://docs.rs/aeko-frozen-abi"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -17,7 +17,7 @@ serde = { workspace = true, features = ["derive", "rc"] }
 serde_bytes = { workspace = true }
 serde_derive = { workspace = true }
 sha2 = { workspace = true }
-solana-frozen-abi-macro = { workspace = true }
+aeko-frozen-abi-macro = { workspace = true }
 thiserror = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
@@ -30,7 +30,8 @@ subtle = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dev-dependencies]
 bitflags = { workspace = true }
-solana-logger = { workspace = true }
+aeko-logger = { workspace = true }
 
 [build-dependencies]
 rustc_version = { workspace = true }
+

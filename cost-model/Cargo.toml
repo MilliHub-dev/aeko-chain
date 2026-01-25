@@ -1,7 +1,7 @@
 [package]
-name = "solana-cost-model"
+name = "aeko-cost-model"
 description = "Solana cost model"
-documentation = "https://docs.rs/solana-cost-model"
+documentation = "https://docs.rs/aeko-cost-model"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -12,27 +12,27 @@ edition = { workspace = true }
 [dependencies]
 lazy_static = { workspace = true }
 log = { workspace = true }
-solana-address-lookup-table-program = { workspace = true }
-solana-bpf-loader-program = { workspace = true }
-solana-compute-budget-program = { workspace = true }
-solana-config-program = { workspace = true }
-solana-frozen-abi = { workspace = true }
-solana-frozen-abi-macro = { workspace = true }
-solana-loader-v4-program = { workspace = true }
-solana-metrics = { workspace = true }
-solana-program-runtime = { workspace = true }
-solana-sdk = { workspace = true }
-solana-stake-program = { workspace = true }
-solana-system-program = { workspace = true }
-solana-vote-program = { workspace = true }
+aeko-address-lookup-table-program = { workspace = true }
+aeko-bpf-loader-program = { workspace = true }
+aeko-compute-budget-program = { workspace = true }
+aeko-config-program = { workspace = true }
+aeko-frozen-abi = { workspace = true }
+aeko-frozen-abi-macro = { workspace = true }
+aeko-loader-v4-program = { workspace = true }
+aeko-metrics = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-stake-program = { workspace = true }
+aeko-system-program = { workspace = true }
+aeko-vote-program = { workspace = true }
 
 [lib]
 crate-type = ["lib"]
-name = "solana_cost_model"
+name = "aeko_cost_model"
 
 [dev-dependencies]
-solana-logger = { workspace = true }
-solana-sdk = { workspace = true, features = ["dev-context-only-utils"] }
+aeko-logger = { workspace = true }
+aeko-sdk = { workspace = true, features = ["dev-context-only-utils"] }
 static_assertions = { workspace = true }
 test-case = { workspace = true }
 
@@ -41,3 +41,4 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
 rustc_version = { workspace = true }
+

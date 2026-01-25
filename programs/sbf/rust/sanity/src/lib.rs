@@ -3,8 +3,8 @@
 #![allow(unreachable_code)]
 #![allow(clippy::arithmetic_side_effects)]
 
-extern crate solana_program;
-use solana_program::{
+extern crate aeko_program;
+use aeko_program::{
     account_info::AccountInfo, bpf_loader, entrypoint::ProgramResult, log::*, msg,
     program::check_type_assumptions, pubkey::Pubkey,
 };
@@ -36,7 +36,7 @@ fn return_sstruct() -> SStruct {
     SStruct { x: 1, y: 2, z: 3 }
 }
 
-solana_program::entrypoint!(process_instruction);
+aeko_program::entrypoint!(process_instruction);
 #[allow(clippy::unnecessary_wraps)]
 pub fn process_instruction(
     program_id: &Pubkey,

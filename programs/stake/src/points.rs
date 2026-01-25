@@ -2,14 +2,14 @@
 //! Used by `solana-runtime`.
 
 use {
-    solana_sdk::{
+    aeko_sdk::{
         clock::Epoch,
         instruction::InstructionError,
         pubkey::Pubkey,
         stake::state::{Delegation, Stake, StakeStateV2},
         stake_history::StakeHistory,
     },
-    solana_vote_program::vote_state::VoteState,
+    aeko_vote_program::vote_state::VoteState,
     std::cmp::Ordering,
 };
 
@@ -212,7 +212,7 @@ pub(crate) fn calculate_stake_points_and_credits(
 
 #[cfg(test)]
 mod tests {
-    use {super::*, crate::stake_state::new_stake, solana_sdk::native_token};
+    use {super::*, crate::stake_state::new_stake, aeko_sdk::native_token};
 
     #[test]
     fn test_stake_state_calculate_points_with_typical_values() {
@@ -221,7 +221,7 @@ mod tests {
         // bootstrap means fully-vested stake at epoch 0 with
         //  10_000_000 SOL is a big but not unreasaonable stake
         let stake = new_stake(
-            native_token::sol_to_lamports(10_000_000f64),
+            native_token::aeko_to_lamports(10_000_000f64),
             &Pubkey::default(),
             &vote_state,
             std::u64::MAX,

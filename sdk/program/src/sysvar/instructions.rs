@@ -5,7 +5,7 @@
 //! introspection][in], which is required for correctly interoperating with
 //! native programs like the [secp256k1] and [ed25519] programs.
 //!
-//! [in]: https://docs.solanalabs.com/implemented-proposals/instruction_introspection
+//! [in]: https://docs.aeko.network/implemented-proposals/instruction_introspection
 //! [secp256k1]: crate::secp256k1_program
 //! [ed25519]: crate::ed25519_program
 //!
@@ -18,14 +18,14 @@
 //!
 //! See also the Solana [documentation on the instructions sysvar][sdoc].
 //!
-//! [sdoc]: https://docs.solanalabs.com/runtime/sysvars#instructions
+//! [sdoc]: https://docs.aeko.network/runtime/sysvars#instructions
 //!
 //! # Examples
 //!
 //! For a complete example of how the instructions sysvar is used see the
 //! documentation for [`secp256k1_instruction`] in the `solana-sdk` crate.
 //!
-//! [`secp256k1_instruction`]: https://docs.rs/solana-sdk/latest/solana_sdk/secp256k1_instruction/index.html
+//! [`secp256k1_instruction`]: https://docs.rs/solana-sdk/latest/aeko_sdk/secp256k1_instruction/index.html
 
 #![allow(clippy::arithmetic_side_effects)]
 

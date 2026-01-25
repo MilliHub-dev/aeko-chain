@@ -1,7 +1,7 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![feature(test)]
 
-use solana_core::validator::BlockProductionMethod;
+use aeko_core::validator::BlockProductionMethod;
 
 extern crate test;
 
@@ -10,8 +10,8 @@ use {
     log::*,
     rand::{thread_rng, Rng},
     rayon::prelude::*,
-    solana_client::connection_cache::ConnectionCache,
-    solana_core::{
+    aeko_client::connection_cache::ConnectionCache,
+    aeko_core::{
         banking_stage::{
             committer::Committer,
             consumer::Consumer,
@@ -23,23 +23,23 @@ use {
         },
         banking_trace::{BankingPacketBatch, BankingTracer},
     },
-    solana_entry::entry::{next_hash, Entry},
-    solana_gossip::cluster_info::{ClusterInfo, Node},
-    solana_ledger::{
+    aeko_entry::entry::{next_hash, Entry},
+    aeko_gossip::cluster_info::{ClusterInfo, Node},
+    aeko_ledger::{
         blockstore::Blockstore,
         blockstore_processor::process_entries_for_tests,
         genesis_utils::{create_genesis_config, GenesisConfigInfo},
         get_tmp_ledger_path_auto_delete,
     },
-    solana_perf::{
+    aeko_perf::{
         packet::{to_packet_batches, Packet},
         test_tx::test_tx,
     },
-    solana_poh::poh_recorder::{create_test_recorder, WorkingBankEntry},
-    solana_runtime::{
+    aeko_poh::poh_recorder::{create_test_recorder, WorkingBankEntry},
+    aeko_runtime::{
         bank::Bank, bank_forks::BankForks, prioritization_fee_cache::PrioritizationFeeCache,
     },
-    solana_sdk::{
+    aeko_sdk::{
         genesis_config::GenesisConfig,
         hash::Hash,
         message::Message,
@@ -49,8 +49,8 @@ use {
         timing::{duration_as_us, timestamp},
         transaction::{Transaction, VersionedTransaction},
     },
-    solana_streamer::socket::SocketAddrSpace,
-    solana_vote_program::{
+    aeko_streamer::socket::SocketAddrSpace,
+    aeko_vote_program::{
         vote_state::VoteStateUpdate, vote_transaction::new_vote_state_update_transaction,
     },
     std::{
@@ -193,7 +193,7 @@ enum TransactionType {
 }
 
 fn bench_banking(bencher: &mut Bencher, tx_type: TransactionType) {
-    solana_logger::setup();
+    aeko_logger::setup();
     let num_threads = BankingStage::num_threads() as usize;
     //   a multiple of packet chunk duplicates to avoid races
     const CHUNKS: usize = 8;

@@ -4,7 +4,7 @@ use {
     lru::LruCache,
     rand::{seq::SliceRandom, Rng, SeedableRng},
     rand_chacha::ChaChaRng,
-    solana_gossip::{
+    aeko_gossip::{
         cluster_info::ClusterInfo,
         contact_info::{LegacyContactInfo as ContactInfo, LegacyContactInfo, Protocol},
         crds::GossipRoute,
@@ -12,17 +12,17 @@ use {
         crds_value::{CrdsData, CrdsValue},
         weighted_shuffle::WeightedShuffle,
     },
-    solana_ledger::shred::ShredId,
-    solana_runtime::bank::Bank,
-    solana_sdk::{
-        clock::{Epoch, Slot},
+    aeko_ledger::shred::ShredId,
+    aeko_runtime::bank::Bank,
+    aeko_sdk::{
+        clock::Epoch, Slot,
         feature_set,
-        native_token::LAMPORTS_PER_SOL,
+        native_token::LAMPORTS_PER_AEKO,
         pubkey::Pubkey,
         signature::{Keypair, Signer},
         timing::timestamp,
     },
-    solana_streamer::socket::SocketAddrSpace,
+    aeko_streamer::socket::SocketAddrSpace,
     std::{
         any::TypeId,
         cmp::Reverse,
@@ -135,13 +135,13 @@ impl<T> ClusterNodes<T> {
         stake_stale += stake_dead;
         datapoint_info!(
             name,
-            ("epoch_stakes", epoch_stakes / LAMPORTS_PER_SOL, i64),
+            ("epoch_stakes", epoch_stakes / LAMPORTS_PER_AEKO, i64),
             ("num_nodes", self.nodes.len(), i64),
             ("num_nodes_dead", num_nodes_dead, i64),
             ("num_nodes_staked", num_nodes_staked, i64),
             ("num_nodes_stale", num_nodes_stale, i64),
-            ("stake_dead", stake_dead / LAMPORTS_PER_SOL, i64),
-            ("stake_stale", stake_stale / LAMPORTS_PER_SOL, i64),
+            ("stake_dead", stake_dead / LAMPORTS_PER_AEKO, i64),
+            ("stake_stale", stake_stale / LAMPORTS_PER_AEKO, i64),
         );
     }
 }
@@ -479,10 +479,10 @@ pub fn make_test_cluster<R: Rng>(
     HashMap<Pubkey, u64>, // stakes
     ClusterInfo,
 ) {
-    use solana_gossip::contact_info::ContactInfo;
+    use aeko_gossip::contact_info::ContactInfo;
     let (unstaked_numerator, unstaked_denominator) = unstaked_ratio.unwrap_or((1, 7));
     let mut nodes: Vec<_> = repeat_with(|| {
-        let pubkey = solana_sdk::pubkey::new_rand();
+        let pubkey = aeko_sdk::pubkey::new_rand();
         ContactInfo::new_localhost(&pubkey, /*wallclock:*/ timestamp())
     })
     .take(num_nodes)

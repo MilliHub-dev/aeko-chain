@@ -1,7 +1,7 @@
 use {
     crate::inline_spl_associated_token_account,
-    solana_accounts_db::{inline_spl_token, inline_spl_token_2022},
-    solana_sdk::pubkey::Pubkey,
+    aeko_accounts_db::{inline_spl_token, inline_spl_token_2022},
+    aeko_sdk::pubkey::Pubkey,
 };
 
 lazy_static! {

@@ -1,7 +1,7 @@
 use {
     serde::{Deserialize, Serialize},
-    solana_frozen_abi_macro::{AbiEnumVisitor, AbiExample},
-    solana_program::{
+    aeko_frozen_abi_macro::{AbiEnumVisitor, AbiExample},
+    aeko_program::{
         address_lookup_table::error::AddressLookupError,
         clock::Slot,
         instruction::InstructionError,

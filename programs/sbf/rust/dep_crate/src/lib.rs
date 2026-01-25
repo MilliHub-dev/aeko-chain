@@ -1,9 +1,9 @@
 //! Example Rust-based SBF program tests dependent crates
 
-extern crate solana_program;
+extern crate aeko_program;
 use {
     byteorder::{ByteOrder, LittleEndian},
-    solana_program::entrypoint::SUCCESS,
+    aeko_program::entrypoint::SUCCESS,
 };
 
 #[no_mangle]

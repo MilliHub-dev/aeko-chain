@@ -3,9 +3,9 @@ use {
         cluster_slots_service::cluster_slots::ClusterSlots,
         repair::{outstanding_requests::OutstandingRequests, serve_repair::ShredRepairType},
     },
-    solana_gossip::cluster_info::ClusterInfo,
-    solana_runtime::bank_forks::BankForks,
-    solana_sdk::{pubkey::Pubkey, quic::NotifyKeyUpdate},
+    aeko_gossip::cluster_info::ClusterInfo,
+    aeko_runtime::bank_forks::BankForks,
+    aeko_sdk::{pubkey::Pubkey, quic::NotifyKeyUpdate},
     std::{
         collections::HashSet,
         net::UdpSocket,

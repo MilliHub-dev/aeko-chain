@@ -1,6 +1,6 @@
 //! A type to hold data for the [`StakeHistory` sysvar][sv].
 //!
-//! [sv]: https://docs.solanalabs.com/runtime/sysvars#stakehistory
+//! [sv]: https://docs.aeko.network/runtime/sysvars#stakehistory
 //!
 //! The sysvar ID is declared in [`sysvar::stake_history`].
 //!

@@ -19,22 +19,22 @@ use {
     },
     crossbeam_channel::{unbounded, Receiver, RecvTimeoutError, Sender},
     rayon::{prelude::*, ThreadPool},
-    solana_gossip::cluster_info::ClusterInfo,
-    solana_ledger::{
+    aeko_gossip::cluster_info::ClusterInfo,
+    aeko_ledger::{
         blockstore::{Blockstore, BlockstoreInsertionMetrics, PossibleDuplicateShred},
         leader_schedule_cache::LeaderScheduleCache,
         shred::{self, Nonce, ReedSolomonCache, Shred},
     },
-    solana_measure::measure::Measure,
-    solana_metrics::inc_new_counter_error,
-    solana_perf::packet::{Packet, PacketBatch},
-    solana_rayon_threadlimit::get_thread_count,
-    solana_runtime::bank_forks::BankForks,
-    solana_sdk::{
+    aeko_measure::measure::Measure,
+    aeko_metrics::inc_new_counter_error,
+    aeko_perf::packet::{Packet, PacketBatch},
+    aeko_rayon_threadlimit::get_thread_count,
+    aeko_runtime::bank_forks::BankForks,
+    aeko_sdk::{
         clock::{Slot, DEFAULT_MS_PER_SLOT},
         feature_set,
     },
-    solana_turbine::cluster_nodes,
+    aeko_turbine::cluster_nodes,
     std::{
         cmp::Reverse,
         collections::{HashMap, HashSet},
@@ -240,7 +240,7 @@ fn verify_repair(
                 .register_response(
                     repair_meta.nonce,
                     shred,
-                    solana_sdk::timing::timestamp(),
+                    aeko_sdk::timing::timestamp(),
                     |_| (),
                 )
                 .is_some()
@@ -569,21 +569,21 @@ mod test {
     use {
         super::*,
         crate::repair::serve_repair::ShredRepairType,
-        solana_entry::entry::{create_ticks, Entry},
-        solana_gossip::contact_info::ContactInfo,
-        solana_ledger::{
+        aeko_entry::entry::{create_ticks, Entry},
+        aeko_gossip::contact_info::ContactInfo,
+        aeko_ledger::{
             blockstore::{make_many_slot_entries, Blockstore},
             genesis_utils::create_genesis_config,
             get_tmp_ledger_path_auto_delete,
             shred::{ProcessShredsStats, Shredder},
         },
-        solana_runtime::bank::Bank,
-        solana_sdk::{
+        aeko_runtime::bank::Bank,
+        aeko_sdk::{
             hash::Hash,
             signature::{Keypair, Signer},
             timing::timestamp,
         },
-        solana_streamer::socket::SocketAddrSpace,
+        aeko_streamer::socket::SocketAddrSpace,
     };
 
     fn local_entries_to_shred(
@@ -747,7 +747,7 @@ mod test {
 
     #[test]
     fn test_prune_shreds() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let shred = Shred::new_from_parity_shard(
             5,   // slot
             5,   // index

@@ -23,8 +23,8 @@
 use {
     crate::bank::Bank,
     log::*,
-    solana_program_runtime::timings::ExecuteTimings,
-    solana_sdk::{
+    aeko_program_runtime::timings::ExecuteTimings,
+    aeko_sdk::{
         hash::Hash,
         slot_history::Slot,
         transaction::{Result, SanitizedTransaction},
@@ -428,7 +428,7 @@ mod tests {
         },
         assert_matches::assert_matches,
         mockall::Sequence,
-        solana_sdk::system_transaction,
+        aeko_sdk::system_transaction,
         std::sync::Mutex,
     };
 
@@ -485,7 +485,7 @@ mod tests {
 
     #[test]
     fn test_scheduler_normal_termination() {
-        solana_logger::setup();
+        aeko_logger::setup();
 
         let bank = Arc::new(Bank::default_for_tests());
         let bank = BankWithScheduler::new(
@@ -503,7 +503,7 @@ mod tests {
 
     #[test]
     fn test_no_scheduler_termination() {
-        solana_logger::setup();
+        aeko_logger::setup();
 
         let bank = Arc::new(Bank::default_for_tests());
         let bank = BankWithScheduler::new_without_scheduler(bank);
@@ -515,7 +515,7 @@ mod tests {
 
     #[test]
     fn test_scheduler_termination_from_drop() {
-        solana_logger::setup();
+        aeko_logger::setup();
 
         let bank = Arc::new(Bank::default_for_tests());
         let bank = BankWithScheduler::new(
@@ -527,7 +527,7 @@ mod tests {
 
     #[test]
     fn test_scheduler_pause() {
-        solana_logger::setup();
+        aeko_logger::setup();
 
         let bank = Arc::new(crate::bank::tests::create_simple_test_bank(42));
         let bank = BankWithScheduler::new(
@@ -549,7 +549,7 @@ mod tests {
 
     #[test]
     fn test_schedule_executions() {
-        solana_logger::setup();
+        aeko_logger::setup();
 
         let GenesisConfigInfo {
             genesis_config,
@@ -558,7 +558,7 @@ mod tests {
         } = create_genesis_config(10_000);
         let tx0 = SanitizedTransaction::from_transaction_for_tests(system_transaction::transfer(
             &mint_keypair,
-            &solana_sdk::pubkey::new_rand(),
+            &aeko_sdk::pubkey::new_rand(),
             2,
             genesis_config.hash(),
         ));

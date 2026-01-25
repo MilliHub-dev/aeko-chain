@@ -4,19 +4,19 @@
 use {
     clap::{crate_description, crate_name, value_t, value_t_or_exit, App, Arg},
     log::*,
-    solana_clap_utils::{
+    aeko_clap_utils::{
         hidden_unless_forced,
         input_parsers::pubkeys_of,
         input_validators::{is_parsable, is_pubkey_or_keypair, is_url, is_valid_percentage},
     },
-    solana_cli_output::display::format_labeled_address,
-    solana_metrics::{datapoint_error, datapoint_info},
-    solana_notifier::{NotificationType, Notifier},
-    solana_rpc_client::rpc_client::RpcClient,
-    solana_rpc_client_api::{client_error, response::RpcVoteAccountStatus},
-    solana_sdk::{
+    aeko_cli_output::display::format_labeled_address,
+    aeko_metrics::{datapoint_error, datapoint_info},
+    aeko_notifier::{NotificationType, Notifier},
+    aeko_rpc_client::rpc_client::RpcClient,
+    aeko_rpc_client_api::{client_error, response::RpcVoteAccountStatus},
+    aeko_sdk::{
         hash::Hash,
-        native_token::{sol_to_lamports, Sol},
+        native_token::{aeko_to_lamports, Sol},
         pubkey::Pubkey,
     },
     std::{
@@ -44,7 +44,7 @@ struct Config {
 fn get_config() -> Config {
     let matches = App::new(crate_name!())
         .about(crate_description!())
-        .version(solana_version::version!())
+        .version(aeko_version::version!())
         .after_help("ADDITIONAL HELP:
         To receive a Slack, Discord, PagerDuty and/or Telegram notification on sanity failure,
         define environment variables before running `solana-watchtower`:
@@ -74,7 +74,7 @@ fn get_config() -> Config {
                 .takes_value(true)
                 .global(true)
                 .help("Configuration file to use");
-            if let Some(ref config_file) = *solana_cli_config::CONFIG_FILE {
+            if let Some(ref config_file) = *aeko_cli_config::CONFIG_FILE {
                 arg.default_value(config_file)
             } else {
                 arg
@@ -171,14 +171,14 @@ fn get_config() -> Config {
         .get_matches();
 
     let config = if let Some(config_file) = matches.value_of("config_file") {
-        solana_cli_config::Config::load(config_file).unwrap_or_default()
+        aeko_cli_config::Config::load(config_file).unwrap_or_default()
     } else {
-        solana_cli_config::Config::default()
+        aeko_cli_config::Config::default()
     };
 
     let interval = Duration::from_secs(value_t_or_exit!(matches, "interval", u64));
     let unhealthy_threshold = value_t_or_exit!(matches, "unhealthy_threshold", usize);
-    let minimum_validator_identity_balance = sol_to_lamports(value_t_or_exit!(
+    let minimum_validator_identity_balance = aeko_to_lamports(value_t_or_exit!(
         matches,
         "minimum_validator_identity_balance",
         f64
@@ -246,8 +246,8 @@ fn get_cluster_info(
 }
 
 fn main() -> Result<(), Box<dyn error::Error>> {
-    solana_logger::setup_with_default("solana=info");
-    solana_metrics::set_panic_hook("watchtower", /*version:*/ None);
+    aeko_logger::setup_with_default("solana=info");
+    aeko_metrics::set_panic_hook("watchtower", /*version:*/ None);
 
     let config = get_config();
 

@@ -74,7 +74,7 @@ pub(in crate::parse_token) fn parse_metadata_pointer_instruction(
 
 #[cfg(test)]
 mod test {
-    use {super::*, solana_sdk::pubkey::Pubkey, spl_token_2022::solana_program::message::Message};
+    use {super::*, aeko_sdk::pubkey::Pubkey, spl_token_2022::aeko_program::message::Message};
 
     #[test]
     fn test_parse_metadata_pointer_instruction() {

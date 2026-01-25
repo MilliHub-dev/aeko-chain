@@ -3,40 +3,40 @@ use {
     base64::{prelude::BASE64_STANDARD, Engine},
     crossbeam_channel::Receiver,
     log::*,
-    solana_accounts_db::{
+    aeko_accounts_db::{
         accounts_db::AccountsDbConfig, accounts_index::AccountsIndexConfig,
         hardened_unpack::MAX_GENESIS_ARCHIVE_UNPACKED_SIZE,
         utils::create_accounts_run_and_snapshot_dirs,
     },
-    solana_cli_output::CliAccount,
-    solana_client::rpc_request::MAX_MULTIPLE_ACCOUNTS,
-    solana_core::{
+    aeko_cli_output::CliAccount,
+    aeko_client::rpc_request::MAX_MULTIPLE_ACCOUNTS,
+    aeko_core::{
         admin_rpc_post_init::AdminRpcRequestMetadataPostInit,
         consensus::tower_storage::TowerStorage,
         validator::{Validator, ValidatorConfig, ValidatorStartProgress},
     },
-    solana_geyser_plugin_manager::{
+    aeko_geyser_plugin_manager::{
         geyser_plugin_manager::GeyserPluginManager, GeyserPluginManagerRequest,
     },
-    solana_gossip::{
+    aeko_gossip::{
         cluster_info::{ClusterInfo, Node},
         contact_info::Protocol,
         gossip_service::discover_cluster,
         socketaddr,
     },
-    solana_ledger::{
+    aeko_ledger::{
         blockstore::create_new_ledger, blockstore_options::LedgerColumnOptions,
         create_new_tmp_ledger,
     },
-    solana_net_utils::PortRange,
-    solana_program_runtime::{compute_budget::ComputeBudget, runtime_config::RuntimeConfig},
-    solana_rpc::{rpc::JsonRpcConfig, rpc_pubsub_service::PubSubConfig},
-    solana_rpc_client::{nonblocking, rpc_client::RpcClient},
-    solana_runtime::{
+    aeko_net_utils::PortRange,
+    aeko_program_runtime::{compute_budget::ComputeBudget, runtime_config::RuntimeConfig},
+    aeko_rpc::{rpc::JsonRpcConfig, rpc_pubsub_service::PubSubConfig},
+    aeko_rpc_client::{nonblocking, rpc_client::RpcClient},
+    aeko_runtime::{
         bank_forks::BankForks, genesis_utils::create_genesis_config_with_leader_ex,
         snapshot_config::SnapshotConfig,
     },
-    solana_sdk::{
+    aeko_sdk::{
         account::{Account, AccountSharedData},
         bpf_loader_upgradeable::UpgradeableLoaderState,
         clock::{Slot, DEFAULT_MS_PER_SLOT},
@@ -48,13 +48,13 @@ use {
         hash::Hash,
         instruction::{AccountMeta, Instruction},
         message::Message,
-        native_token::sol_to_lamports,
+        native_token::aeko_to_lamports,
         pubkey::Pubkey,
         rent::Rent,
         signature::{read_keypair_file, write_keypair_file, Keypair, Signer},
     },
-    solana_streamer::socket::SocketAddrSpace,
-    solana_tpu_client::tpu_client::{
+    aeko_streamer::socket::SocketAddrSpace,
+    aeko_tpu_client::tpu_client::{
         DEFAULT_TPU_CONNECTION_POOL_SIZE, DEFAULT_TPU_ENABLE_UDP, DEFAULT_TPU_USE_QUIC,
     },
     std::{
@@ -370,7 +370,7 @@ impl TestValidatorGenesis {
         accounts: &[AccountInfo],
     ) -> Result<&mut Self, String> {
         for account in accounts {
-            let Some(account_path) = solana_program_test::find_file(account.filename) else {
+            let Some(account_path) = aeko_program_test::find_file(account.filename) else {
                 return Err(format!("Unable to locate {}", account.filename));
             };
             let mut file = File::open(&account_path).unwrap();
@@ -449,8 +449,8 @@ impl TestValidatorGenesis {
             address,
             AccountSharedData::from(Account {
                 lamports,
-                data: solana_program_test::read_file(
-                    solana_program_test::find_file(filename).unwrap_or_else(|| {
+                data: aeko_program_test::read_file(
+                    aeko_program_test::find_file(filename).unwrap_or_else(|| {
                         panic!("Unable to locate {filename}");
                     }),
                 ),
@@ -489,12 +489,12 @@ impl TestValidatorGenesis {
     /// `program_name` will also used to locate the SBF shared object in the current or fixtures
     /// directory.
     pub fn add_program(&mut self, program_name: &str, program_id: Pubkey) -> &mut Self {
-        let program_path = solana_program_test::find_file(&format!("{program_name}.so"))
+        let program_path = aeko_program_test::find_file(&format!("{program_name}.so"))
             .unwrap_or_else(|| panic!("Unable to locate program {program_name}"));
 
         self.upgradeable_programs.push(UpgradeableProgramInfo {
             program_id,
-            loader: solana_sdk::bpf_loader_upgradeable::id(),
+            loader: aeko_sdk::bpf_loader_upgradeable::id(),
             upgrade_authority: Pubkey::default(),
             program_path,
         });
@@ -707,17 +707,17 @@ impl TestValidator {
         let validator_identity = Keypair::new();
         let validator_vote_account = Keypair::new();
         let validator_stake_account = Keypair::new();
-        let validator_identity_lamports = sol_to_lamports(500.);
-        let validator_stake_lamports = sol_to_lamports(1_000_000.);
-        let mint_lamports = sol_to_lamports(500_000_000.);
+        let validator_identity_lamports = aeko_to_lamports(500.);
+        let validator_stake_lamports = aeko_to_lamports(1_000_000.);
+        let mint_lamports = aeko_to_lamports(500_000_000.);
 
         let mut accounts = config.accounts.clone();
-        for (address, account) in solana_program_test::programs::spl_programs(&config.rent) {
+        for (address, account) in aeko_program_test::programs::spl_programs(&config.rent) {
             accounts.entry(address).or_insert(account);
         }
         #[allow(deprecated)]
         for program in &config.programs {
-            let data = solana_program_test::read_file(&program.program_path);
+            let data = aeko_program_test::read_file(&program.program_path);
             accounts.insert(
                 program.program_id,
                 AccountSharedData::from(Account {
@@ -730,7 +730,7 @@ impl TestValidator {
             );
         }
         for upgradeable_program in &config.upgradeable_programs {
-            let data = solana_program_test::read_file(&upgradeable_program.program_path);
+            let data = aeko_program_test::read_file(&upgradeable_program.program_path);
             let (programdata_address, _) = Pubkey::find_program_address(
                 &[upgradeable_program.program_id.as_ref()],
                 &upgradeable_program.loader,
@@ -778,7 +778,7 @@ impl TestValidator {
             validator_identity_lamports,
             config.fee_rate_governor.clone(),
             config.rent.clone(),
-            solana_sdk::genesis_config::ClusterType::Development,
+            aeko_sdk::genesis_config::ClusterType::Development,
             accounts.into_iter().collect(),
         );
         genesis_config.epoch_schedule = config

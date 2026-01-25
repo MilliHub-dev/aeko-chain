@@ -11,15 +11,15 @@ use {
     anyhow::Result,
     log::*,
     prost::Message,
-    solana_gossip::{
+    aeko_gossip::{
         cluster_info::{ClusterInfo, GOSSIP_SLEEP_MILLIS},
         restart_crds_values::RestartLastVotedForkSlots,
     },
-    solana_ledger::{ancestor_iterator::AncestorIterator, blockstore::Blockstore},
-    solana_program::{clock::Slot, hash::Hash},
-    solana_runtime::bank_forks::BankForks,
-    solana_sdk::timing::timestamp,
-    solana_vote_program::vote_state::VoteTransaction,
+    aeko_ledger::{ancestor_iterator::AncestorIterator, blockstore::Blockstore},
+    aeko_program::{clock::Slot, hash::Hash},
+    aeko_runtime::bank_forks::BankForks,
+    aeko_sdk::timing::timestamp,
+    aeko_vote_program::vote_state::VoteTransaction,
     std::{
         collections::{HashMap, HashSet},
         fs::{read, File},
@@ -134,7 +134,7 @@ pub(crate) fn aggregate_restart_last_voted_fork_slots(
             received: HashMap::new(),
         });
     }
-    let mut cursor = solana_gossip::crds::Cursor::default();
+    let mut cursor = aeko_gossip::crds::Cursor::default();
     let mut is_full_slots = HashSet::new();
     loop {
         if exit.load(Ordering::Relaxed) {
@@ -382,7 +382,7 @@ mod tests {
     use {
         crate::wen_restart::*,
         assert_matches::assert_matches,
-        solana_gossip::{
+        aeko_gossip::{
             cluster_info::ClusterInfo,
             contact_info::ContactInfo,
             crds::GossipRoute,
@@ -390,25 +390,25 @@ mod tests {
             legacy_contact_info::LegacyContactInfo,
             restart_crds_values::RestartLastVotedForkSlots,
         },
-        solana_ledger::{
+        aeko_ledger::{
             blockstore::{make_chaining_slot_entries, Blockstore},
             get_tmp_ledger_path_auto_delete,
         },
-        solana_program::{
+        aeko_program::{
             hash::Hash,
             vote::state::{Vote, VoteStateUpdate},
         },
-        solana_runtime::{
+        aeko_runtime::{
             bank::Bank,
             genesis_utils::{
                 create_genesis_config_with_vote_accounts, GenesisConfigInfo, ValidatorVoteKeypairs,
             },
         },
-        solana_sdk::{
+        aeko_sdk::{
             signature::{Keypair, Signer},
             timing::timestamp,
         },
-        solana_streamer::socket::SocketAddrSpace,
+        aeko_streamer::socket::SocketAddrSpace,
         std::{fs::remove_file, sync::Arc, thread::Builder},
         tempfile::TempDir,
     };
@@ -681,7 +681,7 @@ mod tests {
 
     #[test]
     fn test_wen_restart_initialize_failures() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let ledger_path = get_tmp_ledger_path_auto_delete!();
         let test_state = wen_restart_test_init(&ledger_path);
         let last_vote_bankhash = Hash::new_unique();
@@ -864,7 +864,7 @@ mod tests {
 
     #[test]
     fn test_wen_restart_aggregate_last_voted_fork_failures() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let ledger_path = get_tmp_ledger_path_auto_delete!();
         let test_state = wen_restart_test_init(&ledger_path);
         let last_vote_slot: Slot = test_state.last_voted_fork_slots[0];
@@ -996,7 +996,7 @@ mod tests {
 
     #[test]
     fn test_increment_and_write_wen_restart_records() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let my_dir = TempDir::new().unwrap();
         let mut wen_restart_proto_path = my_dir.path().to_path_buf();
         wen_restart_proto_path.push("wen_restart_status.proto");

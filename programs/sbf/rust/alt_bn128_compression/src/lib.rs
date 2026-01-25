@@ -1,7 +1,7 @@
 //! Alt_bn128 compression Syscalls tests
 
-extern crate solana_program;
-use solana_program::{
+extern crate aeko_program;
+use aeko_program::{
     alt_bn128::compression::prelude::{
         alt_bn128_g1_compress, alt_bn128_g1_decompress, alt_bn128_g2_compress,
         alt_bn128_g2_decompress,

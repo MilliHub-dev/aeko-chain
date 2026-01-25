@@ -2,7 +2,7 @@
 
 #![allow(clippy::arithmetic_side_effects)]
 
-extern crate solana_program;
+extern crate aeko_program;
 
 #[derive(Debug)]
 pub struct Data<'a> {

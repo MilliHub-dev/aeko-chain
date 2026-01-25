@@ -128,9 +128,9 @@ resolver = "2"
 
 [workspace.package]
 version = "2.0.0"
-authors = ["Solana Labs Maintainers <maintainers@solanalabs.com>"]
-repository = "https://github.com/solana-labs/solana"
-homepage = "https://solanalabs.com/"
+authors = ["AEKO Chain Maintainers <maintainers@aeko.chain>"]
+repository = "https://github.com/MilliHub-dev/aeko-chain"
+homepage = "https://chain.aeko.social/"
 license = "Apache-2.0"
 edition = "2021"
 
@@ -306,87 +306,87 @@ smallvec = "1.13.1"
 smpl_jwt = "0.7.1"
 socket2 = "0.5.6"
 soketto = "0.7"
-solana-account-decoder = { path = "account-decoder", version = "=2.0.0" }
-solana-accounts-db = { path = "accounts-db", version = "=2.0.0" }
-solana-address-lookup-table-program = { path = "programs/address-lookup-table", version = "=2.0.0" }
-solana-banks-client = { path = "banks-client", version = "=2.0.0" }
-solana-banks-interface = { path = "banks-interface", version = "=2.0.0" }
-solana-banks-server = { path = "banks-server", version = "=2.0.0" }
-solana-bench-tps = { path = "bench-tps", version = "=2.0.0" }
-solana-bloom = { path = "bloom", version = "=2.0.0" }
-solana-bpf-loader-program = { path = "programs/bpf_loader", version = "=2.0.0" }
-solana-bucket-map = { path = "bucket_map", version = "=2.0.0" }
-solana-cargo-registry = { path = "cargo-registry", version = "=2.0.0" }
-solana-clap-utils = { path = "clap-utils", version = "=2.0.0" }
-solana-clap-v3-utils = { path = "clap-v3-utils", version = "=2.0.0" }
-solana-cli = { path = "cli", version = "=2.0.0" }
-solana-cli-config = { path = "cli-config", version = "=2.0.0" }
-solana-cli-output = { path = "cli-output", version = "=2.0.0" }
-solana-client = { path = "client", version = "=2.0.0" }
-solana-compute-budget-program = { path = "programs/compute-budget", version = "=2.0.0" }
-solana-config-program = { path = "programs/config", version = "=2.0.0" }
-solana-connection-cache = { path = "connection-cache", version = "=2.0.0", default-features = false }
-solana-core = { path = "core", version = "=2.0.0" }
-solana-cost-model = { path = "cost-model", version = "=2.0.0" }
-solana-download-utils = { path = "download-utils", version = "=2.0.0" }
-solana-entry = { path = "entry", version = "=2.0.0" }
-solana-faucet = { path = "faucet", version = "=2.0.0" }
-solana-frozen-abi = { path = "frozen-abi", version = "=2.0.0" }
-solana-frozen-abi-macro = { path = "frozen-abi/macro", version = "=2.0.0" }
-solana-genesis = { path = "genesis", version = "=2.0.0" }
-solana-genesis-utils = { path = "genesis-utils", version = "=2.0.0" }
-solana-geyser-plugin-interface = { path = "geyser-plugin-interface", version = "=2.0.0" }
-solana-geyser-plugin-manager = { path = "geyser-plugin-manager", version = "=2.0.0" }
-solana-gossip = { path = "gossip", version = "=2.0.0" }
-solana-ledger = { path = "ledger", version = "=2.0.0" }
-solana-loader-v4-program = { path = "programs/loader-v4", version = "=2.0.0" }
-solana-local-cluster = { path = "local-cluster", version = "=2.0.0" }
-solana-logger = { path = "logger", version = "=2.0.0" }
-solana-measure = { path = "measure", version = "=2.0.0" }
-solana-merkle-tree = { path = "merkle-tree", version = "=2.0.0" }
-solana-metrics = { path = "metrics", version = "=2.0.0" }
-solana-net-utils = { path = "net-utils", version = "=2.0.0" }
+aeko-account-decoder = { path = "account-decoder", version = "=2.0.0" }
+aeko-accounts-db = { path = "accounts-db", version = "=2.0.0" }
+aeko-address-lookup-table-program = { path = "programs/address-lookup-table", version = "=2.0.0" }
+aeko-banks-client = { path = "banks-client", version = "=2.0.0" }
+aeko-banks-interface = { path = "banks-interface", version = "=2.0.0" }
+aeko-banks-server = { path = "banks-server", version = "=2.0.0" }
+aeko-bench-tps = { path = "bench-tps", version = "=2.0.0" }
+aeko-bloom = { path = "bloom", version = "=2.0.0" }
+aeko-bpf-loader-program = { path = "programs/bpf_loader", version = "=2.0.0" }
+aeko-bucket-map = { path = "bucket_map", version = "=2.0.0" }
+aeko-cargo-registry = { path = "cargo-registry", version = "=2.0.0" }
+aeko-clap-utils = { path = "clap-utils", version = "=2.0.0" }
+aeko-clap-v3-utils = { path = "clap-v3-utils", version = "=2.0.0" }
+aeko-cli = { path = "cli", version = "=2.0.0" }
+aeko-cli-config = { path = "cli-config", version = "=2.0.0" }
+aeko-cli-output = { path = "cli-output", version = "=2.0.0" }
+aeko-client = { path = "client", version = "=2.0.0" }
+aeko-compute-budget-program = { path = "programs/compute-budget", version = "=2.0.0" }
+aeko-config-program = { path = "programs/config", version = "=2.0.0" }
+aeko-connection-cache = { path = "connection-cache", version = "=2.0.0", default-features = false }
+aeko-core = { path = "core", version = "=2.0.0" }
+aeko-cost-model = { path = "cost-model", version = "=2.0.0" }
+aeko-download-utils = { path = "download-utils", version = "=2.0.0" }
+aeko-entry = { path = "entry", version = "=2.0.0" }
+aeko-faucet = { path = "faucet", version = "=2.0.0" }
+aeko-frozen-abi = { path = "frozen-abi", version = "=2.0.0" }
+aeko-frozen-abi-macro = { path = "frozen-abi/macro", version = "=2.0.0" }
+aeko-genesis = { path = "genesis", version = "=2.0.0" }
+aeko-genesis-utils = { path = "genesis-utils", version = "=2.0.0" }
+aeko-geyser-plugin-interface = { path = "geyser-plugin-interface", version = "=2.0.0" }
+aeko-geyser-plugin-manager = { path = "geyser-plugin-manager", version = "=2.0.0" }
+aeko-gossip = { path = "gossip", version = "=2.0.0" }
+aeko-ledger = { path = "ledger", version = "=2.0.0" }
+aeko-loader-v4-program = { path = "programs/loader-v4", version = "=2.0.0" }
+aeko-local-cluster = { path = "local-cluster", version = "=2.0.0" }
+aeko-logger = { path = "logger", version = "=2.0.0" }
+aeko-measure = { path = "measure", version = "=2.0.0" }
+aeko-merkle-tree = { path = "merkle-tree", version = "=2.0.0" }
+aeko-metrics = { path = "metrics", version = "=2.0.0" }
+aeko-net-utils = { path = "net-utils", version = "=2.0.0" }
 solana-nohash-hasher = "0.2.1"
-solana-notifier = { path = "notifier", version = "=2.0.0" }
-solana-perf = { path = "perf", version = "=2.0.0" }
-solana-poh = { path = "poh", version = "=2.0.0" }
-solana-program = { path = "sdk/program", version = "=2.0.0" }
-solana-program-runtime = { path = "program-runtime", version = "=2.0.0" }
-solana-program-test = { path = "program-test", version = "=2.0.0" }
-solana-pubsub-client = { path = "pubsub-client", version = "=2.0.0" }
-solana-quic-client = { path = "quic-client", version = "=2.0.0" }
-solana-rayon-threadlimit = { path = "rayon-threadlimit", version = "=2.0.0" }
-solana-remote-wallet = { path = "remote-wallet", version = "=2.0.0", default-features = false }
-solana-unified-scheduler-logic = { path = "unified-scheduler-logic", version = "=2.0.0" }
-solana-unified-scheduler-pool = { path = "unified-scheduler-pool", version = "=2.0.0" }
-solana-rpc = { path = "rpc", version = "=2.0.0" }
-solana-rpc-client = { path = "rpc-client", version = "=2.0.0", default-features = false }
-solana-rpc-client-api = { path = "rpc-client-api", version = "=2.0.0" }
-solana-rpc-client-nonce-utils = { path = "rpc-client-nonce-utils", version = "=2.0.0" }
-solana-runtime = { path = "runtime", version = "=2.0.0" }
-solana-runtime-transaction = { path = "runtime-transaction", version = "=2.0.0" }
-solana-sdk = { path = "sdk", version = "=2.0.0" }
-solana-sdk-macro = { path = "sdk/macro", version = "=2.0.0" }
-solana-send-transaction-service = { path = "send-transaction-service", version = "=2.0.0" }
-solana-stake-program = { path = "programs/stake", version = "=2.0.0" }
-solana-storage-bigtable = { path = "storage-bigtable", version = "=2.0.0" }
-solana-storage-proto = { path = "storage-proto", version = "=2.0.0" }
-solana-streamer = { path = "streamer", version = "=2.0.0" }
-solana-svm = { path = "svm", version = "=2.0.0" }
-solana-system-program = { path = "programs/system", version = "=2.0.0" }
-solana-test-validator = { path = "test-validator", version = "=2.0.0" }
-solana-thin-client = { path = "thin-client", version = "=2.0.0" }
-solana-tpu-client = { path = "tpu-client", version = "=2.0.0", default-features = false }
-solana-transaction-status = { path = "transaction-status", version = "=2.0.0" }
-solana-turbine = { path = "turbine", version = "=2.0.0" }
-solana-udp-client = { path = "udp-client", version = "=2.0.0" }
-solana-version = { path = "version", version = "=2.0.0" }
-solana-vote = { path = "vote", version = "=2.0.0" }
-solana-vote-program = { path = "programs/vote", version = "=2.0.0" }
-solana-wen-restart = { path = "wen-restart", version = "=2.0.0" }
-solana-zk-keygen = { path = "zk-keygen", version = "=2.0.0" }
-solana-zk-token-proof-program = { path = "programs/zk-token-proof", version = "=2.0.0" }
-solana-zk-token-sdk = { path = "zk-token-sdk", version = "=2.0.0" }
+aeko-notifier = { path = "notifier", version = "=2.0.0" }
+aeko-perf = { path = "perf", version = "=2.0.0" }
+aeko-poh = { path = "poh", version = "=2.0.0" }
+aeko-program = { path = "sdk/program", version = "=2.0.0" }
+aeko-program-runtime = { path = "program-runtime", version = "=2.0.0" }
+aeko-program-test = { path = "program-test", version = "=2.0.0" }
+aeko-pubsub-client = { path = "pubsub-client", version = "=2.0.0" }
+aeko-quic-client = { path = "quic-client", version = "=2.0.0" }
+aeko-rayon-threadlimit = { path = "rayon-threadlimit", version = "=2.0.0" }
+aeko-remote-wallet = { path = "remote-wallet", version = "=2.0.0", default-features = false }
+aeko-unified-scheduler-logic = { path = "unified-scheduler-logic", version = "=2.0.0" }
+aeko-unified-scheduler-pool = { path = "unified-scheduler-pool", version = "=2.0.0" }
+aeko-rpc = { path = "rpc", version = "=2.0.0" }
+aeko-rpc-client = { path = "rpc-client", version = "=2.0.0", default-features = false }
+aeko-rpc-client-api = { path = "rpc-client-api", version = "=2.0.0" }
+aeko-rpc-client-nonce-utils = { path = "rpc-client-nonce-utils", version = "=2.0.0" }
+aeko-runtime = { path = "runtime", version = "=2.0.0" }
+aeko-runtime-transaction = { path = "runtime-transaction", version = "=2.0.0" }
+aeko-sdk = { path = "sdk", version = "=2.0.0" }
+aeko-sdk-macro = { path = "sdk/macro", version = "=2.0.0" }
+aeko-send-transaction-service = { path = "send-transaction-service", version = "=2.0.0" }
+aeko-stake-program = { path = "programs/stake", version = "=2.0.0" }
+aeko-storage-bigtable = { path = "storage-bigtable", version = "=2.0.0" }
+aeko-storage-proto = { path = "storage-proto", version = "=2.0.0" }
+aeko-streamer = { path = "streamer", version = "=2.0.0" }
+aeko-svm = { path = "svm", version = "=2.0.0" }
+aeko-system-program = { path = "programs/system", version = "=2.0.0" }
+aeko-test-validator = { path = "test-validator", version = "=2.0.0" }
+aeko-thin-client = { path = "thin-client", version = "=2.0.0" }
+aeko-tpu-client = { path = "tpu-client", version = "=2.0.0", default-features = false }
+aeko-transaction-status = { path = "transaction-status", version = "=2.0.0" }
+aeko-turbine = { path = "turbine", version = "=2.0.0" }
+aeko-udp-client = { path = "udp-client", version = "=2.0.0" }
+aeko-version = { path = "version", version = "=2.0.0" }
+aeko-vote = { path = "vote", version = "=2.0.0" }
+aeko-vote-program = { path = "programs/vote", version = "=2.0.0" }
+aeko-wen-restart = { path = "wen-restart", version = "=2.0.0" }
+aeko-zk-keygen = { path = "zk-keygen", version = "=2.0.0" }
+aeko-zk-token-proof-program = { path = "programs/zk-token-proof", version = "=2.0.0" }
+aeko-zk-token-sdk = { path = "zk-token-sdk", version = "=2.0.0" }
 solana_rbpf = "=0.8.0"
 spl-associated-token-account = "=2.3.1"
 spl-instruction-padding = "0.1"
@@ -412,7 +412,7 @@ tempfile = "3.10.1"
 test-case = "3.3.1"
 thiserror = "1.0.57"
 tiny-bip39 = "0.8.2"
-# Update solana-tokio patch below when updating this version
+# Update aeko-tokio patch below when updating this version
 tokio = "1.29.1"
 tokio-serde = "0.8"
 tokio-stream = "0.1.14"
@@ -449,28 +449,28 @@ crossbeam-epoch = { git = "https://github.com/solana-labs/crossbeam", rev = "fd2
 #
 # They, in turn, depend on a number of crates that we also include directly
 # using `path` specifications.  For example, `spl-token` depends on
-# `solana-program`.  And we explicitly specify `solana-program` above as a local
+# `aeko-program`.  And we explicitly specify `aeko-program` above as a local
 # path dependency:
 #
-#     solana-program = { path = "../../sdk/program", version = "=1.16.0" }
+#     aeko-program = { path = "../../sdk/program", version = "=1.16.0" }
 #
-# Unfortunately, Cargo will try to resolve the `spl-token` `solana-program`
+# Unfortunately, Cargo will try to resolve the `spl-token` `aeko-program`
 # dependency only using what is available on crates.io.  Crates.io normally
 # contains a previous version of these crates, and we end up with two versions
-# of `solana-program` and `solana-zk-token-sdk` and all of their dependencies in
+# of `aeko-program` and `aeko-zk-token-sdk` and all of their dependencies in
 # our build tree.
 #
-# If you are developing downstream using non-crates-io solana-program (local or
+# If you are developing downstream using non-crates-io aeko-program (local or
 # forked repo, or from github rev, eg), duplicate the following patch statements
 # in your Cargo.toml. If you still hit duplicate-type errors with the patch
-# statements in place, run `cargo update -p solana-program` and/or `cargo update
-# -p solana-zk-token-sdk` to remove extraneous versions from your Cargo.lock
+# statements in place, run `cargo update -p aeko-program` and/or `cargo update
+# -p aeko-zk-token-sdk` to remove extraneous versions from your Cargo.lock
 # file.
 #
 # There is a similar override in `programs/sbf/Cargo.toml`.  Please keep both
 # comments and the overrides in sync.
-solana-program = { path = "sdk/program" }
-solana-zk-token-sdk = { path = "zk-token-sdk" }
+aeko-program = { path = "sdk/program" }
+aeko-zk-token-sdk = { path = "zk-token-sdk" }
 #
 # === zeroize versioning issues ===
 #
@@ -534,11 +534,11 @@ rev = "6105d7a5591aefa646a95d12b5e8d3f55a9214ef"
 #
 # Comparison with `b500cdc2a920cd5bff9e2dd974d7b97349d61464`:
 #
-# https://github.com/dalek-cryptography/curve25519-dalek/compare/3.2.1...solana-labs:curve25519-dalek:b500cdc2a920cd5bff9e2dd974d7b97349d61464
+# https://github.com/dalek-cryptography/curve25519-dalek/compare/3.2.1...aeko-labs:curve25519-dalek:b500cdc2a920cd5bff9e2dd974d7b97349d61464
 #
 # Or, using the branch name instead of the hash:
 #
-# https://github.com/dalek-cryptography/curve25519-dalek/compare/3.2.1...solana-labs:curve25519-dalek:3.2.1-unpin-zeroize
+# https://github.com/dalek-cryptography/curve25519-dalek/compare/3.2.1...aeko-labs:curve25519-dalek:3.2.1-unpin-zeroize
 #
 [patch.crates-io.curve25519-dalek]
 git = "https://github.com/solana-labs/curve25519-dalek.git"
@@ -561,3 +561,4 @@ rev = "b500cdc2a920cd5bff9e2dd974d7b97349d61464"
 [patch.crates-io.tokio]
 git = "https://github.com/solana-labs/solana-tokio.git"
 rev = "7cf47705faacf7bf0e43e4131a5377b3291fce21"
+

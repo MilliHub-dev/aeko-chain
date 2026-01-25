@@ -45,21 +45,21 @@ use {
     itertools::Itertools,
     log::*,
     rand::{thread_rng, Rng},
-    solana_bench_tps::{bench::generate_and_fund_keypairs, bench_tps_client::BenchTpsClient},
-    solana_client::{
+    aeko_bench_tps::{bench::generate_and_fund_keypairs, bench_tps_client::BenchTpsClient},
+    aeko_client::{
         connection_cache::ConnectionCache, tpu_client::TpuClientWrapper,
         tpu_connection::TpuConnection,
     },
-    solana_core::repair::serve_repair::{RepairProtocol, RepairRequestHeader, ServeRepair},
-    solana_dos::cli::*,
-    solana_gossip::{
+    aeko_core::repair::serve_repair::{RepairProtocol, RepairRequestHeader, ServeRepair},
+    aeko_dos::cli::*,
+    aeko_gossip::{
         contact_info::Protocol,
         gossip_service::{discover, get_client},
         legacy_contact_info::LegacyContactInfo as ContactInfo,
     },
-    solana_measure::measure::Measure,
-    solana_rpc_client::rpc_client::RpcClient,
-    solana_sdk::{
+    aeko_measure::measure::Measure,
+    aeko_rpc_client::rpc_client::RpcClient,
+    aeko_sdk::{
         hash::Hash,
         instruction::CompiledInstruction,
         message::Message,
@@ -71,8 +71,8 @@ use {
         timing::timestamp,
         transaction::Transaction,
     },
-    solana_streamer::socket::SocketAddrSpace,
-    solana_tpu_client::tpu_client::DEFAULT_TPU_CONNECTION_POOL_SIZE,
+    aeko_streamer::socket::SocketAddrSpace,
+    aeko_tpu_client::tpu_client::DEFAULT_TPU_CONNECTION_POOL_SIZE,
     std::{
         net::{SocketAddr, UdpSocket},
         process::exit,
@@ -434,7 +434,7 @@ fn get_target(
     let mut target = None;
     if nodes.is_empty() {
         // skip-gossip case
-        target = Some((solana_sdk::pubkey::new_rand(), entrypoint_addr));
+        target = Some((aeko_sdk::pubkey::new_rand(), entrypoint_addr));
     } else {
         info!("************ NODE ***********");
         for node in nodes {
@@ -760,7 +760,7 @@ fn run_dos<T: 'static + BenchTpsClient + Send + Sync>(
 }
 
 fn main() {
-    solana_logger::setup_with_default("solana=info");
+    aeko_logger::setup_with_default("solana=info");
     let cmd_params = build_cli_parameters();
 
     let (nodes, client) = if !cmd_params.skip_gossip {
@@ -818,17 +818,17 @@ fn main() {
 pub mod test {
     use {
         super::*,
-        solana_client::tpu_client::QuicTpuClient,
-        solana_core::validator::ValidatorConfig,
-        solana_faucet::faucet::run_local_faucet,
-        solana_gossip::contact_info::LegacyContactInfo,
-        solana_local_cluster::{
+        aeko_client::tpu_client::QuicTpuClient,
+        aeko_core::validator::ValidatorConfig,
+        aeko_faucet::faucet::run_local_faucet,
+        aeko_gossip::contact_info::LegacyContactInfo,
+        aeko_local_cluster::{
             cluster::Cluster,
             local_cluster::{ClusterConfig, LocalCluster},
             validator_configs::make_identical_validator_configs,
         },
-        solana_rpc::rpc::JsonRpcConfig,
-        solana_sdk::timing::timestamp,
+        aeko_rpc::rpc::JsonRpcConfig,
+        aeko_sdk::timing::timestamp,
     };
 
     const TEST_SEND_BATCH_SIZE: usize = 1;
@@ -842,7 +842,7 @@ pub mod test {
     #[test]
     fn test_dos() {
         let nodes = [ContactInfo::new_localhost(
-            &solana_sdk::pubkey::new_rand(),
+            &aeko_sdk::pubkey::new_rand(),
             timestamp(),
         )];
         let entrypoint_addr = nodes[0].gossip().unwrap();
@@ -925,7 +925,7 @@ pub mod test {
 
     #[test]
     fn test_dos_random() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let num_nodes = 1;
         let cluster =
             LocalCluster::new_with_equal_stakes(num_nodes, 100, 3, SocketAddrSpace::Unspecified);
@@ -962,7 +962,7 @@ pub mod test {
 
     #[test]
     fn test_dos_without_blockhash() {
-        solana_logger::setup();
+        aeko_logger::setup();
         let num_nodes = 1;
         let cluster =
             LocalCluster::new_with_equal_stakes(num_nodes, 100, 3, SocketAddrSpace::Unspecified);
@@ -1063,7 +1063,7 @@ pub mod test {
     }
 
     fn run_dos_with_blockhash_and_payer(tpu_use_quic: bool) {
-        solana_logger::setup();
+        aeko_logger::setup();
 
         // 1. Create faucet thread
         let faucet_keypair = Keypair::new();

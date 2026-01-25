@@ -1,7 +1,7 @@
 [package]
-name = "solana-measure"
+name = "aeko-measure"
 description = "Blockchain, Rebuilt for Scale"
-documentation = "https://docs.rs/solana-measure"
+documentation = "https://docs.rs/aeko-measure"
 readme = "../README.md"
 version = { workspace = true }
 authors = { workspace = true }
@@ -12,7 +12,8 @@ edition = { workspace = true }
 
 [dependencies]
 log = { workspace = true }
-solana-sdk = { workspace = true }
+aeko-sdk = { workspace = true }
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+

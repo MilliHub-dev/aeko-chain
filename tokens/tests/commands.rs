@@ -1,14 +1,14 @@
 use {
-    solana_rpc_client::rpc_client::RpcClient,
-    solana_sdk::signature::{Keypair, Signer},
-    solana_streamer::socket::SocketAddrSpace,
-    solana_test_validator::TestValidator,
-    solana_tokens::commands::test_process_distribute_tokens_with_client,
+    aeko_rpc_client::rpc_client::RpcClient,
+    aeko_sdk::signature::{Keypair, Signer},
+    aeko_streamer::socket::SocketAddrSpace,
+    aeko_test_validator::TestValidator,
+    aeko_tokens::commands::test_process_distribute_tokens_with_client,
 };
 
 #[test]
 fn test_process_distribute_with_rpc_client() {
-    solana_logger::setup();
+    aeko_logger::setup();
 
     let mint_keypair = Keypair::new();
     let test_validator =

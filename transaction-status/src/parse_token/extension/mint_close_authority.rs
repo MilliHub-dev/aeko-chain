@@ -1,6 +1,6 @@
 use {
     super::*,
-    spl_token_2022::solana_program::{program_option::COption, pubkey::Pubkey},
+    spl_token_2022::aeko_program::{program_option::COption, pubkey::Pubkey},
 };
 
 pub(in crate::parse_token) fn parse_initialize_mint_close_authority_instruction(
@@ -23,8 +23,8 @@ mod test {
     use {
         super::*,
         serde_json::Value,
-        solana_sdk::pubkey::Pubkey,
-        spl_token_2022::{instruction::*, solana_program::message::Message},
+        aeko_sdk::pubkey::Pubkey,
+        spl_token_2022::{instruction::*, aeko_program::message::Message},
     };
 
     #[test]

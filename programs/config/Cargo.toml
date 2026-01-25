@@ -1,7 +1,7 @@
 [package]
-name = "solana-config-program"
-description = "Solana Config program"
-documentation = "https://docs.rs/solana-config-program"
+name = "aeko-config-program"
+description = "AEKO Config program"
+documentation = "https://docs.rs/aeko-config-program"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -14,15 +14,15 @@ bincode = { workspace = true }
 chrono = { workspace = true, features = ["default", "serde"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }
-solana-program-runtime = { workspace = true }
-solana-sdk = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
 
 [dev-dependencies]
-solana-logger = { workspace = true }
+aeko-logger = { workspace = true }
 
 [lib]
 crate-type = ["lib"]
-name = "solana_config_program"
+name = "aeko_config_program"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
