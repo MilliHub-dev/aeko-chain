@@ -4,7 +4,7 @@ use {
         cli::CliError,
     },
     clap::ArgMatches,
-    aeko_clap_utils::{input_parsers::lamports_of_sol, offline::SIGN_ONLY_ARG},
+    aeko_clap_utils::{input_parsers::lamports_of_aeko, offline::SIGN_ONLY_ARG},
     aeko_rpc_client::rpc_client::RpcClient,
     aeko_sdk::{
         commitment_config::CommitmentConfig, hash::Hash, message::Message,

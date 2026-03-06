@@ -38,7 +38,7 @@ use {
     },
     aeko_transaction_status::TransactionStatus,
     spl_associated_token_account::get_associated_token_address,
-    aeko_program::program_error::ProgramError,
+    aeko_sdk::program_error::ProgramError,
     std::{
         cmp::{self},
         io,
@@ -341,7 +341,17 @@ fn build_messages(
                 .iter()
                 .map(|x| {
                     let wallet_address = x.recipient;
-                    get_associated_token_address(&wallet_address, &spl_token_args.mint)
+                    Pubkey::new_from_array(
+                        get_associated_token_address(
+                            &spl_token::solana_program::pubkey::Pubkey::new_from_array(
+                                wallet_address.to_bytes(),
+                            ),
+                            &spl_token::solana_program::pubkey::Pubkey::new_from_array(
+                                spl_token_args.mint.to_bytes(),
+                            ),
+                        )
+                        .to_bytes(),
+                    )
                 })
                 .collect::<Vec<_>>();
             let mut maybe_accounts = client.get_multiple_accounts(&associated_token_addresses)?;

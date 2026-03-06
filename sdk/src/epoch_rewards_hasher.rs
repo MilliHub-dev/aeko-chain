@@ -1,6 +1,6 @@
 use {
     siphasher::sip::SipHasher13,
-    AEKO_sdk::{hash::Hash, pubkey::Pubkey},
+    aeko_sdk::{hash::Hash, pubkey::Pubkey},
     std::hash::Hasher,
 };
 

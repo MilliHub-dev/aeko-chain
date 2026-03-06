@@ -184,6 +184,11 @@ pub fn lamports_of_aeko(matches: &ArgMatches<'_>, name: &str) -> Option<u64> {
     value_of(matches, name).map(aeko_to_lamports)
 }
 
+#[deprecated(since = "2.0.0", note = "Please use lamports_of_aeko instead")]
+pub fn lamports_of_sol(matches: &ArgMatches<'_>, name: &str) -> Option<u64> {
+    lamports_of_aeko(matches, name)
+}
+
 pub fn cluster_type_of(matches: &ArgMatches<'_>, name: &str) -> Option<ClusterType> {
     value_of(matches, name)
 }

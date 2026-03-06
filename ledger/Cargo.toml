@@ -35,21 +35,37 @@ aeko-svm = { workspace = true }
 aeko-transaction-status = { workspace = true }
 aeko-vote = { workspace = true }
 aeko-vote-program = { workspace = true }
+assert_matches = { workspace = true }
+bincode = { workspace = true }
+bitflags = { workspace = true }
+byteorder = { workspace = true }
 chrono = { workspace = true }
+chrono-humanize = { workspace = true }
 crossbeam-channel = { workspace = true }
+dashmap = { workspace = true }
+fs_extra = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
 libc = { workspace = true }
 log = { workspace = true }
+lru = { workspace = true }
 num_cpus = { workspace = true }
+num_enum = { workspace = true }
 prost = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 rayon = { workspace = true }
+reed-solomon-erasure = { workspace = true }
+rocksdb = { workspace = true }
+scopeguard = { workspace = true }
 serde = { workspace = true }
 serde_bytes = { workspace = true }
 sha2 = { workspace = true }
+spl-token = { workspace = true, features = ["no-entrypoint"] }
+spl-token-2022 = { workspace = true, features = ["no-entrypoint"] }
+static_assertions = { workspace = true }
+strum = { workspace = true, features = ["derive"] }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }

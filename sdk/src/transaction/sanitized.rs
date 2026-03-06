@@ -15,10 +15,10 @@ use {
         sanitize::Sanitize,
         signature::Signature,
         simple_vote_transaction_checker::is_simple_vote_transaction,
-        AEKO_sdk::feature_set,
+        aeko_sdk::feature_set,
         transaction::{Result, Transaction, TransactionError, VersionedTransaction},
     },
-    AEKO_program::message::SanitizedVersionedMessage,
+    aeko_program::message::SanitizedVersionedMessage,
 };
 
 /// Maximum number of accounts that a transaction may lock.
@@ -293,7 +293,7 @@ mod tests {
     use {
         super::*,
         crate::signer::{keypair::Keypair, Signer},
-        AEKO_program::vote::{self, state::Vote},
+        aeko_program::vote::{self, state::Vote},
     };
 
     #[test]

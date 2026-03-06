@@ -8,7 +8,7 @@
 )]
 
 use {
-    aeko_rbpf::memory_region::MemoryState,
+    solana_rbpf::memory_region::MemoryState,
     aeko_sdk::{feature_set::bpf_account_data_direct_mapping, signer::keypair::Keypair},
     std::slice,
 };
@@ -23,7 +23,7 @@ use {
     },
     aeko_measure::measure::Measure,
     aeko_program_runtime::{compute_budget::ComputeBudget, invoke_context::InvokeContext},
-    aeko_rbpf::{
+    solana_rbpf::{
         ebpf::MM_INPUT_START, elf::Executable, memory_region::MemoryRegion,
         verifier::RequisiteVerifier, vm::ContextObject,
     },

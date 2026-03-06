@@ -927,7 +927,7 @@ mod tests {
     use {
         super::*,
         aeko_program_runtime::{
-            loaded_programs::BlockRelation, aeko_rbpf::program::BuiltinProgram,
+            loaded_programs::BlockRelation, solana_rbpf::program::BuiltinProgram,
         },
         aeko_sdk::{
             account::WritableAccount,

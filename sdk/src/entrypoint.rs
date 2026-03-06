@@ -4,12 +4,12 @@
 //!
 //! [`bpf_loader`]: crate::bpf_loader
 
-pub use AEKO_program::entrypoint::*;
+pub use aeko_program::entrypoint::*;
 
 #[macro_export]
 #[deprecated(
     since = "1.4.3",
-    note = "use AEKO_program::entrypoint::entrypoint instead"
+    note = "use aeko_program::entrypoint::entrypoint instead"
 )]
 macro_rules! entrypoint {
     ($process_instruction:ident) => {

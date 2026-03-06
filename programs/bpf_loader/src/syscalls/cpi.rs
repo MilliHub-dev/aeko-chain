@@ -3,7 +3,7 @@ use {
     crate::serialization::account_data_region_memory_state,
     scopeguard::defer,
     aeko_program_runtime::invoke_context::SerializedAccountMetadata,
-    aeko_rbpf::{
+    solana_rbpf::{
         ebpf,
         memory_region::{MemoryRegion, MemoryState},
     },
@@ -1583,7 +1583,7 @@ mod tests {
         aeko_program_runtime::{
             invoke_context::SerializedAccountMetadata, with_mock_invoke_context,
         },
-        aeko_rbpf::{
+        solana_rbpf::{
             ebpf::MM_INPUT_START, memory_region::MemoryRegion, program::SBPFVersion, vm::Config,
         },
         aeko_sdk::{

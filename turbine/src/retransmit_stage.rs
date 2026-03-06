@@ -5,7 +5,7 @@ use {
     crate::cluster_nodes::{self, ClusterNodes, ClusterNodesCache, Error, MAX_NUM_TURBINE_HOPS},
     bytes::Bytes,
     crossbeam_channel::{Receiver, RecvTimeoutError},
-    itertools::{izip, Itertools},
+    itertools::Itertools,
     lru::LruCache,
     rand::Rng,
     rayon::{prelude::*, ThreadPool, ThreadPoolBuilder},
@@ -27,7 +27,6 @@ use {
     },
     std::{
         collections::HashMap,
-        iter::repeat,
         net::{SocketAddr, UdpSocket},
         ops::AddAssign,
         sync::{
@@ -231,7 +230,11 @@ fn retransmit(
             };
             let cluster_nodes =
                 cluster_nodes_cache.get(slot, &root_bank, &working_bank, cluster_info);
-            Some(izip!(shreds, repeat(slot_leader), repeat(cluster_nodes)))
+            Some(
+                shreds
+                    .into_iter()
+                    .map(move |(key, shred)| ((key, shred), slot_leader, cluster_nodes.clone())),
+            )
         })
         .flatten()
         .collect();

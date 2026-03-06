@@ -2707,9 +2707,9 @@ fn main() {
                             / warped_bank.epoch_duration_in_years(base_bank.epoch());
                         println!(
                             "Capitalization: {} => {} (+{} {}%; annualized {}%)",
-                            Sol(base_bank.capitalization()),
-                            Sol(warped_bank.capitalization()),
-                            Sol(warped_bank.capitalization() - base_bank.capitalization()),
+                            Aeko(base_bank.capitalization()),
+                            Aeko(warped_bank.capitalization()),
+                            Aeko(warped_bank.capitalization() - base_bank.capitalization()),
                             interest_per_epoch,
                             interest_per_year,
                         );
@@ -2780,9 +2780,9 @@ fn main() {
                                     "{:<45}({}): {} => {} (+{} {:>4.9}%) {:?}",
                                     format!("{pubkey}"), // format! is needed to pad/justify correctly.
                                     base_account.owner(),
-                                    Sol(base_account.lamports()),
-                                    Sol(warped_account.lamports()),
-                                    Sol(delta),
+                                    Aeko(base_account.lamports()),
+                                    Aeko(warped_account.lamports()),
+                                    Aeko(delta),
                                     ((warped_account.lamports() as f64)
                                         / (base_account.lamports() as f64)
                                         * 100_f64)
@@ -2918,7 +2918,7 @@ fn main() {
                             }
                         }
                         if overall_delta > 0 {
-                            println!("Sum of lamports changes: {}", Sol(overall_delta));
+                            println!("Sum of lamports changes: {}", Aeko(overall_delta));
                         }
                     } else {
                         if arg_matches.is_present("recalculate_capitalization") {

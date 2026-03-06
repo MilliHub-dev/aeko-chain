@@ -11,13 +11,18 @@ use {
     },
     spl_token_2022::{
         extension::StateWithExtensions,
+        solana_program::pubkey::Pubkey as SplTokenPubkey,
         state::{Account as TokenAccount, Mint},
     },
     std::collections::HashMap,
 };
 
+fn spl_to_aeko_pubkey(pubkey: SplTokenPubkey) -> Pubkey {
+    Pubkey::new_from_array(pubkey.to_bytes())
+}
+
 fn get_mint_decimals(bank: &Bank, mint: &Pubkey) -> Option<u8> {
-    if mint == &spl_token::native_mint::id() {
+    if *mint == spl_to_aeko_pubkey(spl_token::native_mint::id()) {
         Some(spl_token::native_mint::DECIMALS)
     } else {
         let mint_account = bank.get_account(mint)?;
@@ -100,7 +105,7 @@ fn collect_token_balance_from_account(
     }
 
     let token_account = StateWithExtensions::<TokenAccount>::unpack(account.data()).ok()?;
-    let mint = token_account.base.mint;
+    let mint = spl_to_aeko_pubkey(token_account.base.mint);
 
     let decimals = mint_decimals.get(&mint).cloned().or_else(|| {
         let decimals = get_mint_decimals(bank, &mint)?;
@@ -109,7 +114,7 @@ fn collect_token_balance_from_account(
     })?;
 
     Some(TokenBalanceData {
-        mint: token_account.base.mint.to_string(),
+        mint: mint.to_string(),
         owner: token_account.base.owner.to_string(),
         ui_token_amount: token_amount_to_ui_amount(token_account.base.amount, decimals),
         program_id: account.owner().to_string(),
