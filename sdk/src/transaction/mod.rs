@@ -42,21 +42,21 @@
 //! transaction nonce]_ mechanism instead of a recent blockhash to ensure unique
 //! transactions.
 //!
-//! [`RpcClient::get_latest_blockhash`]: https://docs.rs/AEKO-rpc-client/latest/AEKO_rpc_client/rpc_client/struct.RpcClient.html#method.get_latest_blockhash
+//! [`RpcClient::get_latest_blockhash`]: https://docs.rs/AEKO-rpc-client/latest/aeko_rpc_client/rpc_client/struct.RpcClient.html#method.get_latest_blockhash
 //! [durable transaction nonce]: https://docs.aeko.network/implemented-proposals/durable-tx-nonces
 //!
 //! # Examples
 //!
-//! This example uses the [`AEKO_rpc_client`] and [`anyhow`] crates.
+//! This example uses the [`aeko_rpc_client`] and [`anyhow`] crates.
 //!
-//! [`AEKO_rpc_client`]: https://docs.rs/AEKO-rpc-client
+//! [`aeko_rpc_client`]: https://docs.rs/AEKO-rpc-client
 //! [`anyhow`]: https://docs.rs/anyhow
 //!
 //! ```
-//! # use aeko_sdk::example_mocks::AEKO_rpc_client;
+//! # use aeko_sdk::example_mocks::aeko_rpc_client;
 //! use anyhow::Result;
 //! use borsh::{BorshSerialize, BorshDeserialize};
-//! use AEKO_rpc_client::rpc_client::RpcClient;
+//! use aeko_rpc_client::rpc_client::RpcClient;
 //! use aeko_sdk::{
 //!      instruction::Instruction,
 //!      message::Message,
@@ -206,16 +206,16 @@ impl Transaction {
     ///
     /// # Examples
     ///
-    /// This example uses the [`AEKO_rpc_client`] and [`anyhow`] crates.
+    /// This example uses the [`aeko_rpc_client`] and [`anyhow`] crates.
     ///
-    /// [`AEKO_rpc_client`]: https://docs.rs/AEKO-rpc-client
+    /// [`aeko_rpc_client`]: https://docs.rs/AEKO-rpc-client
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```
-    /// # use aeko_sdk::example_mocks::AEKO_rpc_client;
+    /// # use aeko_sdk::example_mocks::aeko_rpc_client;
     /// use anyhow::Result;
     /// use borsh::{BorshSerialize, BorshDeserialize};
-    /// use AEKO_rpc_client::rpc_client::RpcClient;
+    /// use aeko_rpc_client::rpc_client::RpcClient;
     /// use aeko_sdk::{
     ///      instruction::Instruction,
     ///      message::Message,
@@ -285,16 +285,16 @@ impl Transaction {
     ///
     /// # Examples
     ///
-    /// This example uses the [`AEKO_rpc_client`] and [`anyhow`] crates.
+    /// This example uses the [`aeko_rpc_client`] and [`anyhow`] crates.
     ///
-    /// [`AEKO_rpc_client`]: https://docs.rs/AEKO-rpc-client
+    /// [`aeko_rpc_client`]: https://docs.rs/AEKO-rpc-client
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```
-    /// # use aeko_sdk::example_mocks::AEKO_rpc_client;
+    /// # use aeko_sdk::example_mocks::aeko_rpc_client;
     /// use anyhow::Result;
     /// use borsh::{BorshSerialize, BorshDeserialize};
-    /// use AEKO_rpc_client::rpc_client::RpcClient;
+    /// use aeko_rpc_client::rpc_client::RpcClient;
     /// use aeko_sdk::{
     ///      instruction::Instruction,
     ///      message::Message,
@@ -364,16 +364,16 @@ impl Transaction {
     ///
     /// # Examples
     ///
-    /// This example uses the [`AEKO_rpc_client`] and [`anyhow`] crates.
+    /// This example uses the [`aeko_rpc_client`] and [`anyhow`] crates.
     ///
-    /// [`AEKO_rpc_client`]: https://docs.rs/AEKO-rpc-client
+    /// [`aeko_rpc_client`]: https://docs.rs/AEKO-rpc-client
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```
-    /// # use aeko_sdk::example_mocks::AEKO_rpc_client;
+    /// # use aeko_sdk::example_mocks::aeko_rpc_client;
     /// use anyhow::Result;
     /// use borsh::{BorshSerialize, BorshDeserialize};
-    /// use AEKO_rpc_client::rpc_client::RpcClient;
+    /// use aeko_rpc_client::rpc_client::RpcClient;
     /// use aeko_sdk::{
     ///      instruction::Instruction,
     ///      message::Message,
@@ -440,16 +440,16 @@ impl Transaction {
     ///
     /// # Examples
     ///
-    /// This example uses the [`AEKO_rpc_client`] and [`anyhow`] crates.
+    /// This example uses the [`aeko_rpc_client`] and [`anyhow`] crates.
     ///
-    /// [`AEKO_rpc_client`]: https://docs.rs/AEKO-rpc-client
+    /// [`aeko_rpc_client`]: https://docs.rs/AEKO-rpc-client
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```
-    /// # use aeko_sdk::example_mocks::AEKO_rpc_client;
+    /// # use aeko_sdk::example_mocks::aeko_rpc_client;
     /// use anyhow::Result;
     /// use borsh::{BorshSerialize, BorshDeserialize};
-    /// use AEKO_rpc_client::rpc_client::RpcClient;
+    /// use aeko_rpc_client::rpc_client::RpcClient;
     /// use aeko_sdk::{
     ///      instruction::Instruction,
     ///      message::Message,
@@ -648,16 +648,16 @@ impl Transaction {
     ///
     /// # Examples
     ///
-    /// This example uses the [`AEKO_rpc_client`] and [`anyhow`] crates.
+    /// This example uses the [`aeko_rpc_client`] and [`anyhow`] crates.
     ///
-    /// [`AEKO_rpc_client`]: https://docs.rs/AEKO-rpc-client
+    /// [`aeko_rpc_client`]: https://docs.rs/AEKO-rpc-client
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```
-    /// # use aeko_sdk::example_mocks::AEKO_rpc_client;
+    /// # use aeko_sdk::example_mocks::aeko_rpc_client;
     /// use anyhow::Result;
     /// use borsh::{BorshSerialize, BorshDeserialize};
-    /// use AEKO_rpc_client::rpc_client::RpcClient;
+    /// use aeko_rpc_client::rpc_client::RpcClient;
     /// use aeko_sdk::{
     ///      instruction::Instruction,
     ///      message::Message,
@@ -786,16 +786,16 @@ impl Transaction {
     ///
     /// # Examples
     ///
-    /// This example uses the [`AEKO_rpc_client`] and [`anyhow`] crates.
+    /// This example uses the [`aeko_rpc_client`] and [`anyhow`] crates.
     ///
-    /// [`AEKO_rpc_client`]: https://docs.rs/AEKO-rpc-client
+    /// [`aeko_rpc_client`]: https://docs.rs/AEKO-rpc-client
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```
-    /// # use aeko_sdk::example_mocks::AEKO_rpc_client;
+    /// # use aeko_sdk::example_mocks::aeko_rpc_client;
     /// use anyhow::Result;
     /// use borsh::{BorshSerialize, BorshDeserialize};
-    /// use AEKO_rpc_client::rpc_client::RpcClient;
+    /// use aeko_rpc_client::rpc_client::RpcClient;
     /// use aeko_sdk::{
     ///      instruction::Instruction,
     ///      message::Message,
