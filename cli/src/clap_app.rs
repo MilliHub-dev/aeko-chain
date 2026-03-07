@@ -155,7 +155,7 @@ pub fn get_clap_app<'ab, 'v>(name: &str, about: &'ab str, version: &'v str) -> A
         .wallet_subcommands()
         .subcommand(
             SubCommand::with_name("config")
-                .about("Solana command-line tool configuration settings")
+                .about("Aeko command-line tool configuration settings")
                 .aliases(&["get", "set"])
                 .setting(AppSettings::SubcommandRequiredElseHelp)
                 .subcommand(

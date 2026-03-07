@@ -427,11 +427,11 @@ impl Rocks {
                 DB::open_cf_descriptors(&db_options, path, cf_descriptors)?
             }
             AccessType::Secondary => {
-                let secondary_path = path.join("solana-secondary");
+                let secondary_path = path.join("aeko-secondary");
                 info!(
                     "Opening Rocks with secondary (read only) access at: {secondary_path:?}. \
                     This secondary access could temporarily degrade other accesses, such as \
-                    by solana-validator"
+                    by aeko-validator"
                 );
                 DB::open_cf_descriptors_as_secondary(
                     &db_options,

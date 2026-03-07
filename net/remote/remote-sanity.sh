@@ -63,9 +63,9 @@ case $deployMethod in
 local|tar|skip)
   PATH="$HOME"/.cargo/bin:"$PATH"
   export USE_INSTALL=1
-  solana_cli=solana
-  solana_gossip=solana-gossip
-  solana_install=solana-install
+  solana_cli=aeko
+  solana_gossip=aeko-gossip
+  solana_install=aeko-install
   ;;
 *)
   echo "Unknown deployment method: $deployMethod"
@@ -122,7 +122,7 @@ else
 fi
 
 if $installCheck && [[ -r update_manifest_keypair.json ]]; then
-  echo "--- $sanityTargetIp: solana-install test"
+  echo "--- $sanityTargetIp: aeko-install test"
 
   (
     set -x

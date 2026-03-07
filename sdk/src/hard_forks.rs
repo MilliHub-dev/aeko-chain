@@ -5,7 +5,7 @@
 
 use {
     byteorder::{ByteOrder, LittleEndian},
-    AEKO_sdk::clock::Slot,
+    aeko_sdk::clock::Slot,
 };
 
 #[derive(Default, Clone, Debug, Deserialize, Serialize, AbiExample, PartialEq, Eq)]

@@ -45,7 +45,6 @@ members = [
     "ledger",
     "ledger-tool",
     "local-cluster",
-    "log-analyzer",
     "logger",
     "measure",
     "memory-management",
@@ -283,6 +282,7 @@ rayon = "1.9.0"
 reed-solomon-erasure = "6.0.0"
 regex = "1.10.3"
 reqwest = { version = "0.11.23", default-features = false }
+rocksdb = "0.21.0"
 rolling-file = "0.2.0"
 rpassword = "7.3"
 rustc_version = "0.4"
@@ -346,7 +346,7 @@ aeko-measure = { path = "measure", version = "=2.0.0" }
 aeko-merkle-tree = { path = "merkle-tree", version = "=2.0.0" }
 aeko-metrics = { path = "metrics", version = "=2.0.0" }
 aeko-net-utils = { path = "net-utils", version = "=2.0.0" }
-solana-nohash-hasher = "0.2.1"
+aeko-nohash-hasher = { package = "solana-nohash-hasher", version = "0.2.1" }
 aeko-notifier = { path = "notifier", version = "=2.0.0" }
 aeko-perf = { path = "perf", version = "=2.0.0" }
 aeko-poh = { path = "poh", version = "=2.0.0" }
@@ -561,4 +561,3 @@ rev = "b500cdc2a920cd5bff9e2dd974d7b97349d61464"
 [patch.crates-io.tokio]
 git = "https://github.com/solana-labs/solana-tokio.git"
 rev = "7cf47705faacf7bf0e43e4131a5377b3291fce21"
-

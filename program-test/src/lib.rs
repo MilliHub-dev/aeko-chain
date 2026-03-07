@@ -69,7 +69,7 @@ pub use {
     aeko_banks_client::{BanksClient, BanksClientError},
     aeko_banks_interface::BanksTransactionResultWithMetadata,
     aeko_program_runtime::invoke_context::InvokeContext,
-    aeko_rbpf::{
+    solana_rbpf::{
         error::EbpfError,
         vm::{get_runtime_environment_key, EbpfVm},
     },
@@ -485,7 +485,7 @@ impl Default for ProgramTest {
     ///
     fn default() -> Self {
         aeko_logger::setup_with_default(
-            "aeko_rbpf::vm=debug,\
+            "solana_rbpf::vm=debug,\
              aeko_runtime::message_processor=debug,\
              aeko_runtime::system_instruction_processor=trace,\
              aeko_program_test=info",

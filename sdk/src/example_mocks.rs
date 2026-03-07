@@ -13,10 +13,10 @@
 #![doc(hidden)]
 #![cfg(feature = "full")]
 
-pub mod AEKO_rpc_client {
+pub mod aeko_rpc_client {
     pub mod rpc_client {
         use {
-            super::super::AEKO_rpc_client_api::client_error::Result as ClientResult,
+            super::super::aeko_rpc_client_api::client_error::Result as ClientResult,
             crate::{hash::Hash, signature::Signature, transaction::Transaction},
         };
 
@@ -39,7 +39,7 @@ pub mod AEKO_rpc_client {
     }
 }
 
-pub mod AEKO_rpc_client_api {
+pub mod aeko_rpc_client_api {
     pub mod client_error {
         use thiserror::Error;
 

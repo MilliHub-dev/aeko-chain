@@ -188,7 +188,7 @@ impl Program {
     }
 
     fn program_id_to_crate_name(id: Pubkey) -> String {
-        format!("sol-{}", hex::encode(id.to_bytes()))
+        format!("aeko-{}", hex::encode(id.to_bytes()))
     }
 }
 

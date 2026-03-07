@@ -1,7 +1,7 @@
 use {
     super::VersionedTransaction,
     crate::{sanitize::SanitizeError, signature::Signature},
-    AEKO_program::message::SanitizedVersionedMessage,
+    aeko_program::message::SanitizedVersionedMessage,
 };
 
 /// Wraps a sanitized `VersionedTransaction` to provide a safe API
@@ -43,7 +43,7 @@ impl SanitizedVersionedTransaction {
 mod tests {
     use {
         super::*,
-        AEKO_program::{
+        aeko_program::{
             hash::Hash,
             message::{v0, VersionedMessage},
             pubkey::Pubkey,

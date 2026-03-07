@@ -14,7 +14,7 @@ use {
         ser::{Serialize, Serializer},
         Deserialize,
     },
-    AEKO_program::{account_info::AccountInfo, debug_account_data::*, sysvar::Sysvar},
+    aeko_program::{account_info::AccountInfo, debug_account_data::*, sysvar::Sysvar},
     std::{
         cell::{Ref, RefCell},
         fmt,
@@ -674,7 +674,7 @@ pub fn create_account_with_fields<S: Sysvar>(
     (lamports, rent_epoch): InheritableAccountFields,
 ) -> Account {
     let data_len = S::size_of().max(bincode::serialized_size(sysvar).unwrap() as usize);
-    let mut account = Account::new(lamports, data_len, &AEKO_program::sysvar::id());
+    let mut account = Account::new(lamports, data_len, &aeko_program::sysvar::id());
     to_account::<S, Account>(sysvar, &mut account).unwrap();
     account.rent_epoch = rent_epoch;
     account
@@ -722,7 +722,7 @@ pub fn to_account<S: Sysvar, T: WritableAccount>(sysvar: &S, account: &mut T) ->
 
 /// Return the information required to construct an `AccountInfo`.  Used by the
 /// `AccountInfo` conversion implementations.
-impl AEKO_program::account_info::Account for Account {
+impl aeko_program::account_info::Account for Account {
     fn get(&mut self) -> (&mut u64, &mut [u8], &Pubkey, bool, Epoch) {
         (
             &mut self.lamports,

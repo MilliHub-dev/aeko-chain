@@ -17,14 +17,15 @@ use {
         hash::Hash,
         instruction::{AccountMeta, Instruction},
         message::Message,
-        native_token::Sol,
+        native_token::Aeko,
+        program_error::ProgramError,
         pubkey::Pubkey,
         signature::{Keypair, Signer},
         system_instruction,
+        syscalls::{MAX_CPI_ACCOUNT_INFOS, MAX_CPI_INSTRUCTION_DATA_LEN},
         timing::{duration_as_ms, duration_as_s, duration_as_us, timestamp},
         transaction::Transaction,
     },
-    spl_instruction_padding::instruction::wrap_instruction,
     std::{
         collections::{HashSet, VecDeque},
         process::exit,
@@ -51,6 +52,60 @@ const MAX_RANDOM_COMPUTE_UNIT_PRICE: u64 = 50;
 const COMPUTE_UNIT_PRICE_MULTIPLIER: u64 = 1_000;
 const TRANSFER_TRANSACTION_COMPUTE_UNIT: u32 = 600; // 1 transfer is plus 3 compute_budget ixs
 const PADDED_TRANSFER_COMPUTE_UNIT: u32 = 3_000; // padding program execution requires consumes this amount
+
+fn wrap_instruction(
+    program_id: Pubkey,
+    instruction: Instruction,
+    padding_accounts: Vec<AccountMeta>,
+    padding_data: u32,
+) -> std::result::Result<Instruction, ProgramError> {
+    let total_data_size = std::mem::size_of::<u8>()
+        .saturating_add(std::mem::size_of::<u32>())
+        .saturating_add(std::mem::size_of::<u32>())
+        .saturating_add(instruction.data.len())
+        .saturating_add(padding_data as usize);
+    if total_data_size > MAX_CPI_INSTRUCTION_DATA_LEN as usize {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    let mut data = Vec::with_capacity(total_data_size);
+    data.push(1u8); // spl_instruction_padding::instruction::PadInstruction::Wrap
+    let num_inner_accounts: u32 = instruction
+        .accounts
+        .len()
+        .try_into()
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+    data.extend(num_inner_accounts.to_le_bytes().iter());
+    let instruction_data_len: u32 = instruction
+        .data
+        .len()
+        .try_into()
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+    data.extend(instruction_data_len.to_le_bytes().iter());
+    data.extend(instruction.data);
+    for i in 0..padding_data {
+        data.push(i.checked_rem(u8::MAX as u32).unwrap() as u8);
+    }
+
+    let num_accounts = instruction
+        .accounts
+        .len()
+        .saturating_add(1)
+        .saturating_add(padding_accounts.len());
+    if num_accounts > MAX_CPI_ACCOUNT_INFOS {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    let mut accounts = Vec::with_capacity(num_accounts);
+    accounts.extend(instruction.accounts);
+    accounts.push(AccountMeta::new_readonly(instruction.program_id, false));
+    accounts.extend(padding_accounts);
+
+    Ok(Instruction {
+        program_id,
+        accounts,
+        data,
+    })
+}
 
 /// calculate maximum possible prioritization fee, if `use-randomized-compute-unit-price` is
 /// enabled, round to nearest lamports.
@@ -1140,8 +1195,8 @@ pub fn fund_keypairs<T: 'static + BenchTpsClient + Send + Sync + ?Sized>(
         if funding_key_balance < total + rent {
             error!(
                 "funder has {}, needed {}",
-                Sol(funding_key_balance),
-                Sol(total)
+                Aeko(funding_key_balance),
+                Aeko(total)
             );
             let latest_blockhash = get_latest_blockhash(client.as_ref());
             if client

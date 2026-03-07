@@ -39,6 +39,32 @@ use {
 
 pub const MAX_RPC_CALL_RETRIES: usize = 5;
 
+fn aeko_to_spl_pubkey(pubkey: &Pubkey) -> spl_token::solana_program::pubkey::Pubkey {
+    spl_token::solana_program::pubkey::Pubkey::new_from_array(pubkey.to_bytes())
+}
+
+fn spl_to_aeko_pubkey(pubkey: spl_token::solana_program::pubkey::Pubkey) -> Pubkey {
+    Pubkey::new_from_array(pubkey.to_bytes())
+}
+
+fn spl_to_aeko_instruction(
+    ix: spl_token::solana_program::instruction::Instruction,
+) -> Instruction {
+    Instruction {
+        program_id: spl_to_aeko_pubkey(ix.program_id),
+        accounts: ix
+            .accounts
+            .into_iter()
+            .map(|account_meta| AccountMeta {
+                pubkey: spl_to_aeko_pubkey(account_meta.pubkey),
+                is_signer: account_meta.is_signer,
+                is_writable: account_meta.is_writable,
+            })
+            .collect(),
+        data: ix.data,
+    }
+}
+
 pub fn poll_get_latest_blockhash(client: &RpcClient) -> Option<Hash> {
     let mut num_retries = MAX_RPC_CALL_RETRIES;
     loop {
@@ -163,10 +189,11 @@ fn make_create_message(
                 instructions.push(
                     spl_token::instruction::initialize_account(
                         &spl_token::id(),
-                        &to_pubkey,
-                        &mint_address,
-                        &base_keypair.pubkey(),
+                        &aeko_to_spl_pubkey(&to_pubkey),
+                        &aeko_to_spl_pubkey(&mint_address),
+                        &aeko_to_spl_pubkey(&base_keypair.pubkey()),
                     )
+                    .map(spl_to_aeko_instruction)
                     .unwrap(),
                 );
             }
@@ -206,11 +233,12 @@ fn make_close_message(
                 Some(
                     spl_token::instruction::close_account(
                         &spl_token::id(),
-                        &address,
-                        &keypair.pubkey(),
-                        &base_keypair.pubkey(),
+                        &aeko_to_spl_pubkey(&address),
+                        &aeko_to_spl_pubkey(&keypair.pubkey()),
+                        &aeko_to_spl_pubkey(&base_keypair.pubkey()),
                         &[],
                     )
+                    .map(spl_to_aeko_instruction)
                     .unwrap(),
                 )
             } else {

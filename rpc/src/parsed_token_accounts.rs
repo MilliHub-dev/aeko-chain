@@ -15,6 +15,10 @@ use {
     std::{collections::HashMap, sync::Arc},
 };
 
+fn spl_to_aeko_pubkey(pubkey: spl_token_2022::solana_program::pubkey::Pubkey) -> Pubkey {
+    Pubkey::new_from_array(pubkey.to_bytes())
+}
+
 pub fn get_parsed_token_account(
     bank: &Bank,
     pubkey: &Pubkey,
@@ -82,8 +86,11 @@ where
 /// Analyze a mint Pubkey that may be the native_mint and get the mint-account owner (token
 /// program_id) and decimals
 pub fn get_mint_owner_and_decimals(bank: &Bank, mint: &Pubkey) -> Result<(Pubkey, u8)> {
-    if mint == &spl_token::native_mint::id() {
-        Ok((spl_token::id(), spl_token::native_mint::DECIMALS))
+    if *mint == spl_to_aeko_pubkey(spl_token::native_mint::id()) {
+        Ok((
+            spl_to_aeko_pubkey(spl_token::id()),
+            spl_token::native_mint::DECIMALS,
+        ))
     } else {
         let mint_account = bank.get_account(mint).ok_or_else(|| {
             Error::invalid_params("Invalid param: could not find mint".to_string())

@@ -34,7 +34,7 @@ use {
         tpu_client::{TpuClient, TpuClientConfig},
     },
     aeko_program_runtime::{compute_budget::ComputeBudget, invoke_context::InvokeContext},
-    aeko_rbpf::{elf::Executable, verifier::RequisiteVerifier},
+    solana_rbpf::{elf::Executable, verifier::RequisiteVerifier},
     aeko_remote_wallet::remote_wallet::RemoteWalletManager,
     aeko_rpc_client::rpc_client::RpcClient,
     aeko_rpc_client_api::{
@@ -234,7 +234,7 @@ impl ProgramSubCommands for App<'_, '_> {
                                 .takes_value(false)
                                 .help(
                                     "Use the designated program id even if the account already \
-                                     holds a large balance of SOL",
+                                     holds a large balance of AEKO",
                                 ),
                         ),
                 )
@@ -437,7 +437,7 @@ impl ProgramSubCommands for App<'_, '_> {
                             Arg::with_name("lamports")
                                 .long("lamports")
                                 .takes_value(false)
-                                .help("Display balance in lamports instead of SOL"),
+                                .help("Display balance in lamports instead of AEKO"),
                         ),
                 )
                 .subcommand(
@@ -500,7 +500,7 @@ impl ProgramSubCommands for App<'_, '_> {
                             Arg::with_name("lamports")
                                 .long("lamports")
                                 .takes_value(false)
-                                .help("Display balance in lamports instead of SOL"),
+                                .help("Display balance in lamports instead of AEKO"),
                         )
                         .arg(
                             Arg::with_name("bypass_warning")
@@ -540,7 +540,7 @@ impl ProgramSubCommands for App<'_, '_> {
         .subcommand(
             SubCommand::with_name("deploy")
                 .about(
-                    "Deploy has been removed. Use `solana program deploy` instead to deploy \
+                    "Deploy has been removed. Use `aeko program deploy` instead to deploy \
                      upgradeable programs",
                 )
                 .setting(AppSettings::Hidden),
@@ -2558,7 +2558,7 @@ fn complete_partial_program_init(
         {
             return Err(format!(
                 "Buffer account has a balance: {:?}; it may already be in use",
-                Sol(account.lamports)
+                Aeko(account.lamports)
             )
             .into());
         }
@@ -2732,12 +2732,12 @@ fn report_ephemeral_mnemonic(words: usize, mnemonic: bip39::Mnemonic) {
     let phrase: &str = mnemonic.phrase();
     let divider = String::from_utf8(vec![b'='; phrase.len()]).unwrap();
     eprintln!("{divider}\nRecover the intermediate account's ephemeral keypair file with");
-    eprintln!("`solana-keygen recover` and the following {words}-word seed phrase:");
+    eprintln!("`aeko-keygen recover` and the following {words}-word seed phrase:");
     eprintln!("{divider}\n{phrase}\n{divider}");
     eprintln!("To resume a deploy, pass the recovered keypair as the");
-    eprintln!("[BUFFER_SIGNER] to `solana program deploy` or `solana program write-buffer'.");
+    eprintln!("[BUFFER_SIGNER] to `aeko program deploy` or `aeko program write-buffer'.");
     eprintln!("Or to recover the account's lamports, pass it as the");
-    eprintln!("[BUFFER_ACCOUNT_ADDRESS] argument to `solana program close`.\n{divider}");
+    eprintln!("[BUFFER_ACCOUNT_ADDRESS] argument to `aeko program close`.\n{divider}");
 }
 
 #[cfg(test)]

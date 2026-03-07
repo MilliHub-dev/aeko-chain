@@ -10,7 +10,7 @@ use {
             BlockRelation, ForkGraph, LoadedProgram, ProgramCache, ProgramRuntimeEnvironments,
         },
         runtime_config::RuntimeConfig,
-        aeko_rbpf::{
+        solana_rbpf::{
             program::{BuiltinFunction, BuiltinProgram, FunctionRegistry},
             vm::Config,
         },

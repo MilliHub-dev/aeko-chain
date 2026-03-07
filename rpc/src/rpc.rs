@@ -95,7 +95,7 @@ use {
     aeko_vote_program::vote_state::{VoteState, MAX_LOCKOUT_HISTORY},
     spl_token_2022::{
         extension::StateWithExtensions,
-        aeko_program::program_pack::Pack,
+        solana_program::program_pack::Pack,
         state::{Account as TokenAccount, Mint},
     },
     std::{

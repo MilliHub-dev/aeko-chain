@@ -6,7 +6,7 @@
 pub const LAMPORTS_PER_AEKO: u64 = 1_000_000_000;
 
 #[deprecated(since = "2.0.0", note = "Please use LAMPORTS_PER_AEKO instead")]
-pub const LAMPORTS_PER_AEKO: u64 = LAMPORTS_PER_AEKO;
+pub const LAMPORTS_PER_SOL: u64 = LAMPORTS_PER_AEKO;
 
 /// Approximately convert fractional native tokens (lamports) into native tokens (AEKO)
 pub fn lamports_to_aeko(lamports: u64) -> f64 {
@@ -14,17 +14,17 @@ pub fn lamports_to_aeko(lamports: u64) -> f64 {
 }
 
 #[deprecated(since = "2.0.0", note = "Please use lamports_to_aeko instead")]
-pub fn lamports_to_aeko(lamports: u64) -> f64 {
+pub fn lamports_to_sol(lamports: u64) -> f64 {
     lamports_to_aeko(lamports)
 }
 
 /// Approximately convert native tokens (AEKO) into fractional native tokens (lamports)
-pub fn aeko_to_lamports(sol: f64) -> u64 {
-    (sol * LAMPORTS_PER_AEKO as f64) as u64
+pub fn aeko_to_lamports(aeko: f64) -> u64 {
+    (aeko * LAMPORTS_PER_AEKO as f64) as u64
 }
 
 #[deprecated(since = "2.0.0", note = "Please use aeko_to_lamports instead")]
-pub fn aeko_to_lamports(sol: f64) -> u64 {
+pub fn sol_to_lamports(sol: f64) -> u64 {
     aeko_to_lamports(sol)
 }
 

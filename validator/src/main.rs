@@ -917,7 +917,7 @@ pub fn main() {
         let logfile = matches
             .value_of("logfile")
             .map(|s| s.into())
-            .unwrap_or_else(|| format!("solana-validator-{}.log", identity_keypair.pubkey()));
+            .unwrap_or_else(|| format!("aeko-validator-{}.log", identity_keypair.pubkey()));
 
         if logfile == "-" {
             None
@@ -1381,7 +1381,7 @@ pub fn main() {
                 SocketAddr::new(rpc_bind_address, rpc_port + 1),
                 // If additional ports are added, +2 needs to be skipped to avoid a conflict with
                 // the websocket port (which is +2) in web3.js This odd port shifting is tracked at
-                // https://github.com/aeko-chain/solana/issues/12250
+                // https://github.com/aeko-chain/aeko/issues/12250
             )
         }),
         pubsub_config: PubSubConfig {

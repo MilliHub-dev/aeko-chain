@@ -6,22 +6,63 @@ use {
     console::style,
     aeko_account_decoder::parse_token::{real_number_string, real_number_string_trimmed},
     aeko_rpc_client::rpc_client::RpcClient,
-    aeko_sdk::{instruction::Instruction, message::Message, native_token::lamports_to_aeko},
+    aeko_sdk::{
+        instruction::{AccountMeta, Instruction},
+        message::Message,
+        native_token::lamports_to_aeko,
+        program_error::ProgramError,
+        pubkey::Pubkey,
+    },
     spl_associated_token_account::{
         get_associated_token_address, instruction::create_associated_token_account,
     },
     spl_token::{
-        aeko_program::program_pack::Pack,
+        solana_program::{
+            instruction::Instruction as SplInstruction,
+            program_error::ProgramError as SplProgramError,
+            program_pack::Pack,
+            pubkey::Pubkey as SplPubkey,
+        },
         state::{Account as SplTokenAccount, Mint},
     },
 };
+
+fn aeko_to_spl_pubkey(pubkey: &Pubkey) -> SplPubkey {
+    SplPubkey::new_from_array(pubkey.to_bytes())
+}
+
+fn spl_to_aeko_pubkey(pubkey: &SplPubkey) -> Pubkey {
+    Pubkey::new_from_array(pubkey.to_bytes())
+}
+
+fn spl_to_aeko_instruction(instruction: SplInstruction) -> Instruction {
+    Instruction {
+        program_id: spl_to_aeko_pubkey(&instruction.program_id),
+        accounts: instruction
+            .accounts
+            .into_iter()
+            .map(|meta| AccountMeta {
+                pubkey: spl_to_aeko_pubkey(&meta.pubkey),
+                is_signer: meta.is_signer,
+                is_writable: meta.is_writable,
+            })
+            .collect(),
+        data: instruction.data,
+    }
+}
+
+fn map_spl_program_error(_: SplProgramError) -> Error {
+    Error::ProgramError(ProgramError::InvalidAccountData)
+}
 
 pub fn update_token_args(client: &RpcClient, args: &mut Option<SplTokenArgs>) -> Result<(), Error> {
     if let Some(spl_token_args) = args {
         let sender_account = client
             .get_account(&spl_token_args.token_account_address)
             .unwrap_or_default();
-        spl_token_args.mint = SplTokenAccount::unpack(&sender_account.data)?.mint;
+        let sender_token =
+            SplTokenAccount::unpack(&sender_account.data).map_err(map_spl_program_error)?;
+        spl_token_args.mint = spl_to_aeko_pubkey(&sender_token.mint);
         update_decimals(client, args)?;
     }
     Ok(())
@@ -30,7 +71,7 @@ pub fn update_token_args(client: &RpcClient, args: &mut Option<SplTokenArgs>) ->
 pub fn update_decimals(client: &RpcClient, args: &mut Option<SplTokenArgs>) -> Result<(), Error> {
     if let Some(spl_token_args) = args {
         let mint_account = client.get_account(&spl_token_args.mint).unwrap_or_default();
-        let mint = Mint::unpack(&mint_account.data)?;
+        let mint = Mint::unpack(&mint_account.data).map_err(map_spl_program_error)?;
         spl_token_args.decimals = mint.decimals;
     }
     Ok(())
@@ -46,30 +87,33 @@ pub(crate) fn build_spl_token_instructions(
         .as_ref()
         .expect("spl_token_args must be some");
     let wallet_address = allocation.recipient;
-    let associated_token_address =
-        get_associated_token_address(&wallet_address, &spl_token_args.mint);
+    let wallet_address_spl = aeko_to_spl_pubkey(&wallet_address);
+    let mint_spl = aeko_to_spl_pubkey(&spl_token_args.mint);
+    let token_account_spl = aeko_to_spl_pubkey(&spl_token_args.token_account_address);
+    let sender_pubkey_spl = aeko_to_spl_pubkey(&args.sender_keypair.pubkey());
+    let associated_token_address_spl = get_associated_token_address(&wallet_address_spl, &mint_spl);
     let mut instructions = vec![];
     if do_create_associated_token_account {
-        instructions.push(create_associated_token_account(
-            &args.fee_payer.pubkey(),
-            &wallet_address,
-            &spl_token_args.mint,
+        let instruction = create_associated_token_account(
+            &aeko_to_spl_pubkey(&args.fee_payer.pubkey()),
+            &wallet_address_spl,
+            &mint_spl,
             &spl_token::id(),
-        ));
+        );
+        instructions.push(spl_to_aeko_instruction(instruction));
     }
-    instructions.push(
-        spl_token::instruction::transfer_checked(
-            &spl_token::id(),
-            &spl_token_args.token_account_address,
-            &spl_token_args.mint,
-            &associated_token_address,
-            &args.sender_keypair.pubkey(),
-            &[],
-            allocation.amount,
-            spl_token_args.decimals,
-        )
-        .unwrap(),
-    );
+    let instruction = spl_token::instruction::transfer_checked(
+        &spl_token::id(),
+        &token_account_spl,
+        &mint_spl,
+        &associated_token_address_spl,
+        &sender_pubkey_spl,
+        &[],
+        allocation.amount,
+        spl_token_args.decimals,
+    )
+    .unwrap();
+    instructions.push(spl_to_aeko_instruction(instruction));
     instructions
 }
 
@@ -100,7 +144,8 @@ pub(crate) fn check_spl_token_balances(
     let source_token_account = client
         .get_account(&spl_token_args.token_account_address)
         .unwrap_or_default();
-    let source_token = SplTokenAccount::unpack(&source_token_account.data)?;
+    let source_token = SplTokenAccount::unpack(&source_token_account.data)
+        .map_err(map_spl_program_error)?;
     if source_token.amount < allocation_amount {
         return Err(Error::InsufficientFunds(
             vec![FundingSource::SplTokenAccount].into(),
@@ -117,7 +162,10 @@ pub(crate) fn print_token_balances(
 ) -> Result<(), Error> {
     let address = allocation.recipient;
     let expected = allocation.amount;
-    let associated_token_address = get_associated_token_address(&address, &spl_token_args.mint);
+    let associated_token_address = spl_to_aeko_pubkey(&get_associated_token_address(
+        &aeko_to_spl_pubkey(&address),
+        &aeko_to_spl_pubkey(&spl_token_args.mint),
+    ));
     let recipient_account = client
         .get_account(&associated_token_address)
         .unwrap_or_default();

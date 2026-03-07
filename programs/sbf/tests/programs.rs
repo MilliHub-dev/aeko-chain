@@ -20,7 +20,7 @@ use {
         compute_budget::ComputeBudget,
         compute_budget_processor::process_compute_budget_instructions, timings::ExecuteTimings,
     },
-    aeko_rbpf::vm::ContextObject,
+    solana_rbpf::vm::ContextObject,
     aeko_runtime::{
         bank::TransactionBalancesSet,
         loader_utils::{

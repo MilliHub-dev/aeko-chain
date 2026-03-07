@@ -345,10 +345,10 @@ mod tests {
             AccountSharedData::new(10_000, 0, &Pubkey::default()),
         );
         config.add_account(
-            AEKO_sdk::pubkey::new_rand(),
+            aeko_sdk::pubkey::new_rand(),
             AccountSharedData::new(1, 0, &Pubkey::default()),
         );
-        config.add_native_instruction_processor("hi".to_string(), AEKO_sdk::pubkey::new_rand());
+        config.add_native_instruction_processor("hi".to_string(), aeko_sdk::pubkey::new_rand());
 
         assert_eq!(config.accounts.len(), 2);
         assert!(config

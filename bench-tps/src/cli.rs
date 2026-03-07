@@ -557,8 +557,10 @@ pub fn parse_args(matches: &ArgMatches) -> Result<Config, &'static str> {
     if let Some(data_size) = matches.value_of("instruction_padding_data_size") {
         let program_id = matches
             .value_of("instruction_padding_program_id")
-            .map(|target_str| target_str.parse().unwrap())
-            .unwrap_or_else(|| spl_instruction_padding::ID);
+            .map(|target_str| target_str.parse())
+            .transpose()
+            .map_err(|_| "Can't parse instruction-padding-program-id")?
+            .unwrap_or_else(|| Pubkey::new_from_array(spl_instruction_padding::ID.to_bytes()));
         let data_size = data_size
             .parse()
             .map_err(|_| "Can't parse padded instruction data size")?;

@@ -11,7 +11,7 @@ jobs:
     # eat up all the minutes GitHub allocation to free accounts.
     if: >
       github.event_name != 'schedule'
-      || github.repository == 'solana-labs/solana'
+      || github.repository == 'aeko-labs/aeko'
 
     strategy:
       fail-fast: false

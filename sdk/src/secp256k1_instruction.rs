@@ -417,9 +417,9 @@
 //! The client program:
 //!
 //! ```no_run
-//! # use aeko_sdk::example_mocks::AEKO_rpc_client;
+//! # use aeko_sdk::example_mocks::aeko_rpc_client;
 //! use anyhow::Result;
-//! use AEKO_rpc_client::rpc_client::RpcClient;
+//! use aeko_rpc_client::rpc_client::RpcClient;
 //! use aeko_sdk::{
 //!     instruction::{AccountMeta, Instruction},
 //!     secp256k1_instruction,
@@ -633,9 +633,9 @@
 //! The client program:
 //!
 //! ```no_run
-//! # use aeko_sdk::example_mocks::AEKO_rpc_client;
+//! # use aeko_sdk::example_mocks::aeko_rpc_client;
 //! use anyhow::Result;
-//! use AEKO_rpc_client::rpc_client::RpcClient;
+//! use aeko_rpc_client::rpc_client::RpcClient;
 //! use aeko_sdk::{
 //!     instruction::{AccountMeta, Instruction},
 //!     keccak,

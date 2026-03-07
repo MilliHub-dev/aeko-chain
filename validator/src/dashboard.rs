@@ -8,7 +8,7 @@ use {
     aeko_rpc_client::rpc_client::RpcClient,
     aeko_rpc_client_api::{client_error, request, response::RpcContactInfo},
     aeko_sdk::{
-        clock::Slot, commitment_config::CommitmentConfig, exit::Exit, native_token::Sol,
+        clock::Slot, commitment_config::CommitmentConfig, exit::Exit, native_token::Aeko,
         pubkey::Pubkey,
     },
     std::{
@@ -258,7 +258,7 @@ fn get_contact_info(rpc_client: &RpcClient, identity: &Pubkey) -> Option<RpcCont
 fn get_validator_stats(
     rpc_client: &RpcClient,
     identity: &Pubkey,
-) -> client_error::Result<(Slot, Slot, Slot, u64, Sol, String)> {
+) -> client_error::Result<(Slot, Slot, Slot, u64, Aeko, String)> {
     let finalized_slot = rpc_client.get_slot_with_commitment(CommitmentConfig::finalized())?;
     let confirmed_slot = rpc_client.get_slot_with_commitment(CommitmentConfig::confirmed())?;
     let processed_slot = rpc_client.get_slot_with_commitment(CommitmentConfig::processed())?;
@@ -292,7 +292,7 @@ fn get_validator_stats(
         confirmed_slot,
         finalized_slot,
         transaction_count,
-        Sol(identity_balance),
+        Aeko(identity_balance),
         health,
     ))
 }

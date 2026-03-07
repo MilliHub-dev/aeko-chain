@@ -1,6 +1,6 @@
 [package]
 name = "aeko-clap-utils"
-description = "Solana utilities for the clap"
+description = "Aeko utilities for the clap"
 documentation = "https://docs.rs/aeko-clap-utils"
 version = { workspace = true }
 authors = { workspace = true }

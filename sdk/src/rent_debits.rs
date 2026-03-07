@@ -1,5 +1,5 @@
 use {
-    AEKO_sdk::{pubkey::Pubkey, reward_info::RewardInfo, reward_type::RewardType},
+    aeko_sdk::{pubkey::Pubkey, reward_info::RewardInfo, reward_type::RewardType},
     std::collections::HashMap,
 };
 

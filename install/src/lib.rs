@@ -127,7 +127,7 @@ pub fn main() -> Result<(), String> {
                         .takes_value(true)
                         .default_value(defaults::JSON_RPC_URL)
                         .validator(is_url)
-                        .help("JSON RPC URL for the solana cluster"),
+                        .help("JSON RPC URL for the aeko cluster"),
                 )
                 .arg(
                     Arg::with_name("no_modify_path")
@@ -193,14 +193,14 @@ pub fn main() -> Result<(), String> {
                         .takes_value(true)
                         .default_value(defaults::JSON_RPC_URL)
                         .validator(is_url)
-                        .help("JSON RPC URL for the solana cluster"),
+                        .help("JSON RPC URL for the aeko cluster"),
                 )
                 .arg(
                     Arg::with_name("download_url")
                         .index(1)
                         .required(true)
                         .validator(is_url)
-                        .help("URL to the solana release archive"),
+                        .help("URL to the aeko release archive"),
                 )
                 .arg(
                     Arg::with_name("update_manifest_keypair_file")
@@ -237,7 +237,7 @@ pub fn main() -> Result<(), String> {
                         .help("arguments to supply to the program"),
                 ),
         )
-        .subcommand(SubCommand::with_name("list").about("List installed versions of solana cli"))
+        .subcommand(SubCommand::with_name("list").about("List installed versions of aeko cli"))
         .get_matches();
 
     let config_file = matches.value_of("config_file").unwrap();
@@ -281,7 +281,7 @@ pub fn main() -> Result<(), String> {
 pub fn main_init() -> Result<(), String> {
     aeko_logger::setup();
 
-    let matches = App::new("solana-install-init")
+    let matches = App::new("aeko-install-init")
         .about("Initializes a new installation")
         .version(aeko_version::version!())
         .arg({
@@ -317,7 +317,7 @@ pub fn main_init() -> Result<(), String> {
                 .takes_value(true)
                 .default_value(defaults::JSON_RPC_URL)
                 .validator(is_url)
-                .help("JSON RPC URL for the solana cluster"),
+                .help("JSON RPC URL for the aeko cluster"),
         )
         .arg(
             Arg::with_name("no_modify_path")

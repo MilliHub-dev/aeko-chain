@@ -16,7 +16,7 @@ use {
         stable_log,
         sysvar_cache::get_sysvar_with_account_check,
     },
-    aeko_rbpf::{
+    solana_rbpf::{
         aligned_memory::AlignedMemory,
         declare_builtin_function,
         ebpf::{self, HOST_ALIGN, MM_HEAP_START},
@@ -272,11 +272,11 @@ macro_rules! create_vm {
         ));
         let mut allocations = None;
         let $vm = heap_cost_result.and_then(|_| {
-            let mut stack = aeko_rbpf::aligned_memory::AlignedMemory::<
-                { aeko_rbpf::ebpf::HOST_ALIGN },
+            let mut stack = solana_rbpf::aligned_memory::AlignedMemory::<
+                { solana_rbpf::ebpf::HOST_ALIGN },
             >::zero_filled(stack_size);
-            let mut heap = aeko_rbpf::aligned_memory::AlignedMemory::<
-                { aeko_rbpf::ebpf::HOST_ALIGN },
+            let mut heap = solana_rbpf::aligned_memory::AlignedMemory::<
+                { solana_rbpf::ebpf::HOST_ALIGN },
             >::zero_filled(usize::try_from(heap_size).unwrap());
             let vm = $crate::create_vm(
                 $program,
@@ -296,8 +296,8 @@ macro_rules! create_vm {
 macro_rules! mock_create_vm {
     ($vm:ident, $additional_regions:expr, $accounts_metadata:expr, $invoke_context:expr $(,)?) => {
         let loader = std::sync::Arc::new(BuiltinProgram::new_mock());
-        let function_registry = aeko_rbpf::program::FunctionRegistry::default();
-        let executable = aeko_rbpf::elf::Executable::<InvokeContext>::from_text_bytes(
+        let function_registry = solana_rbpf::program::FunctionRegistry::default();
+        let executable = solana_rbpf::elf::Executable::<InvokeContext>::from_text_bytes(
             &[0x95, 0, 0, 0, 0, 0, 0, 0],
             loader,
             SBPFVersion::V2,
@@ -305,7 +305,7 @@ macro_rules! mock_create_vm {
         )
         .unwrap();
         executable
-            .verify::<aeko_rbpf::verifier::RequisiteVerifier>()
+            .verify::<solana_rbpf::verifier::RequisiteVerifier>()
             .unwrap();
         $crate::create_vm!(
             $vm,
@@ -1528,7 +1528,7 @@ mod tests {
         aeko_program_runtime::{
             invoke_context::mock_process_instruction, with_mock_invoke_context,
         },
-        aeko_rbpf::vm::ContextObject,
+        solana_rbpf::vm::ContextObject,
         aeko_sdk::{
             account::{
                 create_account_shared_data_for_test as create_account_for_test, AccountSharedData,

@@ -888,7 +888,7 @@ pub fn app<'a>(version: &'a str, default_args: &'a DefaultArgs) -> App<'a, 'a> {
                      identities. Overriding the amount of stake this validator considers as valid \
                      for other peers in network. The stake amount is used for calculating the \
                      number of QUIC streams permitted from the peer and vote packet sender stage. \
-                     Format of the file: `staked_map_id: {<pubkey>: <SOL stake amount>}",
+                     Format of the file: `staked_map_id: {<pubkey>: <AEKO stake amount>}",
                 ),
         )
         .arg(
@@ -1207,7 +1207,7 @@ pub fn app<'a>(version: &'a str, default_args: &'a DefaultArgs) -> App<'a, 'a> {
         .arg(
             Arg::with_name("snapshot_archive_format")
                 .long("snapshot-archive-format")
-                .alias("snapshot-compression") // Legacy name used by Solana v1.5.x and older
+                .alias("snapshot-compression") // Legacy name used by Aeko v1.5.x and older
                 .possible_values(SUPPORTED_ARCHIVE_COMPRESSION)
                 .default_value(&default_args.snapshot_archive_format)
                 .value_name("ARCHIVE_TYPE")
@@ -2344,7 +2344,7 @@ pub fn test_app<'a>(version: &'a str, default_args: &'a DefaultTestArgs) -> App<
                 .takes_value(true)
                 .validator(is_url_or_moniker)
                 .help(
-                    "URL for Solana's JSON RPC or moniker (or their first letter): \
+                    "URL for Aeko's JSON RPC or moniker (or their first letter): \
                      [mainnet-beta, testnet, devnet, localhost]",
                 ),
         )
@@ -2438,7 +2438,7 @@ pub fn test_app<'a>(version: &'a str, default_args: &'a DefaultTestArgs) -> App<
                 .value_name("INSTANCE_NAME")
                 .takes_value(true)
                 .hidden(hidden_unless_forced())
-                .default_value("solana-ledger")
+                .default_value("aeko-ledger")
                 .help("Name of BigTable instance to target"),
         )
         .arg(
@@ -2675,13 +2675,13 @@ pub fn test_app<'a>(version: &'a str, default_args: &'a DefaultTestArgs) -> App<
                 .help("Keep this amount of shreds in root slots."),
         )
         .arg(
-            Arg::with_name("faucet_sol")
-                .long("faucet-sol")
+            Arg::with_name("faucet_aeko")
+                .long("faucet-aeko")
                 .takes_value(true)
-                .value_name("SOL")
-                .default_value(default_args.faucet_sol.as_str())
+                .value_name("AEKO")
+                .default_value(default_args.faucet_aeko.as_str())
                 .help(
-                    "Give the faucet address this much SOL in genesis. If the ledger already \
+                    "Give the faucet address this much AEKO in genesis. If the ledger already \
                      exists then this parameter is silently ignored",
                 ),
         )
@@ -2694,22 +2694,22 @@ pub fn test_app<'a>(version: &'a str, default_args: &'a DefaultTestArgs) -> App<
                 .help("Time slice (in secs) over which to limit faucet requests"),
         )
         .arg(
-            Arg::with_name("faucet_per_time_sol_cap")
-                .long("faucet-per-time-sol-cap")
+            Arg::with_name("faucet_per_time_aeko_cap")
+                .long("faucet-per-time-aeko-cap")
                 .takes_value(true)
-                .value_name("SOL")
+                .value_name("AEKO")
                 .min_values(0)
                 .max_values(1)
-                .help("Per-time slice limit for faucet requests, in SOL"),
+                .help("Per-time slice limit for faucet requests, in AEKO"),
         )
         .arg(
-            Arg::with_name("faucet_per_request_sol_cap")
-                .long("faucet-per-request-sol-cap")
+            Arg::with_name("faucet_per_request_aeko_cap")
+                .long("faucet-per-request-aeko-cap")
                 .takes_value(true)
-                .value_name("SOL")
+                .value_name("AEKO")
                 .min_values(0)
                 .max_values(1)
-                .help("Per-request limit for faucet requests, in SOL"),
+                .help("Per-request limit for faucet requests, in AEKO"),
         )
         .arg(
             Arg::with_name("geyser_plugin_config")
@@ -2760,7 +2760,7 @@ pub struct DefaultTestArgs {
     pub rpc_port: String,
     pub faucet_port: String,
     pub limit_ledger_size: String,
-    pub faucet_sol: String,
+    pub faucet_aeko: String,
     pub faucet_time_slice_secs: String,
 }
 
@@ -2774,7 +2774,7 @@ impl DefaultTestArgs {
              * 40MB-150MB range when running `aeko-test-validator`
              */
             limit_ledger_size: 10_000.to_string(),
-            faucet_sol: (1_000_000.).to_string(),
+            faucet_aeko: (1_000_000.).to_string(),
             faucet_time_slice_secs: (faucet::TIME_SLICE).to_string(),
         }
     }

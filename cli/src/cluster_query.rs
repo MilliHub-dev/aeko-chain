@@ -228,7 +228,7 @@ impl ClusterQuerySubCommands for App<'_, '_> {
         )
         .subcommand(
             SubCommand::with_name("supply")
-                .about("Get information about the cluster supply of SOL")
+                .about("Get information about the cluster supply of AEKO")
                 .arg(
                     Arg::with_name("print_accounts")
                         .long("print-accounts")
@@ -238,7 +238,7 @@ impl ClusterQuerySubCommands for App<'_, '_> {
         )
         .subcommand(
             SubCommand::with_name("total-supply")
-                .about("Get total number of SOL")
+                .about("Get total number of AEKO")
                 .setting(AppSettings::Hidden),
         )
         .subcommand(
@@ -340,7 +340,7 @@ impl ClusterQuerySubCommands for App<'_, '_> {
                     Arg::with_name("lamports")
                         .long("lamports")
                         .takes_value(false)
-                        .help("Display balance in lamports instead of SOL"),
+                        .help("Display balance in lamports instead of AEKO"),
                 )
                 .arg(pubkey!(
                     Arg::with_name("vote_account_pubkeys")
@@ -364,7 +364,7 @@ impl ClusterQuerySubCommands for App<'_, '_> {
                     Arg::with_name("lamports")
                         .long("lamports")
                         .takes_value(false)
-                        .help("Display balance in lamports instead of SOL"),
+                        .help("Display balance in lamports instead of AEKO"),
                 )
                 .arg(
                     Arg::with_name("number")
@@ -499,7 +499,7 @@ impl ClusterQuerySubCommands for App<'_, '_> {
                     Arg::with_name("lamports")
                         .long("lamports")
                         .takes_value(false)
-                        .help("Display rent in lamports instead of SOL"),
+                        .help("Display rent in lamports instead of AEKO"),
                 ),
         )
     }
@@ -870,7 +870,7 @@ pub fn process_catchup(
     let mut total_sleep_interval = 0;
     loop {
         // humbly retry; the reference node (rpc_client) could be spotty,
-        // especially if pointing to api.meinnet-beta.solana.com at times
+        // especially if pointing to api.mainnet-beta.aeko.chain at times
         let rpc_slot = get_slot_while_retrying(rpc_client)?;
         let node_slot = get_slot_while_retrying(&node_client)?;
         if !follow && node_slot > std::cmp::min(previous_rpc_slot, rpc_slot) {

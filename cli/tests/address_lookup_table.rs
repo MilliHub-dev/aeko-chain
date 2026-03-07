@@ -32,7 +32,7 @@ fn test_cli_create_extend_and_freeze_address_lookup_table() {
     config.signers = vec![&keypair];
     config.output_format = OutputFormat::JsonCompact;
 
-    // Airdrop SOL for transaction fees
+    // Airdrop AEKO for transaction fees
     config.command = CliCommand::Airdrop {
         pubkey: None,
         lamports: 10 * LAMPORTS_PER_AEKO,
@@ -147,7 +147,7 @@ fn test_cli_create_and_deactivate_address_lookup_table() {
     config.signers = vec![&keypair];
     config.output_format = OutputFormat::JsonCompact;
 
-    // Airdrop SOL for transaction fees
+    // Airdrop AEKO for transaction fees
     config.command = CliCommand::Airdrop {
         pubkey: None,
         lamports: 10 * LAMPORTS_PER_AEKO,

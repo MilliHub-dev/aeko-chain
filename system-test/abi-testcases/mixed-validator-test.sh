@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Basic empirical ABI system test - can validators on all supported versions of
-# Solana talk to each other?
+# Aeko talk to each other?
 #
 
 set -e
@@ -26,27 +26,27 @@ solanaInstallGlobalOpts=(
   --no-modify-path
 )
 
-# Install all the solana versions
+# Install all the aeko versions
 bootstrapInstall() {
   declare v=$1
   if [[ ! -h $solanaInstallDataDir/active_release ]]; then
-    sh "$SOLANA_ROOT"/install/solana-install-init.sh "$v" "${solanaInstallGlobalOpts[@]}"
+    sh "$SOLANA_ROOT"/install/aeko-install-init.sh "$v" "${solanaInstallGlobalOpts[@]}"
   fi
   export PATH="$solanaInstallDataDir/active_release/bin/:$PATH"
 }
 
 bootstrapInstall "$baselineVersion"
 for v in "${otherVersions[@]}"; do
-  solana-install-init "${solanaInstallGlobalOpts[@]}" "$v"
-  solana -V
+  aeko-install-init "${solanaInstallGlobalOpts[@]}" "$v"
+  aeko -V
 done
 
 
 ORIGINAL_PATH=$PATH
 solanaInstallUse() {
   declare version=$1
-  echo "--- Now using solana $version"
-  SOLANA_BIN="$solanaInstallDataDir/releases/$version/solana-release/bin"
+  echo "--- Now using aeko $version"
+  SOLANA_BIN="$solanaInstallDataDir/releases/$version/aeko-release/bin"
   export PATH="$SOLANA_BIN:$ORIGINAL_PATH"
 }
 
@@ -64,7 +64,7 @@ killSession
 (
   set -x
   if [[ ! -x baseline-run.sh ]]; then
-    curl https://raw.githubusercontent.com/solana-labs/solana/v"$baselineVersion"/run.sh -o baseline-run.sh
+    curl https://raw.githubusercontent.com/aeko-labs/aeko/v"$baselineVersion"/run.sh -o baseline-run.sh
     chmod +x baseline-run.sh
   fi
   tmux new -s abi -d " \
@@ -80,7 +80,7 @@ killSession
     fi
   done
 
-  solana --url http://127.0.0.1:8899 show-validators
+  aeko --url http://127.0.0.1:8899 show-validators
 )
 
 # Ensure all versions can see the bootstrap validator
@@ -89,7 +89,7 @@ for v in "${otherVersions[@]}"; do
   echo "--- Looking for bootstrap validator on gossip"
   (
     set -x
-    "$SOLANA_BIN"/solana-gossip spy \
+    "$SOLANA_BIN"/aeko-gossip spy \
       --entrypoint 127.0.0.1:8001 \
       --num-nodes-exactly 1 \
       --timeout 30
@@ -99,7 +99,7 @@ done
 
 # Start a validator for each version and look for it
 #
-# Once https://github.com/solana-labs/solana/issues/7738 is resolved, remove
+# Once https://github.com/aeko-labs/aeko/issues/7738 is resolved, remove
 # `--no-snapshot-fetch` when starting the validators
 #
 nodeCount=1
@@ -113,13 +113,13 @@ for v in "${otherVersions[@]}"; do
   (
     set -x
     tmux new-window -t abi -n "$v" " \
-      $SOLANA_BIN/solana-validator \
+      $SOLANA_BIN/aeko-validator \
       --ledger $ledger \
       --no-snapshot-fetch \
       --entrypoint 127.0.0.1:8001 \
       -o - 2>&1 | tee $logDir/$v.log \
     "
-    "$SOLANA_BIN"/solana-gossip spy \
+    "$SOLANA_BIN"/aeko-gossip spy \
       --entrypoint 127.0.0.1:8001 \
       --num-nodes-exactly $nodeCount \
       --timeout 30
