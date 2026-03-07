@@ -3,7 +3,7 @@
 use {
     crate::{
         last_voted_fork_slots_aggregate::LastVotedForkSlotsAggregate,
-        solana::wen_restart_proto::{
+        aeko::wen_restart_proto::{
             self, LastVotedForkSlotsAggregateRecord, LastVotedForkSlotsRecord,
             State as RestartState, WenRestartProgress,
         },
@@ -561,7 +561,7 @@ mod tests {
         let exit_clone = exit.clone();
         let last_vote_slot: Slot = test_state.last_voted_fork_slots[0];
         let wen_restart_thread_handle = Builder::new()
-            .name("solana-wen-restart".to_string())
+            .name("aeko-wen-restart".to_string())
             .spawn(move || {
                 let _ = wait_for_wen_restart(
                     &wen_restart_proto_path_clone,
@@ -598,7 +598,7 @@ mod tests {
         let blockstore_clone = test_state.blockstore.clone();
         let bank_forks_clone = test_state.bank_forks.clone();
         let wen_restart_thread_handle = Builder::new()
-            .name("solana-wen-restart".to_string())
+            .name("aeko-wen-restart".to_string())
             .spawn(move || {
                 assert!(wait_for_wen_restart(
                     &wen_restart_proto_path_clone,
@@ -912,7 +912,7 @@ mod tests {
             let mut progress_clone = progress.clone();
             let last_voted_fork_slots = test_state.last_voted_fork_slots.clone();
             let wen_restart_thread_handle = Builder::new()
-                .name("solana-wen-restart".to_string())
+                .name("aeko-wen-restart".to_string())
                 .spawn(move || {
                     let _ = aggregate_restart_last_voted_fork_slots(
                         &wen_restart_proto_path_clone,

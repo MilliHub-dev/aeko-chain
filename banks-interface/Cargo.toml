@@ -1,6 +1,6 @@
 [package]
 name = "aeko-banks-interface"
-description = "Solana banks RPC interface"
+description = "Aeko banks RPC interface"
 documentation = "https://docs.rs/aeko-banks-interface"
 version = { workspace = true }
 authors = { workspace = true }

@@ -42,7 +42,7 @@ use {
 };
 
 // get_max_thread_count to match number of threads in the old code.
-// see: https://github.com/aeko-chain/solana/pull/24853
+// see: https://github.com/aeko-chain/aeko/pull/24853
 lazy_static! {
     static ref PAR_THREAD_POOL: ThreadPool = rayon::ThreadPoolBuilder::new()
         .num_threads(get_max_thread_count())
@@ -119,7 +119,7 @@ pub struct Api<'a> {
 /// a Verifiable Delay Function (VDF) and a Proof of Work (not to be confused with Proof of
 /// Work consensus!)
 ///
-/// The solana core protocol currently requires an `Entry` to contain `transactions` that are
+/// The aeko core protocol currently requires an `Entry` to contain `transactions` that are
 /// executable in parallel. Implemented in:
 ///
 /// * For TPU: `aeko_core::banking_stage::BankingStage::process_and_record_transactions()`

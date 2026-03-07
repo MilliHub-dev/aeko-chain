@@ -12,7 +12,7 @@ We welcome contributions from the community! AEKO Chain is open-source and commu
 
 You will need:
 *   Rust (1.75+)
-*   Solana CLI Tools
+*   Aeko CLI Tools
 *   Node.js (18+)
 
 ## Submitting a PR

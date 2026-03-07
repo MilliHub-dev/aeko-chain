@@ -20,7 +20,7 @@ thiserror = { workspace = true }
 [dev-dependencies]
 tiny-bip39 = { workspace = true }
 
-[target.'cfg(not(target_os = "solana"))'.dependencies]
+[target.'cfg(not(target_os = "aeko"))'.dependencies]
 aes-gcm-siv = { workspace = true }
 bincode = { workspace = true }
 byteorder = { workspace = true }

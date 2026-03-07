@@ -5,6 +5,6 @@
 //! Constructors for secp256k1 program instructions, and documentation on the
 //! program's usage can be found in [`aeko_sdk::secp256k1_instruction`].
 //!
-//! [`aeko_sdk::secp256k1_instruction`]: https://docs.rs/solana-sdk/latest/aeko_sdk/secp256k1_instruction/index.html
+//! [`aeko_sdk::secp256k1_instruction`]: https://docs.rs/aeko-sdk/latest/aeko_sdk/secp256k1_instruction/index.html
 
 crate::declare_id!("KeccakSecp256k11111111111111111111111111111");

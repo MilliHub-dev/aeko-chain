@@ -76,7 +76,7 @@
     },
     "AEKO SVM Runtime": {
       "title": "AEKO SVM Runtime",
-      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>AEKO SVM Runtime</h1><p class='text-gray-300'>The core of AEKO Chain is a highly optimized fork of the Solana Virtual Machine (SVM). It is designed to handle the high throughput required for social media scale.</p><h3 class='text-xl font-bold text-white mt-6 mb-4'>Key Optimizations</h3><ul class='list-disc list-inside space-y-2 text-gray-400'><li><strong>Compute Budget</strong>: Increased compute units per block to allow for complex social graph traversals.</li><li><strong>Account Indexing</strong>: Native indexing for social relationships (followers/following).</li><li><strong>Fee Markets</strong>: Localized fee markets prevent one viral dApp from congesting the entire network.</li></ul></div>"
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>AEKO SVM Runtime</h1><p class='text-gray-300'>The core of AEKO Chain is a highly optimized fork of the Aeko Virtual Machine (SVM). It is designed to handle the high throughput required for social media scale.</p><h3 class='text-xl font-bold text-white mt-6 mb-4'>Key Optimizations</h3><ul class='list-disc list-inside space-y-2 text-gray-400'><li><strong>Compute Budget</strong>: Increased compute units per block to allow for complex social graph traversals.</li><li><strong>Account Indexing</strong>: Native indexing for social relationships (followers/following).</li><li><strong>Fee Markets</strong>: Localized fee markets prevent one viral dApp from congesting the entire network.</li></ul></div>"
     },
     "Sealevel Parallelization": {
       "title": "Sealevel Parallelization",

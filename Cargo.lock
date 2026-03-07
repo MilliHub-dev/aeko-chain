@@ -117,6 +117,7 @@ dependencies = [
  "aeko-logger",
  "aeko-measure",
  "aeko-metrics",
+ "aeko-nohash-hasher",
  "aeko-program-runtime",
  "aeko-rayon-threadlimit",
  "aeko-sdk",
@@ -130,7 +131,7 @@ dependencies = [
  "blake3",
  "bv",
  "bytemuck",
- "byteorder",
+ "byteorder 1.5.0",
  "bzip2",
  "criterion",
  "crossbeam-channel",
@@ -164,7 +165,6 @@ dependencies = [
  "serde",
  "serde_derive",
  "smallvec",
- "solana-nohash-hasher",
  "static_assertions",
  "strum",
  "strum_macros",
@@ -349,15 +349,15 @@ dependencies = [
  "aeko-program-runtime",
  "aeko-sdk",
  "aeko-zk-token-sdk",
+ "aeko_rbpf",
  "assert_matches",
  "bincode",
- "byteorder",
+ "byteorder 1.5.0",
  "libsecp256k1",
  "log",
  "memoffset 0.9.0",
  "rand 0.8.5",
  "scopeguard",
- "solana_rbpf",
  "test-case",
  "thiserror",
 ]
@@ -527,6 +527,7 @@ dependencies = [
  "aeko-transaction-status",
  "aeko-version",
  "aeko-vote-program",
+ "aeko_rbpf",
  "assert_matches",
  "bincode",
  "bs58",
@@ -546,7 +547,6 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "solana_rbpf",
  "spl-memo",
  "tempfile",
  "test-case",
@@ -897,7 +897,7 @@ dependencies = [
  "aeko-sdk",
  "aeko-version",
  "bincode",
- "byteorder",
+ "byteorder 1.5.0",
  "clap 2.33.3",
  "crossbeam-channel",
  "log",
@@ -1145,7 +1145,7 @@ dependencies = [
  "assert_matches",
  "bincode",
  "bitflags 2.4.2",
- "byteorder",
+ "byteorder 1.5.0",
  "chrono",
  "chrono-humanize",
  "crossbeam-channel",
@@ -1209,6 +1209,7 @@ dependencies = [
  "aeko-unified-scheduler-pool",
  "aeko-version",
  "aeko-vote-program",
+ "aeko_rbpf",
  "assert_cmd",
  "bs58",
  "bytecount",
@@ -1226,7 +1227,6 @@ dependencies = [
  "serde",
  "serde_json",
  "signal-hook",
- "solana_rbpf",
  "thiserror",
  "tikv-jemallocator",
  "tokio",
@@ -1239,9 +1239,9 @@ dependencies = [
  "aeko-measure",
  "aeko-program-runtime",
  "aeko-sdk",
+ "aeko_rbpf",
  "bincode",
  "log",
- "solana_rbpf",
 ]
 
 [[package]]
@@ -1373,6 +1373,10 @@ dependencies = [
  "tokio",
  "url 2.5.0",
 ]
+
+[[package]]
+name = "aeko-nohash-hasher"
+version = "0.2.1"
 
 [[package]]
 name = "aeko-notifier"
@@ -1521,6 +1525,7 @@ dependencies = [
  "aeko-measure",
  "aeko-metrics",
  "aeko-sdk",
+ "aeko_rbpf",
  "assert_matches",
  "base64 0.22.0",
  "bincode",
@@ -1536,7 +1541,6 @@ dependencies = [
  "rand 0.8.5",
  "rustc_version 0.4.0",
  "serde",
- "solana_rbpf",
  "test-case",
  "thiserror",
 ]
@@ -1557,6 +1561,7 @@ dependencies = [
  "aeko-stake-program",
  "aeko-svm",
  "aeko-vote-program",
+ "aeko_rbpf",
  "assert_matches",
  "async-trait",
  "base64 0.22.0",
@@ -1565,7 +1570,6 @@ dependencies = [
  "crossbeam-channel",
  "log",
  "serde",
- "solana_rbpf",
  "test-case",
  "thiserror",
  "tokio",
@@ -1840,7 +1844,7 @@ dependencies = [
  "blake3",
  "bv",
  "bytemuck",
- "byteorder",
+ "byteorder 1.5.0",
  "bzip2",
  "crossbeam-channel",
  "dashmap",
@@ -1917,7 +1921,7 @@ dependencies = [
  "borsh 1.2.1",
  "bs58",
  "bytemuck",
- "byteorder",
+ "byteorder 1.5.0",
  "chrono",
  "curve25519-dalek",
  "derivation-path",
@@ -2597,7 +2601,7 @@ dependencies = [
  "base64 0.22.0",
  "bincode",
  "bytemuck",
- "byteorder",
+ "byteorder 1.5.0",
  "curve25519-dalek",
  "getrandom 0.1.16",
  "itertools",
@@ -2613,6 +2617,27 @@ dependencies = [
  "thiserror",
  "tiny-bip39",
  "zeroize",
+]
+
+[[package]]
+name = "aeko_rbpf"
+version = "0.8.0"
+dependencies = [
+ "arbitrary",
+ "byteorder 1.5.0",
+ "combine",
+ "elf",
+ "gdbstub",
+ "goblin",
+ "hash32",
+ "json",
+ "libc",
+ "log",
+ "rand 0.8.5",
+ "rustc-demangle",
+ "scroll",
+ "thiserror",
+ "winapi 0.3.9",
 ]
 
 [[package]]
@@ -2697,6 +2722,12 @@ checksum = "697ed7edc0f1711de49ce108c541623a0af97c6c60b2f6e2b65229847ac843c2"
 dependencies = [
  "alloc-no-stdlib",
 ]
+
+[[package]]
+name = "allocator-api2"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "android-tzdata"
@@ -3250,7 +3281,7 @@ checksum = "c0940dc441f31689269e10ac70eb1002a3a1d3ad1390e030043662eb7fe4688b"
 dependencies = [
  "block-padding 0.1.5",
  "byte-tools",
- "byteorder",
+ "byteorder 1.5.0",
  "generic-array 0.12.4",
 ]
 
@@ -3497,6 +3528,12 @@ dependencies = [
  "quote",
  "syn 1.0.109",
 ]
+
+[[package]]
+name = "byteorder"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fc10e8cc6b2580fda3f36eb6dc5316657f812a3df879a44a66fc9f0fdbc4855"
 
 [[package]]
 name = "byteorder"
@@ -3790,7 +3827,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da3da6baa321ec19e1cc41d31bf599f00c783d0517095cdaf0332e3fe8d20680"
 dependencies = [
  "ascii",
- "byteorder",
+ "byteorder 1.5.0",
  "either",
  "memchr",
  "unreachable",
@@ -3988,7 +4025,7 @@ dependencies = [
 [[package]]
 name = "crossbeam-epoch"
 version = "0.9.5"
-source = "git+https://github.com/solana-labs/crossbeam?rev=fd279d707025f0e60951e429bf778b4813d1b6bf#fd279d707025f0e60951e429bf778b4813d1b6bf"
+source = "git+https://github.com/crossbeam-rs/crossbeam?rev=fd279d707025f0e60951e429bf778b4813d1b6bf#fd279d707025f0e60951e429bf778b4813d1b6bf"
 dependencies = [
  "cfg-if 1.0.0",
  "crossbeam-utils",
@@ -4075,9 +4112,9 @@ dependencies = [
 [[package]]
 name = "curve25519-dalek"
 version = "3.2.1"
-source = "git+https://github.com/solana-labs/curve25519-dalek.git?rev=b500cdc2a920cd5bff9e2dd974d7b97349d61464#b500cdc2a920cd5bff9e2dd974d7b97349d61464"
+source = "git+https://github.com/dalek-cryptography/curve25519-dalek.git?rev=b500cdc2a920cd5bff9e2dd974d7b97349d61464#b500cdc2a920cd5bff9e2dd974d7b97349d61464"
 dependencies = [
- "byteorder",
+ "byteorder 1.5.0",
  "digest 0.9.0",
  "rand_core 0.5.1",
  "serde",
@@ -4378,6 +4415,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11157ac094ffbdde99aa67b23417ebdd801842852b500e395a45a9c0aac03e4a"
 
 [[package]]
+name = "elf"
+version = "0.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4841de15dbe0e49b9b62a417589299e3be0d557e0900d36acb87e6dae47197f5"
+dependencies = [
+ "byteorder 0.5.3",
+]
+
+[[package]]
 name = "encode_unicode"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4573,6 +4619,12 @@ name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
+
+[[package]]
+name = "foldhash"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
 name = "foreign-types"
@@ -4894,7 +4946,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0c35f58762feb77d74ebe43bdbc3210f09be9fe6742234d573bacc26ed92b67"
 dependencies = [
- "byteorder",
+ "byteorder 1.5.0",
 ]
 
 [[package]]
@@ -4929,6 +4981,17 @@ name = "hashbrown"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
+
+[[package]]
+name = "hashbrown"
+version = "0.15.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash",
+]
 
 [[package]]
 name = "headers"
@@ -5331,6 +5394,12 @@ checksum = "406cda4b368d531c842222cf9d2600a9a4acce8d29423695379c6868a143a9ee"
 dependencies = [
  "wasm-bindgen",
 ]
+
+[[package]]
+name = "json"
+version = "0.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "078e285eafdfb6c4b434e0d31e8cfcb5115b651496faca5749b88fafd4f23bfd"
 
 [[package]]
 name = "json5"
@@ -5742,7 +5811,7 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "58c38e2799fc0978b65dfff8023ec7843e2330bb462f19198840b34b6582397d"
 dependencies = [
- "byteorder",
+ "byteorder 1.5.0",
  "keccak",
  "rand_core 0.6.4",
  "zeroize",
@@ -7733,12 +7802,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-nohash-hasher"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b8a731ed60e89177c8a7ab05fe0f1511cedd3e70e773f288f9de33a9cfdc21e"
-
-[[package]]
 name = "solana-program"
 version = "1.18.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7806,7 +7869,7 @@ dependencies = [
  "borsh 1.2.1",
  "bs58",
  "bytemuck",
- "byteorder",
+ "byteorder 1.5.0",
  "chrono",
  "derivation-path",
  "digest 0.10.7",
@@ -7863,9 +7926,12 @@ dependencies = [
 
 [[package]]
 name = "solana-security-txt"
-version = "1.1.1"
+version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "468aa43b7edb1f9b7b7b686d5c3aeb6630dc1708e86e31343499dd5c4d775183"
+checksum = "156bb61a96c605fa124e052d630dba2f6fb57e08c7d15b757e1e958b3ed7b3fe"
+dependencies = [
+ "hashbrown 0.15.2",
+]
 
 [[package]]
 name = "solana-zk-token-sdk"
@@ -7877,7 +7943,7 @@ dependencies = [
  "base64 0.21.7",
  "bincode",
  "bytemuck",
- "byteorder",
+ "byteorder 1.5.0",
  "curve25519-dalek",
  "getrandom 0.1.16",
  "itertools",
@@ -7894,26 +7960,6 @@ dependencies = [
  "subtle",
  "thiserror",
  "zeroize",
-]
-
-[[package]]
-name = "solana_rbpf"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d457cc2ba742c120492a64b7fa60e22c575e891f6b55039f4d736568fb112a3"
-dependencies = [
- "byteorder",
- "combine",
- "gdbstub",
- "goblin",
- "hash32",
- "libc",
- "log",
- "rand 0.8.5",
- "rustc-demangle",
- "scroll",
- "thiserror",
- "winapi 0.3.9",
 ]
 
 [[package]]
@@ -8277,7 +8323,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "225e483f02d0ad107168dc57381a8a40c3aeea6abe47f37506931f861643cfa8"
 dependencies = [
  "bitflags 1.3.2",
- "byteorder",
+ "byteorder 1.5.0",
  "libc",
  "thiserror",
  "walkdir",
@@ -8562,7 +8608,7 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 [[package]]
 name = "tokio"
 version = "1.29.1"
-source = "git+https://github.com/solana-labs/solana-tokio.git?rev=7cf47705faacf7bf0e43e4131a5377b3291fce21#7cf47705faacf7bf0e43e4131a5377b3291fce21"
+source = "git+https://github.com/tokio-rs/tokio.git?rev=7cf47705faacf7bf0e43e4131a5377b3291fce21#7cf47705faacf7bf0e43e4131a5377b3291fce21"
 dependencies = [
  "autocfg",
  "backtrace",
@@ -8591,7 +8637,7 @@ dependencies = [
 [[package]]
 name = "tokio-macros"
 version = "2.1.0"
-source = "git+https://github.com/solana-labs/solana-tokio.git?rev=7cf47705faacf7bf0e43e4131a5377b3291fce21#7cf47705faacf7bf0e43e4131a5377b3291fce21"
+source = "git+https://github.com/tokio-rs/tokio.git?rev=7cf47705faacf7bf0e43e4131a5377b3291fce21#7cf47705faacf7bf0e43e4131a5377b3291fce21"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8895,7 +8941,7 @@ version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e3dac10fd62eaf6617d3a904ae222845979aec67c615d1c842b4002c7666fb9"
 dependencies = [
- "byteorder",
+ "byteorder 1.5.0",
  "bytes",
  "data-encoding",
  "http",

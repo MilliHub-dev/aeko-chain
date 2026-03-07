@@ -1,7 +1,7 @@
 #![allow(incomplete_features)]
 #![cfg_attr(RUSTC_WITH_SPECIALIZATION, feature(specialization))]
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 pub mod processor;
 
 #[deprecated(

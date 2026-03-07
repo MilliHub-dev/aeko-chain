@@ -27,7 +27,7 @@ aeko-frozen-abi-macro = { workspace = true }
 aeko-measure = { workspace = true }
 aeko-metrics = { workspace = true }
 aeko-sdk = { workspace = true }
-solana_rbpf = { workspace = true }
+aeko_rbpf = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

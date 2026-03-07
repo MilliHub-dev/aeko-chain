@@ -1,6 +1,6 @@
 # Bridge Overview
 
-The **AEKO Bridge** connects the AEKO Chain to the wider crypto ecosystem (Ethereum, Solana, BSC).
+The **AEKO Bridge** connects the AEKO Chain to the wider crypto ecosystem (Ethereum, Aeko, BSC).
 
 ## Architecture: Lock and Mint
 

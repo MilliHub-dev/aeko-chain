@@ -1,3 +1,3 @@
-# `@solana/web3.js`
+# `@aeko/web3.js`
 
-Moved to its own repo @ https://github.com/solana-labs/solana-web3.js
+Moved to its own repo @ https://github.com/aeko-labs/aeko-web3.js

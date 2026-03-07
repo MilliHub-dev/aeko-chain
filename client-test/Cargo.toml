@@ -1,6 +1,6 @@
 [package]
 name = "aeko-client-test"
-description = "Solana RPC Test"
+description = "Aeko RPC Test"
 documentation = "https://docs.rs/aeko-client-test"
 publish = false
 version = { workspace = true }

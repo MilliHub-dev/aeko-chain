@@ -24,15 +24,12 @@ pub fn aeko_to_lamports(aeko: f64) -> u64 {
 }
 
 #[deprecated(since = "2.0.0", note = "Please use aeko_to_lamports instead")]
-pub fn sol_to_lamports(sol: f64) -> u64 {
-    aeko_to_lamports(sol)
+pub fn sol_to_lamports(aeko: f64) -> u64 {
+    aeko_to_lamports(aeko)
 }
 
 use std::fmt::{Debug, Display, Formatter, Result};
 pub struct Aeko(pub u64);
-
-#[deprecated(since = "2.0.0", note = "Please use Aeko instead")]
-pub type Sol = Aeko;
 
 impl Aeko {
     fn write_in_aeko(&self, f: &mut Formatter) -> Result {

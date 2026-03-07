@@ -20,13 +20,13 @@ usage: $0 [cluster_rpc_url]
    CONFIG
 
  Required arguments:
-   cluster_rpc_url  - RPC URL and port for a running Solana cluster (ex: http://34.83.146.144:8899)
+   cluster_rpc_url  - RPC URL and port for a running Aeko cluster (ex: http://34.83.146.144:8899)
 EOF
   exit $exitcode
 }
 
 function get_cluster_version {
-  clusterVersion="$(curl -s -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1, "method":"getVersion"}' "$url" | jq '.result | ."solana-core" ')"
+  clusterVersion="$(curl -s -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1, "method":"getVersion"}' "$url" | jq '.result | ."aeko-core" ')"
   echo Cluster software version: "$clusterVersion"
 }
 
@@ -35,7 +35,7 @@ function get_token_capitalization {
   totalSupplySol=$((totalSupplyLamports / LAMPORTS_PER_SOL))
 
   printf "\n--- Token Capitalization ---\n"
-  printf "Total token capitalization %'d SOL\n" "$totalSupplySol"
+  printf "Total token capitalization %'d AEKO\n" "$totalSupplySol"
   printf "Total token capitalization %'d Lamports\n" "$totalSupplyLamports"
 
 }
@@ -59,7 +59,7 @@ function get_program_account_balance_totals {
 
   printf "\n--- %s Account Balance Totals ---\n" "$PROGRAM_NAME"
   printf "Number of %s Program accounts: %'.f\n" "$PROGRAM_NAME" "$numberOfAccounts"
-  printf "Total token balance in all %s accounts: %'d SOL\n" "$PROGRAM_NAME" "$totalAccountBalancesSol"
+  printf "Total token balance in all %s accounts: %'d AEKO\n" "$PROGRAM_NAME" "$totalAccountBalancesSol"
   printf "Total token balance in all %s accounts: %'d Lamports\n" "$PROGRAM_NAME" "$totalAccountBalancesLamports"
 
   case $PROGRAM_NAME in
@@ -91,7 +91,7 @@ function sum_account_balances_totals {
   grandTotalAccountBalancesLamports=$((systemAccountBalanceTotalLamports + stakeAccountBalanceTotalLamports + voteAccountBalanceTotalLamports + configAccountBalanceTotalLamports))
 
   printf "\n--- Total Token Distribution in all Account Balances ---\n"
-  printf "Total SOL in all Account Balances: %'d\n" "$grandTotalAccountBalancesSol"
+  printf "Total AEKO in all Account Balances: %'d\n" "$grandTotalAccountBalancesSol"
   printf "Total Lamports in all Account Balances: %'d\n" "$grandTotalAccountBalancesLamports"
 }
 

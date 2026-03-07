@@ -1,5 +1,5 @@
 //! Information about points calculation based on stake state.
-//! Used by `solana-runtime`.
+//! Used by `aeko-runtime`.
 
 use {
     aeko_sdk::{
@@ -219,7 +219,7 @@ mod tests {
         let mut vote_state = VoteState::default();
 
         // bootstrap means fully-vested stake at epoch 0 with
-        //  10_000_000 SOL is a big but not unreasaonable stake
+        //  10_000_000 AEKO is a big but not unreasaonable stake
         let stake = new_stake(
             native_token::aeko_to_lamports(10_000_000f64),
             &Pubkey::default(),

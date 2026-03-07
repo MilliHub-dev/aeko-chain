@@ -58,7 +58,7 @@ use {
 const WAIT_FOR_STREAM_TIMEOUT: Duration = Duration::from_millis(100);
 pub const DEFAULT_WAIT_FOR_CHUNK_TIMEOUT: Duration = Duration::from_secs(10);
 
-pub const ALPN_TPU_PROTOCOL_ID: &[u8] = b"solana-tpu";
+pub const ALPN_TPU_PROTOCOL_ID: &[u8] = b"aeko-tpu";
 
 const CONNECTION_CLOSE_CODE_DROPPED_ENTRY: u32 = 1;
 const CONNECTION_CLOSE_REASON_DROPPED_ENTRY: &[u8] = b"dropped";

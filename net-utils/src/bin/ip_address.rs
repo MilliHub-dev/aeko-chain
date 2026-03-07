@@ -2,7 +2,7 @@ use clap::{Arg, Command};
 
 fn main() {
     aeko_logger::setup();
-    let matches = Command::new("solana-ip-address")
+    let matches = Command::new("aeko-ip-address")
         .version(aeko_version::version!())
         .arg(
             Arg::new("host_port")

@@ -1,6 +1,6 @@
 [package]
 name = "aeko-quic-client"
-description = "Solana Quic Client"
+description = "Aeko Quic Client"
 documentation = "https://docs.rs/aeko-quic-client"
 version = { workspace = true }
 authors = { workspace = true }

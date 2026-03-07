@@ -24,7 +24,7 @@ use {
         tpu_client::{TpuClient, TpuClientConfig},
     },
     aeko_program_runtime::{compute_budget::ComputeBudget, invoke_context::InvokeContext},
-    solana_rbpf::{elf::Executable, verifier::RequisiteVerifier},
+    aeko_rbpf::{elf::Executable, verifier::RequisiteVerifier},
     aeko_remote_wallet::remote_wallet::RemoteWalletManager,
     aeko_rpc_client::rpc_client::RpcClient,
     aeko_rpc_client_api::{

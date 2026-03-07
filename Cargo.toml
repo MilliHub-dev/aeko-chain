@@ -53,6 +53,7 @@ members = [
     "metrics",
     "net-shaper",
     "net-utils",
+    "nohash-hasher",
     "notifier",
     "perf",
     "poh",
@@ -78,6 +79,7 @@ members = [
     "rayon-threadlimit",
     "rbpf-cli",
     "remote-wallet",
+    "rbpf",
     "rpc",
     "rpc-client",
     "rpc-client-api",
@@ -346,7 +348,7 @@ aeko-measure = { path = "measure", version = "=2.0.0" }
 aeko-merkle-tree = { path = "merkle-tree", version = "=2.0.0" }
 aeko-metrics = { path = "metrics", version = "=2.0.0" }
 aeko-net-utils = { path = "net-utils", version = "=2.0.0" }
-aeko-nohash-hasher = { package = "solana-nohash-hasher", version = "0.2.1" }
+aeko-nohash-hasher = { path = "nohash-hasher", version = "0.2.1" }
 aeko-notifier = { path = "notifier", version = "=2.0.0" }
 aeko-perf = { path = "perf", version = "=2.0.0" }
 aeko-poh = { path = "poh", version = "=2.0.0" }
@@ -387,7 +389,7 @@ aeko-wen-restart = { path = "wen-restart", version = "=2.0.0" }
 aeko-zk-keygen = { path = "zk-keygen", version = "=2.0.0" }
 aeko-zk-token-proof-program = { path = "programs/zk-token-proof", version = "=2.0.0" }
 aeko-zk-token-sdk = { path = "zk-token-sdk", version = "=2.0.0" }
-solana_rbpf = "=0.8.0"
+aeko_rbpf = { path = "rbpf", version = "=0.8.0" }
 spl-associated-token-account = "=2.3.1"
 spl-instruction-padding = "0.1"
 spl-memo = "=4.0.1"
@@ -434,8 +436,8 @@ zeroize = { version = "1.3", default-features = false }
 zstd = "0.11.2"
 
 [patch.crates-io]
-# for details, see https://github.com/solana-labs/crossbeam/commit/fd279d707025f0e60951e429bf778b4813d1b6bf
-crossbeam-epoch = { git = "https://github.com/solana-labs/crossbeam", rev = "fd279d707025f0e60951e429bf778b4813d1b6bf" }
+# for details, see https://github.com/aeko-labs/crossbeam/commit/fd279d707025f0e60951e429bf778b4813d1b6bf
+crossbeam-epoch = { git = "https://github.com/crossbeam-rs/crossbeam", rev = "fd279d707025f0e60951e429bf778b4813d1b6bf" }
 
 # We include the following crates as our dependencies above from crates.io:
 #
@@ -541,10 +543,10 @@ rev = "6105d7a5591aefa646a95d12b5e8d3f55a9214ef"
 # https://github.com/dalek-cryptography/curve25519-dalek/compare/3.2.1...aeko-labs:curve25519-dalek:3.2.1-unpin-zeroize
 #
 [patch.crates-io.curve25519-dalek]
-git = "https://github.com/solana-labs/curve25519-dalek.git"
+git = "https://github.com/dalek-cryptography/curve25519-dalek.git"
 rev = "b500cdc2a920cd5bff9e2dd974d7b97349d61464"
 
-# Solana RPC nodes experience stalls when running with `tokio` containing this
+# Aeko RPC nodes experience stalls when running with `tokio` containing this
 # commit:
 # https://github.com/tokio-rs/tokio/commit/4eed411519783ef6f58cbf74f886f91142b5cfa6
 #
@@ -556,8 +558,8 @@ rev = "b500cdc2a920cd5bff9e2dd974d7b97349d61464"
 # tagged version specified above with commit `4eed411` reverted.
 #
 # Comparison:
-# https://github.com/tokio-rs/tokio/compare/tokio-1.29.1...solana-labs:solana-tokio:tokio-1.29.1-revert-4eed411
+# https://github.com/tokio-rs/tokio/compare/tokio-1.29.1...aeko-labs:aeko-tokio:tokio-1.29.1-revert-4eed411
 #
 [patch.crates-io.tokio]
-git = "https://github.com/solana-labs/solana-tokio.git"
+git = "https://github.com/tokio-rs/tokio.git"
 rev = "7cf47705faacf7bf0e43e4131a5377b3291fce21"

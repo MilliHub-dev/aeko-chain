@@ -74,7 +74,7 @@ impl HttpSender {
     pub fn default_headers() -> header::HeaderMap {
         let mut default_headers = header::HeaderMap::new();
         default_headers.append(
-            header::HeaderName::from_static("solana-client"),
+            header::HeaderName::from_static("aeko-client"),
             header::HeaderValue::from_str(
                 format!("rust/{}", aeko_version::Version::default()).as_str(),
             )

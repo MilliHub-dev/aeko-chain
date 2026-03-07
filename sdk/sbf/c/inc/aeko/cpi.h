@@ -56,7 +56,7 @@ typedef struct {
 /**
  * Internal cross-program invocation function
  */
-/* DO NOT MODIFY THIS GENERATED FILE. INSTEAD CHANGE sdk/sbf/c/inc/sol/inc/cpi.inc AND RUN `cargo run --bin gen-headers` */
+/* DO NOT MODIFY THIS GENERATED FILE. INSTEAD CHANGE sdk/sbf/c/inc/aeko/inc/cpi.inc AND RUN `cargo run --bin gen-headers` */
 #ifndef aeko_SBFV2
 uint64_t aeko_invoke_signed_c(
   const SolInstruction *,

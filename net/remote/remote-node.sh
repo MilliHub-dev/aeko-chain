@@ -108,7 +108,7 @@ cat >> ~/aeko/on-reboot <<EOF
   export USE_INSTALL=1
 
   (
-    sudo SOLANA_METRICS_CONFIG="$SOLANA_METRICS_CONFIG" scripts/oom-monitor.sh
+    sudo AEKO_METRICS_CONFIG="$AEKO_METRICS_CONFIG" scripts/oom-monitor.sh
   ) > oom-monitor.log 2>&1 &
   echo \$! > oom-monitor.pid
   scripts/fd-monitor.sh > fd-monitor.log 2>&1 &
@@ -122,10 +122,10 @@ cat >> ~/aeko/on-reboot <<EOF
 
   if ${GPU_CUDA_OK} && [[ -e /dev/nvidia0 ]]; then
     echo Selecting aeko-validator-cuda
-    export SOLANA_CUDA=1
+    export AEKO_CUDA=1
   elif ${GPU_FAIL_IF_NONE} ; then
     echo "Expected GPU, found none!"
-    export SOLANA_GPU_MISSING=1
+    export AEKO_GPU_MISSING=1
   fi
 EOF
 
@@ -133,7 +133,7 @@ EOF
   bootstrap-validator)
     set -x
     if [[ $skipSetup != true ]]; then
-      clear_config_dir "$SOLANA_CONFIG_DIR"
+      clear_config_dir "$AEKO_CONFIG_DIR"
 
       if [[ -n $internalNodesLamports ]]; then
         echo "---" >> config/validator-balances.yml
@@ -264,7 +264,7 @@ EOF
 
       if [[ -n "$maybeWaitForSupermajority" ]]; then
         bankHash=$(aeko-ledger-tool -l config/bootstrap-validator bank-hash --halt-at-slot 0)
-        shredVersion="$(cat "$SOLANA_CONFIG_DIR"/shred-version)"
+        shredVersion="$(cat "$AEKO_CONFIG_DIR"/shred-version)"
         extraNodeArgs="$extraNodeArgs --expected-bank-hash $bankHash --expected-shred-version $shredVersion"
         echo "$bankHash" > config/bank-hash
       fi
@@ -320,34 +320,34 @@ EOF
       net/scripts/rsync-retry.sh -vPrc "$entrypointIp":~/version.yml ~/version.yml
     fi
     if [[ $skipSetup != true ]]; then
-      clear_config_dir "$SOLANA_CONFIG_DIR"
+      clear_config_dir "$AEKO_CONFIG_DIR"
 
       if [[ $nodeType = blockstreamer ]]; then
         net/scripts/rsync-retry.sh -vPrc \
-          "$entrypointIp":~/aeko/config/blockstreamer-identity.json "$SOLANA_CONFIG_DIR"/validator-identity.json
+          "$entrypointIp":~/aeko/config/blockstreamer-identity.json "$AEKO_CONFIG_DIR"/validator-identity.json
       else
         net/scripts/rsync-retry.sh -vPrc \
-          "$entrypointIp":~/aeko/config/validator-identity-"$nodeIndex".json "$SOLANA_CONFIG_DIR"/validator-identity.json
+          "$entrypointIp":~/aeko/config/validator-identity-"$nodeIndex".json "$AEKO_CONFIG_DIR"/validator-identity.json
         net/scripts/rsync-retry.sh -vPrc \
-          "$entrypointIp":~/aeko/config/validator-stake-"$nodeIndex".json "$SOLANA_CONFIG_DIR"/stake-account.json
+          "$entrypointIp":~/aeko/config/validator-stake-"$nodeIndex".json "$AEKO_CONFIG_DIR"/stake-account.json
         net/scripts/rsync-retry.sh -vPrc \
-          "$entrypointIp":~/aeko/config/validator-vote-"$nodeIndex".json "$SOLANA_CONFIG_DIR"/vote-account.json
+          "$entrypointIp":~/aeko/config/validator-vote-"$nodeIndex".json "$AEKO_CONFIG_DIR"/vote-account.json
       fi
       net/scripts/rsync-retry.sh -vPrc \
-        "$entrypointIp":~/aeko/config/shred-version "$SOLANA_CONFIG_DIR"/shred-version
+        "$entrypointIp":~/aeko/config/shred-version "$AEKO_CONFIG_DIR"/shred-version
 
       net/scripts/rsync-retry.sh -vPrc \
-        "$entrypointIp":~/aeko/config/bank-hash "$SOLANA_CONFIG_DIR"/bank-hash || true
+        "$entrypointIp":~/aeko/config/bank-hash "$AEKO_CONFIG_DIR"/bank-hash || true
 
       net/scripts/rsync-retry.sh -vPrc \
-        "$entrypointIp":~/aeko/config/faucet.json "$SOLANA_CONFIG_DIR"/faucet.json
+        "$entrypointIp":~/aeko/config/faucet.json "$AEKO_CONFIG_DIR"/faucet.json
     fi
 
     args=(
       --entrypoint "$entrypointIp:8001"
       --gossip-port 8001
       --rpc-port 8899
-      --expected-shred-version "$(cat "$SOLANA_CONFIG_DIR"/shred-version)"
+      --expected-shred-version "$(cat "$AEKO_CONFIG_DIR"/shred-version)"
     )
     if [[ $nodeType = blockstreamer ]]; then
       args+=(
@@ -362,14 +362,14 @@ EOF
       fi
     fi
 
-    if [[ ! -f "$SOLANA_CONFIG_DIR"/validator-identity.json ]]; then
-      aeko-keygen new --no-passphrase -so "$SOLANA_CONFIG_DIR"/validator-identity.json
+    if [[ ! -f "$AEKO_CONFIG_DIR"/validator-identity.json ]]; then
+      aeko-keygen new --no-passphrase -so "$AEKO_CONFIG_DIR"/validator-identity.json
     fi
-    args+=(--identity "$SOLANA_CONFIG_DIR"/validator-identity.json)
-    if [[ ! -f "$SOLANA_CONFIG_DIR"/vote-account.json ]]; then
-      aeko-keygen new --no-passphrase -so "$SOLANA_CONFIG_DIR"/vote-account.json
+    args+=(--identity "$AEKO_CONFIG_DIR"/validator-identity.json)
+    if [[ ! -f "$AEKO_CONFIG_DIR"/vote-account.json ]]; then
+      aeko-keygen new --no-passphrase -so "$AEKO_CONFIG_DIR"/vote-account.json
     fi
-    args+=(--vote-account "$SOLANA_CONFIG_DIR"/vote-account.json)
+    args+=(--vote-account "$AEKO_CONFIG_DIR"/vote-account.json)
 
     if [[ $airdropsEnabled != true ]]; then
       args+=(--no-airdrop)
@@ -377,14 +377,14 @@ EOF
       args+=(--rpc-faucet-address "$entrypointIp:9900")
     fi
 
-    if [[ -r "$SOLANA_CONFIG_DIR"/bank-hash ]]; then
-      args+=(--expected-bank-hash "$(cat "$SOLANA_CONFIG_DIR"/bank-hash)")
+    if [[ -r "$AEKO_CONFIG_DIR"/bank-hash ]]; then
+      args+=(--expected-bank-hash "$(cat "$AEKO_CONFIG_DIR"/bank-hash)")
     fi
 
     set -x
     # Add the faucet keypair to validators for convenient access from tools
     # like bench-tps and add to blocktreamers to run a faucet
-    scp "$entrypointIp":~/aeko/config/faucet.json "$SOLANA_CONFIG_DIR"/
+    scp "$entrypointIp":~/aeko/config/faucet.json "$AEKO_CONFIG_DIR"/
     if [[ $nodeType = blockstreamer ]]; then
       # Run another faucet with the same keypair on the blockstreamer node.
       # Typically the blockstreamer node has a static IP/DNS name for hosting
@@ -459,8 +459,8 @@ EOF
 
       if [[ ${extraPrimordialStakes} -eq 0 ]]; then
         echo "0 Primordial stakes, staking with $internalNodesStakeLamports"
-        multinode-demo/delegate-stake.sh --vote-account "$SOLANA_CONFIG_DIR"/vote-account.json \
-                                         --stake-account "$SOLANA_CONFIG_DIR"/stake-account.json \
+        multinode-demo/delegate-stake.sh --vote-account "$AEKO_CONFIG_DIR"/vote-account.json \
+                                         --stake-account "$AEKO_CONFIG_DIR"/stake-account.json \
                                          --force \
                                          "${args[@]}" "$internalNodesStakeLamports"
       else

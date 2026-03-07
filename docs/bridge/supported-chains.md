@@ -7,7 +7,7 @@ The AEKO Bridge currently connects to the following networks.
 | Network | Chain ID | Asset Types | Status |
 | :--- | :--- | :--- | :--- |
 | **Ethereum Mainnet** | 1 | ERC-20, ETH | 🟢 Active |
-| **Solana** | 101 | SPL Tokens | 🟢 Active |
+| **Aeko** | 101 | SPL Tokens | 🟢 Active |
 | **Binance Smart Chain** | 56 | BEP-20 | 🟡 Beta |
 
 ## Planned Integrations

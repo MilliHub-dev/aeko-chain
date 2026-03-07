@@ -12,13 +12,13 @@ use {
 /// Static configurations:
 ///
 /// Number of microseconds replaying a block should take, 400 millisecond block times
-/// is currently publicly communicated on solana.com
+/// is currently publicly communicated on aeko.com
 pub const MAX_BLOCK_REPLAY_TIME_US: u64 = 400_000;
 /// number of concurrent processes,
 pub const MAX_CONCURRENCY: u64 = 4;
 
-// Cluster data, method of collecting at https://github.com/aeko-chain/solana/issues/19627
-// Dashboard: https://metrics.solana.com/d/monitor-edge/cluster-telemetry?orgId=1
+// Cluster data, method of collecting at https://github.com/aeko-chain/aeko/issues/19627
+// Dashboard: https://metrics.aeko.com/d/monitor-edge/cluster-telemetry?orgId=1
 
 /// Cluster averaged compute unit to micro-sec conversion rate
 pub const COMPUTE_UNIT_TO_US_RATIO: u64 = 30;

@@ -1,11 +1,11 @@
 /**
  * @brief SHA256 Syscall test
  */
-#include <sol/sha.h>
-#include <sol/keccak.h>
-#include <sol/blake3.h>
-#include <sol/string.h>
-#include <sol/assert.h>
+#include <aeko/sha.h>
+#include <aeko/keccak.h>
+#include <aeko/blake3.h>
+#include <aeko/string.h>
+#include <aeko/assert.h>
 
 extern uint64_t entrypoint(const uint8_t *input) {
 

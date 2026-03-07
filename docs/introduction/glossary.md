@@ -1,7 +1,7 @@
 # Glossary
 
 *   **AEKO**: The native utility token of the AEKO Chain.
-*   **SVM (Solana Virtual Machine)**: The high-performance execution environment used by AEKO Chain.
+*   **SVM (Aeko Virtual Machine)**: The high-performance execution environment used by AEKO Chain.
 *   **PoH (Proof of History)**: A cryptographic clock that allows nodes to agree on time order without communicating.
 *   **SocialFi**: The intersection of Social Media and Decentralized Finance.
 *   **Permission Layer**: A protocol layer that validates the authority of a sender before executing a transaction.

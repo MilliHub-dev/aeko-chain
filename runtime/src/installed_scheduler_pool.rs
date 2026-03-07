@@ -14,8 +14,8 @@
 //! Dynamic dispatch was inevitable due to the desire to piggyback on
 //! [BankForks](crate::bank_forks::BankForks)'s pruning for scheduler lifecycle management as the
 //! common place both for `ReplayStage` and `BankingStage` and the resultant need of invoking
-//! actual implementations provided by the dependent crate (`solana-unified-scheduler-pool`, which
-//! in turn depends on `solana-ledger`, which in turn depends on `solana-runtime`), avoiding a
+//! actual implementations provided by the dependent crate (`aeko-unified-scheduler-pool`, which
+//! in turn depends on `aeko-ledger`, which in turn depends on `aeko-runtime`), avoiding a
 //! cyclic dependency.
 //!
 //! See [InstalledScheduler] for visualized interaction.
@@ -52,7 +52,7 @@ pub trait InstalledSchedulerPool: Send + Sync + Debug {
 /// graph TD
 ///     Bank["Arc#lt;Bank#gt;"]
 ///
-///     subgraph solana-runtime
+///     subgraph aeko-runtime
 ///         BankForks;
 ///         BankWithScheduler;
 ///         Bank;
@@ -62,13 +62,13 @@ pub trait InstalledSchedulerPool: Send + Sync + Debug {
 ///         InstalledScheduler{{InstalledScheduler}};
 ///     end
 ///
-///     subgraph solana-unified-scheduler-pool
+///     subgraph aeko-unified-scheduler-pool
 ///         SchedulerPool;
 ///         PooledScheduler;
 ///         ScheduleExecution(["schedule_execution()"]);
 ///     end
 ///
-///     subgraph solana-ledger
+///     subgraph aeko-ledger
 ///         ExecuteBatch(["execute_batch()"]);
 ///     end
 ///

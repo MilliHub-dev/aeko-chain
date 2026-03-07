@@ -11,10 +11,10 @@
 //! method. For additional context see the [Comprehensive Compute Fees
 //! proposal][ccf].
 //!
-//! [`getFeeForMessage`]: https://solana.com/docs/rpc/http/getfeeformessage
+//! [`getFeeForMessage`]: https://aeko.com/docs/rpc/http/getfeeformessage
 //! [ccf]: https://docs.aeko.network/proposals/comprehensive-compute-fees
 //!
-//! See also the Solana [documentation on the fees sysvar][sdoc].
+//! See also the Aeko [documentation on the fees sysvar][sdoc].
 //!
 //! [sdoc]: https://docs.aeko.network/runtime/sysvars#fees
 

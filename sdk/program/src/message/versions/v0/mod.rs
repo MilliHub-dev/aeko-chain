@@ -1,7 +1,7 @@
-//! A future Solana message format.
+//! A future Aeko message format.
 //!
 //! This crate defines two versions of `Message` in their own modules:
-//! [`legacy`] and [`v0`]. `legacy` is the current version as of Solana 1.10.0.
+//! [`legacy`] and [`v0`]. `legacy` is the current version as of Aeko 1.10.0.
 //! `v0` is a [future message format] that encodes more account keys into a
 //! transaction than the legacy format.
 //!
@@ -42,7 +42,7 @@ pub struct MessageAddressTableLookup {
     pub readonly_indexes: Vec<u8>,
 }
 
-/// A Solana transaction message (v0).
+/// A Aeko transaction message (v0).
 ///
 /// This message format supports succinct account loading with
 /// on-chain address lookup tables.
@@ -181,8 +181,8 @@ impl Message {
     ///
     /// This example uses the [`aeko_rpc_client`], [`aeko_sdk`], and [`anyhow`] crates.
     ///
-    /// [`aeko_rpc_client`]: https://docs.rs/solana-rpc-client
-    /// [`aeko_sdk`]: https://docs.rs/solana-sdk
+    /// [`aeko_rpc_client`]: https://docs.rs/aeko-rpc-client
+    /// [`aeko_sdk`]: https://docs.rs/aeko-sdk
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```

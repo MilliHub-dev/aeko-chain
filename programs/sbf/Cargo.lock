@@ -4529,7 +4529,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-account-decoder"
+name = "aeko-account-decoder"
 version = "2.0.0"
 dependencies = [
  "Inflector",
@@ -4541,8 +4541,8 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "solana-config-program",
- "solana-sdk",
+ "aeko-config-program",
+ "aeko-sdk",
  "spl-token",
  "spl-token-2022",
  "spl-token-group-interface",
@@ -4552,7 +4552,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-accounts-db"
+name = "aeko-accounts-db"
 version = "2.0.0"
 dependencies = [
  "arrayref",
@@ -4589,20 +4589,20 @@ dependencies = [
  "serde",
  "serde_derive",
  "smallvec",
- "solana-bucket-map",
- "solana-config-program",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-measure",
- "solana-metrics",
- "solana-nohash-hasher",
- "solana-program-runtime",
- "solana-rayon-threadlimit",
- "solana-sdk",
- "solana-stake-program",
- "solana-svm",
- "solana-system-program",
- "solana-vote-program",
+ "aeko-bucket-map",
+ "aeko-config-program",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-nohash-hasher",
+ "aeko-program-runtime",
+ "aeko-rayon-threadlimit",
+ "aeko-sdk",
+ "aeko-stake-program",
+ "aeko-svm",
+ "aeko-system-program",
+ "aeko-vote-program",
  "static_assertions",
  "strum",
  "strum_macros",
@@ -4612,7 +4612,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-address-lookup-table-program"
+name = "aeko-address-lookup-table-program"
 version = "2.0.0"
 dependencies = [
  "bincode",
@@ -4622,23 +4622,23 @@ dependencies = [
  "num-traits",
  "rustc_version",
  "serde",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-program",
- "solana-program-runtime",
- "solana-sdk",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
  "thiserror",
 ]
 
 [[package]]
-name = "solana-banks-client"
+name = "aeko-banks-client"
 version = "2.0.0"
 dependencies = [
  "borsh 1.2.1",
  "futures 0.3.30",
- "solana-banks-interface",
- "solana-program",
- "solana-sdk",
+ "aeko-banks-interface",
+ "aeko-program",
+ "aeko-sdk",
  "tarpc",
  "thiserror",
  "tokio",
@@ -4646,34 +4646,34 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-banks-interface"
+name = "aeko-banks-interface"
 version = "2.0.0"
 dependencies = [
  "serde",
- "solana-sdk",
+ "aeko-sdk",
  "tarpc",
 ]
 
 [[package]]
-name = "solana-banks-server"
+name = "aeko-banks-server"
 version = "2.0.0"
 dependencies = [
  "bincode",
  "crossbeam-channel",
  "futures 0.3.30",
- "solana-banks-interface",
- "solana-client",
- "solana-runtime",
- "solana-sdk",
- "solana-send-transaction-service",
- "solana-svm",
+ "aeko-banks-interface",
+ "aeko-client",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-send-transaction-service",
+ "aeko-svm",
  "tarpc",
  "tokio",
  "tokio-serde",
 ]
 
 [[package]]
-name = "solana-bloom"
+name = "aeko-bloom"
 version = "2.0.0"
 dependencies = [
  "bv",
@@ -4684,13 +4684,13 @@ dependencies = [
  "rustc_version",
  "serde",
  "serde_derive",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-sdk",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-bpf-loader-program"
+name = "aeko-bpf-loader-program"
 version = "2.0.0"
 dependencies = [
  "bincode",
@@ -4698,26 +4698,26 @@ dependencies = [
  "libsecp256k1 0.6.0",
  "log",
  "scopeguard",
- "solana-measure",
- "solana-program-runtime",
- "solana-sdk",
- "solana-zk-token-sdk",
- "solana_rbpf",
+ "aeko-measure",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "aeko-zk-token-sdk",
+ "aeko_rbpf",
  "thiserror",
 ]
 
 [[package]]
-name = "solana-bpf-rust-big-mod-exp"
+name = "aeko-bpf-rust-big-mod-exp"
 version = "2.0.0"
 dependencies = [
  "array-bytes",
  "serde",
  "serde_json",
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-bucket-map"
+name = "aeko-bucket-map"
 version = "2.0.0"
 dependencies = [
  "bv",
@@ -4727,20 +4727,20 @@ dependencies = [
  "modular-bitfield",
  "num_enum",
  "rand 0.8.5",
- "solana-measure",
- "solana-sdk",
+ "aeko-measure",
+ "aeko-sdk",
  "tempfile",
 ]
 
 [[package]]
-name = "solana-clap-utils"
+name = "aeko-clap-utils"
 version = "2.0.0"
 dependencies = [
  "chrono",
  "clap 2.33.3",
  "rpassword",
- "solana-remote-wallet",
- "solana-sdk",
+ "aeko-remote-wallet",
+ "aeko-sdk",
  "thiserror",
  "tiny-bip39",
  "uriparse",
@@ -4748,7 +4748,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-cli-config"
+name = "aeko-cli-config"
 version = "2.0.0"
 dependencies = [
  "dirs-next",
@@ -4756,13 +4756,13 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_yaml",
- "solana-clap-utils",
- "solana-sdk",
+ "aeko-clap-utils",
+ "aeko-sdk",
  "url 2.5.0",
 ]
 
 [[package]]
-name = "solana-cli-output"
+name = "aeko-cli-output"
 version = "2.0.0"
 dependencies = [
  "Inflector",
@@ -4776,18 +4776,18 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "solana-account-decoder",
- "solana-clap-utils",
- "solana-cli-config",
- "solana-rpc-client-api",
- "solana-sdk",
- "solana-transaction-status",
- "solana-vote-program",
+ "aeko-account-decoder",
+ "aeko-clap-utils",
+ "aeko-cli-config",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "aeko-transaction-status",
+ "aeko-vote-program",
  "spl-memo",
 ]
 
 [[package]]
-name = "solana-client"
+name = "aeko-client"
 version = "2.0.0"
 dependencies = [
  "async-trait",
@@ -4800,45 +4800,45 @@ dependencies = [
  "log",
  "quinn",
  "rayon",
- "solana-connection-cache",
- "solana-measure",
- "solana-metrics",
- "solana-pubsub-client",
- "solana-quic-client",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-rpc-client-nonce-utils",
- "solana-sdk",
- "solana-streamer",
- "solana-thin-client",
- "solana-tpu-client",
- "solana-udp-client",
+ "aeko-connection-cache",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-pubsub-client",
+ "aeko-quic-client",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-rpc-client-nonce-utils",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-thin-client",
+ "aeko-tpu-client",
+ "aeko-udp-client",
  "thiserror",
  "tokio",
 ]
 
 [[package]]
-name = "solana-compute-budget-program"
+name = "aeko-compute-budget-program"
 version = "2.0.0"
 dependencies = [
- "solana-program-runtime",
- "solana-sdk",
+ "aeko-program-runtime",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-config-program"
+name = "aeko-config-program"
 version = "2.0.0"
 dependencies = [
  "bincode",
  "chrono",
  "serde",
  "serde_derive",
- "solana-program-runtime",
- "solana-sdk",
+ "aeko-program-runtime",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-connection-cache"
+name = "aeko-connection-cache"
 version = "2.0.0"
 dependencies = [
  "async-trait",
@@ -4849,15 +4849,15 @@ dependencies = [
  "log",
  "rand 0.8.5",
  "rayon",
- "solana-measure",
- "solana-metrics",
- "solana-sdk",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-sdk",
  "thiserror",
  "tokio",
 ]
 
 [[package]]
-name = "solana-core"
+name = "aeko-core"
 version = "2.0.0"
 dependencies = [
  "base64 0.22.0",
@@ -4888,39 +4888,39 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_derive",
- "solana-accounts-db",
- "solana-bloom",
- "solana-client",
- "solana-cost-model",
- "solana-entry",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-geyser-plugin-manager",
- "solana-gossip",
- "solana-ledger",
- "solana-measure",
- "solana-metrics",
- "solana-net-utils",
- "solana-perf",
- "solana-poh",
- "solana-program-runtime",
- "solana-quic-client",
- "solana-rayon-threadlimit",
- "solana-rpc",
- "solana-rpc-client-api",
- "solana-runtime",
- "solana-sdk",
- "solana-send-transaction-service",
- "solana-streamer",
- "solana-svm",
- "solana-tpu-client",
- "solana-transaction-status",
- "solana-turbine",
- "solana-unified-scheduler-pool",
- "solana-version",
- "solana-vote",
- "solana-vote-program",
- "solana-wen-restart",
+ "aeko-accounts-db",
+ "aeko-bloom",
+ "aeko-client",
+ "aeko-cost-model",
+ "aeko-entry",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-geyser-plugin-manager",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-net-utils",
+ "aeko-perf",
+ "aeko-poh",
+ "aeko-program-runtime",
+ "aeko-quic-client",
+ "aeko-rayon-threadlimit",
+ "aeko-rpc",
+ "aeko-rpc-client-api",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-send-transaction-service",
+ "aeko-streamer",
+ "aeko-svm",
+ "aeko-tpu-client",
+ "aeko-transaction-status",
+ "aeko-turbine",
+ "aeko-unified-scheduler-pool",
+ "aeko-version",
+ "aeko-vote",
+ "aeko-vote-program",
+ "aeko-wen-restart",
  "strum",
  "strum_macros",
  "sys-info",
@@ -4932,41 +4932,41 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-cost-model"
+name = "aeko-cost-model"
 version = "2.0.0"
 dependencies = [
  "lazy_static",
  "log",
  "rustc_version",
- "solana-address-lookup-table-program",
- "solana-bpf-loader-program",
- "solana-compute-budget-program",
- "solana-config-program",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-loader-v4-program",
- "solana-metrics",
- "solana-program-runtime",
- "solana-sdk",
- "solana-stake-program",
- "solana-system-program",
- "solana-vote-program",
+ "aeko-address-lookup-table-program",
+ "aeko-bpf-loader-program",
+ "aeko-compute-budget-program",
+ "aeko-config-program",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-loader-v4-program",
+ "aeko-metrics",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "aeko-stake-program",
+ "aeko-system-program",
+ "aeko-vote-program",
 ]
 
 [[package]]
-name = "solana-download-utils"
+name = "aeko-download-utils"
 version = "2.0.0"
 dependencies = [
  "console",
  "indicatif",
  "log",
  "reqwest",
- "solana-runtime",
- "solana-sdk",
+ "aeko-runtime",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-entry"
+name = "aeko-entry"
 version = "2.0.0"
 dependencies = [
  "bincode",
@@ -4977,16 +4977,16 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "serde",
- "solana-measure",
- "solana-merkle-tree",
- "solana-metrics",
- "solana-perf",
- "solana-rayon-threadlimit",
- "solana-sdk",
+ "aeko-measure",
+ "aeko-merkle-tree",
+ "aeko-metrics",
+ "aeko-perf",
+ "aeko-rayon-threadlimit",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-faucet"
+name = "aeko-faucet"
 version = "2.0.0"
 dependencies = [
  "bincode",
@@ -4996,19 +4996,19 @@ dependencies = [
  "log",
  "serde",
  "serde_derive",
- "solana-clap-utils",
- "solana-cli-config",
- "solana-logger",
- "solana-metrics",
- "solana-sdk",
- "solana-version",
+ "aeko-clap-utils",
+ "aeko-cli-config",
+ "aeko-logger",
+ "aeko-metrics",
+ "aeko-sdk",
+ "aeko-version",
  "spl-memo",
  "thiserror",
  "tokio",
 ]
 
 [[package]]
-name = "solana-frozen-abi"
+name = "aeko-frozen-abi"
 version = "2.0.0"
 dependencies = [
  "block-buffer 0.10.4",
@@ -5024,13 +5024,13 @@ dependencies = [
  "serde_bytes",
  "serde_derive",
  "sha2 0.10.8",
- "solana-frozen-abi-macro",
+ "aeko-frozen-abi-macro",
  "subtle",
  "thiserror",
 ]
 
 [[package]]
-name = "solana-frozen-abi-macro"
+name = "aeko-frozen-abi-macro"
 version = "2.0.0"
 dependencies = [
  "proc-macro2",
@@ -5040,28 +5040,28 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-genesis-utils"
+name = "aeko-genesis-utils"
 version = "2.0.0"
 dependencies = [
  "log",
- "solana-accounts-db",
- "solana-download-utils",
- "solana-rpc-client",
- "solana-sdk",
+ "aeko-accounts-db",
+ "aeko-download-utils",
+ "aeko-rpc-client",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-geyser-plugin-interface"
+name = "aeko-geyser-plugin-interface"
 version = "1.19.0"
 dependencies = [
  "log",
- "solana-sdk",
- "solana-transaction-status",
+ "aeko-sdk",
+ "aeko-transaction-status",
  "thiserror",
 ]
 
 [[package]]
-name = "solana-geyser-plugin-manager"
+name = "aeko-geyser-plugin-manager"
 version = "2.0.0"
 dependencies = [
  "bs58",
@@ -5071,22 +5071,22 @@ dependencies = [
  "libloading",
  "log",
  "serde_json",
- "solana-accounts-db",
- "solana-entry",
- "solana-geyser-plugin-interface",
- "solana-ledger",
- "solana-measure",
- "solana-metrics",
- "solana-rpc",
- "solana-runtime",
- "solana-sdk",
- "solana-transaction-status",
+ "aeko-accounts-db",
+ "aeko-entry",
+ "aeko-geyser-plugin-interface",
+ "aeko-ledger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-rpc",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-transaction-status",
  "thiserror",
  "tokio",
 ]
 
 [[package]]
-name = "solana-gossip"
+name = "aeko-gossip"
 version = "2.0.0"
 dependencies = [
  "assert_matches",
@@ -5108,33 +5108,33 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_derive",
- "solana-bloom",
- "solana-clap-utils",
- "solana-client",
- "solana-connection-cache",
- "solana-entry",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-ledger",
- "solana-logger",
- "solana-measure",
- "solana-metrics",
- "solana-net-utils",
- "solana-perf",
- "solana-rayon-threadlimit",
- "solana-runtime",
- "solana-sdk",
- "solana-streamer",
- "solana-tpu-client",
- "solana-version",
- "solana-vote",
- "solana-vote-program",
+ "aeko-bloom",
+ "aeko-clap-utils",
+ "aeko-client",
+ "aeko-connection-cache",
+ "aeko-entry",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-net-utils",
+ "aeko-perf",
+ "aeko-rayon-threadlimit",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-tpu-client",
+ "aeko-version",
+ "aeko-vote",
+ "aeko-vote-program",
  "static_assertions",
  "thiserror",
 ]
 
 [[package]]
-name = "solana-ledger"
+name = "aeko-ledger"
 version = "2.0.0"
 dependencies = [
  "assert_matches",
@@ -5166,27 +5166,27 @@ dependencies = [
  "serde",
  "serde_bytes",
  "sha2 0.10.8",
- "solana-account-decoder",
- "solana-accounts-db",
- "solana-bpf-loader-program",
- "solana-cost-model",
- "solana-entry",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-measure",
- "solana-metrics",
- "solana-perf",
- "solana-program-runtime",
- "solana-rayon-threadlimit",
- "solana-runtime",
- "solana-sdk",
- "solana-stake-program",
- "solana-storage-bigtable",
- "solana-storage-proto",
- "solana-svm",
- "solana-transaction-status",
- "solana-vote",
- "solana-vote-program",
+ "aeko-account-decoder",
+ "aeko-accounts-db",
+ "aeko-bpf-loader-program",
+ "aeko-cost-model",
+ "aeko-entry",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-perf",
+ "aeko-program-runtime",
+ "aeko-rayon-threadlimit",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-stake-program",
+ "aeko-storage-bigtable",
+ "aeko-storage-proto",
+ "aeko-svm",
+ "aeko-transaction-status",
+ "aeko-vote",
+ "aeko-vote-program",
  "spl-token",
  "spl-token-2022",
  "static_assertions",
@@ -5200,18 +5200,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-loader-v4-program"
+name = "aeko-loader-v4-program"
 version = "2.0.0"
 dependencies = [
  "log",
- "solana-measure",
- "solana-program-runtime",
- "solana-sdk",
- "solana_rbpf",
+ "aeko-measure",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "aeko_rbpf",
 ]
 
 [[package]]
-name = "solana-logger"
+name = "aeko-logger"
 version = "2.0.0"
 dependencies = [
  "env_logger",
@@ -5220,23 +5220,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-measure"
+name = "aeko-measure"
 version = "2.0.0"
 dependencies = [
  "log",
- "solana-sdk",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-merkle-tree"
+name = "aeko-merkle-tree"
 version = "2.0.0"
 dependencies = [
  "fast-math",
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-metrics"
+name = "aeko-metrics"
 version = "2.0.0"
 dependencies = [
  "crossbeam-channel",
@@ -5244,12 +5244,12 @@ dependencies = [
  "lazy_static",
  "log",
  "reqwest",
- "solana-sdk",
+ "aeko-sdk",
  "thiserror",
 ]
 
 [[package]]
-name = "solana-net-utils"
+name = "aeko-net-utils"
 version = "2.0.0"
 dependencies = [
  "bincode",
@@ -5261,21 +5261,21 @@ dependencies = [
  "serde",
  "serde_derive",
  "socket2 0.5.6",
- "solana-logger",
- "solana-sdk",
- "solana-version",
+ "aeko-logger",
+ "aeko-sdk",
+ "aeko-version",
  "tokio",
  "url 2.5.0",
 ]
 
 [[package]]
-name = "solana-nohash-hasher"
+name = "aeko-nohash-hasher"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b8a731ed60e89177c8a7ab05fe0f1511cedd3e70e773f288f9de33a9cfdc21e"
 
 [[package]]
-name = "solana-perf"
+name = "aeko-perf"
 version = "2.0.0"
 dependencies = [
  "ahash 0.8.10",
@@ -5293,32 +5293,32 @@ dependencies = [
  "rayon",
  "rustc_version",
  "serde",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-metrics",
- "solana-rayon-threadlimit",
- "solana-sdk",
- "solana-vote-program",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-metrics",
+ "aeko-rayon-threadlimit",
+ "aeko-sdk",
+ "aeko-vote-program",
 ]
 
 [[package]]
-name = "solana-poh"
+name = "aeko-poh"
 version = "2.0.0"
 dependencies = [
  "core_affinity",
  "crossbeam-channel",
  "log",
- "solana-entry",
- "solana-ledger",
- "solana-measure",
- "solana-metrics",
- "solana-runtime",
- "solana-sdk",
+ "aeko-entry",
+ "aeko-ledger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-runtime",
+ "aeko-sdk",
  "thiserror",
 ]
 
 [[package]]
-name = "solana-program"
+name = "aeko-program"
 version = "2.0.0"
 dependencies = [
  "ark-bn254",
@@ -5361,9 +5361,9 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "sha3 0.10.8",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-sdk-macro",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-sdk-macro",
  "thiserror",
  "tiny-bip39",
  "wasm-bindgen",
@@ -5371,7 +5371,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-program-runtime"
+name = "aeko-program-runtime"
 version = "2.0.0"
 dependencies = [
  "base64 0.22.0",
@@ -5387,17 +5387,17 @@ dependencies = [
  "rand 0.8.5",
  "rustc_version",
  "serde",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-measure",
- "solana-metrics",
- "solana-sdk",
- "solana_rbpf",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-sdk",
+ "aeko_rbpf",
  "thiserror",
 ]
 
 [[package]]
-name = "solana-program-test"
+name = "aeko-program-test"
 version = "2.0.0"
 dependencies = [
  "assert_matches",
@@ -5408,25 +5408,25 @@ dependencies = [
  "crossbeam-channel",
  "log",
  "serde",
- "solana-accounts-db",
- "solana-banks-client",
- "solana-banks-interface",
- "solana-banks-server",
- "solana-bpf-loader-program",
- "solana-logger",
- "solana-program-runtime",
- "solana-runtime",
- "solana-sdk",
- "solana-svm",
- "solana-vote-program",
- "solana_rbpf",
+ "aeko-accounts-db",
+ "aeko-banks-client",
+ "aeko-banks-interface",
+ "aeko-banks-server",
+ "aeko-bpf-loader-program",
+ "aeko-logger",
+ "aeko-program-runtime",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-svm",
+ "aeko-vote-program",
+ "aeko_rbpf",
  "test-case",
  "thiserror",
  "tokio",
 ]
 
 [[package]]
-name = "solana-pubsub-client"
+name = "aeko-pubsub-client"
 version = "2.0.0"
 dependencies = [
  "crossbeam-channel",
@@ -5437,9 +5437,9 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "solana-account-decoder",
- "solana-rpc-client-api",
- "solana-sdk",
+ "aeko-account-decoder",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -5449,7 +5449,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-quic-client"
+name = "aeko-quic-client"
 version = "2.0.0"
 dependencies = [
  "async-mutex",
@@ -5461,19 +5461,19 @@ dependencies = [
  "quinn",
  "quinn-proto",
  "rustls",
- "solana-connection-cache",
- "solana-measure",
- "solana-metrics",
- "solana-net-utils",
- "solana-rpc-client-api",
- "solana-sdk",
- "solana-streamer",
+ "aeko-connection-cache",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-net-utils",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "aeko-streamer",
  "thiserror",
  "tokio",
 ]
 
 [[package]]
-name = "solana-rayon-threadlimit"
+name = "aeko-rayon-threadlimit"
 version = "2.0.0"
 dependencies = [
  "lazy_static",
@@ -5481,7 +5481,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-remote-wallet"
+name = "aeko-remote-wallet"
 version = "2.0.0"
 dependencies = [
  "console",
@@ -5492,13 +5492,13 @@ dependencies = [
  "parking_lot 0.12.1",
  "qstring",
  "semver",
- "solana-sdk",
+ "aeko-sdk",
  "thiserror",
  "uriparse",
 ]
 
 [[package]]
-name = "solana-rpc"
+name = "aeko-rpc"
 version = "2.0.0"
 dependencies = [
  "base64 0.22.0",
@@ -5520,31 +5520,31 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "soketto",
- "solana-account-decoder",
- "solana-accounts-db",
- "solana-client",
- "solana-entry",
- "solana-faucet",
- "solana-gossip",
- "solana-ledger",
- "solana-measure",
- "solana-metrics",
- "solana-perf",
- "solana-poh",
- "solana-rayon-threadlimit",
- "solana-rpc-client-api",
- "solana-runtime",
- "solana-sdk",
- "solana-send-transaction-service",
- "solana-stake-program",
- "solana-storage-bigtable",
- "solana-streamer",
- "solana-svm",
- "solana-tpu-client",
- "solana-transaction-status",
- "solana-version",
- "solana-vote",
- "solana-vote-program",
+ "aeko-account-decoder",
+ "aeko-accounts-db",
+ "aeko-client",
+ "aeko-entry",
+ "aeko-faucet",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-perf",
+ "aeko-poh",
+ "aeko-rayon-threadlimit",
+ "aeko-rpc-client-api",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-send-transaction-service",
+ "aeko-stake-program",
+ "aeko-storage-bigtable",
+ "aeko-streamer",
+ "aeko-svm",
+ "aeko-tpu-client",
+ "aeko-transaction-status",
+ "aeko-version",
+ "aeko-vote",
+ "aeko-vote-program",
  "spl-token",
  "spl-token-2022",
  "stream-cancel",
@@ -5554,7 +5554,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-rpc-client"
+name = "aeko-rpc-client"
 version = "2.0.0"
 dependencies = [
  "async-trait",
@@ -5568,17 +5568,17 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "solana-account-decoder",
- "solana-rpc-client-api",
- "solana-sdk",
- "solana-transaction-status",
- "solana-version",
- "solana-vote-program",
+ "aeko-account-decoder",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "aeko-transaction-status",
+ "aeko-version",
+ "aeko-vote-program",
  "tokio",
 ]
 
 [[package]]
-name = "solana-rpc-client-api"
+name = "aeko-rpc-client-api"
 version = "2.0.0"
 dependencies = [
  "base64 0.22.0",
@@ -5589,27 +5589,27 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "solana-account-decoder",
- "solana-sdk",
- "solana-transaction-status",
- "solana-version",
+ "aeko-account-decoder",
+ "aeko-sdk",
+ "aeko-transaction-status",
+ "aeko-version",
  "spl-token-2022",
  "thiserror",
 ]
 
 [[package]]
-name = "solana-rpc-client-nonce-utils"
+name = "aeko-rpc-client-nonce-utils"
 version = "2.0.0"
 dependencies = [
  "clap 2.33.3",
- "solana-clap-utils",
- "solana-rpc-client",
- "solana-sdk",
+ "aeko-clap-utils",
+ "aeko-rpc-client",
+ "aeko-sdk",
  "thiserror",
 ]
 
 [[package]]
-name = "solana-runtime"
+name = "aeko-runtime"
 version = "2.0.0"
 dependencies = [
  "aquamarine",
@@ -5649,30 +5649,30 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "solana-accounts-db",
- "solana-address-lookup-table-program",
- "solana-bpf-loader-program",
- "solana-bucket-map",
- "solana-compute-budget-program",
- "solana-config-program",
- "solana-cost-model",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-loader-v4-program",
- "solana-measure",
- "solana-metrics",
- "solana-perf",
- "solana-program-runtime",
- "solana-rayon-threadlimit",
- "solana-sdk",
- "solana-stake-program",
- "solana-svm",
- "solana-system-program",
- "solana-version",
- "solana-vote",
- "solana-vote-program",
- "solana-zk-token-proof-program",
- "solana-zk-token-sdk",
+ "aeko-accounts-db",
+ "aeko-address-lookup-table-program",
+ "aeko-bpf-loader-program",
+ "aeko-bucket-map",
+ "aeko-compute-budget-program",
+ "aeko-config-program",
+ "aeko-cost-model",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-loader-v4-program",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-perf",
+ "aeko-program-runtime",
+ "aeko-rayon-threadlimit",
+ "aeko-sdk",
+ "aeko-stake-program",
+ "aeko-svm",
+ "aeko-system-program",
+ "aeko-version",
+ "aeko-vote",
+ "aeko-vote-program",
+ "aeko-zk-token-proof-program",
+ "aeko-zk-token-sdk",
  "static_assertions",
  "strum",
  "strum_macros",
@@ -5684,7 +5684,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-sbf-programs"
+name = "aeko-sbf-programs"
 version = "2.0.0"
 dependencies = [
  "bincode",
@@ -5694,420 +5694,420 @@ dependencies = [
  "log",
  "miow",
  "net2",
- "solana-account-decoder",
- "solana-accounts-db",
- "solana-bpf-loader-program",
- "solana-cli-output",
- "solana-ledger",
- "solana-logger",
- "solana-measure",
- "solana-program-runtime",
- "solana-runtime",
- "solana-sbf-rust-invoke",
- "solana-sbf-rust-realloc",
- "solana-sbf-rust-realloc-invoke",
- "solana-sdk",
- "solana-svm",
- "solana-transaction-status",
- "solana_rbpf",
+ "aeko-account-decoder",
+ "aeko-accounts-db",
+ "aeko-bpf-loader-program",
+ "aeko-cli-output",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-measure",
+ "aeko-program-runtime",
+ "aeko-runtime",
+ "aeko-sbf-rust-invoke",
+ "aeko-sbf-rust-realloc",
+ "aeko-sbf-rust-realloc-invoke",
+ "aeko-sdk",
+ "aeko-svm",
+ "aeko-transaction-status",
+ "aeko_rbpf",
  "walkdir",
 ]
 
 [[package]]
-name = "solana-sbf-rust-128bit"
+name = "aeko-sbf-rust-128bit"
 version = "2.0.0"
 dependencies = [
- "solana-program",
- "solana-sbf-rust-128bit-dep",
+ "aeko-program",
+ "aeko-sbf-rust-128bit-dep",
 ]
 
 [[package]]
-name = "solana-sbf-rust-128bit-dep"
+name = "aeko-sbf-rust-128bit-dep"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-alloc"
+name = "aeko-sbf-rust-alloc"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-alt-bn128"
-version = "2.0.0"
-dependencies = [
- "array-bytes",
- "solana-program",
-]
-
-[[package]]
-name = "solana-sbf-rust-alt-bn128-compression"
+name = "aeko-sbf-rust-alt-bn128"
 version = "2.0.0"
 dependencies = [
  "array-bytes",
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-call-depth"
+name = "aeko-sbf-rust-alt-bn128-compression"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "array-bytes",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-caller-access"
+name = "aeko-sbf-rust-call-depth"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-curve25519"
+name = "aeko-sbf-rust-caller-access"
 version = "2.0.0"
 dependencies = [
- "solana-program",
- "solana-zk-token-sdk",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-custom-heap"
+name = "aeko-sbf-rust-curve25519"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
+ "aeko-zk-token-sdk",
 ]
 
 [[package]]
-name = "solana-sbf-rust-dep-crate"
+name = "aeko-sbf-rust-custom-heap"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+]
+
+[[package]]
+name = "aeko-sbf-rust-dep-crate"
 version = "2.0.0"
 dependencies = [
  "byteorder 1.5.0",
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-deprecated-loader"
+name = "aeko-sbf-rust-deprecated-loader"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-dup-accounts"
+name = "aeko-sbf-rust-dup-accounts"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-error-handling"
+name = "aeko-sbf-rust-error-handling"
 version = "2.0.0"
 dependencies = [
  "num-derive 0.3.0",
  "num-traits",
- "solana-program",
+ "aeko-program",
  "thiserror",
 ]
 
 [[package]]
-name = "solana-sbf-rust-external-spend"
+name = "aeko-sbf-rust-external-spend"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-finalize"
+name = "aeko-sbf-rust-finalize"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-get-minimum-delegation"
+name = "aeko-sbf-rust-get-minimum-delegation"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-inner_instruction_alignment_check"
+name = "aeko-sbf-rust-inner_instruction_alignment_check"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-instruction-introspection"
+name = "aeko-sbf-rust-instruction-introspection"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-invoke"
+name = "aeko-sbf-rust-invoke"
 version = "2.0.0"
 dependencies = [
  "rustversion",
- "solana-program",
- "solana-sbf-rust-invoked",
- "solana-sbf-rust-realloc",
+ "aeko-program",
+ "aeko-sbf-rust-invoked",
+ "aeko-sbf-rust-realloc",
 ]
 
 [[package]]
-name = "solana-sbf-rust-invoke-and-error"
+name = "aeko-sbf-rust-invoke-and-error"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-invoke-and-ok"
+name = "aeko-sbf-rust-invoke-and-ok"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-invoke-and-return"
+name = "aeko-sbf-rust-invoke-and-return"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-invoked"
+name = "aeko-sbf-rust-invoked"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-iter"
+name = "aeko-sbf-rust-iter"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-log-data"
+name = "aeko-sbf-rust-log-data"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-many-args"
+name = "aeko-sbf-rust-many-args"
 version = "2.0.0"
 dependencies = [
- "solana-program",
- "solana-sbf-rust-many-args-dep",
+ "aeko-program",
+ "aeko-sbf-rust-many-args-dep",
 ]
 
 [[package]]
-name = "solana-sbf-rust-many-args-dep"
+name = "aeko-sbf-rust-many-args-dep"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-mem"
+name = "aeko-sbf-rust-mem"
 version = "2.0.0"
 dependencies = [
- "solana-program",
- "solana-program-runtime",
- "solana-program-test",
- "solana-sdk",
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-program-test",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-sbf-rust-membuiltins"
+name = "aeko-sbf-rust-membuiltins"
 version = "2.0.0"
 dependencies = [
- "solana-program",
- "solana-sbf-rust-mem",
+ "aeko-program",
+ "aeko-sbf-rust-mem",
 ]
 
 [[package]]
-name = "solana-sbf-rust-noop"
+name = "aeko-sbf-rust-noop"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-panic"
+name = "aeko-sbf-rust-panic"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-param-passing"
+name = "aeko-sbf-rust-param-passing"
 version = "2.0.0"
 dependencies = [
- "solana-program",
- "solana-sbf-rust-param-passing-dep",
+ "aeko-program",
+ "aeko-sbf-rust-param-passing-dep",
 ]
 
 [[package]]
-name = "solana-sbf-rust-param-passing-dep"
+name = "aeko-sbf-rust-param-passing-dep"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-poseidon"
+name = "aeko-sbf-rust-poseidon"
 version = "2.0.0"
 dependencies = [
  "array-bytes",
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-rand"
+name = "aeko-sbf-rust-rand"
 version = "2.0.0"
 dependencies = [
  "getrandom 0.2.10",
  "rand 0.8.5",
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-realloc"
+name = "aeko-sbf-rust-realloc"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-realloc-invoke"
+name = "aeko-sbf-rust-realloc-invoke"
 version = "2.0.0"
 dependencies = [
- "solana-program",
- "solana-sbf-rust-realloc",
+ "aeko-program",
+ "aeko-sbf-rust-realloc",
 ]
 
 [[package]]
-name = "solana-sbf-rust-remaining-compute-units"
+name = "aeko-sbf-rust-remaining-compute-units"
 version = "2.0.0"
 dependencies = [
- "solana-program",
- "solana-program-runtime",
- "solana-program-test",
- "solana-sdk",
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-program-test",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-sbf-rust-ro-account_modify"
+name = "aeko-sbf-rust-ro-account_modify"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-ro-modify"
+name = "aeko-sbf-rust-ro-modify"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-sanity"
+name = "aeko-sbf-rust-sanity"
 version = "2.0.0"
 dependencies = [
- "solana-program",
- "solana-program-runtime",
- "solana-program-test",
- "solana-sdk",
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-program-test",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-sbf-rust-secp256k1-recover"
+name = "aeko-sbf-rust-secp256k1-recover"
 version = "2.0.0"
 dependencies = [
  "libsecp256k1 0.7.0",
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-sha"
+name = "aeko-sbf-rust-sha"
 version = "2.0.0"
 dependencies = [
  "blake3",
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-sibling-instructions"
+name = "aeko-sbf-rust-sibling-instructions"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-sibling_inner-instructions"
+name = "aeko-sbf-rust-sibling_inner-instructions"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-simulation"
+name = "aeko-sbf-rust-simulation"
 version = "2.0.0"
 dependencies = [
- "solana-logger",
- "solana-program",
- "solana-program-test",
- "solana-sdk",
- "solana-validator",
+ "aeko-logger",
+ "aeko-program",
+ "aeko-program-test",
+ "aeko-sdk",
+ "aeko-validator",
 ]
 
 [[package]]
-name = "solana-sbf-rust-spoof1"
+name = "aeko-sbf-rust-spoof1"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-spoof1-system"
+name = "aeko-sbf-rust-spoof1-system"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-sysvar"
+name = "aeko-sbf-rust-sysvar"
 version = "2.0.0"
 dependencies = [
- "solana-program",
- "solana-program-runtime",
- "solana-program-test",
- "solana-sdk",
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-program-test",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-sbf-rust-upgradeable"
+name = "aeko-sbf-rust-upgradeable"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sbf-rust-upgraded"
+name = "aeko-sbf-rust-upgraded"
 version = "2.0.0"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
-name = "solana-sdk"
+name = "aeko-sdk"
 version = "2.0.0"
 dependencies = [
  "assert_matches",
@@ -6149,18 +6149,18 @@ dependencies = [
  "sha2 0.10.8",
  "sha3 0.10.8",
  "siphasher",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-logger",
- "solana-program",
- "solana-sdk-macro",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-logger",
+ "aeko-program",
+ "aeko-sdk-macro",
  "thiserror",
  "uriparse",
  "wasm-bindgen",
 ]
 
 [[package]]
-name = "solana-sdk-macro"
+name = "aeko-sdk-macro"
 version = "2.0.0"
 dependencies = [
  "bs58",
@@ -6171,40 +6171,40 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-security-txt"
+name = "aeko-security-txt"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "468aa43b7edb1f9b7b7b686d5c3aeb6630dc1708e86e31343499dd5c4d775183"
 
 [[package]]
-name = "solana-send-transaction-service"
+name = "aeko-send-transaction-service"
 version = "2.0.0"
 dependencies = [
  "crossbeam-channel",
  "log",
- "solana-client",
- "solana-measure",
- "solana-metrics",
- "solana-runtime",
- "solana-sdk",
- "solana-tpu-client",
+ "aeko-client",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-tpu-client",
 ]
 
 [[package]]
-name = "solana-stake-program"
+name = "aeko-stake-program"
 version = "2.0.0"
 dependencies = [
  "bincode",
  "log",
  "rustc_version",
- "solana-config-program",
- "solana-program-runtime",
- "solana-sdk",
- "solana-vote-program",
+ "aeko-config-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "aeko-vote-program",
 ]
 
 [[package]]
-name = "solana-storage-bigtable"
+name = "aeko-storage-bigtable"
 version = "2.0.0"
 dependencies = [
  "backoff",
@@ -6225,10 +6225,10 @@ dependencies = [
  "serde",
  "serde_derive",
  "smpl_jwt",
- "solana-metrics",
- "solana-sdk",
- "solana-storage-proto",
- "solana-transaction-status",
+ "aeko-metrics",
+ "aeko-sdk",
+ "aeko-storage-proto",
+ "aeko-transaction-status",
  "thiserror",
  "tokio",
  "tonic",
@@ -6236,7 +6236,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-storage-proto"
+name = "aeko-storage-proto"
 version = "2.0.0"
 dependencies = [
  "bincode",
@@ -6244,14 +6244,14 @@ dependencies = [
  "prost",
  "protobuf-src",
  "serde",
- "solana-account-decoder",
- "solana-sdk",
- "solana-transaction-status",
+ "aeko-account-decoder",
+ "aeko-sdk",
+ "aeko-transaction-status",
  "tonic-build",
 ]
 
 [[package]]
-name = "solana-streamer"
+name = "aeko-streamer"
 version = "2.0.0"
 dependencies = [
  "async-channel",
@@ -6270,47 +6270,47 @@ dependencies = [
  "quinn-proto",
  "rand 0.8.5",
  "rustls",
- "solana-metrics",
- "solana-perf",
- "solana-sdk",
+ "aeko-metrics",
+ "aeko-perf",
+ "aeko-sdk",
  "thiserror",
  "tokio",
  "x509-parser",
 ]
 
 [[package]]
-name = "solana-svm"
+name = "aeko-svm"
 version = "2.0.0"
 dependencies = [
  "itertools",
  "log",
  "percentage",
  "rustc_version",
- "solana-bpf-loader-program",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-loader-v4-program",
- "solana-measure",
- "solana-metrics",
- "solana-program-runtime",
- "solana-sdk",
- "solana-system-program",
+ "aeko-bpf-loader-program",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-loader-v4-program",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "aeko-system-program",
 ]
 
 [[package]]
-name = "solana-system-program"
+name = "aeko-system-program"
 version = "2.0.0"
 dependencies = [
  "bincode",
  "log",
  "serde",
  "serde_derive",
- "solana-program-runtime",
- "solana-sdk",
+ "aeko-program-runtime",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-test-validator"
+name = "aeko-test-validator"
 version = "2.0.0"
 dependencies = [
  "base64 0.22.0",
@@ -6319,41 +6319,41 @@ dependencies = [
  "log",
  "serde_derive",
  "serde_json",
- "solana-accounts-db",
- "solana-cli-output",
- "solana-client",
- "solana-core",
- "solana-geyser-plugin-manager",
- "solana-gossip",
- "solana-ledger",
- "solana-logger",
- "solana-net-utils",
- "solana-program-runtime",
- "solana-program-test",
- "solana-rpc",
- "solana-rpc-client",
- "solana-runtime",
- "solana-sdk",
- "solana-streamer",
- "solana-tpu-client",
+ "aeko-accounts-db",
+ "aeko-cli-output",
+ "aeko-client",
+ "aeko-core",
+ "aeko-geyser-plugin-manager",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-net-utils",
+ "aeko-program-runtime",
+ "aeko-program-test",
+ "aeko-rpc",
+ "aeko-rpc-client",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-streamer",
+ "aeko-tpu-client",
  "tokio",
 ]
 
 [[package]]
-name = "solana-thin-client"
+name = "aeko-thin-client"
 version = "2.0.0"
 dependencies = [
  "bincode",
  "log",
  "rayon",
- "solana-connection-cache",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-sdk",
+ "aeko-connection-cache",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-tpu-client"
+name = "aeko-tpu-client"
 version = "2.0.0"
 dependencies = [
  "async-trait",
@@ -6363,19 +6363,19 @@ dependencies = [
  "indicatif",
  "log",
  "rayon",
- "solana-connection-cache",
- "solana-measure",
- "solana-metrics",
- "solana-pubsub-client",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-sdk",
+ "aeko-connection-cache",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-pubsub-client",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
  "thiserror",
  "tokio",
 ]
 
 [[package]]
-name = "solana-transaction-status"
+name = "aeko-transaction-status"
 version = "2.0.0"
 dependencies = [
  "Inflector",
@@ -6388,8 +6388,8 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "solana-account-decoder",
- "solana-sdk",
+ "aeko-account-decoder",
+ "aeko-sdk",
  "spl-associated-token-account",
  "spl-memo",
  "spl-token",
@@ -6398,7 +6398,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-turbine"
+name = "aeko-turbine"
 version = "2.0.0"
 dependencies = [
  "bincode",
@@ -6413,62 +6413,62 @@ dependencies = [
  "rand_chacha 0.3.1",
  "rayon",
  "rustls",
- "solana-entry",
- "solana-gossip",
- "solana-ledger",
- "solana-measure",
- "solana-metrics",
- "solana-perf",
- "solana-poh",
- "solana-quic-client",
- "solana-rayon-threadlimit",
- "solana-rpc",
- "solana-rpc-client-api",
- "solana-runtime",
- "solana-sdk",
- "solana-streamer",
+ "aeko-entry",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-measure",
+ "aeko-metrics",
+ "aeko-perf",
+ "aeko-poh",
+ "aeko-quic-client",
+ "aeko-rayon-threadlimit",
+ "aeko-rpc",
+ "aeko-rpc-client-api",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-streamer",
  "thiserror",
  "tokio",
 ]
 
 [[package]]
-name = "solana-udp-client"
+name = "aeko-udp-client"
 version = "2.0.0"
 dependencies = [
  "async-trait",
- "solana-connection-cache",
- "solana-net-utils",
- "solana-sdk",
- "solana-streamer",
+ "aeko-connection-cache",
+ "aeko-net-utils",
+ "aeko-sdk",
+ "aeko-streamer",
  "thiserror",
  "tokio",
 ]
 
 [[package]]
-name = "solana-unified-scheduler-logic"
+name = "aeko-unified-scheduler-logic"
 version = "2.0.0"
 dependencies = [
- "solana-sdk",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-unified-scheduler-pool"
+name = "aeko-unified-scheduler-pool"
 version = "2.0.0"
 dependencies = [
  "assert_matches",
  "crossbeam-channel",
  "derivative",
  "log",
- "solana-ledger",
- "solana-program-runtime",
- "solana-runtime",
- "solana-sdk",
- "solana-unified-scheduler-logic",
- "solana-vote",
+ "aeko-ledger",
+ "aeko-program-runtime",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-unified-scheduler-logic",
+ "aeko-vote",
 ]
 
 [[package]]
-name = "solana-validator"
+name = "aeko-validator"
 version = "1.19.0"
 dependencies = [
  "chrono",
@@ -6495,44 +6495,44 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "signal-hook",
- "solana-accounts-db",
- "solana-clap-utils",
- "solana-cli-config",
- "solana-core",
- "solana-download-utils",
- "solana-entry",
- "solana-faucet",
- "solana-genesis-utils",
- "solana-geyser-plugin-interface",
- "solana-geyser-plugin-manager",
- "solana-gossip",
- "solana-ledger",
- "solana-logger",
- "solana-metrics",
- "solana-net-utils",
- "solana-perf",
- "solana-poh",
- "solana-rpc",
- "solana-rpc-client",
- "solana-rpc-client-api",
- "solana-runtime",
- "solana-sdk",
- "solana-send-transaction-service",
- "solana-storage-bigtable",
- "solana-streamer",
- "solana-svm",
- "solana-test-validator",
- "solana-tpu-client",
- "solana-unified-scheduler-pool",
- "solana-version",
- "solana-vote-program",
+ "aeko-accounts-db",
+ "aeko-clap-utils",
+ "aeko-cli-config",
+ "aeko-core",
+ "aeko-download-utils",
+ "aeko-entry",
+ "aeko-faucet",
+ "aeko-genesis-utils",
+ "aeko-geyser-plugin-interface",
+ "aeko-geyser-plugin-manager",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-metrics",
+ "aeko-net-utils",
+ "aeko-perf",
+ "aeko-poh",
+ "aeko-rpc",
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-send-transaction-service",
+ "aeko-storage-bigtable",
+ "aeko-streamer",
+ "aeko-svm",
+ "aeko-test-validator",
+ "aeko-tpu-client",
+ "aeko-unified-scheduler-pool",
+ "aeko-version",
+ "aeko-vote-program",
  "symlink",
  "thiserror",
  "tikv-jemallocator",
 ]
 
 [[package]]
-name = "solana-version"
+name = "aeko-version"
 version = "2.0.0"
 dependencies = [
  "log",
@@ -6540,13 +6540,13 @@ dependencies = [
  "semver",
  "serde",
  "serde_derive",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-sdk",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-sdk",
 ]
 
 [[package]]
-name = "solana-vote"
+name = "aeko-vote"
 version = "2.0.0"
 dependencies = [
  "crossbeam-channel",
@@ -6555,15 +6555,15 @@ dependencies = [
  "rustc_version",
  "serde",
  "serde_derive",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-sdk",
- "solana-vote-program",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-sdk",
+ "aeko-vote-program",
  "thiserror",
 ]
 
 [[package]]
-name = "solana-vote-program"
+name = "aeko-vote-program"
 version = "2.0.0"
 dependencies = [
  "bincode",
@@ -6573,17 +6573,17 @@ dependencies = [
  "rustc_version",
  "serde",
  "serde_derive",
- "solana-frozen-abi",
- "solana-frozen-abi-macro",
- "solana-metrics",
- "solana-program",
- "solana-program-runtime",
- "solana-sdk",
+ "aeko-frozen-abi",
+ "aeko-frozen-abi-macro",
+ "aeko-metrics",
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
  "thiserror",
 ]
 
 [[package]]
-name = "solana-wen-restart"
+name = "aeko-wen-restart"
 version = "2.0.0"
 dependencies = [
  "anyhow",
@@ -6593,29 +6593,29 @@ dependencies = [
  "prost-types",
  "protobuf-src",
  "rustc_version",
- "solana-gossip",
- "solana-ledger",
- "solana-logger",
- "solana-program",
- "solana-runtime",
- "solana-sdk",
- "solana-vote-program",
+ "aeko-gossip",
+ "aeko-ledger",
+ "aeko-logger",
+ "aeko-program",
+ "aeko-runtime",
+ "aeko-sdk",
+ "aeko-vote-program",
 ]
 
 [[package]]
-name = "solana-zk-token-proof-program"
+name = "aeko-zk-token-proof-program"
 version = "2.0.0"
 dependencies = [
  "bytemuck",
  "num-derive 0.4.2",
  "num-traits",
- "solana-program-runtime",
- "solana-sdk",
- "solana-zk-token-sdk",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "aeko-zk-token-sdk",
 ]
 
 [[package]]
-name = "solana-zk-token-sdk"
+name = "aeko-zk-token-sdk"
 version = "2.0.0"
 dependencies = [
  "aes-gcm-siv",
@@ -6634,15 +6634,15 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3 0.9.1",
- "solana-program",
- "solana-sdk",
+ "aeko-program",
+ "aeko-sdk",
  "subtle",
  "thiserror",
  "zeroize",
 ]
 
 [[package]]
-name = "solana_rbpf"
+name = "aeko_rbpf"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d457cc2ba742c120492a64b7fa60e22c575e891f6b55039f4d736568fb112a3"
@@ -6682,7 +6682,7 @@ dependencies = [
  "borsh 0.10.3",
  "num-derive 0.4.2",
  "num-traits",
- "solana-program",
+ "aeko-program",
  "spl-token",
  "spl-token-2022",
  "thiserror",
@@ -6695,7 +6695,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "daa600f2fe56f32e923261719bae640d873edadbc5237681a39b8e37bfd4d263"
 dependencies = [
  "bytemuck",
- "solana-program",
+ "aeko-program",
  "spl-discriminator-derive",
 ]
 
@@ -6729,7 +6729,7 @@ version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "58e9bae02de3405079a057fe244c867a08f92d48327d231fc60da831f94caf0a"
 dependencies = [
- "solana-program",
+ "aeko-program",
 ]
 
 [[package]]
@@ -6740,8 +6740,8 @@ checksum = "85a5db7e4efb1107b0b8e52a13f035437cdcb36ef99c58f6d467f089d9b2915a"
 dependencies = [
  "borsh 0.10.3",
  "bytemuck",
- "solana-program",
- "solana-zk-token-sdk",
+ "aeko-program",
+ "aeko-zk-token-sdk",
  "spl-program-error",
 ]
 
@@ -6753,7 +6753,7 @@ checksum = "7e0657b6490196971d9e729520ba934911ff41fbb2cb9004463dbe23cf8b4b4f"
 dependencies = [
  "num-derive 0.4.2",
  "num-traits",
- "solana-program",
+ "aeko-program",
  "spl-program-error-derive",
  "thiserror",
 ]
@@ -6777,7 +6777,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56f335787add7fa711819f9e7c573f8145a5358a709446fe2d24bf2a88117c90"
 dependencies = [
  "bytemuck",
- "solana-program",
+ "aeko-program",
  "spl-discriminator",
  "spl-pod",
  "spl-program-error",
@@ -6795,7 +6795,7 @@ dependencies = [
  "num-derive 0.4.2",
  "num-traits",
  "num_enum",
- "solana-program",
+ "aeko-program",
  "thiserror",
 ]
 
@@ -6810,9 +6810,9 @@ dependencies = [
  "num-derive 0.4.2",
  "num-traits",
  "num_enum",
- "solana-program",
- "solana-security-txt",
- "solana-zk-token-sdk",
+ "aeko-program",
+ "aeko-security-txt",
+ "aeko-zk-token-sdk",
  "spl-memo",
  "spl-pod",
  "spl-token",
@@ -6830,7 +6830,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7eb67fbacd587377a400aba81718abe4424d0e9d5ea510034d3b7f130d102153"
 dependencies = [
  "bytemuck",
- "solana-program",
+ "aeko-program",
  "spl-discriminator",
  "spl-pod",
  "spl-program-error",
@@ -6843,7 +6843,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e16aa8f64b6e0eaab3f5034e84d867c8435d8216497b4543a4978a31f4b6e8a8"
 dependencies = [
  "borsh 0.10.3",
- "solana-program",
+ "aeko-program",
  "spl-discriminator",
  "spl-pod",
  "spl-program-error",
@@ -6858,7 +6858,7 @@ checksum = "5f6dfe329fcff44cbe2eea994bd8f737f0b0a69faed39e56f9b6ee03badf7e14"
 dependencies = [
  "arrayref",
  "bytemuck",
- "solana-program",
+ "aeko-program",
  "spl-discriminator",
  "spl-pod",
  "spl-program-error",
@@ -6873,7 +6873,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f9ebd75d29c5f48de5f6a9c114e08531030b75b8ac2c557600ac7da0b73b1e8"
 dependencies = [
  "bytemuck",
- "solana-program",
+ "aeko-program",
  "spl-discriminator",
  "spl-pod",
  "spl-program-error",

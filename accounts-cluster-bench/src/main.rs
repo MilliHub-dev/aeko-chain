@@ -39,16 +39,16 @@ use {
 
 pub const MAX_RPC_CALL_RETRIES: usize = 5;
 
-fn aeko_to_spl_pubkey(pubkey: &Pubkey) -> spl_token::solana_program::pubkey::Pubkey {
-    spl_token::solana_program::pubkey::Pubkey::new_from_array(pubkey.to_bytes())
+fn aeko_to_spl_pubkey(pubkey: &Pubkey) -> spl_token::aeko_program::pubkey::Pubkey {
+    spl_token::aeko_program::pubkey::Pubkey::new_from_array(pubkey.to_bytes())
 }
 
-fn spl_to_aeko_pubkey(pubkey: spl_token::solana_program::pubkey::Pubkey) -> Pubkey {
+fn spl_to_aeko_pubkey(pubkey: spl_token::aeko_program::pubkey::Pubkey) -> Pubkey {
     Pubkey::new_from_array(pubkey.to_bytes())
 }
 
 fn spl_to_aeko_instruction(
-    ix: spl_token::solana_program::instruction::Instruction,
+    ix: spl_token::aeko_program::instruction::Instruction,
 ) -> Instruction {
     Instruction {
         program_id: spl_to_aeko_pubkey(ix.program_id),
@@ -826,7 +826,7 @@ fn run_accounts_bench(
 }
 
 fn main() {
-    aeko_logger::setup_with_default("solana=info");
+    aeko_logger::setup_with_default("aeko=info");
     let matches = App::new(crate_name!())
         .about(crate_description!())
         .version(aeko_version::version!())
@@ -852,7 +852,7 @@ fn main() {
                 .validator(is_url_or_moniker)
                 .conflicts_with("entrypoint")
                 .help(
-                    "URL for Solana's JSON RPC or moniker (or their first letter): \
+                    "URL for Aeko's JSON RPC or moniker (or their first letter): \
                        [mainnet-beta, testnet, devnet, localhost]",
                 ),
         )

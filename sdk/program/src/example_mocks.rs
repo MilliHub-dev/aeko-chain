@@ -106,10 +106,10 @@ pub mod aeko_rpc_client_nonce_utils {
     }
 }
 
-/// Re-exports and mocks of solana-program modules that mirror those from
-/// solana-program.
+/// Re-exports and mocks of aeko-program modules that mirror those from
+/// aeko-program.
 ///
-/// This lets examples in solana-program appear to be written as client
+/// This lets examples in aeko-program appear to be written as client
 /// programs.
 pub mod aeko_sdk {
     pub use crate::{

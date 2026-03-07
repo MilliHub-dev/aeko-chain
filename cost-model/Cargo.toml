@@ -1,6 +1,6 @@
 [package]
 name = "aeko-cost-model"
-description = "Solana cost model"
+description = "Aeko cost model"
 documentation = "https://docs.rs/aeko-cost-model"
 version = { workspace = true }
 authors = { workspace = true }

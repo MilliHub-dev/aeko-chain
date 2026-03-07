@@ -8,7 +8,7 @@
 //!
 //! [`ZK Token proof`]: https://docs.aeko.network/runtime/zk-token-proof
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 use {
     crate::{
         encryption::pedersen::{PedersenCommitment, PedersenOpening},
@@ -60,7 +60,7 @@ pub struct FeeSigmaProofContext {
     pub max_fee: pod::PodU64,
 }
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 impl FeeSigmaProofData {
     pub fn new(
         fee_commitment: &PedersenCommitment,
@@ -107,7 +107,7 @@ impl ZkProofData<FeeSigmaProofContext> for FeeSigmaProofData {
         &self.context
     }
 
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(not(target_os = "aeko"))]
     fn verify_proof(&self) -> Result<(), ProofVerificationError> {
         let mut transcript = self.context.new_transcript();
 
@@ -129,7 +129,7 @@ impl ZkProofData<FeeSigmaProofContext> for FeeSigmaProofData {
     }
 }
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 impl FeeSigmaProofContext {
     fn new_transcript(&self) -> Transcript {
         let mut transcript = Transcript::new(b"FeeSigmaProof");

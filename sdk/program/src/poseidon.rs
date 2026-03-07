@@ -208,7 +208,7 @@ pub fn hashv(
 ) -> Result<PoseidonHash, PoseidonSyscallError> {
     // Perform the calculation inline, calling this from within a program is
     // not supported.
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(not(target_os = "aeko"))]
     {
         use {
             ark_bn254::Fr,
@@ -252,7 +252,7 @@ pub fn hashv(
         Ok(PoseidonHash(res))
     }
     // Call via a system call to perform the calculation.
-    #[cfg(target_os = "solana")]
+    #[cfg(target_os = "aeko")]
     {
         let mut hash_result = [0; HASH_BYTES];
         let result = unsafe {

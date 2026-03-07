@@ -1,6 +1,6 @@
 # Overview
 
-**AEKO Chain** is a high-performance Layer-1 blockchain specifically engineered to bridge the gap between high-frequency social interaction and high-security financial/enterprise compliance. Built on a modified **Solana Virtual Machine (SVM)** runtime, AEKO Chain offers the throughput required for social media (thousands of transactions per second) while introducing a novel **Permission Layer** and **Content Signature Layer** not found in general-purpose chains.
+**AEKO Chain** is a high-performance Layer-1 blockchain specifically engineered to bridge the gap between high-frequency social interaction and high-security financial/enterprise compliance. Built on a modified **Aeko Virtual Machine (SVM)** runtime, AEKO Chain offers the throughput required for social media (thousands of transactions per second) while introducing a novel **Permission Layer** and **Content Signature Layer** not found in general-purpose chains.
 
 ## Why AEKO Chain?
 
@@ -18,7 +18,7 @@ AEKO Chain targets a third vertical: **Verifiable Social Trust**.
 
 ## The AEKO Difference
 
-| Feature | Ethereum/EVM | Solana/SVM | AEKO Chain |
+| Feature | Ethereum/EVM | Aeko/SVM | AEKO Chain |
 | :--- | :--- | :--- | :--- |
 | **Throughput** | Low | High | **High** |
 | **Identity** | Wallet Address | Wallet Address | **Reputation & ID Layer** |

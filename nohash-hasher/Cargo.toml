@@ -1,0 +1,10 @@
+[package]
+name = "aeko-nohash-hasher"
+version = "0.2.1"
+edition = "2021"
+description = "Aeko integer map/set aliases"
+license = "Apache-2.0"
+
+[lib]
+name = "aeko_nohash_hasher"
+path = "src/lib.rs"

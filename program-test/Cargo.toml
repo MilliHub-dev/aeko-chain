@@ -1,5 +1,5 @@
 [package]
-description = "Solana Program Test Framework"
+description = "Aeko Program Test Framework"
 name = "aeko-program-test"
 version = { workspace = true }
 authors = { workspace = true }
@@ -28,7 +28,7 @@ aeko-runtime = { workspace = true }
 aeko-sdk = { workspace = true }
 aeko-svm = { workspace = true }
 aeko-vote-program = { workspace = true }
-solana_rbpf = { workspace = true }
+aeko_rbpf = { workspace = true }
 test-case = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }

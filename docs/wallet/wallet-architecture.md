@@ -5,7 +5,7 @@ AEKO Wallets are more than just key holders; they are **Identity Managers**.
 ## Key Concepts
 
 ### 1. Keypairs (Ed25519)
-Like Solana, addresses are Ed25519 public keys.
+Like Aeko, addresses are Ed25519 public keys.
 *   **Format**: Base58 encoded string (e.g., `AEko...`).
 *   **Derivation**: Compatible with BIP-39/BIP-44 standards.
 

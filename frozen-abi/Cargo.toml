@@ -1,6 +1,6 @@
 [package]
 name = "aeko-frozen-abi"
-description = "Solana Frozen ABI"
+description = "Aeko Frozen ABI"
 documentation = "https://docs.rs/aeko-frozen-abi"
 version = { workspace = true }
 authors = { workspace = true }
@@ -20,7 +20,7 @@ sha2 = { workspace = true }
 aeko-frozen-abi-macro = { workspace = true }
 thiserror = { workspace = true }
 
-[target.'cfg(not(target_os = "solana"))'.dependencies]
+[target.'cfg(not(target_os = "aeko"))'.dependencies]
 block-buffer = { workspace = true }
 either = { workspace = true, features = ["use_std"] }
 generic-array = { workspace = true, features = ["serde", "more_lengths"] }
@@ -28,7 +28,7 @@ im = { workspace = true, features = ["rayon", "serde"] }
 memmap2 = { workspace = true }
 subtle = { workspace = true }
 
-[target.'cfg(not(target_os = "solana"))'.dev-dependencies]
+[target.'cfg(not(target_os = "aeko"))'.dev-dependencies]
 bitflags = { workspace = true }
 aeko-logger = { workspace = true }
 

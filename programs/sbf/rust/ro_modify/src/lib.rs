@@ -1,4 +1,4 @@
-#![cfg(target_os = "solana")]
+#![cfg(target_os = "aeko")]
 
 use aeko_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program::invoke,

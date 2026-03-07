@@ -126,7 +126,7 @@ impl Faucet {
         if let Some((per_request_cap, per_time_cap)) = per_request_cap.zip(per_time_cap) {
             if per_time_cap < per_request_cap {
                 warn!(
-                    "per_time_cap {} SOL < per_request_cap {} SOL; \
+                    "per_time_cap {} AEKO < per_request_cap {} AEKO; \
                     maximum single requests will fail",
                     lamports_to_aeko(per_time_cap),
                     lamports_to_aeko(per_request_cap),

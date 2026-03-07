@@ -10,7 +10,7 @@
 //!
 //! [`ZK Token proof program`]: https://docs.aeko.network/runtime/zk-token-proof
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 use {
     crate::{
         encryption::pedersen::{PedersenCommitment, PedersenOpening, G, H},
@@ -52,7 +52,7 @@ pub struct FeeSigmaProof {
 }
 
 #[allow(non_snake_case, dead_code)]
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 impl FeeSigmaProof {
     /// Creates a fee sigma proof assuming that the committed fee is greater than the maximum fee
     /// bound.

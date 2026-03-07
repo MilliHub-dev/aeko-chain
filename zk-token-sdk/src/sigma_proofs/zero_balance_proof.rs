@@ -3,7 +3,7 @@
 //! The protocol guarantees computationally soundness (by the hardness of discrete log) and perfect
 //! zero-knowledge in the random oracle model.
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 use {
     crate::{
         encryption::{
@@ -45,7 +45,7 @@ pub struct ZeroBalanceProof {
 }
 
 #[allow(non_snake_case)]
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 impl ZeroBalanceProof {
     /// Creates a zero-balance proof.
     ///

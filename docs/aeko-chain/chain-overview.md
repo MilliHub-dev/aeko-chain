@@ -8,7 +8,7 @@ AEKO Chain is a Layer-1 blockchain built for speed, scale, and social integrity.
 *   **Throughput**: 65,000+ TPS (Theoretical peak)
 *   **Finality**: ~800ms
 *   **Consensus**: Proof of History (PoH) + Tower BFT
-*   **Smart Contract Engine**: AEKO SVM (Solana Virtual Machine)
+*   **Smart Contract Engine**: AEKO SVM (Aeko Virtual Machine)
 *   **Programming Languages**: Rust, C, C++ (via LLVM)
 
 ## The "Social" Difference

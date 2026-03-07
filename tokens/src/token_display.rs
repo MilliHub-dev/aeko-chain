@@ -11,7 +11,7 @@ const SOL_SYMBOL: &str = "◎";
 
 #[derive(PartialEq, Eq)]
 pub enum TokenType {
-    Sol,
+    Aeko,
     SplToken,
 }
 
@@ -24,7 +24,7 @@ pub struct Token {
 impl Token {
     fn write_with_symbol(&self, f: &mut Formatter) -> Result {
         match &self.token_type {
-            TokenType::Sol => {
+            TokenType::Aeko => {
                 let amount = lamports_to_aeko(self.amount);
                 write!(f, "{SOL_SYMBOL}{amount}")
             }
@@ -35,11 +35,11 @@ impl Token {
         }
     }
 
-    pub fn sol(amount: u64) -> Self {
+    pub fn aeko(amount: u64) -> Self {
         Self {
             amount,
             decimals: 9,
-            token_type: TokenType::Sol,
+            token_type: TokenType::Aeko,
         }
     }
 

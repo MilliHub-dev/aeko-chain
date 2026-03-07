@@ -319,7 +319,7 @@ impl BroadcastStage {
                     &bank_forks,
                     &quic_endpoint_sender,
                 );
-                let res = Self::handle_error(res, "solana-broadcaster-transmit");
+                let res = Self::handle_error(res, "aeko-broadcaster-transmit");
                 if let Some(res) = res {
                     return res;
                 }
@@ -336,7 +336,7 @@ impl BroadcastStage {
                 let btree = blockstore.clone();
                 let run_record = move || loop {
                     let res = bs_record.record(&blockstore_receiver, &btree);
-                    let res = Self::handle_error(res, "solana-broadcaster-record");
+                    let res = Self::handle_error(res, "aeko-broadcaster-record");
                     if let Some(res) = res {
                         return res;
                     }
@@ -357,7 +357,7 @@ impl BroadcastStage {
                         &retransmit_slots_receiver,
                         &socket_sender,
                     ),
-                    "solana-broadcaster-retransmit-check_retransmit_signals",
+                    "aeko-broadcaster-retransmit-check_retransmit_signals",
                 ) {
                     return res;
                 }

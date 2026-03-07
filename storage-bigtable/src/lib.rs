@@ -379,7 +379,7 @@ impl From<LegacyTransactionByAddrInfo> for TransactionByAddrInfo {
     }
 }
 
-pub const DEFAULT_INSTANCE_NAME: &str = "solana-ledger";
+pub const DEFAULT_INSTANCE_NAME: &str = "aeko-ledger";
 pub const DEFAULT_APP_PROFILE_ID: &str = "default";
 pub const DEFAULT_MAX_MESSAGE_SIZE: usize = 64 * 1024 * 1024; // 64MB
 

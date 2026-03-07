@@ -9018,7 +9018,7 @@ fn test_stake_vote_account_validity() {
     let thread_pool = ThreadPoolBuilder::new().num_threads(1).build().unwrap();
     // TODO: stakes cache should be hardened for the case when the account
     // owner is changed from vote/stake program to something else. see:
-    // https://github.com/aeko-chain/solana/pull/24200#discussion_r849935444
+    // https://github.com/aeko-chain/aeko/pull/24200#discussion_r849935444
     check_stake_vote_account_validity(
         false, // check owner change
         |bank: &Bank| bank._load_vote_and_stake_accounts(&thread_pool, null_tracer()),
@@ -9364,7 +9364,7 @@ fn test_get_largest_accounts() {
         ])
         .collect();
 
-    // Initialize accounts; all have larger SOL balances than current Bank built-ins
+    // Initialize accounts; all have larger AEKO balances than current Bank built-ins
     let account0 = AccountSharedData::new(pubkeys_balances[0].1, 0, &Pubkey::default());
     bank.store_account(&pubkeys_balances[0].0, &account0);
     let account1 = AccountSharedData::new(pubkeys_balances[1].1, 0, &Pubkey::default());

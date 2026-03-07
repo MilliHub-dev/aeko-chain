@@ -14,8 +14,8 @@ echoSolanaMetricsConfig() {
   )
 }
 
-SOLANA_METRICS_CONFIG=$(echoSolanaMetricsConfig)
-export SOLANA_METRICS_CONFIG
+AEKO_METRICS_CONFIG=$(echoSolanaMetricsConfig)
+export AEKO_METRICS_CONFIG
 unset -f echoSolanaMetricsConfig
 
 __configure_metrics_sh="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../.. || true; pwd)"/scripts/configure-metrics.sh

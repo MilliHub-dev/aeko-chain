@@ -71,7 +71,7 @@ impl StakesCache {
         // TODO: If the account is already cached as a vote or stake account
         // but the owner changes, then this needs to evict the account from
         // the cache. see:
-        // https://github.com/aeko-chain/solana/pull/24200#discussion_r849935444
+        // https://github.com/aeko-chain/aeko/pull/24200#discussion_r849935444
         let owner = account.owner();
         // Zero lamport accounts are not stored in accounts-db
         // and so should be removed from cache as well.

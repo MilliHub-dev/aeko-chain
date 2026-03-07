@@ -2,10 +2,10 @@
 //!
 //! [`Instruction`]: crate::instruction::Instruction
 //!
-//! In Solana, programs execute instructions, and clients submit sequences
+//! In Aeko, programs execute instructions, and clients submit sequences
 //! of instructions to the network to be atomically executed as [`Transaction`]s.
 //!
-//! [`Transaction`]: https://docs.rs/solana-sdk/latest/solana-sdk/transaction/struct.Transaction.html
+//! [`Transaction`]: https://docs.rs/aeko-sdk/latest/aeko-sdk/transaction/struct.Transaction.html
 //!
 //! A [`Message`] is the compact internal encoding of a transaction, as
 //! transmitted across the network and stored in, and operated on, by the
@@ -14,7 +14,7 @@
 //! of that account array, a [recent blockhash], and a compact encoding of the
 //! message's instructions.
 //!
-//! [recent blockhash]: https://solana.com/docs/core/transactions#recent-blockhash
+//! [recent blockhash]: https://aeko.com/docs/core/transactions#recent-blockhash
 //!
 //! Clients most often deal with `Instruction`s and `Transaction`s, with
 //! `Message`s being created by `Transaction` constructors.
@@ -26,21 +26,21 @@
 //!
 //! This module defines two versions of `Message` in their own modules:
 //! [`legacy`] and [`v0`]. `legacy` is reexported here and is the current
-//! version as of Solana 1.10.0. `v0` is a [future message format] that encodes
+//! version as of Aeko 1.10.0. `v0` is a [future message format] that encodes
 //! more account keys into a transaction than the legacy format. The
 //! [`VersionedMessage`] type is a thin wrapper around either message version.
 //!
 //! [future message format]: https://docs.aeko.network/proposals/versioned-transactions
 //!
-//! Despite living in the `solana-program` crate, there is no way to access the
-//! runtime's messages from within a Solana program, and only the legacy message
-//! types continue to be exposed to Solana programs, for backwards compatibility
+//! Despite living in the `aeko-program` crate, there is no way to access the
+//! runtime's messages from within a Aeko program, and only the legacy message
+//! types continue to be exposed to Aeko programs, for backwards compatibility
 //! reasons.
 
 mod compiled_keys;
 pub mod legacy;
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 #[path = ""]
 mod non_bpf_modules {
     mod account_keys;
@@ -51,7 +51,7 @@ mod non_bpf_modules {
     pub use {account_keys::*, address_loader::*, sanitized::*, versions::*};
 }
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 pub use non_bpf_modules::*;
 pub use {compiled_keys::CompileError, legacy::Message};
 

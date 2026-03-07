@@ -12,7 +12,7 @@
 //! contain enough lamports to be [rent exempt], or else the creation
 //! instruction will fail.
 //!
-//! [rent exempt]: https://solana.com/docs/core/accounts#rent-exemption
+//! [rent exempt]: https://aeko.com/docs/core/accounts#rent-exemption
 //!
 //! The accounts created by the system program can either be user-controlled,
 //! where the secret keys are held outside the blockchain,
@@ -33,7 +33,7 @@
 //! for the [`SystemInstruction`] variants for each system program instruction,
 //! and these variants are linked from the documentation for their constructors.
 //!
-//! [`RpcClient`]: https://docs.rs/solana-client/latest/aeko_client/rpc_client/struct.RpcClient.html
+//! [`RpcClient`]: https://docs.rs/aeko-client/latest/aeko_client/rpc_client/struct.RpcClient.html
 //! [cpi]: crate::program
 //! [`invoke`]: crate::program::invoke
 //! [`invoke_signed`]: crate::program::invoke_signed
@@ -57,7 +57,7 @@ use {
 pub enum SystemError {
     #[error("an account with the same address already exists")]
     AccountAlreadyInUse,
-    #[error("account does not have enough SOL to perform the operation")]
+    #[error("account does not have enough AEKO to perform the operation")]
     ResultWithNegativeLamports,
     #[error("cannot assign account to this program id")]
     InvalidProgramId,
@@ -281,7 +281,7 @@ pub enum SystemInstruction {
 /// [`Transaction`] or [invoked] to take effect, containing a serialized
 /// [`SystemInstruction::CreateAccount`].
 ///
-/// [`Transaction`]: https://docs.rs/solana-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
+/// [`Transaction`]: https://docs.rs/aeko-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
 /// [invoked]: crate::program::invoke
 ///
 /// Account creation typically involves three steps: [`allocate`] space,
@@ -353,7 +353,7 @@ pub enum SystemInstruction {
 ///
 /// ## Example: on-chain program
 ///
-/// This example submits the instruction from an on-chain Solana program. The
+/// This example submits the instruction from an on-chain Aeko program. The
 /// created account is a [program derived address][pda]. The `payer` and
 /// `new_account_pda` are signers, with `new_account_pda` being signed for
 /// virtually by the program itself via [`invoke_signed`], `payer` being signed
@@ -492,7 +492,7 @@ pub fn create_account_with_seed(
 /// [`Transaction`] or [invoked] to take effect, containing a serialized
 /// [`SystemInstruction::Assign`].
 ///
-/// [`Transaction`]: https://docs.rs/solana-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
+/// [`Transaction`]: https://docs.rs/aeko-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
 /// [invoked]: crate::program::invoke
 ///
 /// # Required signers
@@ -569,7 +569,7 @@ pub fn create_account_with_seed(
 ///
 /// ## Example: on-chain program
 ///
-/// This example submits the instructions from an on-chain Solana program. The
+/// This example submits the instructions from an on-chain Aeko program. The
 /// created account is a [program derived address][pda], funded by `payer`, and
 /// assigned to the running program. The `payer` and `new_account_pda` are
 /// signers, with `new_account_pda` being signed for virtually by the program
@@ -703,7 +703,7 @@ pub fn assign_with_seed(
 /// [`Transaction`] or [invoked] to take effect, containing a serialized
 /// [`SystemInstruction::Transfer`].
 ///
-/// [`Transaction`]: https://docs.rs/solana-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
+/// [`Transaction`]: https://docs.rs/aeko-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
 /// [invoked]: crate::program::invoke
 ///
 /// # Required signers
@@ -780,7 +780,7 @@ pub fn assign_with_seed(
 ///
 /// ## Example: on-chain program
 ///
-/// This example submits the instructions from an on-chain Solana program. The
+/// This example submits the instructions from an on-chain Aeko program. The
 /// created account is a [program derived address][pda], funded by `payer`, and
 /// assigned to the running program. The `payer` and `new_account_pda` are
 /// signers, with `new_account_pda` being signed for virtually by the program
@@ -920,7 +920,7 @@ pub fn transfer_with_seed(
 /// [`Transaction`] or [invoked] to take effect, containing a serialized
 /// [`SystemInstruction::Allocate`].
 ///
-/// [`Transaction`]: https://docs.rs/solana-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
+/// [`Transaction`]: https://docs.rs/aeko-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
 /// [invoked]: crate::program::invoke
 ///
 /// The transaction will fail if the account already has size greater than 0,
@@ -1000,7 +1000,7 @@ pub fn transfer_with_seed(
 ///
 /// ## Example: on-chain program
 ///
-/// This example submits the instructions from an on-chain Solana program. The
+/// This example submits the instructions from an on-chain Aeko program. The
 /// created account is a [program derived address][pda], funded by `payer`, and
 /// assigned to the running program. The `payer` and `new_account_pda` are
 /// signers, with `new_account_pda` being signed for virtually by the program
@@ -1136,7 +1136,7 @@ pub fn allocate_with_seed(
 /// in a [`Transaction`] or [invoked] to take effect, containing serialized
 /// [`SystemInstruction::Transfer`]s.
 ///
-/// [`Transaction`]: https://docs.rs/solana-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
+/// [`Transaction`]: https://docs.rs/aeko-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
 /// [invoked]: crate::program::invoke
 ///
 /// # Required signers
@@ -1195,7 +1195,7 @@ pub fn allocate_with_seed(
 ///
 /// This example makes multiple transfers out of a "bank" account,
 /// a [program derived address][pda] owned by the calling program.
-/// This example submits the instructions from an on-chain Solana program. The
+/// This example submits the instructions from an on-chain Aeko program. The
 /// created account is a [program derived address][pda], and it is assigned to
 /// the running program. The `payer` and `new_account_pda` are signers, with
 /// `new_account_pda` being signed for virtually by the program itself via
@@ -1316,14 +1316,14 @@ pub fn create_nonce_account_with_seed(
 /// [`SystemInstruction::CreateAccount`] and
 /// [`SystemInstruction::InitializeNonceAccount`].
 ///
-/// [`Transaction`]: https://docs.rs/solana-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
+/// [`Transaction`]: https://docs.rs/aeko-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
 /// [invoked]: crate::program::invoke
 ///
 /// A [durable transaction nonce][dtn] is a special account that enables
 /// execution of transactions that have been signed in the past.
 ///
-/// Standard Solana transactions include a [recent blockhash][rbh] (sometimes
-/// referred to as a _[nonce]_). During execution the Solana runtime verifies
+/// Standard Aeko transactions include a [recent blockhash][rbh] (sometimes
+/// referred to as a _[nonce]_). During execution the Aeko runtime verifies
 /// the recent blockhash is approximately less than two minutes old, and that in
 /// those two minutes no other identical transaction with the same blockhash has
 /// been executed. These checks prevent accidental replay of transactions.
@@ -1453,13 +1453,13 @@ pub fn create_nonce_account(
 /// [`Transaction`] or [invoked] to take effect, containing a serialized
 /// [`SystemInstruction::AdvanceNonceAccount`].
 ///
-/// [`Transaction`]: https://docs.rs/solana-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
+/// [`Transaction`]: https://docs.rs/aeko-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
 /// [invoked]: crate::program::invoke
 ///
 /// Every transaction that relies on a durable transaction nonce must contain a
 /// [`SystemInstruction::AdvanceNonceAccount`] instruction as the first
 /// instruction in the [`Message`], as created by this function. When included
-/// in the first position, the Solana runtime recognizes the transaction as one
+/// in the first position, the Aeko runtime recognizes the transaction as one
 /// that relies on a durable transaction nonce and processes it accordingly. The
 /// [`Message::new_with_nonce`] function can be used to construct a `Message` in
 /// the correct format without calling `advance_nonce_account` directly.
@@ -1477,7 +1477,7 @@ pub fn create_nonce_account(
 /// [`Message`]: crate::message::Message
 /// [`Message::new_with_nonce`]: crate::message::Message::new_with_nonce
 /// [`recent_blockhash`]: crate::message::Message::recent_blockhash
-/// [dfa]: https://docs.rs/solana-rpc-client-nonce-utils/latest/aeko_rpc_client_nonce_utils/fn.data_from_account.html
+/// [dfa]: https://docs.rs/aeko-rpc-client-nonce-utils/latest/aeko_rpc_client_nonce_utils/fn.data_from_account.html
 ///
 /// # Required signers
 ///
@@ -1590,7 +1590,7 @@ pub fn advance_nonce_account(nonce_pubkey: &Pubkey, authorized_pubkey: &Pubkey) 
 /// [`Transaction`] or [invoked] to take effect, containing a serialized
 /// [`SystemInstruction::WithdrawNonceAccount`].
 ///
-/// [`Transaction`]: https://docs.rs/solana-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
+/// [`Transaction`]: https://docs.rs/aeko-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
 /// [invoked]: crate::program::invoke
 ///
 /// Withdrawing the entire balance of a nonce account will cause the runtime to
@@ -1601,7 +1601,7 @@ pub fn advance_nonce_account(nonce_pubkey: &Pubkey, authorized_pubkey: &Pubkey) 
 /// would leave the nonce account with a balance less than required for rent
 /// exemption, but also greater than zero, then the transaction will fail.
 ///
-/// [rent exemption]: https://solana.com/docs/core/accounts#rent-exemption
+/// [rent exemption]: https://aeko.com/docs/core/accounts#rent-exemption
 ///
 /// This constructor creates a [`SystemInstruction::WithdrawNonceAccount`]
 /// instruction.
@@ -1683,7 +1683,7 @@ pub fn withdraw_nonce_account(
 /// [`Transaction`] or [invoked] to take effect, containing a serialized
 /// [`SystemInstruction::AuthorizeNonceAccount`].
 ///
-/// [`Transaction`]: https://docs.rs/solana-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
+/// [`Transaction`]: https://docs.rs/aeko-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
 /// [invoked]: crate::program::invoke
 ///
 /// This constructor creates a [`SystemInstruction::AuthorizeNonceAccount`]
