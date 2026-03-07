@@ -168,7 +168,7 @@ fn create_client(
 }
 
 fn main() {
-    aeko_logger::setup_with_default("solana=info");
+    aeko_logger::setup_with_default("aeko=info");
     aeko_metrics::set_panic_hook("bench-tps", /*version:*/ None);
 
     let matches = cli::build_args(aeko_version::version!()).get_matches();
@@ -259,7 +259,7 @@ fn main() {
         );
         client
             .get_account(&instruction_padding_config.program_id)
-            .expect("Instruction padding program must be deployed to this cluster. Deploy the program using `solana program deploy ./bench-tps/tests/fixtures/spl_instruction_padding.so` and pass the resulting program id with `--instruction-padding-program-id`");
+            .expect("Instruction padding program must be deployed to this cluster. Deploy the program using `aeko program deploy ./bench-tps/tests/fixtures/spl_instruction_padding.so` and pass the resulting program id with `--instruction-padding-program-id`");
     }
     let keypairs = get_keypairs(
         client.clone(),

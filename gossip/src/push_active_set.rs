@@ -90,7 +90,7 @@ impl PushActiveSet {
                     // min stake of {...} is a proxy for how much we care about
                     // the link, and tries to mirror similar logic on the
                     // receiving end when pruning incoming links:
-                    // https://github.com/aeko-chain/solana/blob/81394cf92/gossip/src/received_cache.rs#L100-L105
+                    // https://github.com/aeko-chain/aeko/blob/81394cf92/gossip/src/received_cache.rs#L100-L105
                     let bucket = bucket.min(k) as u64;
                     bucket.saturating_add(1).saturating_pow(2)
                 })

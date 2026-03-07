@@ -37,8 +37,8 @@ use {
     },
 };
 
-const ALPN_REPAIR_PROTOCOL_ID: &[u8] = b"solana-repair";
-const CONNECT_SERVER_NAME: &str = "solana-repair";
+const ALPN_REPAIR_PROTOCOL_ID: &[u8] = b"aeko-repair";
+const CONNECT_SERVER_NAME: &str = "aeko-repair";
 
 const CLIENT_CHANNEL_BUFFER: usize = 1 << 14;
 const ROUTER_CHANNEL_BUFFER: usize = 64;

@@ -1,6 +1,6 @@
 [package]
 name = "aeko-poh"
-description = "Solana PoH"
+description = "Aeko PoH"
 documentation = "https://docs.rs/aeko-poh"
 version = { workspace = true }
 authors = { workspace = true }

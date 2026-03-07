@@ -1,12 +1,12 @@
 //! Transaction scheduling code.
 //!
-//! This crate implements 3 solana-runtime traits (`InstalledScheduler`, `UninstalledScheduler` and
+//! This crate implements 3 aeko-runtime traits (`InstalledScheduler`, `UninstalledScheduler` and
 //! `InstalledSchedulerPool`) to provide a concrete transaction scheduling implementation
 //! (including executing txes and committing tx results).
 //!
 //! At the highest level, this crate takes `SanitizedTransaction`s via its `schedule_execution()`
 //! and commits any side-effects (i.e. on-chain state changes) into the associated `Bank` via
-//! `solana-ledger`'s helper function called `execute_batch()`.
+//! `aeko-ledger`'s helper function called `execute_batch()`.
 
 use {
     assert_matches::assert_matches,
@@ -42,8 +42,8 @@ use {
 
 type AtomicSchedulerId = AtomicU64;
 
-// SchedulerPool must be accessed as a dyn trait from solana-runtime, because SchedulerPool
-// contains some internal fields, whose types aren't available in solana-runtime (currently
+// SchedulerPool must be accessed as a dyn trait from aeko-runtime, because SchedulerPool
+// contains some internal fields, whose types aren't available in aeko-runtime (currently
 // TransactionStatusSender; also, PohRecorder in the future)...
 #[derive(Debug)]
 pub struct SchedulerPool<S: SpawnableScheduler<TH>, TH: TaskHandler> {

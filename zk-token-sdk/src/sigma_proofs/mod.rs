@@ -14,7 +14,7 @@ pub mod grouped_ciphertext_validity_proof;
 pub mod pubkey_proof;
 pub mod zero_balance_proof;
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 use {
     crate::{sigma_proofs::errors::SigmaProofVerificationError, RISTRETTO_POINT_LEN, SCALAR_LEN},
     curve25519_dalek::{ristretto::CompressedRistretto, scalar::Scalar},
@@ -24,7 +24,7 @@ use {
 ///
 /// This is a helper function for deserializing byte encodings of sigma proofs. It is designed to
 /// be used with `std::slice::Chunks`.
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 fn ristretto_point_from_optional_slice(
     optional_slice: Option<&[u8]>,
 ) -> Result<CompressedRistretto, SigmaProofVerificationError> {
@@ -38,7 +38,7 @@ fn ristretto_point_from_optional_slice(
 ///
 /// This is a helper function for deserializing byte encodings of sigma proofs. It is designed to
 /// be used with `std::slice::Chunks`.
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 fn canonical_scalar_from_optional_slice(
     optional_slice: Option<&[u8]>,
 ) -> Result<Scalar, SigmaProofVerificationError> {

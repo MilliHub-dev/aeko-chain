@@ -18,24 +18,24 @@
 //! 1. Without blockhash or payer:
 //! 1.1 With invalid signatures
 //! ```bash
-//! solana-dos $COMMON --num-signatures 8
+//! aeko-dos $COMMON --num-signatures 8
 //! ```
 //! 1.2 With valid signatures
 //! ```bash
-//! solana-dos $COMMON --valid-signatures --num-signatures 8
+//! aeko-dos $COMMON --valid-signatures --num-signatures 8
 //! ```
 //! 2. With blockhash and payer:
 //! 2.1 Single-instruction transaction
 //! ```bash
-//! solana-dos $COMMON --valid-blockhash --transaction-type transfer --num-instructions 1
+//! aeko-dos $COMMON --valid-blockhash --transaction-type transfer --num-instructions 1
 //! ```
 //! 2.2 Multi-instruction transaction
 //! ```bash
-//! solana-dos $COMMON --valid-blockhash --transaction-type transfer --num-instructions 8
+//! aeko-dos $COMMON --valid-blockhash --transaction-type transfer --num-instructions 8
 //! ```
 //! 2.3 Account-creation transaction
 //! ```bash
-//! solana-dos $COMMON --valid-blockhash --transaction-type account-creation
+//! aeko-dos $COMMON --valid-blockhash --transaction-type account-creation
 //! ```
 //!
 #![allow(clippy::arithmetic_side_effects)]
@@ -760,7 +760,7 @@ fn run_dos<T: 'static + BenchTpsClient + Send + Sync>(
 }
 
 fn main() {
-    aeko_logger::setup_with_default("solana=info");
+    aeko_logger::setup_with_default("aeko=info");
     let cmd_params = build_cli_parameters();
 
     let (nodes, client) = if !cmd_params.skip_gossip {

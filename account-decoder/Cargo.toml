@@ -1,6 +1,6 @@
 [package]
 name = "aeko-account-decoder"
-description = "Solana account decoder"
+description = "Aeko account decoder"
 documentation = "https://docs.rs/aeko-account-decoder"
 version = { workspace = true }
 authors = { workspace = true }

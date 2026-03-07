@@ -29,7 +29,7 @@ use {
 pub mod generated {
     include!(concat!(
         env!("OUT_DIR"),
-        "/solana.storage.confirmed_block.rs"
+        "/aeko.storage.confirmed_block.rs"
     ));
 }
 
@@ -37,13 +37,13 @@ pub mod generated {
 pub mod tx_by_addr {
     include!(concat!(
         env!("OUT_DIR"),
-        "/solana.storage.transaction_by_addr.rs"
+        "/aeko.storage.transaction_by_addr.rs"
     ));
 }
 
 #[allow(clippy::derive_partial_eq_without_eq)]
 pub mod entries {
-    include!(concat!(env!("OUT_DIR"), "/solana.storage.entries.rs"));
+    include!(concat!(env!("OUT_DIR"), "/aeko.storage.entries.rs"));
 }
 
 impl From<Vec<Reward>> for generated::Rewards {

@@ -2,7 +2,7 @@
  * @brief Example C based SBF program that prints out the parameters
  * passed to it
  */
-#include <sol/deserialize.h>
+#include <aeko/deserialize.h>
 
 
 extern uint64_t entrypoint(const uint8_t *input) {

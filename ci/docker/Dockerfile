@@ -43,7 +43,7 @@ RUN \
   cmake \
   # docs
   mscgen \
-  # solana compiling
+  # aeko compiling
   libssl-dev \
   libudev-dev \
   pkg-config \

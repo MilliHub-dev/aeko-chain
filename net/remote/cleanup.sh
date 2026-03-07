@@ -8,18 +8,18 @@ if sudo true; then
 fi
 
 echo "pwd: $(pwd)"
-for pid in solana/*.pid; do
+for pid in aeko/*.pid; do
   pgid=$(ps opgid= "$(cat "$pid")" | tr -d '[:space:]')
   if [[ -n $pgid ]]; then
     $sudo kill -- -"$pgid"
   fi
 done
-if [[ -f solana/netem.cfg ]]; then
-  solana/scripts/netem.sh delete < solana/netem.cfg
-  rm -f solana/netem.cfg
+if [[ -f aeko/netem.cfg ]]; then
+  aeko/scripts/netem.sh delete < aeko/netem.cfg
+  rm -f aeko/netem.cfg
 fi
-solana/scripts/net-shaper.sh cleanup
-for pattern in validator.sh boostrap-leader.sh solana- remote- iftop validator client node; do
+aeko/scripts/net-shaper.sh cleanup
+for pattern in validator.sh boostrap-leader.sh aeko- remote- iftop validator client node; do
   echo "killing $pattern"
   pkill -f $pattern
 done

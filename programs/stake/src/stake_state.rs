@@ -2145,7 +2145,7 @@ mod tests {
     fn test_dbg_stake_minimum_balance() {
         let minimum_balance = Rent::default().minimum_balance(StakeStateV2::size_of());
         panic!(
-            "stake minimum_balance: {} lamports, {} SOL",
+            "stake minimum_balance: {} lamports, {} AEKO",
             minimum_balance,
             minimum_balance as f64 / aeko_sdk::native_token::LAMPORTS_PER_AEKO as f64
         );

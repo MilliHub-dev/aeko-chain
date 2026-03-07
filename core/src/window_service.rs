@@ -457,7 +457,7 @@ impl WindowService {
         bank_forks: Arc<RwLock<BankForks>>,
     ) -> JoinHandle<()> {
         let handle_error = || {
-            inc_new_counter_error!("solana-check-duplicate-error", 1, 1);
+            inc_new_counter_error!("aeko-check-duplicate-error", 1, 1);
         };
         Builder::new()
             .name("solWinCheckDup".to_string())
@@ -491,7 +491,7 @@ impl WindowService {
         accept_repairs_only: bool,
     ) -> JoinHandle<()> {
         let handle_error = || {
-            inc_new_counter_error!("solana-window-insert-error", 1, 1);
+            inc_new_counter_error!("aeko-window-insert-error", 1, 1);
         };
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .num_threads(get_thread_count().min(8))

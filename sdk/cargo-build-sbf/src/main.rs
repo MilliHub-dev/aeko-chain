@@ -138,9 +138,9 @@ fn find_installed_platform_tools() -> Vec<String> {
         error!("Can't get home directory path: {}", err);
         exit(1);
     }));
-    let solana = home_dir.join(".cache").join("solana");
+    let aeko = home_dir.join(".cache").join("aeko");
     let package = "platform-tools";
-    std::fs::read_dir(solana)
+    std::fs::read_dir(aeko)
         .unwrap()
         .filter_map(|e| match e {
             Err(_) => None,
@@ -229,7 +229,7 @@ fn make_platform_tools_path_for_version(package: &str, version: &str) -> PathBuf
     }));
     home_dir
         .join(".cache")
-        .join("solana")
+        .join("aeko")
         .join(version)
         .join(package)
 }
@@ -271,7 +271,7 @@ fn install_if_missing(
         fs::remove_dir(target_path).map_err(|err| err.to_string())?;
     }
 
-    // Check whether the package is already in ~/.cache/solana.
+    // Check whether the package is already in ~/.cache/aeko.
     // Download it and place in the proper location if not found.
     if !target_path.is_dir()
         && !target_path
@@ -475,7 +475,7 @@ fn check_undefined_symbols(config: &Config, program: &Path) {
     }
 }
 
-// check whether custom solana toolchain is linked, and link it if it is not.
+// check whether custom aeko toolchain is linked, and link it if it is not.
 fn link_aeko_toolchain(config: &Config) {
     let toolchain_path = config
         .sbf_sdk
@@ -494,12 +494,12 @@ fn link_aeko_toolchain(config: &Config) {
     }
     let mut do_link = true;
     for line in rustup_output.lines() {
-        if line.starts_with("solana") {
+        if line.starts_with("aeko") {
             let mut it = line.split_whitespace();
             let _ = it.next();
             let path = it.next();
             if path.unwrap() != toolchain_path.to_str().unwrap() {
-                let rustup_args = vec!["toolchain", "uninstall", "solana"];
+                let rustup_args = vec!["toolchain", "uninstall", "aeko"];
                 let output = spawn(
                     &rustup,
                     rustup_args,
@@ -518,7 +518,7 @@ fn link_aeko_toolchain(config: &Config) {
         let rustup_args = vec![
             "toolchain",
             "link",
-            "solana",
+            "aeko",
             toolchain_path.to_str().unwrap(),
         ];
         let output = spawn(
@@ -569,7 +569,7 @@ fn build_aeko_package(
         }
     };
 
-    let legacy_program_feature_present = package.name == "solana-sdk";
+    let legacy_program_feature_present = package.name == "aeko-sdk";
     let root_package_dir = &package.manifest_path.parent().unwrap_or_else(|| {
         error!("Unable to get directory of {}", package.manifest_path);
         exit(1);
@@ -581,7 +581,7 @@ fn build_aeko_package(
         .cloned()
         .unwrap_or_else(|| target_directory.join("deploy"));
 
-    let target_build_directory = target_directory.join("sbf-solana-solana").join("release");
+    let target_build_directory = target_directory.join("sbf-aeko-aeko").join("release");
 
     env::set_current_dir(root_package_dir).unwrap_or_else(|err| {
         error!(
@@ -591,7 +591,7 @@ fn build_aeko_package(
         exit(1);
     });
 
-    info!("Solana SDK: {}", config.sbf_sdk.display());
+    info!("Aeko SDK: {}", config.sbf_sdk.display());
     if config.no_default_features {
         info!("No default features");
     }
@@ -654,15 +654,15 @@ fn build_aeko_package(
 
     // RUSTC variable overrides cargo +<toolchain> mechanism of
     // selecting the rust compiler and makes cargo run a rust compiler
-    // other than the one linked in Solana toolchain. We have to prevent
+    // other than the one linked in Aeko toolchain. We have to prevent
     // this by removing RUSTC from the child process environment.
     if env::var("RUSTC").is_ok() {
         warn!(
-            "Removed RUSTC from cargo environment, because it overrides +solana cargo command line option."
+            "Removed RUSTC from cargo environment, because it overrides +aeko cargo command line option."
         );
         env::remove_var("RUSTC")
     }
-    let cargo_target = "CARGO_TARGET_SBF_SOLANA_SOLANA_RUSTFLAGS";
+    let cargo_target = "CARGO_TARGET_SBF_AEKO_AEKO_RUSTFLAGS";
     let rustflags = env::var("RUSTFLAGS").ok().unwrap_or_default();
     if env::var("RUSTFLAGS").is_ok() {
         warn!(
@@ -697,11 +697,11 @@ fn build_aeko_package(
 
     let cargo_build = PathBuf::from("cargo");
     let mut cargo_build_args = vec![
-        "+solana",
+        "+aeko",
         "build",
         "--release",
         "--target",
-        "sbf-solana-solana",
+        "sbf-aeko-aeko",
     ];
     if config.arch == "sbfv2" {
         cargo_build_args.push("-Zbuild-std=std,panic_abort");
@@ -843,7 +843,7 @@ fn build_aeko_package(
         check_undefined_symbols(config, &program_so);
 
         info!("To deploy this program:");
-        info!("  $ solana program deploy {}", program_so.display());
+        info!("  $ aeko program deploy {}", program_so.display());
         info!("The program address will default to this keypair (override with --program-id):");
         info!("  {}", program_keypair.display());
     } else if config.dump {
@@ -939,7 +939,7 @@ fn main() {
                 .value_name("PATH")
                 .takes_value(true)
                 .default_value(&default_sbf_sdk)
-                .help("Path to the Solana SBF SDK"),
+                .help("Path to the Aeko SBF SDK"),
         )
         .arg(
             Arg::new("cargo_args")
@@ -1028,7 +1028,7 @@ fn main() {
                 .long("workspace")
                 .takes_value(false)
                 .alias("all")
-                .help("Build all Solana packages in the workspace"),
+                .help("Build all Aeko packages in the workspace"),
         )
         .arg(
             Arg::new("jobs")
@@ -1091,7 +1091,7 @@ fn main() {
         target_directory,
         sbf_sdk: fs::canonicalize(&sbf_sdk).unwrap_or_else(|err| {
             error!(
-                "Solana SDK path does not exist: {}: {}",
+                "Aeko SDK path does not exist: {}: {}",
                 sbf_sdk.display(),
                 err
             );

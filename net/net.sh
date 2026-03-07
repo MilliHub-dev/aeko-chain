@@ -2,7 +2,7 @@
 set -e
 
 here=$(dirname "$0")
-SOLANA_ROOT="$(cd "$here"/..; pwd)"
+AEKO_ROOT="$(cd "$here"/..; pwd)"
 
 # shellcheck source=net/common.sh
 source "$here"/common.sh
@@ -190,12 +190,12 @@ build() {
   declare MAYBE_DOCKER=
   if [[ $(uname) != Linux || ! " ${supported[*]} " =~ $(lsb_release -sr) ]]; then
     # shellcheck source=ci/rust-version.sh
-    source "$SOLANA_ROOT"/ci/rust-version.sh
+    source "$AEKO_ROOT"/ci/rust-version.sh
     MAYBE_DOCKER="ci/docker-run.sh ${ci_docker_image:?}"
   fi
   SECONDS=0
   (
-    cd "$SOLANA_ROOT"
+    cd "$AEKO_ROOT"
     echo "--- Build started at $(date)"
 
     set -x
@@ -229,7 +229,7 @@ build() {
     (
       echo "channel: devbuild $NOTE"
       echo "commit: $COMMIT"
-    ) > "$SOLANA_ROOT"/farf/version.yml
+    ) > "$AEKO_ROOT"/farf/version.yml
   )
   echo "Build took $SECONDS seconds"
 }
@@ -247,7 +247,7 @@ startCommon() {
   remoteHome=$(remoteHomeDir "$ipAddress")
   local remoteSolanaHome="${remoteHome}/aeko"
   local remoteCargoBin="${remoteHome}/.cargo/bin"
-  test -d "$SOLANA_ROOT"
+  test -d "$AEKO_ROOT"
   if $skipSetup; then
     # shellcheck disable=SC2029
     ssh "${sshOptions[@]}" "$ipAddress" "
@@ -279,7 +279,7 @@ syncScripts() {
   local remoteSolanaHome="${remoteHome}/aeko"
   rsync -vPrc -e "ssh ${sshOptions[*]}" \
     --exclude 'net/log*' \
-    "$SOLANA_ROOT"/{fetch-perf-libs.sh,fetch-spl.sh,scripts,net,multinode-demo} \
+    "$AEKO_ROOT"/{fetch-perf-libs.sh,fetch-spl.sh,scripts,net,multinode-demo} \
     "$ipAddress":"$remoteSolanaHome"/ > /dev/null
 }
 
@@ -295,12 +295,12 @@ deployBootstrapValidator() {
   echo "Deploying software to bootstrap validator ($ipAddress)"
   case $deployMethod in
   tar)
-    rsync -vPrc -e "ssh ${sshOptions[*]}" "$SOLANA_ROOT"/aeko-release/bin/* "$ipAddress:$remoteCargoBin/"
-    rsync -vPrc -e "ssh ${sshOptions[*]}" "$SOLANA_ROOT"/aeko-release/version.yml "$ipAddress:~/"
+    rsync -vPrc -e "ssh ${sshOptions[*]}" "$AEKO_ROOT"/aeko-release/bin/* "$ipAddress:$remoteCargoBin/"
+    rsync -vPrc -e "ssh ${sshOptions[*]}" "$AEKO_ROOT"/aeko-release/version.yml "$ipAddress:~/"
     ;;
   local)
-    rsync -vPrc -e "ssh ${sshOptions[*]}" "$SOLANA_ROOT"/farf/bin/* "$ipAddress:$remoteCargoBin/"
-    rsync -vPrc -e "ssh ${sshOptions[*]}" "$SOLANA_ROOT"/farf/version.yml "$ipAddress:~/"
+    rsync -vPrc -e "ssh ${sshOptions[*]}" "$AEKO_ROOT"/farf/bin/* "$ipAddress:$remoteCargoBin/"
+    rsync -vPrc -e "ssh ${sshOptions[*]}" "$AEKO_ROOT"/farf/version.yml "$ipAddress:~/"
     ;;
   skip)
     ;;
@@ -562,21 +562,21 @@ prepareDeploy() {
   tar)
     if [[ -n $releaseChannel ]]; then
       echo "Downloading release from channel: $releaseChannel"
-      rm -f "$SOLANA_ROOT"/aeko-release.tar.bz2
+      rm -f "$AEKO_ROOT"/aeko-release.tar.bz2
       declare updateDownloadUrl=https://release.aeko.com/"$releaseChannel"/aeko-release-x86_64-unknown-linux-gnu.tar.bz2
       (
         set -x
         curl -L -I "$updateDownloadUrl"
         curl -L --retry 5 --retry-delay 2 --retry-connrefused \
-          -o "$SOLANA_ROOT"/aeko-release.tar.bz2 "$updateDownloadUrl"
+          -o "$AEKO_ROOT"/aeko-release.tar.bz2 "$updateDownloadUrl"
       )
-      tarballFilename="$SOLANA_ROOT"/aeko-release.tar.bz2
+      tarballFilename="$AEKO_ROOT"/aeko-release.tar.bz2
     fi
     (
       set -x
-      rm -rf "$SOLANA_ROOT"/aeko-release
-      cd "$SOLANA_ROOT"; tar jfxv "$tarballFilename"
-      cat "$SOLANA_ROOT"/aeko-release/version.yml
+      rm -rf "$AEKO_ROOT"/aeko-release
+      cd "$AEKO_ROOT"; tar jfxv "$tarballFilename"
+      cat "$AEKO_ROOT"/aeko-release/version.yml
     )
     ;;
   local)
@@ -605,7 +605,7 @@ prepareDeploy() {
       rsync -vPrc -e "ssh ${sshOptions[*]}" "${validatorIpList[0]}":~/version.yml current-version.yml
     )
     cat current-version.yml
-    if ! diff -q current-version.yml "$SOLANA_ROOT"/aeko-release/version.yml; then
+    if ! diff -q current-version.yml "$AEKO_ROOT"/aeko-release/version.yml; then
       echo "Cluster software version is old.  Update required"
     else
       echo "Cluster software version is current.  No update required"
@@ -696,7 +696,7 @@ deploy() {
     networkVersion="$(
       (
         set -o pipefail
-        grep "^commit: " "$SOLANA_ROOT"/aeko-release/version.yml | head -n1 | cut -d\  -f2
+        grep "^commit: " "$AEKO_ROOT"/aeko-release/version.yml | head -n1 | cut -d\  -f2
       ) || echo "tar-unknown"
     )"
     ;;

@@ -1,6 +1,6 @@
 [package]
 name = "aeko-net-utils"
-description = "Solana Network Utilities"
+description = "Aeko Network Utilities"
 documentation = "https://docs.rs/aeko-net-utils"
 version = { workspace = true }
 authors = { workspace = true }

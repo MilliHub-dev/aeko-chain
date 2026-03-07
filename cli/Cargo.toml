@@ -49,7 +49,7 @@ aeko-tpu-client = { workspace = true, features = ["default"] }
 aeko-transaction-status = { workspace = true }
 aeko-version = { workspace = true }
 aeko-vote-program = { workspace = true }
-solana_rbpf = { workspace = true }
+aeko_rbpf = { workspace = true }
 spl-memo = { workspace = true, features = ["no-entrypoint"] }
 thiserror = { workspace = true }
 tiny-bip39 = { workspace = true }

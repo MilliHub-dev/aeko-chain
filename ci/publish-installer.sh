@@ -27,9 +27,9 @@ fi
 source ci/upload-ci-artifact.sh
 
 cat >release.aeko.chain-install <<EOF
-SOLANA_RELEASE=$CHANNEL_OR_TAG
-SOLANA_INSTALL_INIT_ARGS=$CHANNEL_OR_TAG
-SOLANA_DOWNLOAD_ROOT=https://release.aeko.com
+AEKO_RELEASE=$CHANNEL_OR_TAG
+AEKO_INSTALL_INIT_ARGS=$CHANNEL_OR_TAG
+AEKO_DOWNLOAD_ROOT=https://release.aeko.com
 EOF
 cat install/aeko-install-init.sh >>release.aeko.chain-install
 

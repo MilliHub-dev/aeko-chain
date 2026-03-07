@@ -578,9 +578,9 @@ pub fn process_new_vote_state(
             if vote.slot() <= new_root
                 &&
                 // This check is necessary because
-                // https://github.com/ryoqun/solana/blob/df55bfb46af039cbc597cd60042d49b9d90b5961/core/src/consensus.rs#L120
+                // https://github.com/ryoqun/aeko/blob/df55bfb46af039cbc597cd60042d49b9d90b5961/core/src/consensus.rs#L120
                 // always sets a root for even empty towers, which is then hard unwrapped here
-                // https://github.com/ryoqun/solana/blob/df55bfb46af039cbc597cd60042d49b9d90b5961/core/src/consensus.rs#L776
+                // https://github.com/ryoqun/aeko/blob/df55bfb46af039cbc597cd60042d49b9d90b5961/core/src/consensus.rs#L776
                 new_root != Slot::default()
             {
                 return Err(VoteError::SlotSmallerThanRoot);

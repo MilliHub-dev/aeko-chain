@@ -2334,7 +2334,7 @@ impl Blockstore {
         }
 
         // If present, delete dummy entries inserted by old software
-        // https://github.com/aeko-chain/solana/blob/bc2b372/ledger/src/blockstore.rs#L2130-L2137
+        // https://github.com/aeko-chain/aeko/blob/bc2b372/ledger/src/blockstore.rs#L2130-L2137
         let transaction_status_dummy_key = cf::TransactionStatus::as_index(2);
         if self
             .transaction_status_cf
@@ -3706,7 +3706,7 @@ impl Blockstore {
     /// [`cf::Orphans`].
     ///
     /// For more information about the chaining, check the previous discussion here:
-    /// https://github.com/aeko-chain/solana/pull/2253
+    /// https://github.com/aeko-chain/aeko/pull/2253
     ///
     /// Arguments:
     /// - `db`: the blockstore db that stores both shreds and their metadata.

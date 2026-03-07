@@ -3,8 +3,8 @@
  * passed to it
  */
 
-#include <solana_sdk.h>
-#include <sol/deserialize_deprecated.h>
+#include <aeko_sdk.h>
+#include <aeko/deserialize_deprecated.h>
 
 extern uint64_t entrypoint(const uint8_t *input) {
   SolAccountInfo ka[2];

@@ -1,6 +1,6 @@
 [package]
 name = "aeko-net-shaper"
-description = "The solana cluster network shaping tool"
+description = "The aeko cluster network shaping tool"
 publish = false
 version = { workspace = true }
 authors = { workspace = true }

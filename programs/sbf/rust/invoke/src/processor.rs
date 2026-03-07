@@ -781,7 +781,7 @@ fn process_instruction(
                         // pointer past the RcBox or CPI will clobber the length
                         // change when it copies the callee's account data back
                         // into the caller's account data
-                        // https://github.com/aeko-chain/solana/blob/fa28958bd69054d1c2348e0a731011e93d44d7af/programs/bpf_loader/src/syscalls/cpi.rs#L1487
+                        // https://github.com/aeko-chain/aeko/blob/fa28958bd69054d1c2348e0a731011e93d44d7af/programs/bpf_loader/src/syscalls/cpi.rs#L1487
                         value: RefCell::new(slice::from_raw_parts_mut(
                             account.data.borrow_mut().as_mut_ptr().add(rc_box_size),
                             0,

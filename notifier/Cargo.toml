@@ -1,6 +1,6 @@
 [package]
 name = "aeko-notifier"
-description = "Solana Notifier"
+description = "Aeko Notifier"
 documentation = "https://docs.rs/aeko-notifier"
 version = { workspace = true }
 authors = { workspace = true }

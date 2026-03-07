@@ -876,7 +876,7 @@ mod tests {
         },
         aeko_streamer::socket::SocketAddrSpace,
         spl_token_2022::{
-            solana_program::{program_option::COption, program_pack::Pack, pubkey::Pubkey as SplPubkey},
+            aeko_program::{program_option::COption, program_pack::Pack, pubkey::Pubkey as SplPubkey},
             state::{Account as TokenAccount, AccountState as TokenAccountState, Mint},
         },
         std::{collections::HashSet, sync::atomic::AtomicBool},

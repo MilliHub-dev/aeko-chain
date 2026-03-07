@@ -7,7 +7,7 @@ use {
     percentage::PercentageInteger,
     rand::{thread_rng, Rng},
     aeko_measure::measure::Measure,
-    solana_rbpf::{
+    aeko_rbpf::{
         elf::Executable,
         program::{BuiltinProgram, FunctionRegistry},
         verifier::RequisiteVerifier,
@@ -1163,7 +1163,7 @@ mod tests {
         },
         assert_matches::assert_matches,
         percentage::Percentage,
-        solana_rbpf::program::BuiltinProgram,
+        aeko_rbpf::program::BuiltinProgram,
         aeko_sdk::{clock::Slot, pubkey::Pubkey},
         std::{
             ops::ControlFlow,

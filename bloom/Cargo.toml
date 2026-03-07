@@ -1,6 +1,6 @@
 [package]
 name = "aeko-bloom"
-description = "Solana bloom filter"
+description = "Aeko bloom filter"
 documentation = "https://docs.rs/aeko-bloom"
 version = { workspace = true }
 authors = { workspace = true }

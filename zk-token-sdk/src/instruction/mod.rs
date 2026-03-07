@@ -15,7 +15,7 @@ pub mod transfer;
 pub mod withdraw;
 pub mod zero_balance;
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 use crate::errors::ProofVerificationError;
 use num_derive::{FromPrimitive, ToPrimitive};
 pub use {
@@ -75,6 +75,6 @@ pub trait ZkProofData<T: Pod> {
 
     fn context_data(&self) -> &T;
 
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(not(target_os = "aeko"))]
     fn verify_proof(&self) -> Result<(), ProofVerificationError>;
 }

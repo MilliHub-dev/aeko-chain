@@ -49,7 +49,7 @@ aeko-svm = { path = "../../svm", version = "=2.0.0" }
 aeko-transaction-status = { path = "../../transaction-status", version = "=2.0.0" }
 aeko-validator = { path = "../../validator", version = "=2.0.0" }
 aeko-zk-token-sdk = { path = "../../zk-token-sdk", version = "=2.0.0" }
-solana_rbpf = "=0.8.0"
+aeko_rbpf = "=0.8.0"
 static_assertions = "1.1.0"
 thiserror = "1.0"
 
@@ -95,7 +95,7 @@ aeko-sbf-rust-realloc-invoke = { workspace = true }
 aeko-sdk = { workspace = true }
 aeko-svm = { workspace = true }
 aeko-transaction-status = { workspace = true }
-solana_rbpf = { workspace = true }
+aeko_rbpf = { workspace = true }
 
 [dev-dependencies]
 aeko-ledger = { workspace = true }

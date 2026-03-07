@@ -326,7 +326,7 @@ fn process_rpc_url(
 }
 
 fn main() -> Result<(), Box<dyn error::Error>> {
-    aeko_logger::setup_with_default("solana=info");
+    aeko_logger::setup_with_default("aeko=info");
 
     let matches = parse_matches();
     let socket_addr_space = SocketAddrSpace::new(matches.is_present("allow_private_addr"));

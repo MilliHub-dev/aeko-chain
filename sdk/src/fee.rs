@@ -59,9 +59,9 @@ impl FeeStructure {
     ) -> Self {
         let compute_fee_bins = compute_fee_bins
             .iter()
-            .map(|(limit, sol)| FeeBin {
+            .map(|(limit, aeko)| FeeBin {
                 limit: *limit,
-                fee: aeko_to_lamports(*sol),
+                fee: aeko_to_lamports(*aeko),
             })
             .collect::<Vec<_>>();
         FeeStructure {

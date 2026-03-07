@@ -1,6 +1,6 @@
 # AEKO SVM Runtime
 
-The **AEKO SVM (Solana Virtual Machine)** is the execution engine of the AEKO Chain. It is a highly optimized environment designed to process thousands of smart contract interactions in parallel.
+The **AEKO SVM (Aeko Virtual Machine)** is the execution engine of the AEKO Chain. It is a highly optimized environment designed to process thousands of smart contract interactions in parallel.
 
 ## Key Components
 
@@ -23,4 +23,4 @@ We have extended the standard SVM with native instructions (syscalls) specifical
 
 ## Developing for AEKO SVM
 
-Developers write programs (smart contracts) in **Rust** using the AEKO SDK (a fork of the Solana SDK with added SocialFi modules). These are compiled to **BPF (Berkeley Packet Filter)** bytecode, which is fast, safe, and JIT-compiled to native machine code.
+Developers write programs (smart contracts) in **Rust** using the AEKO SDK (a fork of the Aeko SDK with added SocialFi modules). These are compiled to **BPF (Berkeley Packet Filter)** bytecode, which is fast, safe, and JIT-compiled to native machine code.

@@ -1,15 +1,15 @@
-//! The base library for all Solana on-chain Rust programs.
+//! The base library for all Aeko on-chain Rust programs.
 //!
-//! All Solana Rust programs that run on-chain will link to this crate, which
-//! acts as a standard library for Solana programs. Solana programs also link to
+//! All Aeko Rust programs that run on-chain will link to this crate, which
+//! acts as a standard library for Aeko programs. Aeko programs also link to
 //! the [Rust standard library][std], though it is [modified][sstd] for the
-//! Solana runtime environment. While off-chain programs that interact with the
-//! Solana network _can_ link to this crate, they typically instead use the
-//! [`solana-sdk`] crate, which reexports all modules from `solana-program`.
+//! Aeko runtime environment. While off-chain programs that interact with the
+//! Aeko network _can_ link to this crate, they typically instead use the
+//! [`aeko-sdk`] crate, which reexports all modules from `aeko-program`.
 //!
 //! [std]: https://doc.rust-lang.org/stable/std/
-//! [sstd]: https://solana.com/docs/programs/lang-rust#restrictions
-//! [`solana-sdk`]: https://docs.rs/solana-sdk/latest/aeko_sdk/
+//! [sstd]: https://aeko.com/docs/programs/lang-rust#restrictions
+//! [`aeko-sdk`]: https://docs.rs/aeko-sdk/latest/aeko_sdk/
 //!
 //! This library defines
 //!
@@ -22,7 +22,7 @@
 //!   [native programs][np],
 //! - [sysvar] accessors.
 //!
-//! [pe]: #defining-a-solana-program
+//! [pe]: #defining-a-aeko-program
 //! [cdt]: #core-data-types
 //! [logging]: crate::log
 //! [serialization]: #serialization
@@ -30,14 +30,14 @@
 //! [cpi]: #cross-program-instruction-execution
 //! [sysvar]: crate::sysvar
 //!
-//! Idiomatic examples of `solana-program` usage can be found in
-//! [the Solana Program Library][spl].
+//! Idiomatic examples of `aeko-program` usage can be found in
+//! [the Aeko Program Library][spl].
 //!
-//! [spl]: https://github.com/aeko-chain/solana-program-library
+//! [spl]: https://github.com/aeko-chain/aeko-program-library
 //!
-//! # Defining a solana program
+//! # Defining a aeko program
 //!
-//! Solana program crates have some unique properties compared to typical Rust
+//! Aeko program crates have some unique properties compared to typical Rust
 //! programs:
 //!
 //! - They are often compiled for both on-chain use and off-chain use. This is
@@ -46,12 +46,12 @@
 //! - They do not define a `main` function, but instead define their entrypoint
 //!   with the [`entrypoint!`] macro.
 //! - They are compiled as the ["cdylib"] crate type for dynamic loading
-//!   by the Solana runtime.
+//!   by the Aeko runtime.
 //! - They run in a constrained VM environment, and while they do have access to
 //!   the [Rust standard library][std], many features of the standard library,
 //!   particularly related to OS services, will fail at runtime, will silently
 //!   do nothing, or are not defined. See the [restrictions to the Rust standard
-//!   library][sstd] in the Solana documentation for more.
+//!   library][sstd] in the Aeko documentation for more.
 //!
 //! [std]: https://doc.rust-lang.org/std/index.html
 //! ["cdylib"]: https://doc.rust-lang.org/reference/linkage.html
@@ -63,7 +63,7 @@
 //!
 //! [Cargo feature]: https://doc.rust-lang.org/cargo/reference/features.html
 //!
-//! The skeleton of a Solana program typically looks like:
+//! The skeleton of a Aeko program typically looks like:
 //!
 //! ```
 //! #[cfg(not(feature = "no-entrypoint"))]
@@ -100,20 +100,20 @@
 //! no-entrypoint = []
 //! ```
 //!
-//! Note that a Solana program must specify its crate-type as "cdylib", and
+//! Note that a Aeko program must specify its crate-type as "cdylib", and
 //! "cdylib" crates will automatically be discovered and built by the `cargo
-//! build-bpf` command. Solana programs also often have crate-type "rlib" so
+//! build-bpf` command. Aeko programs also often have crate-type "rlib" so
 //! they can be linked to other Rust crates.
 //!
 //! # On-chain vs. off-chain compilation targets
 //!
-//! Solana programs run on the [rbpf] VM, which implements a variant of the
+//! Aeko programs run on the [rbpf] VM, which implements a variant of the
 //! [eBPF] instruction set. Because this crate can be compiled for both on-chain
 //! and off-chain execution, the environments of which are significantly
 //! different, it extensively uses [conditional compilation][cc] to tailor its
 //! implementation to the environment. The `cfg` predicate used for identifying
-//! compilation for on-chain programs is `target_os = "solana"`, as in this
-//! example from the `solana-program` codebase that logs a message via a
+//! compilation for on-chain programs is `target_os = "aeko"`, as in this
+//! example from the `aeko-program` codebase that logs a message via a
 //! syscall when run on-chain, and via a library call when offchain:
 //!
 //! [rbpf]: https://github.com/aeko-chain/rbpf
@@ -122,12 +122,12 @@
 //!
 //! ```
 //! pub fn sol_log(message: &str) {
-//!     #[cfg(target_os = "solana")]
+//!     #[cfg(target_os = "aeko")]
 //!     unsafe {
 //!         sol_log_(message.as_ptr(), message.len() as u64);
 //!     }
 //!
-//!     #[cfg(not(target_os = "solana"))]
+//!     #[cfg(not(target_os = "aeko"))]
 //!     program_stubs::sol_log(message);
 //! }
 //! # mod program_stubs {
@@ -138,42 +138,42 @@
 //! This `cfg` pattern is suitable as well for user code that needs to work both
 //! on-chain and off-chain.
 //!
-//! `solana-program` and `solana-sdk` were previously a single crate. Because of
-//! this history, and because of the dual-usage of `solana-program` for two
+//! `aeko-program` and `aeko-sdk` were previously a single crate. Because of
+//! this history, and because of the dual-usage of `aeko-program` for two
 //! different environments, it contains some features that are not available to
 //! on-chain programs at compile-time. It also contains some on-chain features
 //! that will fail in off-chain scenarios at runtime. This distinction is not
 //! well-reflected in the documentation.
 //!
-//! For a more complete description of Solana's implementation of eBPF and its
-//! limitations, see the main Solana documentation for [on-chain programs][ocp].
+//! For a more complete description of Aeko's implementation of eBPF and its
+//! limitations, see the main Aeko documentation for [on-chain programs][ocp].
 //!
-//! [ocp]: https://solana.com/docs/programs
+//! [ocp]: https://aeko.com/docs/programs
 //!
 //! # Core data types
 //!
-//! - [`Pubkey`] &mdash; The address of a [Solana account][acc]. Some account
+//! - [`Pubkey`] &mdash; The address of a [Aeko account][acc]. Some account
 //!   addresses are [ed25519] public keys, with corresponding secret keys that
 //!   are managed off-chain. Often, though, account addresses do not have
 //!   corresponding secret keys &mdash; as with [_program derived
 //!   addresses_][pdas] &mdash; or the secret key is not relevant to the
 //!   operation of a program, and may have even been disposed of. As running
-//!   Solana programs can not safely create or manage secret keys, the full
-//!   [`Keypair`] is not defined in `solana-program` but in `solana-sdk`.
+//!   Aeko programs can not safely create or manage secret keys, the full
+//!   [`Keypair`] is not defined in `aeko-program` but in `aeko-sdk`.
 //! - [`Hash`] &mdash; A cryptographic hash. Used to uniquely identify blocks,
 //!   and also for general purpose hashing.
-//! - [`AccountInfo`] &mdash; A description of a single Solana account. All accounts
+//! - [`AccountInfo`] &mdash; A description of a single Aeko account. All accounts
 //!   that might be accessed by a program invocation are provided to the program
 //!   entrypoint as `AccountInfo`.
 //! - [`Instruction`] &mdash; A directive telling the runtime to execute a program,
 //!   passing it a set of accounts and program-specific data.
 //! - [`ProgramError`] and [`ProgramResult`] &mdash; The error type that all programs
 //!   must return, reported to the runtime as a `u64`.
-//! - [`Sol`] &mdash; The Solana native token type, with conversions to and from
-//!   [_lamports_], the smallest fractional unit of SOL, in the [`native_token`]
+//! - [`Aeko`] &mdash; The Aeko native token type, with conversions to and from
+//!   [_lamports_], the smallest fractional unit of AEKO, in the [`native_token`]
 //!   module.
 //!
-//! [acc]: https://solana.com/docs/core/accounts
+//! [acc]: https://aeko.com/docs/core/accounts
 //! [`Pubkey`]: pubkey::Pubkey
 //! [`Hash`]: hash::Hash
 //! [`Instruction`]: instruction::Instruction
@@ -181,18 +181,18 @@
 //! [`ProgramError`]: program_error::ProgramError
 //! [`ProgramResult`]: entrypoint::ProgramResult
 //! [ed25519]: https://ed25519.cr.yp.to/
-//! [`Keypair`]: https://docs.rs/solana-sdk/latest/aeko_sdk/signer/keypair/struct.Keypair.html
+//! [`Keypair`]: https://docs.rs/aeko-sdk/latest/aeko_sdk/signer/keypair/struct.Keypair.html
 //! [SHA-256]: https://en.wikipedia.org/wiki/SHA-2
-//! [`Sol`]: native_token::Sol
-//! [_lamports_]: https://solana.com/docs/intro#what-are-sols
+//! [`Aeko`]: native_token::Aeko
+//! [_lamports_]: https://aeko.com/docs/intro#what-are-sols
 //!
 //! # Serialization
 //!
-//! Within the Solana runtime, programs, and network, at least three different
-//! serialization formats are used, and `solana-program` provides access to
+//! Within the Aeko runtime, programs, and network, at least three different
+//! serialization formats are used, and `aeko-program` provides access to
 //! those needed by programs.
 //!
-//! In user-written Solana program code, serialization is primarily used for
+//! In user-written Aeko program code, serialization is primarily used for
 //! accessing [`AccountInfo`] data and [`Instruction`] data, both of which are
 //! program-specific binary data. Every program is free to decide their own
 //! serialization format, but data received from other sources &mdash;
@@ -202,7 +202,7 @@
 //! [`AccountInfo`]: account_info::AccountInfo
 //! [`Instruction`]: instruction::Instruction
 //!
-//! The three serialization formats in use in Solana are:
+//! The three serialization formats in use in Aeko are:
 //!
 //! - __[Borsh]__, a compact and well-specified format developed by the [NEAR]
 //!   project, suitable for use in protocol definitions and for archival storage.
@@ -210,7 +210,7 @@
 //!   and is recommended for all purposes.
 //!
 //!   Users need to import the [`borsh`] crate themselves &mdash; it is not
-//!   re-exported by `solana-program`, though this crate provides several useful
+//!   re-exported by `aeko-program`, though this crate provides several useful
 //!   utilities in its [`borsh` module][borshmod] that are not available in the
 //!   `borsh` library.
 //!
@@ -242,8 +242,8 @@
 //!   [Serde]: https://serde.rs/
 //!   [`Instruction::new_with_bincode`]: instruction::Instruction::new_with_bincode
 //!
-//! - __[`Pack`]__, a Solana-specific serialization API that is used by many
-//!   older programs in the [Solana Program Library][spl] to define their
+//! - __[`Pack`]__, a Aeko-specific serialization API that is used by many
+//!   older programs in the [Aeko Program Library][spl] to define their
 //!   account format. It is difficult to implement and does not define a
 //!   language-independent serialization format. It is not generally recommended
 //!   for new code.
@@ -260,7 +260,7 @@
 //!
 //! # Cross-program instruction execution
 //!
-//! Solana programs may call other programs, termed [_cross-program
+//! Aeko programs may call other programs, termed [_cross-program
 //! invocation_][cpi] (CPI), with the [`invoke`] and [`invoke_signed`]
 //! functions. When calling another program the caller must provide the
 //! [`Instruction`] to be invoked, as well as the [`AccountInfo`] for every
@@ -272,7 +272,7 @@
 //!
 //! [`invoke`]: program::invoke
 //! [`invoke_signed`]: program::invoke_signed
-//! [cpi]: https://solana.com/docs/core/cpi
+//! [cpi]: https://aeko.com/docs/core/cpi
 //!
 //! A simple example of transferring lamports via CPI:
 //!
@@ -312,14 +312,14 @@
 //! }
 //! ```
 //!
-//! Solana also includes a mechanism to let programs control and sign for
+//! Aeko also includes a mechanism to let programs control and sign for
 //! accounts without needing to protect a corresponding secret key, called
 //! [_program derived addresses_][pdas]. PDAs are derived with the
 //! [`Pubkey::find_program_address`] function. With a PDA, a program can call
 //! `invoke_signed` to call another program while virtually "signing" for the
 //! PDA.
 //!
-//! [pdas]: https://solana.com/docs/core/cpi#program-derived-addresses
+//! [pdas]: https://aeko.com/docs/core/cpi#program-derived-addresses
 //! [`Pubkey::find_program_address`]: pubkey::Pubkey::find_program_address
 //!
 //! A simple example of creating an account for a PDA:
@@ -388,7 +388,7 @@
 //!
 //! # Native programs
 //!
-//! Some solana programs are [_native programs_][np2], running native machine
+//! Some aeko programs are [_native programs_][np2], running native machine
 //! code that is distributed with the runtime, with well-known program IDs.
 //!
 //! [np2]: https://docs.aeko.network/runtime/programs
@@ -397,10 +397,10 @@
 //! only be executed as "top-level" instructions included by off-chain clients
 //! in a [`Transaction`].
 //!
-//! [`Transaction`]: https://docs.rs/solana-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
+//! [`Transaction`]: https://docs.rs/aeko-sdk/latest/aeko_sdk/transaction/struct.Transaction.html
 //!
 //! This crate defines the program IDs for most native programs. Even though
-//! some native programs cannot be invoked by other programs, a Solana program
+//! some native programs cannot be invoked by other programs, a Aeko program
 //! may need access to their program IDs. For example, a program may need to
 //! verify that an ed25519 signature verification instruction was included in
 //! the same transaction as its own instruction. For many native programs, this
@@ -413,12 +413,12 @@
 //! While some native programs have been active since the genesis block, others
 //! are activated dynamically after a specific [slot], and some are not yet
 //! active. This documentation does not distinguish which native programs are
-//! active on any particular network. The `solana feature status` CLI command
+//! active on any particular network. The `aeko feature status` CLI command
 //! can help in determining active features.
 //!
-//! [slot]: https://solana.com/docs/terminology#slot
+//! [slot]: https://aeko.com/docs/terminology#slot
 //!
-//! Native programs important to Solana program authors include:
+//! Native programs important to Aeko program authors include:
 //!
 //! - __System Program__: Creates new accounts, allocates account data, assigns
 //!   accounts to owning programs, transfers lamports from System Program owned
@@ -430,18 +430,18 @@
 //! - __Compute Budget Program__: Requests additional CPU or memory resources
 //!   for a transaction. This program does nothing when called from another
 //!   program.
-//!   - ID: [`aeko_sdk::compute_budget`](https://docs.rs/solana-sdk/latest/aeko_sdk/compute_budget/index.html)
-//!   - Instruction: [`aeko_sdk::compute_budget`](https://docs.rs/solana-sdk/latest/aeko_sdk/compute_budget/index.html)
+//!   - ID: [`aeko_sdk::compute_budget`](https://docs.rs/aeko-sdk/latest/aeko_sdk/compute_budget/index.html)
+//!   - Instruction: [`aeko_sdk::compute_budget`](https://docs.rs/aeko-sdk/latest/aeko_sdk/compute_budget/index.html)
 //!   - Invokable by programs? no
 //!
 //! - __ed25519 Program__: Verifies an ed25519 signature.
 //!   - ID: [`aeko_program::ed25519_program`]
-//!   - Instruction: [`aeko_sdk::ed25519_instruction`](https://docs.rs/solana-sdk/latest/aeko_sdk/ed25519_instruction/index.html)
+//!   - Instruction: [`aeko_sdk::ed25519_instruction`](https://docs.rs/aeko-sdk/latest/aeko_sdk/ed25519_instruction/index.html)
 //!   - Invokable by programs? no
 //!
 //! - __secp256k1 Program__: Verifies secp256k1 public key recovery operations.
 //!   - ID: [`aeko_program::secp256k1_program`]
-//!   - Instruction: [`aeko_sdk::secp256k1_instruction`](https://docs.rs/solana-sdk/latest/aeko_sdk/secp256k1_instruction/index.html)
+//!   - Instruction: [`aeko_sdk::secp256k1_instruction`](https://docs.rs/aeko-sdk/latest/aeko_sdk/secp256k1_instruction/index.html)
 //!   - Invokable by programs? no
 //!
 //! - __BPF Loader__: Deploys, and executes immutable programs on the chain.
@@ -543,12 +543,12 @@ pub mod address_lookup_table_account {
     pub use crate::address_lookup_table::AddressLookupTableAccount;
 }
 
-#[cfg(target_os = "solana")]
+#[cfg(target_os = "aeko")]
 pub use aeko_sdk_macro::wasm_bindgen_stub as wasm_bindgen;
 /// Re-export of [wasm-bindgen].
 ///
 /// [wasm-bindgen]: https://rustwasm.github.io/docs/wasm-bindgen/
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 pub use wasm_bindgen::prelude::wasm_bindgen;
 
 /// The [config native program][np].
@@ -560,7 +560,7 @@ pub mod config {
     }
 }
 
-/// A vector of Solana SDK IDs.
+/// A vector of Aeko SDK IDs.
 pub mod sdk_ids {
     use {
         crate::{
@@ -767,7 +767,7 @@ macro_rules! unchecked_div_by_const {
 // `aeko_program`'s top-level modules, if this module is not lexically last
 // rustdoc fails to generate documentation for the re-exports within
 // `aeko_sdk`.
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_os = "aeko"))]
 pub mod example_mocks;
 
 #[cfg(test)]

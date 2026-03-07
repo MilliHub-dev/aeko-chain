@@ -4158,7 +4158,7 @@ impl Bank {
     }
 
     // gating this under #[cfg(feature = "dev-context-only-utils")] isn't easy due to
-    // solana-program-test's usage...
+    // aeko-program-test's usage...
     pub fn register_unique_recent_blockhash_for_test(&self) {
         self.register_recent_blockhash(
             &Hash::new_unique(),

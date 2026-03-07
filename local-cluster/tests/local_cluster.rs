@@ -2321,13 +2321,13 @@ fn test_hard_fork_with_gap_in_roots() {
     );
 
     // create hard-forked snapshot only for validator a, emulating the manual cluster restart
-    // procedure with `solana-ledger-tool create-snapshot`
+    // procedure with `aeko-ledger-tool create-snapshot`
     let genesis_slot = 0;
     {
         let blockstore_a = Blockstore::open(&val_a_ledger_path).unwrap();
         create_snapshot_to_hard_fork(&blockstore_a, hard_fork_slot, vec![hard_fork_slot]);
 
-        // Intentionally make solana-validator unbootable by replaying blocks from the genesis to
+        // Intentionally make aeko-validator unbootable by replaying blocks from the genesis to
         // ensure the hard-forked snapshot is used always.  Otherwise, we couldn't create a gap
         // in the ledger roots column family reliably.
         // There was a bug which caused the hard-forked snapshot at an unrooted slot to forget
@@ -2597,7 +2597,7 @@ fn test_rpc_block_subscribe() {
             "ws://{}",
             // It is important that we subscribe to a non leader node as there
             // is a race condition which can cause leader nodes to not send
-            // BlockUpdate notifications properly. See https://github.com/aeko-chain/solana/pull/34421
+            // BlockUpdate notifications properly. See https://github.com/aeko-chain/aeko/pull/34421
             &rpc_node_contact_info.rpc_pubsub().unwrap().to_string()
         ),
         RpcBlockSubscribeFilter::All,
@@ -5239,7 +5239,7 @@ fn test_duplicate_shreds_switch_failure() {
         // The ideal sequence of events for the `duplicate_fork_validator1_pubkey` validator would go:
         // 1. Vote for duplicate block `D`
         // 2. See `D` is duplicate, remove from fork choice and reset to ancestor `A`, potentially generating a fork off that ancestor
-        // 3. See `D` is duplicate confirmed, but because of the bug fixed by https://github.com/aeko-chain/solana/pull/28172
+        // 3. See `D` is duplicate confirmed, but because of the bug fixed by https://github.com/aeko-chain/aeko/pull/28172
         // where we disallow resetting to a slot which matches the last vote slot, we still don't build off `D`,
         // and continue building on `A`.
         //

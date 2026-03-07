@@ -1,6 +1,6 @@
 [package]
 name = "aeko-download-utils"
-description = "Solana Download Utils"
+description = "Aeko Download Utils"
 documentation = "https://docs.rs/aeko-download-utils"
 version = { workspace = true }
 authors = { workspace = true }

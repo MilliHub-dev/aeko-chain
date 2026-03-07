@@ -1,7 +1,7 @@
-//! Logging utilities for Rust-based Solana programs.
+//! Logging utilities for Rust-based Aeko programs.
 //!
 //! Logging is the main mechanism for getting debugging information out of
-//! running Solana programs, and there are several functions available for doing
+//! running Aeko programs, and there are several functions available for doing
 //! so efficiently, depending on the type of data being logged.
 //!
 //! The most common way to emit logs is through the [`msg!`] macro, which logs
@@ -12,7 +12,7 @@
 //!
 //! Logs can be viewed in multiple ways:
 //!
-//! - The `solana logs` command displays logs for all transactions executed on a
+//! - The `aeko logs` command displays logs for all transactions executed on a
 //!   network. Note though that transactions that fail during pre-flight
 //!   simulation are not displayed here.
 //! - When submitting transactions via [`RpcClient`], if Rust's own logging is
@@ -23,9 +23,9 @@
 //!   [`RpcClient::get_transaction`].
 //! - Block explorers may display logs.
 //!
-//! [`RpcClient`]: https://docs.rs/solana-rpc-client/latest/aeko_rpc_client/rpc_client/struct.RpcClient.html
+//! [`RpcClient`]: https://docs.rs/aeko-rpc-client/latest/aeko_rpc_client/rpc_client/struct.RpcClient.html
 //! [`env_logger`]: https://docs.rs/env_logger
-//! [`RpcClient::get_transaction`]: https://docs.rs/solana-rpc-client/latest/aeko_rpc_client/rpc_client/struct.RpcClient.html#method.get_transaction
+//! [`RpcClient::get_transaction`]: https://docs.rs/aeko-rpc-client/latest/aeko_rpc_client/rpc_client/struct.RpcClient.html#method.get_transaction
 //!
 //! While most logging functions are defined in this module, [`Pubkey`]s can
 //! also be efficiently logged with the [`Pubkey::log`] function.
@@ -66,7 +66,7 @@ macro_rules! info {
 /// [`format!`]: https://doc.rust-lang.org/std/fmt/fn.format.html
 ///
 /// Note that Rust's formatting machinery is relatively CPU-intensive
-/// for constrained environments like the Solana VM.
+/// for constrained environments like the Aeko VM.
 ///
 /// # Examples
 ///
@@ -91,35 +91,35 @@ macro_rules! msg {
 /// Print a string to the log.
 #[inline]
 pub fn sol_log(message: &str) {
-    #[cfg(target_os = "solana")]
+    #[cfg(target_os = "aeko")]
     unsafe {
         crate::syscalls::sol_log_(message.as_ptr(), message.len() as u64);
     }
 
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(not(target_os = "aeko"))]
     crate::program_stubs::sol_log(message);
 }
 
 /// Print 64-bit values represented as hexadecimal to the log.
 #[inline]
 pub fn sol_log_64(arg1: u64, arg2: u64, arg3: u64, arg4: u64, arg5: u64) {
-    #[cfg(target_os = "solana")]
+    #[cfg(target_os = "aeko")]
     unsafe {
         crate::syscalls::sol_log_64_(arg1, arg2, arg3, arg4, arg5);
     }
 
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(not(target_os = "aeko"))]
     crate::program_stubs::sol_log_64(arg1, arg2, arg3, arg4, arg5);
 }
 
 /// Print some slices as base64.
 pub fn sol_log_data(data: &[&[u8]]) {
-    #[cfg(target_os = "solana")]
+    #[cfg(target_os = "aeko")]
     unsafe {
         crate::syscalls::sol_log_data(data as *const _ as *const u8, data.len() as u64)
     };
 
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(not(target_os = "aeko"))]
     crate::program_stubs::sol_log_data(data);
 }
 
@@ -158,10 +158,10 @@ pub fn sol_log_params(accounts: &[AccountInfo], data: &[u8]) {
 /// Print the remaining compute units available to the program.
 #[inline]
 pub fn sol_log_compute_units() {
-    #[cfg(target_os = "solana")]
+    #[cfg(target_os = "aeko")]
     unsafe {
         crate::syscalls::sol_log_compute_units_();
     }
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(not(target_os = "aeko"))]
     crate::program_stubs::sol_log_compute_units();
 }

@@ -1,6 +1,6 @@
 [package]
 name = "aeko-connection-cache"
-description = "Solana Connection Cache"
+description = "Aeko Connection Cache"
 documentation = "https://docs.rs/aeko-connection-cache"
 version = { workspace = true }
 authors = { workspace = true }

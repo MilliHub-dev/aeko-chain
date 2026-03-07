@@ -1,7 +1,7 @@
-//! Communication with a Solana node over RPC asynchronously .
+//! Communication with a Aeko node over RPC asynchronously .
 //!
-//! Software that interacts with the Solana blockchain, whether querying its
-//! state or submitting transactions, communicates with a Solana node over
+//! Software that interacts with the Aeko blockchain, whether querying its
+//! state or submitting transactions, communicates with a Aeko node over
 //! [JSON-RPC], using the [`RpcClient`] type.
 //!
 //! [JSON-RPC]: https://www.jsonrpc.org/specification
@@ -66,10 +66,10 @@ use {
     tokio::{sync::RwLock, time::sleep},
 };
 
-/// A client of a remote Solana node.
+/// A client of a remote Aeko node.
 ///
-/// `RpcClient` communicates with a Solana node over [JSON-RPC], with the
-/// [Solana JSON-RPC protocol][jsonprot]. It is the primary Rust interface for
+/// `RpcClient` communicates with a Aeko node over [JSON-RPC], with the
+/// [Aeko JSON-RPC protocol][jsonprot]. It is the primary Rust interface for
 /// querying and transacting with the network from external programs.
 ///
 /// This type builds on the underlying RPC protocol, adding extra features such
@@ -104,10 +104,10 @@ use {
 ///
 /// [`Finalized`]: CommitmentLevel::Finalized
 /// [`Processed`]: CommitmentLevel::Processed
-/// [jsonprot]: https://solana.com/docs/rpc
+/// [jsonprot]: https://aeko.com/docs/rpc
 /// [JSON-RPC]: https://www.jsonrpc.org/specification
-/// [slots]: https://solana.com/docs/terminology#slot
-/// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+/// [slots]: https://aeko.com/docs/terminology#slot
+/// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
 ///
 /// # Errors
 ///
@@ -176,7 +176,7 @@ impl RpcClient {
     /// The client has a default timeout of 30 seconds, and a default [commitment
     /// level][cl] of [`Finalized`](CommitmentLevel::Finalized).
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # Examples
     ///
@@ -191,7 +191,7 @@ impl RpcClient {
 
     /// Create an HTTP `RpcClient` with specified [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// The URL is an HTTP URL, usually for port 8899, as in
     /// "http://localhost:8899".
@@ -223,7 +223,7 @@ impl RpcClient {
     /// The client has and a default [commitment level][cl] of
     /// [`Finalized`](CommitmentLevel::Finalized).
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # Examples
     ///
@@ -243,7 +243,7 @@ impl RpcClient {
 
     /// Create an HTTP `RpcClient` with specified timeout and [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// The URL is an HTTP URL, usually for port 8899, as in
     /// "http://localhost:8899".
@@ -276,7 +276,7 @@ impl RpcClient {
 
     /// Create an HTTP `RpcClient` with specified timeout and [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// The URL is an HTTP URL, usually for port 8899, as in
     /// "http://localhost:8899".
@@ -328,7 +328,7 @@ impl RpcClient {
     /// tests.
     ///
     /// It is primarily for internal use, with limited customizability, and
-    /// behaviors determined by internal Solana test cases. New users should
+    /// behaviors determined by internal Aeko test cases. New users should
     /// consider implementing `RpcSender` themselves and constructing
     /// `RpcClient` with [`RpcClient::new_sender`] to get mock behavior.
     ///
@@ -381,7 +381,7 @@ impl RpcClient {
     /// tests.
     ///
     /// It is primarily for internal use, with limited customizability, and
-    /// behaviors determined by internal Solana test cases. New users should
+    /// behaviors determined by internal Aeko test cases. New users should
     /// consider implementing `RpcSender` themselves and constructing
     /// `RpcClient` with [`RpcClient::new_sender`] to get mock behavior.
     ///
@@ -448,7 +448,7 @@ impl RpcClient {
     /// The client has a default timeout of 30 seconds, and a default [commitment
     /// level][cl] of [`Finalized`](CommitmentLevel::Finalized).
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # Examples
     ///
@@ -464,7 +464,7 @@ impl RpcClient {
 
     /// Create an HTTP `RpcClient` from a [`SocketAddr`] with specified [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// The client has a default timeout of 30 seconds, and a user-specified
     /// [`CommitmentLevel`] via [`CommitmentConfig`].
@@ -493,7 +493,7 @@ impl RpcClient {
     ///
     /// The client has a default [commitment level][cl] of [`Finalized`](CommitmentLevel::Finalized).
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # Examples
     ///
@@ -541,7 +541,7 @@ impl RpcClient {
 
     /// Get the configured default [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// The commitment config may be specified during construction, and
     /// determines how thoroughly committed a transaction must be when waiting
@@ -609,7 +609,7 @@ impl RpcClient {
     /// Once this function returns successfully, the given transaction is
     /// guaranteed to be processed with the configured [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// After sending the transaction, this method polls in a loop for the
     /// status of the transaction until it has ben confirmed.
@@ -639,8 +639,8 @@ impl RpcClient {
     /// This method is built on the [`sendTransaction`] RPC method, and the
     /// [`getLatestBlockhash`] RPC method.
     ///
-    /// [`sendTransaction`]: https://solana.com/docs/rpc/http/sendtransaction
-    /// [`getLatestBlockhash`]: https://solana.com/docs/rpc/http/getlatestblockhash
+    /// [`sendTransaction`]: https://aeko.com/docs/rpc/http/sendtransaction
+    /// [`getLatestBlockhash`]: https://aeko.com/docs/rpc/http/getlatestblockhash
     ///
     /// # Examples
     ///
@@ -811,7 +811,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`sendTransaction`] RPC method.
     ///
-    /// [`sendTransaction`]: https://solana.com/docs/rpc/http/sendtransaction
+    /// [`sendTransaction`]: https://aeko.com/docs/rpc/http/sendtransaction
     ///
     /// # Examples
     ///
@@ -900,7 +900,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`sendTransaction`] RPC method.
     ///
-    /// [`sendTransaction`]: https://solana.com/docs/rpc/http/sendtransaction
+    /// [`sendTransaction`]: https://aeko.com/docs/rpc/http/sendtransaction
     ///
     /// # Examples
     ///
@@ -1014,7 +1014,7 @@ impl RpcClient {
     /// with the configured [commitment level][cl], which can be retrieved with
     /// the [`commitment`](RpcClient::commitment) method.
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// Note that this method does not wait for a transaction to be confirmed
     /// &mdash; it only checks whether a transaction has been confirmed. To
@@ -1028,7 +1028,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`getSignatureStatuses`] RPC method.
     ///
-    /// [`getSignatureStatuses`]: https://solana.com/docs/rpc/http/getsignaturestatuses
+    /// [`getSignatureStatuses`]: https://aeko.com/docs/rpc/http/getsignaturestatuses
     ///
     /// # Examples
     ///
@@ -1073,7 +1073,7 @@ impl RpcClient {
     /// Returns an [`RpcResult`] with value `true` if the given transaction
     /// succeeded and has been committed with the given [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// Note that this method does not wait for a transaction to be confirmed
     /// &mdash; it only checks whether a transaction has been confirmed. To
@@ -1087,7 +1087,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`getSignatureStatuses`] RPC method.
     ///
-    /// [`getSignatureStatuses`]: https://solana.com/docs/rpc/http/getsignaturestatuses
+    /// [`getSignatureStatuses`]: https://aeko.com/docs/rpc/http/getsignaturestatuses
     ///
     /// # Examples
     ///
@@ -1255,7 +1255,7 @@ impl RpcClient {
     /// Simulating a transaction is similar to the ["preflight check"] that is
     /// run by default when sending a transaction.
     ///
-    /// ["preflight check"]: https://solana.com/docs/rpc/http/sendtransaction
+    /// ["preflight check"]: https://aeko.com/docs/rpc/http/sendtransaction
     ///
     /// By default, signatures are not verified during simulation. To verify
     /// signatures, call the [`simulate_transaction_with_config`] method, with
@@ -1269,7 +1269,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`simulateTransaction`] RPC method.
     ///
-    /// [`simulateTransaction`]: https://solana.com/docs/rpc/http/simulatetransaction
+    /// [`simulateTransaction`]: https://aeko.com/docs/rpc/http/simulatetransaction
     ///
     /// # Examples
     ///
@@ -1326,7 +1326,7 @@ impl RpcClient {
     /// Simulating a transaction is similar to the ["preflight check"] that is
     /// run by default when sending a transaction.
     ///
-    /// ["preflight check"]: https://solana.com/docs/rpc/http/sendtransaction
+    /// ["preflight check"]: https://aeko.com/docs/rpc/http/sendtransaction
     ///
     /// By default, signatures are not verified during simulation. To verify
     /// signatures, call the [`simulate_transaction_with_config`] method, with
@@ -1349,7 +1349,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`simulateTransaction`] RPC method.
     ///
-    /// [`simulateTransaction`]: https://solana.com/docs/rpc/http/simulatetransaction
+    /// [`simulateTransaction`]: https://aeko.com/docs/rpc/http/simulatetransaction
     ///
     /// # Examples
     ///
@@ -1421,7 +1421,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getHighestSnapshotSlot`] RPC method.
     ///
-    /// [`getHighestSnapshotSlot`]: https://solana.com/docs/rpc/http/gethighestsnapshotslot
+    /// [`getHighestSnapshotSlot`]: https://aeko.com/docs/rpc/http/gethighestsnapshotslot
     ///
     /// # Examples
     ///
@@ -1461,7 +1461,7 @@ impl RpcClient {
 
     /// Check if a transaction has been processed with the default [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// If the transaction has been processed with the default commitment level,
     /// then this method returns `Ok` of `Some`. If the transaction has not yet
@@ -1487,7 +1487,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`getSignatureStatuses`] RPC method.
     ///
-    /// [`getSignatureStatuses`]: https://solana.com/docs/rpc/http/getsignaturestatuses
+    /// [`getSignatureStatuses`]: https://aeko.com/docs/rpc/http/getsignaturestatuses
     ///
     /// # Examples
     ///
@@ -1556,7 +1556,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getSignatureStatuses`] RPC method.
     ///
-    /// [`getSignatureStatuses`]: https://solana.com/docs/rpc/http/getsignaturestatuses
+    /// [`getSignatureStatuses`]: https://aeko.com/docs/rpc/http/getsignaturestatuses
     ///
     /// # Examples
     ///
@@ -1636,7 +1636,7 @@ impl RpcClient {
     /// method, with the `searchTransactionHistory` configuration option set to
     /// `true`.
     ///
-    /// [`getSignatureStatuses`]: https://solana.com/docs/rpc/http/getsignaturestatuses
+    /// [`getSignatureStatuses`]: https://aeko.com/docs/rpc/http/getsignaturestatuses
     ///
     /// # Examples
     ///
@@ -1681,7 +1681,7 @@ impl RpcClient {
 
     /// Check if a transaction has been processed with the given [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// If the transaction has been processed with the given commitment level,
     /// then this method returns `Ok` of `Some`. If the transaction has not yet
@@ -1707,7 +1707,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`getSignatureStatuses`] RPC method.
     ///
-    /// [`getSignatureStatuses`]: https://solana.com/docs/rpc/http/getsignaturestatuses
+    /// [`getSignatureStatuses`]: https://aeko.com/docs/rpc/http/getsignaturestatuses
     ///
     /// # Examples
     ///
@@ -1757,7 +1757,7 @@ impl RpcClient {
 
     /// Check if a transaction has been processed with the given [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// If the transaction has been processed with the given commitment level,
     /// then this method returns `Ok` of `Some`. If the transaction has not yet
@@ -1779,7 +1779,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`getSignatureStatuses`] RPC method.
     ///
-    /// [`getSignatureStatuses`]: https://solana.com/docs/rpc/http/getsignaturestatuses
+    /// [`getSignatureStatuses`]: https://aeko.com/docs/rpc/http/getsignaturestatuses
     ///
     /// # Examples
     ///
@@ -1834,13 +1834,13 @@ impl RpcClient {
 
     /// Returns the slot that has reached the configured [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getSlot`] RPC method.
     ///
-    /// [`getSlot`]: https://solana.com/docs/rpc/http/getslot
+    /// [`getSlot`]: https://aeko.com/docs/rpc/http/getslot
     ///
     /// # Examples
     ///
@@ -1860,13 +1860,13 @@ impl RpcClient {
 
     /// Returns the slot that has reached the given [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getSlot`] RPC method.
     ///
-    /// [`getSlot`]: https://solana.com/docs/rpc/http/getslot
+    /// [`getSlot`]: https://aeko.com/docs/rpc/http/getslot
     ///
     /// # Examples
     ///
@@ -1895,13 +1895,13 @@ impl RpcClient {
 
     /// Returns the block height that has reached the configured [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method is corresponds directly to the [`getBlockHeight`] RPC method.
     ///
-    /// [`getBlockHeight`]: https://solana.com/docs/rpc/http/getblockheight
+    /// [`getBlockHeight`]: https://aeko.com/docs/rpc/http/getblockheight
     ///
     /// # Examples
     ///
@@ -1922,13 +1922,13 @@ impl RpcClient {
 
     /// Returns the block height that has reached the given [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method is corresponds directly to the [`getBlockHeight`] RPC method.
     ///
-    /// [`getBlockHeight`]: https://solana.com/docs/rpc/http/getblockheight
+    /// [`getBlockHeight`]: https://aeko.com/docs/rpc/http/getblockheight
     ///
     /// # Examples
     ///
@@ -1963,7 +1963,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getSlotLeaders`] RPC method.
     ///
-    /// [`getSlotLeaders`]: https://solana.com/docs/rpc/http/getslotleaders
+    /// [`getSlotLeaders`]: https://aeko.com/docs/rpc/http/getslotleaders
     ///
     /// # Examples
     ///
@@ -2006,7 +2006,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getBlockProduction`] RPC method.
     ///
-    /// [`getBlockProduction`]: https://solana.com/docs/rpc/http/getblockproduction
+    /// [`getBlockProduction`]: https://aeko.com/docs/rpc/http/getblockproduction
     ///
     /// # Examples
     ///
@@ -2030,7 +2030,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getBlockProduction`] RPC method.
     ///
-    /// [`getBlockProduction`]: https://solana.com/docs/rpc/http/getblockproduction
+    /// [`getBlockProduction`]: https://aeko.com/docs/rpc/http/getblockproduction
     ///
     /// # Examples
     ///
@@ -2080,13 +2080,13 @@ impl RpcClient {
     ///
     /// This method uses the configured [commitment level].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getStakeActivation`] RPC method.
     ///
-    /// [`getStakeActivation`]: https://solana.com/docs/rpc/http/getstakeactivation
+    /// [`getStakeActivation`]: https://aeko.com/docs/rpc/http/getstakeactivation
     ///
     /// # Examples
     ///
@@ -2173,13 +2173,13 @@ impl RpcClient {
     ///
     /// This method uses the configured [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getSupply`] RPC method.
     ///
-    /// [`getSupply`]: https://solana.com/docs/rpc/http/getsupply
+    /// [`getSupply`]: https://aeko.com/docs/rpc/http/getsupply
     ///
     /// # Examples
     ///
@@ -2203,7 +2203,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getSupply`] RPC method.
     ///
-    /// [`getSupply`]: https://solana.com/docs/rpc/http/getsupply
+    /// [`getSupply`]: https://aeko.com/docs/rpc/http/getsupply
     ///
     /// # Examples
     ///
@@ -2239,7 +2239,7 @@ impl RpcClient {
     /// This method corresponds directly to the [`getLargestAccounts`] RPC
     /// method.
     ///
-    /// [`getLargestAccounts`]: https://solana.com/docs/rpc/http/getlargestaccounts
+    /// [`getLargestAccounts`]: https://aeko.com/docs/rpc/http/getlargestaccounts
     ///
     /// # Examples
     ///
@@ -2282,14 +2282,14 @@ impl RpcClient {
     /// Returns the account info and associated stake for all the voting accounts
     /// that have reached the configured [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getVoteAccounts`]
     /// RPC method.
     ///
-    /// [`getVoteAccounts`]: https://solana.com/docs/rpc/http/getvoteaccounts
+    /// [`getVoteAccounts`]: https://aeko.com/docs/rpc/http/getvoteaccounts
     ///
     /// # Examples
     ///
@@ -2311,13 +2311,13 @@ impl RpcClient {
     /// Returns the account info and associated stake for all the voting accounts
     /// that have reached the given [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getVoteAccounts`] RPC method.
     ///
-    /// [`getVoteAccounts`]: https://solana.com/docs/rpc/http/getvoteaccounts
+    /// [`getVoteAccounts`]: https://aeko.com/docs/rpc/http/getvoteaccounts
     ///
     /// # Examples
     ///
@@ -2349,13 +2349,13 @@ impl RpcClient {
     /// Returns the account info and associated stake for all the voting accounts
     /// that have reached the given [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getVoteAccounts`] RPC method.
     ///
-    /// [`getVoteAccounts`]: https://solana.com/docs/rpc/http/getvoteaccounts
+    /// [`getVoteAccounts`]: https://aeko.com/docs/rpc/http/getvoteaccounts
     ///
     /// # Examples
     ///
@@ -2435,7 +2435,7 @@ impl RpcClient {
     /// This method corresponds directly to the [`getClusterNodes`]
     /// RPC method.
     ///
-    /// [`getClusterNodes`]: https://solana.com/docs/rpc/http/getclusternodes
+    /// [`getClusterNodes`]: https://aeko.com/docs/rpc/http/getclusternodes
     ///
     /// # Examples
     ///
@@ -2467,7 +2467,7 @@ impl RpcClient {
     /// This method corresponds directly to the [`getBlock`] RPC
     /// method.
     ///
-    /// [`getBlock`]: https://solana.com/docs/rpc/http/getblock
+    /// [`getBlock`]: https://aeko.com/docs/rpc/http/getblock
     ///
     /// # Examples
     ///
@@ -2493,7 +2493,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getBlock`] RPC method.
     ///
-    /// [`getBlock`]: https://solana.com/docs/rpc/http/getblock
+    /// [`getBlock`]: https://aeko.com/docs/rpc/http/getblock
     ///
     /// # Examples
     ///
@@ -2531,7 +2531,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getBlock`] RPC method.
     ///
-    /// [`getBlock`]: https://solana.com/docs/rpc/http/getblock
+    /// [`getBlock`]: https://aeko.com/docs/rpc/http/getblock
     ///
     /// # Examples
     ///
@@ -2626,7 +2626,7 @@ impl RpcClient {
     ///
     /// [`Finalized`]: CommitmentLevel::Finalized
     /// [`get_blocks_with_limit`]: RpcClient::get_blocks_with_limit.
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # Errors
     ///
@@ -2638,8 +2638,8 @@ impl RpcClient {
     /// the remote node version is less than 1.7, in which case it maps to the
     /// [`getConfirmedBlocks`] RPC method.
     ///
-    /// [`getBlocks`]: https://solana.com/docs/rpc/http/getblocks
-    /// [`getConfirmedBlocks`]: https://solana.com/docs/rpc/deprecated/getconfirmedblocks
+    /// [`getBlocks`]: https://aeko.com/docs/rpc/http/getblocks
+    /// [`getConfirmedBlocks`]: https://aeko.com/docs/rpc/deprecated/getconfirmedblocks
     ///
     /// # Examples
     ///
@@ -2676,7 +2676,7 @@ impl RpcClient {
     /// If `end_slot` is not provided, then the end slot is for the latest
     /// block with the given [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// This method may not return blocks for the full range of slots if some
     /// slots do not have corresponding blocks. To simply get a specific number
@@ -2700,8 +2700,8 @@ impl RpcClient {
     /// the remote node version is less than 1.7, in which case it maps to the
     /// [`getConfirmedBlocks`] RPC method.
     ///
-    /// [`getBlocks`]: https://solana.com/docs/rpc/http/getblocks
-    /// [`getConfirmedBlocks`]: https://solana.com/docs/rpc/deprecated/getconfirmedblocks
+    /// [`getBlocks`]: https://aeko.com/docs/rpc/http/getblocks
+    /// [`getConfirmedBlocks`]: https://aeko.com/docs/rpc/deprecated/getconfirmedblocks
     ///
     /// # Examples
     ///
@@ -2752,7 +2752,7 @@ impl RpcClient {
     /// This method uses the [`Finalized`] [commitment level][cl].
     ///
     /// [`Finalized`]: CommitmentLevel::Finalized.
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # Errors
     ///
@@ -2764,8 +2764,8 @@ impl RpcClient {
     /// method, unless the remote node version is less than 1.7, in which case
     /// it maps to the [`getConfirmedBlocksWithLimit`] RPC method.
     ///
-    /// [`getBlocksWithLimit`]: https://solana.com/docs/rpc/http/getblockswithlimit
-    /// [`getConfirmedBlocksWithLimit`]: https://solana.com/docs/rpc/deprecated/getconfirmedblockswithlimit
+    /// [`getBlocksWithLimit`]: https://aeko.com/docs/rpc/http/getblockswithlimit
+    /// [`getConfirmedBlocksWithLimit`]: https://aeko.com/docs/rpc/deprecated/getconfirmedblockswithlimit
     ///
     /// # Examples
     ///
@@ -2804,7 +2804,7 @@ impl RpcClient {
     /// This method returns an error if the given [commitment level][cl] is below
     /// [`Confirmed`].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     /// [`Confirmed`]: CommitmentLevel::Confirmed
     ///
     /// # RPC Reference
@@ -2813,8 +2813,8 @@ impl RpcClient {
     /// method, unless the remote node version is less than 1.7, in which case
     /// it maps to the `getConfirmedBlocksWithLimit` RPC method.
     ///
-    /// [`getBlocksWithLimit`]: https://solana.com/docs/rpc/http/getblockswithlimit
-    /// [`getConfirmedBlocksWithLimit`]: https://solana.com/docs/rpc/deprecated/getconfirmedblockswithlimit
+    /// [`getBlocksWithLimit`]: https://aeko.com/docs/rpc/http/getblockswithlimit
+    /// [`getConfirmedBlocksWithLimit`]: https://aeko.com/docs/rpc/deprecated/getconfirmedblockswithlimit
     ///
     /// # Examples
     ///
@@ -2941,14 +2941,14 @@ impl RpcClient {
     /// This method uses the [`Finalized`] [commitment level][cl].
     ///
     /// [`Finalized`]: CommitmentLevel::Finalized.
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getSignaturesForAddress`] RPC
     /// method.
     ///
-    /// [`getSignaturesForAddress`]: https://solana.com/docs/rpc/http/getsignaturesforaddress
+    /// [`getSignaturesForAddress`]: https://aeko.com/docs/rpc/http/getsignaturesforaddress
     ///
     /// # Examples
     ///
@@ -2988,7 +2988,7 @@ impl RpcClient {
     /// This method returns an error if the given [commitment level][cl] is below
     /// [`Confirmed`].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     /// [`Confirmed`]: CommitmentLevel::Confirmed
     ///
     /// # RPC Reference
@@ -2996,7 +2996,7 @@ impl RpcClient {
     /// This method corresponds directly to the [`getSignaturesForAddress`] RPC
     /// method.
     ///
-    /// [`getSignaturesForAddress`]: https://solana.com/docs/rpc/http/getsignaturesforaddress
+    /// [`getSignaturesForAddress`]: https://aeko.com/docs/rpc/http/getsignaturesforaddress
     ///
     /// # Examples
     ///
@@ -3106,7 +3106,7 @@ impl RpcClient {
     /// This method uses the [`Finalized`] [commitment level][cl].
     ///
     /// [`Finalized`]: CommitmentLevel::Finalized
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
@@ -3114,8 +3114,8 @@ impl RpcClient {
     /// unless the remote node version is less than 1.7, in which case it maps
     /// to the [`getConfirmedTransaction`] RPC method.
     ///
-    /// [`getTransaction`]: https://solana.com/docs/rpc/http/gettransaction
-    /// [`getConfirmedTransaction`]: https://solana.com/docs/rpc/deprecated/getConfirmedTransaction
+    /// [`getTransaction`]: https://aeko.com/docs/rpc/http/gettransaction
+    /// [`getConfirmedTransaction`]: https://aeko.com/docs/rpc/deprecated/getConfirmedTransaction
     ///
     /// # Examples
     ///
@@ -3164,7 +3164,7 @@ impl RpcClient {
     /// This method returns an error if the given [commitment level][cl] is below
     /// [`Confirmed`].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     /// [`Confirmed`]: CommitmentLevel::Confirmed
     ///
     /// # RPC Reference
@@ -3173,8 +3173,8 @@ impl RpcClient {
     /// unless the remote node version is less than 1.7, in which case it maps
     /// to the [`getConfirmedTransaction`] RPC method.
     ///
-    /// [`getTransaction`]: https://solana.com/docs/rpc/http/gettransaction
-    /// [`getConfirmedTransaction`]: https://solana.com/docs/rpc/deprecated/getConfirmedTransaction
+    /// [`getTransaction`]: https://aeko.com/docs/rpc/http/gettransaction
+    /// [`getConfirmedTransaction`]: https://aeko.com/docs/rpc/deprecated/getConfirmedTransaction
     ///
     /// # Examples
     ///
@@ -3265,7 +3265,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getBlockTime`] RPC method.
     ///
-    /// [`getBlockTime`]: https://solana.com/docs/rpc/http/getblocktime
+    /// [`getBlockTime`]: https://aeko.com/docs/rpc/http/getblocktime
     ///
     /// # Examples
     ///
@@ -3302,13 +3302,13 @@ impl RpcClient {
     ///
     /// This method uses the configured default [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getEpochInfo`] RPC method.
     ///
-    /// [`getEpochInfo`]: https://solana.com/docs/rpc/http/getepochinfo
+    /// [`getEpochInfo`]: https://aeko.com/docs/rpc/http/getepochinfo
     ///
     /// # Examples
     ///
@@ -3332,7 +3332,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getEpochInfo`] RPC method.
     ///
-    /// [`getEpochInfo`]: https://solana.com/docs/rpc/http/getepochinfo
+    /// [`getEpochInfo`]: https://aeko.com/docs/rpc/http/getepochinfo
     ///
     /// # Examples
     ///
@@ -3365,13 +3365,13 @@ impl RpcClient {
     ///
     /// This method uses the configured default [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getLeaderSchedule`] RPC method.
     ///
-    /// [`getLeaderSchedule`]: https://solana.com/docs/rpc/http/getleaderschedule
+    /// [`getLeaderSchedule`]: https://aeko.com/docs/rpc/http/getleaderschedule
     ///
     /// # Examples
     ///
@@ -3403,7 +3403,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getLeaderSchedule`] RPC method.
     ///
-    /// [`getLeaderSchedule`]: https://solana.com/docs/rpc/http/getleaderschedule
+    /// [`getLeaderSchedule`]: https://aeko.com/docs/rpc/http/getleaderschedule
     ///
     /// # Examples
     ///
@@ -3444,7 +3444,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getLeaderSchedule`] RPC method.
     ///
-    /// [`getLeaderSchedule`]: https://solana.com/docs/rpc/http/getleaderschedule
+    /// [`getLeaderSchedule`]: https://aeko.com/docs/rpc/http/getleaderschedule
     ///
     /// # Examples
     ///
@@ -3486,7 +3486,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getEpochSchedule`] RPC method.
     ///
-    /// [`getEpochSchedule`]: https://solana.com/docs/rpc/http/getepochschedule
+    /// [`getEpochSchedule`]: https://aeko.com/docs/rpc/http/getepochschedule
     ///
     /// # Examples
     ///
@@ -3513,7 +3513,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getRecentPerformanceSamples`] RPC method.
     ///
-    /// [`getRecentPerformanceSamples`]: https://solana.com/docs/rpc/http/getrecentperformancesamples
+    /// [`getRecentPerformanceSamples`]: https://aeko.com/docs/rpc/http/getrecentperformancesamples
     ///
     /// # Examples
     ///
@@ -3549,7 +3549,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getRecentPrioritizationFees`] RPC method.
     ///
-    /// [`getRecentPrioritizationFees`]: https://solana.com/docs/rpc/http/getrecentprioritizationfees
+    /// [`getRecentPrioritizationFees`]: https://aeko.com/docs/rpc/http/getrecentprioritizationfees
     ///
     /// # Examples
     ///
@@ -3587,7 +3587,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getIdentity`] RPC method.
     ///
-    /// [`getIdentity`]: https://solana.com/docs/rpc/http/getidentity
+    /// [`getIdentity`]: https://aeko.com/docs/rpc/http/getidentity
     ///
     /// # Examples
     ///
@@ -3617,14 +3617,14 @@ impl RpcClient {
     /// This method uses the [`Finalized`] [commitment level][cl].
     ///
     /// [`Finalized`]: CommitmentLevel::Finalized
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getInflationGovernor`] RPC
     /// method.
     ///
-    /// [`getInflationGovernor`]: https://solana.com/docs/rpc/http/getinflationgovernor
+    /// [`getInflationGovernor`]: https://aeko.com/docs/rpc/http/getinflationgovernor
     ///
     /// # Examples
     ///
@@ -3649,7 +3649,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getInflationRate`] RPC method.
     ///
-    /// [`getInflationRate`]: https://solana.com/docs/rpc/http/getinflationrate
+    /// [`getInflationRate`]: https://aeko.com/docs/rpc/http/getinflationrate
     ///
     /// # Examples
     ///
@@ -3671,13 +3671,13 @@ impl RpcClient {
     ///
     /// This method uses the configured [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getInflationReward`] RPC method.
     ///
-    /// [`getInflationReward`]: https://solana.com/docs/rpc/http/getinflationreward
+    /// [`getInflationReward`]: https://aeko.com/docs/rpc/http/getinflationreward
     ///
     /// # Examples
     ///
@@ -3723,13 +3723,13 @@ impl RpcClient {
         .await
     }
 
-    /// Returns the current solana version running on the node.
+    /// Returns the current aeko version running on the node.
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getVersion`] RPC method.
     ///
-    /// [`getVersion`]: https://solana.com/docs/rpc/http/getversion
+    /// [`getVersion`]: https://aeko.com/docs/rpc/http/getversion
     ///
     /// # Examples
     ///
@@ -3761,7 +3761,7 @@ impl RpcClient {
     /// This method corresponds directly to the [`minimumLedgerSlot`] RPC
     /// method.
     ///
-    /// [`minimumLedgerSlot`]: https://solana.com/docs/rpc/http/minimumledgerslot
+    /// [`minimumLedgerSlot`]: https://aeko.com/docs/rpc/http/minimumledgerslot
     ///
     /// # Examples
     ///
@@ -3783,7 +3783,7 @@ impl RpcClient {
     ///
     /// This method uses the configured [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// To get multiple accounts at once, use the [`get_multiple_accounts`] method.
     ///
@@ -3801,7 +3801,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`getAccountInfo`] RPC method.
     ///
-    /// [`getAccountInfo`]: https://solana.com/docs/rpc/http/getaccountinfo
+    /// [`getAccountInfo`]: https://aeko.com/docs/rpc/http/getaccountinfo
     ///
     /// # Examples
     ///
@@ -3842,7 +3842,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`getAccountInfo`] RPC method.
     ///
-    /// [`getAccountInfo`]: https://solana.com/docs/rpc/http/getaccountinfo
+    /// [`getAccountInfo`]: https://aeko.com/docs/rpc/http/getaccountinfo
     ///
     /// # Examples
     ///
@@ -3897,7 +3897,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`getAccountInfo`] RPC method.
     ///
-    /// [`getAccountInfo`]: https://solana.com/docs/rpc/http/getaccountinfo
+    /// [`getAccountInfo`]: https://aeko.com/docs/rpc/http/getaccountinfo
     ///
     /// # Examples
     ///
@@ -3979,7 +3979,7 @@ impl RpcClient {
     /// This method corresponds directly to the [`getMaxRetransmitSlot`] RPC
     /// method.
     ///
-    /// [`getMaxRetransmitSlot`]: https://solana.com/docs/rpc/http/getmaxretransmitslot
+    /// [`getMaxRetransmitSlot`]: https://aeko.com/docs/rpc/http/getmaxretransmitslot
     ///
     /// # Examples
     ///
@@ -3997,14 +3997,14 @@ impl RpcClient {
             .await
     }
 
-    /// Get the max slot seen from after [shred](https://solana.com/docs/terminology#shred) insert.
+    /// Get the max slot seen from after [shred](https://aeko.com/docs/terminology#shred) insert.
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the
     /// [`getMaxShredInsertSlot`] RPC method.
     ///
-    /// [`getMaxShredInsertSlot`]: https://solana.com/docs/rpc/http/getmaxshredinsertslot
+    /// [`getMaxShredInsertSlot`]: https://aeko.com/docs/rpc/http/getmaxshredinsertslot
     ///
     /// # Examples
     ///
@@ -4026,13 +4026,13 @@ impl RpcClient {
     ///
     /// This method uses the configured [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method is built on the [`getMultipleAccounts`] RPC method.
     ///
-    /// [`getMultipleAccounts`]: https://solana.com/docs/rpc/http/getmultipleaccounts
+    /// [`getMultipleAccounts`]: https://aeko.com/docs/rpc/http/getmultipleaccounts
     ///
     /// # Examples
     ///
@@ -4069,7 +4069,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`getMultipleAccounts`] RPC method.
     ///
-    /// [`getMultipleAccounts`]: https://solana.com/docs/rpc/http/getmultipleaccounts
+    /// [`getMultipleAccounts`]: https://aeko.com/docs/rpc/http/getmultipleaccounts
     ///
     /// # Examples
     ///
@@ -4118,7 +4118,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`getMultipleAccounts`] RPC method.
     ///
-    /// [`getMultipleAccounts`]: https://solana.com/docs/rpc/http/getmultipleaccounts
+    /// [`getMultipleAccounts`]: https://aeko.com/docs/rpc/http/getmultipleaccounts
     ///
     /// # Examples
     ///
@@ -4192,7 +4192,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`getAccountInfo`] RPC method.
     ///
-    /// [`getAccountInfo`]: https://solana.com/docs/rpc/http/getaccountinfo
+    /// [`getAccountInfo`]: https://aeko.com/docs/rpc/http/getaccountinfo
     ///
     /// # Examples
     ///
@@ -4225,7 +4225,7 @@ impl RpcClient {
     /// This method corresponds directly to the
     /// [`getMinimumBalanceForRentExemption`] RPC method.
     ///
-    /// [`getMinimumBalanceForRentExemption`]: https://solana.com/docs/rpc/http/getminimumbalanceforrentexemption
+    /// [`getMinimumBalanceForRentExemption`]: https://aeko.com/docs/rpc/http/getminimumbalanceforrentexemption
     ///
     /// # Examples
     ///
@@ -4264,13 +4264,13 @@ impl RpcClient {
     ///
     /// This method uses the configured [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getBalance`] RPC method.
     ///
-    /// [`getBalance`]: https://solana.com/docs/rpc/http/getbalance
+    /// [`getBalance`]: https://aeko.com/docs/rpc/http/getbalance
     ///
     /// # Examples
     ///
@@ -4302,7 +4302,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getBalance`] RPC method.
     ///
-    /// [`getBalance`]: https://solana.com/docs/rpc/http/getbalance
+    /// [`getBalance`]: https://aeko.com/docs/rpc/http/getbalance
     ///
     /// # Examples
     ///
@@ -4345,14 +4345,14 @@ impl RpcClient {
     ///
     /// This method uses the configured [commitment level][cl].
     ///
-    /// [cl]: https://solana.com/docs/rpc#configuring-state-commitment
+    /// [cl]: https://aeko.com/docs/rpc#configuring-state-commitment
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`getProgramAccounts`] RPC
     /// method.
     ///
-    /// [`getProgramAccounts`]: https://solana.com/docs/rpc/http/getprogramaccounts
+    /// [`getProgramAccounts`]: https://aeko.com/docs/rpc/http/getprogramaccounts
     ///
     /// # Examples
     ///
@@ -4394,7 +4394,7 @@ impl RpcClient {
     ///
     /// This method is built on the [`getProgramAccounts`] RPC method.
     ///
-    /// [`getProgramAccounts`]: https://solana.com/docs/rpc/http/getprogramaccounts
+    /// [`getProgramAccounts`]: https://aeko.com/docs/rpc/http/getprogramaccounts
     ///
     /// # Examples
     ///
@@ -4477,7 +4477,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getStakeMinimumDelegation`] RPC method.
     ///
-    /// [`getStakeMinimumDelegation`]: https://solana.com/docs/rpc/http/getstakeminimumdelegation
+    /// [`getStakeMinimumDelegation`]: https://aeko.com/docs/rpc/http/getstakeminimumdelegation
     ///
     /// # Examples
     ///
@@ -4502,7 +4502,7 @@ impl RpcClient {
     ///
     /// This method corresponds directly to the [`getStakeMinimumDelegation`] RPC method.
     ///
-    /// [`getStakeMinimumDelegation`]: https://solana.com/docs/rpc/http/getstakeminimumdelegation
+    /// [`getStakeMinimumDelegation`]: https://aeko.com/docs/rpc/http/getstakeminimumdelegation
     ///
     /// # Examples
     ///

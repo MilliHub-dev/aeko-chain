@@ -15,8 +15,8 @@
 
 { # this ensures the entire script is downloaded #
 
-if [ -z "$SOLANA_DOWNLOAD_ROOT" ]; then
-    SOLANA_DOWNLOAD_ROOT="https://github.com/aeko-labs/aeko/releases/download/"
+if [ -z "$AEKO_DOWNLOAD_ROOT" ]; then
+    AEKO_DOWNLOAD_ROOT="https://github.com/aeko-labs/aeko/releases/download/"
 fi
 GH_LATEST_RELEASE="https://api.github.com/repos/aeko-labs/aeko/releases/latest"
 
@@ -84,10 +84,10 @@ main() {
     temp_dir="$(mktemp -d 2>/dev/null || ensure mktemp -d -t aeko-install-init)"
     ensure mkdir -p "$temp_dir"
 
-    # Check for SOLANA_RELEASE environment variable override.  Otherwise fetch
+    # Check for AEKO_RELEASE environment variable override.  Otherwise fetch
     # the latest release tag from github
-    if [ -n "$SOLANA_RELEASE" ]; then
-      release="$SOLANA_RELEASE"
+    if [ -n "$AEKO_RELEASE" ]; then
+      release="$AEKO_RELEASE"
     else
       release_file="$temp_dir/release"
       printf 'looking for latest release\n' 1>&2
@@ -101,29 +101,29 @@ main() {
       fi
     fi
 
-    download_url="$SOLANA_DOWNLOAD_ROOT/$release/aeko-install-init-$TARGET"
-    solana_install_init="$temp_dir/aeko-install-init"
+    download_url="$AEKO_DOWNLOAD_ROOT/$release/aeko-install-init-$TARGET"
+    aeko_install_init="$temp_dir/aeko-install-init"
 
     printf 'downloading %s installer\n' "$release" 1>&2
 
     ensure mkdir -p "$temp_dir"
-    ensure downloader "$download_url" "$solana_install_init"
-    ensure chmod u+x "$solana_install_init"
-    if [ ! -x "$solana_install_init" ]; then
-        printf '%s\n' "Cannot execute $solana_install_init (likely because of mounting /tmp as noexec)." 1>&2
+    ensure downloader "$download_url" "$aeko_install_init"
+    ensure chmod u+x "$aeko_install_init"
+    if [ ! -x "$aeko_install_init" ]; then
+        printf '%s\n' "Cannot execute $aeko_install_init (likely because of mounting /tmp as noexec)." 1>&2
         printf '%s\n' "Please copy the file to a location where you can execute binaries and run ./aeko-install-init." 1>&2
         exit 1
     fi
 
     if [ -z "$1" ]; then
       #shellcheck disable=SC2086
-      ignore "$solana_install_init" $SOLANA_INSTALL_INIT_ARGS
+      ignore "$aeko_install_init" $AEKO_INSTALL_INIT_ARGS
     else
-      ignore "$solana_install_init" "$@"
+      ignore "$aeko_install_init" "$@"
     fi
     retval=$?
 
-    ignore rm "$solana_install_init"
+    ignore rm "$aeko_install_init"
     ignore rm -rf "$temp_dir"
 
     return "$retval"

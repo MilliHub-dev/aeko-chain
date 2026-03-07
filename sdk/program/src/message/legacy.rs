@@ -1,7 +1,7 @@
-//! The original and current Solana message format.
+//! The original and current Aeko message format.
 //!
 //! This crate defines two versions of `Message` in their own modules:
-//! [`legacy`] and [`v0`]. `legacy` is the current version as of Solana 1.10.0.
+//! [`legacy`] and [`v0`]. `legacy` is the current version as of Aeko 1.10.0.
 //! `v0` is a [future message format] that encodes more account keys into a
 //! transaction than the legacy format.
 //!
@@ -87,7 +87,7 @@ fn compile_instructions(ixs: &[Instruction], keys: &[Pubkey]) -> Vec<CompiledIns
     ixs.iter().map(|ix| compile_instruction(ix, keys)).collect()
 }
 
-/// A Solana transaction message (legacy).
+/// A Aeko transaction message (legacy).
 ///
 /// See the [`message`] module documentation for further description.
 ///
@@ -171,8 +171,8 @@ impl Message {
     ///
     /// This example uses the [`aeko_sdk`], [`aeko_rpc_client`] and [`anyhow`] crates.
     ///
-    /// [`aeko_sdk`]: https://docs.rs/solana-sdk
-    /// [`aeko_rpc_client`]: https://docs.rs/solana-rpc-client
+    /// [`aeko_sdk`]: https://docs.rs/aeko-sdk
+    /// [`aeko_rpc_client`]: https://docs.rs/aeko-rpc-client
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```
@@ -243,8 +243,8 @@ impl Message {
     ///
     /// This example uses the [`aeko_sdk`], [`aeko_rpc_client`] and [`anyhow`] crates.
     ///
-    /// [`aeko_sdk`]: https://docs.rs/solana-sdk
-    /// [`aeko_rpc_client`]: https://docs.rs/solana-rpc-client
+    /// [`aeko_sdk`]: https://docs.rs/aeko-sdk
+    /// [`aeko_rpc_client`]: https://docs.rs/aeko-rpc-client
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```
@@ -340,8 +340,8 @@ impl Message {
     ///
     /// This example uses the [`aeko_sdk`], [`aeko_rpc_client`] and [`anyhow`] crates.
     ///
-    /// [`aeko_sdk`]: https://docs.rs/solana-sdk
-    /// [`aeko_rpc_client`]: https://docs.rs/solana-client
+    /// [`aeko_sdk`]: https://docs.rs/aeko-sdk
+    /// [`aeko_rpc_client`]: https://docs.rs/aeko-client
     /// [`anyhow`]: https://docs.rs/anyhow
     ///
     /// ```
@@ -468,18 +468,18 @@ impl Message {
     }
 
     /// Compute the blake3 hash of this transaction's message.
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(not(target_os = "aeko"))]
     pub fn hash(&self) -> Hash {
         let message_bytes = self.serialize();
         Self::hash_raw_message(&message_bytes)
     }
 
     /// Compute the blake3 hash of a raw transaction message.
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(not(target_os = "aeko"))]
     pub fn hash_raw_message(message_bytes: &[u8]) -> Hash {
         use blake3::traits::digest::Digest;
         let mut hasher = blake3::Hasher::new();
-        hasher.update(b"solana-tx-message-v1");
+        hasher.update(b"aeko-tx-message-v1");
         hasher.update(message_bytes);
         Hash(hasher.finalize().into())
     }
@@ -872,7 +872,7 @@ mod tests {
     #[test]
     fn test_message_hash() {
         // when this test fails, it's most likely due to a new serialized format of a message.
-        // in this case, the domain prefix `solana-tx-message-v1` should be updated.
+        // in this case, the domain prefix `aeko-tx-message-v1` should be updated.
         let program_id0 = Pubkey::from_str("4uQeVj5tqViQh7yWWGStvkEG1Zmhx6uasJtWCJziofM").unwrap();
         let program_id1 = Pubkey::from_str("8opHzTAnfzRpPEx21XtnrVTX28YQuCpAjcn1PczScKh").unwrap();
         let id0 = Pubkey::from_str("CiDwVBFgWV9E5MvXWoLgnEgn2hK7rJikbvfWavzAQz3").unwrap();

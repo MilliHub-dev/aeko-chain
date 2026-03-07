@@ -1,4 +1,4 @@
-//! The solana-program-test provides a BanksClient-based test framework SBF programs
+//! The aeko-program-test provides a BanksClient-based test framework SBF programs
 #![allow(clippy::arithmetic_side_effects)]
 
 // Export tokio for test clients
@@ -64,12 +64,12 @@ use {
     thiserror::Error,
     tokio::task::JoinHandle,
 };
-// Export types so test clients can limit their solana crate dependencies
+// Export types so test clients can limit their aeko crate dependencies
 pub use {
     aeko_banks_client::{BanksClient, BanksClientError},
     aeko_banks_interface::BanksTransactionResultWithMetadata,
     aeko_program_runtime::invoke_context::InvokeContext,
-    solana_rbpf::{
+    aeko_rbpf::{
         error::EbpfError,
         vm::{get_runtime_environment_key, EbpfVm},
     },
@@ -183,7 +183,7 @@ pub fn invoke_builtin_function(
     Ok(0)
 }
 
-/// Converts a `solana-program`-style entrypoint into the runtime's entrypoint style, for
+/// Converts a `aeko-program`-style entrypoint into the runtime's entrypoint style, for
 /// use with `ProgramTest::add_program`
 #[macro_export]
 macro_rules! processor {
@@ -485,7 +485,7 @@ impl Default for ProgramTest {
     ///
     fn default() -> Self {
         aeko_logger::setup_with_default(
-            "solana_rbpf::vm=debug,\
+            "aeko_rbpf::vm=debug,\
              aeko_runtime::message_processor=debug,\
              aeko_runtime::system_instruction_processor=trace,\
              aeko_program_test=info",
@@ -909,7 +909,7 @@ impl ProgramTest {
     /// Start the test client
     ///
     /// Returns a `BanksClient` interface into the test environment as well as a payer `Keypair`
-    /// with SOL for sending transactions
+    /// with AEKO for sending transactions
     pub async fn start_with_context(mut self) -> ProgramTestContext {
         let (bank_forks, block_commitment_cache, last_blockhash, gci) = self.setup_bank();
         let target_tick_duration = gci.genesis_config.poh_config.target_tick_duration;

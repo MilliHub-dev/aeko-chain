@@ -30,7 +30,7 @@
 //! }
 //! ```
 //!
-//! Since Solana sysvars are accounts, if the `AccountInfo` is provided to the
+//! Since Aeko sysvars are accounts, if the `AccountInfo` is provided to the
 //! program, then the program can deserialize the sysvar with
 //! [`Sysvar::from_account_info`] to access its data, as in this example that
 //! again logs the [`clock`] sysvar.
@@ -77,7 +77,7 @@
 //!
 //! [`sysvar::ID`]: crate::sysvar::ID
 //!
-//! For more details see the Solana [documentation on sysvars][sysvardoc].
+//! For more details see the Aeko [documentation on sysvars][sysvardoc].
 //!
 //! [sysvardoc]: https://docs.aeko.network/runtime/sysvars
 
@@ -224,10 +224,10 @@ macro_rules! impl_sysvar_get {
             let mut var = Self::default();
             let var_addr = &mut var as *mut _ as *mut u8;
 
-            #[cfg(target_os = "solana")]
+            #[cfg(target_os = "aeko")]
             let result = unsafe { $crate::syscalls::$syscall_name(var_addr) };
 
-            #[cfg(not(target_os = "solana"))]
+            #[cfg(not(target_os = "aeko"))]
             let result = $crate::program_stubs::$syscall_name(var_addr);
 
             match result {

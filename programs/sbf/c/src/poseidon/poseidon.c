@@ -1,9 +1,9 @@
 /**
  * @brief Poseidon syscall test
  */
-#include <sol/assert.h>
-#include <sol/poseidon.h>
-#include <sol/string.h>
+#include <aeko/assert.h>
+#include <aeko/poseidon.h>
+#include <aeko/string.h>
 
 extern uint64_t entrypoint(const uint8_t *input) {
   // Two inputs: ones and twos (big-endian).

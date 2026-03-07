@@ -1,6 +1,6 @@
 [package]
 name = "aeko-geyser-plugin-interface"
-description = "The Solana Geyser plugin interface."
+description = "The Aeko Geyser plugin interface."
 documentation = "https://docs.rs/aeko-geyser-plugin-interface"
 version = { workspace = true }
 authors = { workspace = true }

@@ -1,6 +1,6 @@
 [package]
 name = "aeko-address-lookup-table-program"
-description = "Solana address lookup table program"
+description = "Aeko address lookup table program"
 documentation = "https://docs.rs/aeko-address-loookup-table-program"
 version = { workspace = true }
 authors = { workspace = true }
@@ -21,7 +21,7 @@ aeko-frozen-abi-macro = { workspace = true }
 aeko-program = { workspace = true }
 thiserror = { workspace = true }
 
-[target.'cfg(not(target_os = "solana"))'.dependencies]
+[target.'cfg(not(target_os = "aeko"))'.dependencies]
 aeko-program-runtime = { workspace = true }
 aeko-sdk = { workspace = true }
 

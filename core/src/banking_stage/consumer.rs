@@ -1236,7 +1236,7 @@ mod tests {
             ) -> JoinHandle<()> {
                 let is_exited = poh_recorder.read().unwrap().is_exited.clone();
                 let tick_producer = Builder::new()
-                    .name("solana-simulate_poh".to_string())
+                    .name("aeko-simulate_poh".to_string())
                     .spawn(move || loop {
                         let timeout = Duration::from_millis(10);
                         let record = record_receiver.recv_timeout(timeout);

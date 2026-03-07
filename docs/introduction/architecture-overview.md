@@ -18,7 +18,7 @@ Unlike standard blockchains where anyone with a key can submit any transaction, 
 *   **Sovereign Zone**: Restricted to whitelisted keys (Government/Enterprise).
 
 ## 2. AEKO SVM Runtime (The Engine)
-We leverage the **Solana Virtual Machine (SVM)** for parallel transaction processing.
+We leverage the **Aeko Virtual Machine (SVM)** for parallel transaction processing.
 *   **Sealevel**: Parallel smart contract execution.
 *   **Pipelining**: Optimized transaction validation unit (TPU).
 *   **AccountsDB**: Modified to store social graph data efficiently.

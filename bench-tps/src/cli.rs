@@ -140,7 +140,7 @@ pub fn build_args<'a>(version: &'_ str) -> App<'a, '_> {
                 .global(true)
                 .validator(is_url_or_moniker)
                 .help(
-                    "URL for Solana's JSON RPC or moniker (or their first letter): \
+                    "URL for Aeko's JSON RPC or moniker (or their first letter): \
                        [mainnet-beta, testnet, devnet, localhost]",
                 ),
         )
@@ -151,7 +151,7 @@ pub fn build_args<'a>(version: &'_ str) -> App<'a, '_> {
                 .takes_value(true)
                 .global(true)
                 .validator(is_url)
-                .help("WebSocket URL for the solana cluster"),
+                .help("WebSocket URL for the aeko cluster"),
         )
         .arg(
             Arg::with_name("rpc_addr")
@@ -627,7 +627,7 @@ mod tests {
         // parse provided rpc address, check that default ws address is correct
         // always specify identity in these tests because otherwise a random one will be used
         let matches = build_args("1.0.0").get_matches_from(vec![
-            "solana-bench-tps",
+            "aeko-bench-tps",
             "--identity",
             &keypair_file_name,
             "-u",
@@ -647,7 +647,7 @@ mod tests {
         // parse cli args typical for private cluster tests
         let keypair = read_keypair_file(&keypair_file_name).unwrap();
         let matches = build_args("1.0.0").get_matches_from(vec![
-            "solana-bench-tps",
+            "aeko-bench-tps",
             "--identity",
             &keypair_file_name,
             "-u",
@@ -679,7 +679,7 @@ mod tests {
         // select different client type and CommitmentConfig
         let keypair = read_keypair_file(&keypair_file_name).unwrap();
         let matches = build_args("1.0.0").get_matches_from(vec![
-            "solana-bench-tps",
+            "aeko-bench-tps",
             "--identity",
             &keypair_file_name,
             "-u",
@@ -705,7 +705,7 @@ mod tests {
         let keypair = read_keypair_file(&keypair_file_name).unwrap();
         let (client_id, client_id_file_name) = write_tmp_keypair(&out_dir);
         let matches = build_args("1.0.0").get_matches_from(vec![
-            "solana-bench-tps",
+            "aeko-bench-tps",
             "--identity",
             &keypair_file_name,
             "-u",

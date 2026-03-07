@@ -1,4 +1,4 @@
-//! The `rpc` module implements the Solana RPC interface.
+//! The `rpc` module implements the Aeko RPC interface.
 use {
     crate::{
         max_slots::MaxSlots, optimistically_confirmed_bank_tracker::OptimisticallyConfirmedBank,
@@ -95,7 +95,7 @@ use {
     aeko_vote_program::vote_state::{VoteState, MAX_LOCKOUT_HISTORY},
     spl_token_2022::{
         extension::StateWithExtensions,
-        solana_program::program_pack::Pack,
+        aeko_program::program_pack::Pack,
         state::{Account as TokenAccount, Mint},
     },
     std::{
@@ -294,7 +294,7 @@ impl JsonRpcRequestProcessor {
             // BlockCommitmentCache should hold an `Arc<Bank>` everywhere it currently holds
             // a slot.
             //
-            // For more information, see https://github.com/aeko-chain/solana/issues/11078
+            // For more information, see https://github.com/aeko-chain/aeko/issues/11078
             warn!(
                 "Bank with {:?} not found at slot: {:?}",
                 commitment.commitment, slot
@@ -1589,7 +1589,7 @@ impl JsonRpcRequestProcessor {
     ) -> Vec<Signature> {
         if self.config.enable_rpc_transaction_history {
             // TODO: Add bigtable_ledger_storage support as a part of
-            // https://github.com/aeko-chain/solana/pull/10928
+            // https://github.com/aeko-chain/aeko/pull/10928
             let end_slot = min(
                 end_slot,
                 self.block_commitment_cache
@@ -2589,7 +2589,7 @@ pub mod rpc_minimal {
         #[rpc(meta, name = "getVersion")]
         fn get_version(&self, meta: Self::Metadata) -> Result<RpcVersionInfo>;
 
-        // TODO: Refactor `solana-validator wait-for-restart-window` to not require this method, so
+        // TODO: Refactor `aeko-validator wait-for-restart-window` to not require this method, so
         //       it can be removed from rpc_minimal
         #[rpc(meta, name = "getVoteAccounts")]
         fn get_vote_accounts(
@@ -2598,7 +2598,7 @@ pub mod rpc_minimal {
             config: Option<RpcGetVoteAccountsConfig>,
         ) -> Result<RpcVoteAccountStatus>;
 
-        // TODO: Refactor `solana-validator wait-for-restart-window` to not require this method, so
+        // TODO: Refactor `aeko-validator wait-for-restart-window` to not require this method, so
         //       it can be removed from rpc_minimal
         #[rpc(meta, name = "getLeaderSchedule")]
         fn get_leader_schedule(
@@ -2724,7 +2724,7 @@ pub mod rpc_minimal {
             })
         }
 
-        // TODO: Refactor `solana-validator wait-for-restart-window` to not require this method, so
+        // TODO: Refactor `aeko-validator wait-for-restart-window` to not require this method, so
         //       it can be removed from rpc_minimal
         fn get_vote_accounts(
             &self,
@@ -2735,7 +2735,7 @@ pub mod rpc_minimal {
             meta.get_vote_accounts(config)
         }
 
-        // TODO: Refactor `solana-validator wait-for-restart-window` to not require this method, so
+        // TODO: Refactor `aeko-validator wait-for-restart-window` to not require this method, so
         //       it can be removed from rpc_minimal
         fn get_leader_schedule(
             &self,
@@ -3020,7 +3020,7 @@ pub mod rpc_accounts {
         ) -> Result<RpcBlockCommitment<BlockCommitmentArray>>;
 
         // SPL Token-specific RPC endpoints
-        // See https://github.com/aeko-chain/solana-program-library/releases/tag/token-v2.0.0 for
+        // See https://github.com/aeko-chain/aeko-program-library/releases/tag/token-v2.0.0 for
         // program details
 
         #[rpc(meta, name = "getTokenAccountBalance")]
@@ -3150,7 +3150,7 @@ pub mod rpc_accounts_scan {
         ) -> Result<RpcResponse<RpcSupply>>;
 
         // SPL Token-specific RPC endpoints
-        // See https://github.com/aeko-chain/solana-program-library/releases/tag/token-v2.0.0 for
+        // See https://github.com/aeko-chain/aeko-program-library/releases/tag/token-v2.0.0 for
         // program details
 
         #[rpc(meta, name = "getTokenLargestAccounts")]
@@ -7117,7 +7117,7 @@ pub mod tests {
         let expected = {
             let version = aeko_version::Version::default();
             json!({
-                "solana-core": version.to_string(),
+                "aeko-core": version.to_string(),
                 "feature-set": version.feature_set,
             })
         };

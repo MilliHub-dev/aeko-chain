@@ -1,6 +1,6 @@
 [package]
 name = "aeko-merkle-tree"
-description = "Solana Merkle Tree"
+description = "Aeko Merkle Tree"
 documentation = "https://docs.rs/aeko-merkle-tree"
 version = { workspace = true }
 authors = { workspace = true }

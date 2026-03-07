@@ -426,7 +426,7 @@ fn run_transactions_dos(
 }
 
 fn main() {
-    aeko_logger::setup_with_default("solana=info");
+    aeko_logger::setup_with_default("aeko=info");
     let matches = App::new(crate_name!())
         .about(crate_description!())
         .version(aeko_version::version!())

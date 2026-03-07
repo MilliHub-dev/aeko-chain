@@ -990,7 +990,7 @@ impl TestValidator {
             config.admin_rpc_service_post_init.clone(),
         )?);
 
-        // Needed to avoid panics in `solana-responder-gossip` in tests that create a number of
+        // Needed to avoid panics in `aeko-responder-gossip` in tests that create a number of
         // test validators concurrently...
         discover_cluster(&gossip, 1, socket_addr_space)
             .map_err(|err| format!("TestValidator startup failed: {err:?}"))?;

@@ -1,5 +1,5 @@
 use {
-    crate::solana::wen_restart_proto::LastVotedForkSlotsRecord,
+    crate::aeko::wen_restart_proto::LastVotedForkSlotsRecord,
     anyhow::Result,
     log::*,
     aeko_gossip::restart_crds_values::RestartLastVotedForkSlots,
@@ -144,7 +144,7 @@ mod tests {
     use {
         crate::{
             last_voted_fork_slots_aggregate::LastVotedForkSlotsAggregate,
-            solana::wen_restart_proto::LastVotedForkSlotsRecord,
+            aeko::wen_restart_proto::LastVotedForkSlotsRecord,
         },
         aeko_gossip::restart_crds_values::RestartLastVotedForkSlots,
         aeko_program::{clock::Slot, pubkey::Pubkey},

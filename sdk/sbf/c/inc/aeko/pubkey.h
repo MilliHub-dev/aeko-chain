@@ -26,7 +26,7 @@ typedef struct {
  *
  * @param key The public key to print
  */
-/* DO NOT MODIFY THIS GENERATED FILE. INSTEAD CHANGE sdk/sbf/c/inc/sol/inc/pubkey.inc AND RUN `cargo run --bin gen-headers` */
+/* DO NOT MODIFY THIS GENERATED FILE. INSTEAD CHANGE sdk/sbf/c/inc/aeko/inc/pubkey.inc AND RUN `cargo run --bin gen-headers` */
 #ifndef aeko_SBFV2
 void aeko_log_pubkey(const AekoPubkey *);
 #else
@@ -78,7 +78,7 @@ typedef struct {
  * @param program_id Program id of the signer
  * @param program_address Program address created, filled on return
  */
-/* DO NOT MODIFY THIS GENERATED FILE. INSTEAD CHANGE sdk/sbf/c/inc/sol/inc/pubkey.inc AND RUN `cargo run --bin gen-headers` */
+/* DO NOT MODIFY THIS GENERATED FILE. INSTEAD CHANGE sdk/sbf/c/inc/aeko/inc/pubkey.inc AND RUN `cargo run --bin gen-headers` */
 #ifndef aeko_SBFV2
 uint64_t aeko_create_program_address(const SolSignerSeed *, int, const AekoPubkey *, AekoPubkey *);
 #else
@@ -98,7 +98,7 @@ static uint64_t aeko_create_program_address(const SolSignerSeed * arg1, int arg2
  * @param program_address Program address created, filled on return
  * @param bump_seed Bump seed required to create a valid program address
  */
-/* DO NOT MODIFY THIS GENERATED FILE. INSTEAD CHANGE sdk/sbf/c/inc/sol/inc/pubkey.inc AND RUN `cargo run --bin gen-headers` */
+/* DO NOT MODIFY THIS GENERATED FILE. INSTEAD CHANGE sdk/sbf/c/inc/aeko/inc/pubkey.inc AND RUN `cargo run --bin gen-headers` */
 #ifndef aeko_SBFV2
 uint64_t aeko_try_find_program_address(const SolSignerSeed *, int, const AekoPubkey *, AekoPubkey *, uint8_t *);
 #else

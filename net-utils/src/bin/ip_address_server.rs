@@ -5,7 +5,7 @@ use {
 
 fn main() {
     aeko_logger::setup();
-    let matches = Command::new("solana-ip-address-server")
+    let matches = Command::new("aeko-ip-address-server")
         .version(aeko_version::version!())
         .arg(
             Arg::new("port")

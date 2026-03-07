@@ -4,7 +4,7 @@ Integrate AEKO wallets into your dApp using the standard **Wallet Adapter** inte
 
 ## Standard Interface
 
-AEKO supports the `solana-wallet-adapter` standard with extensions for identity.
+AEKO supports the `aeko-wallet-adapter` standard with extensions for identity.
 
 ```javascript
 // Connect to wallet

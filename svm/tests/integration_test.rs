@@ -10,7 +10,7 @@ use {
             BlockRelation, ForkGraph, LoadedProgram, ProgramCache, ProgramRuntimeEnvironments,
         },
         runtime_config::RuntimeConfig,
-        solana_rbpf::{
+        aeko_rbpf::{
             program::{BuiltinFunction, BuiltinProgram, FunctionRegistry},
             vm::Config,
         },
@@ -189,7 +189,7 @@ fn prepare_transactions(
     let mut dir = env::current_dir().unwrap();
     dir.push("tests");
     // File compiled from
-    // https://github.com/solana-developers/program-examples/blob/feb82f254a4633ce2107d06060f2d0558dc987f5/basics/hello-solana/native/program/src/lib.rs
+    // https://github.com/aeko-developers/program-examples/blob/feb82f254a4633ce2107d06060f2d0558dc987f5/basics/hello-aeko/native/program/src/lib.rs
     dir.push("hello_aeko_program.so");
     let mut file = File::open(dir.clone()).expect("file not found");
     let metadata = fs::metadata(dir).expect("Unable to read metadata");
@@ -268,5 +268,5 @@ fn svm_integration() {
         .log_messages
         .as_ref()
         .unwrap();
-    assert!(logs.contains(&"Program log: Hello, Solana!".to_string()));
+    assert!(logs.contains(&"Program log: Hello, Aeko!".to_string()));
 }

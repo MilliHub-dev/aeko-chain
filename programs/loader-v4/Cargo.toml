@@ -14,7 +14,7 @@ log = { workspace = true }
 aeko-measure = { workspace = true }
 aeko-program-runtime = { workspace = true }
 aeko-sdk = { workspace = true }
-solana_rbpf = { workspace = true }
+aeko_rbpf = { workspace = true }
 
 [dev-dependencies]
 bincode = { workspace = true }

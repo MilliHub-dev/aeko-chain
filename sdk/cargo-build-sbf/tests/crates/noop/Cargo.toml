@@ -1,9 +1,9 @@
 [package]
 name = "noop"
 version = "2.0.0"
-description = "Solana SBF test program written in Rust"
-authors = ["Solana Labs Maintainers <maintainers@solanalabs.com>"]
-repository = "https://github.com/aeko-labs/solana"
+description = "Aeko SBF test program written in Rust"
+authors = ["Aeko Labs Maintainers <maintainers@solanalabs.com>"]
+repository = "https://github.com/aeko-labs/aeko"
 license = "Apache-2.0"
 homepage = "https://solanalabs.com/"
 edition = "2021"

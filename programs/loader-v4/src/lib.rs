@@ -10,7 +10,7 @@ use {
         log_collector::LogCollector,
         stable_log,
     },
-    solana_rbpf::{
+    aeko_rbpf::{
         aligned_memory::AlignedMemory,
         declare_builtin_function, ebpf,
         elf::Executable,

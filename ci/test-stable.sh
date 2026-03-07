@@ -91,10 +91,10 @@ test-stable-sbf)
   # aeko-program is performed when simulation crate is built. This
   # last compiled aeko-program is of different version, normally the
   # latest mainbeta release version.
-  solana_program_count=$(grep -c 'aeko-program v' cargo.log)
+  aeko_program_count=$(grep -c 'aeko-program v' cargo.log)
   rm -f cargo.log
-  if ((solana_program_count > 20)); then
-      echo "Regression of build redundancy ${solana_program_count}."
+  if ((aeko_program_count > 20)); then
+      echo "Regression of build redundancy ${aeko_program_count}."
       echo "Review dependency features that trigger redundant rebuilds of aeko-program."
       exit 1
   fi
@@ -128,7 +128,7 @@ test-stable-perf)
     export TEST_PERF_LIBS_CUDA=1
 
     # Force CUDA in ci/localnet-sanity.sh
-    export SOLANA_CUDA=1
+    export AEKO_CUDA=1
   fi
 
   _ cargo build --bins ${V:+--verbose}
@@ -159,7 +159,7 @@ esac
 
 (
   export CARGO_TOOLCHAIN=+"$rust_stable"
-  export RUST_LOG="solana_metrics=warn,info,$RUST_LOG"
+  export RUST_LOG="aeko_metrics=warn,info,$RUST_LOG"
   echo --- ci/localnet-sanity.sh
   ci/localnet-sanity.sh -x
 
