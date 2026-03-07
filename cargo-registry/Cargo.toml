@@ -1,6 +1,6 @@
 [package]
 name = "aeko-cargo-registry"
-description = "Solana cargo registry"
+description = "Aeko cargo registry"
 documentation = "https://docs.rs/aeko-cargo-registry"
 version = { workspace = true }
 authors = { workspace = true }

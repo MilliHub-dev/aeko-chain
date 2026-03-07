@@ -469,11 +469,11 @@ pub enum CliError {
     ClientError(#[from] ClientError),
     #[error("Command not recognized: {0}")]
     CommandNotRecognized(String),
-    #[error("Account {1} has insufficient funds for fee ({0} SOL)")]
+    #[error("Account {1} has insufficient funds for fee ({0} AEKO)")]
     InsufficientFundsForFee(f64, Pubkey),
-    #[error("Account {1} has insufficient funds for spend ({0} SOL)")]
+    #[error("Account {1} has insufficient funds for spend ({0} AEKO)")]
     InsufficientFundsForSpend(f64, Pubkey),
-    #[error("Account {2} has insufficient funds for spend ({0} SOL) + fee ({1} SOL)")]
+    #[error("Account {2} has insufficient funds for spend ({0} AEKO) + fee ({1} AEKO)")]
     InsufficientFundsForSpendAndFee(f64, f64, Pubkey),
     #[error(transparent)]
     InvalidNonce(aeko_rpc_client_nonce_utils::Error),
@@ -684,7 +684,7 @@ pub fn parse_command(
         ("upgrade-nonce-account", Some(matches)) => parse_upgrade_nonce_account(matches),
         // Program Deployment
         ("deploy", Some(_matches)) => clap::Error::with_description(
-            "`solana deploy` has been replaced with `solana program deploy`",
+            "`aeko deploy` has been replaced with `aeko program deploy`",
             clap::ErrorKind::UnrecognizedSubcommand,
         )
         .exit(),
@@ -877,7 +877,7 @@ pub fn process_command(config: &CliConfig) -> ProcessResult {
         // Cluster Query Commands
         // Get address of this client
         CliCommand::Address => Ok(format!("{}", config.pubkey()?)),
-        // Return software version of solana-cli and cluster entrypoint node
+        // Return software version of aeko-cli and cluster entrypoint node
         CliCommand::Catchup {
             node_pubkey,
             node_json_rpc_url,
@@ -2076,7 +2076,7 @@ mod tests {
             pubkey: None,
             use_lamports_unit: false,
         };
-        assert_eq!(process_command(&config).unwrap(), "0.00000005 SOL");
+        assert_eq!(process_command(&config).unwrap(), "0.00000005 AEKO");
 
         let good_signature = bs58::decode(SIGNATURE)
             .into_vec()
@@ -2435,7 +2435,7 @@ mod tests {
         write_keypair_file(&default_keypair, &default_keypair_file).unwrap();
         let default_signer = DefaultSigner::new("", &default_keypair_file);
 
-        // Test Transfer Subcommand, SOL
+        // Test Transfer Subcommand, AEKO
         let from_keypair = keypair_from_seed(&[0u8; 32]).unwrap();
         let from_pubkey = from_keypair.pubkey();
         let from_string = from_pubkey.to_string();

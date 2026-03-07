@@ -1,9 +1,9 @@
 //! A client for subscribing to messages from the RPC server.
 //!
-//! The [`PubsubClient`] implements [Solana WebSocket event
+//! The [`PubsubClient`] implements [Aeko WebSocket event
 //! subscriptions][spec].
 //!
-//! [spec]: https://solana.com/docs/rpc/websocket
+//! [spec]: https://aeko.com/docs/rpc/websocket
 //!
 //! This is a nonblocking (async) API. For a blocking API use the synchronous
 //! client in [`crate::pubsub_client`].
@@ -33,12 +33,12 @@
 //! By default the [`block_subscribe`] and [`vote_subscribe`] events are
 //! disabled on RPC nodes. They can be enabled by passing
 //! `--rpc-pubsub-enable-block-subscription` and
-//! `--rpc-pubsub-enable-vote-subscription` to `solana-validator`. When these
+//! `--rpc-pubsub-enable-vote-subscription` to `aeko-validator`. When these
 //! methods are disabled, the RPC server will return a "Method not found" error
 //! message.
 //!
-//! [`block_subscribe`]: https://docs.rs/solana-rpc/latest/aeko_rpc/rpc_pubsub/trait.RpcSolPubSub.html#tymethod.block_subscribe
-//! [`vote_subscribe`]: https://docs.rs/solana-rpc/latest/aeko_rpc/rpc_pubsub/trait.RpcSolPubSub.html#tymethod.vote_subscribe
+//! [`block_subscribe`]: https://docs.rs/aeko-rpc/latest/aeko_rpc/rpc_pubsub/trait.RpcSolPubSub.html#tymethod.block_subscribe
+//! [`vote_subscribe`]: https://docs.rs/aeko-rpc/latest/aeko_rpc/rpc_pubsub/trait.RpcSolPubSub.html#tymethod.vote_subscribe
 //!
 //! # Examples
 //!
@@ -366,7 +366,7 @@ impl PubsubClient {
     ///
     /// This method corresponds directly to the [`accountSubscribe`] RPC method.
     ///
-    /// [`accountSubscribe`]: https://solana.com/docs/rpc/websocket#accountsubscribe
+    /// [`accountSubscribe`]: https://aeko.com/docs/rpc/websocket#accountsubscribe
     pub async fn account_subscribe(
         &self,
         pubkey: &Pubkey,
@@ -381,13 +381,13 @@ impl PubsubClient {
     /// Receives messages of type [`RpcBlockUpdate`] when a block is confirmed or finalized.
     ///
     /// This method is disabled by default. It can be enabled by passing
-    /// `--rpc-pubsub-enable-block-subscription` to `solana-validator`.
+    /// `--rpc-pubsub-enable-block-subscription` to `aeko-validator`.
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`blockSubscribe`] RPC method.
     ///
-    /// [`blockSubscribe`]: https://solana.com/docs/rpc/websocket#blocksubscribe
+    /// [`blockSubscribe`]: https://aeko.com/docs/rpc/websocket#blocksubscribe
     pub async fn block_subscribe(
         &self,
         filter: RpcBlockSubscribeFilter,
@@ -404,7 +404,7 @@ impl PubsubClient {
     ///
     /// This method corresponds directly to the [`logsSubscribe`] RPC method.
     ///
-    /// [`logsSubscribe`]: https://solana.com/docs/rpc/websocket#logssubscribe
+    /// [`logsSubscribe`]: https://aeko.com/docs/rpc/websocket#logssubscribe
     pub async fn logs_subscribe(
         &self,
         filter: RpcTransactionLogsFilter,
@@ -422,7 +422,7 @@ impl PubsubClient {
     ///
     /// This method corresponds directly to the [`programSubscribe`] RPC method.
     ///
-    /// [`programSubscribe`]: https://solana.com/docs/rpc/websocket#programsubscribe
+    /// [`programSubscribe`]: https://aeko.com/docs/rpc/websocket#programsubscribe
     pub async fn program_subscribe(
         &self,
         pubkey: &Pubkey,
@@ -452,13 +452,13 @@ impl PubsubClient {
     /// votes are observed prior to confirmation and may never be confirmed.
     ///
     /// This method is disabled by default. It can be enabled by passing
-    /// `--rpc-pubsub-enable-vote-subscription` to `solana-validator`.
+    /// `--rpc-pubsub-enable-vote-subscription` to `aeko-validator`.
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`voteSubscribe`] RPC method.
     ///
-    /// [`voteSubscribe`]: https://solana.com/docs/rpc/websocket#votesubscribe
+    /// [`voteSubscribe`]: https://aeko.com/docs/rpc/websocket#votesubscribe
     pub async fn vote_subscribe(&self) -> SubscribeResult<'_, RpcVote> {
         self.subscribe("vote", json!([])).await
     }
@@ -468,13 +468,13 @@ impl PubsubClient {
     /// Receives messages of type [`Slot`] when a new [root] is set by the
     /// validator.
     ///
-    /// [root]: https://solana.com/docs/terminology#root
+    /// [root]: https://aeko.com/docs/terminology#root
     ///
     /// # RPC Reference
     ///
     /// This method corresponds directly to the [`rootSubscribe`] RPC method.
     ///
-    /// [`rootSubscribe`]: https://solana.com/docs/rpc/websocket#rootsubscribe
+    /// [`rootSubscribe`]: https://aeko.com/docs/rpc/websocket#rootsubscribe
     pub async fn root_subscribe(&self) -> SubscribeResult<'_, Slot> {
         self.subscribe("root", json!([])).await
     }
@@ -491,7 +491,7 @@ impl PubsubClient {
     ///
     /// This method corresponds directly to the [`signatureSubscribe`] RPC method.
     ///
-    /// [`signatureSubscribe`]: https://solana.com/docs/rpc/websocket#signaturesubscribe
+    /// [`signatureSubscribe`]: https://aeko.com/docs/rpc/websocket#signaturesubscribe
     pub async fn signature_subscribe(
         &self,
         signature: &Signature,
@@ -509,7 +509,7 @@ impl PubsubClient {
     ///
     /// This method corresponds directly to the [`slotSubscribe`] RPC method.
     ///
-    /// [`slotSubscribe`]: https://solana.com/docs/rpc/websocket#slotsubscribe
+    /// [`slotSubscribe`]: https://aeko.com/docs/rpc/websocket#slotsubscribe
     pub async fn slot_subscribe(&self) -> SubscribeResult<'_, SlotInfo> {
         self.subscribe("slot", json!([])).await
     }
@@ -527,7 +527,7 @@ impl PubsubClient {
     ///
     /// This method corresponds directly to the [`slotUpdatesSubscribe`] RPC method.
     ///
-    /// [`slotUpdatesSubscribe`]: https://solana.com/docs/rpc/websocket#slotsupdatessubscribe
+    /// [`slotUpdatesSubscribe`]: https://aeko.com/docs/rpc/websocket#slotsupdatessubscribe
     pub async fn slot_updates_subscribe(&self) -> SubscribeResult<'_, SlotUpdate> {
         self.subscribe("slotsUpdates", json!([])).await
     }

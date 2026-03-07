@@ -125,7 +125,7 @@ pub struct StakeAuthorizationIndexed {
 struct SignOnlySplitNeedsRent {}
 impl ArgsConfig for SignOnlySplitNeedsRent {
     fn sign_only_arg<'a, 'b>(&self, arg: Arg<'a, 'b>) -> Arg<'a, 'b> {
-        arg.requires("rent_exempt_reserve_sol")
+        arg.requires("rent_exempt_reserve_aeko")
     }
 }
 
@@ -158,7 +158,7 @@ impl StakeSubCommands for App<'_, '_> {
                         .validator(is_amount_or_all)
                         .required(true)
                         .help(
-                            "The amount to send to the stake account, in SOL; accepts keyword ALL",
+                            "The amount to send to the stake account, in AEKO; accepts keyword ALL",
                         ),
                 )
                 .arg(pubkey!(
@@ -251,7 +251,7 @@ impl StakeSubCommands for App<'_, '_> {
                         .validator(is_amount_or_all)
                         .required(true)
                         .help(
-                            "The amount to send to the stake account, in SOL; accepts keyword ALL",
+                            "The amount to send to the stake account, in AEKO; accepts keyword ALL",
                         ),
                 )
                 .arg(
@@ -526,7 +526,7 @@ impl StakeSubCommands for App<'_, '_> {
                         .takes_value(true)
                         .validator(is_amount)
                         .required(true)
-                        .help("The amount to move into the new stake account, in SOL"),
+                        .help("The amount to move into the new stake account, in AEKO"),
                 )
                 .arg(
                     Arg::with_name("seed")
@@ -545,15 +545,15 @@ impl StakeSubCommands for App<'_, '_> {
                 .arg(memo_arg())
                 .arg(compute_unit_price_arg())
                 .arg(
-                    Arg::with_name("rent_exempt_reserve_sol")
-                        .long("rent-exempt-reserve-sol")
+                    Arg::with_name("rent_exempt_reserve_aeko")
+                        .long("rent-exempt-reserve-aeko")
                         .value_name("AMOUNT")
                         .takes_value(true)
                         .validator(is_amount)
                         .requires("sign_only")
                         .help(
                             "Offline signing only: the rent-exempt amount to move into the new \
-                             stake account, in SOL",
+                             stake account, in AEKO",
                         ),
                 ),
         )
@@ -584,7 +584,7 @@ impl StakeSubCommands for App<'_, '_> {
         )
         .subcommand(
             SubCommand::with_name("withdraw-stake")
-                .about("Withdraw the unstaked SOL from the stake account")
+                .about("Withdraw the unstaked AEKO from the stake account")
                 .arg(pubkey!(
                     Arg::with_name("stake_account_pubkey")
                         .index(1)
@@ -608,7 +608,7 @@ impl StakeSubCommands for App<'_, '_> {
                         .validator(is_amount_or_all)
                         .required(true)
                         .help(
-                            "The amount to withdraw from the stake account, in SOL; accepts \
+                            "The amount to withdraw from the stake account, in AEKO; accepts \
                              keyword ALL",
                         ),
                 )
@@ -761,7 +761,7 @@ impl StakeSubCommands for App<'_, '_> {
                     Arg::with_name("lamports")
                         .long("lamports")
                         .takes_value(false)
-                        .help("Display balance in lamports instead of SOL"),
+                        .help("Display balance in lamports instead of AEKO"),
                 )
                 .arg(
                     Arg::with_name("with_rewards")
@@ -797,7 +797,7 @@ impl StakeSubCommands for App<'_, '_> {
                     Arg::with_name("lamports")
                         .long("lamports")
                         .takes_value(false)
-                        .help("Display balance in lamports instead of SOL"),
+                        .help("Display balance in lamports instead of AEKO"),
                 )
                 .arg(
                     Arg::with_name("limit")
@@ -819,7 +819,7 @@ impl StakeSubCommands for App<'_, '_> {
                     Arg::with_name("lamports")
                         .long("lamports")
                         .takes_value(false)
-                        .help("Display minimum delegation in lamports instead of SOL"),
+                        .help("Display minimum delegation in lamports instead of AEKO"),
                 ),
         )
     }
@@ -1115,7 +1115,7 @@ pub fn parse_split_stake(
     let signer_info =
         default_signer.generate_unique_signers(bulk_signers, matches, wallet_manager)?;
     let compute_unit_price = value_of(matches, COMPUTE_UNIT_PRICE_ARG.name);
-    let rent_exempt_reserve = lamports_of_sol(matches, "rent_exempt_reserve_sol");
+    let rent_exempt_reserve = lamports_of_sol(matches, "rent_exempt_reserve_aeko");
 
     Ok(CliCommandInfo {
         command: CliCommand::SplitStake {
@@ -2017,7 +2017,7 @@ pub fn process_split_stake(
     } else {
         rent_exempt_reserve
             .cloned()
-            .expect("rent_exempt_reserve_sol is required with sign_only")
+            .expect("rent_exempt_reserve_aeko is required with sign_only")
     };
 
     let recent_blockhash = blockhash_query.get_blockhash(rpc_client, config.commitment)?;

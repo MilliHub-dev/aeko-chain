@@ -15,41 +15,41 @@ solanaInstallGlobalOpts=(
   --no-modify-path
 )
 
-# Install all the solana versions
+# Install all the aeko versions
 bootstrapInstall() {
   declare v=$1
   if [[ ! -h $solanaInstallDataDir/active_release ]]; then
-    sh "$SOLANA_ROOT"/install/solana-install-init.sh "$v" "${solanaInstallGlobalOpts[@]}"
+    sh "$SOLANA_ROOT"/install/aeko-install-init.sh "$v" "${solanaInstallGlobalOpts[@]}"
   fi
   export PATH="$solanaInstallDataDir/active_release/bin/:$PATH"
 }
 
 bootstrapInstall "edge"
-solana-install-init --version
-solana-install-init edge
-solana-gossip --version
-solana-dos --version
+aeko-install-init --version
+aeko-install-init edge
+aeko-gossip --version
+aeko-dos --version
 
-killall solana-gossip || true
-solana-gossip spy --gossip-port 8001 > "$logDir"/gossip.log 2>&1 &
+killall aeko-gossip || true
+aeko-gossip spy --gossip-port 8001 > "$logDir"/gossip.log 2>&1 &
 solanaGossipPid=$!
-echo "solana-gossip pid: $solanaGossipPid"
+echo "aeko-gossip pid: $solanaGossipPid"
 sleep 5
-solana-dos --mode gossip --data-type random --data-size 1232 &
+aeko-dos --mode gossip --data-type random --data-size 1232 &
 dosPid=$!
-echo "solana-dos pid: $dosPid"
+echo "aeko-dos pid: $dosPid"
 
 pass=true
 
 SECONDS=
 while ((SECONDS < 600)); do
   if ! kill -0 $solanaGossipPid; then
-    echo "solana-gossip is no longer running after $SECONDS seconds"
+    echo "aeko-gossip is no longer running after $SECONDS seconds"
     pass=false
     break
   fi
   if ! kill -0 $dosPid; then
-    echo "solana-dos is no longer running after $SECONDS seconds"
+    echo "aeko-dos is no longer running after $SECONDS seconds"
     pass=false
     break
   fi

@@ -1,6 +1,6 @@
 [package]
 name = "aeko-install"
-description = "The solana cluster software installer"
+description = "The aeko cluster software installer"
 documentation = "https://docs.rs/aeko-install"
 version = { workspace = true }
 authors = { workspace = true }

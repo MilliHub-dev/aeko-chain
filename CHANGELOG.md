@@ -9,20 +9,20 @@ and follows a [Backwards Compatibility Policy](https://docs.solanalabs.com/backw
 
 Release channels have their own copy of this changelog:
 * [edge - v2.0](#edge-channel)
-* [beta - v1.18](https://github.com/solana-labs/solana/blob/v1.18/CHANGELOG.md)
-* [stable - v1.17](https://github.com/solana-labs/solana/blob/v1.17/CHANGELOG.md)
+* [beta - v1.18](https://github.com/aeko-labs/aeko/blob/v1.18/CHANGELOG.md)
+* [stable - v1.17](https://github.com/aeko-labs/aeko/blob/v1.17/CHANGELOG.md)
 
 <a name="edge-channel"></a>
 ## [2.0.0] - Unreleased
 * Changes
   * `central-scheduler` as default option for `--block-production-method` (#34891)
-  * `solana-rpc-client-api`: `RpcFilterError` depends on `base64` version 0.22, so users may need to upgrade to `base64` version 0.22
+  * `aeko-rpc-client-api`: `RpcFilterError` depends on `base64` version 0.22, so users may need to upgrade to `base64` version 0.22
 
 ## [1.18.0]
 * Changes
   * Added a github check to support `changelog` label
   * The default for `--use-snapshot-archives-at-startup` is now `when-newest` (#33883)
-    * The default for `solana-ledger-tool`, however, remains `always` (#34228)
+    * The default for `aeko-ledger-tool`, however, remains `always` (#34228)
   * Added `central-scheduler` option for `--block-production-method` (#33890)
   * Updated to Borsh v1
   * Added allow_commission_decrease_at_any_time feature which will allow commission on a vote account to be
@@ -35,11 +35,11 @@ Release channels have their own copy of this changelog:
     new `entries` table
   * Forbid multiple values for the `--signer` CLI flag, forcing users to specify multiple occurrences of `--signer`, one for each signature
   * New program deployments default to the exact size of a program, instead of
-    double the size. Program accounts must be extended with `solana program extend`
+    double the size. Program accounts must be extended with `aeko program extend`
     before an upgrade if they need to accommodate larger programs.
   * Interface for `gossip_service::get_client()` has changed. `gossip_service::get_multi_client()` has been removed.
 * Upgrade Notes
-  * `solana-program` and `solana-sdk` default to support for Borsh v1, with
+  * `aeko-program` and `aeko-sdk` default to support for Borsh v1, with
 limited backward compatibility for v0.10 and v0.9. Please upgrade to Borsh v1.
   * Operators running their own bigtable instances need to create the `entries`
     table before upgrading their warehouse nodes

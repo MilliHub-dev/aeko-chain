@@ -16,7 +16,7 @@ OS := $(shell uname)
 
 LLVM_DIR = $(LOCAL_PATH)../dependencies/platform-tools/llvm
 LLVM_SYSTEM_INC_DIRS := $(LLVM_DIR)/lib/clang/17/include
-COMPILER_RT_DIR = $(LOCAL_PATH)../dependencies/platform-tools/rust/lib/rustlib/sbf-solana-solana/lib
+COMPILER_RT_DIR = $(LOCAL_PATH)../dependencies/platform-tools/rust/lib/rustlib/sbf-aeko-aeko/lib
 STD_INC_DIRS := $(LLVM_DIR)/include
 STD_LIB_DIRS := $(LLVM_DIR)/lib
 
@@ -111,9 +111,9 @@ TEST_CXX_FLAGS := \
 
 help:
 	@echo ''
-	@echo 'Solana VM Program makefile'
+	@echo 'Aeko VM Program makefile'
 	@echo ''
-	@echo 'This makefile will build Solana Programs from C or C++ source files into ELFs'
+	@echo 'This makefile will build Aeko Programs from C or C++ source files into ELFs'
 	@echo ''
 	@echo 'Assumptions:'
 	@echo '  - Programs are located in the source directory: $(SRC_DIR)/<program name>'
@@ -203,10 +203,10 @@ $1: $2
 	$(_@)mkdir -p $(dir $1)
 	$(_@)$(LLD) $(SBF_LLD_FLAGS) -o $1 $2 $(COMPILER_RT_DIR)/libcompiler_builtins-*.rlib
 ifeq (,$(wildcard $(subst .so,-keypair.json,$1)))
-	$(_@)solana-keygen new --no-passphrase --silent -o $(subst .so,-keypair.json,$1)
+	$(_@)aeko-keygen new --no-passphrase --silent -o $(subst .so,-keypair.json,$1)
 endif
 	@echo To deploy this program:
-	@echo $$$$ solana program deploy $(abspath $1)
+	@echo $$$$ aeko program deploy $(abspath $1)
 endef
 
 define TEST_C_RULE

@@ -1,12 +1,12 @@
 //! Loading signers and keypairs from the command line.
 //!
 //! This module contains utilities for loading [Signer]s and [Keypair]s from
-//! standard signing sources, from the command line, as in the Solana CLI.
+//! standard signing sources, from the command line, as in the Aeko CLI.
 //!
 //! The key function here is [`signer_from_path`], which loads a `Signer` from
 //! one of several possible sources by interpreting a "path" command line
 //! argument. Its documentation includes a description of all possible signing
-//! sources supported by the Solana CLI. Many other functions here are
+//! sources supported by the Aeko CLI. Many other functions here are
 //! variations on, or delegate to, `signer_from_path`.
 
 use {
@@ -174,7 +174,7 @@ impl DefaultSigner {
                     std::io::Error::new(
                         std::io::ErrorKind::Other,
                         format!(
-                        "No default signer found, run \"solana-keygen new -o {}\" to create a new one",
+                        "No default signer found, run \"aeko-keygen new -o {}\" to create a new one",
                         self.path
                     ),
                     )
@@ -655,7 +655,7 @@ pub fn signer_from_source_with_config(
         SignerSourceKind::Filepath(path) => match read_keypair_file(path) {
             Err(e) => Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("could not read keypair file \"{path}\". Run \"solana-keygen new\" to create a keypair file: {e}"),
+                format!("could not read keypair file \"{path}\". Run \"aeko-keygen new\" to create a keypair file: {e}"),
             )
             .into()),
             Ok(file) => Ok(Box::new(file)),
@@ -799,7 +799,7 @@ pub fn resolve_signer_from_source(
                 std::io::ErrorKind::Other,
                 format!(
                     "could not read keypair file \"{path}\". \
-                    Run \"solana-keygen new\" to create a keypair file: {e}"
+                    Run \"aeko-keygen new\" to create a keypair file: {e}"
                 ),
             )
             .into()),
@@ -1076,7 +1076,7 @@ fn encodable_key_from_source<K: EncodableKey + SeedDerivable>(
                 std::io::ErrorKind::Other,
                 format!(
                     "could not read keypair file \"{path}\". \
-                    Run \"solana-keygen new\" to create a keypair file: {e}"
+                    Run \"aeko-keygen new\" to create a keypair file: {e}"
                 ),
             )
             .into()),
