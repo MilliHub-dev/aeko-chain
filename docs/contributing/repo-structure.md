@@ -4,32 +4,35 @@ This document outlines the high-level structure of the AEKO Chain repository.
 
 ```
 aeko-chain/
-├── protocol/       # Core blockchain specs and consensus logic
-├── contracts/      # Smart contracts (System programs & Examples)
-├── node/           # Node implementation (Validator & RPC)
-├── sdk/            # Client SDKs (Rust, TypeScript, Python)
-├── docs/           # Documentation (Architecture, Guides, API)
+├── programs/       # Native on-chain programs
+├── core/           # Validator pipeline and consensus orchestration
+├── runtime/        # Bank and state-transition logic
+├── validator/      # Validator binaries and operator CLI
+├── rpc/            # JSON-RPC services
+├── sdk/            # Rust SDK and SBF tooling
+├── system-test/    # Multi-node and operator integration scripts
+├── web/            # Documentation and marketing web app
+├── docs/           # Product and protocol documentation
+├── protocol/       # Reserved for future protocol-design extracts
+└── contracts/      # Reserved for future contract examples/tests
 ```
 
 ## Directory Details
 
-### `protocol/`
-Contains the core specifications and cryptographic primitives used by the chain. This is the "brain" of AEKO.
+### `programs/`
+Contains the native on-chain programs that are compiled into the current validator runtime, such as system, vote, stake, loader, config, and compute-budget programs.
 
-### `contracts/`
-Contains the native programs (Smart Contracts) that run on the AEKO SVM.
-*   **System Programs**: Governance, Token, Permission Layer.
-*   **Examples**: Reference implementations for developers.
+### `core/`, `runtime/`, `svm/`, `program-runtime/`
+Contain the validator execution pipeline, replay logic, Bank/state transition logic, and runtime support crates.
 
-### `node/`
-The actual binary implementation of the AEKO Validator and RPC node.
-*   Run this to participate in the network.
+### `validator/` and `rpc/`
+Contain the validator binaries, operator-facing CLI surface, admin RPC, and JSON-RPC services.
 
 ### `sdk/`
-Libraries for developers to interact with the chain.
-*   `js/`: TypeScript/JavaScript SDK.
-*   `rust/`: Rust Crate.
-*   `py/`: Python Package.
+Contains the Rust SDK, program SDK, and SBF developer tooling that applications and on-chain programs use today.
 
 ### `docs/`
-The source code for the documentation you are reading right now.
+Contains the AEKO architecture, roadmap, governance, wallet, bridge, permission-layer, and token-standard documentation.
+
+### `protocol/` and `contracts/`
+These directories are currently placeholders. They should not be treated as evidence that the corresponding AEKO-specific protocol modules have already been implemented.

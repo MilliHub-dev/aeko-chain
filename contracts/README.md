@@ -1,8 +1,7 @@
 # Smart Contracts
 
-This directory contains the native programs (Smart Contracts) that run on the AEKO SVM.
+This directory is reserved for future contract-specific examples and integration tests.
 
-## Structure
-*   `system/`: Core programs (Governance, Token, Permission Layer).
-*   `examples/`: Reference implementations for developers.
-*   `tests/`: Integration tests for contracts.
+Today, the native on-chain programs that actually compile into the validator live under `programs/`.
+
+The AEKO-specific contract families described in `docs/` such as permission-layer programs, governance extensions, bridge logic, and AEKO token extensions do not have a dedicated `contracts/` implementation tree yet.

@@ -17,7 +17,7 @@ You will need:
 
 ## Submitting a PR
 
-1.  Ensure all tests pass (`cargo test`).
-2.  Run the linter (`cargo fmt` and `cargo clippy`).
+1.  Ensure the workspace builds and tests pass (`cargo build --workspace` and `cargo test --workspace`).
+2.  Run the linter (`cargo fmt --check` and `cargo clippy --workspace --all-targets`).
 3.  Open a Pull Request describing your changes in detail.
 4.  Link any relevant Issues (e.g., "Fixes #123").

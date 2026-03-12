@@ -10,11 +10,11 @@ openbook_dex() {
     cd openbook-dex || exit 1
 
     update_aeko_dependencies . "$AEKO_VER"
-    patch_crates_io_solana Cargo.toml "$AEKO_DIR"
+    patch_crates_io_aeko Cargo.toml "$AEKO_DIR"
     cat >> Cargo.toml <<EOF
 anchor-lang = { git = "https://github.com/coral-xyz/anchor.git", branch = "master" }
 EOF
-    patch_crates_io_solana dex/Cargo.toml "$AEKO_DIR"
+    patch_crates_io_aeko dex/Cargo.toml "$AEKO_DIR"
     cat >> dex/Cargo.toml <<EOF
 anchor-lang = { git = "https://github.com/coral-xyz/anchor.git", branch = "master" }
 [workspace]

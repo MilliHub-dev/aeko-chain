@@ -19,34 +19,34 @@ otherVersions=(
   edge
 )
 
-solanaInstallDataDir=$PWD/releases
-solanaInstallGlobalOpts=(
-  --data-dir "$solanaInstallDataDir"
-  --config "$solanaInstallDataDir"/config.yml
+aekoInstallDataDir=$PWD/releases
+aekoInstallGlobalOpts=(
+  --data-dir "$aekoInstallDataDir"
+  --config "$aekoInstallDataDir"/config.yml
   --no-modify-path
 )
 
 # Install all the aeko versions
 bootstrapInstall() {
   declare v=$1
-  if [[ ! -h $solanaInstallDataDir/active_release ]]; then
-    sh "$AEKO_ROOT"/install/aeko-install-init.sh "$v" "${solanaInstallGlobalOpts[@]}"
+  if [[ ! -h $aekoInstallDataDir/active_release ]]; then
+    sh "$AEKO_ROOT"/install/aeko-install-init.sh "$v" "${aekoInstallGlobalOpts[@]}"
   fi
-  export PATH="$solanaInstallDataDir/active_release/bin/:$PATH"
+  export PATH="$aekoInstallDataDir/active_release/bin/:$PATH"
 }
 
 bootstrapInstall "$baselineVersion"
 for v in "${otherVersions[@]}"; do
-  aeko-install-init "${solanaInstallGlobalOpts[@]}" "$v"
+  aeko-install-init "${aekoInstallGlobalOpts[@]}" "$v"
   aeko -V
 done
 
 
 ORIGINAL_PATH=$PATH
-solanaInstallUse() {
+aekoInstallUse() {
   declare version=$1
   echo "--- Now using aeko $version"
-  AEKO_BIN="$solanaInstallDataDir/releases/$version/aeko-release/bin"
+  AEKO_BIN="$aekoInstallDataDir/releases/$version/aeko-release/bin"
   export PATH="$AEKO_BIN:$ORIGINAL_PATH"
 }
 
@@ -57,7 +57,7 @@ killSession() {
 export RUST_BACKTRACE=1
 
 # Start up the bootstrap validator using the baseline version
-solanaInstallUse "$baselineVersion"
+aekoInstallUse "$baselineVersion"
 echo "--- Starting $baselineVersion bootstrap validator"
 trap 'killSession' INT TERM ERR EXIT
 killSession
@@ -85,7 +85,7 @@ killSession
 
 # Ensure all versions can see the bootstrap validator
 for v in "${otherVersions[@]}"; do
-  solanaInstallUse "$v"
+  aekoInstallUse "$v"
   echo "--- Looking for bootstrap validator on gossip"
   (
     set -x
@@ -105,7 +105,7 @@ done
 nodeCount=1
 for v in "${otherVersions[@]}"; do
   nodeCount=$((nodeCount + 1))
-  solanaInstallUse "$v"
+  aekoInstallUse "$v"
   # start another validator
   ledger="$ledgerDir"/ledger-"$v"
   rm -rf "$ledger"

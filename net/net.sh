@@ -245,25 +245,25 @@ startCommon() {
   declare ipAddress=$1
   declare remoteHome
   remoteHome=$(remoteHomeDir "$ipAddress")
-  local remoteSolanaHome="${remoteHome}/aeko"
+  local remoteAekoHome="${remoteHome}/aeko"
   local remoteCargoBin="${remoteHome}/.cargo/bin"
   test -d "$AEKO_ROOT"
   if $skipSetup; then
     # shellcheck disable=SC2029
     ssh "${sshOptions[@]}" "$ipAddress" "
       set -x;
-      mkdir -p $remoteSolanaHome/config;
+      mkdir -p $remoteAekoHome/config;
       rm -rf ~/config;
-      mv $remoteSolanaHome/config ~;
-      rm -rf $remoteSolanaHome;
-      mkdir -p $remoteSolanaHome $remoteCargoBin;
-      mv ~/config $remoteSolanaHome/
+      mv $remoteAekoHome/config ~;
+      rm -rf $remoteAekoHome;
+      mkdir -p $remoteAekoHome $remoteCargoBin;
+      mv ~/config $remoteAekoHome/
     "
   else
     # shellcheck disable=SC2029
     ssh "${sshOptions[@]}" "$ipAddress" "
       set -x;
-      rm -rf $remoteSolanaHome;
+      rm -rf $remoteAekoHome;
       mkdir -p $remoteCargoBin
     "
   fi
@@ -276,11 +276,11 @@ syncScripts() {
   declare ipAddress=$1
   declare remoteHome
   remoteHome=$(remoteHomeDir "$ipAddress")
-  local remoteSolanaHome="${remoteHome}/aeko"
+  local remoteAekoHome="${remoteHome}/aeko"
   rsync -vPrc -e "ssh ${sshOptions[*]}" \
     --exclude 'net/log*' \
     "$AEKO_ROOT"/{fetch-perf-libs.sh,fetch-spl.sh,scripts,net,multinode-demo} \
-    "$ipAddress":"$remoteSolanaHome"/ > /dev/null
+    "$ipAddress":"$remoteAekoHome"/ > /dev/null
 }
 
 # Deploy local binaries to bootstrap validator.  Other validators and clients later fetch the
@@ -392,7 +392,7 @@ startNode() {
         timeout 30s scp "${sshOptions[@]}" "$localArchive" "$ipAddress:letsencrypt.tgz"
       fi
       ssh "${sshOptions[@]}" -n "$ipAddress" \
-        "sudo -H /certbot-restore.sh $letsEncryptDomainName maintainers@solanalabs.com"
+        "sudo -H /certbot-restore.sh $letsEncryptDomainName maintainers@aeko.chain"
       rm -f letsencrypt.tgz
       timeout 30s scp "${sshOptions[@]}" "$ipAddress:/letsencrypt.tgz" letsencrypt.tgz
       test -s letsencrypt.tgz # Ensure non-empty before overwriting $localArchive
@@ -1202,8 +1202,8 @@ netem)
     if [[ $netemCommand = "add" ]]; then
       for ipAddress in "${validatorIpList[@]}"; do
         remoteHome=$(remoteHomeDir "$ipAddress")
-        remoteSolanaHome="${remoteHome}/aeko"
-        "$here"/scp.sh "$netemConfigFile" aeko@"$ipAddress":"$remoteSolanaHome"
+        remoteAekoHome="${remoteHome}/aeko"
+        "$here"/scp.sh "$netemConfigFile" aeko@"$ipAddress":"$remoteAekoHome"
       done
     fi
     for i in "${!validatorIpList[@]}"; do

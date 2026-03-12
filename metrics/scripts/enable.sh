@@ -1,6 +1,6 @@
 # |source| this file to enable metrics in the current shell
 
-echoSolanaMetricsConfig() {
+echoAekoMetricsConfig() {
   declare metrics_config_sh
   metrics_config_sh="$(dirname "${BASH_SOURCE[0]}")"/lib/config.sh
   if [[ ! -f "$metrics_config_sh" ]]; then
@@ -14,9 +14,9 @@ echoSolanaMetricsConfig() {
   )
 }
 
-AEKO_METRICS_CONFIG=$(echoSolanaMetricsConfig)
+AEKO_METRICS_CONFIG=$(echoAekoMetricsConfig)
 export AEKO_METRICS_CONFIG
-unset -f echoSolanaMetricsConfig
+unset -f echoAekoMetricsConfig
 
 __configure_metrics_sh="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../.. || true; pwd)"/scripts/configure-metrics.sh
 if [[ -f $__configure_metrics_sh ]]; then

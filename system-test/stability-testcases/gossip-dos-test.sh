@@ -8,20 +8,20 @@ logDir="$PWD"/logs
 rm -rf "$logDir"
 mkdir "$logDir"
 
-solanaInstallDataDir=$PWD/releases
-solanaInstallGlobalOpts=(
-  --data-dir "$solanaInstallDataDir"
-  --config "$solanaInstallDataDir"/config.yml
+aekoInstallDataDir=$PWD/releases
+aekoInstallGlobalOpts=(
+  --data-dir "$aekoInstallDataDir"
+  --config "$aekoInstallDataDir"/config.yml
   --no-modify-path
 )
 
 # Install all the aeko versions
 bootstrapInstall() {
   declare v=$1
-  if [[ ! -h $solanaInstallDataDir/active_release ]]; then
-    sh "$AEKO_ROOT"/install/aeko-install-init.sh "$v" "${solanaInstallGlobalOpts[@]}"
+  if [[ ! -h $aekoInstallDataDir/active_release ]]; then
+    sh "$AEKO_ROOT"/install/aeko-install-init.sh "$v" "${aekoInstallGlobalOpts[@]}"
   fi
-  export PATH="$solanaInstallDataDir/active_release/bin/:$PATH"
+  export PATH="$aekoInstallDataDir/active_release/bin/:$PATH"
 }
 
 bootstrapInstall "edge"
@@ -32,8 +32,8 @@ aeko-dos --version
 
 killall aeko-gossip || true
 aeko-gossip spy --gossip-port 8001 > "$logDir"/gossip.log 2>&1 &
-solanaGossipPid=$!
-echo "aeko-gossip pid: $solanaGossipPid"
+aekoGossipPid=$!
+echo "aeko-gossip pid: $aekoGossipPid"
 sleep 5
 aeko-dos --mode gossip --data-type random --data-size 1232 &
 dosPid=$!
@@ -43,7 +43,7 @@ pass=true
 
 SECONDS=
 while ((SECONDS < 600)); do
-  if ! kill -0 $solanaGossipPid; then
+  if ! kill -0 $aekoGossipPid; then
     echo "aeko-gossip is no longer running after $SECONDS seconds"
     pass=false
     break
@@ -56,7 +56,7 @@ while ((SECONDS < 600)); do
   sleep 1
 done
 
-kill $solanaGossipPid || true
+kill $aekoGossipPid || true
 kill $dosPid || true
 wait || true
 

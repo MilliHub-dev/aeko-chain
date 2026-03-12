@@ -100,7 +100,7 @@
     },
     "Native Syscalls": {
       "title": "Native Syscalls",
-      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Native Syscalls</h1><p class='text-gray-300'>AEKO introduces specific syscalls for the Permission Layer that are not found in standard SVM.</p><ul class='list-disc list-inside space-y-2 text-gray-400 mt-4'><li><code>sol_get_clearance_level(pubkey)</code>: Returns the L0-L5 clearance of a user.</li><li><code>sol_verify_content_signature(data, signature, pubkey)</code>: Verifies a content signature on-chain cheaply.</li></ul></div>"
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Native Runtime Helpers</h1><p class='text-gray-300'>AEKO's permission-layer design calls for native runtime helpers that expose clearance levels and verify content signatures without routing through general-purpose programs.</p><ul class='list-disc list-inside space-y-2 text-gray-400 mt-4'><li>Clearance-level lookup for transaction gating.</li><li>Content-signature verification for social proofs and moderation workflows.</li></ul></div>"
     },
     "Security Best Practices": {
       "title": "Security Best Practices",

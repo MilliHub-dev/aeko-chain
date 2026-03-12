@@ -193,7 +193,7 @@ fn test_aeko_package(
     );
 }
 
-fn test_solana(config: Config, manifest_path: Option<PathBuf>) {
+fn test_aeko(config: Config, manifest_path: Option<PathBuf>) {
     let mut metadata_command = cargo_metadata::MetadataCommand::new();
     if let Some(manifest_path) = manifest_path.as_ref() {
         metadata_command.manifest_path(manifest_path);
@@ -418,5 +418,5 @@ fn main() {
     }
 
     let manifest_path: Option<PathBuf> = matches.value_of_t("manifest_path").ok();
-    test_solana(config, manifest_path);
+    test_aeko(config, manifest_path);
 }

@@ -31,3 +31,4 @@ Welcome to the official documentation for **AEKO Chain**, the SocialFi and FinTe
 
 *   [**Contributing**](./contributing/contributing.md): How to contribute to the codebase.
 *   [**Security**](./security/threat-model.md): Report vulnerabilities.
+*   [**Implementation Audit**](./rebrand-inventory.md): Current rebranding status, compatibility exceptions, and feature-gap audit.

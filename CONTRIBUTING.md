@@ -255,8 +255,8 @@ before the PR can be merged.  Here are the steps:
 name = "aeko-<PACKAGE_NAME>"
 version = "0.0.1"
 description = "<DESCRIPTION>"
-authors = ["Aeko Labs Maintainers <maintainers@solanalabs.com>"]
-repository = "https://github.com/aeko-labs/aeko"
+authors = ["Aeko Labs Maintainers <maintainers@aeko.chain>"]
+repository = "https://github.com/MilliHub-dev/aeko-chain"
 homepage = "https://aeko.chain/"
 documentation = "https://docs.rs/aeko-<PACKAGE_NAME>"
 license = "Apache-2.0"
@@ -318,14 +318,14 @@ confused with 3-letter acronyms.
 [Terms currently in use](https://aeko.chain/docs/terminology)
 
 
-## Design Proposals
+## Design Documentation
 
-This Aeko validator client's architecture is described by docs generated from markdown files in the `docs/src/`
-directory and viewable on the official [Aeko Labs Validator Client](https://docs.solanalabs.com) documentation website.
+This repository's architecture and product specifications live in the top-level `docs/` directory.
 
-Current design proposals may be viewed on the docs site:
+Start with:
 
-1. [Accepted Proposals](https://docs.solanalabs.com/proposals/accepted-design-proposals)
-2. [Implemented Proposals](https://docs.solanalabs.com/implemented-proposals/implemented-proposals)
+1. [Documentation index](./docs/README.md)
+2. [Architecture overview](./docs/introduction/architecture-overview.md)
+3. [Repository structure](./docs/contributing/repo-structure.md)
 
-New design proposals should follow this guide on [how to submit a design proposal](./docs/src/proposals.md#submit-a-design-proposal).
+If your change alters architecture, protocol behavior, or operator workflows, update the relevant files in `docs/` in the same pull request.

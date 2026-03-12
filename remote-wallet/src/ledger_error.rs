@@ -69,22 +69,22 @@ pub enum LedgerError {
     UserCancel = 0x6985,
 
     #[error("Ledger received invalid Aeko message")]
-    SolanaInvalidMessage = 0x6a80,
+    AekoInvalidMessage = 0x6a80,
 
     #[error("Ledger received message with invalid header")]
-    SolanaInvalidMessageHeader = 0x6a81,
+    AekoInvalidMessageHeader = 0x6a81,
 
     #[error("Ledger received message in invalid format")]
-    SolanaInvalidMessageFormat = 0x6a82,
+    AekoInvalidMessageFormat = 0x6a82,
 
     #[error("Ledger received message with invalid size")]
-    SolanaInvalidMessageSize = 0x6a83,
+    AekoInvalidMessageSize = 0x6a83,
 
     #[error("Aeko summary finalization failed on Ledger device")]
-    SolanaSummaryFinalizeFailed = 0x6f00,
+    AekoSummaryFinalizeFailed = 0x6f00,
 
     #[error("Aeko summary update failed on Ledger device")]
-    SolanaSummaryUpdateFailed = 0x6f01,
+    AekoSummaryUpdateFailed = 0x6f01,
 
     #[error("Ledger received unimplemented instruction")]
     UnimplementedInstruction = 0x6d00,

@@ -851,7 +851,7 @@ fn build_aeko_package(
     }
 }
 
-fn build_solana(config: Config, manifest_path: Option<PathBuf>) {
+fn build_aeko(config: Config, manifest_path: Option<PathBuf>) {
     let mut metadata_command = cargo_metadata::MetadataCommand::new();
     if let Some(manifest_path) = manifest_path {
         metadata_command.manifest_path(manifest_path);
@@ -1125,5 +1125,5 @@ fn main() {
         debug!("{:?}", config);
         debug!("manifest_path: {:?}", manifest_path);
     }
-    build_solana(config, manifest_path);
+    build_aeko(config, manifest_path);
 }

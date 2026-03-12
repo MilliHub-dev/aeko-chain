@@ -64,12 +64,12 @@ def is_self_dev_dep_with_dev_context_only_utils(package, dependency, wrong_self_
     return is_special_cased
 
 def should_add(package, dependency, wrong_self_dev_dependencies):
-    related_to_solana = dependency['name'].startswith('aeko')
+    related_to_aeko = dependency['name'].startswith('aeko')
     self_dev_dep_with_dev_context_only_utils = is_self_dev_dep_with_dev_context_only_utils(
         package, dependency, wrong_self_dev_dependencies
     )
 
-    return related_to_solana and not self_dev_dep_with_dev_context_only_utils
+    return related_to_aeko and not self_dev_dep_with_dev_context_only_utils
 
 def get_packages():
     metadata = load_metadata()

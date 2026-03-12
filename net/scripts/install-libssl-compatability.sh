@@ -9,7 +9,7 @@ apt-get update
 apt-get --assume-yes install libssl-dev
 
 # Install libssl1.1 to be compatible with binaries built in the
-# solanalabs/rust docker image
+# project CI docker image
 #
 # cc: https://github.com/aeko-labs/aeko/issues/1090
 apt-get --assume-yes install libssl1.1
