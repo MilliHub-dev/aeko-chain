@@ -253,7 +253,7 @@ impl AdminRpc for AdminRpcImpl {
         debug!("exit admin rpc request received");
 
         thread::Builder::new()
-            .name("solProcessExit".into())
+            .name("aekoProcessExit".into())
             .spawn(move || {
                 // Delay exit signal until this RPC request completes, otherwise the caller of `exit` might
                 // receive a confusing error as the validator shuts down before a response is sent back.
@@ -292,7 +292,7 @@ impl AdminRpc for AdminRpcImpl {
                         config_file,
                         response_sender,
                     })
-                    .expect("GeyerPluginService should never drop request receiver");
+                    .expect("GeyserPluginService should never drop request receiver");
             } else {
                 return Err(jsonrpc_core::Error {
                     code: ErrorCode::InvalidRequest,
@@ -304,7 +304,7 @@ impl AdminRpc for AdminRpcImpl {
             // Await response from plugin manager
             response_receiver
                 .await
-                .expect("GeyerPluginService's oneshot sender shouldn't drop early")
+                .expect("GeyserPluginService's oneshot sender shouldn't drop early")
         })
     }
 
@@ -320,7 +320,7 @@ impl AdminRpc for AdminRpcImpl {
                         config_file,
                         response_sender,
                     })
-                    .expect("GeyerPluginService should never drop request receiver");
+                    .expect("GeyserPluginService should never drop request receiver");
             } else {
                 return Err(jsonrpc_core::Error {
                     code: ErrorCode::InvalidRequest,
@@ -332,7 +332,7 @@ impl AdminRpc for AdminRpcImpl {
             // Await response from plugin manager
             response_receiver
                 .await
-                .expect("GeyerPluginService's oneshot sender shouldn't drop early")
+                .expect("GeyserPluginService's oneshot sender shouldn't drop early")
         })
     }
 
@@ -348,7 +348,7 @@ impl AdminRpc for AdminRpcImpl {
                         name,
                         response_sender,
                     })
-                    .expect("GeyerPluginService should never drop request receiver");
+                    .expect("GeyserPluginService should never drop request receiver");
             } else {
                 return Err(jsonrpc_core::Error {
                     code: ErrorCode::InvalidRequest,
@@ -360,7 +360,7 @@ impl AdminRpc for AdminRpcImpl {
             // Await response from plugin manager
             response_receiver
                 .await
-                .expect("GeyerPluginService's oneshot sender shouldn't drop early")
+                .expect("GeyserPluginService's oneshot sender shouldn't drop early")
         })
     }
 
@@ -373,7 +373,7 @@ impl AdminRpc for AdminRpcImpl {
             if let Some(ref rpc_to_manager_sender) = meta.rpc_to_plugin_manager_sender {
                 rpc_to_manager_sender
                     .send(GeyserPluginManagerRequest::ListPlugins { response_sender })
-                    .expect("GeyerPluginService should never drop request receiver");
+                    .expect("GeyserPluginService should never drop request receiver");
             } else {
                 return Err(jsonrpc_core::Error {
                     code: ErrorCode::InvalidRequest,
@@ -385,7 +385,7 @@ impl AdminRpc for AdminRpcImpl {
             // Await response from plugin manager
             response_receiver
                 .await
-                .expect("GeyerPluginService's oneshot sender shouldn't drop early")
+                .expect("GeyserPluginService's oneshot sender shouldn't drop early")
         })
     }
 
