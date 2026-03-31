@@ -9,6 +9,7 @@ import Explorer from './pages/Explorer';
 import TransactionDetails from './pages/TransactionDetails';
 import BlockDetails from './pages/BlockDetails';
 import Bridge from './pages/Bridge';
+import NftDemo from './pages/NftDemo';
 import ScrollToTop from './components/ScrollToTop';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
         <Route path="/explorer/tx/:hash" element={<TransactionDetails />} />
         <Route path="/explorer/block/:height" element={<BlockDetails />} />
         <Route path="/bridge" element={<Bridge />} />
+        <Route path="/nft-demo" element={<NftDemo />} />
       </Routes>
     </Layout>
   );

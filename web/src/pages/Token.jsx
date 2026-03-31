@@ -314,7 +314,11 @@ delegator_pool = gross_reward * (1 - commission_rate)`}
               <ul className="space-y-2 text-sm text-gray-300">
                 <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-aeko-accent"/> Unique token IDs and metadata URI validation</li>
                 <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-aeko-accent"/> Creator royalties and SocialFi metadata extensions</li>
+                <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-aeko-accent"/> Freeze / thaw controls for moderation-aware NFT flows</li>
               </ul>
+              <Link to="/nft-demo" className="inline-flex items-center gap-2 mt-6 text-aeko-accent hover:text-white transition-colors text-sm font-medium">
+                Open AEKO-721 Demo <ArrowRight size={14} />
+              </Link>
             </div>
           </div>
         </div>

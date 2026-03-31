@@ -1576,6 +1576,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "aeko-public-mint-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "aeko-token-20-program",
+ "aeko-tokenomics-program",
+ "borsh 1.2.1",
+]
+
+[[package]]
 name = "aeko-pubsub-client"
 version = "2.0.0"
 dependencies = [
@@ -2188,6 +2200,38 @@ dependencies = [
  "bincode",
  "log",
  "rayon",
+]
+
+[[package]]
+name = "aeko-token-20-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "aeko-tokenomics-program",
+ "borsh 1.2.1",
+]
+
+[[package]]
+name = "aeko-token-721-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "borsh 1.2.1",
+]
+
+[[package]]
+name = "aeko-tokenomics-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "borsh 1.2.1",
+ "serde",
 ]
 
 [[package]]

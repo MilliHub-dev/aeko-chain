@@ -69,8 +69,12 @@ members = [
     "programs/config",
     "programs/ed25519-tests",
     "programs/loader-v4",
+    "programs/public-mint",
     "programs/stake",
     "programs/system",
+    "programs/token-20",
+    "programs/token-721",
+    "programs/tokenomics",
     "programs/vote",
     "programs/zk-token-proof",
     "programs/zk-token-proof-tests",
@@ -355,6 +359,7 @@ aeko-poh = { path = "poh", version = "=2.0.0" }
 aeko-program = { path = "sdk/program", version = "=2.0.0" }
 aeko-program-runtime = { path = "program-runtime", version = "=2.0.0" }
 aeko-program-test = { path = "program-test", version = "=2.0.0" }
+aeko-public-mint-program = { path = "programs/public-mint", version = "=2.0.0" }
 aeko-pubsub-client = { path = "pubsub-client", version = "=2.0.0" }
 aeko-quic-client = { path = "quic-client", version = "=2.0.0" }
 aeko-rayon-threadlimit = { path = "rayon-threadlimit", version = "=2.0.0" }
@@ -376,6 +381,9 @@ aeko-storage-proto = { path = "storage-proto", version = "=2.0.0" }
 aeko-streamer = { path = "streamer", version = "=2.0.0" }
 aeko-svm = { path = "svm", version = "=2.0.0" }
 aeko-system-program = { path = "programs/system", version = "=2.0.0" }
+aeko-token-20-program = { path = "programs/token-20", version = "=2.0.0" }
+aeko-token-721-program = { path = "programs/token-721", version = "=2.0.0" }
+aeko-tokenomics-program = { path = "programs/tokenomics", version = "=2.0.0" }
 aeko-test-validator = { path = "test-validator", version = "=2.0.0" }
 aeko-thin-client = { path = "thin-client", version = "=2.0.0" }
 aeko-tpu-client = { path = "tpu-client", version = "=2.0.0", default-features = false }
@@ -436,7 +444,7 @@ zeroize = { version = "1.3", default-features = false }
 zstd = "0.11.2"
 
 [patch.crates-io]
-# for details, see https://github.com/aeko-labs/crossbeam/commit/fd279d707025f0e60951e429bf778b4813d1b6bf
+# for details, see https://github.com/MilliHub-dev/aeko-chain/
 crossbeam-epoch = { git = "https://github.com/crossbeam-rs/crossbeam", rev = "fd279d707025f0e60951e429bf778b4813d1b6bf" }
 
 # We include the following crates as our dependencies above from crates.io:

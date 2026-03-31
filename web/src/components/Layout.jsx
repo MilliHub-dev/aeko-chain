@@ -12,6 +12,7 @@ const Navbar = () => {
     { name: 'Home', path: '/' },
     { name: 'Docs', path: '/docs' },
     { name: 'Token', path: '/token' },
+    { name: 'NFT Demo', path: '/nft-demo' },
     { name: 'Developers', path: '/developers' },
     { name: 'Bridge', path: '/bridge' },
     { name: 'Contact', path: '/contact' },
@@ -166,6 +167,7 @@ const Footer = () => {
             <h3 className="font-bold mb-4">Ecosystem</h3>
             <ul className="space-y-2 text-gray-400">
               <li><Link to="/token" className="hover:text-aeko-accent">Tokenomics</Link></li>
+              <li><Link to="/nft-demo" className="hover:text-aeko-accent">AEKO-721 Demo</Link></li>
               <li><Link to="/developers" className="hover:text-aeko-accent">Build on Aeko</Link></li>
               <li><Link to="/explorer" className="hover:text-aeko-accent">Explorer/Aeko Scan</Link></li>
               <li><Link to="/bridge" className="hover:text-aeko-accent">Bridge</Link></li>

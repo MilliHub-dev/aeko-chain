@@ -1,0 +1,23 @@
+[package]
+name = "aeko-token-721-program"
+description = "AEKO-721 NFT reference program"
+documentation = "https://github.com/MilliHub-dev/aeko-chain/tree/main/programs/token-721"
+version = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+borsh = { workspace = true }
+aeko-program = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
+
+[lib]
+crate-type = ["lib"]
+name = "aeko_token_721_program"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]

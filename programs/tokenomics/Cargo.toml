@@ -1,0 +1,28 @@
+[package]
+name = "aeko-tokenomics-program"
+description = "AEKO Tokenomics program"
+documentation = "https://github.com/MilliHub-dev/aeko-chain/tree/main/programs/tokenomics"
+version = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+borsh = { workspace = true }
+serde = { workspace = true, optional = true }
+aeko-program = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
+
+[features]
+default = []
+serde = ["dep:serde"]
+
+[lib]
+crate-type = ["lib"]
+name = "aeko_tokenomics_program"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
