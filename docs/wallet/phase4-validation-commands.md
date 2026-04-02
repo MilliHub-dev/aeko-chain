@@ -13,11 +13,23 @@ Use it with:
 Source:
 
 - [`wallet-core/examples/keystore_validation.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/keystore_validation.rs)
+- [`wallet-core/examples/keystore_testnet_submit.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/keystore_testnet_submit.rs)
 
 Command:
 
 ```bash
 cargo run -p aeko-wallet-core --example keystore_validation
+```
+
+Live testnet submission:
+
+```bash
+AEKO_TESTNET_RPC=https://api.testnet.aeko.chain \
+AEKO_WALLET_KEYSTORE_PATH=/path/to/keystore.json \
+AEKO_WALLET_PASSWORD=... \
+AEKO_RECIPIENT_PUBKEY=<recipient-pubkey> \
+AEKO_TRANSFER_LAMPORTS=1000000 \
+cargo run -p aeko-wallet-core --example keystore_testnet_submit
 ```
 
 What it proves:
@@ -35,17 +47,31 @@ What to capture:
 - wallet DID
 - stateless payload hash
 - batch count
+- live transfer tx signature
 
 ## Wallet Permissions Helper
 
 Source:
 
 - [`wallet-core/examples/permission_validation.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/permission_validation.rs)
+- [`wallet-core/examples/permissions_testnet_submit.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/permissions_testnet_submit.rs)
 
 Command:
 
 ```bash
 cargo run -p aeko-wallet-core --example permission_validation
+```
+
+Live testnet submission:
+
+```bash
+AEKO_TESTNET_RPC=https://api.testnet.aeko.chain \
+AEKO_WALLET_KEYSTORE_PATH=/path/to/keystore.json \
+AEKO_WALLET_PASSWORD=... \
+AEKO_DELEGATE_PUBKEY=<delegate-pubkey> \
+AEKO_ALLOWED_PROGRAM_ID=<allowed-program-pubkey> \
+AEKO_WALLET_PERMISSIONS_PROGRAM_ID=<deployed-permissions-program-id> \
+cargo run -p aeko-wallet-core --example permissions_testnet_submit
 ```
 
 What it proves:
@@ -62,6 +88,9 @@ What to capture:
 - audit log address
 - delegate pubkey
 - signed transaction counts
+- initialize, grant, freeze, unfreeze, update, and revoke tx signatures
+- over-cap rejection output
+- allowlist rejection output
 
 ## Compile-Only Verification
 

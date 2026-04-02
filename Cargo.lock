@@ -2563,6 +2563,7 @@ name = "aeko-wallet-core"
 version = "2.0.0"
 dependencies = [
  "aeko-remote-wallet",
+ "aeko-rpc-client",
  "aeko-sdk",
  "aeko-wallet-permissions-program",
  "aes-gcm-siv",
