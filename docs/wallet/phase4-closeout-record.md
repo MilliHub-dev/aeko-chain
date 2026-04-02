@@ -33,23 +33,24 @@ Use this document as the single source of truth for the final Phase 4 release va
 ## JavaScript SDK
 
 - planned first public version: `0.1.0`
-- package version:
-- npm package URL:
-- publish date:
-- release owner:
+- package version: `0.1.0`
+- npm package URL: `https://www.npmjs.com/package/@aeko-chain/web3.js`
+- publish date: `2026-04-02`
+- release owner: `aeko_foundation`
 
 ## Node.js SDK
 
 - planned first public version: `0.1.0`
-- package version:
-- npm package URL:
-- publish date:
-- release owner:
+- package version: `0.1.0`
+- npm package URL: `https://www.npmjs.com/package/@aeko-chain/sdk`
+- publish date: `2026-04-02`
+- release owner: `aeko_foundation`
 
 ## Rust SDK
 
-- planned first public version: `0.1.0`
-- crate version:
+- planned first public version: `2.0.0`
+- current publish status: standalone refactor verified locally; ready for crates.io publish after commit/version decision
+- crate version: `2.0.0`
 - crates.io URL:
 - docs.rs URL:
 - publish date:
@@ -58,10 +59,10 @@ Use this document as the single source of truth for the final Phase 4 release va
 ## Python SDK
 
 - planned first public version: `0.1.0`
-- package version:
-- PyPI URL:
-- publish date:
-- release owner:
+- package version: `0.1.0`
+- PyPI URL: `https://pypi.org/project/aeko-sdk/0.1.0/`
+- publish date: `2026-04-02`
+- release owner: `aeko_foundation`
 
 ## Verification
 
@@ -77,8 +78,8 @@ Use this document as the single source of truth for the final Phase 4 release va
 
 - [ ] wallet core validated on testnet
 - [ ] wallet permissions validated end-to-end on testnet
-- [ ] JS SDK published
-- [ ] Node.js SDK published
+- [x] JS SDK published
+- [x] Node.js SDK published
 - [ ] Rust SDK published
-- [ ] Python SDK published
+- [x] Python SDK published
 - [ ] Phase 4 tracker updated to reflect publication

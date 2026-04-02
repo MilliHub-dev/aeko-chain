@@ -12,27 +12,26 @@ The repo used to document only the on-chain side. Phase 4 adds a higher-level Ru
 - low-level Rust primitives still live in [`sdk`](/Users/ok/Documents/projects/aeko-chain/sdk), [`rpc-client`](/Users/ok/Documents/projects/aeko-chain/rpc-client), and [`client`](/Users/ok/Documents/projects/aeko-chain/client)
 - the new high-level Rust developer crate now lives in [`sdk/rust-client`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client)
 - it currently covers:
-  - `AekoDeveloperClient` async wrapper around `aeko-rpc-client`
-  - transaction submission helpers
+  - `AekoDeveloperClient` async JSON-RPC wrapper built on `reqwest`
+  - latest blockhash, balance, account, program-account, signature-status, and base64 transaction submission helpers
   - AEKO-721 instruction builders
   - wallet-permissions instruction builders
   - typed decoders for AEKO-721 and wallet-permissions accounts
 - runnable examples now live in [`sdk/rust-client/examples`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client/examples)
 - a dedicated publish dry-run checklist now lives in [`docs/developer-sdk/rust-publish-dry-run.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/rust-publish-dry-run.md)
-- publish automation is still pending
+- the crate now passes `cargo publish --dry-run --allow-dirty` as a standalone public crate candidate
 
 ## Off-Chain Client Example
 
 ```rust
-use {
-    aeko_rust_sdk::AekoDeveloperClient,
-    aeko_sdk::pubkey::Pubkey,
-};
+use aeko_rust_sdk::AekoDeveloperClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = AekoDeveloperClient::new("https://api.testnet.aeko.chain".to_string());
-    let balance = client.get_balance(&Pubkey::new_unique()).await?;
+    let balance = client
+        .get_balance("11111111111111111111111111111111")
+        .await?;
     println!("balance: {balance}");
     Ok(())
 }

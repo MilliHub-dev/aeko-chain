@@ -35,13 +35,12 @@ Current readiness:
 - package scaffold complete
 - examples present
 - local `install`, `typecheck`, and `build` verified
+- published to npm as `@aeko-chain/web3.js@0.1.0`
 
 Remaining:
 
-- decide first public version
-- add publish script and release instructions
 - confirm package export surface is final for first release
-- publish to npm
+- cut the next release when API changes warrant it
 
 ## Node.js
 
@@ -54,12 +53,11 @@ Current readiness:
 - package scaffold complete
 - examples present
 - local `install`, `typecheck`, and `build` verified
+- published to npm as `@aeko-chain/sdk@0.1.0`
 
 Remaining:
 
-- add publish script and release instructions
-- decide first public version
-- publish to npm
+- cut the next release when the server-side SDK surface changes materially
 
 ## Rust
 
@@ -73,11 +71,13 @@ Current readiness:
 - examples present
 - `cargo check -p aeko-rust-sdk` verified
 - `cargo check -p aeko-rust-sdk --examples` verified
+- `cargo publish -p aeko-rust-sdk --dry-run --allow-dirty` verified after removing unpublished workspace dependencies
 
 Remaining:
 
 - add fuller read/write examples against live testnet accounts
-- decide docs.rs and crates.io release metadata policy
+- decide whether the first public crates.io release should keep the current `2.0.0` workspace version or be decoupled to `0.1.x`
+- commit the Rust SDK refactor
 - publish to crates.io
 
 ## Python
@@ -91,13 +91,13 @@ Current readiness:
 - package scaffold complete
 - examples present
 - syntax compilation verified with `python3 -m compileall`
+- published to PyPI as `aeko-sdk==0.1.0`
 
 Remaining:
 
 - add install and smoke-test commands to CI or release notes
 - add richer analytics and protocol helpers for first public cut
-- decide first public version
-- publish to PyPI
+- cut the next release when the public API changes materially
 
 ## Publication Record
 

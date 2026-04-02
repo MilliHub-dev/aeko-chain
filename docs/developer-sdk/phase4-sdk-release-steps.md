@@ -80,17 +80,25 @@ Verification:
 ```bash
 cargo check -p aeko-rust-sdk
 cargo check -p aeko-rust-sdk --examples
-cargo publish -p aeko-rust-sdk --dry-run
+cargo publish -p aeko-rust-sdk --dry-run --allow-dirty
 ```
+
+Current status:
+
+- the unpublished AEKO dependency-chain blocker has been removed
+- the crate now passes `cargo check`, example compilation, and `cargo publish --dry-run --allow-dirty`
+- the remaining live-release questions are versioning and committing the refactor before the real publish
 
 Publish sequence:
 
 1. confirm crate metadata is correct in [`sdk/rust-client/Cargo.toml`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client/Cargo.toml)
 2. confirm README example paths still match the crate surface
-3. run the dry-run checklist in [`docs/developer-sdk/rust-publish-dry-run.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/rust-publish-dry-run.md)
-4. publish to crates.io
-5. confirm docs.rs build status
-6. record the version, crates.io URL, and docs.rs URL
+3. decide whether the release should keep workspace version `2.0.0` or move to an explicitly versioned public crate
+4. commit the crate changes so the live publish does not require a dirty tree
+5. rerun the dry-run checklist in [`docs/developer-sdk/rust-publish-dry-run.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/rust-publish-dry-run.md)
+6. publish to crates.io
+7. confirm docs.rs build status
+8. record the version, crates.io URL, and docs.rs URL
 
 ## Python
 
@@ -122,7 +130,7 @@ Publish sequence:
 
 Phase 4 SDK publication is complete when:
 
-- all four SDKs are published
+- all four SDKs that are intended for public release are published
 - publication URLs and versions are recorded
 - wallet docs still match the shipped SDK surfaces
 - the Phase 4 task tracker is updated to reflect live publication

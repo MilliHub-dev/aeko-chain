@@ -45,6 +45,14 @@ During the dry run, confirm that:
 - the README renders cleanly enough for crates.io
 - examples and exported crate surface are still aligned
 
+Current repo status:
+
+- the dry run has already been attempted for `aeko-rust-sdk`
+- the original crates.io blocker was unpublished AEKO workspace dependencies such as `aeko-rpc-client`
+- that blocker has now been removed by refactoring `aeko-rust-sdk` to use a standalone RPC client and local AEKO builders/decoders
+- `cargo publish -p aeko-rust-sdk --dry-run --allow-dirty` now passes locally
+- before live publish, either commit the Rust SDK changes or keep using `--allow-dirty` only for verification, not the real release
+
 ## Live Publish
 
 After the dry run passes:

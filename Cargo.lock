@@ -1919,12 +1919,12 @@ dependencies = [
 name = "aeko-rust-sdk"
 version = "2.0.0"
 dependencies = [
- "aeko-rpc-client",
- "aeko-rpc-client-api",
- "aeko-sdk",
- "aeko-token-721-program",
- "aeko-wallet-permissions-program",
+ "base64 0.22.0",
  "borsh 1.2.1",
+ "bs58",
+ "reqwest",
+ "serde",
+ "serde_json",
  "thiserror",
  "tokio",
 ]

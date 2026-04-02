@@ -1,0 +1,49 @@
+Metadata-Version: 2.4
+Name: aeko-sdk
+Version: 0.1.0
+Summary: AEKO Chain Python SDK
+Author-email: AEKO Chain Maintainers <maintainers@aeko.chain>
+License: Apache-2.0
+Project-URL: Homepage, https://chain.aeko.social/
+Project-URL: Repository, https://github.com/MilliHub-dev/aeko-chain
+Project-URL: Documentation, https://github.com/MilliHub-dev/aeko-chain/tree/main/sdk/python
+Keywords: aeko,blockchain,python,sdk,rpc
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+
+# AEKO Python SDK
+
+`aeko-sdk` is the Python SDK for AEKO Chain scripting, automation, analytics, and operational tooling.
+
+Current scope:
+
+- JSON-RPC connection wrapper
+- account and balance queries
+- transaction submit and signature status queries
+- AEKO-721 account decoders and instruction builders
+- wallet-permissions account decoder and instruction builders
+- lightweight helpers for analytics and monitoring scripts
+
+Examples:
+
+- [`examples/basic_usage.py`](/Users/ok/Documents/projects/aeko-chain/sdk/python/examples/basic_usage.py)
+- [`examples/account_watch.py`](/Users/ok/Documents/projects/aeko-chain/sdk/python/examples/account_watch.py)
+
+## Local Verification
+
+```bash
+python3 -m compileall sdk/python/src sdk/python/examples
+```
+
+## Local Install
+
+```bash
+pip install -e sdk/python
+```

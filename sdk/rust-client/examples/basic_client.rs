@@ -1,6 +1,5 @@
 use {
     aeko_rust_sdk::AekoDeveloperClient,
-    aeko_sdk::pubkey::Pubkey,
     std::env,
 };
 
@@ -10,9 +9,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_else(|_| "https://api.testnet.aeko.chain".to_string());
     let address = env::args()
         .nth(1)
-        .map(|value| value.parse::<Pubkey>())
-        .transpose()?
-        .unwrap_or_else(Pubkey::new_unique);
+        .unwrap_or_else(|| "11111111111111111111111111111111".to_string());
 
     let client = AekoDeveloperClient::new(rpc_url);
     let latest_blockhash = client.get_latest_blockhash().await?;

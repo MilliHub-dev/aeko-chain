@@ -12,12 +12,12 @@ edition = { workspace = true }
 keywords = ["aeko", "blockchain", "sdk", "rpc", "wallet"]
 
 [dependencies]
+base64 = { workspace = true }
 borsh = { workspace = true }
-aeko-rpc-client = { workspace = true }
-aeko-rpc-client-api = { workspace = true }
-aeko-sdk = { workspace = true }
-aeko-token-721-program = { workspace = true }
-aeko-wallet-permissions-program = { workspace = true }
+bs58 = { workspace = true }
+reqwest = { workspace = true, features = ["json", "rustls-tls"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
