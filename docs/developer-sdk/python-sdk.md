@@ -13,7 +13,7 @@ The Python SDK is intended for scripting, analytics, monitoring, governance tool
   - AEKO-721 account decoders and instruction builders
   - wallet-permissions account decoder and instruction builders
 - it is currently stdlib-only, which keeps it lightweight for ops and automation use
-- publishing to PyPI and broader flow helpers are still pending
+- it is now published to PyPI as `aeko-sdk==0.1.0`
 
 ## Use Cases
 

@@ -32,4 +32,4 @@ Current repo status:
 - it currently covers a Node-first client wrapper, server-side signing abstractions, batch send helpers, and polling webhook-style listeners
 - it now consumes the JS SDK through `@aeko-chain/web3.js` package exports instead of direct repo-local `dist` imports
 - local `typecheck` and `build` now pass in `sdk/node`
-- publish automation is still pending
+- it is now published to npm as `@aeko-chain/sdk@0.1.0`

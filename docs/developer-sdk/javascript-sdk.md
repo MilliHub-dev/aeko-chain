@@ -11,7 +11,7 @@ Current repo status:
 - it now includes AEKO-721 prepared transaction builders used by the demo flow
 - it now includes wallet-permissions prepared transaction builders for Phase 4.2 flows
 - local `typecheck` and `build` now pass in `sdk/js`
-- publish/build automation is still pending
+- it is now published to npm as `@aeko-chain/web3.js@0.1.0`
 
 ## Installation
 

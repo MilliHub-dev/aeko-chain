@@ -50,7 +50,7 @@ export default function Developers() {
               <h2 className="text-2xl font-bold mb-3">Implemented in repo, not fully closed out yet</h2>
               <p className="text-gray-300 max-w-3xl">
                 The identity model, wallet core, wallet-permissions program, and all four SDK surfaces are now implemented and documented.
-                Phase 4 is only complete after live wallet-core and wallet-permissions testnet validation is recorded and the JS, Node.js, Rust, and Python SDKs are actually published.
+                All four SDKs are now published. Phase 4 closes only after live wallet-core and wallet-permissions testnet validation is recorded with real on-chain signatures.
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-full lg:min-w-[22rem]">
@@ -64,7 +64,7 @@ export default function Developers() {
               </div>
               <div className="bg-black/20 rounded-xl p-4 border border-white/10">
                 <div className="text-xs text-gray-400 mb-1">SDK Publication</div>
-                <div className="text-white font-semibold">Pending</div>
+                <div className="text-white font-semibold">Complete</div>
               </div>
               <div className="bg-black/20 rounded-xl p-4 border border-white/10">
                 <div className="text-xs text-gray-400 mb-1">Closeout Record</div>
@@ -123,12 +123,12 @@ export default function Developers() {
               <h2 className="text-2xl font-bold">Release Readiness</h2>
             </div>
             <p className="text-gray-400 mb-6">
-              The repo now includes SDK publication checklists, release steps, closeout records, and validation command guides. What remains is live testnet proof and package publication.
+              The repo now includes SDK publication checklists, release steps, closeout records, and validation command guides. The remaining blocker is live wallet proof on AEKO testnet, not package release work.
             </p>
             <ul className="space-y-3 text-sm text-gray-300">
-              <li>JS, Node.js, Rust, and Python package surfaces are implemented.</li>
+              <li>JS, Node.js, Rust, and Python package surfaces are implemented and published.</li>
               <li>Node now consumes JS through package exports instead of repo-local build paths.</li>
-              <li>Phase 4 completion now depends on live validation and actual package publication.</li>
+              <li>Phase 4 completion now depends on live wallet validation and final closeout evidence.</li>
             </ul>
             <Link to="/docs" className="inline-flex items-center gap-2 mt-6 text-aeko-accent hover:text-white transition-colors">
               Explore Developer Docs <ArrowRight size={16} />

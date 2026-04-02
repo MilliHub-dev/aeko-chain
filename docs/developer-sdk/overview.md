@@ -34,5 +34,9 @@ console.log("Connected to AEKO Devnet");
 - Node.js SDK scaffold and verified local build live in [`sdk/node`](/Users/ok/Documents/projects/aeko-chain/sdk/node)
 - the new high-level Rust client SDK now lives in [`sdk/rust-client`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client)
 - the Python SDK scaffold now lives in [`sdk/python`](/Users/ok/Documents/projects/aeko-chain/sdk/python)
+- `@aeko-chain/web3.js@0.1.0` is published on npm
+- `@aeko-chain/sdk@0.1.0` is published on npm
+- `aeko-rust-sdk@2.0.0` is published on crates.io
+- `aeko-sdk==0.1.0` is published on PyPI
 - cross-SDK publication tracking now lives in [`docs/developer-sdk/phase4-sdk-publication.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/phase4-sdk-publication.md)
 - per-SDK release steps now live in [`docs/developer-sdk/phase4-sdk-release-steps.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/phase4-sdk-release-steps.md)

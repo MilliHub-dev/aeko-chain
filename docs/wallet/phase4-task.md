@@ -171,11 +171,13 @@ Current progress:
 - Node.js SDK package boundary tightened to consume `@aeko-chain/web3.js` through package exports rather than repo-local `dist` imports
 - Rust SDK scaffold added in [`sdk/rust-client`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client) with async RPC access, transaction submission helpers, AEKO-721 builders, wallet-permissions builders, and typed account decoders
 - Rust SDK example coverage added in [`sdk/rust-client/examples`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client/examples)
-- Rust SDK publication is still pending
+- Rust SDK published to crates.io as `aeko-rust-sdk@2.0.0`
 - Python SDK scaffold added in [`sdk/python`](/Users/ok/Documents/projects/aeko-chain/sdk/python) with stdlib-based JSON-RPC access, query helpers, raw transaction submission, and signature polling helpers
 - Python SDK AEKO-721 and wallet-permissions helpers added for decoded reads and instruction planning
 - Python SDK examples added in [`sdk/python/examples`](/Users/ok/Documents/projects/aeko-chain/sdk/python/examples)
-- Python package publication and richer analytics helpers are still pending
+- Python SDK published to PyPI as `aeko-sdk==0.1.0`
+- JavaScript SDK published to npm as `@aeko-chain/web3.js@0.1.0`
+- Node.js SDK published to npm as `@aeko-chain/sdk@0.1.0`
 - cross-SDK publication checklist added in [`docs/developer-sdk/phase4-sdk-publication.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/phase4-sdk-publication.md)
 - SDK release execution guide added in [`docs/developer-sdk/phase4-sdk-release-steps.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/phase4-sdk-release-steps.md)
 - Phase 4 closeout record template added in [`docs/wallet/phase4-closeout-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-closeout-record.md)
@@ -183,6 +185,8 @@ Current progress:
 - wallet permissions testnet validation runbook added in [`docs/wallet/wallet-permissions-testnet-validation.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/wallet-permissions-testnet-validation.md)
 - wallet-core validation helper examples added in [`wallet-core/examples`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples)
 - command-level validation guide added in [`docs/wallet/phase4-validation-commands.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-validation-commands.md)
+- wallet-core local validation helper executed successfully on `2026-04-02`
+- wallet-permissions local validation helper executed successfully on `2026-04-02`
 
 ## Ticket 4.3
 
@@ -300,6 +304,5 @@ The remaining work is no longer initial planning. It is closeout work:
 
 1. validate wallet core on testnet
 2. validate wallet permissions end-to-end on testnet
-3. publish JS, Node.js, Rust, and Python SDKs
-4. fill in [`docs/wallet/phase4-closeout-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-closeout-record.md)
-5. update this tracker to reflect final publication status
+3. record live testnet transaction signatures and rejection evidence in [`docs/wallet/phase4-closeout-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-closeout-record.md)
+4. update this tracker once the live validation evidence is recorded

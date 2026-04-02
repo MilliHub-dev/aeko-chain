@@ -72,13 +72,12 @@ Current readiness:
 - `cargo check -p aeko-rust-sdk` verified
 - `cargo check -p aeko-rust-sdk --examples` verified
 - `cargo publish -p aeko-rust-sdk --dry-run --allow-dirty` verified after removing unpublished workspace dependencies
+- published to crates.io as `aeko-rust-sdk@2.0.0`
 
 Remaining:
 
 - add fuller read/write examples against live testnet accounts
-- decide whether the first public crates.io release should keep the current `2.0.0` workspace version or be decoupled to `0.1.x`
-- commit the Rust SDK refactor
-- publish to crates.io
+- confirm docs.rs build health and document the public API surface after first live release
 
 ## Python
 

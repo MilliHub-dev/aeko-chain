@@ -19,7 +19,7 @@ The repo used to document only the on-chain side. Phase 4 adds a higher-level Ru
   - typed decoders for AEKO-721 and wallet-permissions accounts
 - runnable examples now live in [`sdk/rust-client/examples`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client/examples)
 - a dedicated publish dry-run checklist now lives in [`docs/developer-sdk/rust-publish-dry-run.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/rust-publish-dry-run.md)
-- the crate now passes `cargo publish --dry-run --allow-dirty` as a standalone public crate candidate
+- the crate is now published on crates.io as `aeko-rust-sdk@2.0.0`
 
 ## Off-Chain Client Example
 

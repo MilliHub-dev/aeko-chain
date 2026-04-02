@@ -2,6 +2,10 @@
 
 `aeko-rust-sdk` is the high-level Rust developer SDK for AEKO Chain application clients.
 
+Published crate:
+
+- `aeko-rust-sdk = "2.0.0"`
+
 It complements:
 
 - `aeko-program` for on-chain program development
