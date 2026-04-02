@@ -1,0 +1,8 @@
+Finished dev [unoptimized + debuginfo] target(s) in 4m 02s
+     Running `target/debug/examples/create_keystore`
+keystore written to: /Users/ok/Documents/projects/aeko-chain/my-wallet.json
+wallet public key: BUw7MbnRxGzxFMFg9cAhYv86iWFA25SyXcuVG2R79CwE
+wallet DID: did:aeko:BUw7MbnRxGzxFMFg9cAhYv86iWFA25SyXcuVG2R79CwE
+derivation path: m/44'/501'/0'/0'
+mnemonic: digital gravity license upper income track begin door neck ancient recall dutch
+IMPORTANT: save the mnemonic securely before continuing

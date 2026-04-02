@@ -12,8 +12,25 @@ Use it with:
 
 Source:
 
+- [`wallet-core/examples/create_keystore.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/create_keystore.rs)
 - [`wallet-core/examples/keystore_validation.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/keystore_validation.rs)
 - [`wallet-core/examples/keystore_testnet_submit.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/keystore_testnet_submit.rs)
+
+Create a real encrypted keystore file:
+
+```bash
+AEKO_KEYSTORE_OUTPUT_PATH=/absolute/path/to/my-wallet.json \
+AEKO_WALLET_PASSWORD='choose-a-strong-password' \
+cargo run -p aeko-wallet-core --example create_keystore
+```
+
+Optional overrides:
+
+```bash
+AEKO_WALLET_WORD_COUNT=24
+AEKO_DERIVATION_PATH="m/44'/501'/0'/0'"
+AEKO_MNEMONIC_PASSPHRASE=''
+```
 
 Command:
 

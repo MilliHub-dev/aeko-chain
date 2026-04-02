@@ -1,0 +1,75 @@
+import { useState } from 'react';
+import { Droplets, Terminal, ExternalLink } from 'lucide-react';
+import NetworkToggle from '../components/NetworkToggle';
+import NetworkToolsPanel from '../components/NetworkToolsPanel';
+import { getNetworkConfig } from '../utils/networkConfig';
+
+export default function Faucet() {
+  const [network, setNetwork] = useState('testnet');
+  const config = getNetworkConfig(network);
+
+  return (
+    <div className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
+        <div>
+          <div className="text-sm font-medium text-aeko-accent mb-2">Network Tools</div>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Faucet & Access</h1>
+          <p className="text-xl text-gray-400 max-w-3xl">
+            Switch between testnet and mainnet to see the right explorer, RPC, WebSocket, and
+            faucet entry points for AEKO Chain.
+          </p>
+        </div>
+        <NetworkToggle value={network} onChange={setNetwork} />
+      </div>
+
+      <div className="mb-10">
+        <NetworkToolsPanel network={network} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+          <div className="flex items-center gap-3 mb-4">
+            <Droplets className="text-aeko-accent" />
+            <h2 className="text-2xl font-bold">{config.label} Faucet</h2>
+          </div>
+          <p className="text-gray-400 mb-6">
+            {network === 'testnet'
+              ? 'Use the faucet for low-risk wallet funding, transaction testing, SDK validation, and wallet-core closeout flows.'
+              : 'Mainnet does not expose a public faucet. Fund wallets through your exchange, treasury, or operational distribution flow.'}
+          </p>
+
+          {config.faucetEnabled ? (
+            <a
+              href={config.faucetUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-aeko-accent text-black font-semibold hover:opacity-90 transition-opacity"
+            >
+              Open {config.label} Faucet
+              <ExternalLink size={18} />
+            </a>
+          ) : (
+            <div className="rounded-xl border border-dashed border-white/15 bg-black/20 p-5 text-sm text-gray-400">
+              {config.faucetLabel}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+          <div className="flex items-center gap-3 mb-4">
+            <Terminal className="text-aeko-accent" />
+            <h2 className="text-2xl font-bold">CLI Flow</h2>
+          </div>
+          <p className="text-gray-400 mb-4">
+            Use the AEKO CLI when you want deterministic funding for wallets, validator testing,
+            and scripted SDK validation.
+          </p>
+          <pre className="bg-black/40 rounded-xl p-4 overflow-x-auto text-sm text-gray-300">
+            <code>{`aeko config set --url ${config.rpcUrl}
+aeko airdrop 10 <recipient-address> --url ${config.cliCluster}`}</code>
+          </pre>
+        </div>
+      </div>
+    </div>
+  );
+}

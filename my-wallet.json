@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "public_key": "BUw7MbnRxGzxFMFg9cAhYv86iWFA25SyXcuVG2R79CwE",
+  "did": "did:aeko:BUw7MbnRxGzxFMFg9cAhYv86iWFA25SyXcuVG2R79CwE",
+  "derivation_path": "m/44'/501'/0'/0'",
+  "crypto": {
+    "cipher": "aes-256-gcm-siv",
+    "kdf": "pbkdf2-hmac-sha256",
+    "pbkdf2_rounds": 100000,
+    "salt_b64": "HnD9A8gxBFIokk8uiUlUSA==",
+    "nonce_b64": "6ANhQcoGebLS64rw",
+    "ciphertext_b64": "h1prsKdaDA78et59dkixUYuqrhdYtNHxWv0FeHCO5vHihS5yEwzciLdLO2cYdNDTA8QJiKZBD+AQ0zkJc2wKoM3eKsBO5C7mpfT769Wch7s="
+  }
+}

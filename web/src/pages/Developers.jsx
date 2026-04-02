@@ -1,7 +1,13 @@
 import { Terminal, Code, Cpu, ShieldCheck, Boxes, Wallet, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import NetworkToggle from '../components/NetworkToggle';
+import NetworkToolsPanel from '../components/NetworkToolsPanel';
+import { getNetworkConfig } from '../utils/networkConfig';
 
 export default function Developers() {
+  const [network, setNetwork] = useState('testnet');
+  const activeNetwork = getNetworkConfig(network);
   const sdkCards = [
     {
       title: 'Rust Client SDK',
@@ -150,35 +156,20 @@ export default function Developers() {
 
         {/* Network Status */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
-          <h2 className="text-2xl font-bold mb-6">Network Endpoints</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-white/10">
-                  <th className="py-4 px-4 font-medium text-gray-400">Network</th>
-                  <th className="py-4 px-4 font-medium text-gray-400">RPC Endpoint</th>
-                  <th className="py-4 px-4 font-medium text-gray-400">WebSocket</th>
-                  <th className="py-4 px-4 font-medium text-gray-400">Explorer</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                <tr>
-                  <td className="py-4 px-4 font-bold text-green-400">Mainnet Beta</td>
-                  <td className="py-4 px-4 font-mono text-sm">https://api.mainnet.aeko.chain</td>
-                  <td className="py-4 px-4 font-mono text-sm">wss://api.mainnet.aeko.chain</td>
-                  <td className="py-4 px-4 text-aeko-accent">explorer.aeko.chain</td>
-                </tr>
-                <tr>
-                  <td className="py-4 px-4 font-bold text-yellow-400">Testnet</td>
-                  <td className="py-4 px-4 font-mono text-sm">https://api.testnet.aeko.chain</td>
-                  <td className="py-4 px-4 font-mono text-sm">wss://api.testnet.aeko.chain</td>
-                  <td className="py-4 px-4 text-aeko-accent">testnet.explorer.aeko.chain</td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Network Endpoints</h2>
+              <p className="text-sm text-gray-400">
+                Switch between clusters to view the right explorer, faucet, and API endpoints for
+                the current environment.
+              </p>
+            </div>
+            <NetworkToggle value={network} onChange={setNetwork} />
           </div>
+          <NetworkToolsPanel network={network} />
           <p className="text-sm text-gray-500 mt-6">
-            Current developer validation and SDK examples are aligned around the AEKO testnet endpoint.
+            Current selection: {activeNetwork.label}. Wallet validation examples still default to
+            testnet unless you override the RPC environment variables.
           </p>
         </div>
       </div>

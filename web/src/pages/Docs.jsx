@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { Menu, X, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 import docsData from '../data/docs.json';
+import NetworkToggle from '../components/NetworkToggle';
+import NetworkToolsPanel from '../components/NetworkToolsPanel';
 
 export default function Docs() {
   const [activeTab, setActiveTab] = useState("Introduction to AEKO Chain");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [network, setNetwork] = useState('testnet');
 
   const sections = docsData.sections;
   const currentContent = docsData.content[activeTab];
@@ -69,6 +72,16 @@ export default function Docs() {
 
       {/* Main Content Area */}
       <div className="flex-1 min-w-0">
+        <div className="mb-8 bg-white/5 border border-white/10 rounded-2xl p-6">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-5">
+            <div>
+              <div className="text-sm font-medium text-aeko-accent mb-2">Network Surface</div>
+              <h2 className="text-2xl font-bold">Explorer, Faucet & API Tools</h2>
+            </div>
+            <NetworkToggle value={network} onChange={setNetwork} />
+          </div>
+          <NetworkToolsPanel network={network} />
+        </div>
         <motion.div
           key={activeTab}
           initial={{ opacity: 0, y: 10 }}
