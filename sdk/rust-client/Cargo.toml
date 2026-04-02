@@ -3,7 +3,7 @@ name = "aeko-rust-sdk"
 description = "AEKO Chain high-level Rust developer SDK"
 documentation = "https://docs.rs/aeko-rust-sdk"
 readme = "README.md"
-version = { workspace = true }
+version = "2.0.1"
 authors = { workspace = true }
 repository = { workspace = true }
 homepage = { workspace = true }

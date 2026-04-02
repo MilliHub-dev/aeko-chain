@@ -172,6 +172,7 @@ Current progress:
 - Rust SDK scaffold added in [`sdk/rust-client`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client) with async RPC access, transaction submission helpers, AEKO-721 builders, wallet-permissions builders, and typed account decoders
 - Rust SDK example coverage added in [`sdk/rust-client/examples`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client/examples)
 - Rust SDK published to crates.io as `aeko-rust-sdk@2.0.0`
+- Rust SDK patch release `2.0.1` prepared in repo to refresh docs.rs metadata and hosted documentation
 - Python SDK scaffold added in [`sdk/python`](/Users/ok/Documents/projects/aeko-chain/sdk/python) with stdlib-based JSON-RPC access, query helpers, raw transaction submission, and signature polling helpers
 - Python SDK AEKO-721 and wallet-permissions helpers added for decoded reads and instruction planning
 - Python SDK examples added in [`sdk/python/examples`](/Users/ok/Documents/projects/aeko-chain/sdk/python/examples)

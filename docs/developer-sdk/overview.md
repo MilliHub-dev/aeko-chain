@@ -37,6 +37,7 @@ console.log("Connected to AEKO Devnet");
 - `@aeko-chain/web3.js@0.1.0` is published on npm
 - `@aeko-chain/sdk@0.1.0` is published on npm
 - `aeko-rust-sdk@2.0.0` is published on crates.io
+- `aeko-rust-sdk@2.0.1` is prepared in repo as the docs.rs refresh patch release
 - `aeko-sdk==0.1.0` is published on PyPI
 - cross-SDK publication tracking now lives in [`docs/developer-sdk/phase4-sdk-publication.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/phase4-sdk-publication.md)
 - per-SDK release steps now live in [`docs/developer-sdk/phase4-sdk-release-steps.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/phase4-sdk-release-steps.md)

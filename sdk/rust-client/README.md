@@ -4,7 +4,8 @@
 
 Published crate:
 
-- `aeko-rust-sdk = "2.0.0"`
+- current live release: `aeko-rust-sdk = "2.0.0"`
+- next patch release for docs.rs metadata and crate landing docs: `aeko-rust-sdk = "2.0.1"`
 
 It complements:
 
