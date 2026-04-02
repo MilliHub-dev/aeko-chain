@@ -1,0 +1,26 @@
+[package]
+name = "aeko-rust-sdk"
+description = "AEKO Chain high-level Rust developer SDK"
+documentation = "https://github.com/MilliHub-dev/aeko-chain/tree/main/sdk/rust-client"
+readme = "README.md"
+version = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+keywords = ["aeko", "blockchain", "sdk", "rpc", "wallet"]
+
+[dependencies]
+borsh = { workspace = true }
+aeko-rpc-client = { workspace = true }
+aeko-rpc-client-api = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-token-721-program = { workspace = true }
+aeko-wallet-permissions-program = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+
+[lib]
+crate-type = ["rlib"]
+name = "aeko_rust_sdk"

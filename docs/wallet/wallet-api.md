@@ -2,6 +2,8 @@
 
 Integrate AEKO wallets into your dApp using the standard **Wallet Adapter** interface.
 
+Identity behavior should align to [`docs/wallet/identity.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/identity.md).
+
 ## Standard Interface
 
 AEKO supports the `aeko-wallet-adapter` standard with extensions for identity.
@@ -26,10 +28,36 @@ const signature = await window.aeko.signMessage(message);
 // Request Identity Data (Requires user permission)
 const identity = await window.aeko.request({
     method: 'get_identity',
-    params: { fields: ['reputation_score', 'clearance_level'] }
+    params: { fields: ['did', 'reputation_score', 'clearance_level'] }
 });
 
 if (identity.clearance_level >= 3) {
     showEnterpriseDashboard();
 }
 ```
+
+Recommended resolver shape:
+
+```javascript
+const resolved = await window.aeko.request({
+  method: 'resolve_identity',
+  params: { did: 'did:aeko:<wallet_pubkey>' }
+});
+```
+
+## Permission Management
+
+Wallet-facing permission controls should build on the wallet core permission helper layer and the on-chain wallet-permissions program.
+
+Supported wallet-side actions now include:
+
+- initialize permission state
+- grant delegate permissions
+- update delegate permissions
+- revoke delegate permissions
+- freeze wallet permission state
+- unfreeze wallet permission state
+- record delegate usage
+- read effective delegate permissions
+
+These flows should align with [`docs/wallet/permission-controls-spec.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/permission-controls-spec.md).

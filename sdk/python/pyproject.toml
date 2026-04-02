@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aeko-sdk"
+version = "0.1.0"
+description = "AEKO Chain Python SDK"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [
+  { name = "AEKO Chain Maintainers", email = "maintainers@aeko.chain" }
+]
+keywords = ["aeko", "blockchain", "python", "sdk", "rpc"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Homepage = "https://chain.aeko.social/"
+Repository = "https://github.com/MilliHub-dev/aeko-chain"
+Documentation = "https://github.com/MilliHub-dev/aeko-chain/tree/main/sdk/python"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

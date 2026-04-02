@@ -2,6 +2,17 @@
 
 The `@aeko-chain/web3.js` library is the primary tool for interacting with the AEKO Chain from a web browser or Node.js environment.
 
+Current repo status:
+
+- the first in-repo JS SDK scaffold now lives in [`sdk/js`](/Users/ok/Documents/projects/aeko-chain/sdk/js)
+- it currently covers RPC helpers, injected wallet adapter helpers, and wallet-permission request planning
+- it now also includes account/program-account helpers and AEKO-721 decoding helpers
+- it now includes send / confirm transaction helpers and a websocket subscription example
+- it now includes AEKO-721 prepared transaction builders used by the demo flow
+- it now includes wallet-permissions prepared transaction builders for Phase 4.2 flows
+- local `typecheck` and `build` now pass in `sdk/js`
+- publish/build automation is still pending
+
 ## Installation
 
 ```bash
@@ -52,3 +63,27 @@ const signature = await sendAndConfirmTransaction(
 
 console.log("Transaction Signature:", signature);
 ```
+
+## Current In-Repo Surface
+
+The current scaffold exports:
+
+- `AekoConnection`
+- account and program-account query helpers
+- AEKO-721 collection/token decoders
+- AEKO-721 prepared transaction builders
+- wallet-permissions prepared transaction builders
+- send / confirm transaction helpers
+- injected wallet adapter detection helpers
+- wallet permission action request builders
+
+See:
+
+- [`sdk/js/src/index.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/index.ts)
+- [`sdk/js/src/connection.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/connection.ts)
+- [`sdk/js/src/accounts.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/accounts.ts)
+- [`sdk/js/src/base58.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/base58.ts)
+- [`sdk/js/src/builders.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/builders.ts)
+- [`sdk/js/src/transactions.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/transactions.ts)
+- [`sdk/js/src/wallet.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/wallet.ts)
+- [`sdk/js/src/permissions.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/permissions.ts)

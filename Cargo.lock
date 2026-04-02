@@ -1916,6 +1916,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "aeko-rust-sdk"
+version = "2.0.0"
+dependencies = [
+ "aeko-rpc-client",
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "aeko-token-721-program",
+ "aeko-wallet-permissions-program",
+ "borsh 1.2.1",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "aeko-sdk"
 version = "2.0.0"
 dependencies = [
@@ -2542,6 +2556,34 @@ dependencies = [
  "serde_derive",
  "test-case",
  "thiserror",
+]
+
+[[package]]
+name = "aeko-wallet-core"
+version = "2.0.0"
+dependencies = [
+ "aeko-remote-wallet",
+ "aeko-sdk",
+ "aeko-wallet-permissions-program",
+ "aes-gcm-siv",
+ "base64 0.22.0",
+ "hmac 0.12.1",
+ "pbkdf2 0.11.0",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "tiny-bip39",
+]
+
+[[package]]
+name = "aeko-wallet-permissions-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "borsh 1.2.1",
 ]
 
 [[package]]

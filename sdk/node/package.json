@@ -1,0 +1,40 @@
+{
+  "name": "@aeko-chain/sdk",
+  "version": "0.1.0",
+  "description": "AEKO Chain Node.js SDK",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "release:check": "npm run typecheck && npm run build",
+    "release:publish": "npm run release:check && npm publish --access public"
+  },
+  "dependencies": {
+    "@aeko-chain/web3.js": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "typescript": "^5.9.3"
+  },
+  "keywords": [
+    "aeko",
+    "nodejs",
+    "sdk",
+    "webhooks",
+    "backend"
+  ],
+  "license": "Apache-2.0"
+}
