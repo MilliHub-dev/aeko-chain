@@ -1946,7 +1946,7 @@ dependencies = [
 
 [[package]]
 name = "aeko-rust-sdk"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "base64 0.22.0",
  "borsh 1.2.1",
