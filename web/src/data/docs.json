@@ -18,7 +18,7 @@
     },
     {
       "title": "Smart Contracts",
-      "items": ["Rust SDK", "Program Architecture", "Native Syscalls", "Security Best Practices"]
+      "items": ["Rust SDK", "Program Architecture", "Native Syscalls", "Security Best Practices", "Write Your First Program", "Deploy And Invoke On Testnet"]
     },
     {
       "title": "Wallet & SDKs",
@@ -26,7 +26,7 @@
     },
     {
       "title": "RPC & Explorer",
-      "items": ["Explorer API", "Explorer Web", "SocialFi RPC"]
+      "items": ["Explorer API", "Explorer Web", "SocialFi RPC", "Aeko Social Backend Integration"]
     },
     {
       "title": "Governance",
@@ -118,6 +118,14 @@
       "title": "Security Best Practices",
       "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-6'>Security Best Practices</h1><p class='text-gray-300'>Writing secure smart contracts is critical. Follow these guidelines to prevent exploits.</p><ul class='list-disc list-inside space-y-2 text-gray-400 mt-4'><li><strong>Check Signers</strong>: Always verify that critical accounts have signed the transaction.</li><li><strong>Validate Owners</strong>: Ensure accounts are owned by the expected program.</li><li><strong>Integer Overflow</strong>: Use <code>checked_add</code> and <code>checked_sub</code> for math operations.</li><li><strong>PDA Validation</strong>: Always derive Program Derived Addresses on-chain to verify they are correct.</li></ul></div>"
     },
+    "Write Your First Program": {
+      "title": "Write Your First Program",
+      "html": "<div class='space-y-8'><h1 class='text-4xl font-bold mb-6'>Write Your First Program</h1><p class='text-gray-300'>AEKO now includes a minimal external developer path for writing on-chain Rust programs. The starter template lives in <code>contracts/hello-aeko-program</code> and is paired with a walkthrough in <code>docs/developer-sdk/write-your-first-program.md</code>.</p><div class='bg-white/5 border border-white/10 rounded-xl p-5'><h3 class='font-bold text-white mb-2'>Starter Flow</h3><ul class='list-disc list-inside space-y-2 text-sm text-gray-300'><li>Use <code>aeko-program</code> as the on-chain SDK surface.</li><li>Build the starter contract for the AEKO SBF target.</li><li>Deploy with <code>aeko program deploy</code> once your wallet and testnet RPC are configured.</li></ul></div><div class='bg-aeko-accent/10 border border-aeko-accent/20 rounded-xl p-5'><h3 class='font-bold text-white mb-2'>What You Get</h3><p class='text-sm text-gray-300'>A minimal starter contract, a deploy path, and a first invoke example so outside teams can get from repo clone to first program faster.</p></div></div>"
+    },
+    "Deploy And Invoke On Testnet": {
+      "title": "Deploy And Invoke On Testnet",
+      "html": "<div class='space-y-8'><h1 class='text-4xl font-bold mb-6'>Deploy And Invoke On Testnet</h1><p class='text-gray-300'>The developer docs now include a full deploy-and-invoke walkthrough for the starter AEKO program. It covers building the contract, deploying it to testnet, and invoking it with the provided Rust example.</p><div class='bg-black/40 rounded-xl p-4 border border-white/10'><code>aeko program deploy &lt;program-binary&gt; --url testnet</code></div><ul class='list-disc list-inside space-y-2 text-gray-300'><li>Use the starter invoke example in <code>contracts/hello-aeko-program/examples/invoke_hello.rs</code>.</li><li>Record the deployed program id and transaction signatures for your own operator notes.</li><li>Point your local CLI and SDKs at the same testnet RPC when validating the flow.</li></ul><div class='bg-white/5 border border-white/10 rounded-xl p-5'><h3 class='font-bold text-white mb-2'>Audience</h3><p class='text-sm text-gray-300'>This path is for external developers who want a practical first smart contract experience on AEKO without reverse-engineering the monorepo.</p></div></div>"
+    },
     "Identity & DID": {
       "title": "Identity & DID",
       "html": "<div class='space-y-8'><h1 class='text-4xl font-bold mb-6'>Identity &amp; DID</h1><p class='text-gray-300'>Phase 4 starts with identity as the foundation for wallets, permissions, and SDKs. AEKO uses the wallet address as the primary identity anchor and resolves decentralized identifiers in the form <code>did:aeko:&lt;wallet_pubkey&gt;</code>.</p><div class='grid grid-cols-1 md:grid-cols-2 gap-4'><div class='bg-white/5 border border-white/10 rounded-xl p-5'><h3 class='font-bold text-white mb-2'>Identity Anchor</h3><p class='text-sm text-gray-300'>The wallet public key remains the root identity reference across wallet core, delegated permissions, SDKs, and testnet validation.</p></div><div class='bg-white/5 border border-white/10 rounded-xl p-5'><h3 class='font-bold text-white mb-2'>Optional KYC</h3><p class='text-sm text-gray-300'>Off-chain verification may be anchored on-chain as a hash, while keeping raw identity data out of public account state.</p></div></div><div class='bg-aeko-accent/10 border border-aeko-accent/20 rounded-xl p-5'><h3 class='font-bold text-white mb-2'>Phase 4 Source of Truth</h3><p class='text-sm text-gray-300'>The wallet and SDK stack now builds on the signed-off identity model in <code>docs/wallet/identity.md</code>.</p></div></div>"
@@ -161,6 +169,10 @@
     "SocialFi RPC": {
       "title": "SocialFi RPC",
       "html": "<div class='space-y-8'><h1 class='text-4xl font-bold mb-6'>SocialFi RPC</h1><p class='text-gray-300'>Phase 5 now includes SocialFi-specific RPC reads and write wrappers for creator rewards, claimable rewards, reputation, engagement, post anchors, and social staking.</p><ul class='list-disc list-inside space-y-2 text-gray-300'><li>Reads: creator rewards, claimable rewards, engagement score, engagement events, reputation score, post anchors, creator posts, social stake positions</li><li>Writes: <code>submitEngagementProof</code>, <code>stakeBehindCreator</code>, <code>unstakeBehindCreator</code>, <code>claimSocialStakeYield</code></li></ul><div class='bg-white/5 border border-white/10 rounded-xl p-5'><h3 class='font-bold text-white mb-2'>Implementation Boundary</h3><p class='text-sm text-gray-300'>The RPC layer maps directly onto the SocialFi support programs and validates signed transactions before forwarding write requests into the normal submission pipeline.</p></div></div>"
+    },
+    "Aeko Social Backend Integration": {
+      "title": "Aeko Social Backend Integration",
+      "html": "<div class='space-y-8'><h1 class='text-4xl font-bold mb-6'>Aeko Social Backend Integration</h1><p class='text-gray-300'>AEKO now has a first-pass backend path for deterministic post hashing, Ed25519 signature verification, anchor transaction preparation, and persisted verification lookups for Aeko Social services.</p><div class='bg-black/40 rounded-xl p-4 border border-white/10'><code>npm install @aeko-chain/sdk</code></div><ul class='list-disc list-inside space-y-2 text-gray-300'><li>Reusable backend helpers in the Node SDK for canonical post payloads and signature verification.</li><li>A reference backend service with <code>/social/posts/hash</code>, <code>/social/posts/verify</code>, <code>/social/posts/anchor</code>, and verification lookup support.</li><li>Store adapter support so the reference flow can move from JSON persistence to Postgres or another production store.</li></ul><div class='bg-white/5 border border-white/10 rounded-xl p-5'><h3 class='font-bold text-white mb-2'>Current Trust Model</h3><p class='text-sm text-gray-300'>The backend verifies signatures and AEKO Chain anchors immutable post hashes and metadata pointers. Full on-chain content-signature verification remains a follow-up step, not a requirement for the current production backend flow.</p></div></div>"
     },
     "Governance": {
       "title": "Governance",

@@ -154,6 +154,47 @@ export default function Developers() {
           </div>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-20">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+            <div className="flex items-center gap-3 mb-4">
+              <Code className="text-aeko-accent" />
+              <h2 className="text-2xl font-bold">Build Smart Contracts</h2>
+            </div>
+            <p className="text-gray-400 mb-6">
+              External developers can now go from zero to first AEKO program with a starter contract,
+              a Rust toolchain path, and a full deploy-and-invoke walkthrough aimed at testnet.
+            </p>
+            <ul className="space-y-3 text-sm text-gray-300">
+              <li>Starter contract template under <span className="font-mono">contracts/hello-aeko-program</span>.</li>
+              <li>Write-your-first-program docs for the AEKO program model and build flow.</li>
+              <li>Deploy-and-invoke guide for a first live testnet contract interaction.</li>
+            </ul>
+            <Link to="/docs" className="inline-flex items-center gap-2 mt-6 text-aeko-accent hover:text-white transition-colors">
+              Open Smart Contract Guides <ArrowRight size={16} />
+            </Link>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+            <div className="flex items-center gap-3 mb-4">
+              <Boxes className="text-aeko-accent" />
+              <h2 className="text-2xl font-bold">Aeko Social Backend Flow</h2>
+            </div>
+            <p className="text-gray-400 mb-6">
+              The Node SDK now includes reusable backend helpers for deterministic post hashing,
+              Ed25519 signature verification, post anchor transaction preparation, and persisted
+              verification state for Aeko Social integrations.
+            </p>
+            <ul className="space-y-3 text-sm text-gray-300">
+              <li>Canonical post payload and hash helpers for backend services.</li>
+              <li>Reusable verification service and store adapter for real app integration.</li>
+              <li>Reference HTTP backend for hash, verify, anchor, and verification lookup flows.</li>
+            </ul>
+            <Link to="/docs" className="inline-flex items-center gap-2 mt-6 text-aeko-accent hover:text-white transition-colors">
+              Read Backend Integration Docs <ArrowRight size={16} />
+            </Link>
+          </div>
+        </div>
+
         {/* Network Status */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
