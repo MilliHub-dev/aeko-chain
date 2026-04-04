@@ -73,7 +73,7 @@ Current readiness:
 - `cargo check -p aeko-rust-sdk --examples` verified
 - `cargo publish -p aeko-rust-sdk --dry-run --allow-dirty` verified after removing unpublished workspace dependencies
 - published to crates.io as `aeko-rust-sdk@2.0.0`
-- patch release `2.0.1` prepared in repo to refresh docs.rs output
+- patch release `2.0.2` prepared in repo to refresh docs.rs output
 
 Remaining:
 

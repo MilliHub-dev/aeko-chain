@@ -1,6 +1,6 @@
 {
   "name": "@aeko-chain/sdk",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "AEKO Chain Node.js SDK",
   "type": "module",
   "main": "./dist/index.js",
@@ -23,7 +23,7 @@
     "release:publish": "npm run release:check && npm publish --access public"
   },
   "dependencies": {
-    "@aeko-chain/web3.js": "^0.1.0"
+    "@aeko-chain/web3.js": "^0.1.1"
   },
   "devDependencies": {
     "@types/node": "^24.6.2",

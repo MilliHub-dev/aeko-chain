@@ -20,7 +20,7 @@ The repo used to document only the on-chain side. Phase 4 adds a higher-level Ru
 - runnable examples now live in [`sdk/rust-client/examples`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client/examples)
 - a dedicated publish dry-run checklist now lives in [`docs/developer-sdk/rust-publish-dry-run.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/rust-publish-dry-run.md)
 - the crate is now published on crates.io as `aeko-rust-sdk@2.0.0`
-- the next patch release prepared in repo is `2.0.1`, intended to refresh docs.rs with crate-level docs and docs.rs-specific metadata
+- the next patch release prepared in repo is `2.0.2`, intended to refresh docs.rs with crate-level docs and docs.rs-specific metadata
 
 ## Off-Chain Client Example
 

@@ -55,7 +55,7 @@ Use this document as the single source of truth for the final Phase 4 release va
 - docs.rs URL: `https://docs.rs/aeko-rust-sdk`
 - publish date: `2026-04-02`
 - release owner: `aeko_foundation`
-- next patch release prepared in repo: `2.0.1` to refresh docs.rs with crate-level documentation and docs.rs metadata
+- next patch release prepared in repo: `2.0.2` to refresh docs.rs with crate-level documentation and docs.rs metadata
 
 ## Python SDK
 

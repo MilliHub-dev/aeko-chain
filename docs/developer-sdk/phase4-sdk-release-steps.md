@@ -88,7 +88,7 @@ Current status:
 - the unpublished AEKO dependency-chain blocker has been removed
 - the crate now passes `cargo check`, example compilation, and `cargo publish --dry-run --allow-dirty`
 - the crate has now been published to crates.io as `aeko-rust-sdk@2.0.0`
-- the next prepared patch release is `2.0.1` for docs.rs metadata and crate landing docs
+- the next prepared patch release is `2.0.2` for docs.rs metadata and crate landing docs
 
 Publish sequence:
 
