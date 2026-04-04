@@ -887,6 +887,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "aeko-explorer-backend"
+version = "2.0.0"
+dependencies = [
+ "aeko-rpc-client-api",
+ "aeko-sdk",
+ "aeko-social-anti-spam-program",
+ "aeko-social-posts-program",
+ "aeko-social-rewards-program",
+ "aeko-social-staking-program",
+ "aeko-token-20-program",
+ "aeko-token-721-program",
+ "anyhow",
+ "base64 0.22.0",
+ "borsh 1.2.1",
+ "bs58",
+ "hyper",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "url 2.5.0",
+]
+
+[[package]]
 name = "aeko-faucet"
 version = "2.0.0"
 dependencies = [
@@ -1686,6 +1710,10 @@ dependencies = [
  "aeko-runtime",
  "aeko-sdk",
  "aeko-send-transaction-service",
+ "aeko-social-anti-spam-program",
+ "aeko-social-posts-program",
+ "aeko-social-rewards-program",
+ "aeko-social-staking-program",
  "aeko-stake-program",
  "aeko-storage-bigtable",
  "aeko-streamer",
@@ -1697,6 +1725,7 @@ dependencies = [
  "aeko-vote-program",
  "base64 0.22.0",
  "bincode",
+ "borsh 1.2.1",
  "bs58",
  "crossbeam-channel",
  "dashmap",
@@ -2012,6 +2041,56 @@ dependencies = [
  "aeko-tpu-client",
  "crossbeam-channel",
  "log",
+]
+
+[[package]]
+name = "aeko-social-anti-spam-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "borsh 1.2.1",
+]
+
+[[package]]
+name = "aeko-social-monetization-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "borsh 1.2.1",
+]
+
+[[package]]
+name = "aeko-social-posts-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "borsh 1.2.1",
+]
+
+[[package]]
+name = "aeko-social-rewards-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "borsh 1.2.1",
+]
+
+[[package]]
+name = "aeko-social-staking-program"
+version = "2.0.0"
+dependencies = [
+ "aeko-program",
+ "aeko-program-runtime",
+ "aeko-sdk",
+ "borsh 1.2.1",
 ]
 
 [[package]]

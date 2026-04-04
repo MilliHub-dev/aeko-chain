@@ -1,0 +1,26 @@
+[package]
+name = "aeko-social-anti-spam-program"
+description = "AEKO Social anti-spam program"
+documentation = "https://github.com/MilliHub-dev/aeko-chain/tree/main/programs/social-anti-spam"
+version = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+borsh = { workspace = true }
+aeko-program = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
+
+[features]
+default = []
+
+[lib]
+crate-type = ["lib"]
+name = "aeko_social_anti_spam_program"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]

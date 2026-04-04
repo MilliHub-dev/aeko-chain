@@ -29,6 +29,7 @@ serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
 soketto = { workspace = true }
+borsh = { workspace = true }
 aeko-account-decoder = { workspace = true }
 aeko-accounts-db = { workspace = true }
 aeko-client = { workspace = true }
@@ -45,6 +46,10 @@ aeko-rpc-client-api = { workspace = true }
 aeko-runtime = { workspace = true }
 aeko-sdk = { workspace = true }
 aeko-send-transaction-service = { workspace = true }
+aeko-social-anti-spam-program = { workspace = true }
+aeko-social-posts-program = { workspace = true }
+aeko-social-rewards-program = { workspace = true }
+aeko-social-staking-program = { workspace = true }
 aeko-stake-program = { workspace = true }
 aeko-storage-bigtable = { workspace = true }
 aeko-streamer = { workspace = true }

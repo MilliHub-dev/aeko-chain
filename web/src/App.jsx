@@ -8,6 +8,12 @@ import Contact from './pages/Contact';
 import Explorer from './pages/Explorer';
 import TransactionDetails from './pages/TransactionDetails';
 import BlockDetails from './pages/BlockDetails';
+import ExplorerAccount from './pages/ExplorerAccount';
+import ExplorerCreator from './pages/ExplorerCreator';
+import ExplorerPost from './pages/ExplorerPost';
+import ExplorerNft from './pages/ExplorerNft';
+import ExplorerToken from './pages/ExplorerToken';
+import ExplorerCollection from './pages/ExplorerCollection';
 import Bridge from './pages/Bridge';
 import NftDemo from './pages/NftDemo';
 import Faucet from './pages/Faucet';
@@ -26,6 +32,12 @@ function App() {
         <Route path="/explorer" element={<Explorer />} />
         <Route path="/explorer/tx/:hash" element={<TransactionDetails />} />
         <Route path="/explorer/block/:height" element={<BlockDetails />} />
+        <Route path="/explorer/account/:address" element={<ExplorerAccount />} />
+        <Route path="/explorer/creator/:address" element={<ExplorerCreator />} />
+        <Route path="/explorer/post/:postId" element={<ExplorerPost />} />
+        <Route path="/explorer/nft/:tokenId" element={<ExplorerNft />} />
+        <Route path="/explorer/token/:mint" element={<ExplorerToken />} />
+        <Route path="/explorer/collection/:collectionId" element={<ExplorerCollection />} />
         <Route path="/bridge" element={<Bridge />} />
         <Route path="/faucet" element={<Faucet />} />
         <Route path="/nft-demo" element={<NftDemo />} />

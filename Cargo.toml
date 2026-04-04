@@ -32,6 +32,7 @@ members = [
     "dos",
     "download-utils",
     "entry",
+    "explorer-backend",
     "faucet",
     "frozen-abi",
     "frozen-abi/macro",
@@ -70,6 +71,11 @@ members = [
     "programs/ed25519-tests",
     "programs/loader-v4",
     "programs/public-mint",
+    "programs/social-posts",
+    "programs/social-rewards",
+    "programs/social-staking",
+    "programs/social-anti-spam",
+    "programs/social-monetization",
     "programs/stake",
     "programs/system",
     "programs/token-20",
@@ -379,6 +385,11 @@ aeko-runtime-transaction = { path = "runtime-transaction", version = "=2.0.0" }
 aeko-sdk = { path = "sdk", version = "=2.0.0" }
 aeko-sdk-macro = { path = "sdk/macro", version = "=2.0.0" }
 aeko-send-transaction-service = { path = "send-transaction-service", version = "=2.0.0" }
+aeko-social-posts-program = { path = "programs/social-posts", version = "=2.0.0" }
+aeko-social-monetization-program = { path = "programs/social-monetization", version = "=2.0.0" }
+aeko-social-anti-spam-program = { path = "programs/social-anti-spam", version = "=2.0.0" }
+aeko-social-rewards-program = { path = "programs/social-rewards", version = "=2.0.0" }
+aeko-social-staking-program = { path = "programs/social-staking", version = "=2.0.0" }
 aeko-stake-program = { path = "programs/stake", version = "=2.0.0" }
 aeko-storage-bigtable = { path = "storage-bigtable", version = "=2.0.0" }
 aeko-storage-proto = { path = "storage-proto", version = "=2.0.0" }

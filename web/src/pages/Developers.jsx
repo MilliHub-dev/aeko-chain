@@ -171,6 +171,10 @@ export default function Developers() {
             Current selection: {activeNetwork.label}. Wallet validation examples still default to
             testnet unless you override the RPC environment variables.
           </p>
+          <p className="text-sm text-gray-500 mt-2">
+            Explorer web pages now also support backend-driven reads when you configure
+            `VITE_AEKO_TESTNET_EXPLORER_API` and `VITE_AEKO_MAINNET_EXPLORER_API`.
+          </p>
         </div>
       </div>
     </div>

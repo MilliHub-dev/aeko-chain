@@ -225,6 +225,59 @@ pub struct RpcSignaturesForAddressConfig {
     pub min_context_slot: Option<Slot>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcCursorLimitConfig {
+    pub limit: Option<usize>,
+    pub before: Option<String>,
+    pub after: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcPostListConfig {
+    pub creator: Option<String>,
+    pub parent_post_id: Option<String>,
+    pub post_kind: Option<String>,
+    pub visibility: Option<String>,
+    #[serde(flatten)]
+    pub cursor: RpcCursorLimitConfig,
+    #[serde(flatten)]
+    pub commitment: Option<CommitmentConfig>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcCreatorRewardsConfig {
+    pub start_epoch: Option<Epoch>,
+    pub end_epoch: Option<Epoch>,
+    #[serde(flatten)]
+    pub commitment: Option<CommitmentConfig>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcEngagementEventsConfig {
+    pub creator: Option<String>,
+    pub post_id: Option<String>,
+    pub actor: Option<String>,
+    pub action_kind: Option<String>,
+    #[serde(flatten)]
+    pub cursor: RpcCursorLimitConfig,
+    #[serde(flatten)]
+    pub commitment: Option<CommitmentConfig>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcSocialStakePositionsConfig {
+    pub role: Option<String>,
+    #[serde(flatten)]
+    pub cursor: RpcCursorLimitConfig,
+    #[serde(flatten)]
+    pub commitment: Option<CommitmentConfig>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RpcEncodingConfigWrapper<T> {

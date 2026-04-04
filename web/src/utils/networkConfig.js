@@ -5,6 +5,7 @@ export const NETWORKS = {
     rpcUrl: import.meta.env.VITE_AEKO_MAINNET_RPC || 'https://api.mainnet.aeko.chain',
     websocketUrl: import.meta.env.VITE_AEKO_MAINNET_WS || 'wss://api.mainnet.aeko.chain',
     explorerUrl: import.meta.env.VITE_AEKO_MAINNET_EXPLORER || 'https://explorer.aeko.chain',
+    explorerApiUrl: import.meta.env.VITE_AEKO_MAINNET_EXPLORER_API || '',
     explorerLabel: 'explorer.aeko.chain',
     faucetUrl: import.meta.env.VITE_AEKO_MAINNET_FAUCET_URL || '',
     faucetLabel: 'No public faucet on mainnet',
@@ -18,6 +19,7 @@ export const NETWORKS = {
     websocketUrl: import.meta.env.VITE_AEKO_TESTNET_WS || 'wss://api.testnet.aeko.chain',
     explorerUrl:
       import.meta.env.VITE_AEKO_TESTNET_EXPLORER || 'https://testnet.explorer.aeko.chain',
+    explorerApiUrl: import.meta.env.VITE_AEKO_TESTNET_EXPLORER_API || '',
     explorerLabel: 'testnet.explorer.aeko.chain',
     faucetUrl: import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL || '',
     faucetLabel: import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL

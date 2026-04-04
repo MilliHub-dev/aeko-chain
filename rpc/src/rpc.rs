@@ -6,6 +6,7 @@ use {
     },
     base64::{prelude::BASE64_STANDARD, Engine},
     bincode::{config::Options, serialize},
+    borsh::BorshDeserialize,
     crossbeam_channel::{unbounded, Receiver, Sender},
     jsonrpc_core::{futures::future, types::error, BoxFuture, Error, Metadata, Result},
     jsonrpc_derive::rpc,
@@ -59,7 +60,7 @@ use {
     aeko_sdk::{
         account::{AccountSharedData, ReadableAccount},
         account_utils::StateMut,
-        clock::{Slot, UnixTimestamp, MAX_RECENT_BLOCKHASHES},
+        clock::{Epoch, Slot, UnixTimestamp, MAX_RECENT_BLOCKHASHES},
         commitment_config::{CommitmentConfig, CommitmentLevel},
         epoch_info::EpochInfo,
         epoch_schedule::EpochSchedule,
@@ -83,6 +84,12 @@ use {
         send_transaction_service::{SendTransactionService, TransactionInfo},
         tpu_info::NullTpuInfo,
     },
+    aeko_social_anti_spam_program,
+    aeko_social_posts_program::instruction::SocialPostsInstruction,
+    aeko_social_posts_program,
+    aeko_social_rewards_program,
+    aeko_social_staking_program::instruction::SocialStakingInstruction,
+    aeko_social_staking_program,
     aeko_stake_program,
     aeko_storage_bigtable::Error as StorageError,
     aeko_streamer::socket::SocketAddrSpace,
@@ -95,7 +102,7 @@ use {
     aeko_vote_program::vote_state::{VoteState, MAX_LOCKOUT_HISTORY},
     spl_token_2022::{
         extension::StateWithExtensions,
-        aeko_program::program_pack::Pack,
+        solana_program::program_pack::Pack,
         state::{Account as TokenAccount, Mint},
     },
     std::{
@@ -2074,6 +2081,39 @@ impl JsonRpcRequestProcessor {
                     message: e.to_string(),
                 })?)
         }
+    }
+
+    fn get_social_rewards_state(
+        &self,
+        bank: &Bank,
+    ) -> RpcCustomResult<Option<aeko_social_rewards_program::state::SocialRewardsStateAccount>> {
+        let accounts = self.get_filtered_program_accounts(bank, &aeko_social_rewards_program::id(), vec![])?;
+        Ok(account_resolver::find_social_rewards_state(accounts))
+    }
+
+    fn get_social_posts_state(
+        &self,
+        bank: &Bank,
+    ) -> RpcCustomResult<Option<aeko_social_posts_program::state::SocialPostsStateAccount>> {
+        let accounts = self.get_filtered_program_accounts(bank, &aeko_social_posts_program::id(), vec![])?;
+        Ok(account_resolver::find_social_posts_state(accounts))
+    }
+
+    fn get_social_anti_spam_state(
+        &self,
+        bank: &Bank,
+    ) -> RpcCustomResult<Option<aeko_social_anti_spam_program::state::SocialAntiSpamStateAccount>> {
+        let accounts =
+            self.get_filtered_program_accounts(bank, &aeko_social_anti_spam_program::id(), vec![])?;
+        Ok(account_resolver::find_social_anti_spam_state(accounts))
+    }
+
+    fn get_social_staking_state(
+        &self,
+        bank: &Bank,
+    ) -> RpcCustomResult<Option<aeko_social_staking_program::state::SocialStakingStateAccount>> {
+        let accounts = self.get_filtered_program_accounts(bank, &aeko_social_staking_program::id(), vec![])?;
+        Ok(account_resolver::find_social_staking_state(accounts))
     }
 
     /// Get an iterator of spl-token accounts by owner address
@@ -4066,6 +4106,487 @@ pub mod rpc_full {
     }
 }
 
+// SocialFi RPC interface for Phase 5
+pub mod rpc_socialfi {
+    use super::*;
+
+    #[rpc]
+    pub trait SocialFi {
+        type Metadata;
+
+        #[rpc(meta, name = "getPostAnchor")]
+        fn get_post_anchor(
+            &self,
+            meta: Self::Metadata,
+            post_id: String,
+            config: Option<RpcContextConfig>,
+        ) -> Result<RpcResponse<Option<RpcPostAnchor>>>;
+
+        #[rpc(meta, name = "getPostsByCreator")]
+        fn get_posts_by_creator(
+            &self,
+            meta: Self::Metadata,
+            creator: String,
+            config: Option<RpcPostListConfig>,
+        ) -> Result<RpcResponse<Vec<RpcPostAnchor>>>;
+
+        #[rpc(meta, name = "getCreatorRewards")]
+        fn get_creator_rewards(
+            &self,
+            meta: Self::Metadata,
+            creator: String,
+            config: Option<RpcCreatorRewardsConfig>,
+        ) -> Result<RpcResponse<RpcCreatorRewardsSummary>>;
+
+        #[rpc(meta, name = "getCreatorRewardEpoch")]
+        fn get_creator_reward_epoch(
+            &self,
+            meta: Self::Metadata,
+            creator: String,
+            epoch: Epoch,
+            config: Option<RpcContextConfig>,
+        ) -> Result<RpcResponse<Option<RpcCreatorRewardEpoch>>>;
+
+        #[rpc(meta, name = "getClaimableRewards")]
+        fn get_claimable_rewards(
+            &self,
+            meta: Self::Metadata,
+            creator: String,
+            config: Option<RpcContextConfig>,
+        ) -> Result<RpcResponse<RpcClaimableRewards>>;
+
+        #[rpc(meta, name = "submitEngagementProof")]
+        fn submit_engagement_proof(
+            &self,
+            meta: Self::Metadata,
+            data: String,
+            config: Option<RpcSendTransactionConfig>,
+        ) -> Result<RpcResponse<RpcEngagementProofReceipt>>;
+
+        #[rpc(meta, name = "stakeBehindCreator")]
+        fn stake_behind_creator(
+            &self,
+            meta: Self::Metadata,
+            data: String,
+            config: Option<RpcSendTransactionConfig>,
+        ) -> Result<String>;
+
+        #[rpc(meta, name = "unstakeBehindCreator")]
+        fn unstake_behind_creator(
+            &self,
+            meta: Self::Metadata,
+            data: String,
+            config: Option<RpcSendTransactionConfig>,
+        ) -> Result<String>;
+
+        #[rpc(meta, name = "claimSocialStakeYield")]
+        fn claim_social_stake_yield(
+            &self,
+            meta: Self::Metadata,
+            data: String,
+            config: Option<RpcSendTransactionConfig>,
+        ) -> Result<String>;
+
+        #[rpc(meta, name = "getEngagementScore")]
+        fn get_engagement_score(
+            &self,
+            meta: Self::Metadata,
+            target: String,
+            config: Option<RpcContextConfig>,
+        ) -> Result<RpcResponse<RpcEngagementScore>>;
+
+        #[rpc(meta, name = "getEngagementEvents")]
+        fn get_engagement_events(
+            &self,
+            meta: Self::Metadata,
+            config: Option<RpcEngagementEventsConfig>,
+        ) -> Result<RpcResponse<Vec<RpcEngagementEvent>>>;
+
+        #[rpc(meta, name = "getReputationScore")]
+        fn get_reputation_score(
+            &self,
+            meta: Self::Metadata,
+            wallet: String,
+            config: Option<RpcContextConfig>,
+        ) -> Result<RpcResponse<RpcReputationScore>>;
+
+        #[rpc(meta, name = "getSocialStakePositions")]
+        fn get_social_stake_positions(
+            &self,
+            meta: Self::Metadata,
+            wallet: String,
+            config: Option<RpcSocialStakePositionsConfig>,
+        ) -> Result<RpcResponse<Vec<RpcSocialStakePosition>>>;
+    }
+
+    pub struct SocialFiImpl;
+    impl SocialFi for SocialFiImpl {
+        type Metadata = JsonRpcRequestProcessor;
+
+        fn get_post_anchor(
+            &self,
+            meta: Self::Metadata,
+            post_id: String,
+            config: Option<RpcContextConfig>,
+        ) -> Result<RpcResponse<Option<RpcPostAnchor>>> {
+            debug!("get_post_anchor rpc request received: {:?}", post_id);
+            let bank = meta.get_bank_with_config(config.unwrap_or_default())?;
+            let post_id = account_resolver::decode_social_record_id(&post_id)
+                .map_err(|_| Error::invalid_params("Invalid post id"))?;
+            let post = meta
+                .get_social_posts_state(&bank)
+                .map_err(Error::from)?
+                .and_then(|state| account_resolver::post_anchor_from_state(&state, &post_id));
+            Ok(new_response(&bank, post))
+        }
+
+        fn get_posts_by_creator(
+            &self,
+            meta: Self::Metadata,
+            creator: String,
+            config: Option<RpcPostListConfig>,
+        ) -> Result<RpcResponse<Vec<RpcPostAnchor>>> {
+            debug!("get_posts_by_creator rpc request received: {:?}", creator);
+            let creator = verify_pubkey(&creator)?;
+            let bank = meta.bank(config.as_ref().and_then(|cfg| cfg.commitment));
+            let posts = meta
+                .get_social_posts_state(&bank)
+                .map_err(Error::from)?
+                .map(|state| {
+                    account_resolver::posts_by_creator_from_state(&state, &creator, config.as_ref())
+                })
+                .unwrap_or_default();
+            Ok(new_response(&bank, posts))
+        }
+
+        fn get_creator_rewards(
+            &self,
+            meta: Self::Metadata,
+            creator: String,
+            config: Option<RpcCreatorRewardsConfig>,
+        ) -> Result<RpcResponse<RpcCreatorRewardsSummary>> {
+            debug!("get_creator_rewards rpc request received: {:?}", creator);
+            let creator = verify_pubkey(&creator)?;
+            let bank = meta.bank(config.as_ref().and_then(|cfg| cfg.commitment));
+            let summary = meta
+                .get_social_rewards_state(&bank)
+                .map_err(Error::from)?
+                .map(|state| {
+                    account_resolver::creator_rewards_summary_from_state(
+                        &state,
+                        &creator,
+                        config.as_ref(),
+                    )
+                })
+                .unwrap_or(RpcCreatorRewardsSummary {
+                    creator: creator.to_string(),
+                    total_earned: 0,
+                    total_claimed: 0,
+                    total_claimable: 0,
+                    epochs: Vec::new(),
+                });
+            Ok(new_response(&bank, summary))
+        }
+
+        fn get_creator_reward_epoch(
+            &self,
+            meta: Self::Metadata,
+            creator: String,
+            epoch: Epoch,
+            config: Option<RpcContextConfig>,
+        ) -> Result<RpcResponse<Option<RpcCreatorRewardEpoch>>> {
+            debug!(
+                "get_creator_reward_epoch rpc request received: {:?} epoch={}",
+                creator, epoch
+            );
+            let creator = verify_pubkey(&creator)?;
+            let bank = meta.get_bank_with_config(config.unwrap_or_default())?;
+            let reward_epoch = meta
+                .get_social_rewards_state(&bank)
+                .map_err(Error::from)?
+                .and_then(|state| {
+                    account_resolver::creator_reward_epoch_from_state(&state, &creator, epoch)
+                });
+            Ok(new_response(&bank, reward_epoch))
+        }
+
+        fn get_claimable_rewards(
+            &self,
+            meta: Self::Metadata,
+            creator: String,
+            config: Option<RpcContextConfig>,
+        ) -> Result<RpcResponse<RpcClaimableRewards>> {
+            debug!("get_claimable_rewards rpc request received: {:?}", creator);
+            let creator = verify_pubkey(&creator)?;
+            let bank = meta.get_bank_with_config(config.unwrap_or_default())?;
+            let claimable_amount = meta
+                .get_social_rewards_state(&bank)
+                .map_err(Error::from)?
+                .and_then(|state| {
+                    state
+                        .creators
+                        .iter()
+                        .find(|entry| entry.creator == creator)
+                        .map(|entry| entry.claimable_amount)
+                })
+                .unwrap_or(0);
+            Ok(new_response(
+                &bank,
+                RpcClaimableRewards {
+                    creator: creator.to_string(),
+                    claimable_amount,
+                },
+            ))
+        }
+
+        fn submit_engagement_proof(
+            &self,
+            meta: Self::Metadata,
+            data: String,
+            config: Option<RpcSendTransactionConfig>,
+        ) -> Result<RpcResponse<RpcEngagementProofReceipt>> {
+            debug!("submit_engagement_proof rpc request received");
+            let RpcSendTransactionConfig {
+                skip_preflight,
+                preflight_commitment,
+                encoding,
+                max_retries,
+                min_context_slot,
+            } = config.unwrap_or_default();
+            let tx_encoding = encoding.unwrap_or(UiTransactionEncoding::Base58);
+            let binary_encoding = tx_encoding.into_binary_encoding().ok_or_else(|| {
+                Error::invalid_params(format!(
+                    "unsupported encoding: {tx_encoding}. Supported encodings: base58, base64"
+                ))
+            })?;
+            let (wire_transaction, unsanitized_tx) =
+                decode_and_deserialize::<VersionedTransaction>(data, binary_encoding)?;
+
+            let preflight_commitment =
+                preflight_commitment.map(|commitment| CommitmentConfig { commitment });
+            let preflight_bank = &*meta.get_bank_with_config(RpcContextConfig {
+                commitment: preflight_commitment,
+                min_context_slot,
+            })?;
+
+            let transaction = sanitize_transaction(unsanitized_tx, preflight_bank)?;
+            let proof_id = extract_social_posts_engagement_proof_id(&transaction).ok_or_else(
+                || Error::invalid_params("Transaction does not contain a social-posts engagement proof"),
+            )?;
+            let signature = *transaction.signature();
+
+            let mut last_valid_block_height = preflight_bank
+                .get_blockhash_last_valid_block_height(transaction.message().recent_blockhash())
+                .unwrap_or(0);
+
+            let durable_nonce_info = transaction
+                .get_durable_nonce()
+                .map(|&pubkey| (pubkey, *transaction.message().recent_blockhash()));
+            if durable_nonce_info.is_some() {
+                last_valid_block_height =
+                    preflight_bank.block_height() + MAX_RECENT_BLOCKHASHES as u64;
+            }
+
+            if !skip_preflight {
+                verify_transaction(&transaction, &preflight_bank.feature_set)?;
+
+                match meta.health.check() {
+                    RpcHealthStatus::Ok => (),
+                    RpcHealthStatus::Unknown => {
+                        inc_new_counter_info!("rpc-submit-engagement_health-unknown", 1);
+                        return Err(RpcCustomError::NodeUnhealthy {
+                            num_slots_behind: None,
+                        }
+                        .into());
+                    }
+                    RpcHealthStatus::Behind { num_slots } => {
+                        inc_new_counter_info!("rpc-submit-engagement_health-behind", 1);
+                        return Err(RpcCustomError::NodeUnhealthy {
+                            num_slots_behind: Some(num_slots),
+                        }
+                        .into());
+                    }
+                }
+
+                if let TransactionSimulationResult {
+                    result: Err(err),
+                    logs,
+                    post_simulation_accounts: _,
+                    units_consumed,
+                    return_data,
+                    inner_instructions: _,
+                } = preflight_bank.simulate_transaction(&transaction, false)
+                {
+                    return Err(RpcCustomError::SendTransactionPreflightFailure {
+                        message: format!("Transaction simulation failed: {err}"),
+                        result: RpcSimulateTransactionResult {
+                            err: Some(err),
+                            logs: Some(logs),
+                            accounts: None,
+                            units_consumed: Some(units_consumed),
+                            return_data: return_data.map(|return_data| return_data.into()),
+                            inner_instructions: None,
+                        },
+                    }
+                    .into());
+                }
+            }
+
+            _send_transaction(
+                meta,
+                signature,
+                wire_transaction,
+                last_valid_block_height,
+                durable_nonce_info,
+                max_retries,
+            )?;
+
+            Ok(new_response(
+                preflight_bank,
+                RpcEngagementProofReceipt {
+                    proof_id: bs58::encode(proof_id).into_string(),
+                    accepted: true,
+                    slot: Some(preflight_bank.slot()),
+                },
+            ))
+        }
+
+        fn stake_behind_creator(
+            &self,
+            meta: Self::Metadata,
+            data: String,
+            config: Option<RpcSendTransactionConfig>,
+        ) -> Result<String> {
+            debug!("stake_behind_creator rpc request received");
+            submit_social_staking_transaction(
+                meta,
+                data,
+                config,
+                SocialStakingRpcAction::OpenPosition,
+                "Transaction does not contain a social-staking open position instruction",
+            )
+        }
+
+        fn unstake_behind_creator(
+            &self,
+            meta: Self::Metadata,
+            data: String,
+            config: Option<RpcSendTransactionConfig>,
+        ) -> Result<String> {
+            debug!("unstake_behind_creator rpc request received");
+            submit_social_staking_transaction(
+                meta,
+                data,
+                config,
+                SocialStakingRpcAction::Unstake,
+                "Transaction does not contain a social-staking unstake instruction",
+            )
+        }
+
+        fn claim_social_stake_yield(
+            &self,
+            meta: Self::Metadata,
+            data: String,
+            config: Option<RpcSendTransactionConfig>,
+        ) -> Result<String> {
+            debug!("claim_social_stake_yield rpc request received");
+            submit_social_staking_transaction(
+                meta,
+                data,
+                config,
+                SocialStakingRpcAction::ClaimYield,
+                "Transaction does not contain a social-staking claim yield instruction",
+            )
+        }
+
+        fn get_engagement_score(
+            &self,
+            meta: Self::Metadata,
+            target: String,
+            config: Option<RpcContextConfig>,
+        ) -> Result<RpcResponse<RpcEngagementScore>> {
+            debug!("get_engagement_score rpc request received: {:?}", target);
+            let target = verify_pubkey(&target)?;
+            let bank = meta.get_bank_with_config(config.unwrap_or_default())?;
+            let score = meta
+                .get_social_posts_state(&bank)
+                .map_err(Error::from)?
+                .map(|state| account_resolver::engagement_score_from_state(&state, &target))
+                .unwrap_or(RpcEngagementScore {
+                    target: target.to_string(),
+                    score: 0,
+                    last_updated_slot: None,
+                });
+            Ok(new_response(&bank, score))
+        }
+
+        fn get_engagement_events(
+            &self,
+            meta: Self::Metadata,
+            config: Option<RpcEngagementEventsConfig>,
+        ) -> Result<RpcResponse<Vec<RpcEngagementEvent>>> {
+            debug!("get_engagement_events rpc request received");
+            let bank = meta.bank(config.as_ref().and_then(|cfg| cfg.commitment));
+            let events = meta
+                .get_social_posts_state(&bank)
+                .map_err(Error::from)?
+                .map(|state| account_resolver::engagement_events_from_state(&state, config.as_ref()))
+                .unwrap_or_default();
+            Ok(new_response(&bank, events))
+        }
+
+        fn get_reputation_score(
+            &self,
+            meta: Self::Metadata,
+            wallet: String,
+            config: Option<RpcContextConfig>,
+        ) -> Result<RpcResponse<RpcReputationScore>> {
+            debug!("get_reputation_score rpc request received: {:?}", wallet);
+            let wallet = verify_pubkey(&wallet)?;
+            let bank = meta.get_bank_with_config(config.unwrap_or_default())?;
+            let reputation = meta
+                .get_social_anti_spam_state(&bank)
+                .map_err(Error::from)?
+                .map(|state| {
+                    account_resolver::reputation_score_from_anti_spam_state(
+                        &state,
+                        &wallet,
+                        bank.epoch(),
+                    )
+                })
+                .unwrap_or(RpcReputationScore {
+                    wallet: wallet.to_string(),
+                    score: 1_000,
+                    tier: Some("trusted".to_string()),
+                });
+            Ok(new_response(&bank, reputation))
+        }
+
+        fn get_social_stake_positions(
+            &self,
+            meta: Self::Metadata,
+            wallet: String,
+            config: Option<RpcSocialStakePositionsConfig>,
+        ) -> Result<RpcResponse<Vec<RpcSocialStakePosition>>> {
+            debug!("get_social_stake_positions rpc request received: {:?}", wallet);
+            let wallet = verify_pubkey(&wallet)?;
+            let bank = meta.bank(config.as_ref().and_then(|cfg| cfg.commitment));
+            let positions = meta
+                .get_social_staking_state(&bank)
+                .map_err(Error::from)?
+                .map(|state| {
+                    account_resolver::social_stake_positions_from_state(
+                        &state,
+                        &wallet,
+                        config.as_ref().and_then(|cfg| cfg.role.as_deref()),
+                    )
+                })
+                .unwrap_or_default();
+            Ok(new_response(&bank, positions))
+        }
+    }
+}
+
 fn rpc_perf_sample_from_perf_sample(slot: u64, sample: PerfSample) -> RpcPerfSample {
     match sample {
         PerfSample::V1(PerfSampleV1 {
@@ -4612,6 +5133,156 @@ fn sanitize_transaction(
         .map_err(|err| Error::invalid_params(format!("invalid transaction: {err}")))
 }
 
+fn extract_social_posts_engagement_proof_id(
+    transaction: &SanitizedTransaction,
+) -> Option<[u8; 32]> {
+    for (program_id, instruction) in transaction.message().program_instructions_iter() {
+        if *program_id != aeko_social_posts_program::id() {
+            continue;
+        }
+        if let Ok(SocialPostsInstruction::RecordEngagement { proof }) =
+            SocialPostsInstruction::try_from_slice(&instruction.data)
+        {
+            return Some(proof.proof_id);
+        }
+    }
+    None
+}
+
+#[derive(Clone, Copy)]
+enum SocialStakingRpcAction {
+    OpenPosition,
+    Unstake,
+    ClaimYield,
+}
+
+fn submit_social_staking_transaction(
+    meta: JsonRpcRequestProcessor,
+    data: String,
+    config: Option<RpcSendTransactionConfig>,
+    expected_action: SocialStakingRpcAction,
+    invalid_message: &str,
+) -> Result<String> {
+    let RpcSendTransactionConfig {
+        skip_preflight,
+        preflight_commitment,
+        encoding,
+        max_retries,
+        min_context_slot,
+    } = config.unwrap_or_default();
+    let tx_encoding = encoding.unwrap_or(UiTransactionEncoding::Base58);
+    let binary_encoding = tx_encoding.into_binary_encoding().ok_or_else(|| {
+        Error::invalid_params(format!(
+            "unsupported encoding: {tx_encoding}. Supported encodings: base58, base64"
+        ))
+    })?;
+    let (wire_transaction, unsanitized_tx) =
+        decode_and_deserialize::<VersionedTransaction>(data, binary_encoding)?;
+
+    let preflight_commitment =
+        preflight_commitment.map(|commitment| CommitmentConfig { commitment });
+    let preflight_bank = &*meta.get_bank_with_config(RpcContextConfig {
+        commitment: preflight_commitment,
+        min_context_slot,
+    })?;
+
+    let transaction = sanitize_transaction(unsanitized_tx, preflight_bank)?;
+    if !transaction_contains_social_staking_action(&transaction, expected_action) {
+        return Err(Error::invalid_params(invalid_message));
+    }
+    let signature = *transaction.signature();
+
+    let mut last_valid_block_height = preflight_bank
+        .get_blockhash_last_valid_block_height(transaction.message().recent_blockhash())
+        .unwrap_or(0);
+
+    let durable_nonce_info = transaction
+        .get_durable_nonce()
+        .map(|&pubkey| (pubkey, *transaction.message().recent_blockhash()));
+    if durable_nonce_info.is_some() {
+        last_valid_block_height = preflight_bank.block_height() + MAX_RECENT_BLOCKHASHES as u64;
+    }
+
+    if !skip_preflight {
+        verify_transaction(&transaction, &preflight_bank.feature_set)?;
+
+        match meta.health.check() {
+            RpcHealthStatus::Ok => (),
+            RpcHealthStatus::Unknown => {
+                return Err(RpcCustomError::NodeUnhealthy {
+                    num_slots_behind: None,
+                }
+                .into());
+            }
+            RpcHealthStatus::Behind { num_slots } => {
+                return Err(RpcCustomError::NodeUnhealthy {
+                    num_slots_behind: Some(num_slots),
+                }
+                .into());
+            }
+        }
+
+        if let TransactionSimulationResult {
+            result: Err(err),
+            logs,
+            post_simulation_accounts: _,
+            units_consumed,
+            return_data,
+            inner_instructions: _,
+        } = preflight_bank.simulate_transaction(&transaction, false)
+        {
+            return Err(RpcCustomError::SendTransactionPreflightFailure {
+                message: format!("Transaction simulation failed: {err}"),
+                result: RpcSimulateTransactionResult {
+                    err: Some(err),
+                    logs: Some(logs),
+                    accounts: None,
+                    units_consumed: Some(units_consumed),
+                    return_data: return_data.map(|return_data| return_data.into()),
+                    inner_instructions: None,
+                },
+            }
+            .into());
+        }
+    }
+
+    _send_transaction(
+        meta,
+        signature,
+        wire_transaction,
+        last_valid_block_height,
+        durable_nonce_info,
+        max_retries,
+    )
+}
+
+fn transaction_contains_social_staking_action(
+    transaction: &SanitizedTransaction,
+    expected_action: SocialStakingRpcAction,
+) -> bool {
+    transaction
+        .message()
+        .program_instructions_iter()
+        .any(|(program_id, instruction)| {
+            if *program_id != aeko_social_staking_program::id() {
+                return false;
+            }
+            match SocialStakingInstruction::try_from_slice(&instruction.data) {
+                Ok(SocialStakingInstruction::OpenPosition { .. }) => {
+                    matches!(expected_action, SocialStakingRpcAction::OpenPosition)
+                }
+                Ok(SocialStakingInstruction::RequestUnstake { .. })
+                | Ok(SocialStakingInstruction::FinalizeUnstake { .. }) => {
+                    matches!(expected_action, SocialStakingRpcAction::Unstake)
+                }
+                Ok(SocialStakingInstruction::ClaimStakeYield { .. }) => {
+                    matches!(expected_action, SocialStakingRpcAction::ClaimYield)
+                }
+                _ => false,
+            }
+        })
+}
+
 pub fn create_validator_exit(exit: Arc<AtomicBool>) -> Arc<RwLock<Exit>> {
     let mut validator_exit = Exit::default();
     validator_exit.register_exit(Box::new(move || exit.store(true, Ordering::Relaxed)));
@@ -4908,6 +5579,7 @@ pub mod tests {
             io.extend_with(rpc_accounts::AccountsDataImpl.to_delegate());
             io.extend_with(rpc_accounts_scan::AccountsScanImpl.to_delegate());
             io.extend_with(rpc_full::FullImpl.to_delegate());
+            io.extend_with(rpc_socialfi::SocialFiImpl.to_delegate());
             io.extend_with(rpc_deprecated_v1_9::DeprecatedV1_9Impl.to_delegate());
             Self {
                 io,
@@ -5257,6 +5929,59 @@ pub mod tests {
             "featureSet": null,
         }]);
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_rpc_get_creator_rewards_returns_default_summary() {
+        let rpc = RpcHandler::start();
+        let creator = rpc.mint_keypair.pubkey().to_string();
+        let request = create_test_request("getCreatorRewards", Some(json!([creator])));
+        let result: RpcResponse<RpcCreatorRewardsSummary> =
+            parse_success_result(rpc.handle_request_sync(request));
+
+        assert_eq!(result.context.slot, rpc.working_bank().slot());
+        assert_eq!(result.value.creator, rpc.mint_keypair.pubkey().to_string());
+        assert_eq!(result.value.total_earned, 0);
+        assert_eq!(result.value.total_claimed, 0);
+        assert_eq!(result.value.total_claimable, 0);
+        assert!(result.value.epochs.is_empty());
+    }
+
+    #[test]
+    fn test_rpc_get_reputation_score_rejects_invalid_pubkey() {
+        let rpc = RpcHandler::start();
+        let request =
+            create_test_request("getReputationScore", Some(json!(["not-a-valid-pubkey"])));
+        let (code, message) = parse_failure_response(rpc.handle_request_sync(request));
+
+        assert_eq!(code, ErrorCode::InvalidParams.code());
+        assert!(message.contains("Invalid param"));
+    }
+
+    #[test]
+    fn test_rpc_get_reputation_score_returns_default_trusted_profile_without_state() {
+        let rpc = RpcHandler::start();
+        let wallet = rpc.mint_keypair.pubkey().to_string();
+        let request = create_test_request("getReputationScore", Some(json!([wallet])));
+        let result: RpcResponse<RpcReputationScore> =
+            parse_success_result(rpc.handle_request_sync(request));
+
+        assert_eq!(result.context.slot, rpc.working_bank().slot());
+        assert_eq!(result.value.wallet, rpc.mint_keypair.pubkey().to_string());
+        assert_eq!(result.value.score, 1_000);
+        assert_eq!(result.value.tier.as_deref(), Some("trusted"));
+    }
+
+    #[test]
+    fn test_rpc_get_social_stake_positions_returns_empty_list() {
+        let rpc = RpcHandler::start();
+        let wallet = rpc.mint_keypair.pubkey().to_string();
+        let request = create_test_request("getSocialStakePositions", Some(json!([wallet])));
+        let result: RpcResponse<Vec<RpcSocialStakePosition>> =
+            parse_success_result(rpc.handle_request_sync(request));
+
+        assert_eq!(result.context.slot, rpc.working_bank().slot());
+        assert!(result.value.is_empty());
     }
 
     #[test]

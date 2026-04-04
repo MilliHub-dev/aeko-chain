@@ -98,6 +98,101 @@ pub struct Response<T> {
     pub value: T,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcPostAnchor {
+    pub post_id: String,
+    pub creator: String,
+    pub content_hash: String,
+    pub metadata_hash: String,
+    pub content_uri: String,
+    pub parent_post_id: Option<String>,
+    pub post_kind: String,
+    pub created_at_unix: UnixTimestamp,
+    pub edited_at_unix: Option<UnixTimestamp>,
+    pub visibility: String,
+    pub moderation_state: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcCreatorRewardEpoch {
+    pub epoch: Epoch,
+    pub creator: String,
+    pub earned_points: u128,
+    pub reward_amount: u64,
+    pub claimed_amount: u64,
+    pub claimable_amount: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcCreatorRewardsSummary {
+    pub creator: String,
+    pub total_earned: u128,
+    pub total_claimed: u128,
+    pub total_claimable: u64,
+    pub epochs: Vec<RpcCreatorRewardEpoch>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcEngagementScore {
+    pub target: String,
+    pub score: u128,
+    pub last_updated_slot: Option<Slot>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcEngagementEvent {
+    pub proof_id: String,
+    pub actor: String,
+    pub target_post_id: Option<String>,
+    pub target_creator: String,
+    pub action_kind: String,
+    pub action_weight: u32,
+    pub slot: Slot,
+    pub unix_timestamp: UnixTimestamp,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcReputationScore {
+    pub wallet: String,
+    pub score: u16,
+    pub tier: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcSocialStakePosition {
+    pub position_id: String,
+    pub staker: String,
+    pub creator: String,
+    pub staked_amount: u64,
+    pub activated_at_epoch: Epoch,
+    pub unlock_epoch: Option<Epoch>,
+    pub accumulated_yield: u64,
+    pub claimed_yield: u64,
+    pub state: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcClaimableRewards {
+    pub creator: String,
+    pub claimable_amount: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcEngagementProofReceipt {
+    pub proof_id: String,
+    pub accepted: bool,
+    pub slot: Option<Slot>,
+}
+
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RpcBlockCommitment<T> {
