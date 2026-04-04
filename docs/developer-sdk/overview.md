@@ -33,6 +33,9 @@ console.log("Connected to AEKO Devnet");
 - JavaScript SDK scaffold and verified local build live in [`sdk/js`](/Users/ok/Documents/projects/aeko-chain/sdk/js)
 - Node.js SDK scaffold and verified local build live in [`sdk/node`](/Users/ok/Documents/projects/aeko-chain/sdk/node)
 - the new high-level Rust client SDK now lives in [`sdk/rust-client`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client)
+- a first external on-chain starter guide now lives in [`docs/developer-sdk/write-your-first-program.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/write-your-first-program.md)
+- a full zero-to-first-live-program walkthrough now lives in [`docs/developer-sdk/deploy-and-invoke-testnet.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/deploy-and-invoke-testnet.md)
+- a minimal starter contract template now lives in [`contracts/hello-aeko-program`](/Users/ok/Documents/projects/aeko-chain/contracts/hello-aeko-program)
 - the Python SDK scaffold now lives in [`sdk/python`](/Users/ok/Documents/projects/aeko-chain/sdk/python)
 - `@aeko-chain/web3.js@0.1.0` is published on npm
 - `@aeko-chain/sdk@0.1.0` is published on npm

@@ -35,4 +35,4 @@ Contains the Rust SDK, program SDK, and SBF developer tooling that applications 
 Contains the AEKO architecture, roadmap, governance, wallet, bridge, permission-layer, and token-standard documentation.
 
 ### `protocol/` and `contracts/`
-These directories are currently placeholders. They should not be treated as evidence that the corresponding AEKO-specific protocol modules have already been implemented.
+`protocol/` remains a placeholder. `contracts/` now also contains starter-facing external examples and templates, such as [`contracts/hello-aeko-program`](/Users/ok/Documents/projects/aeko-chain/contracts/hello-aeko-program), but it should still not be treated as evidence that all future protocol modules are already implemented.

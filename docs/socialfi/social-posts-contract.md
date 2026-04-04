@@ -8,6 +8,7 @@ It exists to support:
 - canonical post ownership and edit history
 - replay-protected engagement proofs
 - explorer and indexer SocialFi history
+- future post-signature verification and immutable post-proof exposure
 
 ## Scope
 
@@ -32,6 +33,10 @@ It is not responsible for:
 - engagement-proof state model implemented
 - initialize / anchor / edit / moderate / engagement / read instruction flow implemented
 - duplicate post and replay-guard protections implemented
+
+Current limitation:
+
+- the program stores an optional `signature_ref`, but does not yet perform dedicated post-content signature verification inside `AnchorPost`
 
 ## Canonical State
 
@@ -87,6 +92,11 @@ Engagement proofs include:
 - only program authority may update moderation state
 - engagement proofs must be unique by both `proof_id` and `replay_guard`
 
+Current verification note:
+
+- `AnchorPost` verifies that the transaction signer matches `post.creator`
+- `AnchorPost` does not yet verify a separate signature envelope over the canonical post payload
+
 ## RPC Consequences
 
 This program is the intended canonical source for:
@@ -98,3 +108,8 @@ It is also the source event layer for:
 
 - `getEngagementEvents`
 - future engagement-score derivation
+
+Related follow-up specs:
+
+- [`docs/socialfi/post-signature-flow.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/post-signature-flow.md)
+- [`docs/rpc-and-apis/aeko-social-backend-integration.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/aeko-social-backend-integration.md)

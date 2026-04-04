@@ -422,9 +422,11 @@ Current spec deliverables:
 
 - [`docs/socialfi/reward-contract.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/reward-contract.md)
 - [`docs/socialfi/social-posts-contract.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/social-posts-contract.md)
+- [`docs/socialfi/post-signature-flow.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/post-signature-flow.md)
 - [`docs/socialfi/social-staking-contract.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/social-staking-contract.md)
 - [`docs/socialfi/creator-monetization-contract.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/creator-monetization-contract.md)
 - [`docs/socialfi/anti-spam-contract.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/anti-spam-contract.md)
+- [`docs/rpc-and-apis/aeko-social-backend-integration.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/aeko-social-backend-integration.md)
 
 Current implementation progress:
 
@@ -434,6 +436,10 @@ Current implementation progress:
 - SocialFi reward and staking RPC reads now resolve real on-chain program state through [`rpc/src/rpc/account_resolver.rs`](/Users/ok/Documents/projects/aeko-chain/rpc/src/rpc/account_resolver.rs) for creator rewards, claimable rewards, reward epochs, and social stake positions
 - SocialFi reputation RPC reads now resolve anti-spam-backed on-chain profile state through [`rpc/src/rpc/account_resolver.rs`](/Users/ok/Documents/projects/aeko-chain/rpc/src/rpc/account_resolver.rs); engagement score and post-anchor reads still need dedicated canonical state
 - social posts support contract added in [`programs/social-posts`](/Users/ok/Documents/projects/aeko-chain/programs/social-posts) with canonical post anchors and replay-protected engagement proofs
+- post-signature and Aeko Social backend integration specs now exist in [`docs/socialfi/post-signature-flow.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/post-signature-flow.md) and [`docs/rpc-and-apis/aeko-social-backend-integration.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/aeko-social-backend-integration.md), explicitly defining the current split between backend signature verification and on-chain immutable anchoring
+- first-pass Aeko Social backend helpers for canonical post payload building, hashing, ed25519 verification, and `AnchorPost` transaction preparation now exist in [`sdk/node/src/socialPosts.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/node/src/socialPosts.ts)
+- a minimal reference Node backend for SocialFi post hashing, verification, anchoring, and persisted verification-status lookups now exists in [`sdk/node/examples/social-posts-backend.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/node/examples/social-posts-backend.ts)
+- that reference backend now exposes a pluggable store adapter pattern and stable machine-readable error codes, making it a closer production template for Aeko Social integration
 - SocialFi post-anchor, creator-post, and engagement-event RPC reads now resolve real on-chain social-posts state through [`rpc/src/rpc/account_resolver.rs`](/Users/ok/Documents/projects/aeko-chain/rpc/src/rpc/account_resolver.rs)
 - SocialFi engagement score RPC reads now aggregate first-pass on-chain engagement proof weights from [`programs/social-posts`](/Users/ok/Documents/projects/aeko-chain/programs/social-posts)
 - `submitEngagementProof` now exists as a validated SocialFi RPC write wrapper in [`rpc/src/rpc.rs`](/Users/ok/Documents/projects/aeko-chain/rpc/src/rpc.rs), forwarding signed engagement transactions through the normal submission path

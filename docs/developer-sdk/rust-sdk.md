@@ -79,3 +79,11 @@ cargo build-bpf
 ```bash
 aeko program deploy target/deploy/my_program.so
 ```
+
+## External Developer Starter
+
+For a cleaner external onboarding path, see:
+
+- [`docs/developer-sdk/write-your-first-program.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/write-your-first-program.md)
+- [`docs/developer-sdk/deploy-and-invoke-testnet.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/deploy-and-invoke-testnet.md)
+- [`contracts/hello-aeko-program`](/Users/ok/Documents/projects/aeko-chain/contracts/hello-aeko-program)
