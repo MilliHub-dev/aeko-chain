@@ -463,8 +463,11 @@ impl Tower {
             total_stake += voted_stake;
         }
 
-        // TODO: populate_ancestor_voted_stakes only adds zeros. Comment why
-        // that is necessary (if so).
+        // Ensure every vote slot and all its ancestors are present as keys in voted_stakes,
+        // even with a zero value. This guarantees downstream lookups (e.g. fork_stake below)
+        // never encounter a missing key for a slot that had votes recorded but whose stake
+        // was not yet accumulated by update_ancestor_voted_stakes (e.g. the simulated vote
+        // at bank_slot itself, or slots from before the current root).
         Self::populate_ancestor_voted_stakes(&mut voted_stakes, vote_slots, ancestors);
 
         // As commented above, since the votes at current bank_slot are
@@ -842,9 +845,15 @@ impl Tower {
         // being a duplicate because `ancestors`/`descendants`/`progress` structures may be missing this slot due
         // to duplicate purging. This would cause many of the `unwrap()` checks below to fail.
         //
-        // TODO: Handle if the last vote is on a dupe, and then we restart. The dupe won't be in
-        // heaviest_subtree_fork_choice, so `heaviest_subtree_fork_choice.latest_invalid_ancestor()` will return
-        // None, but the last vote will be persisted in tower.
+        // Edge case — restart after voting on a duplicate slot: if the validator crashes and restarts
+        // after having voted on a slot that was later identified as a duplicate, that slot will have been
+        // purged from `heaviest_subtree_fork_choice`. In that situation,
+        // `heaviest_subtree_fork_choice.latest_invalid_ancestor()` returns None (the slot is gone, not
+        // marked invalid), and we fall through to the stray-vote path at `ancestors.get(last_voted_slot)`
+        // below. That call correctly hits the `is_stray_last_vote()` branch and returns
+        // `empty_ancestors_due_to_minor_unsynced_ledger()`, preventing a panic. Once the validator
+        // replays enough of the chain to re-discover the duplicate, the slot re-enters fork-choice as
+        // invalid and the duplicate-rollback path below fires on a subsequent call.
         let switch_hash = progress
             .get_hash(switch_slot)
             .expect("Slot we're trying to switch to must exist AND be frozen in progress map");
@@ -867,16 +876,21 @@ impl Tower {
                 .map(|current_slot_hash| current_slot_hash != last_voted_hash)
                 .unwrap_or(true)
             {
-                // Our last vote slot was purged because it was on a duplicate fork, don't continue below
-                // where checks may panic. We allow a freebie vote here that may violate switching
-                // thresholds
-                // TODO: Properly handle this case
+                // Our last vote slot was purged because it was on a duplicate fork. The progress
+                // map no longer has a matching hash for that slot, so we cannot safely continue
+                // into the ancestor/descendant checks below (they would panic on missing entries).
+                //
+                // We return FailedSwitchDuplicateRollback using the last voted slot itself as the
+                // rollback anchor. This signals to ReplayStage that it should build an alternate
+                // fork rather than extending the now-invalid last-vote slot, which is the correct
+                // recovery path. Using Hash::default() as a SwitchProof was previously used here
+                // but produced a malformed switch proof that could be rejected by peers.
                 info!(
-                    "Allowing switch vote on {:?} because last vote {:?} was rolled back",
+                    "Returning duplicate rollback on {:?} because last vote {:?} was rolled back",
                     (switch_slot, switch_hash),
                     (last_voted_slot, last_voted_hash)
                 );
-                return SwitchForkDecision::SwitchProof(Hash::default());
+                return SwitchForkDecision::FailedSwitchDuplicateRollback(last_voted_slot);
             }
         }
 

@@ -188,11 +188,12 @@ impl Processor {
         creator: aeko_sdk::pubkey::Pubkey,
         amount: u64,
     ) -> Result<(), InstructionError> {
+        // Accounts: 0=state, 1=reward_vault (source), 2=destination, 3=authority (signer)
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        instruction_context.check_number_of_instruction_accounts(2)?;
+        instruction_context.check_number_of_instruction_accounts(4)?;
 
-        let authority = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
+        let authority = instruction_context.try_borrow_instruction_account(transaction_context, 3)?;
         if !authority.is_signer() {
             return Err(InstructionError::MissingRequiredSignature);
         }
@@ -216,6 +217,15 @@ impl Processor {
             return Err(Self::map_program_error(SocialRewardsError::Unauthorized.into()));
         }
 
+        // Verify the provided vault matches the configured one
+        {
+            let vault =
+                instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
+            if *vault.get_key() != state.config.reward_vault {
+                return Err(InstructionError::InvalidArgument);
+            }
+        }
+
         let reward_account = state
             .creators
             .iter_mut()
@@ -230,6 +240,7 @@ impl Processor {
         reward_account.claimable_amount -= amount;
         reward_account.total_claimed = reward_account.total_claimed.saturating_add(amount as u128);
 
+        // Persist updated state
         let serialized = to_vec(&state).map_err(|_| InstructionError::InvalidAccountData)?;
         if serialized.len() > state_account.get_data().len() {
             return Err(InstructionError::AccountDataTooSmall);
@@ -237,6 +248,18 @@ impl Processor {
         let data = state_account.get_data_mut()?;
         data.fill(0);
         data[..serialized.len()].copy_from_slice(&serialized);
+        drop(state_account);
+
+        // Transfer lamports from reward vault to destination
+        let mut reward_vault =
+            instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
+        reward_vault.checked_sub_lamports(amount)?;
+        drop(reward_vault);
+
+        let mut destination =
+            instruction_context.try_borrow_instruction_account(transaction_context, 2)?;
+        destination.checked_add_lamports(amount)?;
+
         Ok(())
     }
 

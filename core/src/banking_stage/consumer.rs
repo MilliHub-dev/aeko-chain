@@ -581,7 +581,9 @@ impl Consumer {
             .sanitized_transactions()
             .iter()
             .filter_map(|transaction| {
-                let round_compute_unit_price_enabled = false; // TODO get from working_bank.feature_set
+                let round_compute_unit_price_enabled = bank
+                    .feature_set
+                    .is_active(&aeko_sdk::feature_set::round_compute_unit_price::id());
                 transaction
                     .get_compute_budget_details(round_compute_unit_price_enabled)
                     .map(|details| details.compute_unit_price)

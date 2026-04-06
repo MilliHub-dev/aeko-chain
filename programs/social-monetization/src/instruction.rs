@@ -145,6 +145,8 @@ pub fn unlock_paid_content(
 pub fn claim_monetization_payout(
     program_id: &Pubkey,
     state_pubkey: &Pubkey,
+    treasury_pubkey: &Pubkey,
+    destination_pubkey: &Pubkey,
     authority_pubkey: &Pubkey,
     creator: Pubkey,
     amount: u64,
@@ -154,6 +156,8 @@ pub fn claim_monetization_payout(
         &SocialMonetizationInstruction::ClaimMonetizationPayout { creator, amount },
         vec![
             AccountMeta::new(*state_pubkey, false),
+            AccountMeta::new(*treasury_pubkey, false),    // source of lamports
+            AccountMeta::new(*destination_pubkey, false), // creator's wallet
             AccountMeta::new_readonly(*authority_pubkey, true),
         ],
     )

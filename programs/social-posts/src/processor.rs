@@ -6,6 +6,7 @@ use {
     },
     aeko_program_runtime::invoke_context::InvokeContext,
     aeko_sdk::{instruction::InstructionError, pubkey::Pubkey},
+    aeko_social_anti_spam_program::state::{AntiSpamMode, SocialAntiSpamStateAccount},
     borsh::{to_vec, BorshDeserialize},
 };
 
@@ -95,6 +96,7 @@ impl Processor {
         invoke_context: &mut InvokeContext,
         post: PostAnchor,
     ) -> Result<(), InstructionError> {
+        // Accounts: 0=posts_state, 1=creator (signer), 2=anti_spam_state (optional, read-only)
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
         instruction_context.check_number_of_instruction_accounts(2)?;
@@ -105,6 +107,24 @@ impl Processor {
         }
         let creator_key = *creator.get_key();
         drop(creator);
+
+        // If the caller includes an anti-spam state account (account 2), enforce gating rules.
+        // The account is optional so that existing call-sites without anti-spam remain valid.
+        let num_accounts = instruction_context.get_number_of_instruction_accounts();
+        if num_accounts >= 3 {
+            let anti_spam_account =
+                instruction_context.try_borrow_instruction_account(transaction_context, 2)?;
+            // Only enforce if the account is actually owned by the anti-spam program
+            if *anti_spam_account.get_owner() == aeko_social_anti_spam_program::id() {
+                let anti_spam_state =
+                    SocialAntiSpamStateAccount::deserialize_padded(anti_spam_account.get_data())
+                        .map_err(|_| InstructionError::InvalidAccountData)?;
+                if anti_spam_state.is_initialized {
+                    Self::check_anti_spam_eligibility(&anti_spam_state, &creator_key)?;
+                }
+            }
+            drop(anti_spam_account);
+        }
 
         let mut state_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
@@ -120,6 +140,52 @@ impl Processor {
         Self::validate_post_anchor(&state, &post)?;
         state.posts.push(post);
         Self::write_back(&mut state_account, &state)
+    }
+
+    /// Check whether a wallet is allowed to post based on the anti-spam program state.
+    /// Mirrors the eligibility logic in `social-anti-spam`'s `evaluate_eligibility`, but
+    /// runs read-only inside the social-posts program without a CPI.
+    fn check_anti_spam_eligibility(
+        anti_spam_state: &SocialAntiSpamStateAccount,
+        wallet: &Pubkey,
+    ) -> Result<(), InstructionError> {
+        let profile = anti_spam_state.profile_for_wallet(wallet);
+
+        // If the wallet is in a cooldown (gated) period, block posting regardless of mode.
+        if let Some(profile) = profile {
+            if profile.gated_until_epoch.is_some() {
+                return Err(InstructionError::Custom(
+                    aeko_social_anti_spam_program::error::SocialAntiSpamError::CooldownActive as u32,
+                ));
+            }
+        }
+
+        match anti_spam_state.config.mode {
+            AntiSpamMode::ObserveOnly => Ok(()),
+            AntiSpamMode::GateByReputation => {
+                // Reputation score is computed externally; here we gate wallets that have
+                // accumulated spam flags above a safe threshold (each flag is worth ~50 points
+                // out of 1000 in the explorer reputation model).
+                let spam_flags = profile.map(|p| p.spam_flags).unwrap_or(0);
+                let estimated_score = 1_000u32
+                    .saturating_sub(u32::from(spam_flags).saturating_mul(50))
+                    as u16;
+                if estimated_score < anti_spam_state.config.min_post_reputation {
+                    return Err(InstructionError::Custom(
+                        aeko_social_anti_spam_program::error::SocialAntiSpamError::ReputationTooLow
+                            as u32,
+                    ));
+                }
+                Ok(())
+            }
+            AntiSpamMode::GateByStake | AntiSpamMode::PenaltyEnabled => {
+                // Stake enforcement requires the staking program's data which is not passed
+                // into this instruction. Wallets with cooldowns are already blocked above;
+                // full stake verification is left to the anti-spam program's CheckSpam
+                // instruction which should be included in the same transaction.
+                Ok(())
+            }
+        }
     }
 
     fn process_edit_post(

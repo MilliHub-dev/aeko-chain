@@ -244,6 +244,7 @@ impl PohService {
         hashes_per_batch: u64,
         poh: &Arc<Mutex<Poh>>,
         target_ns_per_tick: u64,
+        poh_exit: &AtomicBool,
     ) -> bool {
         match next_record.take() {
             Some(mut record) => {
@@ -320,6 +321,11 @@ impl PohService {
                             *next_record = Some(record);
                             break;
                         }
+                        // Check exit during the busy-wait so shutdown is not delayed until the
+                        // next tick completes (which could be up to one full tick duration away).
+                        if poh_exit.load(Ordering::Relaxed) {
+                            break;
+                        }
                     }
                     timing.total_sleep_us += wait_start.elapsed().as_micros() as u64;
                     break;
@@ -349,6 +355,7 @@ impl PohService {
                 hashes_per_batch,
                 &poh,
                 target_ns_per_tick,
+                poh_exit,
             );
             if should_tick {
                 // Lock PohRecorder only for the final hash. record_or_hash will lock PohRecorder for record calls but not for hashing.

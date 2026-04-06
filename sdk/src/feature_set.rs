@@ -780,6 +780,10 @@ pub mod deprecate_unused_legacy_vote_plumbing {
     aeko_sdk::declare_id!("6Uf8S75PVh91MYgPQSHnjRAPQq6an5BDv9vomrCwDqLe");
 }
 
+pub mod round_compute_unit_price {
+    aeko_sdk::declare_id!("sBAfS3QD4pNaFavLinmBQhFsNQsQ5HHAHyaJKEEudHK");
+}
+
 lazy_static! {
     /// Map of feature identifiers to user-visible description
     pub static ref FEATURE_NAMES: HashMap<Pubkey, &'static str> = [
@@ -970,6 +974,7 @@ lazy_static! {
         (enable_chained_merkle_shreds::id(), "Enable chained Merkle shreds #34916"),
         (remove_rounding_in_fee_calculation::id(), "Removing unwanted rounding in fee calculation #34982"),
         (deprecate_unused_legacy_vote_plumbing::id(), "Deprecate unused legacy vote tx plumbing"),
+        (round_compute_unit_price::id(), "round compute unit price up to nearest multiple when calculating fees"),
         /*************** ADD NEW FEATURES HERE ***************/
     ]
     .iter()

@@ -80,6 +80,8 @@ pub fn record_reward_epoch(
 pub fn claim_creator_reward(
     program_id: &Pubkey,
     state_pubkey: &Pubkey,
+    reward_vault_pubkey: &Pubkey,
+    destination_pubkey: &Pubkey,
     authority_pubkey: &Pubkey,
     creator: Pubkey,
     amount: u64,
@@ -89,6 +91,8 @@ pub fn claim_creator_reward(
         &SocialRewardsInstruction::ClaimCreatorReward { creator, amount },
         vec![
             AccountMeta::new(*state_pubkey, false),
+            AccountMeta::new(*reward_vault_pubkey, false),  // source of lamports
+            AccountMeta::new(*destination_pubkey, false),   // creator's wallet
             AccountMeta::new_readonly(*authority_pubkey, true),
         ],
     )

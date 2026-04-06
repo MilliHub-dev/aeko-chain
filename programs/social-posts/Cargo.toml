@@ -14,6 +14,7 @@ borsh = { workspace = true }
 aeko-program = { workspace = true }
 aeko-program-runtime = { workspace = true }
 aeko-sdk = { workspace = true }
+aeko-social-anti-spam-program = { workspace = true }
 
 [features]
 default = []

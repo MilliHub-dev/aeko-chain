@@ -288,11 +288,12 @@ impl Processor {
         creator: Pubkey,
         amount: u64,
     ) -> Result<(), InstructionError> {
+        // Accounts: 0=state, 1=treasury (source), 2=destination, 3=authority (signer)
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        instruction_context.check_number_of_instruction_accounts(2)?;
+        instruction_context.check_number_of_instruction_accounts(4)?;
 
-        let authority = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
+        let authority = instruction_context.try_borrow_instruction_account(transaction_context, 3)?;
         if !authority.is_signer() {
             return Err(InstructionError::MissingRequiredSignature);
         }
@@ -307,6 +308,16 @@ impl Processor {
         if authority_key != creator && authority_key != state.config.authority {
             return Err(Self::map_program_error(SocialMonetizationError::Unauthorized.into()));
         }
+
+        // Verify the provided treasury matches the configured one
+        {
+            let treasury =
+                instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
+            if *treasury.get_key() != state.config.treasury {
+                return Err(InstructionError::InvalidArgument);
+            }
+        }
+
         let revenue = state
             .revenues
             .iter_mut()
@@ -315,12 +326,25 @@ impl Processor {
         if amount == 0 {
             return Err(Self::map_program_error(SocialMonetizationError::InvalidAmount.into()));
         }
-        if revenue.claimable_amount < amount || amount == 0 {
+        if revenue.claimable_amount < amount {
             return Err(Self::map_program_error(SocialMonetizationError::NothingToClaim.into()));
         }
         revenue.claimable_amount -= amount;
         revenue.total_claimed = revenue.total_claimed.saturating_add(amount as u128);
-        Self::write_back(&mut state_account, &state)
+        Self::write_back(&mut state_account, &state)?;
+        drop(state_account);
+
+        // Transfer lamports from treasury to creator's destination account
+        let mut treasury =
+            instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
+        treasury.checked_sub_lamports(amount)?;
+        drop(treasury);
+
+        let mut destination =
+            instruction_context.try_borrow_instruction_account(transaction_context, 2)?;
+        destination.checked_add_lamports(amount)?;
+
+        Ok(())
     }
 
     fn process_read(

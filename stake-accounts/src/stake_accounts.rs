@@ -12,6 +12,10 @@ use aeko_sdk::{
 
 const DAYS_PER_YEAR: f64 = 365.25;
 const SECONDS_PER_YEAR: i64 = (SECONDS_PER_DAY as f64 * DAYS_PER_YEAR) as i64;
+// Default slots-per-epoch (432_000) divided by the number of slots per year gives ~182.6 epochs/yr.
+// TICKS_PER_DAY / DEFAULT_TICKS_PER_SLOT = DEFAULT_SLOTS_PER_EPOCH / 2, so slots/year =
+// 2 * DAYS_PER_YEAR * (TICKS_PER_DAY / DEFAULT_TICKS_PER_SLOT).
+const EPOCHS_PER_YEAR: f64 = DAYS_PER_YEAR * 2.0; // 432_000 slots/epoch, ~2 epochs/day
 
 pub(crate) fn derive_stake_account_address(base_pubkey: &Pubkey, i: usize) -> Pubkey {
     Pubkey::create_with_seed(base_pubkey, &i.to_string(), &stake::program::id()).unwrap()
@@ -171,7 +175,7 @@ pub(crate) fn authorize_stake_accounts(
 fn extend_lockup(lockup: &LockupArgs, years: f64) -> LockupArgs {
     let offset = (SECONDS_PER_YEAR as f64 * years) as i64;
     let unix_timestamp = lockup.unix_timestamp.map(|x| x + offset);
-    let epoch = lockup.epoch.map(|_| todo!());
+    let epoch = lockup.epoch.map(|e| e + (EPOCHS_PER_YEAR * years).round() as u64);
     LockupArgs {
         unix_timestamp,
         epoch,

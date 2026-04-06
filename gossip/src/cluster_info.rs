@@ -176,6 +176,10 @@ pub struct ClusterInfo {
     instance: RwLock<NodeInstance>,
     contact_info_path: PathBuf,
     socket_addr_space: SocketAddrSpace,
+    /// Serializes concurrent calls to push_lowest_slot to prevent duplicate pushes.
+    push_lowest_slot_lock: Mutex<()>,
+    /// Serializes concurrent calls to push_epoch_slots to prevent index aliasing in CRDS.
+    push_epoch_slots_lock: Mutex<()>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, AbiExample)]
@@ -424,6 +428,8 @@ impl ClusterInfo {
             contact_info_path: PathBuf::default(),
             contact_save_interval: 0, // disabled
             socket_addr_space,
+            push_lowest_slot_lock: Mutex::new(()),
+            push_epoch_slots_lock: Mutex::new(()),
         };
         me.insert_self();
         me.push_self();
@@ -868,8 +874,10 @@ impl ClusterInfo {
         )
     }
 
-    // TODO: This has a race condition if called from more than one thread.
     pub fn push_lowest_slot(&self, min: Slot) {
+        // Hold the lock for the full read-check-write cycle to prevent two concurrent callers
+        // from both observing the same `last` value and emitting duplicate pushes.
+        let _guard = self.push_lowest_slot_lock.lock().unwrap();
         let self_pubkey = self.id();
         let last = {
             let gossip_crds = self.gossip.crds.read().unwrap();
@@ -888,9 +896,10 @@ impl ClusterInfo {
         }
     }
 
-    // TODO: If two threads call into this function then epoch_slot_index has a
-    // race condition and the threads will overwrite each other in crds table.
     pub fn push_epoch_slots(&self, mut update: &[Slot]) {
+        // Serialize concurrent callers: two threads computing epoch_slot_index from the same
+        // CRDS snapshot would alias the same slot-index entries and overwrite each other.
+        let _guard = self.push_epoch_slots_lock.lock().unwrap();
         let self_pubkey = self.id();
         let current_slots: Vec<_> = {
             let gossip_crds =

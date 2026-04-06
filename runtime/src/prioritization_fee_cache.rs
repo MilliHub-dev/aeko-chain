@@ -218,7 +218,9 @@ impl PrioritizationFeeCache {
                         continue;
                     }
 
-                    let round_compute_unit_price_enabled = false; // TODO: bank.feture_set.is_active(round_compute_unit_price)
+                    let round_compute_unit_price_enabled = bank
+                        .feature_set
+                        .is_active(&aeko_sdk::feature_set::round_compute_unit_price::id());
                     let compute_budget_details = sanitized_transaction
                         .get_compute_budget_details(round_compute_unit_price_enabled);
                     let account_locks = sanitized_transaction
