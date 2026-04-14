@@ -393,7 +393,8 @@ fn retain_staked(values: &mut Vec<CrdsValue>, stakes: &HashMap<Pubkey, u64>) {
             | CrdsData::LegacyVersion(_)
             | CrdsData::DuplicateShred(_, _)
             | CrdsData::RestartHeaviestFork(_)
-            | CrdsData::RestartLastVotedForkSlots(_) => {
+            | CrdsData::RestartLastVotedForkSlots(_)
+            | CrdsData::NodeKeyRotation(_) => {
                 let stake = stakes.get(&value.pubkey()).copied();
                 stake.unwrap_or_default() >= MIN_STAKE_FOR_GOSSIP
             }

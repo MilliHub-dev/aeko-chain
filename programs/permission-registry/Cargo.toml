@@ -1,0 +1,24 @@
+[package]
+name = "aeko-permission-registry-program"
+description = "AEKO Permission Registry — clearance issuance, role management, and access evaluation"
+documentation = "https://github.com/MilliHub-dev/aeko-chain/tree/main/programs/permission-registry"
+version = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+borsh = { workspace = true }
+aeko-permission-types = { workspace = true }
+aeko-program = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
+
+[lib]
+crate-type = ["lib"]
+name = "aeko_permission_registry_program"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]

@@ -128,6 +128,13 @@ members = [
     "version",
     "vote",
     "programs/wallet-permissions",
+    "programs/permission-types",
+    "programs/permission-registry",
+    "programs/revocation-registry",
+    "programs/subnet-registry",
+    "programs/emergency-multisig",
+    "programs/finality-oracle",
+    "encryption-module",
     "watchtower",
     "wen-restart",
     "wallet-core",
@@ -152,6 +159,9 @@ edition = "2021"
 Inflector = "0.11.4"
 aquamarine = "0.3.3"
 aes-gcm-siv = "0.10.3"
+aes-gcm = "0.10.3"
+x25519-dalek = "1.1.1"
+hkdf = "0.12.4"
 ahash = "0.8.10"
 anyhow = "1.0.80"
 arbitrary = "1.3.2"
@@ -408,6 +418,13 @@ aeko-udp-client = { path = "udp-client", version = "=2.0.0" }
 aeko-version = { path = "version", version = "=2.0.0" }
 aeko-wallet-core = { path = "wallet-core", version = "=2.0.0" }
 aeko-wallet-permissions-program = { path = "programs/wallet-permissions", version = "=2.0.0" }
+aeko-permission-types = { path = "programs/permission-types", version = "=2.0.0" }
+aeko-permission-registry-program = { path = "programs/permission-registry", version = "=2.0.0" }
+aeko-revocation-registry-program = { path = "programs/revocation-registry", version = "=2.0.0" }
+aeko-subnet-registry-program = { path = "programs/subnet-registry", version = "=2.0.0" }
+aeko-emergency-multisig-program = { path = "programs/emergency-multisig", version = "=2.0.0" }
+aeko-finality-oracle-program = { path = "programs/finality-oracle", version = "=2.0.0" }
+aeko-encryption-module = { path = "encryption-module", version = "=2.0.0" }
 aeko-vote = { path = "vote", version = "=2.0.0" }
 aeko-vote-program = { path = "programs/vote", version = "=2.0.0" }
 aeko-wen-restart = { path = "wen-restart", version = "=2.0.0" }

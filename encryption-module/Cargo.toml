@@ -1,0 +1,29 @@
+[package]
+name = "aeko-encryption-module"
+description = "AEKO Permission Layer encryption primitives — ECDH, AES-256-GCM, ECIES, forward secrecy ratchet"
+documentation = "https://github.com/MilliHub-dev/aeko-chain/tree/main/encryption-module"
+version = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+aes-gcm = { workspace = true }
+x25519-dalek = { workspace = true }
+hkdf = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }
+rand = { workspace = true }
+aeko-permission-types = { workspace = true }
+zeroize = "1.7"
+
+[dev-dependencies]
+rand = { workspace = true }
+
+[lib]
+name = "aeko_encryption_module"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]

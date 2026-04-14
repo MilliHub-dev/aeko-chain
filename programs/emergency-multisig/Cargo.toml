@@ -1,0 +1,24 @@
+[package]
+name = "aeko-emergency-multisig-program"
+description = "AEKO Emergency Multisig — kill-switch for subnet freezes and emergency key revocations"
+documentation = "https://github.com/MilliHub-dev/aeko-chain/tree/main/programs/emergency-multisig"
+version = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+borsh = { workspace = true }
+aeko-permission-types = { workspace = true }
+aeko-program = { workspace = true }
+aeko-program-runtime = { workspace = true }
+aeko-sdk = { workspace = true }
+
+[lib]
+crate-type = ["lib"]
+name = "aeko_emergency_multisig_program"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]

@@ -4563,7 +4563,72 @@ impl Bank {
         error_counters: &mut TransactionErrorMetrics,
     ) -> Vec<TransactionCheckResult> {
         let lock_results = self.check_age(sanitized_txs, lock_results, max_age, error_counters);
+        let lock_results = self.check_subnet_access(sanitized_txs, lock_results);
         self.check_status_cache(sanitized_txs, lock_results, error_counters)
+    }
+
+    /// Pre-execution subnet access check (security-architecture.md §5.4).
+    ///
+    /// Scans every account key in each transaction. If any account is owned by the
+    /// `subnet-registry` program, the account's `is_frozen` flag (byte index 1 in
+    /// the Borsh-serialised `SubnetRecord`) is inspected. A frozen subnet causes the
+    /// transaction to fail with `InstructionError::Custom(SubnetFrozen)` before
+    /// any instructions are executed.
+    ///
+    /// L0 transactions carry no subnet-registry accounts and pass through in O(n_accounts)
+    /// comparisons with zero account fetches.
+    ///
+    /// NOTE: `SUBNET_REGISTRY_PROGRAM_ID` is a placeholder until `programs/subnet-registry`
+    /// is deployed (Contract 3 in phase3-task.md). Replace with the real program ID at that
+    /// point — the hook logic requires no other changes.
+    fn check_subnet_access(
+        &self,
+        sanitized_txs: &[impl core::borrow::Borrow<SanitizedTransaction>],
+        check_results: Vec<TransactionCheckResult>,
+    ) -> Vec<TransactionCheckResult> {
+        // Placeholder ID for the subnet-registry program.
+        // Bytes chosen to be distinct — replace once Contract 3 is deployed.
+        const SUBNET_REGISTRY_PROGRAM_ID: Pubkey = Pubkey::new_from_array([18u8; 32]);
+
+        // AccessDeniedReason::SubnetFrozen = 6 (see programs/permission-types/src/access.rs)
+        const SUBNET_FROZEN_CODE: u32 = 6;
+
+        sanitized_txs
+            .iter()
+            .zip(check_results)
+            .map(|(tx, check_result)| {
+                // Only inspect transactions that have passed all prior checks.
+                if check_result.0.is_err() {
+                    return check_result;
+                }
+
+                let tx = tx.borrow();
+                for key in tx.message().account_keys().iter() {
+                    if let Some(account) = self.get_account(key) {
+                        if *account.owner() == SUBNET_REGISTRY_PROGRAM_ID {
+                            let data = account.data();
+                            // SubnetRecord Borsh layout:
+                            //   byte 0: is_initialized (bool)
+                            //   byte 1: is_frozen (bool)
+                            if data.len() >= 2 && data[1] != 0 {
+                                return (
+                                    Err(TransactionError::InstructionError(
+                                        0,
+                                        aeko_sdk::instruction::InstructionError::Custom(
+                                            SUBNET_FROZEN_CODE,
+                                        ),
+                                    )),
+                                    None,
+                                    None,
+                                );
+                            }
+                        }
+                    }
+                }
+
+                check_result
+            })
+            .collect()
     }
 
     pub fn collect_balances(&self, batch: &TransactionBatch) -> TransactionBalances {

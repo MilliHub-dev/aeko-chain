@@ -97,6 +97,13 @@ pub enum CrdsData {
     ContactInfo(ContactInfo),
     RestartLastVotedForkSlots(RestartLastVotedForkSlots),
     RestartHeaviestFork(RestartHeaviestFork),
+    /// Announces that a validator has rotated its node identity key.
+    ///
+    /// Peers that hold an encrypted `NodeChannel` session with this validator
+    /// must call `NodeChannel::rekey()` upon receiving this value to
+    /// establish a new AES-256-GCM session key via ECDH with `new_dh_pubkey`
+    /// (security-architecture.md §3.3.5, §6).
+    NodeKeyRotation(NodeKeyRotation),
 }
 
 impl Sanitize for CrdsData {
@@ -137,6 +144,7 @@ impl Sanitize for CrdsData {
             CrdsData::ContactInfo(node) => node.sanitize(),
             CrdsData::RestartLastVotedForkSlots(slots) => slots.sanitize(),
             CrdsData::RestartHeaviestFork(fork) => fork.sanitize(),
+            CrdsData::NodeKeyRotation(val) => val.sanitize(),
         }
     }
 }
@@ -494,6 +502,56 @@ impl Sanitize for NodeInstance {
     }
 }
 
+/// Gossip announcement that a validator has completed a node key rotation.
+///
+/// Receiving peers must:
+/// 1. Look up their `NodeChannel` for `from`.
+/// 2. Perform X25519 ECDH using their own identity private key and `new_dh_pubkey`.
+/// 3. Call `NodeChannel::rekey(new_session_key, new_base_nonce)` to switch
+///    the encrypted gossip channel to the new key material.
+///
+/// The value is signed by the **old** validator identity key so peers can
+/// verify it is legitimate before rekeying. After rekeying, the old key
+/// is no longer accepted for incoming messages.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, AbiExample)]
+pub struct NodeKeyRotation {
+    /// The validator pubkey whose node key is being rotated.
+    pub from: Pubkey,
+    /// The new node key ID (SHA-256 of `new_dh_pubkey`, per §4.2).
+    /// Peers use this to update their revocation-registry cache.
+    pub new_key_id: [u8; 32],
+    /// New X25519 Diffie-Hellman public key for session key derivation.
+    pub new_dh_pubkey: [u8; 32],
+    /// The on-chain slot at which the `ExecuteRotation` instruction landed.
+    pub rotation_slot: u64,
+    /// Gossip wallclock (milliseconds since Unix epoch).
+    pub wallclock: u64,
+}
+
+impl NodeKeyRotation {
+    pub fn new(
+        from: Pubkey,
+        new_key_id: [u8; 32],
+        new_dh_pubkey: [u8; 32],
+        rotation_slot: u64,
+    ) -> Self {
+        Self {
+            from,
+            new_key_id,
+            new_dh_pubkey,
+            rotation_slot,
+            wallclock: timestamp(),
+        }
+    }
+}
+
+impl Sanitize for NodeKeyRotation {
+    fn sanitize(&self) -> Result<(), SanitizeError> {
+        sanitize_wallclock(self.wallclock)?;
+        self.from.sanitize()
+    }
+}
+
 /// Type of the replicated value
 /// These are labels for values in a record that is associated with `Pubkey`
 #[derive(PartialEq, Hash, Eq, Clone, Debug)]
@@ -512,6 +570,7 @@ pub enum CrdsValueLabel {
     ContactInfo(Pubkey),
     RestartLastVotedForkSlots(Pubkey),
     RestartHeaviestFork(Pubkey),
+    NodeKeyRotation(Pubkey),
 }
 
 impl fmt::Display for CrdsValueLabel {
@@ -541,6 +600,7 @@ impl fmt::Display for CrdsValueLabel {
             CrdsValueLabel::RestartHeaviestFork(_) => {
                 write!(f, "RestartHeaviestFork({})", self.pubkey())
             }
+            CrdsValueLabel::NodeKeyRotation(pk) => write!(f, "NodeKeyRotation({pk})"),
         }
     }
 }
@@ -562,6 +622,7 @@ impl CrdsValueLabel {
             CrdsValueLabel::ContactInfo(pubkey) => *pubkey,
             CrdsValueLabel::RestartLastVotedForkSlots(p) => *p,
             CrdsValueLabel::RestartHeaviestFork(p) => *p,
+            CrdsValueLabel::NodeKeyRotation(p) => *p,
         }
     }
 }
@@ -614,6 +675,7 @@ impl CrdsValue {
             CrdsData::ContactInfo(node) => node.wallclock(),
             CrdsData::RestartLastVotedForkSlots(slots) => slots.wallclock,
             CrdsData::RestartHeaviestFork(fork) => fork.wallclock,
+            CrdsData::NodeKeyRotation(val) => val.wallclock,
         }
     }
     pub fn pubkey(&self) -> Pubkey {
@@ -632,6 +694,7 @@ impl CrdsValue {
             CrdsData::ContactInfo(node) => *node.pubkey(),
             CrdsData::RestartLastVotedForkSlots(slots) => slots.from,
             CrdsData::RestartHeaviestFork(fork) => fork.from,
+            CrdsData::NodeKeyRotation(val) => val.from,
         }
     }
     pub fn label(&self) -> CrdsValueLabel {
@@ -654,6 +717,7 @@ impl CrdsValue {
                 CrdsValueLabel::RestartLastVotedForkSlots(self.pubkey())
             }
             CrdsData::RestartHeaviestFork(_) => CrdsValueLabel::RestartHeaviestFork(self.pubkey()),
+            CrdsData::NodeKeyRotation(val) => CrdsValueLabel::NodeKeyRotation(val.from),
         }
     }
     pub fn contact_info(&self) -> Option<&LegacyContactInfo> {
@@ -680,6 +744,9 @@ impl CrdsValue {
     pub(crate) fn should_force_push(&self, peer: &Pubkey) -> bool {
         match &self.data {
             CrdsData::NodeInstance(node) => node.from == *peer,
+            // NodeKeyRotation must reach every peer so they can rekey their
+            // encrypted gossip channels (security-architecture.md §3.3.5).
+            CrdsData::NodeKeyRotation(_) => true,
             _ => false,
         }
     }
