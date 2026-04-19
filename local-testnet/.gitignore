@@ -1,0 +1,2 @@
+# Ignore all keypair JSON files - never commit private keys
+*.json

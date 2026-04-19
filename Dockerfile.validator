@@ -1,0 +1,34 @@
+# Build stage
+FROM rust:1.75 AS builder
+
+WORKDIR /aeko
+COPY . .
+
+# Install sccache for faster subsequent builds
+RUN cargo install sccache --locked
+ENV RUSTC_WRAPPER=sccache
+
+RUN cargo build --release \
+    --bin aeko-validator \
+    --bin aeko-keygen \
+    --bin aeko-genesis \
+    --bin aeko \
+    --bin aeko-faucet
+
+# Runtime stage
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /aeko/target/release/aeko-validator /usr/local/bin/
+COPY --from=builder /aeko/target/release/aeko-keygen /usr/local/bin/
+COPY --from=builder /aeko/target/release/aeko-genesis /usr/local/bin/
+COPY --from=builder /aeko/target/release/aeko /usr/local/bin/
+COPY --from=builder /aeko/target/release/aeko-faucet /usr/local/bin/
+
+EXPOSE 8001/udp 8001/tcp 8899
+
+ENTRYPOINT ["aeko-validator"]
