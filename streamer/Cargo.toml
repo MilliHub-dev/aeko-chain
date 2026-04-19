@@ -43,3 +43,6 @@ name = "aeko_streamer"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+
+[lints]
+workspace = true

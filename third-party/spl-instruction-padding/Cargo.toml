@@ -1,0 +1,24 @@
+[package]
+name = "spl-instruction-padding"
+version = "0.1.1"
+edition = "2021"
+description = "AEKO Program Library Instruction Padding Program (forked from Solana Program Library)"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+num_enum = "0.7.2"
+aeko-program = { path = "../../sdk/program" }
+
+[features]
+default = []
+no-entrypoint = []
+test-sbf = []
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(target_os, values("aeko", "AEKO", "solana"))',
+    'cfg(feature, values("custom-heap", "custom-panic"))',
+] }

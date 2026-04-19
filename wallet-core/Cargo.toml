@@ -27,3 +27,6 @@ tiny-bip39 = { workspace = true }
 [lib]
 crate-type = ["rlib"]
 name = "aeko_wallet_core"
+
+[lints]
+workspace = true

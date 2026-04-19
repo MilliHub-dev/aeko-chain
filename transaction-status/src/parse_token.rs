@@ -17,7 +17,7 @@ use {
     spl_token_2022::{
         extension::ExtensionType,
         instruction::{AuthorityType, TokenInstruction},
-        solana_program::{
+        aeko_program::{
             instruction::Instruction as SplTokenInstruction, program_option::COption,
             pubkey::Pubkey,
         },

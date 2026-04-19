@@ -1,0 +1,49 @@
+# Backend build stage
+FROM rust:1.75 AS backend-builder
+
+WORKDIR /aeko
+COPY . .
+
+RUN cargo install sccache --locked
+ENV RUSTC_WRAPPER=sccache
+
+RUN cargo build --release --example api_server -p aeko-explorer-backend
+
+# Frontend build stage
+FROM node:18 AS frontend-builder
+
+WORKDIR /web
+COPY web/package*.json ./
+RUN npm install
+COPY web/ ./
+RUN npm run build
+
+# Runtime stage
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    nginx \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=backend-builder /aeko/target/release/examples/api_server /usr/local/bin/aeko-explorer-backend
+COPY --from=frontend-builder /web/dist /var/www/html
+
+COPY <<'EOF' /etc/nginx/sites-available/default
+server {
+    listen 3000;
+    root /var/www/html;
+    index index.html;
+    location / {
+        try_files $uri /index.html;
+    }
+    location /api/ {
+        proxy_pass http://localhost:8088/;
+    }
+}
+EOF
+
+EXPOSE 8088 3000
+
+CMD aeko-explorer-backend & nginx -g 'daemon off;'

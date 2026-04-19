@@ -37,3 +37,6 @@ tokio = { workspace = true, features = ["full"] }
 aeko-stake-program = { workspace = true }
 
 
+
+[lints]
+workspace = true

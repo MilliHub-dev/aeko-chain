@@ -17,3 +17,6 @@ aeko-sdk = { workspace = true }
 aeko-streamer = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+
+[lints]
+workspace = true

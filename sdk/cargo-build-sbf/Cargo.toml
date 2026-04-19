@@ -35,3 +35,6 @@ program = []
 [[bin]]
 name = "cargo-build-sbf"
 path = "src/main.rs"
+
+[lints]
+workspace = true

@@ -34,3 +34,6 @@ name = "aeko_bucket_map"
 [[bench]]
 name = "bucket_map"
 
+
+[lints]
+workspace = true

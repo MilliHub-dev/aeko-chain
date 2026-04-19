@@ -108,3 +108,6 @@ dev-context-only-utils = []
 
 [[bench]]
 name = "prioritization_fee_cache"
+
+[lints]
+workspace = true

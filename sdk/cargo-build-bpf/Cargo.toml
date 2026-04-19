@@ -19,3 +19,6 @@ program = []
 [[bin]]
 name = "cargo-build-bpf"
 path = "src/main.rs"
+
+[lints]
+workspace = true

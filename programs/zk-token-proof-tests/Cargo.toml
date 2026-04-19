@@ -14,3 +14,6 @@ aeko-program-runtime = { workspace = true }
 aeko-program-test = { workspace = true }
 aeko-sdk = { workspace = true }
 aeko-zk-token-sdk = { workspace = true }
+
+[lints]
+workspace = true

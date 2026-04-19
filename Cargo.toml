@@ -147,6 +147,16 @@ exclude = ["programs/sbf"]
 # This prevents a Travis CI error when building for Windows.
 resolver = "2"
 
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(RUSTC_WITH_SPECIALIZATION)',
+    'cfg(RUSTC_WITHOUT_SPECIALIZATION)',
+    'cfg(build_target_feature_avx)',
+    'cfg(build_target_feature_avx2)',
+    'cfg(target_os, values("aeko", "AEKO", "solana"))',
+    'cfg(feature, values("custom-heap", "custom-panic"))',
+] }
+
 [workspace.package]
 version = "2.0.0"
 authors = ["AEKO Chain Maintainers <maintainers@aeko.chain>"]
@@ -515,6 +525,15 @@ crossbeam-epoch = { git = "https://github.com/crossbeam-rs/crossbeam", rev = "fd
 # comments and the overrides in sync.
 aeko-program = { path = "sdk/program" }
 aeko-zk-token-sdk = { path = "zk-token-sdk" }
+# Shims: redirect solana-* names to aeko-* so unforked spl-pod/spl-memo etc. share types
+solana-program = { path = "third-party/solana-program-shim" }
+solana-zk-token-sdk = { path = "third-party/solana-zk-token-sdk-shim" }
+# Forked spl-* crates that re-export aeko_program instead of solana_program
+spl-associated-token-account = { path = "third-party/spl-associated-token-account" }
+spl-instruction-padding = { path = "third-party/spl-instruction-padding" }
+spl-memo = { path = "third-party/spl-memo" }
+spl-token = { path = "third-party/spl-token" }
+spl-token-2022 = { path = "third-party/spl-token-2022" }
 #
 # === zeroize versioning issues ===
 #

@@ -100,3 +100,6 @@ features = [
     "errhandlingapi",
 ]
 optional = true
+
+[lints]
+workspace = true

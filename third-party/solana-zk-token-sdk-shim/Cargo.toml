@@ -1,0 +1,9 @@
+[package]
+name = "solana-zk-token-sdk"
+version = "1.18.26"
+edition = "2021"
+description = "Shim redirecting solana-zk-token-sdk to aeko-zk-token-sdk for spl-* crate compatibility"
+license = "Apache-2.0"
+
+[dependencies]
+aeko-zk-token-sdk = { path = "../../zk-token-sdk" }

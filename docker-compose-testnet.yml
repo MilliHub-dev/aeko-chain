@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  validator-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.validator
+    container_name: aeko-validator-1
+    ports:
+      - "8001:8001/udp"
+      - "8001:8001/tcp"
+      - "8899:8899"
+    volumes:
+      - validator1-ledger:/ledger
+      - ./local-testnet/validator-1-keypair.json:/keys/identity.json:ro
+      - ./local-testnet/vote-1-keypair.json:/keys/vote.json:ro
+    command: >
+      --identity /keys/identity.json
+      --vote-account /keys/vote.json
+      --ledger /ledger
+      --rpc-port 8899
+      --rpc-bind-address 0.0.0.0
+      --gossip-port 8001
+      --log -
+    restart: unless-stopped
+
+  validator-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.validator
+    container_name: aeko-validator-2
+    volumes:
+      - validator2-ledger:/ledger
+      - ./local-testnet/validator-2-keypair.json:/keys/identity.json:ro
+      - ./local-testnet/vote-2-keypair.json:/keys/vote.json:ro
+    command: >
+      --identity /keys/identity.json
+      --vote-account /keys/vote.json
+      --ledger /ledger
+      --rpc-port 8899
+      --gossip-port 8001
+      --entrypoint validator-1:8001
+      --log -
+    depends_on:
+      - validator-1
+    restart: unless-stopped
+
+  validator-3:
+    build:
+      context: .
+      dockerfile: Dockerfile.validator
+    container_name: aeko-validator-3
+    volumes:
+      - validator3-ledger:/ledger
+      - ./local-testnet/validator-3-keypair.json:/keys/identity.json:ro
+      - ./local-testnet/vote-3-keypair.json:/keys/vote.json:ro
+    command: >
+      --identity /keys/identity.json
+      --vote-account /keys/vote.json
+      --ledger /ledger
+      --rpc-port 8899
+      --gossip-port 8001
+      --entrypoint validator-1:8001
+      --log -
+    depends_on:
+      - validator-1
+    restart: unless-stopped
+
+  explorer:
+    build:
+      context: .
+      dockerfile: Dockerfile.explorer
+    container_name: aeko-explorer
+    ports:
+      - "8088:8088"
+      - "3000:3000"
+    environment:
+      AEKO_EXPLORER_RPC: "http://validator-1:8899"
+      AEKO_EXPLORER_NETWORK: "testnet"
+      AEKO_EXPLORER_BIND: "0.0.0.0:8088"
+    depends_on:
+      - validator-1
+    restart: unless-stopped
+
+volumes:
+  validator1-ledger:
+  validator2-ledger:
+  validator3-ledger:

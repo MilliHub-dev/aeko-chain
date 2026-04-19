@@ -11,3 +11,6 @@ edition = { workspace = true }
 
 [dependencies]
 aeko-sdk = { workspace = true }
+
+[lints]
+workspace = true

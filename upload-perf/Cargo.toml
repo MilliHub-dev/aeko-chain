@@ -19,3 +19,6 @@ path = "src/upload-perf.rs"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+
+[lints]
+workspace = true

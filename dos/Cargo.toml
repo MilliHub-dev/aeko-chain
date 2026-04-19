@@ -39,3 +39,6 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dev-dependencies]
 aeko-local-cluster = { workspace = true }
+
+[lints]
+workspace = true

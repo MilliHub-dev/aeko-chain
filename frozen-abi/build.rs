@@ -2,6 +2,11 @@ extern crate rustc_version;
 use rustc_version::{version_meta, Channel};
 
 fn main() {
+    // Declare these as expected cfg names/values so rustc doesn't warn about them.
+    println!("cargo:rustc-check-cfg=cfg(RUSTC_WITH_SPECIALIZATION)");
+    println!("cargo:rustc-check-cfg=cfg(RUSTC_WITHOUT_SPECIALIZATION)");
+    println!("cargo:rustc-check-cfg=cfg(target_os, values(\"aeko\", \"AEKO\", \"solana\"))");
+
     // Copied and adapted from
     // https://github.com/Kimundi/rustc-version-rs/blob/1d692a965f4e48a8cb72e82cda953107c0d22f47/README.md#example
     // Licensed under Apache-2.0 + MIT

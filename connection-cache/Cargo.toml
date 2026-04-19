@@ -30,3 +30,6 @@ rand_chacha = { workspace = true }
 aeko-logger = { workspace = true }
 aeko-net-utils = { workspace = true }
 
+
+[lints]
+workspace = true

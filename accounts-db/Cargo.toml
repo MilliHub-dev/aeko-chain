@@ -94,3 +94,6 @@ dev-context-only-utils = []
 [[bench]]
 name = "bench_hashing"
 harness = false
+
+[lints]
+workspace = true
