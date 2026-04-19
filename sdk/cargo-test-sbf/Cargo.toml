@@ -19,3 +19,6 @@ aeko-logger = { workspace = true }
 [[bin]]
 name = "cargo-test-sbf"
 path = "src/main.rs"
+
+[lints]
+workspace = true

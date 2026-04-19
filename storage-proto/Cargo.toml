@@ -35,3 +35,6 @@ tonic-build = { workspace = true }
 # envar to point to the installed binary
 [target."cfg(not(windows))".build-dependencies]
 protobuf-src = { workspace = true }
+
+[lints]
+workspace = true

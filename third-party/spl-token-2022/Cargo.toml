@@ -1,0 +1,45 @@
+[package]
+name = "spl-token-2022"
+version = "2.0.1"
+edition = "2021"
+description = "AEKO Program Library Token-2022 (forked from Solana Program Library)"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+arrayref = "0.3.7"
+base64 = { version = "0.21.7", optional = true }
+bytemuck = { version = "1.14.2", features = ["derive"] }
+num-derive = "0.4"
+num-traits = "0.2"
+num_enum = "0.7.2"
+serde = { version = "1.0.196", optional = true }
+serde_with = { version = "3.6.0", optional = true }
+thiserror = "1.0"
+solana-security-txt = "1.1.1"
+aeko-program = { path = "../../sdk/program" }
+aeko-zk-token-sdk = { path = "../../zk-token-sdk" }
+spl-token = { path = "../spl-token", features = ["no-entrypoint"] }
+spl-memo = { version = "=4.0.1", features = ["no-entrypoint"] }
+spl-pod = { version = "=0.1.1" }
+spl-token-group-interface = { version = "=0.1.1" }
+spl-token-metadata-interface = { version = "=0.2.1" }
+spl-transfer-hook-interface = { version = "=0.5.1" }
+spl-type-length-value = { version = "=0.3.1" }
+
+[features]
+default = ["confidential-hook", "token-group", "zk-ops"]
+no-entrypoint = []
+test-sbf = []
+serde-traits = ["dep:serde", "dep:serde_with", "dep:base64", "spl-pod/serde-traits"]
+zk-ops = []
+token-group = []
+confidential-hook = []
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(target_os, values("aeko", "AEKO", "solana"))',
+    'cfg(feature, values("custom-heap", "custom-panic"))',
+] }

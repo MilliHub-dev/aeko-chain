@@ -1,0 +1,29 @@
+[package]
+name = "spl-token"
+version = "4.0.1"
+edition = "2021"
+description = "AEKO Program Library Token (forked from Solana Program Library)"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+arrayref = "0.3.7"
+bytemuck = "1.14.1"
+num-derive = "0.4"
+num-traits = "0.2"
+num_enum = "0.7.2"
+thiserror = "1.0"
+aeko-program = { path = "../../sdk/program" }
+
+[features]
+default = []
+no-entrypoint = []
+test-sbf = []
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(target_os, values("aeko", "AEKO", "solana"))',
+    'cfg(feature, values("custom-heap", "custom-panic"))',
+] }

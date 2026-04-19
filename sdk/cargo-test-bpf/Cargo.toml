@@ -12,3 +12,6 @@ edition = { workspace = true }
 [[bin]]
 name = "cargo-test-bpf"
 path = "src/main.rs"
+
+[lints]
+workspace = true

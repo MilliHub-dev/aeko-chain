@@ -30,3 +30,6 @@ name = "aeko_clap_utils"
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
+
+[lints]
+workspace = true

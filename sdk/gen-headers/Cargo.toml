@@ -15,3 +15,6 @@ regex = { workspace = true }
 [[bin]]
 name = "gen-headers"
 path = "src/main.rs"
+
+[lints]
+workspace = true

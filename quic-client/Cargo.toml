@@ -34,3 +34,6 @@ crossbeam-channel = { workspace = true }
 aeko-logger = { workspace = true }
 aeko-perf = { workspace = true }
 
+
+[lints]
+workspace = true

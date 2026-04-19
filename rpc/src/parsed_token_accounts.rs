@@ -15,7 +15,7 @@ use {
     std::{collections::HashMap, sync::Arc},
 };
 
-fn spl_to_aeko_pubkey(pubkey: spl_token_2022::solana_program::pubkey::Pubkey) -> Pubkey {
+fn spl_to_aeko_pubkey(pubkey: spl_token_2022::aeko_program::pubkey::Pubkey) -> Pubkey {
     Pubkey::new_from_array(pubkey.to_bytes())
 }
 

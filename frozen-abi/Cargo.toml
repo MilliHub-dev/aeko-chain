@@ -35,3 +35,6 @@ aeko-logger = { workspace = true }
 [build-dependencies]
 rustc_version = { workspace = true }
 
+
+[lints]
+workspace = true

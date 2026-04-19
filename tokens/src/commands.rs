@@ -343,10 +343,10 @@ fn build_messages(
                     let wallet_address = x.recipient;
                     Pubkey::new_from_array(
                         get_associated_token_address(
-                            &spl_token::solana_program::pubkey::Pubkey::new_from_array(
+                            &spl_token::aeko_program::pubkey::Pubkey::new_from_array(
                                 wallet_address.to_bytes(),
                             ),
-                            &spl_token::solana_program::pubkey::Pubkey::new_from_array(
+                            &spl_token::aeko_program::pubkey::Pubkey::new_from_array(
                                 spl_token_args.mint.to_bytes(),
                             ),
                         )

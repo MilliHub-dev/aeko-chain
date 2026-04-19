@@ -101,8 +101,8 @@ use {
     },
     aeko_vote_program::vote_state::{VoteState, MAX_LOCKOUT_HISTORY},
     spl_token_2022::{
+        aeko_program::program_pack::Pack,
         extension::StateWithExtensions,
-        solana_program::program_pack::Pack,
         state::{Account as TokenAccount, Mint},
     },
     std::{

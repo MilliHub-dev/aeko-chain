@@ -53,3 +53,6 @@ name = "cluster_nodes"
 
 [[bench]]
 name = "retransmit_stage"
+
+[lints]
+workspace = true

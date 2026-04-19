@@ -17,7 +17,7 @@ use {
         get_associated_token_address, instruction::create_associated_token_account,
     },
     spl_token::{
-        solana_program::{
+        aeko_program::{
             instruction::Instruction as SplInstruction,
             program_error::ProgramError as SplProgramError,
             program_pack::Pack,

@@ -10,8 +10,8 @@ use {
         token_balances::TransactionTokenBalances, TransactionTokenBalance,
     },
     spl_token_2022::{
+        aeko_program::pubkey::Pubkey as SplTokenPubkey,
         extension::StateWithExtensions,
-        solana_program::pubkey::Pubkey as SplTokenPubkey,
         state::{Account as TokenAccount, Mint},
     },
     std::collections::HashMap,
