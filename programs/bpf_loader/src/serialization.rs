@@ -462,7 +462,7 @@ fn serialize_parameters_aligned(
     s.write::<u64>((accounts.len() as u64).to_le());
     for account in accounts {
         match account {
-            SerializeAccount::Account(_, mut borrowed_account) => {
+            SerializeAccount::Account(mut borrowed_account) => {
                 s.write::<u8>(NON_DUP_MARKER);
                 s.write::<u8>(borrowed_account.is_signer() as u8);
                 s.write::<u8>(borrowed_account.is_writable() as u8);
