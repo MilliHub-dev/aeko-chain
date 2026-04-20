@@ -26,7 +26,7 @@ use {
 const MAX_INSTRUCTION_ACCOUNTS: u8 = NON_DUP_MARKER;
 
 enum SerializeAccount<'a> {
-    Account(IndexOfAccount, BorrowedAccount<'a>),
+    Account(BorrowedAccount<'a>),
     Duplicate(IndexOfAccount),
 }
 
@@ -224,7 +224,7 @@ pub fn serialize_parameters(
                 let account = instruction_context
                     .try_borrow_instruction_account(transaction_context, instruction_account_index)
                     .unwrap();
-                SerializeAccount::Account(instruction_account_index, account)
+                SerializeAccount::Account(account)
             }
         })
         // fun fact: jemalloc is good at caching tiny allocations like this one,
@@ -300,7 +300,7 @@ fn serialize_parameters_unaligned(
         size += 1; // dup
         match account {
             SerializeAccount::Duplicate(_) => {}
-            SerializeAccount::Account(_, account) => {
+            SerializeAccount::Account(account) => {
                 size += size_of::<u8>() // is_signer
                 + size_of::<u8>() // is_writable
                 + size_of::<Pubkey>() // key
@@ -329,7 +329,7 @@ fn serialize_parameters_unaligned(
                 accounts_metadata.push(accounts_metadata.get(position as usize).unwrap().clone());
                 s.write(position as u8);
             }
-            SerializeAccount::Account(_, mut account) => {
+            SerializeAccount::Account(mut account) => {
                 s.write::<u8>(NON_DUP_MARKER);
                 s.write::<u8>(account.is_signer() as u8);
                 s.write::<u8>(account.is_writable() as u8);
@@ -432,7 +432,7 @@ fn serialize_parameters_aligned(
         size += 1; // dup
         match account {
             SerializeAccount::Duplicate(_) => size += 7, // padding to 64-bit aligned
-            SerializeAccount::Account(_, account) => {
+            SerializeAccount::Account(account) => {
                 let data_len = account.get_data().len();
                 size += size_of::<u8>() // is_signer
                 + size_of::<u8>() // is_writable

@@ -184,5 +184,5 @@ pub fn api() -> Option<&'static Container<Api<'static>>> {
         })
     }
 
-    unsafe { API.as_ref() }
+    unsafe { (*std::ptr::addr_of!(API)).as_ref() }
 }

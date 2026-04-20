@@ -8,10 +8,12 @@ COPY . .
 RUN cargo install sccache --locked
 ENV RUSTC_WRAPPER=sccache
 
-# Install build dependencies (libudev-dev needed by hidapi crate)
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
     libudev-dev \
     pkg-config \
+    clang \
+    libclang-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN cargo build --release \

@@ -239,7 +239,7 @@ pub fn hashv(
     {
         use {
             ark_bn254::Fr,
-            light_poseidon::{Poseidon, PoseidonBytesHasher, PoseidonError},
+            light_poseidon::{Poseidon, PoseidonBytesHasher},
         };
 
         let mut hasher =
