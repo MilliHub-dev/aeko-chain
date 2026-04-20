@@ -8,6 +8,12 @@ COPY . .
 RUN cargo install sccache --locked
 ENV RUSTC_WRAPPER=sccache
 
+# Install build dependencies (libudev-dev needed by hidapi crate)
+RUN apt-get update && apt-get install -y \
+    libudev-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN cargo build --release \
     --bin aeko-validator \
     --bin aeko-keygen \
