@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Build stage
 FROM rust:1.75 AS builder
 
@@ -7,6 +8,7 @@ COPY . .
 # Install sccache for faster subsequent builds
 RUN cargo install sccache --locked
 ENV RUSTC_WRAPPER=sccache
+ENV SCCACHE_DIR=/root/.cache/sccache
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -14,14 +16,27 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     clang \
     libclang-dev \
+    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
-RUN cargo build --release \
-    --bin aeko-validator \
-    --bin aeko-keygen \
-    --bin aeko-genesis \
-    --bin aeko \
-    --bin aeko-faucet
+# Cache mounts persist between builds on the same host, keeping sccache and
+# cargo registry warm so subsequent builds don't start from scratch.
+RUN --mount=type=cache,target=/root/.cache/sccache \
+    --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo build --release \
+        --bin aeko-validator \
+        --bin aeko-keygen \
+        --bin aeko-genesis \
+        --bin aeko \
+        --bin aeko-faucet && \
+    mkdir /binaries && \
+    cp target/release/aeko-validator \
+       target/release/aeko-keygen \
+       target/release/aeko-genesis \
+       target/release/aeko \
+       target/release/aeko-faucet \
+       /binaries/
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -31,11 +46,11 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /aeko/target/release/aeko-validator /usr/local/bin/
-COPY --from=builder /aeko/target/release/aeko-keygen /usr/local/bin/
-COPY --from=builder /aeko/target/release/aeko-genesis /usr/local/bin/
-COPY --from=builder /aeko/target/release/aeko /usr/local/bin/
-COPY --from=builder /aeko/target/release/aeko-faucet /usr/local/bin/
+COPY --from=builder /binaries/aeko-validator /usr/local/bin/
+COPY --from=builder /binaries/aeko-keygen /usr/local/bin/
+COPY --from=builder /binaries/aeko-genesis /usr/local/bin/
+COPY --from=builder /binaries/aeko /usr/local/bin/
+COPY --from=builder /binaries/aeko-faucet /usr/local/bin/
 
 EXPOSE 8001/udp 8001/tcp 8899
 
