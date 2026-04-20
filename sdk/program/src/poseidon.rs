@@ -153,6 +153,33 @@ impl From<Endianness> for u64 {
     }
 }
 
+#[cfg(not(target_os = "aeko"))]
+impl From<light_poseidon::PoseidonError> for PoseidonSyscallError {
+    fn from(error: light_poseidon::PoseidonError) -> Self {
+        match error {
+            light_poseidon::PoseidonError::InvalidNumberOfInputs { .. } => {
+                PoseidonSyscallError::InvalidNumberOfInputs
+            }
+            light_poseidon::PoseidonError::EmptyInput => PoseidonSyscallError::EmptyInput,
+            light_poseidon::PoseidonError::InvalidInputLength { .. } => {
+                PoseidonSyscallError::InvalidInputLength
+            }
+            light_poseidon::PoseidonError::BytesToPrimeFieldElement { .. } => {
+                PoseidonSyscallError::BytesToPrimeFieldElement
+            }
+            light_poseidon::PoseidonError::InputLargerThanModulus => {
+                PoseidonSyscallError::InputLargerThanModulus
+            }
+            light_poseidon::PoseidonError::VecToArray => PoseidonSyscallError::VecToArray,
+            light_poseidon::PoseidonError::U64Tou8 => PoseidonSyscallError::U64Tou8,
+            light_poseidon::PoseidonError::BytesToBigInt => PoseidonSyscallError::BytesToBigInt,
+            light_poseidon::PoseidonError::InvalidWidthCircom { .. } => {
+                PoseidonSyscallError::InvalidWidthCircom
+            }
+        }
+    }
+}
+
 /// Poseidon hash result.
 #[repr(transparent)]
 pub struct PoseidonHash(pub [u8; HASH_BYTES]);
@@ -214,32 +241,6 @@ pub fn hashv(
             ark_bn254::Fr,
             light_poseidon::{Poseidon, PoseidonBytesHasher, PoseidonError},
         };
-
-        impl From<PoseidonError> for PoseidonSyscallError {
-            fn from(error: PoseidonError) -> Self {
-                match error {
-                    PoseidonError::InvalidNumberOfInputs { .. } => {
-                        PoseidonSyscallError::InvalidNumberOfInputs
-                    }
-                    PoseidonError::EmptyInput => PoseidonSyscallError::EmptyInput,
-                    PoseidonError::InvalidInputLength { .. } => {
-                        PoseidonSyscallError::InvalidInputLength
-                    }
-                    PoseidonError::BytesToPrimeFieldElement { .. } => {
-                        PoseidonSyscallError::BytesToPrimeFieldElement
-                    }
-                    PoseidonError::InputLargerThanModulus => {
-                        PoseidonSyscallError::InputLargerThanModulus
-                    }
-                    PoseidonError::VecToArray => PoseidonSyscallError::VecToArray,
-                    PoseidonError::U64Tou8 => PoseidonSyscallError::U64Tou8,
-                    PoseidonError::BytesToBigInt => PoseidonSyscallError::BytesToBigInt,
-                    PoseidonError::InvalidWidthCircom { .. } => {
-                        PoseidonSyscallError::InvalidWidthCircom
-                    }
-                }
-            }
-        }
 
         let mut hasher =
             Poseidon::<Fr>::new_circom(vals.len()).map_err(PoseidonSyscallError::from)?;

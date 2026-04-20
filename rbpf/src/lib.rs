@@ -55,7 +55,6 @@ trait ErrCheckedArithmetic: Sized {
     fn err_checked_add(self, other: Self) -> Result<Self, ArithmeticOverflow>;
     fn err_checked_sub(self, other: Self) -> Result<Self, ArithmeticOverflow>;
     fn err_checked_mul(self, other: Self) -> Result<Self, ArithmeticOverflow>;
-    fn err_checked_div(self, other: Self) -> Result<Self, ArithmeticOverflow>;
 }
 struct ArithmeticOverflow;
 
@@ -73,10 +72,6 @@ macro_rules! impl_err_checked_arithmetic {
 
                 fn err_checked_mul(self, other: $ty) -> Result<Self, ArithmeticOverflow> {
                     self.checked_mul(other).ok_or(ArithmeticOverflow)
-                }
-
-                fn err_checked_div(self, other: $ty) -> Result<Self, ArithmeticOverflow> {
-                    self.checked_div(other).ok_or(ArithmeticOverflow)
                 }
             }
         )*
