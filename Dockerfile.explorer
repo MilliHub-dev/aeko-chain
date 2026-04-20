@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Backend build stage
 FROM rust:1.75 AS backend-builder
 
@@ -6,8 +7,21 @@ COPY . .
 
 RUN cargo install sccache --locked
 ENV RUSTC_WRAPPER=sccache
+ENV SCCACHE_DIR=/root/.cache/sccache
 
-RUN cargo build --release --example api_server -p aeko-explorer-backend
+RUN apt-get update && apt-get install -y \
+    libudev-dev \
+    pkg-config \
+    clang \
+    libclang-dev \
+    protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN --mount=type=cache,target=/root/.cache/sccache \
+    --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo build --release --example api_server -p aeko-explorer-backend && \
+    cp target/release/examples/api_server /usr/local/bin/aeko-explorer-backend
 
 # Frontend build stage
 FROM node:18 AS frontend-builder
@@ -27,7 +41,7 @@ RUN apt-get update && apt-get install -y \
     nginx \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=backend-builder /aeko/target/release/examples/api_server /usr/local/bin/aeko-explorer-backend
+COPY --from=backend-builder /usr/local/bin/aeko-explorer-backend /usr/local/bin/
 COPY --from=frontend-builder /web/dist /var/www/html
 
 COPY <<'EOF' /etc/nginx/sites-available/default
