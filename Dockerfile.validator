@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y \
 RUN --mount=type=cache,target=/root/.cache/sccache \
     --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/aeko/target \
     cargo build --release \
         --bin aeko-validator \
         --bin aeko-keygen \
@@ -44,6 +45,7 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
+    libudev1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /binaries/aeko-validator /usr/local/bin/

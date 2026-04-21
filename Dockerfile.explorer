@@ -20,8 +20,10 @@ RUN apt-get update && apt-get install -y \
 RUN --mount=type=cache,target=/root/.cache/sccache \
     --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/aeko/target \
     cargo build --release --example api_server -p aeko-explorer-backend && \
-    cp target/release/examples/api_server /usr/local/bin/aeko-explorer-backend
+    mkdir -p /binaries && \
+    cp target/release/examples/api_server /binaries/aeko-explorer-backend
 
 # Frontend build stage
 FROM node:18 AS frontend-builder
@@ -39,9 +41,10 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
     nginx \
+    libudev1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=backend-builder /usr/local/bin/aeko-explorer-backend /usr/local/bin/
+COPY --from=backend-builder /binaries/aeko-explorer-backend /usr/local/bin/
 COPY --from=frontend-builder /web/dist /var/www/html
 
 COPY <<'EOF' /etc/nginx/sites-available/default
@@ -58,6 +61,10 @@ server {
 }
 EOF
 
+# Ensure nginx default site is enabled (debian uses sites-enabled)
+RUN rm -f /etc/nginx/sites-enabled/default && ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
 EXPOSE 8088 3000
 
 CMD (while true; do aeko-explorer-backend && break || echo "Backend failed or validator not ready, retrying in 5s..." && sleep 5; done) & nginx -g 'daemon off;'
+

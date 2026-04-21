@@ -36,6 +36,8 @@ services:
       --rpc-bind-address 0.0.0.0
       --gossip-port 8001
       --rpc-faucet-address faucet:9900
+      --enable-rpc-transaction-history
+      --enable-extended-tx-metadata-storage
       --log -
       --no-os-network-limits-test
     depends_on:
