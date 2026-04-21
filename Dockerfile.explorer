@@ -60,4 +60,4 @@ EOF
 
 EXPOSE 8088 3000
 
-CMD aeko-explorer-backend & nginx -g 'daemon off;'
+CMD (while true; do aeko-explorer-backend && break || echo "Backend failed or validator not ready, retrying in 5s..." && sleep 5; done) & nginx -g 'daemon off;'

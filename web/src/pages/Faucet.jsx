@@ -39,15 +39,16 @@ export default function Faucet() {
           </p>
 
           {config.faucetEnabled ? (
-            <a
-              href={config.faucetUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-aeko-accent text-black font-semibold hover:opacity-90 transition-opacity"
-            >
-              Open {config.label} Faucet
-              <ExternalLink size={18} />
-            </a>
+            <div className="rounded-xl border border-white/15 bg-black/20 p-5">
+              <div className="text-sm font-medium text-white mb-1">Status</div>
+              <div className="text-sm text-green-400 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                Active and Listening
+              </div>
+              <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-white/10">
+                Note: The faucet daemon runs on a raw TCP socket, not HTTP. Use the CLI commands below to interact with it.
+              </div>
+            </div>
           ) : (
             <div className="rounded-xl border border-dashed border-white/15 bg-black/20 p-5 text-sm text-gray-400">
               {config.faucetLabel}

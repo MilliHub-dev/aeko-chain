@@ -1,3 +1,8 @@
+const IS_BROWSER = typeof window !== 'undefined';
+const HOSTNAME = IS_BROWSER ? window.location.hostname : 'localhost';
+const PROTOCOL = IS_BROWSER ? window.location.protocol : 'http:';
+const WS_PROTOCOL = PROTOCOL === 'https:' ? 'wss:' : 'ws:';
+
 export const NETWORKS = {
   mainnet: {
     key: 'mainnet',
@@ -15,18 +20,15 @@ export const NETWORKS = {
   testnet: {
     key: 'testnet',
     label: 'Testnet',
-    rpcUrl: import.meta.env.VITE_AEKO_TESTNET_RPC || 'https://api.testnet.aeko.chain',
-    websocketUrl: import.meta.env.VITE_AEKO_TESTNET_WS || 'wss://api.testnet.aeko.chain',
-    explorerUrl:
-      import.meta.env.VITE_AEKO_TESTNET_EXPLORER || 'https://testnet.explorer.aeko.chain',
-    explorerApiUrl: import.meta.env.VITE_AEKO_TESTNET_EXPLORER_API || '',
-    explorerLabel: 'testnet.explorer.aeko.chain',
-    faucetUrl: import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL || '',
-    faucetLabel: import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL
-      ? import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL
-      : 'Faucet URL not configured',
-    faucetEnabled: Boolean(import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL),
-    cliCluster: 'testnet',
+    rpcUrl: import.meta.env.VITE_AEKO_TESTNET_RPC || `${PROTOCOL}//${HOSTNAME}:8899`,
+    websocketUrl: import.meta.env.VITE_AEKO_TESTNET_WS || `${WS_PROTOCOL}//${HOSTNAME}:8900`,
+    explorerUrl: import.meta.env.VITE_AEKO_TESTNET_EXPLORER || `${PROTOCOL}//${HOSTNAME}:3000`,
+    explorerApiUrl: import.meta.env.VITE_AEKO_TESTNET_EXPLORER_API || '/api',
+    explorerLabel: `${HOSTNAME}:3000`,
+    faucetUrl: import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL || `${PROTOCOL}//${HOSTNAME}:9900`,
+    faucetLabel: import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL || `${PROTOCOL}//${HOSTNAME}:9900`,
+    faucetEnabled: true,
+    cliCluster: `${PROTOCOL}//${HOSTNAME}:8899`,
   },
 };
 
