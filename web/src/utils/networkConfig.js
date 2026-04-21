@@ -24,7 +24,7 @@ export const NETWORKS = {
     faucetUrl: import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL || '',
     faucetLabel: import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL
       ? import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL
-      : 'Configure VITE_AEKO_TESTNET_FAUCET_URL for a live faucet link',
+      : 'Faucet URL not configured',
     faucetEnabled: Boolean(import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL),
     cliCluster: 'testnet',
   },

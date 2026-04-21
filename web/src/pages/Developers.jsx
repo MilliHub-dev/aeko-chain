@@ -214,7 +214,7 @@ export default function Developers() {
           </p>
           <p className="text-sm text-gray-500 mt-2">
             Explorer web pages now also support backend-driven reads when you configure
-            `VITE_AEKO_TESTNET_EXPLORER_API` and `VITE_AEKO_MAINNET_EXPLORER_API`.
+            the explorer API URLs.
           </p>
         </div>
       </div>

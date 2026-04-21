@@ -1,6 +1,20 @@
 version: '3.8'
 
 services:
+  faucet:
+    build:
+      context: .
+      dockerfile: Dockerfile.validator
+    container_name: aeko-faucet
+    entrypoint: ["aeko-faucet"]
+    ports:
+      - "9900:9900"
+    volumes:
+      - ./local-testnet/faucet-keypair.json:/keys/faucet.json:ro
+    command: >
+      --keypair /keys/faucet.json
+    restart: unless-stopped
+
   validator-1:
     build:
       context: .
@@ -21,7 +35,11 @@ services:
       --rpc-port 8899
       --rpc-bind-address 0.0.0.0
       --gossip-port 8001
+      --rpc-faucet-address faucet:9900
       --log -
+      --no-os-network-limits-test
+    depends_on:
+      - faucet
     restart: unless-stopped
 
   validator-2:
@@ -39,10 +57,13 @@ services:
       --ledger /ledger
       --rpc-port 8899
       --gossip-port 8001
+      --rpc-faucet-address faucet:9900
       --entrypoint validator-1:8001
       --log -
+      --no-os-network-limits-test
     depends_on:
       - validator-1
+      - faucet
     restart: unless-stopped
 
   validator-3:
@@ -60,10 +81,13 @@ services:
       --ledger /ledger
       --rpc-port 8899
       --gossip-port 8001
+      --rpc-faucet-address faucet:9900
       --entrypoint validator-1:8001
       --log -
+      --no-os-network-limits-test
     depends_on:
       - validator-1
+      - faucet
     restart: unless-stopped
 
   explorer:

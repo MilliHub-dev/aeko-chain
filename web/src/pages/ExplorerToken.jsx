@@ -40,7 +40,7 @@ export default function ExplorerToken() {
 
       {unavailable ? (
         <div className="bg-amber-500/10 border border-amber-500/20 text-amber-200 rounded-2xl p-6">
-          Configure `VITE_AEKO_{network.toUpperCase()}_EXPLORER_API` to load live token detail data.
+          Explorer API not configured for {network}.
         </div>
       ) : null}
 
