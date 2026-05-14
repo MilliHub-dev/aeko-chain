@@ -1,6 +1,6 @@
 {
   "name": "@aeko-chain/web3.js",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "AEKO Chain JavaScript SDK",
   "type": "module",
   "main": "./dist/index.js",
