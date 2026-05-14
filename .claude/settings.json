@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo build *)",
+      "Bash(Read /private/tmp/claude-501/-Users-ok-Documents-projects-aeko-chain/7cab5b95-5511-4657-a739-00a76beaf3f8/tasks/bkexbh9fe.output)"
+    ],
+    "additionalDirectories": [
+      "/Users/ok/.claire/projects/-Users-ok-Documents-projects-aeko-chain/memory"
+    ]
+  }
+}

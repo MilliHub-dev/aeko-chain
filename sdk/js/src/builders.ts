@@ -11,6 +11,7 @@ import type {
 const SYSTEM_PROGRAM_ID_BYTES = new Uint8Array(32);
 const TOKEN_721_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(10));
 const WALLET_PERMISSIONS_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(10));
+const NFT_MARKETPLACE_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(11));
 
 export interface Token721Attribute {
   traitType: string;
@@ -597,6 +598,15 @@ export function token721ProgramId(): PublicKeyString {
   return encodeBase58(TOKEN_721_PROGRAM_ID_BYTES);
 }
 
+export function nftMarketplaceProgramId(): PublicKeyString {
+  return encodeBase58(NFT_MARKETPLACE_PROGRAM_ID_BYTES);
+}
+
+export const PROGRAM_IDS = {
+  TOKEN_721: token721ProgramId(),
+  NFT_MARKETPLACE: nftMarketplaceProgramId(),
+} as const;
+
 function walletPermissionsProgramId(): PublicKeyString {
   return encodeBase58(WALLET_PERMISSIONS_PROGRAM_ID_BYTES);
 }
@@ -859,6 +869,101 @@ export function buildPreparedUnfreezeWalletTransaction(
     payer: input.payer,
     recentBlockhash: input.recentBlockhash,
     instructions: [instruction],
+  });
+}
+
+export interface ListNftTransactionInput {
+  payer: PublicKeyString;
+  recentBlockhash: PublicKeyString;
+  listingAccount: PublicKeyString;
+  tokenAccount: PublicKeyString;
+  seller: PublicKeyString;
+  collection: PublicKeyString;
+  creator: PublicKeyString;
+  priceLamports: number;
+  royaltyBps: number;
+  expiresAtSlot?: number | null;
+}
+
+export interface BuyNftTransactionInput {
+  payer: PublicKeyString;
+  recentBlockhash: PublicKeyString;
+  listingAccount: PublicKeyString;
+  buyer: PublicKeyString;
+}
+
+export interface CancelListingTransactionInput {
+  payer: PublicKeyString;
+  recentBlockhash: PublicKeyString;
+  listingAccount: PublicKeyString;
+  seller: PublicKeyString;
+}
+
+function compileListNftInstruction(input: ListNftTransactionInput) {
+  return {
+    programId: NFT_MARKETPLACE_PROGRAM_ID_BYTES,
+    accounts: [
+      { pubkey: decodeBase58(input.listingAccount), isSigner: false, isWritable: true },
+      { pubkey: decodeBase58(input.tokenAccount), isSigner: false, isWritable: false },
+      { pubkey: decodeBase58(input.seller), isSigner: true, isWritable: false },
+    ],
+    // Borsh variant index 0 = ListNft
+    data: concatBytes(
+      Uint8Array.from([0]),
+      encodePubkey(input.collection),
+      encodePubkey(input.creator),
+      encodeU64(input.priceLamports),
+      encodeU16(input.royaltyBps),
+      encodeOptionU64(input.expiresAtSlot ?? null),
+    ),
+  };
+}
+
+function compileBuyNftInstruction(input: BuyNftTransactionInput) {
+  return {
+    programId: NFT_MARKETPLACE_PROGRAM_ID_BYTES,
+    accounts: [
+      { pubkey: decodeBase58(input.listingAccount), isSigner: false, isWritable: true },
+      { pubkey: decodeBase58(input.buyer), isSigner: true, isWritable: false },
+    ],
+    // Borsh variant index 1 = BuyNft (unit variant)
+    data: Uint8Array.from([1]),
+  };
+}
+
+function compileCancelListingInstruction(input: CancelListingTransactionInput) {
+  return {
+    programId: NFT_MARKETPLACE_PROGRAM_ID_BYTES,
+    accounts: [
+      { pubkey: decodeBase58(input.listingAccount), isSigner: false, isWritable: true },
+      { pubkey: decodeBase58(input.seller), isSigner: true, isWritable: false },
+    ],
+    // Borsh variant index 2 = CancelListing (unit variant)
+    data: Uint8Array.from([2]),
+  };
+}
+
+export function buildPreparedListNftTransaction(input: ListNftTransactionInput): string {
+  return buildPreparedTransaction({
+    payer: input.payer,
+    recentBlockhash: input.recentBlockhash,
+    instructions: [compileListNftInstruction(input)],
+  });
+}
+
+export function buildPreparedBuyNftTransaction(input: BuyNftTransactionInput): string {
+  return buildPreparedTransaction({
+    payer: input.payer,
+    recentBlockhash: input.recentBlockhash,
+    instructions: [compileBuyNftInstruction(input)],
+  });
+}
+
+export function buildPreparedCancelListingTransaction(input: CancelListingTransactionInput): string {
+  return buildPreparedTransaction({
+    payer: input.payer,
+    recentBlockhash: input.recentBlockhash,
+    instructions: [compileCancelListingInstruction(input)],
   });
 }
 

@@ -113,6 +113,11 @@ export interface RecordDelegateUsageTransactionInput extends WalletPermissionsTr
     currentSlot: number;
 }
 export declare function token721ProgramId(): PublicKeyString;
+export declare function nftMarketplaceProgramId(): PublicKeyString;
+export declare const PROGRAM_IDS: {
+    readonly TOKEN_721: string;
+    readonly NFT_MARKETPLACE: string;
+};
 export declare function buildPreparedToken721Transaction(input: Token721ActionInput): string;
 export declare function estimateCollectionAccountSpace(input: {
     name: string;
@@ -130,4 +135,31 @@ export declare function buildPreparedUpdateDelegateTransaction(input: UpdateDele
 export declare function buildPreparedRevokeDelegateTransaction(input: RevokeDelegateTransactionInput): string;
 export declare function buildPreparedFreezeWalletTransaction(input: FreezeWalletTransactionInput): string;
 export declare function buildPreparedUnfreezeWalletTransaction(input: UnfreezeWalletTransactionInput): string;
+export interface ListNftTransactionInput {
+    payer: PublicKeyString;
+    recentBlockhash: PublicKeyString;
+    listingAccount: PublicKeyString;
+    tokenAccount: PublicKeyString;
+    seller: PublicKeyString;
+    collection: PublicKeyString;
+    creator: PublicKeyString;
+    priceLamports: number;
+    royaltyBps: number;
+    expiresAtSlot?: number | null;
+}
+export interface BuyNftTransactionInput {
+    payer: PublicKeyString;
+    recentBlockhash: PublicKeyString;
+    listingAccount: PublicKeyString;
+    buyer: PublicKeyString;
+}
+export interface CancelListingTransactionInput {
+    payer: PublicKeyString;
+    recentBlockhash: PublicKeyString;
+    listingAccount: PublicKeyString;
+    seller: PublicKeyString;
+}
+export declare function buildPreparedListNftTransaction(input: ListNftTransactionInput): string;
+export declare function buildPreparedBuyNftTransaction(input: BuyNftTransactionInput): string;
+export declare function buildPreparedCancelListingTransaction(input: CancelListingTransactionInput): string;
 export declare function buildPreparedRecordDelegateUsageTransaction(input: RecordDelegateUsageTransactionInput): string;

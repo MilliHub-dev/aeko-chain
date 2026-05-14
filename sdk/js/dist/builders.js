@@ -2,6 +2,7 @@ import { decodeBase58, encodeBase58 } from './base58';
 const SYSTEM_PROGRAM_ID_BYTES = new Uint8Array(32);
 const TOKEN_721_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(10));
 const WALLET_PERMISSIONS_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(10));
+const NFT_MARKETPLACE_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(11));
 function encodeBase64(bytes) {
     let raw = '';
     for (const byte of bytes) {
@@ -313,6 +314,13 @@ function buildPreparedTransaction(input) {
 export function token721ProgramId() {
     return encodeBase58(TOKEN_721_PROGRAM_ID_BYTES);
 }
+export function nftMarketplaceProgramId() {
+    return encodeBase58(NFT_MARKETPLACE_PROGRAM_ID_BYTES);
+}
+export const PROGRAM_IDS = {
+    TOKEN_721: token721ProgramId(),
+    NFT_MARKETPLACE: nftMarketplaceProgramId(),
+};
 function walletPermissionsProgramId() {
     return encodeBase58(WALLET_PERMISSIONS_PROGRAM_ID_BYTES);
 }
@@ -472,6 +480,61 @@ export function buildPreparedUnfreezeWalletTransaction(input) {
         payer: input.payer,
         recentBlockhash: input.recentBlockhash,
         instructions: [instruction],
+    });
+}
+function compileListNftInstruction(input) {
+    return {
+        programId: NFT_MARKETPLACE_PROGRAM_ID_BYTES,
+        accounts: [
+            { pubkey: decodeBase58(input.listingAccount), isSigner: false, isWritable: true },
+            { pubkey: decodeBase58(input.tokenAccount), isSigner: false, isWritable: false },
+            { pubkey: decodeBase58(input.seller), isSigner: true, isWritable: false },
+        ],
+        // Borsh variant index 0 = ListNft
+        data: concatBytes(Uint8Array.from([0]), encodePubkey(input.collection), encodePubkey(input.creator), encodeU64(input.priceLamports), encodeU16(input.royaltyBps), encodeOptionU64(input.expiresAtSlot ?? null)),
+    };
+}
+function compileBuyNftInstruction(input) {
+    return {
+        programId: NFT_MARKETPLACE_PROGRAM_ID_BYTES,
+        accounts: [
+            { pubkey: decodeBase58(input.listingAccount), isSigner: false, isWritable: true },
+            { pubkey: decodeBase58(input.buyer), isSigner: true, isWritable: false },
+        ],
+        // Borsh variant index 1 = BuyNft (unit variant)
+        data: Uint8Array.from([1]),
+    };
+}
+function compileCancelListingInstruction(input) {
+    return {
+        programId: NFT_MARKETPLACE_PROGRAM_ID_BYTES,
+        accounts: [
+            { pubkey: decodeBase58(input.listingAccount), isSigner: false, isWritable: true },
+            { pubkey: decodeBase58(input.seller), isSigner: true, isWritable: false },
+        ],
+        // Borsh variant index 2 = CancelListing (unit variant)
+        data: Uint8Array.from([2]),
+    };
+}
+export function buildPreparedListNftTransaction(input) {
+    return buildPreparedTransaction({
+        payer: input.payer,
+        recentBlockhash: input.recentBlockhash,
+        instructions: [compileListNftInstruction(input)],
+    });
+}
+export function buildPreparedBuyNftTransaction(input) {
+    return buildPreparedTransaction({
+        payer: input.payer,
+        recentBlockhash: input.recentBlockhash,
+        instructions: [compileBuyNftInstruction(input)],
+    });
+}
+export function buildPreparedCancelListingTransaction(input) {
+    return buildPreparedTransaction({
+        payer: input.payer,
+        recentBlockhash: input.recentBlockhash,
+        instructions: [compileCancelListingInstruction(input)],
     });
 }
 export function buildPreparedRecordDelegateUsageTransaction(input) {
