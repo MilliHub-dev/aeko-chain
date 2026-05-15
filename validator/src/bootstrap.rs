@@ -562,7 +562,7 @@ fn get_vetted_rpc_nodes(
                     Option<Duration>,
                 )>>()
                 .into_iter()
-                .sorted_by_key(|(_, _, _, ping_time)| ping_time.unwrap())
+                .sorted_by_key(|(_, _, _, ping_time)| ping_time.unwrap_or(Duration::MAX))
                 .map(|(rpc_contact_info, snapshot_hash, rpc_client, _)| {
                     (rpc_contact_info, snapshot_hash, rpc_client)
                 })
@@ -608,10 +608,12 @@ pub fn rpc_bootstrap(
         }
     }
 
+    eprintln!("[BOOTSTRAP-DBG] port check done, checking no_genesis_fetch={} no_snapshot_fetch={}", bootstrap_config.no_genesis_fetch, bootstrap_config.no_snapshot_fetch);
     if bootstrap_config.no_genesis_fetch && bootstrap_config.no_snapshot_fetch {
         return;
     }
 
+    eprintln!("[BOOTSTRAP-DBG] initializing bootstrap variables");
     let total_snapshot_download_time = Instant::now();
     let mut get_rpc_nodes_time = Duration::new(0, 0);
     let mut snapshot_download_time = Duration::new(0, 0);
@@ -619,24 +621,32 @@ pub fn rpc_bootstrap(
     let mut gossip = None;
     let mut vetted_rpc_nodes = vec![];
     let mut download_abort_count = 0;
+    eprintln!("[BOOTSTRAP-DBG] entering bootstrap loop");
     loop {
         if gossip.is_none() {
+            eprintln!("[BOOTSTRAP-DBG] about to write start_progress");
             *start_progress.write().unwrap() = ValidatorStartProgress::SearchingForRpcService;
+            eprintln!("[BOOTSTRAP-DBG] about to get gossip address");
+            let gossip_addr = node
+                .info
+                .gossip()
+                .expect("Operator must spin up node with valid gossip address");
+            eprintln!("[BOOTSTRAP-DBG] gossip addr={:?}, about to clone gossip socket", gossip_addr);
+            let gossip_socket = node.sockets.gossip.try_clone().unwrap();
+            eprintln!("[BOOTSTRAP-DBG] about to call start_gossip_node");
 
             gossip = Some(start_gossip_node(
                 identity_keypair.clone(),
                 cluster_entrypoints,
                 ledger_path,
-                &node
-                    .info
-                    .gossip()
-                    .expect("Operator must spin up node with valid gossip address"),
-                node.sockets.gossip.try_clone().unwrap(),
+                &gossip_addr,
+                gossip_socket,
                 validator_config.expected_shred_version,
                 validator_config.gossip_validators.clone(),
                 should_check_duplicate_instance,
                 socket_addr_space,
             ));
+            eprintln!("[BOOTSTRAP-DBG] start_gossip_node returned");
         }
 
         let get_rpc_nodes_start = Instant::now();
