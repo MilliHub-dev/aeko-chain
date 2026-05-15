@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(cargo build *)",
-      "Bash(Read /private/tmp/claude-501/-Users-ok-Documents-projects-aeko-chain/7cab5b95-5511-4657-a739-00a76beaf3f8/tasks/bkexbh9fe.output)"
+      "Bash(Read /private/tmp/claude-501/-Users-ok-Documents-projects-aeko-chain/7cab5b95-5511-4657-a739-00a76beaf3f8/tasks/bkexbh9fe.output)",
+      "Bash(rustc --version)",
+      "Bash(cargo --version)",
+      "Bash(rustup toolchain *)",
+      "Bash(ls ~/.rustup/toolchains/ 2>&1)",
+      "Read(//Users/ok/.rustup/toolchains/**)",
+      "Bash(RUSTUP_TOOLCHAIN=1.76.0 cargo build -p aeko-nft-marketplace-program)",
+      "Bash(RUSTUP_TOOLCHAIN=stable RUSTC_WRAPPER=\"\" RUSTC_WORKSPACE_WRAPPER=\"\" cargo +stable build -p aeko-nft-marketplace-program)",
+      "Bash(grep -v \"^programs$\\\\|^sdk$\\\\|^docs$\\\\|^target$\")",
+      "Bash(npm install *)"
     ],
     "additionalDirectories": [
       "/Users/ok/.claire/projects/-Users-ok-Documents-projects-aeko-chain/memory"

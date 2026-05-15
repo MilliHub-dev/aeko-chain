@@ -1,3 +1,5 @@
+node_modules/
+.next/
 farf/
 target/
 /aeko-release/
