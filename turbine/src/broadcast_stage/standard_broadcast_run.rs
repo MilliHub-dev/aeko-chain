@@ -411,7 +411,11 @@ impl StandardBroadcastRun {
         new_insertion_shreds_stats: &InsertShredsStats,
         broadcast_shred_batch_info: &Option<BroadcastShredBatchInfo>,
     ) {
-        let mut insert_shreds_stats = self.insert_shreds_stats.lock().unwrap();
+        // AEKO: poison-tolerant lock — stats updates should never cascade-panic.
+        let mut insert_shreds_stats = match self.insert_shreds_stats.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
         insert_shreds_stats.update(new_insertion_shreds_stats, broadcast_shred_batch_info);
     }
 
@@ -455,7 +459,11 @@ impl StandardBroadcastRun {
         new_transmit_shreds_stats: &TransmitShredsStats,
         broadcast_shred_batch_info: &Option<BroadcastShredBatchInfo>,
     ) {
-        let mut transmit_shreds_stats = self.transmit_shreds_stats.lock().unwrap();
+        // AEKO: poison-tolerant lock — stats updates should never cascade-panic.
+        let mut transmit_shreds_stats = match self.transmit_shreds_stats.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
         transmit_shreds_stats.update(new_transmit_shreds_stats, broadcast_shred_batch_info);
     }
 

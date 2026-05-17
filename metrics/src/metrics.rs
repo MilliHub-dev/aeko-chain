@@ -319,25 +319,25 @@ impl MetricsAgent {
     }
 
     pub fn submit(&self, point: DataPoint, level: log::Level) {
-        self.sender
-            .send(MetricsCommand::Submit(point, level))
-            .unwrap();
+        let _ = self.sender.send(MetricsCommand::Submit(point, level));
     }
 
     pub fn submit_counter(&self, counter: CounterPoint, level: log::Level, bucket: u64) {
-        self.sender
-            .send(MetricsCommand::SubmitCounter(counter, level, bucket))
-            .unwrap();
+        let _ = self
+            .sender
+            .send(MetricsCommand::SubmitCounter(counter, level, bucket));
     }
 
     pub fn flush(&self) {
         debug!("Flush");
         let barrier = Arc::new(Barrier::new(2));
-        self.sender
+        if self
+            .sender
             .send(MetricsCommand::Flush(Arc::clone(&barrier)))
-            .unwrap();
-
-        barrier.wait();
+            .is_ok()
+        {
+            barrier.wait();
+        }
     }
 }
 
@@ -473,15 +473,24 @@ pub fn set_panic_hook(program: &'static str, version: Option<String>) {
     SET_HOOK.call_once(|| {
         let default_hook = std::panic::take_hook();
         std::panic::set_hook(Box::new(move |ono| {
-            default_hook(ono);
             let location = match ono.location() {
                 Some(location) => location.to_string(),
                 None => "?".to_string(),
             };
+            let thread_name = thread::current().name().unwrap_or("?").to_string();
+            // AEKO: print a clearly tagged panic line BEFORE anything else so it's never lost,
+            // even if the default hook or metrics submission later misbehaves.
+            eprintln!(
+                "!!! AEKO_PANIC !!! thread={thread_name} location={location} message={ono}"
+            );
+            use std::io::Write;
+            let _ = std::io::stderr().lock().flush();
+            default_hook(ono);
+            let _ = std::io::stderr().lock().flush();
             submit(
                 DataPoint::new("panic")
                     .add_field_str("program", program)
-                    .add_field_str("thread", thread::current().name().unwrap_or("?"))
+                    .add_field_str("thread", &thread_name)
                     // The 'one' field exists to give Kapacitor Alerts a numerical value
                     // to filter on
                     .add_field_i64("one", 1)

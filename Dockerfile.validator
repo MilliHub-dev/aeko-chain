@@ -2,15 +2,13 @@
 # Build stage
 FROM rust:1.75 AS builder
 
-WORKDIR /aeko
-COPY . .
-
-# Install sccache for faster subsequent builds
-RUN cargo install sccache --locked
+# Install sccache from pre-built binary (before COPY to keep this layer cached)
+RUN curl -fsSL https://github.com/mozilla/sccache/releases/download/v0.8.2/sccache-v0.8.2-x86_64-unknown-linux-musl.tar.gz \
+    | tar xzf - --strip-components=1 -C /usr/local/cargo/bin sccache-v0.8.2-x86_64-unknown-linux-musl/sccache
 ENV RUSTC_WRAPPER=sccache
 ENV SCCACHE_DIR=/root/.cache/sccache
 
-# Install build dependencies
+# Install build dependencies before COPY to keep this layer cached
 RUN apt-get update && apt-get install -y \
     libudev-dev \
     pkg-config \
@@ -19,12 +17,14 @@ RUN apt-get update && apt-get install -y \
     protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
-# Cache mounts persist between builds on the same host, keeping sccache and
-# cargo registry warm so subsequent builds don't start from scratch.
-RUN --mount=type=cache,target=/root/.cache/sccache \
-    --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/aeko/target \
+WORKDIR /aeko
+COPY . .
+
+# Unique cache IDs prevent lock conflicts when multiple images build in parallel.
+RUN --mount=type=cache,id=validator-sccache,target=/root/.cache/sccache \
+    --mount=type=cache,id=validator-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=validator-git,target=/usr/local/cargo/git \
+    --mount=type=cache,id=validator-target,target=/aeko/target \
     cargo build --release \
         --bin aeko-validator \
         --bin aeko-keygen \
@@ -46,6 +46,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
     libudev1 \
+    bzip2 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /binaries/aeko-validator /usr/local/bin/
@@ -54,6 +55,9 @@ COPY --from=builder /binaries/aeko-genesis /usr/local/bin/
 COPY --from=builder /binaries/aeko /usr/local/bin/
 COPY --from=builder /binaries/aeko-faucet /usr/local/bin/
 
+COPY validator-entrypoint.sh /usr/local/bin/validator-entrypoint.sh
+RUN chmod +x /usr/local/bin/validator-entrypoint.sh
+
 EXPOSE 8001/udp 8001/tcp 8899
 
-ENTRYPOINT ["aeko-validator"]
+ENTRYPOINT ["/usr/local/bin/validator-entrypoint.sh"]

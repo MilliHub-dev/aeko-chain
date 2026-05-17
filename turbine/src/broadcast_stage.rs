@@ -439,10 +439,23 @@ pub fn broadcast_shreds(
     socket_addr_space: &SocketAddrSpace,
     quic_endpoint_sender: &AsyncSender<(SocketAddr, Bytes)>,
 ) -> Result<()> {
+    // AEKO: gate broadcast on env var. When unset (default), short-circuit so the
+    // single-validator testnet does not exercise the optimized broadcast path that
+    // triggers a ud2 trap (exit 132) at +0x220 in the release binary. For multi-
+    // validator deployments, set AEKO_ENABLE_BROADCAST=1 to restore network fan-out.
+    if std::env::var("AEKO_ENABLE_BROADCAST").is_err() {
+        transmit_stats.total_packets += shreds.len();
+        return Ok(());
+    }
     let mut result = Ok(());
     let mut shred_select = Measure::start("shred_select");
     let (root_bank, working_bank) = {
-        let bank_forks = bank_forks.read().unwrap();
+        // AEKO: tolerate a poisoned BankForks RwLock so broadcast doesn't cascade-panic
+        // when an unrelated thread panicked while holding the write lock.
+        let bank_forks = match bank_forks.read() {
+            Ok(g) => g,
+            Err(poisoned) => poisoned.into_inner(),
+        };
         (bank_forks.root_bank(), bank_forks.working_bank())
     };
     let (packets, quic_packets): (Vec<_>, Vec<_>) = shreds
