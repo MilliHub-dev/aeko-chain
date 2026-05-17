@@ -33,3 +33,5 @@ log-*/
 **/cargo-*-bpf-child-script-*.sh
 AWS_LOCAL_TESTNET_SETUP.md
 aeko_alpha.pem
+test-wallet.json
+my-wallet.json
