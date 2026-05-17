@@ -183,7 +183,7 @@ services:
       - "8088:8088"
       - "3000:3000"
     environment:
-      AEKO_EXPLORER_RPC: "http://validator-1:8899"
+      AEKO_EXPLORER_RPC: "https://rpc.aeko.online"
       AEKO_EXPLORER_NETWORK: "testnet"
       AEKO_EXPLORER_BIND: "0.0.0.0:8088"
       # AEKO_EXPLORER_START_SLOT controls where the indexer begins catching up.
