@@ -1,10 +1,11 @@
-version: '3.8'
+version: "3.8"
 
 services:
+  # faucet, validator-2, validator-3 reuse the image built by validator-1.
+  # Only validator-1 has a build directive — run "docker compose build validator-1" once.
+
   faucet:
-    build:
-      context: .
-      dockerfile: Dockerfile.validator
+    image: aeko-validator:latest
     container_name: aeko-faucet
     entrypoint: ["aeko-faucet"]
     ports:
@@ -19,15 +20,25 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.validator
+    image: aeko-validator:latest
     container_name: aeko-validator-1
+    environment:
+      - AEKO_BOOTSTRAP=1
+    ulimits:
+      nofile:
+        soft: 1000000
+        hard: 1000000
     ports:
       - "8001:8001/udp"
       - "8001:8001/tcp"
       - "8899:8899"
+      - "8900:8900"
     volumes:
       - validator1-ledger:/ledger
       - ./local-testnet/validator-1-keypair.json:/keys/identity.json:ro
       - ./local-testnet/vote-1-keypair.json:/keys/vote.json:ro
+      - ./local-testnet/stake-keypair.json:/keys/stake.json:ro
+      - ./local-testnet/faucet-keypair.json:/keys/faucet.json:ro
     command: >
       --identity /keys/identity.json
       --vote-account /keys/vote.json
@@ -36,8 +47,11 @@ services:
       --rpc-bind-address 0.0.0.0
       --gossip-port 8001
       --rpc-faucet-address faucet:9900
+      --full-rpc-api
       --enable-rpc-transaction-history
       --enable-extended-tx-metadata-storage
+      --no-wait-for-vote-to-start-leader
+      --allow-private-addr
       --log -
       --no-os-network-limits-test
     depends_on:
@@ -45,10 +59,14 @@ services:
     restart: unless-stopped
 
   validator-2:
-    build:
-      context: .
-      dockerfile: Dockerfile.validator
+    image: aeko-validator:latest
     container_name: aeko-validator-2
+    ulimits:
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    ports:
+      - "8902:8899"
     volumes:
       - validator2-ledger:/ledger
       - ./local-testnet/validator-2-keypair.json:/keys/identity.json:ro
@@ -61,6 +79,9 @@ services:
       --gossip-port 8001
       --rpc-faucet-address faucet:9900
       --entrypoint validator-1:8001
+      --allow-private-addr
+      --no-genesis-fetch
+      --no-snapshot-fetch
       --log -
       --no-os-network-limits-test
     depends_on:
@@ -69,10 +90,14 @@ services:
     restart: unless-stopped
 
   validator-3:
-    build:
-      context: .
-      dockerfile: Dockerfile.validator
+    image: aeko-validator:latest
     container_name: aeko-validator-3
+    ulimits:
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    ports:
+      - "8901:8899"
     volumes:
       - validator3-ledger:/ledger
       - ./local-testnet/validator-3-keypair.json:/keys/identity.json:ro
@@ -85,6 +110,9 @@ services:
       --gossip-port 8001
       --rpc-faucet-address faucet:9900
       --entrypoint validator-1:8001
+      --allow-private-addr
+      --no-genesis-fetch
+      --no-snapshot-fetch
       --log -
       --no-os-network-limits-test
     depends_on:
@@ -96,6 +124,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.explorer
+    image: aeko-explorer:latest
     container_name: aeko-explorer
     ports:
       - "8088:8088"
