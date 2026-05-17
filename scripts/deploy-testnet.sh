@@ -127,6 +127,17 @@ else
     log "aeko-validator image present — skipping build (set FORCE_REBUILD=1 to force)"
 fi
 
+# ---- 4b. ensure the coolify network exists ----
+# docker-compose-testnet.yml declares 'coolify' as an external network so
+# coolify-proxy can route to our containers when Coolify is in use. On hosts
+# without Coolify, create an empty stand-in so plain `docker compose up`
+# doesn't error on a missing external network. The Traefik labels in the
+# compose simply sit unused without a proxy to honor them.
+if ! docker network inspect coolify >/dev/null 2>&1; then
+    log "creating stand-in 'coolify' network (no Coolify installed here)"
+    docker network create coolify >/dev/null
+fi
+
 # ---- 5. start the services ----
 # If a validator is already running and the chain is past slot ~500, auto-set
 # AEKO_EXPLORER_START_SLOT so the explorer's sequential catch_up (~7 RPC calls

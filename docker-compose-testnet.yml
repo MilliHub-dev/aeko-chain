@@ -1,5 +1,19 @@
 version: "3.8"
 
+# Aeko testnet compose.
+#
+# Works two ways:
+#   1. SSH-managed:   ./scripts/deploy-testnet.sh (host-port mappings reach the
+#                     services directly at http://<host>:8899 etc.).
+#   2. Coolify-managed: deploy as a "Docker Compose" resource. Coolify-proxy
+#                     (Traefik) picks up the labels below and routes the
+#                     planned subdomains with auto-issued TLS. See
+#                     docs/operations/coolify.md for the UI steps.
+#
+# Both paths can coexist on the same host. The host-port mappings stay so the
+# SSH deploy script keeps working unchanged; the Traefik labels only activate
+# when the named subdomains resolve to this host and coolify-proxy is running.
+
 services:
   # faucet, validator-2, validator-3 reuse the image built by validator-1.
   # Only validator-1 has a build directive — run "docker compose build validator-1" once.
@@ -15,6 +29,8 @@ services:
     command: >
       --keypair /keys/faucet.json
     restart: unless-stopped
+    # No Traefik labels: faucet speaks a custom TCP protocol (not HTTP),
+    # and dApps reach it indirectly via the validator's requestAirdrop RPC.
 
   validator-1:
     build:
@@ -57,6 +73,41 @@ services:
     depends_on:
       - faucet
     restart: unless-stopped
+    networks:
+      - default
+      - coolify
+    labels:
+      # Traefik routing (activated by coolify-proxy when present).
+      - traefik.enable=true
+      # ---- JSON-RPC over HTTPS: https://rpc.aeko.online ----
+      - traefik.http.routers.aeko-rpc.rule=Host(`rpc.aeko.online`)
+      - traefik.http.routers.aeko-rpc.entrypoints=https
+      - traefik.http.routers.aeko-rpc.tls=true
+      - traefik.http.routers.aeko-rpc.tls.certresolver=letsencrypt
+      - traefik.http.routers.aeko-rpc.service=aeko-rpc
+      - traefik.http.services.aeko-rpc.loadbalancer.server.port=8899
+      # CORS — dApps in browsers need this to call the RPC cross-origin.
+      - traefik.http.middlewares.aeko-rpc-cors.headers.accesscontrolallowmethods=GET,POST,OPTIONS
+      - traefik.http.middlewares.aeko-rpc-cors.headers.accesscontrolallowheaders=Content-Type
+      - traefik.http.middlewares.aeko-rpc-cors.headers.accesscontrolalloworiginlist=*
+      - traefik.http.middlewares.aeko-rpc-cors.headers.accesscontrolmaxage=300
+      - traefik.http.middlewares.aeko-rpc-cors.headers.addvaryheader=true
+      - traefik.http.routers.aeko-rpc.middlewares=aeko-rpc-cors
+      # Plain-HTTP redirect to HTTPS on the same host.
+      - traefik.http.routers.aeko-rpc-http.rule=Host(`rpc.aeko.online`)
+      - traefik.http.routers.aeko-rpc-http.entrypoints=http
+      - traefik.http.routers.aeko-rpc-http.middlewares=redirect-to-https
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      # ---- pubsub WebSocket: wss://ws.aeko.online ----
+      - traefik.http.routers.aeko-ws.rule=Host(`ws.aeko.online`)
+      - traefik.http.routers.aeko-ws.entrypoints=https
+      - traefik.http.routers.aeko-ws.tls=true
+      - traefik.http.routers.aeko-ws.tls.certresolver=letsencrypt
+      - traefik.http.routers.aeko-ws.service=aeko-ws
+      - traefik.http.services.aeko-ws.loadbalancer.server.port=8900
+      - traefik.http.routers.aeko-ws-http.rule=Host(`ws.aeko.online`)
+      - traefik.http.routers.aeko-ws-http.entrypoints=http
+      - traefik.http.routers.aeko-ws-http.middlewares=redirect-to-https
 
   validator-2:
     image: aeko-validator:latest
@@ -142,6 +193,47 @@ services:
     depends_on:
       - validator-1
     restart: unless-stopped
+    networks:
+      - default
+      - coolify
+    labels:
+      - traefik.enable=true
+      # ---- Explorer web UI: https://cloud.aeko.online ----
+      - traefik.http.routers.aeko-explorer-ui.rule=Host(`cloud.aeko.online`)
+      - traefik.http.routers.aeko-explorer-ui.entrypoints=https
+      - traefik.http.routers.aeko-explorer-ui.tls=true
+      - traefik.http.routers.aeko-explorer-ui.tls.certresolver=letsencrypt
+      - traefik.http.routers.aeko-explorer-ui.service=aeko-explorer-ui
+      - traefik.http.services.aeko-explorer-ui.loadbalancer.server.port=3000
+      - traefik.http.routers.aeko-explorer-ui-http.rule=Host(`cloud.aeko.online`)
+      - traefik.http.routers.aeko-explorer-ui-http.entrypoints=http
+      - traefik.http.routers.aeko-explorer-ui-http.middlewares=redirect-to-https
+      # ---- Explorer indexer REST API: https://api.aeko.online ----
+      - traefik.http.routers.aeko-explorer-api.rule=Host(`api.aeko.online`)
+      - traefik.http.routers.aeko-explorer-api.entrypoints=https
+      - traefik.http.routers.aeko-explorer-api.tls=true
+      - traefik.http.routers.aeko-explorer-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.aeko-explorer-api.service=aeko-explorer-api
+      - traefik.http.services.aeko-explorer-api.loadbalancer.server.port=8088
+      - traefik.http.middlewares.aeko-api-cors.headers.accesscontrolallowmethods=GET,POST,OPTIONS
+      - traefik.http.middlewares.aeko-api-cors.headers.accesscontrolalloworiginlist=*
+      - traefik.http.middlewares.aeko-api-cors.headers.addvaryheader=true
+      - traefik.http.routers.aeko-explorer-api.middlewares=aeko-api-cors
+      - traefik.http.routers.aeko-explorer-api-http.rule=Host(`api.aeko.online`)
+      - traefik.http.routers.aeko-explorer-api-http.entrypoints=http
+      - traefik.http.routers.aeko-explorer-api-http.middlewares=redirect-to-https
+
+networks:
+  # The default network is created automatically per compose project; it carries
+  # internal service-to-service DNS (validator-1, faucet hostnames).
+  default:
+  # The coolify network is created by Coolify's installer and hosts coolify-proxy
+  # (Traefik). Joining it lets Traefik reach our containers to terminate TLS.
+  # On hosts without Coolify, scripts/deploy-testnet.sh creates an empty stand-in
+  # network of the same name so plain `docker compose up` still works; the
+  # Traefik labels simply sit unused without a proxy to honor them.
+  coolify:
+    external: true
 
 volumes:
   validator1-ledger:
