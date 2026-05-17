@@ -200,14 +200,14 @@ services:
       - coolify
     labels:
       - traefik.enable=true
-      # ---- Explorer web UI: https://cloud.aeko.online ----
-      - traefik.http.routers.aeko-explorer-ui.rule=Host(`cloud.aeko.online`)
+      # ---- Explorer web UI: https://gossip.aeko.online ----
+      - traefik.http.routers.aeko-explorer-ui.rule=Host(`gossip.aeko.online`)
       - traefik.http.routers.aeko-explorer-ui.entrypoints=https
       - traefik.http.routers.aeko-explorer-ui.tls=true
       - traefik.http.routers.aeko-explorer-ui.tls.certresolver=letsencrypt
       - traefik.http.routers.aeko-explorer-ui.service=aeko-explorer-ui
       - traefik.http.services.aeko-explorer-ui.loadbalancer.server.port=3000
-      - traefik.http.routers.aeko-explorer-ui-http.rule=Host(`cloud.aeko.online`)
+      - traefik.http.routers.aeko-explorer-ui-http.rule=Host(`gossip.aeko.online`)
       - traefik.http.routers.aeko-explorer-ui-http.entrypoints=http
       - traefik.http.routers.aeko-explorer-ui-http.middlewares=redirect-to-https
       # ---- Explorer indexer REST API: https://api.aeko.online ----
