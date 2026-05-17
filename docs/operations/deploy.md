@@ -112,6 +112,20 @@ To force a rebuild even if Docker thinks nothing changed:
 FORCE_REBUILD=1 ./scripts/deploy-testnet.sh
 ```
 
+### Explorer catch-up on long-running chains
+
+The explorer indexer (`aeko-explorer-backend`) walks every slot from `AEKO_EXPLORER_START_SLOT` to the current tip sequentially, making roughly seven RPC calls per slot (block, transactions, token transfers, NFT updates, social posts, creator rewards, engagement events, social stakes, wallet profiles). On a fresh genesis this is instant. On a chain that's been running for hours, indexing every historical slot can take a very long time — long enough that the explorer container looks hung and its HTTP endpoint never opens.
+
+The deploy script handles this automatically: if it detects an existing healthy chain past slot ~500, it sets `AEKO_EXPLORER_START_SLOT` to `current_slot - 50` so the explorer catches up the most recent window only. Fresh genesis runs use the compose default of `0`.
+
+To override manually (e.g. after a chain reset that the script can't see, or to deliberately re-index a window):
+
+```bash
+AEKO_EXPLORER_START_SLOT=12000 ./scripts/deploy-testnet.sh
+```
+
+Indexed history is in-memory only; the explorer rebuilds its view from the start slot every time its container restarts. There is no on-disk persistence of indexed data, so picking a recent start slot does not "lose" anything that wasn't already going to be discarded on the next restart.
+
 ---
 
 ## 4. Migrating to a different server (or rebuilding from scratch)

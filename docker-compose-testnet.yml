@@ -133,6 +133,12 @@ services:
       AEKO_EXPLORER_RPC: "http://validator-1:8899"
       AEKO_EXPLORER_NETWORK: "testnet"
       AEKO_EXPLORER_BIND: "0.0.0.0:8088"
+      # AEKO_EXPLORER_START_SLOT controls where the indexer begins catching up.
+      # Set to 0 for full chain history (fine on fresh genesis, slow on long-running
+      # chains because catch_up is sequential and makes ~7 RPC calls per slot).
+      # Set to a recent slot to skip historical indexing on redeploys; the deploy
+      # script auto-populates this when it detects an existing chain.
+      AEKO_EXPLORER_START_SLOT: "${AEKO_EXPLORER_START_SLOT:-0}"
     depends_on:
       - validator-1
     restart: unless-stopped

@@ -128,6 +128,20 @@ else
 fi
 
 # ---- 5. start the services ----
+# If a validator is already running and the chain is past slot ~500, auto-set
+# AEKO_EXPLORER_START_SLOT so the explorer's sequential catch_up (~7 RPC calls
+# per slot) doesn't take hours indexing historical blocks.
+if [ -z "${AEKO_EXPLORER_START_SLOT:-}" ]; then
+    SLOT=$(curl -s --max-time 2 -X POST -H "Content-Type: application/json" \
+        -d '{"jsonrpc":"2.0","id":1,"method":"getSlot"}' http://127.0.0.1:8899 2>/dev/null \
+        | grep -oE '"result":[0-9]+' | grep -oE '[0-9]+' || true)
+    if [ -n "$SLOT" ] && [ "$SLOT" -gt 500 ]; then
+        START_SLOT=$((SLOT - 50))
+        log "existing chain detected at slot $SLOT — setting AEKO_EXPLORER_START_SLOT=$START_SLOT for fast catch-up"
+        export AEKO_EXPLORER_START_SLOT="$START_SLOT"
+    fi
+fi
+
 log "starting faucet, validator-1, explorer"
 docker compose -f "$COMPOSE_FILE" up -d --no-deps faucet validator-1 explorer
 
