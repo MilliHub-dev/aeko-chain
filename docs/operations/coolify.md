@@ -12,10 +12,12 @@ This document covers the one-time Coolify setup and the day-to-day workflow once
 |---|---|
 | Reads compose from your private GitHub repo, builds image, runs container stack | Coolify's docker-compose resource type |
 | Auto-deploys on push to a tracked branch | GitHub App webhook → Coolify |
-| Public HTTPS at `rpc.aeko.online`, `ws.aeko.online`, `cloud.aeko.online`, `api.aeko.online` | `coolify-proxy` (Traefik) reads the labels in the compose file |
+| Public HTTPS at `rpc.aeko.online`, `ws.aeko.online`, `scan.aeko.online`, `api.aeko.online` | `coolify-proxy` (Traefik) reads the labels in the compose file |
 | Let's Encrypt certs auto-issued and renewed | Built into `coolify-proxy` |
 | Environment variables and secrets per resource | Coolify UI → Environment Variables |
-| Web UI for logs, restarts, redeploys | `http://cloud.aeko.online:8000` (or `coolify.aeko.online` once wired) |
+| Web UI for logs, restarts, redeploys | `https://cloud.aeko.online` (Coolify dashboard, already wired) |
+
+> **Hostname map** — `cloud.aeko.online` is the Coolify dashboard itself (and the SSH endpoint). It is **not** an Aeko service hostname. Aeko services live on `rpc`, `ws`, `api`, and `scan` subdomains.
 
 ### How keypairs and ledger data persist
 
@@ -31,16 +33,9 @@ This document covers the one-time Coolify setup and the day-to-day workflow once
 
 These steps run in the Coolify web UI. Estimated time: 20–30 minutes including DNS propagation.
 
-### Step 1 — Put Coolify itself behind HTTPS
+> **Prerequisite** — the Coolify dashboard is already served at `https://cloud.aeko.online` (also the SSH endpoint). The earlier draft of this doc told you to set up a `coolify.aeko.online` hostname; that step is unnecessary and has been removed.
 
-GitHub App webhooks require an HTTPS endpoint to reach. Right now your dashboard is plain HTTP on `:8000`. Fix this first.
-
-1. In Namecheap, add an A record: `coolify.aeko.online → 3.80.154.37` (your EC2 IP).
-2. Wait for DNS to propagate (verify with `dig +short coolify.aeko.online @8.8.8.8`).
-3. In Coolify UI → **Settings → General → Instance Domain** → set `https://coolify.aeko.online`. Coolify-proxy will request a Let's Encrypt cert and start serving the dashboard at that hostname.
-4. Re-bookmark the new URL; the `:8000` HTTP entry stays available as a fallback.
-
-### Step 2 — Add the GitHub App source
+### Step 1 — Add the GitHub App source
 
 1. Coolify UI → **Sources → New → GitHub App**.
 2. Click "Create new GitHub App". Coolify opens a GitHub manifest prompt; accept it. GitHub creates a new app under your account named something like `coolify-aeko`.
@@ -49,10 +44,10 @@ GitHub App webhooks require an HTTPS endpoint to reach. Right now your dashboard
 
 The app installation gives Coolify webhook events for `push`, `pull_request`, and `release`, plus read access to the repo's contents.
 
-### Step 3 — Create the testnet project + resource
+### Step 2 — Create the testnet project + resource
 
 1. Coolify UI → **Projects → New Project** → name it `aeko-testnet`.
-2. Inside the project → **Add Resource → Private Repository (with GitHub App)** → select the source you created in Step 2.
+2. Inside the project → **Add Resource → Private Repository (with GitHub App)** → select the source you created in Step 1.
 3. Coolify will detect `docker-compose-testnet.yml` automatically. If it prompts for the compose file path, enter `docker-compose-testnet.yml`.
 4. Set the branch to `main`.
 5. Check **Auto Deploy on Push** so future pushes to `main` redeploy automatically.
@@ -60,7 +55,7 @@ The app installation gives Coolify webhook events for `push`, `pull_request`, an
 
 > The application UUID is visible in the Coolify dashboard URL when you're inside the resource (e.g., the URL contains `/xn2nges6p6bmvhzphqxsoiay`). Note it — you'll need it in Step 5.
 
-### Step 4 — Configure environment variables (optional)
+### Step 3 — Configure environment variables (optional)
 
 Coolify UI → resource → **Environment Variables**.
 
@@ -74,7 +69,7 @@ All other configuration lives in `docker-compose-testnet.yml` and does not need 
 
 > **Do not try to configure volumes or bind mounts through the Coolify UI** for this resource. The "Persistent Storage" page is read-only for compose-based apps. Volume configuration is in the compose file and is already correct.
 
-### Step 5 — Place keypairs on the host
+### Step 4 — Place keypairs on the host
 
 SSH to the host once. This is the only SSH operation required for initial setup.
 
@@ -129,17 +124,19 @@ ls -la /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/
 # expect: faucet-keypair.json  stake-keypair.json  validator-1-keypair.json  vote-1-keypair.json
 ```
 
-### Step 6 — Point DNS at the EC2 IP and deploy
+### Step 5 — Point DNS at the EC2 IP and deploy
 
-In Namecheap, add four A records (all pointing to `3.80.154.37`):
+In Namecheap, ensure these A records exist (all pointing to `3.80.154.37`):
 
 ```
 Type  Host       Value
 A     rpc        3.80.154.37
 A     ws         3.80.154.37
 A     api        3.80.154.37
-A     cloud      3.80.154.37    (if not already)
+A     scan       3.80.154.37
 ```
+
+`cloud.aeko.online` already resolves (it's your Coolify dashboard + SSH endpoint) and should be left alone.
 
 After DNS propagates, click **Deploy** in the Coolify UI. Coolify pulls the repo, runs `docker compose up`, registers the Traefik labels, and `coolify-proxy` requests Let's Encrypt certs for each hostname. First deploy can take 20–30 minutes because the validator image build is cold; subsequent deploys reuse sccache and finish in 1–3 minutes.
 
@@ -150,9 +147,9 @@ curl https://rpc.aeko.online -X POST -H 'Content-Type: application/json' \
     -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
 # → {"jsonrpc":"2.0","result":"ok","id":1}
 
-curl https://cloud.aeko.online/    # explorer UI returns HTML
-curl https://api.aeko.online/blocks?limit=3   # JSON with recent blocks
-wscat -c wss://ws.aeko.online       # WebSocket connects
+curl https://scan.aeko.online/                  # explorer UI returns HTML
+curl https://api.aeko.online/blocks?limit=3     # JSON with recent blocks
+wscat -c wss://ws.aeko.online                   # WebSocket connects
 ```
 
 ---
