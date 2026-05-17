@@ -8,28 +8,28 @@ This document covers the one-time Coolify setup and the day-to-day workflow once
 
 ## What Coolify gives you
 
-| Capability                                                                                  | Source                                                                      |
-| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Reads compose from your private GitHub repo, builds image, runs container stack             | Coolify's docker-compose resource type                                      |
-| Auto-deploys on push to a tracked branch                                                    | GitHub App webhook → Coolify                                                |
-| Public HTTPS at `rpc.aeko.online`, `ws.aeko.online`, `cloud.aeko.online`, `api.aeko.online` | `coolify-proxy` (Traefik) reads the labels in the compose file              |
-| Let's Encrypt certs auto-issued and renewed                                                 | Built into `coolify-proxy`                                                  |
-| Environment variables and secrets per resource                                              | Coolify UI → Environment Variables                                          |
-| Persistent storage outside the container filesystem                                         | Coolify UI → Persistent Storage                                             |
-| Web UI for logs, restarts, redeploys                                                        | `http://cloud.aeko.online:8000` (or `coolify.aeko.online` once you wire it) |
+| Capability | Source |
+|---|---|
+| Reads compose from your private GitHub repo, builds image, runs container stack | Coolify's docker-compose resource type |
+| Auto-deploys on push to a tracked branch | GitHub App webhook → Coolify |
+| Public HTTPS at `rpc.aeko.online`, `ws.aeko.online`, `cloud.aeko.online`, `api.aeko.online` | `coolify-proxy` (Traefik) reads the labels in the compose file |
+| Let's Encrypt certs auto-issued and renewed | Built into `coolify-proxy` |
+| Environment variables and secrets per resource | Coolify UI → Environment Variables |
+| Web UI for logs, restarts, redeploys | `http://cloud.aeko.online:8000` (or `coolify.aeko.online` once wired) |
 
-The faucet keypair, validator/vote/stake keypairs are **not** in git (they're `.gitignore`d under `local-testnet/`). Two paths to get them onto a Coolify-deployed instance:
+### How keypairs and ledger data persist
 
-- **Persistent storage**: in the Coolify UI, declare a persistent mount like `/keys` for the validator + faucet, then SSH once to drop the JSON files into the mounted host directory. Subsequent deploys reuse the same files.
-- **Generate at boot**: extend `validator-entrypoint.sh` to call `aeko-keygen new` for any missing keypair under `/keys/` and create a fresh genesis on first run. Cleaner for ephemeral testnets where you don't care about chain continuity across redeploys.
+**Ledger volumes** — `validator1-ledger` (and `validator2-ledger`, `validator3-ledger`) are named Docker volumes. Coolify creates them as `<app-id>_validator1-ledger` on first deploy and they survive all subsequent redeploys. No action needed — these are fully managed by Docker.
 
-I picked persistent storage as the default in this runbook because it preserves the chain identity if you ever need to redeploy.
+**Keypairs** — the compose file bind-mounts individual JSON files from `./local-testnet/` (relative to Coolify's checkout directory at `/data/coolify/applications/<uuid>/`). These files are `.gitignore`d, so git never touches them. They survive `git pull`-based redeploys. **They do NOT survive a forced re-clone** (e.g., if you delete and re-add the Coolify resource). Back them up separately.
+
+> **Important for docker-compose resources**: Coolify shows "Volume mounts are read-only in the Coolify dashboard" at the top of the Persistent Storage page. This is expected — all volume configuration must live in `docker-compose-testnet.yml`, not the UI. The volumes you see listed there (with empty source paths and `/ledger` destinations) are the named volumes Docker created from the compose file; they are correct and require no changes.
 
 ***
 
 ## One-time setup (UI work)
 
-These five steps run in the Coolify web UI. Estimated time: 20–30 minutes including DNS propagation.
+These steps run in the Coolify web UI. Estimated time: 20–30 minutes including DNS propagation.
 
 ### Step 1 — Put Coolify itself behind HTTPS
 
@@ -52,59 +52,82 @@ The app installation gives Coolify webhook events for `push`, `pull_request`, an
 ### Step 3 — Create the testnet project + resource
 
 1. Coolify UI → **Projects → New Project** → name it `aeko-testnet`.
-2. Inside the project → **Add Resource → Docker Compose → from GitHub** → pick the source from step 2.
-3. Repo: `MilliHub-dev/aeko-chain`. Branch: `main`. Compose path: `docker-compose-testnet.yml`.
-4. Check "Auto Deploy on Push" so future pushes to `main` redeploy automatically.
-5. Save. Coolify clones the repo and parses the compose file but does **not** deploy yet — it shows the detected services and waits for you to add storage and env vars.
+2. Inside the project → **Add Resource → Private Repository (with GitHub App)** → select the source you created in Step 2.
+3. Coolify will detect `docker-compose-testnet.yml` automatically. If it prompts for the compose file path, enter `docker-compose-testnet.yml`.
+4. Set the branch to `main`.
+5. Check **Auto Deploy on Push** so future pushes to `main` redeploy automatically.
+6. Save. Coolify clones the repo to `/data/coolify/applications/<uuid>/` and parses the compose file. It shows the detected services but does **not** deploy yet.
 
-### Step 4 — Configure persistent storage + environment
+> The application UUID is visible in the Coolify dashboard URL when you're inside the resource (e.g., the URL contains `/xn2nges6p6bmvhzphqxsoiay`). Note it — you'll need it in Step 5.
 
-Per service, in the Coolify UI:
+### Step 4 — Configure environment variables (optional)
 
-**validator-1** — Persistent Storage:
+Coolify UI → resource → **Environment Variables**.
 
-- Mount path: `/keys` (inside container). Host path: `/data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-validator`.
-- Mount path: `/ledger`. Host path: `/data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/ledger-validator-1`. (Replaces the named volume in compose.)
+The only variable worth setting before first deploy:
 
-**faucet** — Persistent Storage:
+| Variable | When to set |
+|---|---|
+| `AEKO_EXPLORER_START_SLOT` | If the chain has been running for a while — set it to `current_slot − 50` to skip historical catch-up. Leave unset (defaults to `0`) on a fresh genesis. |
 
-- Mount path: `/keys`. Host path: `/data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-faucet`.
+All other configuration lives in `docker-compose-testnet.yml` and does not need to be re-entered here.
 
-**explorer** — no persistent storage required (the indexer is in-memory).
+> **Do not try to configure volumes or bind mounts through the Coolify UI** for this resource. The "Persistent Storage" page is read-only for compose-based apps. Volume configuration is in the compose file and is already correct.
 
-Environment variables can stay as defined in the compose file. The only one worth overriding from the UI is `AEKO_EXPLORER_START_SLOT` if a chain has been running for a while — set it to `current_slot − 50` to skip the historical catch-up (see [`deploy.md`](./deploy.md#explorer-catch-up-on-long-running-chains)).
+### Step 5 — Place keypairs on the host
 
-### Step 5 — Drop the keypairs onto the persistent storage
-
-SSH to the host once (the only time during normal operation):
+SSH to the host once. This is the only SSH operation required for initial setup.
 
 ```bash
 ssh ubuntu@cloud.aeko.online
-sudo mkdir -p /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-validator /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-faucet
 ```
 
-If you already have keypairs from the SSH-deploy era, copy them:
+The keypair files must live in Coolify's checkout of the repo at:
 
-```bash
-sudo cp ~/aeko/local-testnet/validator-1-keypair.json /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-validator/identity.json
-sudo cp ~/aeko/local-testnet/vote-1-keypair.json      /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-validator/vote.json
-sudo cp ~/aeko/local-testnet/stake-keypair.json       /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-validator/stake.json
-sudo cp ~/aeko/local-testnet/faucet-keypair.json      /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-validator/faucet.json
-sudo cp ~/aeko/local-testnet/faucet-keypair.json      /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-faucet/faucet.json
-sudo chown -R 1000:1000 /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-*
+```
+/data/coolify/applications/<uuid>/local-testnet/
 ```
 
-If you want a fresh chain identity, generate inside a throwaway container:
+For this deployment, `<uuid>` is `xn2nges6p6bmvhzphqxsoiay`, so the path is:
+
+```
+/data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/
+```
+
+**If you already have keypairs from the SSH-deploy era** (e.g., in `~/aeko/local-testnet/`), copy them:
 
 ```bash
-for name in identity vote stake faucet; do
-    sudo docker run --rm -v /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-validator:/keys aeko-validator:latest \
+APP=/data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet
+OLD=~/aeko/local-testnet
+
+sudo cp $OLD/validator-1-keypair.json  $APP/validator-1-keypair.json
+sudo cp $OLD/vote-1-keypair.json       $APP/vote-1-keypair.json
+sudo cp $OLD/stake-keypair.json        $APP/stake-keypair.json
+sudo cp $OLD/faucet-keypair.json       $APP/faucet-keypair.json
+```
+
+**If you want to generate fresh keypairs** (creates a new chain identity):
+
+```bash
+APP=/data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet
+sudo mkdir -p $APP
+
+for name in validator-1-keypair vote-1-keypair stake-keypair faucet-keypair; do
+    sudo docker run --rm \
+        -v $APP:/keys \
+        aeko-validator:latest \
         aeko-keygen new --no-bip39-passphrase --silent --outfile /keys/$name.json
 done
-sudo cp /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-validator/faucet.json /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-faucet/faucet.json
 ```
 
-This is the only SSH command you should expect to run in normal operation. After this, everything is UI-driven.
+> **Back these up.** The files survive `git pull` redeploys because they're untracked (`.gitignore`d). If you ever delete the Coolify resource and re-add it, the checkout directory will be recreated from scratch and these files will be gone. Copy them somewhere safe — S3, 1Password, or your `~ubuntu/` home dir.
+
+Verify the files are in place:
+
+```bash
+ls -la /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/
+# expect: faucet-keypair.json  stake-keypair.json  validator-1-keypair.json  vote-1-keypair.json
+```
 
 ### Step 6 — Point DNS at the EC2 IP and deploy
 
@@ -154,12 +177,11 @@ That's it. The auto-deploy hook on `main` does the work. No SSH needed.
 Reserve SSH for these only:
 
 - Inspecting host-OS state (`docker network ls`, `df -h`, kernel limits)
-- Volume migration / chain reset that Coolify can't express cleanly
+- Placing or rotating keypairs under the application directory (see Step 5)
 - Triaging Coolify itself if its dashboard is unreachable
-- Rotating keypairs on persistent storage
-- Anything in [`testnet-runbook.md`](./testnet-runbook.md#part-6--operators-daily-checklist) [§6](./testnet-runbook.md#part-6--operators-daily-checklist) that requires `dmesg` or kernel-level evidence
+- Anything in [`testnet-runbook.md` §6](./testnet-runbook.md#part-6--operators-daily-checklist) that requires `dmesg` or kernel-level evidence
 
-When you do SSH in to make changes, **don't edit files in** **`~/aeko`** — that directory is no longer the source of truth under Coolify. Coolify pulls the repo into its own workspace under `/data/coolify/applications/<uuid>/` on every deploy. Edit through GitHub instead.
+When you SSH in to make config changes, **do not edit files under `/data/coolify/applications/<uuid>/`** except for the `local-testnet/` keypair files — everything else is overwritten on the next `git pull` redeploy.
 
 ***
 
@@ -173,13 +195,13 @@ When you do SSH in to make changes, **don't edit files in** **`~/aeko`** — tha
 
 The script auto-creates an empty `coolify` Docker network on hosts that don't have one, so the same compose file works both ways. The Traefik labels are inert without a Traefik proxy; the host-port mappings (`8899:8899` etc.) are unaffected by Coolify and continue to serve direct traffic.
 
-In other words, the compose file is the lowest common denominator. Coolify reads it, the script reads it, both produce a healthy testnet.
-
-***
+---
 
 ## What's deliberately out of scope here
 
-- **Multi-validator (validator-2, validator-3)**: their entries are in the compose but they're stopped. The broadcast-stage `ud2` trap (see [`testnet-runbook.md`](./testnet-runbook.md#14-the-phantom-ud2-trap-in-broadcast_shreds) [§1.4](./testnet-runbook.md#14-the-phantom-ud2-trap-in-broadcast_shreds)) needs root-causing before turning them on. Set `AEKO_ENABLE_BROADCAST=1` in the Coolify env vars only after the bug is fixed.
+- **Multi-validator (validator-2, validator-3)**: their entries are in the compose file but are disabled by default via `profiles: ["multi-validator"]` (they require the broadcast-stage `ud2` bug to be fixed first — see [`testnet-runbook.md` §1.4](./testnet-runbook.md#14-the-phantom-ud2-trap-in-broadcast_shreds)). To enable them, set `COMPOSE_PROFILES=multi-validator` in Coolify's environment variables and place the corresponding keypairs in `local-testnet/` first.
+
 - **Tightening AWS security group**: with Coolify-proxy fronting everything, you only need 80/443 open publicly. Closing 8899/8900/8088/3000 from the world is recommended once the subdomains are verified working. Do this in the AWS console, not Coolify.
 - **Backups of persistent storage**: out of scope of this doc. Coolify has a backup feature for postgres-backed resources; for raw bind-mounted directories like `/data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet/keys-*` you're responsible for snapshotting. `restic` to an S3 bucket is the canonical answer.
 
+- **Backups of keypairs and ledger data**: keypairs in `local-testnet/` need manual backup (they're untracked by git). The named ledger volumes (`xn2nges6p6bmvhzphqxsoiay_validator1-ledger`) are on the host's Docker volume store — snapshot via `docker run --rm -v <volume>:/data alpine tar -cz /data` or use `restic` to S3.
