@@ -62,6 +62,14 @@ aeko-perf = { workspace = true }
 aeko-program-runtime = { workspace = true }
 aeko-rayon-threadlimit = { workspace = true }
 aeko-sdk = { workspace = true }
+# SocialFi native builtins — registered in src/builtins.rs so their program
+# IDs are recognized by the SVM and `processor::process` runs for matching
+# transactions. No BPF deploy needed.
+aeko-social-anti-spam-program = { workspace = true }
+aeko-social-monetization-program = { workspace = true }
+aeko-social-posts-program = { workspace = true }
+aeko-social-rewards-program = { workspace = true }
+aeko-social-staking-program = { workspace = true }
 aeko-stake-program = { workspace = true }
 aeko-svm = { workspace = true }
 aeko-system-program = { workspace = true }

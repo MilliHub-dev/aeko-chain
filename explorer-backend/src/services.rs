@@ -1,52 +1,39 @@
+//! Service layer — composes multiple store calls into single API responses.
+//! `ExplorerApiService` is what Axum handlers actually call; it wraps a
+//! `Box<dyn ExplorerReadStore>` so handlers stay agnostic to the storage
+//! implementation.
+//!
+//! Anything that fans out into multiple store calls (collection summaries,
+//! account details, creator profiles, token aggregates) lives here. Pure
+//! pass-through methods exist too — they keep handlers from having to know
+//! about the trait directly.
+
 use {
-    crate::models::{
-        AccountDetailRecord, BlockRecord, CollectionSummaryRecord, CreatorProfileRecord,
-        CreatorRewardRecord, EngagementRecord, NftRecord, SearchResultRecord, SocialPostRecord,
-        SocialStakeRecord, TokenSummaryRecord, TokenTransferRecord, TransactionRecord,
-        WalletProfileRecord,
+    crate::{
+        models::{
+            AccountDetailRecord, BlockRecord, CollectionSummaryRecord, CreatorProfileRecord,
+            CreatorRewardRecord, EngagementRecord, NftRecord, SearchResultRecord, SocialPostRecord,
+            SocialStakeRecord, TokenSummaryRecord, TokenTransferRecord, TransactionRecord,
+            WalletProfileRecord,
+        },
+        store::ExplorerReadStore,
     },
     anyhow::Result,
-    std::collections::HashSet,
+    std::{collections::HashSet, sync::Arc},
 };
 
-pub trait ExplorerReadStore: Send + Sync {
-    fn list_blocks(&self, limit: usize) -> Result<Vec<BlockRecord>>;
-    fn get_block(&self, slot: u64) -> Result<Option<BlockRecord>>;
-    fn list_transactions(&self, limit: usize) -> Result<Vec<TransactionRecord>>;
-    fn get_transaction(&self, signature: &str) -> Result<Option<TransactionRecord>>;
-    fn list_token_transfers(&self, mint: Option<&str>, limit: usize) -> Result<Vec<TokenTransferRecord>>;
-    fn list_nfts(&self, collection_id: Option<&str>, limit: usize) -> Result<Vec<NftRecord>>;
-    fn get_nft(&self, token_id: &str) -> Result<Option<NftRecord>>;
-    fn list_posts(&self, creator: Option<&str>, limit: usize) -> Result<Vec<SocialPostRecord>>;
-    fn get_post(&self, post_id: &str) -> Result<Option<SocialPostRecord>>;
-    fn list_creator_rewards(
-        &self,
-        creator: Option<&str>,
-        limit: usize,
-    ) -> Result<Vec<CreatorRewardRecord>>;
-    fn list_engagement_events(
-        &self,
-        creator: Option<&str>,
-        limit: usize,
-    ) -> Result<Vec<EngagementRecord>>;
-    fn list_social_stakes(
-        &self,
-        wallet: Option<&str>,
-        limit: usize,
-    ) -> Result<Vec<SocialStakeRecord>>;
-    fn get_wallet_profile(&self, address: &str) -> Result<Option<WalletProfileRecord>>;
-    fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResultRecord>>;
+pub struct ExplorerApiService {
+    store: Arc<dyn ExplorerReadStore>,
 }
 
-pub struct ExplorerApiService<S> {
-    store: S,
-}
+impl ExplorerApiService {
+    pub fn new<S: ExplorerReadStore + 'static>(store: S) -> Self {
+        Self {
+            store: Arc::new(store),
+        }
+    }
 
-impl<S> ExplorerApiService<S>
-where
-    S: ExplorerReadStore,
-{
-    pub fn new(store: S) -> Self {
+    pub fn from_arc(store: Arc<dyn ExplorerReadStore>) -> Self {
         Self { store }
     }
 
@@ -74,7 +61,11 @@ where
         self.store.list_token_transfers(mint, limit)
     }
 
-    pub fn get_token_summary(&self, mint: &str, limit: usize) -> Result<Option<TokenSummaryRecord>> {
+    pub fn get_token_summary(
+        &self,
+        mint: &str,
+        limit: usize,
+    ) -> Result<Option<TokenSummaryRecord>> {
         let transfers = self.store.list_token_transfers(Some(mint), limit)?;
         if transfers.is_empty() {
             return Ok(None);
@@ -97,7 +88,11 @@ where
         }))
     }
 
-    pub fn list_nfts(&self, collection_id: Option<&str>, limit: usize) -> Result<Vec<NftRecord>> {
+    pub fn list_nfts(
+        &self,
+        collection_id: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<NftRecord>> {
         self.store.list_nfts(collection_id, limit)
     }
 
@@ -131,7 +126,11 @@ where
         }))
     }
 
-    pub fn list_posts(&self, creator: Option<&str>, limit: usize) -> Result<Vec<SocialPostRecord>> {
+    pub fn list_posts(
+        &self,
+        creator: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<SocialPostRecord>> {
         self.store.list_posts(creator, limit)
     }
 

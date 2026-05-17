@@ -30,11 +30,26 @@ async fn main() -> Result<()> {
     let store = InMemoryExplorerStore::new();
     let indexer = std::sync::Arc::new(ExplorerIndexer::new(config.clone(), data_source, store.clone()));
 
-    indexer.catch_up()?;
+    // Do catch-up off the main task so the HTTP server can bind immediately.
+    // Behind a reverse proxy (Coolify/Traefik) a closed port means the proxy
+    // returns 502 Bad Gateway, which the explorer UI then tries to parse as
+    // JSON ("Unexpected token '<', '<html>...'"). Listening right away means
+    // the API responds (with empty result sets initially) while the indexer
+    // catches up in the background, and switches over to real data live.
+    let catchup_indexer = indexer.clone();
+    let initial_target = catchup_indexer
+        .data_source
+        .latest_slot()
+        .unwrap_or(config.start_slot);
+    tokio::task::spawn_blocking(move || {
+        if let Err(e) = catchup_indexer.sync_range(config.start_slot, initial_target) {
+            eprintln!("Initial catch_up error: {}", e);
+        }
+    });
 
     // Spawn background task to continuously sync new blocks
     let bg_indexer = indexer.clone();
-    let mut last_synced_slot = bg_indexer.data_source.latest_slot().unwrap_or(config.start_slot);
+    let mut last_synced_slot = initial_target;
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;

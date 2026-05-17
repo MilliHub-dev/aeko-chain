@@ -1,12 +1,16 @@
+//! Process-local HashMap implementation. Default when `DATABASE_URL` is
+//! unset (local dev, CI smoke tests). Unbounded — switch to
+//! `PgExplorerStore` for any non-throwaway deployment.
+
 use {
     crate::{
-        api::ExplorerReadStore,
         indexer::IndexSink,
         models::{
             BlockRecord, CreatorRewardRecord, EngagementRecord, NftRecord, SearchResultRecord,
             SocialPostRecord, SocialStakeRecord, TokenTransferRecord, TransactionRecord,
             WalletProfileRecord,
         },
+        store::ExplorerReadStore,
     },
     anyhow::Result,
     std::{

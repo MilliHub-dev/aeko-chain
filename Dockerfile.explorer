@@ -1,5 +1,16 @@
 # syntax=docker/dockerfile:1
-# Backend build stage
+#
+# Aeko explorer **backend** image. Builds the `aeko-explorer-backend`
+# binary (the indexer + REST API) and runs it on port 8088.
+#
+# The frontend lives in `Dockerfile.explorer-ui`. They are deployed as two
+# separate services in `docker-compose-testnet.yml`, fronted by Coolify's
+# Traefik proxy:
+#   - this image            → port 8088 → https://api.aeko.online
+#   - Dockerfile.explorer-ui → port 3000 → https://gossip.aeko.online
+# No nginx, no port-proxying inside the container — Traefik handles HTTPS
+# and routing, the way Coolify expects.
+
 FROM rust:1.75 AS backend-builder
 
 WORKDIR /aeko
@@ -21,50 +32,25 @@ RUN --mount=type=cache,target=/root/.cache/sccache \
     --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/aeko/target \
-    cargo build --release --example api_server -p aeko-explorer-backend && \
+    cargo build --release --bin aeko-explorer-backend -p aeko-explorer-backend && \
     mkdir -p /binaries && \
-    cp target/release/examples/api_server /binaries/aeko-explorer-backend
+    cp target/release/aeko-explorer-backend /binaries/aeko-explorer-backend
 
-# Frontend build stage
-FROM node:18 AS frontend-builder
-
-WORKDIR /web
-COPY web/package*.json ./
-RUN npm install
-COPY web/ ./
-RUN npm run build
-
-# Runtime stage
+# Runtime stage — just the binary, no web server.
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
-    nginx \
     libudev1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=backend-builder /binaries/aeko-explorer-backend /usr/local/bin/
-COPY --from=frontend-builder /web/dist /var/www/html
 
-COPY <<'EOF' /etc/nginx/sites-available/default
-server {
-    listen 3000;
-    root /var/www/html;
-    index index.html;
-    location / {
-        try_files $uri /index.html;
-    }
-    location /api/ {
-        proxy_pass http://localhost:8088/;
-    }
-}
-EOF
+EXPOSE 8088
 
-# Ensure nginx default site is enabled (debian uses sites-enabled)
-RUN rm -f /etc/nginx/sites-enabled/default && ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
-
-EXPOSE 8088 3000
-
-CMD (while true; do aeko-explorer-backend && break || echo "Backend failed or validator not ready, retrying in 5s..." && sleep 5; done) & nginx -g 'daemon off;'
-
+# Retry loop: validator-1 may still be booting on first deploy. The backend
+# binds to AEKO_EXPLORER_BIND (set to 0.0.0.0:8088 in compose) immediately
+# and runs catch_up in a background task, so the port opens right away and
+# Traefik stops returning 502.
+CMD ["sh", "-c", "while true; do aeko-explorer-backend && break || (echo 'backend exited, retrying in 5s' && sleep 5); done"]

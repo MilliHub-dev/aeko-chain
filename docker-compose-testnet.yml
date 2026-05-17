@@ -13,6 +13,21 @@ version: "3.8"
 # Both paths can coexist on the same host. The host-port mappings stay so the
 # SSH deploy script keeps working unchanged; the Traefik labels only activate
 # when the named subdomains resolve to this host and coolify-proxy is running.
+#
+# DNS plan (Namecheap → 3.80.154.37 unless noted):
+#   rpc.aeko.online      → validator-1:8899   (JSON-RPC, HTTPS via Traefik)
+#   ws.aeko.online       → validator-1:8900   (pubsub WebSocket, WSS via Traefik)
+#   api.aeko.online      → explorer-backend:8088 (REST API, HTTPS via Traefik)
+#   scan.aeko.online     → explorer-ui:3000  (Block explorer UI — primary)
+#   gossip.aeko.online   → reserved for the gossip protocol on UDP/TCP 8001
+#                          (Traefik only proxies HTTP/HTTPS; gossip is L4 raw
+#                          sockets, so this hostname is just a CNAME/A record
+#                          external validators use as `--entrypoint
+#                          gossip.aeko.online:8001`). Until scan.aeko.online is
+#                          registered, the explorer UI ALSO answers on
+#                          gossip.aeko.online via the second Host rule below —
+#                          remove that rule once DNS for scan is live.
+#   cloud.aeko.online    → Coolify dashboard (managed by Coolify, not here)
 
 services:
   # faucet, validator-2, validator-3 reuse the image built by validator-1.
@@ -22,15 +37,15 @@ services:
     image: aeko-validator:latest
     container_name: aeko-faucet
     entrypoint: ["aeko-faucet"]
-    ports:
-      - "9900:9900"
+    # No host port mapping: the faucet speaks a custom TCP protocol, not HTTP,
+    # so dApps never connect to it directly. The validator reaches it on the
+    # docker bridge at `faucet:9900` via --rpc-faucet-address. Exposing 9900
+    # publicly was a leftover from the SSH-deploy days.
     volumes:
       - ./local-testnet/faucet-keypair.json:/keys/faucet.json:ro
     command: >
       --keypair /keys/faucet.json
     restart: unless-stopped
-    # No Traefik labels: faucet speaks a custom TCP protocol (not HTTP),
-    # and dApps reach it indirectly via the validator's requestAirdrop RPC.
 
   validator-1:
     build:
@@ -45,8 +60,15 @@ services:
         soft: 1000000
         hard: 1000000
     ports:
+      # Gossip is L4 (UDP+TCP). Traefik can't proxy this — external validators
+      # joining the cluster connect directly to <host>:8001. Keep this exposed
+      # publicly only when you intend to federate; otherwise restrict in the
+      # AWS security group.
       - "8001:8001/udp"
       - "8001:8001/tcp"
+      # RPC + pubsub mapped to the host so the SSH-deploy path keeps working.
+      # In Coolify-fronted production the SG should block these from the
+      # public internet — Traefik reaches them on the docker bridge.
       - "8899:8899"
       - "8900:8900"
     volumes:
@@ -55,6 +77,12 @@ services:
       - ./local-testnet/vote-1-keypair.json:/keys/vote.json:ro
       - ./local-testnet/stake-keypair.json:/keys/stake.json:ro
       - ./local-testnet/faucet-keypair.json:/keys/faucet.json:ro
+    # NOTE: --public-rpc-address rpc.aeko.online:443 is intentionally NOT set
+    # below — the validator resolves that hostname at boot (is_host_port
+    # calls parse_host_port, which does DNS), so a deploy that runs before
+    # DNS propagation would fail to start. Enable it once rpc.aeko.online is
+    # stable in Namecheap if you want getClusterNodes to advertise the
+    # canonical hostname instead of 127.0.0.1:8899.
     command: >
       --identity /keys/identity.json
       --vote-account /keys/vote.json
@@ -66,6 +94,9 @@ services:
       --full-rpc-api
       --enable-rpc-transaction-history
       --enable-extended-tx-metadata-storage
+      --rpc-pubsub-enable-block-subscription
+      --rpc-pubsub-enable-vote-subscription
+      --limit-ledger-size 200000000
       --no-wait-for-vote-to-start-leader
       --allow-private-addr
       --log -
@@ -73,6 +104,19 @@ services:
     depends_on:
       - faucet
     restart: unless-stopped
+    healthcheck:
+      # `getHealth` returns `"ok"` only when the chain is advancing. start_period
+      # gives the validator time to load genesis and produce the first slot.
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS -X POST -H 'Content-Type: application/json'
+          -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+          http://localhost:8899 | grep -q '"result":"ok"'
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
     networks:
       - default
       - coolify
@@ -109,6 +153,93 @@ services:
       - traefik.http.routers.aeko-ws-http.entrypoints=http
       - traefik.http.routers.aeko-ws-http.middlewares=redirect-to-https
 
+  # External-facing RPC node. Joins the cluster via gossip (--entrypoint
+  # validator-1:8001), syncs state, and serves JSON-RPC + pubsub WITHOUT
+  # voting or producing blocks. Point rpc.aeko.online / ws.aeko.online at
+  # this container so external dApps don't compete with the leader for I/O.
+  #
+  # Enable with: COMPOSE_PROFILES=rpc-node (Coolify UI: Environment Variables
+  # tab → COMPOSE_PROFILES=rpc-node, redeploy). Without the profile, this
+  # service is inert and validator-1 keeps serving public RPC itself.
+  #
+  # Why "non-voting validator" and not just another validator? The voting
+  # safety rules (--no-wait-for-vote-to-start-leader, leader-slot rotation,
+  # vote-account stake) are leader-side concerns. An RPC node has no
+  # vote-account and never proposes blocks; it's a read replica that pulls
+  # snapshots + shreds from the leader and exposes the same JSON-RPC API.
+  rpc-node:
+    image: aeko-validator:latest
+    container_name: aeko-rpc-node
+    profiles: ["rpc-node"]
+    ulimits:
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    ports:
+      # Use 8898/8896 on the host so it doesn't conflict with validator-1
+      # when they coexist on a single Coolify host. Container ports stay
+      # 8899/8900 so Traefik LB labels can route to either backend uniformly.
+      - "8898:8899"
+      - "8896:8900"
+    volumes:
+      - rpcnode-ledger:/ledger
+      - ./local-testnet/rpc-node-keypair.json:/keys/identity.json:ro
+    command: >
+      --identity /keys/identity.json
+      --no-voting
+      --ledger /ledger
+      --rpc-port 8899
+      --rpc-bind-address 0.0.0.0
+      --gossip-port 8001
+      --entrypoint validator-1:8001
+      --rpc-faucet-address faucet:9900
+      --full-rpc-api
+      --enable-rpc-transaction-history
+      --enable-extended-tx-metadata-storage
+      --rpc-pubsub-enable-block-subscription
+      --rpc-pubsub-enable-vote-subscription
+      --limit-ledger-size 200000000
+      --allow-private-addr
+      --no-os-network-limits-test
+      --log -
+    depends_on:
+      - validator-1
+      - faucet
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS -X POST -H 'Content-Type: application/json'
+          -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+          http://localhost:8899 | grep -q '"result":"ok"'
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # RPC nodes need extra time to catch up via gossip before serving.
+      start_period: 180s
+    networks:
+      - default
+      - coolify
+    labels:
+      # Same Traefik service names as validator-1 → Traefik load-balances
+      # rpc.aeko.online and ws.aeko.online between both backends when this
+      # profile is active. With this profile inactive, validator-1 carries
+      # the route alone.
+      - traefik.enable=true
+      - traefik.http.routers.aeko-rpc.rule=Host(`rpc.aeko.online`)
+      - traefik.http.routers.aeko-rpc.entrypoints=https
+      - traefik.http.routers.aeko-rpc.tls=true
+      - traefik.http.routers.aeko-rpc.tls.certresolver=letsencrypt
+      - traefik.http.routers.aeko-rpc.service=aeko-rpc
+      - traefik.http.services.aeko-rpc.loadbalancer.server.port=8899
+      - traefik.http.routers.aeko-ws.rule=Host(`ws.aeko.online`)
+      - traefik.http.routers.aeko-ws.entrypoints=https
+      - traefik.http.routers.aeko-ws.tls=true
+      - traefik.http.routers.aeko-ws.tls.certresolver=letsencrypt
+      - traefik.http.routers.aeko-ws.service=aeko-ws
+      - traefik.http.services.aeko-ws.loadbalancer.server.port=8900
+
   validator-2:
     image: aeko-validator:latest
     container_name: aeko-validator-2
@@ -131,6 +262,7 @@ services:
       --gossip-port 8001
       --rpc-faucet-address faucet:9900
       --entrypoint validator-1:8001
+      --limit-ledger-size 200000000
       --allow-private-addr
       --no-genesis-fetch
       --no-snapshot-fetch
@@ -163,6 +295,7 @@ services:
       --gossip-port 8001
       --rpc-faucet-address faucet:9900
       --entrypoint validator-1:8001
+      --limit-ledger-size 200000000
       --allow-private-addr
       --no-genesis-fetch
       --no-snapshot-fetch
@@ -173,15 +306,14 @@ services:
       - faucet
     restart: unless-stopped
 
-  explorer:
+  explorer-backend:
     build:
       context: .
       dockerfile: Dockerfile.explorer
-    image: aeko-explorer:latest
-    container_name: aeko-explorer
+    image: aeko-explorer-backend:latest
+    container_name: aeko-explorer-backend
     ports:
       - "8088:8088"
-      - "3000:3000"
     environment:
       AEKO_EXPLORER_RPC: "https://rpc.aeko.online"
       AEKO_EXPLORER_NETWORK: "testnet"
@@ -192,24 +324,27 @@ services:
       # Set to a recent slot to skip historical indexing on redeploys; the deploy
       # script auto-populates this when it detects an existing chain.
       AEKO_EXPLORER_START_SLOT: "${AEKO_EXPLORER_START_SLOT:-0}"
+      # DATABASE_URL: optional Postgres DSN, e.g. postgres://user:pass@host:5432/db
+      # When set, the backend uses PgExplorerStore (durable, multi-replica-safe)
+      # and runs migrations on boot. Unset => process-local InMemoryExplorerStore,
+      # fine for fresh-genesis smoke tests but loses everything on restart.
+      # In Coolify, set this on the resource's Environment Variables tab pointing
+      # at your managed Postgres internal URL — never commit the DSN to git.
+      DATABASE_URL: "${DATABASE_URL:-}"
     depends_on:
       - validator-1
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8088/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - default
       - coolify
     labels:
       - traefik.enable=true
-      # ---- Explorer web UI: https://gossip.aeko.online ----
-      - traefik.http.routers.aeko-explorer-ui.rule=Host(`gossip.aeko.online`)
-      - traefik.http.routers.aeko-explorer-ui.entrypoints=https
-      - traefik.http.routers.aeko-explorer-ui.tls=true
-      - traefik.http.routers.aeko-explorer-ui.tls.certresolver=letsencrypt
-      - traefik.http.routers.aeko-explorer-ui.service=aeko-explorer-ui
-      - traefik.http.services.aeko-explorer-ui.loadbalancer.server.port=3000
-      - traefik.http.routers.aeko-explorer-ui-http.rule=Host(`gossip.aeko.online`)
-      - traefik.http.routers.aeko-explorer-ui-http.entrypoints=http
-      - traefik.http.routers.aeko-explorer-ui-http.middlewares=redirect-to-https
       # ---- Explorer indexer REST API: https://api.aeko.online ----
       - traefik.http.routers.aeko-explorer-api.rule=Host(`api.aeko.online`)
       - traefik.http.routers.aeko-explorer-api.entrypoints=https
@@ -218,12 +353,49 @@ services:
       - traefik.http.routers.aeko-explorer-api.service=aeko-explorer-api
       - traefik.http.services.aeko-explorer-api.loadbalancer.server.port=8088
       - traefik.http.middlewares.aeko-api-cors.headers.accesscontrolallowmethods=GET,POST,OPTIONS
+      - traefik.http.middlewares.aeko-api-cors.headers.accesscontrolallowheaders=Content-Type
       - traefik.http.middlewares.aeko-api-cors.headers.accesscontrolalloworiginlist=*
+      - traefik.http.middlewares.aeko-api-cors.headers.accesscontrolmaxage=300
       - traefik.http.middlewares.aeko-api-cors.headers.addvaryheader=true
       - traefik.http.routers.aeko-explorer-api.middlewares=aeko-api-cors
       - traefik.http.routers.aeko-explorer-api-http.rule=Host(`api.aeko.online`)
       - traefik.http.routers.aeko-explorer-api-http.entrypoints=http
       - traefik.http.routers.aeko-explorer-api-http.middlewares=redirect-to-https
+
+  explorer-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.explorer-ui
+    image: aeko-explorer-ui:latest
+    container_name: aeko-explorer-ui
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - default
+      - coolify
+    labels:
+      - traefik.enable=true
+      # ---- Explorer web UI ----
+      # Canonical hostname: https://scan.aeko.online (block-scanner naming).
+      # Temporary alias: https://gossip.aeko.online — kept until scan.aeko.online
+      # DNS is registered. Drop the gossip rule afterwards: the `gossip` name
+      # belongs to the gossip protocol on UDP/TCP 8001, not to a web UI.
+      - traefik.http.routers.aeko-explorer-ui.rule=Host(`scan.aeko.online`) || Host(`gossip.aeko.online`)
+      - traefik.http.routers.aeko-explorer-ui.entrypoints=https
+      - traefik.http.routers.aeko-explorer-ui.tls=true
+      - traefik.http.routers.aeko-explorer-ui.tls.certresolver=letsencrypt
+      - traefik.http.routers.aeko-explorer-ui.service=aeko-explorer-ui
+      - traefik.http.services.aeko-explorer-ui.loadbalancer.server.port=3000
+      - traefik.http.routers.aeko-explorer-ui-http.rule=Host(`scan.aeko.online`) || Host(`gossip.aeko.online`)
+      - traefik.http.routers.aeko-explorer-ui-http.entrypoints=http
+      - traefik.http.routers.aeko-explorer-ui-http.middlewares=redirect-to-https
 
 networks:
   # The default network is created automatically per compose project; it carries
@@ -241,3 +413,4 @@ volumes:
   validator1-ledger:
   validator2-ledger:
   validator3-ledger:
+  rpcnode-ledger:

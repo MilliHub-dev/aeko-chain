@@ -48,6 +48,40 @@ pub trait IndexSink: Send + Sync {
     fn persist_wallet_profiles(&self, profiles: Vec<WalletProfileRecord>) -> Result<()>;
 }
 
+// Blanket impl so `ExplorerIndexer<D, Arc<dyn IndexSink>>` works. Lets the
+// boot path in main.rs hand the same Arc<dyn IndexSink> to the indexer for
+// both InMemory and Postgres stores without a generic explosion. `?Sized`
+// is required because `dyn IndexSink` is unsized.
+impl<T: IndexSink + ?Sized> IndexSink for std::sync::Arc<T> {
+    fn persist_block(&self, block: BlockRecord) -> Result<()> {
+        (**self).persist_block(block)
+    }
+    fn persist_transactions(&self, transactions: Vec<TransactionRecord>) -> Result<()> {
+        (**self).persist_transactions(transactions)
+    }
+    fn persist_token_transfers(&self, transfers: Vec<TokenTransferRecord>) -> Result<()> {
+        (**self).persist_token_transfers(transfers)
+    }
+    fn persist_nft_updates(&self, nfts: Vec<NftRecord>) -> Result<()> {
+        (**self).persist_nft_updates(nfts)
+    }
+    fn persist_social_posts(&self, posts: Vec<SocialPostRecord>) -> Result<()> {
+        (**self).persist_social_posts(posts)
+    }
+    fn persist_creator_rewards(&self, rewards: Vec<CreatorRewardRecord>) -> Result<()> {
+        (**self).persist_creator_rewards(rewards)
+    }
+    fn persist_engagement_events(&self, events: Vec<EngagementRecord>) -> Result<()> {
+        (**self).persist_engagement_events(events)
+    }
+    fn persist_social_stakes(&self, stakes: Vec<SocialStakeRecord>) -> Result<()> {
+        (**self).persist_social_stakes(stakes)
+    }
+    fn persist_wallet_profiles(&self, profiles: Vec<WalletProfileRecord>) -> Result<()> {
+        (**self).persist_wallet_profiles(profiles)
+    }
+}
+
 pub struct ExplorerIndexer<D, S> {
     pub config: ExplorerBackendConfig,
     pub data_source: D,

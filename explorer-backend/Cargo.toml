@@ -11,15 +11,48 @@ edition = { workspace = true }
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 base64 = { workspace = true }
 borsh = { workspace = true }
 bs58 = { workspace = true }
-hyper = { workspace = true, features = ["full"] }
 reqwest = { workspace = true, features = ["blocking", "json", "rustls-tls"] }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 url = { workspace = true }
+
+# HTTP stack — axum + tower-http for type-safe routes, extractors, and
+# middleware (CORS, tracing, compression, request-id). We pin minor
+# versions here rather than in the workspace because no other crate uses
+# this stack today.
+axum = { version = "0.7.5", features = ["macros", "tokio"] }
+tower = { version = "0.4.13", features = ["util"] }
+tower-http = { version = "0.5.2", features = [
+    "cors",
+    "trace",
+    "compression-gzip",
+    "request-id",
+    "limit",
+    "set-header",
+    "timeout",
+] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt", "json"] }
+
+# Postgres-backed durable store (optional — falls back to in-memory when
+# DATABASE_URL is unset, see store::postgres for the picker).
+# `runtime-tokio-rustls` matches our async runtime + TLS to the rest of the
+# crate. `chrono` enables TIMESTAMPTZ ↔ DateTime mapping.
+sqlx = { version = "0.7.4", default-features = false, features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "macros",
+    "migrate",
+    "chrono",
+] }
+chrono = { version = "0.4.35", default-features = false, features = ["serde", "clock"] }
+
 aeko-rpc-client-api = { workspace = true }
 aeko-sdk = { workspace = true }
 aeko-social-anti-spam-program = { workspace = true }
@@ -32,6 +65,13 @@ aeko-token-721-program = { workspace = true }
 [lib]
 crate-type = ["lib"]
 name = "aeko_explorer_backend"
+
+# Primary deployable: production binary used by Dockerfile.explorer.
+# `examples/api_server.rs` still works (it now thinly wraps the same
+# entrypoint), but production builds should target this bin.
+[[bin]]
+name = "aeko-explorer-backend"
+path = "src/main.rs"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
