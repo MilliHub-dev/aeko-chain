@@ -107,4 +107,51 @@ pub static BUILTINS: &[BuiltinPrototype] = &[
         name: "loader_v4",
         entrypoint: aeko_loader_v4_program::Entrypoint::vm,
     },
+    // ---- AEKO SocialFi native builtins ----
+    // Program IDs are fixed-byte placeholders (e.g. [17u8; 32]) defined in each
+    // program's lib.rs. No feature gate: these are always active. State accounts
+    // for each program must be initialized post-genesis via the bootstrap
+    // binary (see bin/social-bootstrap and docs/operations/coolify.md).
+    // Pubkey::new_from_array is const, so we build the ID here rather than
+    // calling each crate's non-const `id()` (which can't run in a static).
+    BuiltinPrototype {
+        feature_id: None,
+        program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
+            aeko_social_posts_program::SOCIAL_POSTS_PROGRAM_ID_BYTES,
+        ),
+        name: "aeko_social_posts_program",
+        entrypoint: aeko_social_posts_program::Entrypoint::vm,
+    },
+    BuiltinPrototype {
+        feature_id: None,
+        program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
+            aeko_social_rewards_program::SOCIAL_REWARDS_PROGRAM_ID_BYTES,
+        ),
+        name: "aeko_social_rewards_program",
+        entrypoint: aeko_social_rewards_program::Entrypoint::vm,
+    },
+    BuiltinPrototype {
+        feature_id: None,
+        program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
+            aeko_social_staking_program::SOCIAL_STAKING_PROGRAM_ID_BYTES,
+        ),
+        name: "aeko_social_staking_program",
+        entrypoint: aeko_social_staking_program::Entrypoint::vm,
+    },
+    BuiltinPrototype {
+        feature_id: None,
+        program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
+            aeko_social_anti_spam_program::SOCIAL_ANTI_SPAM_PROGRAM_ID_BYTES,
+        ),
+        name: "aeko_social_anti_spam_program",
+        entrypoint: aeko_social_anti_spam_program::Entrypoint::vm,
+    },
+    BuiltinPrototype {
+        feature_id: None,
+        program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
+            aeko_social_monetization_program::SOCIAL_MONETIZATION_PROGRAM_ID_BYTES,
+        ),
+        name: "aeko_social_monetization_program",
+        entrypoint: aeko_social_monetization_program::Entrypoint::vm,
+    },
 ];

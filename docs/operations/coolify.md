@@ -195,7 +195,121 @@ When you SSH in to make config changes, **do not edit files under `/data/coolify
 
 The script auto-creates an empty `coolify` Docker network on hosts that don't have one, so the same compose file works both ways. The Traefik labels are inert without a Traefik proxy; the host-port mappings (`8899:8899` etc.) are unaffected by Coolify and continue to serve direct traffic.
 
----
+***
+
+## Optional: enable the external-facing RPC node
+
+`validator-1` produces blocks AND serves public RPC. Under any real load that conflates two responsibilities into one container: a slow `getProgramAccounts` request from a dApp can starve the banking stage and stall block production. The compose file ships a second, opt-in service for exactly this: `rpc-node`.
+
+`rpc-node` is a **non-voting validator** (`--no-voting`, no vote account). It joins the cluster via gossip (`--entrypoint validator-1:8001`), pulls a snapshot, replays the ledger, and from then on tracks the chain like any other validator — but it never proposes blocks and never votes. It's a read replica: same RPC surface, isolated load. dApps reading from `rpc.aeko.online` end up here while the leader stays uncontested.
+
+### Enabling it
+
+1. **Generate an identity keypair for the node:**
+   ```bash
+   docker run --rm \
+     -v /data/coolify/applications/xn2nges6p6bmvhzphqxsoiay/local-testnet:/keys \
+     aeko-validator:latest \
+     aeko-keygen new --no-bip39-passphrase --silent --outfile /keys/rpc-node-keypair.json
+   ```
+2. **Flip the profile in Coolify UI** → resource → Environment Variables → `COMPOSE_PROFILES=rpc-node` (or `multi-validator,rpc-node` if you've also enabled the extra block-producing validators). Save and redeploy.
+3. **Watch the catch-up** — `docker logs aeko-rpc-node 2>&1 | grep -E 'snapshot|caught up'`. First boot takes minutes-to-hours depending on chain age (this is why the healthcheck has a 180 s `start_period`).
+4. **Verify load balancing** — `for i in 1 2 3 4; do curl -s https://rpc.aeko.online -X POST -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"getIdentity"}'; echo; done` should return two distinct identity pubkeys as Traefik round-robins between `validator-1` and `rpc-node`.
+
+### How Traefik routes both
+
+Both services declare `traefik.http.routers.aeko-rpc.service=aeko-rpc` and `loadbalancer.server.port=8899`. Traefik treats them as two backends of the same service and round-robins requests. When the `rpc-node` profile is inactive, only validator-1 backs the route. No conditional labels, no DNS changes needed — flip the profile, the LB pool changes.
+
+### Naming clarification
+
+`gossip.aeko.online` was originally being used as a temporary alias for the explorer UI while `scan.aeko.online` was being registered. Long term, the `gossip.` name is reserved for the **gossip protocol entrypoint** that external validators use:
+
+```bash
+aeko-validator \
+  --entrypoint gossip.aeko.online:8001 \
+  --expected-genesis-hash <hash> \
+  --no-voting \
+  ...
+```
+
+This is exactly the same thing `rpc-node` is doing internally — `gossip.aeko.online:8001` resolves to the EC2 IP, hits validator-1's gossip socket, and the joining node syncs. The `rpc-node` profile spins this up *inside* the compose stack for the public-facing read replica; teams running their own AEKO validator elsewhere use the same hostname externally.
+
+***
+
+## Optional: bootstrap the SocialFi state accounts
+
+The five SocialFi programs (`social-posts`, `social-rewards`, `social-staking`, `social-anti-spam`, `social-monetization`) are **native builtins** — registered in `runtime/src/builtins.rs`, compiled into every validator. Their program IDs are recognized by the SVM the moment the chain starts. What they each still need before they're *usable* is a **state account**: an account owned by the program holding its global config (authority pubkey, fee parameters, reward vault, etc.) and the accumulators dApps write to.
+
+The repo ships `social-bootstrap/`, a binary that creates all five state accounts and runs the matching `Initialize*` instruction in one go. Run it **once**, after the chain is producing blocks; the resulting pubkeys are what your dApp backend needs in env (see [`FRONTEND-DEV-GUIDE.md`](../../FRONTEND-DEV-GUIDE.md) for the consuming code).
+
+### Running it from the host
+
+```bash
+# SSH into the Coolify host
+ssh ubuntu@cloud.aeko.online
+
+# Inside the validator container — already has aeko-cli and the keypairs.
+# (Pick any container that has the binaries; explorer-backend doesn't.)
+APP=/data/coolify/applications/xn2nges6p6bmvhzphqxsoiay
+docker compose -f $APP/docker-compose-testnet.yml exec validator-1 \
+  /usr/local/bin/aeko config set --url http://localhost:8899
+
+# Build and run the bootstrap binary on the host (one-shot — not part of compose).
+cd $APP
+cargo run --release -p aeko-social-bootstrap -- 2>&1 | tee social-bootstrap.log
+```
+
+> Don't have a Rust toolchain on the host? Build the binary inside the validator image instead:
+> ```bash
+> docker run --rm -v $APP:/app -w /app aeko-validator:latest \
+>   sh -c "cargo build --release -p aeko-social-bootstrap && cp target/release/aeko-social-bootstrap /app/local-testnet/"
+> $APP/local-testnet/aeko-social-bootstrap
+> ```
+
+### Required environment
+
+The binary reads these env vars (all paths are on the host, not inside a container):
+
+| Var | Required | What it is |
+|---|---|---|
+| `AEKO_RPC_URL` | optional | RPC endpoint to submit to. Defaults to `http://localhost:8899` — fine when running from the host. Set to `https://rpc.aeko.online` to submit from elsewhere. |
+| `AEKO_PAYER_KEYPAIR` | **required** | Path to a funded keypair file. Pays rent for five accounts (~0.1 AEKO total) and signs the create_account instructions. The faucet keypair from `local-testnet/faucet-keypair.json` works fine for the initial bootstrap. |
+| `AEKO_AUTHORITY_KEYPAIR` | optional | Keypair that becomes the config authority on every program. Defaults to the payer. Use a separate key if you want to rotate the dApp's admin without disturbing the funding wallet. |
+| `AEKO_TREASURY_ADDRESS` | optional | Pubkey that receives platform fees (monetization) and is recorded in rewards. Defaults to the authority pubkey. |
+| `AEKO_REWARD_VAULT` | optional | Pubkey of the token account that holds creator-reward AEKO. Defaults to authority (placeholder). Replace with a real reward-vault pubkey before users start claiming. |
+| `AEKO_STAKE_VAULT` | optional | Pubkey for staked AEKO custody. Defaults to authority (placeholder). |
+| `AEKO_BOOTSTRAP_OUT_DIR` | optional | Where to write the generated state-account keypair JSON files. Defaults to `./local-testnet/social-state/`. |
+
+### What you get
+
+The binary prints a paste-ready env block when it finishes, e.g.:
+
+```
+SOCIAL_POSTS_STATE_ACCOUNT=2QB8wEBJ8jjMQu...
+SOCIAL_REWARDS_STATE_ACCOUNT=4xRz3p9QwLm7n...
+REWARD_VAULT_ACCOUNT=<the value you passed, or authority pubkey>
+SOCIAL_STAKING_STATE_ACCOUNT=...
+STAKING_COOLDOWN_EPOCHS=7
+SOCIAL_ANTI_SPAM_STATE_ACCOUNT=...
+SOCIAL_MONETIZATION_STATE_ACCOUNT=...
+AEKO_TREASURY_ADDRESS=...
+AEKO_PLATFORM_FEE_BPS=200
+```
+
+Paste these into the dApp backend's env (or into Coolify env vars on the admin-webapp resource, once that exists).
+
+### Re-running
+
+It's safe to re-run. The binary persists the generated state-account keypairs to `AEKO_BOOTSTRAP_OUT_DIR`; subsequent runs reuse them. The on-chain init handler refuses to re-initialize an account that's already owned by the program, and the binary treats that error as a no-op and continues.
+
+If you want to **regenerate** one or more state accounts (different authority, fresh slate), delete the corresponding `<program>-state.json` file from the out-dir before re-running. A new keypair will be generated and a new account created. **Back up the old keypair first** if anything is already pointing at it.
+
+### What still needs work
+
+- **`REWARD_VAULT` / `STAKE_VAULT` are placeholders by default** — they default to the authority pubkey because there's no AEKO-20 token account creation built into this bootstrap yet. For a production-ready setup you'd create real token accounts under the rewards / staking program and pass their pubkeys via the env vars above before running the bootstrap. That's a next-PR concern.
+- **The end-to-end happy path (anchor a post, claim a reward, open a stake)** has not been exercised by integration tests. The on-chain handlers were written but never wired into a running cluster before — verifying the full flow is the natural follow-up once the bootstrap binary is run on testnet.
+
+***
 
 ## What's deliberately out of scope here
 

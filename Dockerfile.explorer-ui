@@ -1,0 +1,31 @@
+# syntax=docker/dockerfile:1
+#
+# Aeko explorer **frontend** image. Builds the Vite SPA in `web/` and serves
+# the static dist directory on port 3000 with `serve` — no nginx, no
+# reverse-proxy logic. All API traffic goes directly from the user's browser
+# to https://api.aeko.online via Traefik (see VITE_AEKO_TESTNET_EXPLORER_API
+# in web/.env.production).
+#
+# Coolify's Traefik picks this up via the labels in
+# docker-compose-testnet.yml and exposes it at https://gossip.aeko.online.
+
+FROM node:18-alpine AS frontend-builder
+
+WORKDIR /web
+COPY web/package*.json ./
+RUN npm install
+COPY web/ ./
+RUN npm run build
+
+FROM node:18-alpine
+
+WORKDIR /app
+RUN npm install -g serve@14
+
+COPY --from=frontend-builder /web/dist /app/dist
+
+EXPOSE 3000
+
+# `serve -s` rewrites unknown paths to index.html so client-side routing
+# works (e.g. /blocks/<slot>, /tx/<sig>). `-l 3000` binds to all interfaces.
+CMD ["serve", "-s", "/app/dist", "-l", "3000"]

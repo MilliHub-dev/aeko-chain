@@ -2,6 +2,11 @@
 
 This is the long-form companion to the testnet-recovery PR. Read it once, keep it as a runbook.
 
+> **Deployment model:** the testnet is fronted by **Coolify + Traefik** (auto-TLS,
+> auto-deploys on push). The day-to-day workflow lives in
+> [`coolify.md`](./coolify.md). This file documents the bugs we hit getting there,
+> the operating model under Coolify, and the verification + diagnostic playbook.
+
 ---
 
 ## Part 1 — The four root causes (in plain English)
@@ -22,7 +27,7 @@ You'd see this in the logs once per second forever: `Haven't landed a vote, so s
 
 The validator's JSON-RPC server has two modes: a **minimal** mode (just the methods needed for basic wallet operations) and a **full** mode that includes things like `getProgramAccounts`, `getInflationRate`, `getInflationGovernor`, `getStakeActivation`, etc.
 
-The explorer indexer is a block-by-block scraper. It needs the full surface — it calls methods that only exist in full mode. Without the `--full-rpc-api` flag, every one of its requests came back as `-32601 Method not found`, which is what you saw spamming `aeko-explorer` logs in a retry loop.
+The explorer indexer is a block-by-block scraper. It needs the full surface — it calls methods that only exist in full mode. Without the `--full-rpc-api` flag, every one of its requests came back as `-32601 Method not found`, which is what you saw spamming the explorer-backend logs in a retry loop.
 
 **The fix:** add `--full-rpc-api` to validator-1's command. While we're at it, expose host port `8900` for the pubsub WebSocket so wallets can subscribe to live transaction confirmations (this is what makes "your transaction confirmed!" appear in a dApp without page refresh). Port `8900` was previously claimed by `validator-2` for a different purpose; renumber that to `8902` to free `8900` for canonical use on validator-1.
 
@@ -52,345 +57,204 @@ When you go to a real multi-validator cluster you'll need to flip `AEKO_ENABLE_B
 
 ## Part 2 — Mental model of what's actually running
 
-The compose file spins up four containers on a private docker network:
+The compose file spins up four containers on a private docker network, fronted by Coolify-proxy (Traefik) for HTTPS termination and subdomain routing.
 
-| Container | Image | What it does | Exposed on host |
-|---|---|---|---|
-| `aeko-validator-1` | `aeko-validator:latest` | Produces blocks, serves RPC + pubsub | `8001`, `8899`, `8900` |
-| `aeko-validator-2/3` | same image | **Currently stopped** — restart-loop bug | `8902`, `8901` (if started) |
-| `aeko-faucet` | same image, different entrypoint | Holds the genesis faucet keypair, hands out free SOL on request | `9900` (TCP only, internal) |
-| `aeko-explorer` | `aeko-explorer:latest` | Indexes blocks from RPC + serves a web UI | `8088` (API), `3000` (UI) |
+| Container | Image | What it does | Coolify route | Container port |
+|---|---|---|---|---|
+| `aeko-validator-1` | `aeko-validator:latest` | Produces blocks, serves RPC + pubsub + gossip | `rpc.aeko.online`, `ws.aeko.online` | `8899`, `8900`, `8001` |
+| `aeko-validator-2/3` | same image | **Disabled by default** (multi-validator profile) | — | `8899` each |
+| `aeko-faucet` | same image, different entrypoint | Holds the genesis faucet keypair, hands out free AEKO via the validator's `requestAirdrop` RPC | (no route — internal-only) | `9900` (TCP, on docker bridge) |
+| `aeko-explorer-backend` | `aeko-explorer-backend:latest` | Indexes blocks from RPC, exposes REST API | `api.aeko.online` | `8088` |
+| `aeko-explorer-ui` | `aeko-explorer-ui:latest` | Vite SPA, served by `serve` (no nginx) | `scan.aeko.online` (and `gossip.aeko.online` as a temporary alias) | `3000` |
 
 The bootstrap flow on first boot:
 
 1. `validator-entrypoint.sh` sees `AEKO_BOOTSTRAP=1` and no existing `/ledger/genesis.bin`, so it runs `aeko-genesis` to create the genesis block with the bootstrap validator's identity, vote, and stake keypairs, plus the faucet keypair with 500 million AEKO seed lamports.
 2. `aeko-validator` starts, loads from genesis, immediately begins producing slots because `--no-wait-for-vote-to-start-leader` is set.
 3. The PoH thread ticks ~3 slots per second. The banking stage processes any transactions in the mempool. The blockstore records the resulting shreds. With one validator, that's the entire pipeline — no network broadcast needed.
-4. `aeko-faucet` is independently listening on container port 9900 with the faucet keypair loaded.
+4. `aeko-faucet` is independently listening on container port 9900 with the faucet keypair loaded. It is NOT exposed to the public internet — the validator reaches it on the docker bridge at `faucet:9900`.
 5. When a developer hits `requestAirdrop` on the RPC, the validator's RPC server opens a TCP connection to `faucet:9900`, sends a request, gets back a signed transfer transaction, submits it through its own banking pipeline, and returns the signature.
-6. The explorer hits the RPC every block, pulls `getBlock` data, persists into its database, exposes a REST API on `:8088`, and serves a Next.js UI on `:3000`.
-
-The reason **all of this currently uses raw IPs and ports**: when the testnet was first deployed, nginx wasn't wired up for the validator services. Port 80/443 currently goes to coolify (which has its own thing running). The validator/RPC/pubsub/explorer all answer on their docker-proxy ports directly, which means clients have to know URLs like `http://cloud.aeko.online:8899` instead of clean subdomains. Part 5 fixes that.
+6. `aeko-explorer-backend` hits the RPC every block, pulls `getBlock` data, persists into its in-memory store, and serves the REST API on `:8088`. The HTTP server binds immediately on startup so `api.aeko.online` answers right away — historical catch-up runs in a background task, so the API responds with growing data over the first few minutes rather than 502-ing.
+7. `aeko-explorer-ui` serves the built Vite SPA from `/app/dist` via `serve -s`. All API calls go directly to `https://api.aeko.online` (set at build time in `web/.env.production`).
 
 ---
 
 ## Part 3 — How to verify it's working right now
 
-From your laptop or any machine on the internet, these checks confirm each piece:
+From your laptop or any machine on the internet:
 
-**RPC health.** `curl -s -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' http://cloud.aeko.online:8899` should return `{"jsonrpc":"2.0","result":"ok","id":1}`. If it says `Node is unhealthy`, the chain isn't advancing — re-check the validator with `ssh ... 'sudo docker logs --tail 20 aeko-validator-1'`.
+**RPC health.**
+```bash
+curl -s -X POST -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' \
+  https://rpc.aeko.online
+# → {"jsonrpc":"2.0","result":"ok","id":1}
+```
+If it says `Node is unhealthy`, the chain isn't advancing — see Part 6 diagnostics.
 
 **Chain is advancing.** Same URL, replace method with `getSlot`. Run it twice ten seconds apart; the second number should be ~30 higher. If both numbers are `0`, the leader-stall bug came back (check the `--no-wait-for-vote-to-start-leader` flag is still on the command line in compose).
 
-**Airdrop works end-to-end.** Use the `aeko` CLI from inside the validator container, or any external Solana-compatible CLI pointed at the testnet RPC. Run `aeko airdrop 1 <some-pubkey> --url http://cloud.aeko.online:8899`. Then `aeko balance <some-pubkey> --url http://cloud.aeko.online:8899` should show `1 AEKO`.
+**Airdrop works end-to-end.**
+```bash
+aeko config set --url https://rpc.aeko.online
+aeko airdrop 1 <some-pubkey>
+aeko balance <some-pubkey>   # → 1 AEKO
+```
 
-**Explorer is indexing.** Inside the server: `curl -s http://127.0.0.1:8088/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `http://cloud.aeko.online:3000` should show a list of recent blocks and a slot counter that ticks up.
+**Explorer is indexing.** `curl -s https://api.aeko.online/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `https://scan.aeko.online` (or `https://gossip.aeko.online` until the scan DNS record is registered) should show a list of recent blocks and a slot counter that ticks up.
 
-**Validator is stable.** `ssh ... 'sudo docker inspect aeko-validator-1 --format "{{.State.Status}} restarts={{.RestartCount}}"'` should say `running restarts=0` after the container has been up for at least ten minutes. Also: `sudo docker logs aeko-validator-1 2>&1 | grep -c AEKO_PANIC` should be `0`.
+**WebSocket reachable.** `wscat -c wss://ws.aeko.online` should connect.
+
+**Validator is stable.** From Coolify UI → resource → Logs (or SSH if needed): `docker inspect aeko-validator-1 --format '{{.State.Status}} restarts={{.RestartCount}} health={{.State.Health.Status}}'` should say `running restarts=0 health=healthy` after the container has been up for at least ten minutes. Also: `docker logs aeko-validator-1 2>&1 | grep -c AEKO_PANIC` should be `0`.
 
 ---
 
 ## Part 4 — Developer experience: how outsiders connect
 
-A developer building a dApp against your testnet needs four pieces of information: RPC URL, WebSocket URL, the cluster ID, and how to get test SOL. Here's the canonical guide you should put in your docs page or developer portal.
+A developer building a dApp against your testnet needs four pieces of information: RPC URL, WebSocket URL, the cluster ID, and how to get test AEKO. Here's the canonical guide you should put in your docs page or developer portal.
 
 ### 4.1 Pointing the CLI
 
-Install the `aeko` CLI (your fork of `solana` CLI). Then `aeko config set --url http://cloud.aeko.online:8899`. From this point every CLI command (`aeko balance`, `aeko transfer`, `aeko program deploy`, etc.) hits your testnet. Behind the scenes `aeko config get` shows where it's pointed; this lives in `~/.config/aeko/cli/config.yml`.
+Install the `aeko` CLI (your fork of `solana` CLI). Then:
+```bash
+aeko config set --url https://rpc.aeko.online
+```
+From this point every CLI command (`aeko balance`, `aeko transfer`, `aeko program deploy`, etc.) hits your testnet. Behind the scenes `aeko config get` shows where it's pointed; this lives in `~/.config/aeko/cli/config.yml`.
 
 ### 4.2 Creating a wallet
 
 `aeko-keygen new --outfile ~/my-dev-wallet.json` generates a fresh keypair and writes it to disk. `aeko address --keypair ~/my-dev-wallet.json` prints the public key. The same JSON file works for any Solana-compatible tooling (Phantom, Solflare, Anchor, Web3.js) that supports importing a keypair file.
 
-For users of your dApp web UI, the wallet flow is whatever your frontend implements — typically Web3.js's `@solana/web3.js` `Keypair.generate()` or an injected wallet adapter (Phantom-style). Either way, what they get is a 32-byte Ed25519 private key with a Base58-encoded public key.
-
 ### 4.3 Receiving the airdrop
 
-Three equivalent paths:
+**From the CLI.**
+```bash
+aeko airdrop 2 <pubkey>
+```
 
-**From the CLI.** `aeko airdrop 2 <pubkey> --url http://cloud.aeko.online:8899`. Returns a signature. Confirms within a few seconds.
-
-**From JavaScript.** Using `@solana/web3.js` (which works against your fork because it speaks the same JSON-RPC):
-
+**From JavaScript.** Using `@solana/web3.js`:
 ```js
 import { Connection, PublicKey } from "@solana/web3.js";
-const conn = new Connection("http://cloud.aeko.online:8899", "confirmed");
+const conn = new Connection("https://rpc.aeko.online", "confirmed");
 const sig = await conn.requestAirdrop(new PublicKey("..."), 2_000_000_000); // 2 AEKO
 await conn.confirmTransaction(sig);
 ```
 
-**From raw curl.** Just hit the RPC method directly with a JSON body. Useful for shell scripts and Postman testing.
-
-The faucet hands out up to whatever per-time cap you've configured (default unlimited in development clusters). The faucet keypair was seeded with 500 million AEKO at genesis, so the well is deep.
+The faucet keypair was seeded with 500 million AEKO at genesis, so the well is deep.
 
 ### 4.4 Subscribing to live updates
 
-For a responsive UI you don't want to poll `getSignatureStatuses` every second. Open a WebSocket to the pubsub endpoint and use `signatureSubscribe`:
-
 ```js
 const conn = new Connection(
-  "http://cloud.aeko.online:8899",
-  { wsEndpoint: "ws://cloud.aeko.online:8900", commitment: "confirmed" }
+  "https://rpc.aeko.online",
+  { wsEndpoint: "wss://ws.aeko.online", commitment: "confirmed" }
 );
 conn.onSignature(sig, (notif) => { /* notif.err === null means success */ });
 ```
 
-Same pattern works for `accountSubscribe` (watch a balance change), `slotSubscribe` (watch the chain tick), `logsSubscribe` (watch program output). All of this needs port 8900 reachable, which currently it isn't from the public internet — see Part 5.
+`signatureSubscribe`, `accountSubscribe`, `slotSubscribe`, `logsSubscribe` all work. `blockSubscribe` and `voteSubscribe` are explicitly enabled via `--rpc-pubsub-enable-block-subscription` and `--rpc-pubsub-enable-vote-subscription` in the validator command.
 
 ### 4.5 Browsing transactions
 
-Send users to `http://cloud.aeko.online:3000` for the web UI. For programmatic access, the explorer's REST API at port 8088 exposes `/blocks`, `/transactions`, `/tokens/transfers`, `/nfts`, `/posts`, `/engagement`, `/stakes`, `/search?q=<sig-or-address>`. Again, 8088 needs to be reachable externally — see Part 5.
+Send users to `https://scan.aeko.online` for the web UI (or `https://gossip.aeko.online` for now, until the scan DNS record is registered). For programmatic access, the explorer's REST API at `https://api.aeko.online` exposes `/blocks`, `/transactions`, `/tokens/transfers`, `/nfts`, `/posts`, `/engagement`, `/stakes`, `/search?q=<sig-or-address>`, and `/health`.
+
+### 4.6 Joining as an external validator (advanced)
+
+External validators that want to peer with the testnet point `--entrypoint` at the gossip port. Gossip is a raw UDP/TCP protocol on port 8001 — **Traefik cannot proxy it**, so the entrypoint is a direct host hit on the public IP:
+
+```bash
+aeko-validator \
+  --entrypoint gossip.aeko.online:8001 \
+  --expected-genesis-hash <hash-from-getGenesisHash> \
+  --known-validator <validator-1-identity-pubkey> \
+  ...
+```
+
+The `gossip.aeko.online` DNS record points to the same EC2 IP as the other subdomains; this hostname is the **only** legitimate use of the `gossip.` prefix once `scan.aeko.online` is registered for the explorer UI.
 
 ---
 
-## Part 5 — Moving from IPs to clean subdomains
+## Part 5 — Subdomain & DNS layout (canonical reference)
 
-Right now `networkConfig.js` falls back to `${PROTOCOL}//${HOSTNAME}:8899` etc. — meaning the frontend talks to whatever hostname the user typed in their browser, on hard-coded ports. That works for development but it's ugly, it's not HTTPS, and wallets that enforce secure-context constraints (most do) will refuse to connect to a plain `http://...:8899` from an `https://` page.
+Coolify-proxy (Traefik) handles all TLS termination and HTTP routing. You do not need nginx, you do not need certbot — Traefik auto-issues Let's Encrypt certs from the labels in `docker-compose-testnet.yml`. The earlier manual nginx+certbot procedure that used to live in this document is **obsolete**; see [`coolify.md`](./coolify.md) for the current setup.
 
-The fix is a four-layer change: **subdomains** in DNS, **security group** rules at AWS, **nginx** terminating TLS and reverse-proxying to the validator containers, and **Vite environment variables** so the frontend uses clean URLs instead of constructing them at runtime.
+### 5.1 The hostnames
 
-### 5.1 Recommended subdomain layout
-
-You have `aeko.online`. The current host is `cloud.aeko.online → 3.80.154.37`. The recommendation is to keep `cloud.aeko.online` as the explorer landing page (matches the existing branding) and add sibling subdomains for each service. Don't nest under `cloud.` — flat names are shorter and easier for devs to remember.
-
-| Subdomain | Points to (port behind nginx) | Public protocol | Purpose |
+| Subdomain | Routes to | Protocol | Purpose |
 |---|---|---|---|
-| `cloud.aeko.online` | 3000 (existing) | `https://` | Explorer web UI |
-| `rpc.aeko.online` | 8899 | `https://` | JSON-RPC for wallets, dApps, CLIs |
-| `ws.aeko.online` | 8900 | `wss://` | Pubsub WebSocket for live updates |
-| `api.aeko.online` | 8088 | `https://` | Explorer REST API for analytics dashboards |
-| `gossip.aeko.online` | 8001 | (raw TCP/UDP, no nginx) | Optional — only if external validators join |
+| `rpc.aeko.online` | validator-1:8899 | `https://` | JSON-RPC for wallets, dApps, CLIs |
+| `ws.aeko.online` | validator-1:8900 | `wss://` | Pubsub WebSocket |
+| `api.aeko.online` | explorer-backend:8088 | `https://` | Explorer REST API |
+| `scan.aeko.online` | explorer-ui:3000 | `https://` | Explorer web UI (primary) |
+| `gossip.aeko.online` | (a) raw UDP+TCP 8001 on host for external validators; (b) **temporary alias** for explorer-ui until `scan` DNS is registered | `https://` (UI alias) + L4 (gossip) | Gossip protocol entrypoint |
+| `cloud.aeko.online` | Coolify dashboard (port 8000, managed by Coolify) | `http://`/`https://` | Operator UI |
 
-The faucet (port 9900) deliberately does **not** get a subdomain. It speaks a custom binary TCP protocol that's not HTTP-compatible; nginx can't proxy it cleanly, and dApps don't talk to it directly — they go through the RPC's `requestAirdrop` method, which then talks to the internal `faucet:9900` Docker hostname. Keep 9900 internal.
-
-If you ever stand up additional environments (staging, devnet-2), use `rpc.staging.aeko.online`, `rpc.devnet-2.aeko.online`, etc. — same pattern, namespaced one level deeper.
+The faucet (port 9900) deliberately does **not** get a subdomain and is no longer mapped to the host. It speaks a custom binary TCP protocol that's not HTTP-compatible, and dApps reach it indirectly via the validator's `requestAirdrop` method, which then talks to the internal `faucet:9900` Docker hostname.
 
 ### 5.2 Namecheap DNS records
 
-In Namecheap's Advanced DNS panel for `aeko.online`, add **four A records** pointing to your EC2 elastic IP (currently `3.80.154.37`):
+In Namecheap's Advanced DNS panel for `aeko.online`, the following A records should point to your EC2 elastic IP:
 
 ```
 Type  Host       Value          TTL
 A     rpc        3.80.154.37    Automatic
 A     ws         3.80.154.37    Automatic
 A     api        3.80.154.37    Automatic
-A     gossip     3.80.154.37    Automatic
+A     scan       3.80.154.37    Automatic   (register when ready to migrate off `gossip.`)
+A     gossip     3.80.154.37    Automatic   (external-validator entrypoint)
+A     cloud      3.80.154.37    Automatic
+A     coolify    3.80.154.37    Automatic
 ```
 
-Leave the existing `cloud → 3.80.154.37` record alone. Propagation usually completes in 5–30 minutes; you can verify with `dig +short rpc.aeko.online @8.8.8.8` from your laptop.
+Make the EC2 IP an **elastic IP**; otherwise a stop/start will reassign the public IP and break every subdomain. Verify with `dig +short <name> @8.8.8.8` after editing.
 
-**Important:** make the EC2 instance's IP an **elastic IP** if it isn't already. Otherwise a stop/start cycle will assign a new public IP and break every subdomain at once. In the EC2 console: Elastic IPs → Allocate → Associate with your instance.
+### 5.3 AWS Security Group — recommended ruleset
 
-### 5.3 AWS Security Group rules
-
-The instance currently allows 22 (SSH), 80, 443, 8899, 3000, 8001, and 9900 publicly. For the new subdomain layout, **only 80 and 443 need to be open to the world** — everything else is talked to via nginx. That's a major security improvement: right now anyone on the internet can directly hit the validator's gossip and faucet sockets.
-
-In the EC2 security group attached to your instance:
+With Coolify+Traefik in front, only HTTP/HTTPS and gossip need public ingress:
 
 | Direction | Type | Port | Source | Why |
 |---|---|---|---|---|
 | Inbound | SSH | 22 | your IP only | Admin |
-| Inbound | HTTP | 80 | 0.0.0.0/0 | nginx (redirects to HTTPS) |
-| Inbound | HTTPS | 443 | 0.0.0.0/0 | nginx (all public traffic) |
-| Inbound | Custom UDP | 8001 | 0.0.0.0/0 | Only if external validators will join via gossip — otherwise remove |
-| Inbound | Custom TCP | 8001 | 0.0.0.0/0 | Same |
+| Inbound | HTTP | 80 | 0.0.0.0/0 | Traefik (redirects to HTTPS) |
+| Inbound | HTTPS | 443 | 0.0.0.0/0 | Traefik (all public traffic) |
+| Inbound | Custom UDP | 8001 | 0.0.0.0/0 | Gossip — keep open if external validators federate; remove otherwise |
+| Inbound | Custom TCP | 8001 | 0.0.0.0/0 | Gossip — same as above |
 
-**Remove from public**: 8899, 8900, 8088, 9900, 3000 — close them in the security group so they're only reachable from `localhost` (which nginx is). The docker-proxy already binds to `0.0.0.0` for these, but the security group is what makes them internet-reachable. Tighten the SG and they become localhost-only without changing any docker config.
+**Close from the public**: `8899, 8900, 8088, 3000, 9900`. The docker-proxy binds them to `0.0.0.0` so the SSH-deploy path can still use them, but Traefik reaches them on the docker bridge — the security group is what makes them publicly reachable. Closing them in the SG tightens the attack surface without changing any compose config.
 
-### 5.4 nginx as the front door
+### 5.4 Migrating the UI from `gossip.aeko.online` to `scan.aeko.online`
 
-Install nginx on the host directly (not in a container — simpler). On Ubuntu:
+Today the explorer UI answers on **both** hostnames because the Traefik rule is `Host(\`scan.aeko.online\`) || Host(\`gossip.aeko.online\`)`. Once you've:
 
-```
-sudo apt-get install -y nginx
-sudo systemctl enable --now nginx
-```
+1. Added the `scan.aeko.online` A record in Namecheap.
+2. Verified `https://scan.aeko.online` loads (Coolify-proxy will request the cert on first request).
+3. Flipped `web/.env.production`'s `VITE_AEKO_TESTNET_EXPLORER` from `https://gossip.aeko.online` to `https://scan.aeko.online` and redeployed.
 
-You'll likely have a conflict with `coolify-proxy` which currently holds port 80. Either move coolify aside or pick one. If you're not using coolify, stop and disable it:
-
-```
-sudo docker stop coolify-proxy coolify coolify-realtime coolify-sentinel coolify-db coolify-redis
-sudo docker update --restart=no coolify-proxy coolify coolify-realtime coolify-sentinel coolify-db coolify-redis
-```
-
-(If you ARE using coolify for something else, you'll need to configure nginx to listen on different ports OR add the testnet subdomains to coolify's reverse proxy instead. The principles below apply to coolify too — just the syntax is different.)
-
-Then create `/etc/nginx/sites-available/aeko-testnet` with **one server block per subdomain**. Here's the minimum content (replace any host-IP references with `127.0.0.1` because nginx is on the same host as the docker-proxy):
-
-```nginx
-# /etc/nginx/sites-available/aeko-testnet
-
-# RPC: rpc.aeko.online → :8899
-server {
-    listen 80;
-    listen [::]:80;
-    server_name rpc.aeko.online;
-    return 301 https://$host$request_uri;
-}
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name rpc.aeko.online;
-
-    # certs filled in by certbot, see 5.5 below
-    ssl_certificate     /etc/letsencrypt/live/rpc.aeko.online/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/rpc.aeko.online/privkey.pem;
-
-    # Solana RPC is JSON over POST — keep request body limit reasonable
-    client_max_body_size 50m;
-
-    location / {
-        proxy_pass http://127.0.0.1:8899;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # CORS so browsers can call the RPC from any dApp frontend
-        add_header Access-Control-Allow-Origin *  always;
-        add_header Access-Control-Allow-Methods "POST, GET, OPTIONS" always;
-        add_header Access-Control-Allow-Headers "Content-Type" always;
-        if ($request_method = OPTIONS) { return 204; }
-    }
-}
-
-# WebSocket: ws.aeko.online → :8900
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name ws.aeko.online;
-
-    ssl_certificate     /etc/letsencrypt/live/ws.aeko.online/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/ws.aeko.online/privkey.pem;
-
-    location / {
-        proxy_pass http://127.0.0.1:8900;
-        proxy_http_version 1.1;
-
-        # WebSocket-specific upgrade headers
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_read_timeout 86400s;  # keep idle WS connections alive
-        proxy_send_timeout 86400s;
-    }
-}
-
-# Explorer API: api.aeko.online → :8088
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name api.aeko.online;
-
-    ssl_certificate     /etc/letsencrypt/live/api.aeko.online/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.aeko.online/privkey.pem;
-
-    location / {
-        proxy_pass http://127.0.0.1:8088;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        add_header Access-Control-Allow-Origin * always;
-    }
-}
-
-# Explorer UI: cloud.aeko.online → :3000
-server {
-    listen 80;
-    listen [::]:80;
-    server_name cloud.aeko.online;
-    return 301 https://$host$request_uri;
-}
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name cloud.aeko.online;
-
-    ssl_certificate     /etc/letsencrypt/live/cloud.aeko.online/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/cloud.aeko.online/privkey.pem;
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        # Next.js may use WebSockets for HMR, future-proof:
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
-```
-
-Enable the site and reload:
-
-```
-sudo ln -s /etc/nginx/sites-available/aeko-testnet /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-### 5.5 TLS certificates with Let's Encrypt
-
-`certbot` automates this. Install once, then run it per-hostname:
-
-```
-sudo apt-get install -y certbot python3-certbot-nginx
-sudo certbot --nginx \
-  -d rpc.aeko.online \
-  -d ws.aeko.online \
-  -d api.aeko.online \
-  -d cloud.aeko.online \
-  --agree-tos -m devsurdma@gmail.com --non-interactive --redirect
-```
-
-Certbot will rewrite the nginx config to add the SSL paths automatically, request certs for all four hostnames in a single API call, and install a systemd timer (`certbot.timer`) that renews them every ~60 days. Verify with `sudo certbot certificates`.
-
-If certbot complains about a hostname not resolving, DNS hasn't propagated yet — `dig +short <name> @8.8.8.8` until you see the right IP, then re-run.
-
-### 5.6 Pointing the frontend at the new URLs
-
-`networkConfig.js` already supports environment overrides via `VITE_AEKO_TESTNET_*` variables. In the web app's `.env.production` (or wherever Vite reads from during build):
-
-```
-VITE_AEKO_TESTNET_RPC=https://rpc.aeko.online
-VITE_AEKO_TESTNET_WS=wss://ws.aeko.online
-VITE_AEKO_TESTNET_EXPLORER=https://cloud.aeko.online
-VITE_AEKO_TESTNET_EXPLORER_API=https://api.aeko.online
-VITE_AEKO_TESTNET_FAUCET_URL=https://rpc.aeko.online
-```
-
-The last one is deliberately the RPC URL, not a `faucet.aeko.online` — because the faucet isn't HTTP. Any code that wants to airdrop should call `connection.requestAirdrop()` against the RPC, which forwards to the internal faucet TCP socket. Whatever UI element the frontend shows for "request airdrop" should be wired to that RPC call, not a direct request to the faucet port.
-
-Rebuild and redeploy the frontend (whatever your pipeline is — `npm run build` then upload to S3/Vercel/wherever), and the wallet pages will start using clean HTTPS URLs.
-
-### 5.7 Validator's own `--public-rpc-address`
-
-One subtlety: the validator's `getClusterNodes` RPC method advertises the validator's own contact information — currently it reports `127.0.0.1:8899` because that's what it binds to inside the container. If you want external dApps to see the canonical `rpc.aeko.online` in cluster info responses, add `--public-rpc-address rpc.aeko.online:443` to the validator's command line in `docker-compose-testnet.yml`. This is cosmetic for most use cases but matters if other validators or RPC nodes will federate with yours.
+…then drop the `Host(\`gossip.aeko.online\`)` part of the rule in `docker-compose-testnet.yml` so the `gossip` name reverts to being only the gossip-protocol entrypoint. That avoids the long-term confusion of having the same hostname mean both "block explorer UI" and "validator gossip entrypoint".
 
 ---
 
 ## Part 6 — Operator's daily checklist
 
-Once everything in Part 5 is wired up, here's what to sanity-check whenever you touch anything:
-
-1. **Containers up.** `sudo docker ps --filter name=aeko --format "{{.Names}}: {{.Status}}"` should show `aeko-validator-1`, `aeko-faucet`, `aeko-explorer` all `Up`, with the validator's uptime increasing across checks (i.e. not silently restart-looping).
+1. **Containers up.** Coolify UI → resource page; every service should be green. Equivalent via SSH: `docker ps --filter name=aeko --format "{{.Names}}: {{.Status}}"`.
 
 2. **Chain advancing.** `curl https://rpc.aeko.online -X POST -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"getSlot"}'` — run twice 10s apart, slot should grow by ~30.
 
-3. **No panics in the validator log.** `sudo docker logs aeko-validator-1 2>&1 | grep -c AEKO_PANIC` returns `0`. If it returns anything else, grep for the actual line — the eprintln will give you thread name, source location, and message.
+3. **No panics in the validator log.** `docker logs aeko-validator-1 2>&1 | grep -c AEKO_PANIC` returns `0`.
 
 4. **Explorer indexed something recent.** `curl https://api.aeko.online/blocks?limit=1` should return a block whose `unixTimestamp` is within the last minute.
 
-5. **WebSocket reachable.** `wscat -c wss://ws.aeko.online` should connect (install `wscat` via npm if you don't have it). If it hangs, nginx config or security group is wrong.
+5. **WebSocket reachable.** `wscat -c wss://ws.aeko.online` should connect.
 
-6. **TLS certs valid.** `sudo certbot certificates` — every cert should show "VALID" with > 30 days remaining. If anything's < 30 days, run `sudo certbot renew --dry-run` and check the timer is running with `systemctl status certbot.timer`.
+6. **TLS certs valid.** Coolify auto-renews via Traefik — Coolify UI → resource → Logs (or `docker logs coolify-proxy 2>&1 | grep -i acme`). No cert dashboard needed.
 
-When something breaks, the diagnostic order to follow:
+When something breaks, the diagnostic order:
 
-- Step 1: is the validator container up? `docker ps`. If not, `docker logs --tail 50 aeko-validator-1`.
-- Step 2: is the chain advancing? `getSlot` twice. If stuck, leader-stall bug — check the `--no-wait-for-vote-to-start-leader` flag.
-- Step 3: is the validator panicking? Grep logs for `AEKO_PANIC`. If yes, the line itself tells you the thread and source location.
-- Step 4: is the SIGILL coming back? `sudo dmesg --since '5 minutes ago' | grep trap`. If yes, the `AEKO_ENABLE_BROADCAST` gate was bypassed somehow.
-- Step 5: is the explorer behind? Compare `getSlot` on RPC vs the latest slot in `/blocks?limit=1` — if explorer is more than a few slots behind, restart the indexer with `docker restart aeko-explorer`.
-- Step 6: is nginx healthy? `sudo systemctl status nginx`, `sudo nginx -t`. Check `/var/log/nginx/error.log` for upstream errors.
-- Step 7: is DNS resolving? `dig +short <subdomain>.aeko.online @8.8.8.8` from your laptop.
+- **Step 1: is the validator container healthy?** Coolify UI shows the healthcheck status; via SSH `docker inspect aeko-validator-1 --format '{{.State.Health.Status}}'`. `unhealthy` means `getHealth` is failing — proceed to step 2.
+- **Step 2: is the chain advancing?** `getSlot` twice. If stuck, leader-stall bug — check the `--no-wait-for-vote-to-start-leader` flag.
+- **Step 3: is the validator panicking?** Grep logs for `AEKO_PANIC`. If yes, the line itself tells you the thread and source location.
+- **Step 4: is the SIGILL coming back?** `sudo dmesg --since '5 minutes ago' | grep trap`. If yes, the `AEKO_ENABLE_BROADCAST` gate was bypassed somehow.
+- **Step 5: is the explorer behind?** Compare `getSlot` on RPC vs the latest slot in `/blocks?limit=1` — if explorer is more than a few slots behind, restart the indexer from Coolify UI (or `docker restart aeko-explorer-backend`).
+- **Step 6: is Traefik routing?** `docker logs coolify-proxy 2>&1 | tail -50`. Look for `error obtaining certificate` (DNS not propagated yet) or `service "xyz" not found` (a Traefik label got mistyped on a recent edit).
+- **Step 7: is DNS resolving?** `dig +short <subdomain>.aeko.online @8.8.8.8` from your laptop.
+- **Step 8: is the SG blocking?** If a subdomain resolves but doesn't connect, the AWS security group probably hasn't allowed 443 from the right source — check the rules in the EC2 console.

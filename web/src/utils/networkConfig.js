@@ -1,7 +1,14 @@
-const IS_BROWSER = typeof window !== 'undefined';
-const HOSTNAME = IS_BROWSER ? window.location.hostname : 'localhost';
-const PROTOCOL = IS_BROWSER ? window.location.protocol : 'http:';
-const WS_PROTOCOL = PROTOCOL === 'https:' ? 'wss:' : 'ws:';
+// Default endpoints for the public AEKO testnet. The production build
+// overrides these via web/.env.production (VITE_AEKO_TESTNET_*). These
+// fallbacks deliberately point at the canonical hostnames — no ports, no
+// hostname-derived URLs — so the UI never displays bare IPs or :8899-style
+// addresses even when env vars are missing.
+const TESTNET_DEFAULTS = {
+  rpc: 'https://rpc.aeko.online',
+  ws: 'wss://ws.aeko.online',
+  explorer: 'https://gossip.aeko.online',
+  explorerApi: 'https://api.aeko.online',
+};
 
 export const NETWORKS = {
   mainnet: {
@@ -20,15 +27,20 @@ export const NETWORKS = {
   testnet: {
     key: 'testnet',
     label: 'Testnet',
-    rpcUrl: import.meta.env.VITE_AEKO_TESTNET_RPC || `${PROTOCOL}//${HOSTNAME}:8899`,
-    websocketUrl: import.meta.env.VITE_AEKO_TESTNET_WS || `${WS_PROTOCOL}//${HOSTNAME}:8900`,
-    explorerUrl: import.meta.env.VITE_AEKO_TESTNET_EXPLORER || `${PROTOCOL}//${HOSTNAME}:3000`,
-    explorerApiUrl: import.meta.env.VITE_AEKO_TESTNET_EXPLORER_API || '/api',
-    explorerLabel: `${HOSTNAME}:3000`,
-    faucetUrl: import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL || `${PROTOCOL}//${HOSTNAME}:9900`,
-    faucetLabel: import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL || `${PROTOCOL}//${HOSTNAME}:9900`,
-    faucetEnabled: true,
-    cliCluster: `${PROTOCOL}//${HOSTNAME}:8899`,
+    rpcUrl: import.meta.env.VITE_AEKO_TESTNET_RPC || TESTNET_DEFAULTS.rpc,
+    websocketUrl: import.meta.env.VITE_AEKO_TESTNET_WS || TESTNET_DEFAULTS.ws,
+    explorerUrl: import.meta.env.VITE_AEKO_TESTNET_EXPLORER || TESTNET_DEFAULTS.explorer,
+    explorerApiUrl: import.meta.env.VITE_AEKO_TESTNET_EXPLORER_API || TESTNET_DEFAULTS.explorerApi,
+    explorerLabel: new URL(
+      import.meta.env.VITE_AEKO_TESTNET_EXPLORER || TESTNET_DEFAULTS.explorer
+    ).host,
+    // The faucet is a TCP-only service; users airdrop via the RPC's
+    // requestAirdrop method, not a separate URL. We surface the RPC here so
+    // the CLI snippet stays self-contained.
+    faucetUrl: import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL || '',
+    faucetLabel: 'Airdrop via requestAirdrop on the RPC',
+    faucetEnabled: false,
+    cliCluster: import.meta.env.VITE_AEKO_TESTNET_RPC || TESTNET_DEFAULTS.rpc,
   },
 };
 

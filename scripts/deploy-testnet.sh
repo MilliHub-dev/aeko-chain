@@ -200,12 +200,19 @@ fi
 log "✓ testnet is live (slot $SLOT_B, advancing)"
 cat <<EOF
 
-  Endpoints (use AEKO_DOMAIN=<your-domain> to change the banner):
+  Direct host endpoints (SSH-deploy path — set AEKO_DOMAIN to change the banner):
     RPC          http://${AEKO_DOMAIN}:8899
     PubSub WS    ws://${AEKO_DOMAIN}:8900
     Explorer UI  http://${AEKO_DOMAIN}:3000
     Explorer API http://${AEKO_DOMAIN}:8088
-    Faucet (RPC method only, no direct HTTP)
+    Faucet       (no direct port — use the validator's requestAirdrop RPC)
+
+  If this host is also fronted by Coolify-proxy (Traefik), the canonical
+  public URLs are the HTTPS subdomains — same containers, terminated TLS:
+    RPC          https://rpc.aeko.online
+    PubSub WS    wss://ws.aeko.online
+    Explorer UI  https://scan.aeko.online   (or https://gossip.aeko.online until scan DNS is registered)
+    Explorer API https://api.aeko.online
 
   Quick checks:
     curl -s -X POST -H 'Content-Type: application/json' \\
@@ -213,7 +220,8 @@ cat <<EOF
       http://127.0.0.1:8899
 
     docker logs -f aeko-validator-1
-    docker logs -f aeko-explorer
+    docker logs -f aeko-explorer-backend
+    docker logs -f aeko-explorer-ui
 
   See docs/operations/testnet-runbook.md for the full operations guide.
 

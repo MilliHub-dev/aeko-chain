@@ -76,6 +76,7 @@ members = [
     "programs/social-staking",
     "programs/social-anti-spam",
     "programs/social-monetization",
+    "social-bootstrap",
     "programs/nft-marketplace",
     "programs/stake",
     "programs/system",

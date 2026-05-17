@@ -1,0 +1,27 @@
+[package]
+name = "aeko-social-bootstrap"
+version = "2.0.0"
+description = "Bootstraps the state accounts for the five AEKO SocialFi native builtins"
+documentation = "https://docs.rs/aeko-social-bootstrap"
+authors = ["Aeko Labs Maintainers"]
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[[bin]]
+name = "aeko-social-bootstrap"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+borsh = { workspace = true }
+aeko-rpc-client = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-social-anti-spam-program = { workspace = true }
+aeko-social-monetization-program = { workspace = true }
+aeko-social-posts-program = { workspace = true }
+aeko-social-rewards-program = { workspace = true }
+aeko-social-staking-program = { workspace = true }
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
