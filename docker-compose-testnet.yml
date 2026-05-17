@@ -112,6 +112,7 @@ services:
   validator-2:
     image: aeko-validator:latest
     container_name: aeko-validator-2
+    profiles: ["multi-validator"]
     ulimits:
       nofile:
         soft: 1000000
@@ -143,6 +144,7 @@ services:
   validator-3:
     image: aeko-validator:latest
     container_name: aeko-validator-3
+    profiles: ["multi-validator"]
     ulimits:
       nofile:
         soft: 1000000
