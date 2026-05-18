@@ -13,13 +13,19 @@
 
 FROM rust:1.75 AS backend-builder
 
-WORKDIR /aeko
-COPY . .
-
-RUN cargo install sccache --locked
+# Pull sccache as a pre-built binary instead of `cargo install sccache --locked`.
+# The latter compiles ~600 crates and adds ~5 min and ~2 GB peak RAM to every
+# fresh build host — on a Coolify deploy that builds validator-1 and
+# explorer-backend in parallel that's enough to push a 16 GB box past its
+# free-memory budget and trip the deploy timeout. Dockerfile.validator uses
+# the same trick; keeping them aligned avoids one image being the slow one.
+RUN curl -fsSL https://github.com/mozilla/sccache/releases/download/v0.8.2/sccache-v0.8.2-x86_64-unknown-linux-musl.tar.gz \
+    | tar xzf - --strip-components=1 -C /usr/local/cargo/bin sccache-v0.8.2-x86_64-unknown-linux-musl/sccache
 ENV RUSTC_WRAPPER=sccache
 ENV SCCACHE_DIR=/root/.cache/sccache
 
+# Install build deps BEFORE the source COPY so this layer stays cached
+# across iterations on the source code.
 RUN apt-get update && apt-get install -y \
     libudev-dev \
     pkg-config \
@@ -28,10 +34,15 @@ RUN apt-get update && apt-get install -y \
     protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
-RUN --mount=type=cache,target=/root/.cache/sccache \
-    --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/aeko/target \
+WORKDIR /aeko
+COPY . .
+
+# Unique cache IDs prevent lock conflicts when this builds in parallel with
+# validator-1 (Buildkit serializes mounts with the same id).
+RUN --mount=type=cache,id=explorer-sccache,target=/root/.cache/sccache \
+    --mount=type=cache,id=explorer-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=explorer-git,target=/usr/local/cargo/git \
+    --mount=type=cache,id=explorer-target,target=/aeko/target \
     cargo build --release --bin aeko-explorer-backend -p aeko-explorer-backend && \
     mkdir -p /binaries && \
     cp target/release/aeko-explorer-backend /binaries/aeko-explorer-backend
