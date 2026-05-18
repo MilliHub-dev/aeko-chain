@@ -3,44 +3,22 @@ version: "3.8"
 # Aeko testnet compose.
 #
 # Works two ways:
-#   1. SSH-managed:   ./scripts/deploy-testnet.sh (host-port mappings reach the
-#                     services directly at http://<host>:8899 etc.).
-#   2. Coolify-managed: deploy as a "Docker Compose" resource. Coolify-proxy
-#                     (Traefik) picks up the labels below and routes the
-#                     planned subdomains with auto-issued TLS. See
-#                     docs/operations/coolify.md for the UI steps.
+#   1. SSH-managed: ./scripts/deploy-testnet.sh
+#   2. Coolify-managed: deploy as a "Docker Compose" resource.
 #
-# Both paths can coexist on the same host. The host-port mappings stay so the
-# SSH deploy script keeps working unchanged; the Traefik labels only activate
-# when the named subdomains resolve to this host and coolify-proxy is running.
-#
-# DNS plan (Namecheap → 3.80.154.37 unless noted):
-#   rpc.aeko.online      → validator-1:8899   (JSON-RPC, HTTPS via Traefik)
-#   ws.aeko.online       → validator-1:8900   (pubsub WebSocket, WSS via Traefik)
-#   api.aeko.online      → explorer-backend:8088 (REST API, HTTPS via Traefik)
-#   scan.aeko.online     → explorer-ui:3000  (Block explorer UI — primary)
-#   gossip.aeko.online   → reserved for the gossip protocol on UDP/TCP 8001
-#                          (Traefik only proxies HTTP/HTTPS; gossip is L4 raw
-#                          sockets, so this hostname is just a CNAME/A record
-#                          external validators use as `--entrypoint
-#                          gossip.aeko.online:8001`). Until scan.aeko.online is
-#                          registered, the explorer UI ALSO answers on
-#                          gossip.aeko.online via the second Host rule below —
-#                          remove that rule once DNS for scan is live.
-#   cloud.aeko.online    → Coolify dashboard (managed by Coolify, not here)
+# DNS plan:
+#   rpc.aeko.online      -> validator-1:8899
+#   ws.aeko.online       -> validator-1:8900
+#   api.aeko.online      -> explorer-backend:8088
+#   scan.aeko.online     -> explorer-ui:3000
+#   gossip.aeko.online   -> raw gossip protocol on UDP/TCP 8001
+#   cloud.aeko.online    -> Coolify dashboard
 
 services:
-  # faucet, validator-2, validator-3 reuse the image built by validator-1.
-  # Only validator-1 has a build directive — run "docker compose build validator-1" once.
-
   faucet:
     image: aeko-validator:latest
     container_name: aeko-faucet
     entrypoint: ["aeko-faucet"]
-    # No host port mapping: the faucet speaks a custom TCP protocol, not HTTP,
-    # so dApps never connect to it directly. The validator reaches it on the
-    # docker bridge at `faucet:9900` via --rpc-faucet-address. Exposing 9900
-    # publicly was a leftover from the SSH-deploy days.
     volumes:
       - ./local-testnet/faucet-keypair.json:/keys/faucet.json:ro
     command: >
@@ -55,29 +33,17 @@ services:
     container_name: aeko-validator-1
     environment:
       - AEKO_BOOTSTRAP=1
-      # One-time ledger wipe. Set to 1 in Coolify's Environment Variables tab
-      # whenever the persistent volume holds a ledger created by a binary whose
-      # builtin set no longer matches the running binary (the symptom is the
-      # bank.rs:3914 "Can't change frozen bank by adding not-existing new
-      # builtin program" panic on snapshot restore). The entrypoint wipes
-      # /ledger contents before the validator starts, genesis is re-created
-      # with the current builtins, and the chain comes back fresh. Unset (or
-      # set to 0) on the next deploy so future restarts reuse the snapshot.
+      # One-time reset only.
+      # Set AEKO_RESET_LEDGER=1 when you intentionally want fresh genesis.
+      # After successful reset, change it back to 0 and redeploy.
       - AEKO_RESET_LEDGER=${AEKO_RESET_LEDGER:-0}
     ulimits:
       nofile:
         soft: 1000000
         hard: 1000000
     ports:
-      # Gossip is L4 (UDP+TCP). Traefik can't proxy this — external validators
-      # joining the cluster connect directly to <host>:8001. Keep this exposed
-      # publicly only when you intend to federate; otherwise restrict in the
-      # AWS security group.
       - "8001:8001/udp"
       - "8001:8001/tcp"
-      # RPC + pubsub mapped to the host so the SSH-deploy path keeps working.
-      # In Coolify-fronted production the SG should block these from the
-      # public internet — Traefik reaches them on the docker bridge.
       - "8899:8899"
       - "8900:8900"
     volumes:
@@ -86,12 +52,6 @@ services:
       - ./local-testnet/vote-1-keypair.json:/keys/vote.json:ro
       - ./local-testnet/stake-keypair.json:/keys/stake.json:ro
       - ./local-testnet/faucet-keypair.json:/keys/faucet.json:ro
-    # NOTE: --public-rpc-address rpc.aeko.online:443 is intentionally NOT set
-    # below — the validator resolves that hostname at boot (is_host_port
-    # calls parse_host_port, which does DNS), so a deploy that runs before
-    # DNS propagation would fail to start. Enable it once rpc.aeko.online is
-    # stable in Namecheap if you want getClusterNodes to advertise the
-    # canonical hostname instead of 127.0.0.1:8899.
     command: >
       --identity /keys/identity.json
       --vote-account /keys/vote.json
@@ -114,8 +74,6 @@ services:
       - faucet
     restart: unless-stopped
     healthcheck:
-      # `getHealth` returns `"ok"` only when the chain is advancing. start_period
-      # gives the validator time to load genesis and produce the first slot.
       test:
         - CMD-SHELL
         - >-
@@ -130,63 +88,52 @@ services:
       - default
       - coolify
     labels:
-      # Traefik routing (activated by coolify-proxy when present).
       - traefik.enable=true
-      # ---- JSON-RPC over HTTPS: https://rpc.aeko.online ----
+
+      # JSON-RPC HTTPS: https://rpc.aeko.online
       - traefik.http.routers.aeko-rpc.rule=Host(`rpc.aeko.online`)
       - traefik.http.routers.aeko-rpc.entrypoints=https
       - traefik.http.routers.aeko-rpc.tls=true
       - traefik.http.routers.aeko-rpc.tls.certresolver=letsencrypt
       - traefik.http.routers.aeko-rpc.service=aeko-rpc
       - traefik.http.services.aeko-rpc.loadbalancer.server.port=8899
-      # CORS — dApps in browsers need this to call the RPC cross-origin.
+
+      # RPC CORS
       - traefik.http.middlewares.aeko-rpc-cors.headers.accesscontrolallowmethods=GET,POST,OPTIONS
       - traefik.http.middlewares.aeko-rpc-cors.headers.accesscontrolallowheaders=Content-Type
       - traefik.http.middlewares.aeko-rpc-cors.headers.accesscontrolalloworiginlist=*
       - traefik.http.middlewares.aeko-rpc-cors.headers.accesscontrolmaxage=300
       - traefik.http.middlewares.aeko-rpc-cors.headers.addvaryheader=true
       - traefik.http.routers.aeko-rpc.middlewares=aeko-rpc-cors
-      # Plain-HTTP redirect to HTTPS on the same host.
+
+      # HTTP -> HTTPS redirect
       - traefik.http.routers.aeko-rpc-http.rule=Host(`rpc.aeko.online`)
       - traefik.http.routers.aeko-rpc-http.entrypoints=http
       - traefik.http.routers.aeko-rpc-http.middlewares=redirect-to-https
       - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
-      # ---- pubsub WebSocket: wss://ws.aeko.online ----
+
+      # WebSocket HTTPS: wss://ws.aeko.online
       - traefik.http.routers.aeko-ws.rule=Host(`ws.aeko.online`)
       - traefik.http.routers.aeko-ws.entrypoints=https
       - traefik.http.routers.aeko-ws.tls=true
       - traefik.http.routers.aeko-ws.tls.certresolver=letsencrypt
       - traefik.http.routers.aeko-ws.service=aeko-ws
       - traefik.http.services.aeko-ws.loadbalancer.server.port=8900
+
       - traefik.http.routers.aeko-ws-http.rule=Host(`ws.aeko.online`)
       - traefik.http.routers.aeko-ws-http.entrypoints=http
       - traefik.http.routers.aeko-ws-http.middlewares=redirect-to-https
 
-  # One-shot bootstrap of the 5 SocialFi state accounts (posts, rewards,
-  # staking, anti-spam, monetization). The native builtins exist in genesis,
-  # but each program still needs a state account owned by the program holding
-  # its global config — without this, dApp transactions targeting any social
-  # program fail at the chain-side "config not initialized" check.
+  # One-shot bootstrap job.
   #
-  # Idempotent: re-runs are safe. ensure_keypair() reuses existing per-program
-  # state keypairs under /state, and the on-chain initialize_state /
-  # initialize_config instructions refuse to overwrite an initialized account.
-  # On a fresh chain this creates them; on a subsequent restart it no-ops.
-  #
-  # Robustness in production:
-  #   1. The binary now waits in-process for the validator to advance past
-  #      its first few slots (RPC_READY_MIN_SLOT in main.rs) — getHealth is
-  #      not enough on a freshly-genesised cluster.
-  #   2. Each `send_and_confirm_transaction` retries with exponential backoff
-  #      so transient BlockhashNotFound / FetchHttp errors don't abort the
-  #      whole bootstrap.
-  #   3. `restart: on-failure:20` is the outer safety net for catastrophic
-  #      failures (validator crash mid-bootstrap, network partition); a
-  #      single container restart was insufficient under real-world Coolify
-  #      cold starts that take >30 s to settle.
+  # IMPORTANT:
+  # This is behind the "bootstrap" profile so Coolify does not treat it as
+  # a normal always-running service. Run it only when you intentionally need
+  # to initialize SocialFi state accounts.
   social-bootstrap:
     image: aeko-validator:latest
     container_name: aeko-social-bootstrap
+    profiles: ["bootstrap"]
     entrypoint: ["aeko-social-bootstrap"]
     environment:
       AEKO_RPC_URL: "http://validator-1:8899"
@@ -200,24 +147,11 @@ services:
         condition: service_healthy
     restart: on-failure:20
     labels:
-      # Coolify: surface the most recent bootstrap log line in the UI so an
-      # operator can confirm "init confirmed" without shelling into the host.
       - coolify.managed=true
 
-  # External-facing RPC node. Joins the cluster via gossip (--entrypoint
-  # validator-1:8001), syncs state, and serves JSON-RPC + pubsub WITHOUT
-  # voting or producing blocks. Point rpc.aeko.online / ws.aeko.online at
-  # this container so external dApps don't compete with the leader for I/O.
-  #
-  # Enable with: COMPOSE_PROFILES=rpc-node (Coolify UI: Environment Variables
-  # tab → COMPOSE_PROFILES=rpc-node, redeploy). Without the profile, this
-  # service is inert and validator-1 keeps serving public RPC itself.
-  #
-  # Why "non-voting validator" and not just another validator? The voting
-  # safety rules (--no-wait-for-vote-to-start-leader, leader-slot rotation,
-  # vote-account stake) are leader-side concerns. An RPC node has no
-  # vote-account and never proposes blocks; it's a read replica that pulls
-  # snapshots + shreds from the leader and exposes the same JSON-RPC API.
+  # Optional external-facing RPC replica.
+  # Enable only when needed:
+  #   COMPOSE_PROFILES=rpc-node
   rpc-node:
     image: aeko-validator:latest
     container_name: aeko-rpc-node
@@ -227,9 +161,6 @@ services:
         soft: 1000000
         hard: 1000000
     ports:
-      # Use 8898/8896 on the host so it doesn't conflict with validator-1
-      # when they coexist on a single Coolify host. Container ports stay
-      # 8899/8900 so Traefik LB labels can route to either backend uniformly.
       - "8898:8899"
       - "8896:8900"
     volumes:
@@ -254,8 +185,10 @@ services:
       --no-os-network-limits-test
       --log -
     depends_on:
-      - validator-1
-      - faucet
+      validator-1:
+        condition: service_healthy
+      faucet:
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test:
@@ -267,23 +200,20 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      # RPC nodes need extra time to catch up via gossip before serving.
       start_period: 180s
     networks:
       - default
       - coolify
     labels:
-      # Same Traefik service names as validator-1 → Traefik load-balances
-      # rpc.aeko.online and ws.aeko.online between both backends when this
-      # profile is active. With this profile inactive, validator-1 carries
-      # the route alone.
       - traefik.enable=true
+
       - traefik.http.routers.aeko-rpc.rule=Host(`rpc.aeko.online`)
       - traefik.http.routers.aeko-rpc.entrypoints=https
       - traefik.http.routers.aeko-rpc.tls=true
       - traefik.http.routers.aeko-rpc.tls.certresolver=letsencrypt
       - traefik.http.routers.aeko-rpc.service=aeko-rpc
       - traefik.http.services.aeko-rpc.loadbalancer.server.port=8899
+
       - traefik.http.routers.aeko-ws.rule=Host(`ws.aeko.online`)
       - traefik.http.routers.aeko-ws.entrypoints=https
       - traefik.http.routers.aeko-ws.tls=true
@@ -320,8 +250,10 @@ services:
       --log -
       --no-os-network-limits-test
     depends_on:
-      - validator-1
-      - faucet
+      validator-1:
+        condition: service_healthy
+      faucet:
+        condition: service_started
     restart: unless-stopped
 
   validator-3:
@@ -353,8 +285,10 @@ services:
       --log -
       --no-os-network-limits-test
     depends_on:
-      - validator-1
-      - faucet
+      validator-1:
+        condition: service_healthy
+      faucet:
+        condition: service_started
     restart: unless-stopped
 
   explorer-backend:
@@ -366,36 +300,23 @@ services:
     ports:
       - "8088:8088"
     environment:
-      # Point at the validator over the internal docker bridge, NOT the public
-      # https URL. Routing through Traefik on every indexer RPC call adds a
-      # public hop (and a public 502 surface) for traffic that is fully internal.
-      # When Traefik or DNS hiccups, latest_slot() failed at boot, catch-up
-      # errored out, the HTTP server stayed up with an empty store, and the
-      # frontend got the infamous "Unexpected token 'B', \"Bad Gateway\"" parse
-      # error. Internal hostname makes the indexer survive control-plane issues.
+      # Use internal Docker DNS, not the public HTTPS URL.
       AEKO_EXPLORER_RPC: "${AEKO_EXPLORER_RPC:-http://validator-1:8899}"
       AEKO_EXPLORER_NETWORK: "testnet"
       AEKO_EXPLORER_BIND: "0.0.0.0:8088"
-      # AEKO_EXPLORER_START_SLOT controls where the indexer begins catching up.
-      # Set to 0 for full chain history (fine on fresh genesis, slow on long-running
-      # chains because catch_up is sequential and makes ~7 RPC calls per slot).
-      # Set to a recent slot to skip historical indexing on redeploys; the deploy
-      # script auto-populates this when it detects an existing chain.
+
+      # Fresh genesis:
+      #   AEKO_EXPLORER_START_SLOT=0
+      #
+      # Existing/pruned chain:
+      #   Set this to a recent live slot, otherwise explorer may ask for
+      #   unavailable old blocks.
       AEKO_EXPLORER_START_SLOT: "${AEKO_EXPLORER_START_SLOT:-0}"
-      # DATABASE_URL: optional Postgres DSN, e.g. postgres://user:pass@host:5432/db
-      # When set, the backend uses PgExplorerStore (durable, multi-replica-safe)
-      # and runs migrations on boot. Unset => process-local InMemoryExplorerStore,
-      # fine for fresh-genesis smoke tests but loses everything on restart.
-      # In Coolify, set this on the resource's Environment Variables tab pointing
-      # at your managed Postgres internal URL — never commit the DSN to git.
+
+      # Optional. If empty, backend uses in-memory store.
+      # If enabled, make sure postgres.rs has the block_in_place fix.
       DATABASE_URL: "${DATABASE_URL:-}"
 
-      # Operator-published SocialFi state account registry. The `aeko-social-
-      # bootstrap` service prints these pubkeys on first init; paste them
-      # into Coolify's Environment Variables tab on the explorer-backend
-      # resource (NOT the .env file) and they're served back to the
-      # frontend at GET /registry/social. Without these set the Mini Feed
-      # falls back to getProgramAccounts, which the public RPC throttles.
       AEKO_SOCIAL_POSTS_STATE: "${AEKO_SOCIAL_POSTS_STATE:-}"
       AEKO_SOCIAL_REWARDS_STATE: "${AEKO_SOCIAL_REWARDS_STATE:-}"
       AEKO_SOCIAL_STAKING_STATE: "${AEKO_SOCIAL_STAKING_STATE:-}"
@@ -405,32 +326,38 @@ services:
       AEKO_TREASURY_ADDRESS: "${AEKO_TREASURY_ADDRESS:-}"
       AEKO_PLATFORM_FEE_BPS: "${AEKO_PLATFORM_FEE_BPS:-200}"
     depends_on:
-      - validator-1
+      validator-1:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8088/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 30s
+      start_period: 60s
     networks:
       - default
       - coolify
     labels:
       - traefik.enable=true
-      # ---- Explorer indexer REST API: https://api.aeko.online ----
+
+      # Explorer API HTTPS: https://api.aeko.online
       - traefik.http.routers.aeko-explorer-api.rule=Host(`api.aeko.online`)
       - traefik.http.routers.aeko-explorer-api.entrypoints=https
       - traefik.http.routers.aeko-explorer-api.tls=true
       - traefik.http.routers.aeko-explorer-api.tls.certresolver=letsencrypt
       - traefik.http.routers.aeko-explorer-api.service=aeko-explorer-api
       - traefik.http.services.aeko-explorer-api.loadbalancer.server.port=8088
+
+      # API CORS
       - traefik.http.middlewares.aeko-api-cors.headers.accesscontrolallowmethods=GET,POST,OPTIONS
       - traefik.http.middlewares.aeko-api-cors.headers.accesscontrolallowheaders=Content-Type
       - traefik.http.middlewares.aeko-api-cors.headers.accesscontrolalloworiginlist=*
       - traefik.http.middlewares.aeko-api-cors.headers.accesscontrolmaxage=300
       - traefik.http.middlewares.aeko-api-cors.headers.addvaryheader=true
       - traefik.http.routers.aeko-explorer-api.middlewares=aeko-api-cors
+
+      # HTTP -> HTTPS redirect
       - traefik.http.routers.aeko-explorer-api-http.rule=Host(`api.aeko.online`)
       - traefik.http.routers.aeko-explorer-api-http.entrypoints=http
       - traefik.http.routers.aeko-explorer-api-http.middlewares=redirect-to-https
@@ -449,36 +376,32 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 15s
+      start_period: 30s
+    depends_on:
+      explorer-backend:
+        condition: service_healthy
     networks:
       - default
       - coolify
     labels:
       - traefik.enable=true
-      # ---- Explorer web UI ----
-      # Canonical hostname: https://scan.aeko.online (block-scanner naming).
-      # Temporary alias: https://gossip.aeko.online — kept until scan.aeko.online
-      # DNS is registered. Drop the gossip rule afterwards: the `gossip` name
-      # belongs to the gossip protocol on UDP/TCP 8001, not to a web UI.
+
+      # Explorer web UI
       - traefik.http.routers.aeko-explorer-ui.rule=Host(`scan.aeko.online`) || Host(`gossip.aeko.online`)
       - traefik.http.routers.aeko-explorer-ui.entrypoints=https
       - traefik.http.routers.aeko-explorer-ui.tls=true
       - traefik.http.routers.aeko-explorer-ui.tls.certresolver=letsencrypt
       - traefik.http.routers.aeko-explorer-ui.service=aeko-explorer-ui
       - traefik.http.services.aeko-explorer-ui.loadbalancer.server.port=3000
+
+      # HTTP -> HTTPS redirect
       - traefik.http.routers.aeko-explorer-ui-http.rule=Host(`scan.aeko.online`) || Host(`gossip.aeko.online`)
       - traefik.http.routers.aeko-explorer-ui-http.entrypoints=http
       - traefik.http.routers.aeko-explorer-ui-http.middlewares=redirect-to-https
 
 networks:
-  # The default network is created automatically per compose project; it carries
-  # internal service-to-service DNS (validator-1, faucet hostnames).
   default:
-  # The coolify network is created by Coolify's installer and hosts coolify-proxy
-  # (Traefik). Joining it lets Traefik reach our containers to terminate TLS.
-  # On hosts without Coolify, scripts/deploy-testnet.sh creates an empty stand-in
-  # network of the same name so plain `docker compose up` still works; the
-  # Traefik labels simply sit unused without a proxy to honor them.
+
   coolify:
     external: true
 
@@ -487,7 +410,4 @@ volumes:
   validator2-ledger:
   validator3-ledger:
   rpcnode-ledger:
-  # Per-program state-account keypairs persisted across deploys so re-running
-  # social-bootstrap on an existing chain is a no-op instead of re-creating
-  # accounts at different pubkeys.
   social-state:
