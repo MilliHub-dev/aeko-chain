@@ -50,13 +50,8 @@ impl PgExplorerStore {
     pub async fn connect(database_url: &str) -> Result<Self> {
         let connect_opts = PgConnectOptions::from_str(database_url)
             .context("parsing DATABASE_URL")?
-            // Fail fast on the TCP/TLS step rather than letting the pool's
-            // 10s acquire_timeout swallow a 75s OS-default connect hang.
             .log_statements(tracing::log::LevelFilter::Trace);
 
-        // Pull the parts we want to log (or use to hint) BEFORE we move
-        // connect_opts into the pool builder. Password is intentionally not
-        // accessible here — sqlx only exposes the redacted form via Debug.
         let host = extract_host(database_url).unwrap_or_else(|| "?".into());
         let port = extract_port(database_url).unwrap_or(5432);
         let db = extract_db(database_url).unwrap_or_else(|| "?".into());
@@ -79,15 +74,16 @@ impl PgExplorerStore {
 
         tracing::info!("postgres store ready (migrations applied)");
         Ok(Self { pool })
-    }
+        }
 
-    fn block_on<F, T>(&self, future: F) -> Result<T>
-    where
-        F: std::future::Future<Output = Result<T>>,
-    {
-        Handle::current().block_on(future)
+        fn block_on<F, T>(&self, future: F) -> Result<T>
+        where
+            F: std::future::Future<Output = Result<T>>,
+        {
+            tokio::task::block_in_place(|| Handle::current().block_on(future))
+        }
+    
     }
-}
 
 // ----------------------------------------------------------------------
 //  IndexSink — writes. Every method UPSERTs to be idempotent under reorg
