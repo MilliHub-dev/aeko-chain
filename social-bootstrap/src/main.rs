@@ -42,8 +42,28 @@ use {
     },
     anyhow::{anyhow, Context, Result},
     borsh::BorshSerialize,
-    std::{env, fs, path::PathBuf, str::FromStr},
+    std::{
+        env, fs,
+        path::PathBuf,
+        str::FromStr,
+        thread,
+        time::{Duration, Instant},
+    },
 };
+
+// Validator readiness + send retry tuning. Production deploys can race the
+// validator: `getHealth` flips to ok while the bank is still finalizing its
+// first few slots, so the first `sendTransaction` can come back with
+// BlockhashNotFound, FetchHttp, or AccountInUse. Rather than rely on the
+// docker `restart: on-failure` loop (which costs a fresh process per attempt
+// and looks like a crash in Coolify), we sit in-process and back off.
+const RPC_READY_TIMEOUT: Duration = Duration::from_secs(180);
+const RPC_READY_POLL_INTERVAL: Duration = Duration::from_secs(2);
+const RPC_READY_MIN_SLOT: u64 = 4;
+
+const SEND_MAX_ATTEMPTS: u32 = 12;
+const SEND_BASE_BACKOFF: Duration = Duration::from_millis(750);
+const SEND_MAX_BACKOFF: Duration = Duration::from_secs(8);
 
 // Per-state-account allocation. The actual serialized state with empty Vec<>s
 // is ~80–200 bytes; we pre-allocate 64 KB so dApps have headroom to append
@@ -79,16 +99,24 @@ fn main() -> Result<()> {
 
     let client = RpcClient::new_with_commitment(rpc_url.clone(), CommitmentConfig::confirmed());
 
-    eprintln!("rpc:       {rpc_url}");
-    eprintln!("payer:     {}", payer.pubkey());
-    eprintln!("authority: {}", authority.pubkey());
-    eprintln!("treasury:  {treasury}");
-    eprintln!("out-dir:   {}", out_dir.display());
+    eprintln!("==> aeko-social-bootstrap");
+    eprintln!("    rpc:       {rpc_url}");
+    eprintln!("    payer:     {}", payer.pubkey());
+    eprintln!("    authority: {}", authority.pubkey());
+    eprintln!("    treasury:  {treasury}");
+    eprintln!("    out-dir:   {}", out_dir.display());
     eprintln!();
 
-    let rent = client
-        .get_minimum_balance_for_rent_exemption(STATE_ACCOUNT_SPACE as usize)
-        .context("getMinimumBalanceForRentExemption RPC failed")?;
+    // Don't even try to fetch rent / submit txs until the validator is past
+    // its first few slots. getHealth flips to ok early; the bank still
+    // rejects sends until BlockhashNotFound clears.
+    wait_for_rpc_ready(&client)?;
+
+    let rent = with_retries("getMinimumBalanceForRentExemption", || {
+        client
+            .get_minimum_balance_for_rent_exemption(STATE_ACCOUNT_SPACE as usize)
+            .map_err(anyhow::Error::from)
+    })?;
 
     // ---- social-posts ----
     let posts_state = ensure_keypair(&out_dir, "social-posts-state.json")?;
@@ -310,31 +338,114 @@ fn create_and_init(
     }
     instructions.push(init_ix);
 
-    let recent_blockhash = client
-        .get_latest_blockhash()
-        .context("getLatestBlockhash failed")?;
     let mut signers: Vec<&Keypair> = vec![payer, authority];
     if !already_owned {
         signers.push(state);
     }
-    let tx =
-        Transaction::new_signed_with_payer(&instructions, Some(&payer.pubkey()), &signers, recent_blockhash);
 
-    match client.send_and_confirm_transaction(&tx) {
-        Ok(sig) => {
-            eprintln!("[{label}] init confirmed: {sig}");
-            Ok(())
-        }
-        Err(e) => {
-            let msg = e.to_string();
-            if msg.contains("AlreadyInitialized") || msg.contains("already in use") {
-                eprintln!("[{label}] already initialized, skipping.");
-                Ok(())
-            } else {
-                Err(anyhow!("[{label}] init failed: {e}"))
+    // Retry the whole {fresh blockhash → sign → submit} cycle. Blockhashes
+    // expire quickly on a freshly-started validator, and the first few sends
+    // can fail with FetchHttp/BlockhashNotFound while the bank stabilises;
+    // a stale blockhash makes the retry equally pointless, so we re-fetch.
+    let mut last_err: Option<anyhow::Error> = None;
+    for attempt in 1..=SEND_MAX_ATTEMPTS {
+        let recent_blockhash = match client.get_latest_blockhash() {
+            Ok(bh) => bh,
+            Err(e) => {
+                last_err = Some(anyhow!("getLatestBlockhash failed: {e}"));
+                sleep_backoff(attempt);
+                continue;
+            }
+        };
+        let tx = Transaction::new_signed_with_payer(
+            &instructions,
+            Some(&payer.pubkey()),
+            &signers,
+            recent_blockhash,
+        );
+        match client.send_and_confirm_transaction(&tx) {
+            Ok(sig) => {
+                eprintln!("[{label}] init confirmed: {sig} (attempt {attempt})");
+                return Ok(());
+            }
+            Err(e) => {
+                let msg = e.to_string();
+                if msg.contains("AlreadyInitialized") || msg.contains("already in use") {
+                    eprintln!("[{label}] already initialized, skipping.");
+                    return Ok(());
+                }
+                eprintln!("[{label}] init attempt {attempt}/{SEND_MAX_ATTEMPTS} failed: {e}");
+                last_err = Some(anyhow!("[{label}] init failed: {e}"));
+                sleep_backoff(attempt);
             }
         }
     }
+    Err(last_err.unwrap_or_else(|| anyhow!("[{label}] init exhausted retries")))
+}
+
+// ---------- readiness + retry helpers ----------
+
+fn wait_for_rpc_ready(client: &RpcClient) -> Result<()> {
+    let start = Instant::now();
+    let mut last_log = Instant::now() - Duration::from_secs(10);
+    eprintln!("==> waiting for RPC readiness (slot >= {RPC_READY_MIN_SLOT})…");
+    loop {
+        match client.get_slot() {
+            Ok(slot) if slot >= RPC_READY_MIN_SLOT => {
+                eprintln!("    rpc ready at slot {slot}");
+                return Ok(());
+            }
+            Ok(slot) => {
+                if last_log.elapsed() >= Duration::from_secs(5) {
+                    eprintln!("    rpc up, slot={slot} (waiting for >= {RPC_READY_MIN_SLOT})");
+                    last_log = Instant::now();
+                }
+            }
+            Err(e) => {
+                if last_log.elapsed() >= Duration::from_secs(5) {
+                    eprintln!("    rpc not ready yet: {e}");
+                    last_log = Instant::now();
+                }
+            }
+        }
+        if start.elapsed() > RPC_READY_TIMEOUT {
+            return Err(anyhow!(
+                "RPC did not become ready within {:?}",
+                RPC_READY_TIMEOUT
+            ));
+        }
+        thread::sleep(RPC_READY_POLL_INTERVAL);
+    }
+}
+
+fn with_retries<T, F: FnMut() -> Result<T>>(label: &str, mut f: F) -> Result<T> {
+    let mut last_err: Option<anyhow::Error> = None;
+    for attempt in 1..=SEND_MAX_ATTEMPTS {
+        match f() {
+            Ok(v) => {
+                if attempt > 1 {
+                    eprintln!("[{label}] succeeded on attempt {attempt}");
+                }
+                return Ok(v);
+            }
+            Err(e) => {
+                eprintln!("[{label}] attempt {attempt}/{SEND_MAX_ATTEMPTS} failed: {e}");
+                last_err = Some(e);
+                sleep_backoff(attempt);
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| anyhow!("[{label}] exhausted retries")))
+}
+
+fn sleep_backoff(attempt: u32) {
+    // Exponential backoff capped at SEND_MAX_BACKOFF, e.g. 0.75s, 1.5s, 3s,
+    // 6s, 8s, 8s, … Keeps total wall-clock < ~75s across SEND_MAX_ATTEMPTS.
+    let backoff = SEND_BASE_BACKOFF
+        .checked_mul(1u32 << attempt.min(4))
+        .unwrap_or(SEND_MAX_BACKOFF)
+        .min(SEND_MAX_BACKOFF);
+    thread::sleep(backoff);
 }
 
 #[allow(dead_code)]

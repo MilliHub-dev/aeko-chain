@@ -1,12 +1,23 @@
 import { useState } from 'react';
-import { Droplets, Terminal, ExternalLink } from 'lucide-react';
+import { Droplets, Terminal, FlaskConical } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import NetworkToolsPanel from '../components/NetworkToolsPanel';
+import FaucetTestModal from '../components/FaucetTestModal';
 import { getNetworkConfig } from '../utils/networkConfig';
 
 export default function Faucet() {
   const [network, setNetwork] = useState('testnet');
+  const [testOpen, setTestOpen] = useState(false);
   const config = getNetworkConfig(network);
+
+  // Local-dev override: setting VITE_AEKO_LOCAL_RPC in web/.env.local lets you
+  // point the modal at http://localhost:8899 while keeping the rest of the
+  // page on the public testnet — useful when port-forwarding the validator
+  // container during `npm run dev` against a Coolify deployment.
+  const modalRpc =
+    network === 'testnet' && import.meta.env.VITE_AEKO_LOCAL_RPC
+      ? import.meta.env.VITE_AEKO_LOCAL_RPC
+      : config.rpcUrl;
 
   return (
     <div className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
@@ -25,6 +36,31 @@ export default function Faucet() {
       <div className="mb-10">
         <NetworkToolsPanel network={network} />
       </div>
+
+      {network === 'testnet' && (
+        <div className="mb-10 rounded-2xl border border-aeko-accent/40 bg-gradient-to-br from-aeko-accent/10 via-white/[0.02] to-transparent p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0 w-11 h-11 rounded-xl bg-aeko-accent/15 border border-aeko-accent/30 flex items-center justify-center">
+              <FlaskConical className="text-aeko-accent" size={20} />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Test console</h2>
+              <p className="text-sm text-gray-400 max-w-xl">
+                Spin up in-browser test wallets, request faucet airdrops, transfer between
+                wallets, and probe the five SocialFi native builtins — without leaving this page.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setTestOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-5 min-h-[44px] rounded-xl bg-aeko-accent text-black text-sm font-semibold hover:brightness-110 transition shrink-0"
+          >
+            <FlaskConical size={16} />
+            Open test console
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
@@ -71,6 +107,13 @@ aeko airdrop 10 <recipient-address> --url ${config.cliCluster}`}</code>
           </pre>
         </div>
       </div>
+
+      <FaucetTestModal
+        open={testOpen}
+        onClose={() => setTestOpen(false)}
+        rpcUrl={modalRpc}
+        network={config.label}
+      />
     </div>
   );
 }

@@ -173,9 +173,17 @@ services:
   # initialize_config instructions refuse to overwrite an initialized account.
   # On a fresh chain this creates them; on a subsequent restart it no-ops.
   #
-  # `restart: on-failure` (with retries) handles the race where validator-1
-  # reports healthy via getHealth but is still rejecting the first few
-  # transactions while it finalizes its first slots.
+  # Robustness in production:
+  #   1. The binary now waits in-process for the validator to advance past
+  #      its first few slots (RPC_READY_MIN_SLOT in main.rs) — getHealth is
+  #      not enough on a freshly-genesised cluster.
+  #   2. Each `send_and_confirm_transaction` retries with exponential backoff
+  #      so transient BlockhashNotFound / FetchHttp errors don't abort the
+  #      whole bootstrap.
+  #   3. `restart: on-failure:20` is the outer safety net for catastrophic
+  #      failures (validator crash mid-bootstrap, network partition); a
+  #      single container restart was insufficient under real-world Coolify
+  #      cold starts that take >30 s to settle.
   social-bootstrap:
     image: aeko-validator:latest
     container_name: aeko-social-bootstrap
@@ -190,7 +198,11 @@ services:
     depends_on:
       validator-1:
         condition: service_healthy
-    restart: on-failure:5
+    restart: on-failure:20
+    labels:
+      # Coolify: surface the most recent bootstrap log line in the UI so an
+      # operator can confirm "init confirmed" without shelling into the host.
+      - coolify.managed=true
 
   # External-facing RPC node. Joins the cluster via gossip (--entrypoint
   # validator-1:8001), syncs state, and serves JSON-RPC + pubsub WITHOUT
@@ -354,7 +366,14 @@ services:
     ports:
       - "8088:8088"
     environment:
-      AEKO_EXPLORER_RPC: "https://rpc.aeko.online"
+      # Point at the validator over the internal docker bridge, NOT the public
+      # https URL. Routing through Traefik on every indexer RPC call adds a
+      # public hop (and a public 502 surface) for traffic that is fully internal.
+      # When Traefik or DNS hiccups, latest_slot() failed at boot, catch-up
+      # errored out, the HTTP server stayed up with an empty store, and the
+      # frontend got the infamous "Unexpected token 'B', \"Bad Gateway\"" parse
+      # error. Internal hostname makes the indexer survive control-plane issues.
+      AEKO_EXPLORER_RPC: "${AEKO_EXPLORER_RPC:-http://validator-1:8899}"
       AEKO_EXPLORER_NETWORK: "testnet"
       AEKO_EXPLORER_BIND: "0.0.0.0:8088"
       # AEKO_EXPLORER_START_SLOT controls where the indexer begins catching up.

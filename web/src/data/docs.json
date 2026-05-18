@@ -2,39 +2,99 @@
   "sections": [
     {
       "title": "Getting Started",
-      "items": ["Introduction to AEKO Chain", "Architecture Overview", "Wallet Setup", "Testnet Faucet"]
+      "items": [
+        "Introduction to AEKO Chain",
+        "Architecture Overview",
+        "Wallet Setup",
+        "Testnet Faucet"
+      ]
+    },
+    {
+      "title": "Using the Network",
+      "items": [
+        "Test Console Walkthrough",
+        "Mini Feed (On-Chain SocialFi)",
+        "Explorer Troubleshooting",
+        "Backend API Reference",
+        "SocialFi Bootstrap in Production"
+      ]
     },
     {
       "title": "Permission Layer",
-      "items": ["Identity & Clearance", "Gatekeeper Programs", "Soulbound Tokens", "Compliance Hooks"]
+      "items": [
+        "Identity & Clearance",
+        "Gatekeeper Programs",
+        "Soulbound Tokens",
+        "Compliance Hooks"
+      ]
     },
     {
       "title": "SocialFi Features",
-      "items": ["Content Layer Storage", "Reputation Protocol", "Proof of Engagement", "Content Signatures"]
+      "items": [
+        "Content Layer Storage",
+        "Reputation Protocol",
+        "Proof of Engagement",
+        "Content Signatures"
+      ]
     },
     {
       "title": "Core Protocol",
-      "items": ["AEKO SVM Runtime", "Sealevel Parallelization", "Consensus Mechanism", "Validator Guide"]
+      "items": [
+        "AEKO SVM Runtime",
+        "Sealevel Parallelization",
+        "Consensus Mechanism",
+        "Validator Guide"
+      ]
     },
     {
       "title": "Smart Contracts",
-      "items": ["Rust SDK", "Program Architecture", "Native Syscalls", "Security Best Practices", "Write Your First Program", "Deploy And Invoke On Testnet"]
+      "items": [
+        "Rust SDK",
+        "Program Architecture",
+        "Native Syscalls",
+        "Security Best Practices",
+        "Write Your First Program",
+        "Deploy And Invoke On Testnet"
+      ]
     },
     {
       "title": "Wallet & SDKs",
-      "items": ["Identity & DID", "Wallet Core", "Wallet Permissions", "JavaScript SDK", "Node.js SDK", "Rust Client SDK", "Python SDK", "Phase 4 Validation"]
+      "items": [
+        "Identity & DID",
+        "Wallet Core",
+        "Wallet Permissions",
+        "JavaScript SDK",
+        "Node.js SDK",
+        "Rust Client SDK",
+        "Python SDK",
+        "Phase 4 Validation"
+      ]
     },
     {
       "title": "RPC & Explorer",
-      "items": ["Explorer API", "Explorer Web", "SocialFi RPC", "Aeko Social Backend Integration"]
+      "items": [
+        "Explorer API",
+        "Explorer Web",
+        "SocialFi RPC",
+        "Aeko Social Backend Integration"
+      ]
     },
     {
       "title": "Governance",
-      "items": ["Token House vs Citizen House", "Proposal Lifecycle", "Treasury Management", "Staking"]
+      "items": [
+        "Token House vs Citizen House",
+        "Proposal Lifecycle",
+        "Treasury Management",
+        "Staking"
+      ]
     },
     {
       "title": "Token Standards",
-      "items": ["AEKO Tokenomics", "AEKO-20 Standard", "AEKO-721 Standard"]
+      "items": [
+        "AEKO Tokenomics",
+        "AEKO-20 Standard",
+        "AEKO-721 Standard"
+      ]
     }
   ],
   "content": {
@@ -205,6 +265,26 @@
     "AEKO-721 Standard": {
       "title": "AEKO-721 Standard",
       "html": "<div class='space-y-8'><h1 class='text-4xl font-bold mb-6'>AEKO-721 Standard</h1><p class='text-gray-300'>AEKO-721 is the canonical NFT standard for AEKO Chain, intended for creator assets, collectibles, social objects, and royalty-aware media with creator-visible controls.</p><h2 class='text-2xl font-bold'>Core Capabilities</h2><ul class='list-disc list-inside space-y-2 text-gray-300'><li>Collection initialization with authority ownership</li><li>NFT minting with unique token IDs and royalty basis points</li><li>Owner-signed transfer flow</li><li>Creator-controlled freeze and thaw actions</li><li>Creator or owner metadata updates with validation</li></ul><h2 class='text-2xl font-bold'>Metadata Validation</h2><ul class='list-disc list-inside space-y-2 text-gray-300'><li>Name and URI must be non-empty</li><li>URI fields must use accepted schemes like <code>https://</code>, <code>ipfs://</code>, or <code>ar://</code></li><li>Description, image URI, and attributes are bounded for predictable indexer behavior</li></ul><h2 class='text-2xl font-bold'>Creator Controls</h2><div class='grid grid-cols-1 md:grid-cols-2 gap-4'><div class='bg-white/5 border border-white/10 rounded-xl p-5'><h3 class='font-bold text-white mb-2'>Freeze / Thaw</h3><p class='text-sm text-gray-300'>Creators can freeze an NFT during moderation, dispute review, or compliance handling, then thaw it once cleared.</p></div><div class='bg-white/5 border border-white/10 rounded-xl p-5'><h3 class='font-bold text-white mb-2'>Metadata Evolution</h3><p class='text-sm text-gray-300'>Creators or current owners can refresh metadata while keeping creator, collection, and royalty linkage intact.</p></div></div><div class='bg-aeko-accent/10 border border-aeko-accent/20 rounded-xl p-5'><h3 class='font-bold text-white mb-2'>Demo Path</h3><p class='text-sm text-gray-300'>The current AEKO-721 demo lifecycle is: initialize collection, mint NFT, freeze, thaw, transfer, and update metadata.</p></div></div>"
+    },
+    "Test Console Walkthrough": {
+      "title": "Test Console Walkthrough",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-2'>Test Console Walkthrough</h1><p class='text-gray-300'>The test console lives at <a href='/faucet' class='text-aeko-accent hover:underline'>/faucet</a> &rarr; <strong>Open test console</strong>. It runs entirely in your browser and talks straight to the validator RPC, so it keeps working even when the explorer backend is down.</p><div class='bg-amber-500/10 border border-amber-400/30 rounded-xl p-4 text-sm text-amber-100'><strong>Test wallets only.</strong> Keys are kept in <code>localStorage</code>. Never paste a mainnet key here.</div><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>1. Generate a wallet</h2><p class='text-gray-300'>Open the <strong>Wallets</strong> tab, give it an optional name, and hit <strong>Generate keypair</strong>. The address shows up immediately and the balance polls every few seconds.</p><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>2. Airdrop some AEKO</h2><p class='text-gray-300'>Switch to the <strong>Airdrop &amp; Transfer</strong> tab. Pick a wallet, enter an amount, click <strong>Request airdrop</strong>. The console waits for confirmation, then refreshes the balance.</p><p class='text-xs text-gray-500'>Under the hood: <code>requestAirdrop</code> &rarr; <code>getSignatureStatuses</code> until <code>confirmed</code>.</p><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>3. Transfer between wallets</h2><p class='text-gray-300'>Same tab, right column. The console builds a single-instruction System Program transfer, signs it browser-side with the source wallet, and submits via <code>sendTransaction</code>. The signature is linked to the explorer when it succeeds.</p><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>Why airdrops sometimes fail</h2><ul class='list-disc list-inside text-gray-300 space-y-1'><li><strong>Rate limit</strong> on the public RPC &mdash; wait a few seconds and retry.</li><li><strong>Validator restart</strong> &mdash; the badge in the modal header turns red when the RPC is unreachable.</li><li><strong>Browser console errors</strong> point at the exact RPC method that failed (look for <code>RPC requestAirdrop failed</code>).</li></ul></div>"
+    },
+    "Mini Feed (On-Chain SocialFi)": {
+      "title": "Mini Feed (On-Chain SocialFi)",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-2'>Mini Feed (On-Chain SocialFi)</h1><p class='text-gray-300'>The <strong>Mini Feed</strong> tab in the test console is a real client of the <code>social-posts</code> native builtin. Every post and like is a Borsh-encoded instruction signed by the selected test wallet and submitted to the validator.</p><div class='bg-white/5 border border-white/10 rounded-xl p-5'><h3 class='font-bold text-white mb-2'>How posting works</h3><ol class='list-decimal list-inside text-sm text-gray-300 space-y-1'><li>The browser calls <code>getProgramAccounts</code> on the social-posts program (<code>[17;32]</code>) to find the state account &mdash; created once by <code>aeko-social-bootstrap</code>.</li><li>Your post body becomes the <code>content_uri</code>; SHA-256 hashes fill <code>content_hash</code> and <code>metadata_hash</code>.</li><li>An <code>AnchorPost</code> instruction is built, signed with your test wallet, and sent via <code>sendTransaction</code>.</li><li>The state account is polled every 8s; Borsh-decoded <code>PostAnchor</code> entries render as the timeline.</li></ol></div><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>Likes</h2><p class='text-gray-300'>The heart button submits a <code>RecordEngagement</code> instruction with <code>action_kind = Like</code>. The wallet selected in the compose box pays the fee. Each (actor, post) pair can only like once &mdash; the on-chain replay guard rejects duplicates.</p><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>Operator prerequisites</h2><p class='text-gray-300'>If the feed shows <em>&quot;No social-posts state account on chain&quot;</em>, the operator needs to run the bootstrap binary once:</p><pre class='bg-black/40 border border-white/10 rounded-xl p-4 overflow-x-auto text-sm text-gray-300'><code>AEKO_RPC_URL=http://validator-1:8899 \\\n  AEKO_PAYER_KEYPAIR=/keys/identity.json \\\n  aeko-social-bootstrap</code></pre><p class='text-xs text-gray-500'>In the testnet docker compose this is the one-shot <code>social-bootstrap</code> service. It is idempotent &mdash; re-runs no-op against an existing state account.</p><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>What is NOT here yet</h2><ul class='list-disc list-inside text-gray-300 space-y-1'><li>Tipping (lives on <code>social-monetization</code>, not yet wired in the modal).</li><li>Replies / quotes &mdash; the on-chain types support them, the modal only emits <code>Original</code> for now.</li><li>Reward claims &mdash; <code>social-rewards</code> writes will land in a follow-up.</li></ul></div>"
+    },
+    "Explorer Troubleshooting": {
+      "title": "Explorer Troubleshooting",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-2'>Explorer Troubleshooting</h1><p class='text-gray-300'>If <a href='/explorer' class='text-aeko-accent hover:underline'>/explorer</a> shows no blocks or transactions after activity on the chain, the explorer-backend indexer is what to debug &mdash; not the validator itself. Use the symptom guide below.</p><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>Symptom: <code>Unexpected token 'B', \"Bad Gateway\" is not valid JSON</code></h2><p class='text-gray-300'>This message means the reverse proxy (Traefik / Coolify) returned an HTML 502 page and the browser tried to JSON-parse it. The frontend now intercepts that and shows a friendlier <em>&quot;Indexer is unreachable&quot;</em> message instead. Either way, the root cause is on the backend.</p><p class='text-gray-300'>Most common cause: the indexer is configured to reach the validator over the public HTTPS hostname instead of the internal docker bridge. Fix in <code>docker-compose-testnet.yml</code>:</p><pre class='bg-black/40 border border-white/10 rounded-xl p-4 overflow-x-auto text-sm text-gray-300'><code>environment:\n  AEKO_EXPLORER_RPC: http://validator-1:8899   # &lt;-- internal hostname\n  # NOT https://rpc.aeko.online</code></pre><p class='text-xs text-gray-500'>The HTTP server binds before catch-up runs, so the explorer port stays open even when the indexer can&apos;t reach the validator &mdash; the service looks &quot;up&quot; but returns empty arrays.</p><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>Symptom: empty <code>/blocks</code> and <code>/transactions</code></h2><p class='text-gray-300'>The indexer is running but hasn&apos;t persisted anything yet. Three checks:</p><ol class='list-decimal list-inside text-gray-300 space-y-1'><li><code>docker logs aeko-explorer-backend</code> &mdash; look for <code>latest_slot() failed at boot</code> or <code>live sync tick failed</code>.</li><li><code>curl https://api.aeko.online/health</code> &mdash; should return JSON, not HTML.</li><li>Confirm the validator itself is making progress: <code>curl -X POST https://rpc.aeko.online -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getSlot\"}'</code></li></ol><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>Symptom: explorer worked, then went blank after a redeploy</h2><p class='text-gray-300'>The default explorer store is in-memory, so a restart wipes everything. To persist across deploys, set <code>DATABASE_URL</code> on the explorer-backend service to a Postgres DSN; the backend runs migrations on boot and switches to the durable store automatically.</p></div>"
+    },
+    "Backend API Reference": {
+      "title": "Backend API Reference",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-2'>Backend API Reference</h1><p class='text-gray-300'>Two HTTP surfaces are exposed publicly. Both return JSON with a <code>{data, meta}</code> envelope on success and <code>{error: {code, message}}</code> on failure.</p><h2 class='text-2xl font-bold mt-6 mb-3 text-white'>Validator JSON-RPC</h2><p class='text-gray-300'>Base: <code>https://rpc.aeko.online</code>. Standard JSON-RPC over HTTP POST &mdash; same method set as Solana&apos;s SVM (<code>getSlot</code>, <code>getBalance</code>, <code>getAccountInfo</code>, <code>requestAirdrop</code>, <code>sendTransaction</code>, <code>getLatestBlockhash</code>, <code>getProgramAccounts</code>, <code>getSignatureStatuses</code>, &hellip;).</p><pre class='bg-black/40 border border-white/10 rounded-xl p-4 overflow-x-auto text-sm text-gray-300'><code>curl -X POST https://rpc.aeko.online \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getSlot\"}'</code></pre><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>Explorer indexer REST</h2><p class='text-gray-300'>Base: <code>https://api.aeko.online</code>. Aggregates indexed chain state for the explorer UI. All endpoints accept <code>?limit=</code> and most accept <code>?before=</code>/<code>?after=</code> cursor params.</p><div class='overflow-x-auto'><table class='w-full text-sm text-left text-gray-300 border border-white/10 rounded-xl overflow-hidden'><thead class='bg-white/5 text-white'><tr><th class='px-4 py-2'>Endpoint</th><th class='px-4 py-2'>Purpose</th></tr></thead><tbody class='divide-y divide-white/5'><tr><td class='px-4 py-2 font-mono text-xs'>GET /health</td><td class='px-4 py-2'>Liveness; returns 200 even pre-catch-up.</td></tr><tr><td class='px-4 py-2 font-mono text-xs'>GET /blocks</td><td class='px-4 py-2'>Recent blocks (slot, blockhash, tx count).</td></tr><tr><td class='px-4 py-2 font-mono text-xs'>GET /blocks/{slot}</td><td class='px-4 py-2'>Full block detail.</td></tr><tr><td class='px-4 py-2 font-mono text-xs'>GET /transactions</td><td class='px-4 py-2'>Filterable by <code>address</code>, <code>type</code>, <code>status</code>.</td></tr><tr><td class='px-4 py-2 font-mono text-xs'>GET /transactions/{sig}</td><td class='px-4 py-2'>Full signature detail with logs.</td></tr><tr><td class='px-4 py-2 font-mono text-xs'>GET /accounts/{addr}</td><td class='px-4 py-2'>Owner, lamports, recent tx.</td></tr><tr><td class='px-4 py-2 font-mono text-xs'>GET /posts</td><td class='px-4 py-2'>SocialFi feed entries (filter <code>creator</code>, <code>postKind</code>, <code>visibility</code>).</td></tr><tr><td class='px-4 py-2 font-mono text-xs'>GET /tokens/{mint}</td><td class='px-4 py-2'>AEKO-20 token summary &amp; transfers.</td></tr><tr><td class='px-4 py-2 font-mono text-xs'>GET /collections/{id}</td><td class='px-4 py-2'>AEKO-721 collection summary.</td></tr><tr><td class='px-4 py-2 font-mono text-xs'>GET /nfts/{id}</td><td class='px-4 py-2'>Per-NFT detail.</td></tr><tr><td class='px-4 py-2 font-mono text-xs'>GET /stakes</td><td class='px-4 py-2'>Filter by <code>wallet</code>, <code>creator</code>, <code>state</code>.</td></tr><tr><td class='px-4 py-2 font-mono text-xs'>GET /creators/{addr}</td><td class='px-4 py-2'>Aggregated creator profile.</td></tr><tr><td class='px-4 py-2 font-mono text-xs'>GET /search?q=&hellip;</td><td class='px-4 py-2'>Combined lookup for addresses, sigs, slots, mints.</td></tr></tbody></table></div><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>Status codes you may hit</h2><ul class='list-disc list-inside text-gray-300 space-y-1'><li><code>200</code> + empty <code>data</code> &mdash; indexer caught up but no matches.</li><li><code>404</code> &mdash; object not in the index (yet).</li><li><code>429</code> &mdash; per-IP rate limit on the public endpoint.</li><li><code>502/503/504</code> &mdash; reverse proxy hit; the explorer-backend is restarting or unreachable. Frontend converts these into the friendly <em>&quot;Indexer is unreachable&quot;</em> banner.</li></ul><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>CORS</h2><p class='text-gray-300'>The explorer API allows <code>GET, POST, OPTIONS</code> from any origin (set in the Traefik middleware) so dashboards and SDKs can call it from the browser without a proxy.</p></div>"
+    },
+    "SocialFi Bootstrap in Production": {
+      "title": "SocialFi Bootstrap in Production",
+      "html": "<div class='space-y-6'><h1 class='text-4xl font-bold mb-2'>SocialFi Bootstrap in Production</h1><p class='text-gray-300'>The five SocialFi programs are native builtins, but they each need one <em>state account</em> on chain before any read or write works. A dedicated <code>social-bootstrap</code> service creates these accounts automatically on the first deploy and no-ops on every deploy after. This page covers how it works, how to verify it ran, and what to do if it didn&apos;t.</p><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>How it runs</h2><p class='text-gray-300'>In <code>docker-compose-testnet.yml</code> the <code>social-bootstrap</code> service waits for <code>validator-1</code> to report <code>service_healthy</code>, then runs the <code>aeko-social-bootstrap</code> binary once. The binary:</p><ol class='list-decimal list-inside text-gray-300 space-y-1'><li>Polls <code>getSlot</code> until the validator advances past its first few slots (not just <code>getHealth</code>).</li><li>Reuses persisted state keypairs from the <code>social-state</code> docker volume so re-deploys are idempotent.</li><li>Submits <code>create_account</code> + program-specific <code>InitializeState</code> instructions, retrying transient failures with exponential backoff.</li><li>Refuses to re-init an already-initialized account, so accidental double-runs are harmless.</li></ol><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>Confirming it ran</h2><pre class='bg-black/40 border border-white/10 rounded-xl p-4 overflow-x-auto text-sm text-gray-300'><code>docker logs aeko-social-bootstrap | tail -30</code></pre><p class='text-gray-300'>You&apos;re looking for five <code>[social-&hellip;] init confirmed: &lt;signature&gt;</code> lines, followed by the <em># Paste these into your dApp backend&apos;s env file</em> summary. Or in the test console, open <strong>Programs</strong> &mdash; all five cards should read <em>bootstrapped</em>.</p><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>If a card shows &quot;Initializing\u2026&quot; for longer than a minute</h2><ol class='list-decimal list-inside text-gray-300 space-y-1'><li><strong>Check the service is enabled</strong> in your Coolify stack. After pulling the latest compose file you need to redeploy so the new service appears.</li><li><strong>Inspect the logs.</strong> <code>docker logs aeko-social-bootstrap</code> tells you whether it&apos;s in the readiness wait, retrying sends, or already done.</li><li><strong>Check the payer has funds.</strong> The default payer is the genesis faucet (<code>/keys/faucet.json</code>); a missing or unfunded keypair will cause every <code>send_and_confirm</code> attempt to fail.</li><li><strong>Reset the chain</strong> only if the validator binary&apos;s builtin set is out of sync with the on-disk genesis. Set <code>AEKO_RESET_LEDGER=1</code> in Coolify, redeploy, then unset it.</li></ol><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>Re-running by hand</h2><p class='text-gray-300'>If you ever want to force a re-bootstrap on the live container without redeploying:</p><pre class='bg-black/40 border border-white/10 rounded-xl p-4 overflow-x-auto text-sm text-gray-300'><code>docker compose -f docker-compose-testnet.yml run --rm social-bootstrap</code></pre><p class='text-xs text-gray-500'>Because the keypair files persist in the <code>social-state</code> volume, this picks up the existing accounts; the chain rejects re-init and the run exits cleanly.</p><h2 class='text-2xl font-bold mt-8 mb-3 text-white'>Frontend behavior</h2><p class='text-gray-300'>The Mini Feed and Programs tabs poll automatically every few seconds, so as soon as the bootstrap service finishes you&apos;ll see the &quot;Initializing\u2026&quot; placeholder switch to a live feed and live KPI metrics without a page reload.</p></div>"
     }
   }
 }

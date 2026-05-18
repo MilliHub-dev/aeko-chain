@@ -23,6 +23,23 @@ async function fetchJson(path, network) {
   }
 
   const response = await fetch(`${base}${path}`);
+
+  // Reverse proxies (Traefik / Coolify / nginx) return HTML when the upstream
+  // service is down or restarting — most commonly a 502/503/504. Calling
+  // .json() on that body throws "Unexpected token 'B', \"Bad Gateway\" is not
+  // valid JSON", which is what users saw on /explorer. Sniff the content-type
+  // and convert to a friendly typed error before JSON-parsing.
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await response.text().catch(() => '');
+    const snippet = text.replace(/<[^>]*>/g, ' ').trim().slice(0, 120);
+    throw new Error(
+      response.status === 502 || response.status === 503 || response.status === 504
+        ? `Indexer is unreachable (${response.status}). The explorer-backend may be restarting or syncing — retry in a moment.`
+        : `Indexer returned non-JSON (${response.status}). ${snippet}`,
+    );
+  }
+
   const payload = await response.json();
 
   if (!response.ok) {

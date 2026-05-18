@@ -29,7 +29,7 @@ const Navbar = () => {
                 <div className="absolute inset-0 bg-aeko-accent/20 blur-md rounded-full group-hover:bg-aeko-accent/40 transition-all duration-300" />
                 <img src={logo} alt="AEKO Logo" className="relative w-9 h-9 rounded-xl border border-white/10" />
               </div>
-              <span className="font-bold text-lg tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 group-hover:from-white group-hover:to-white transition-all duration-300">
+              <span className="font-bold text-lg text-nowrap tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 group-hover:from-white group-hover:to-white transition-all duration-300">
                 AEKO CHAIN
               </span>
             </Link>
