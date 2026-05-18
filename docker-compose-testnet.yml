@@ -55,6 +55,15 @@ services:
     container_name: aeko-validator-1
     environment:
       - AEKO_BOOTSTRAP=1
+      # One-time ledger wipe. Set to 1 in Coolify's Environment Variables tab
+      # whenever the persistent volume holds a ledger created by a binary whose
+      # builtin set no longer matches the running binary (the symptom is the
+      # bank.rs:3914 "Can't change frozen bank by adding not-existing new
+      # builtin program" panic on snapshot restore). The entrypoint wipes
+      # /ledger contents before the validator starts, genesis is re-created
+      # with the current builtins, and the chain comes back fresh. Unset (or
+      # set to 0) on the next deploy so future restarts reuse the snapshot.
+      - AEKO_RESET_LEDGER=${AEKO_RESET_LEDGER:-0}
     ulimits:
       nofile:
         soft: 1000000
@@ -152,6 +161,36 @@ services:
       - traefik.http.routers.aeko-ws-http.rule=Host(`ws.aeko.online`)
       - traefik.http.routers.aeko-ws-http.entrypoints=http
       - traefik.http.routers.aeko-ws-http.middlewares=redirect-to-https
+
+  # One-shot bootstrap of the 5 SocialFi state accounts (posts, rewards,
+  # staking, anti-spam, monetization). The native builtins exist in genesis,
+  # but each program still needs a state account owned by the program holding
+  # its global config — without this, dApp transactions targeting any social
+  # program fail at the chain-side "config not initialized" check.
+  #
+  # Idempotent: re-runs are safe. ensure_keypair() reuses existing per-program
+  # state keypairs under /state, and the on-chain initialize_state /
+  # initialize_config instructions refuse to overwrite an initialized account.
+  # On a fresh chain this creates them; on a subsequent restart it no-ops.
+  #
+  # `restart: on-failure` (with retries) handles the race where validator-1
+  # reports healthy via getHealth but is still rejecting the first few
+  # transactions while it finalizes its first slots.
+  social-bootstrap:
+    image: aeko-validator:latest
+    container_name: aeko-social-bootstrap
+    entrypoint: ["aeko-social-bootstrap"]
+    environment:
+      AEKO_RPC_URL: "http://validator-1:8899"
+      AEKO_PAYER_KEYPAIR: "/keys/faucet.json"
+      AEKO_BOOTSTRAP_OUT_DIR: "/state"
+    volumes:
+      - ./local-testnet/faucet-keypair.json:/keys/faucet.json:ro
+      - social-state:/state
+    depends_on:
+      validator-1:
+        condition: service_healthy
+    restart: on-failure:5
 
   # External-facing RPC node. Joins the cluster via gossip (--entrypoint
   # validator-1:8001), syncs state, and serves JSON-RPC + pubsub WITHOUT
@@ -414,3 +453,7 @@ volumes:
   validator2-ledger:
   validator3-ledger:
   rpcnode-ledger:
+  # Per-program state-account keypairs persisted across deploys so re-running
+  # social-bootstrap on an existing chain is a no-op instead of re-creating
+  # accounts at different pubkeys.
+  social-state:

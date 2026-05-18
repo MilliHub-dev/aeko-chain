@@ -30,13 +30,15 @@ RUN --mount=type=cache,id=validator-sccache,target=/root/.cache/sccache \
         --bin aeko-keygen \
         --bin aeko-genesis \
         --bin aeko \
-        --bin aeko-faucet && \
+        --bin aeko-faucet \
+        --bin aeko-social-bootstrap && \
     mkdir /binaries && \
     cp target/release/aeko-validator \
        target/release/aeko-keygen \
        target/release/aeko-genesis \
        target/release/aeko \
        target/release/aeko-faucet \
+       target/release/aeko-social-bootstrap \
        /binaries/
 
 # Runtime stage
@@ -54,6 +56,7 @@ COPY --from=builder /binaries/aeko-keygen /usr/local/bin/
 COPY --from=builder /binaries/aeko-genesis /usr/local/bin/
 COPY --from=builder /binaries/aeko /usr/local/bin/
 COPY --from=builder /binaries/aeko-faucet /usr/local/bin/
+COPY --from=builder /binaries/aeko-social-bootstrap /usr/local/bin/
 
 COPY validator-entrypoint.sh /usr/local/bin/validator-entrypoint.sh
 RUN chmod +x /usr/local/bin/validator-entrypoint.sh
