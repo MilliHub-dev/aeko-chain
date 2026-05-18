@@ -114,7 +114,7 @@ fi
 if [ "$RESET_CHAIN" -eq 1 ]; then
     log "--reset-chain: wiping ledger volumes (chain restarts from genesis)"
     docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true
-    for v in aeko_validator1-ledger aeko_validator2-ledger aeko_validator3-ledger; do
+    for v in aeko_validator1-ledger aeko_validator2-ledger aeko_validator3-ledger aeko_rpcnode-ledger; do
         docker volume rm "$v" 2>/dev/null || true
     done
 fi
@@ -153,8 +153,8 @@ if [ -z "${AEKO_EXPLORER_START_SLOT:-}" ]; then
     fi
 fi
 
-log "starting faucet, validator-1, explorer"
-docker compose -f "$COMPOSE_FILE" up -d --no-deps faucet validator-1 explorer
+log "starting faucet, validator-1, explorer-backend, explorer-ui"
+docker compose -f "$COMPOSE_FILE" up -d --no-deps faucet validator-1 explorer-backend explorer-ui
 
 # ---- 6. wait for liveness ----
 log "waiting for validator RPC to come up (max 90s)"
