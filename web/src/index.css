@@ -23,3 +23,26 @@ body {
 @utility text-gradient {
   @apply bg-clip-text text-transparent bg-gradient-to-r from-aeko-accent to-aeko-purple;
 }
+
+/* Toast progress bar — width animates from 100% → 0 over the toast's
+   duration. Lives in the global stylesheet so a re-parented toast (e.g.
+   when the viewport switches between mobile/desktop layouts) keeps its
+   countdown intact. */
+@keyframes toast-progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+/* Hide horizontal scrollbars for tab strips inside modals while keeping
+   them scrollable via touch/wheel. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

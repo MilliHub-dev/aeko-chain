@@ -389,6 +389,21 @@ services:
       # In Coolify, set this on the resource's Environment Variables tab pointing
       # at your managed Postgres internal URL — never commit the DSN to git.
       DATABASE_URL: "${DATABASE_URL:-}"
+
+      # Operator-published SocialFi state account registry. The `aeko-social-
+      # bootstrap` service prints these pubkeys on first init; paste them
+      # into Coolify's Environment Variables tab on the explorer-backend
+      # resource (NOT the .env file) and they're served back to the
+      # frontend at GET /registry/social. Without these set the Mini Feed
+      # falls back to getProgramAccounts, which the public RPC throttles.
+      AEKO_SOCIAL_POSTS_STATE: "${AEKO_SOCIAL_POSTS_STATE:-}"
+      AEKO_SOCIAL_REWARDS_STATE: "${AEKO_SOCIAL_REWARDS_STATE:-}"
+      AEKO_SOCIAL_STAKING_STATE: "${AEKO_SOCIAL_STAKING_STATE:-}"
+      AEKO_SOCIAL_ANTI_SPAM_STATE: "${AEKO_SOCIAL_ANTI_SPAM_STATE:-}"
+      AEKO_SOCIAL_MONETIZATION_STATE: "${AEKO_SOCIAL_MONETIZATION_STATE:-}"
+      AEKO_REWARD_VAULT_ACCOUNT: "${AEKO_REWARD_VAULT_ACCOUNT:-}"
+      AEKO_TREASURY_ADDRESS: "${AEKO_TREASURY_ADDRESS:-}"
+      AEKO_PLATFORM_FEE_BPS: "${AEKO_PLATFORM_FEE_BPS:-200}"
     depends_on:
       - validator-1
     restart: unless-stopped

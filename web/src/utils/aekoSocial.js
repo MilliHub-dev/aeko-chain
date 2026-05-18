@@ -240,11 +240,74 @@ export function decodeSocialPostsStateAccount(base64Data) {
 }
 
 // ---------- discovery ----------
-
+//
 // State accounts are created by `social-bootstrap` with a random keypair
-// persisted on the validator host — no PDA. From the browser we ask the
-// validator for all accounts owned by the program; bootstrap creates exactly
-// one (re-runs no-op), so the first decoded hit is it.
+// persisted on the validator host. The browser has two ways to find them:
+//
+//   1. Hit the explorer-backend registry endpoint (/registry/social) which
+//      returns the pubkeys the OPERATOR pasted into Coolify after seeing
+//      them in the bootstrap log. Fast, one HTTP call, doesn't depend on
+//      the validator at all. This is the production path.
+//
+//   2. Fall back to getProgramAccounts on the validator RPC. Works on a
+//      local cluster but the public production RPC throttles or disables
+//      this method to prevent DoS — which is why the Mini Feed got stuck
+//      on "Initializing" even though bootstrap had succeeded.
+
+let cachedRegistry = null;
+let cachedRegistryAt = 0;
+const REGISTRY_TTL_MS = 60_000;
+
+export async function fetchSocialRegistry(explorerApiUrl) {
+  if (!explorerApiUrl) return null;
+  const now = Date.now();
+  if (cachedRegistry && now - cachedRegistryAt < REGISTRY_TTL_MS) {
+    return cachedRegistry;
+  }
+  try {
+    const res = await fetch(`${explorerApiUrl}/registry/social`);
+    if (!res.ok) return null;
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) return null;
+    const body = await res.json();
+    cachedRegistry = body?.data || null;
+    cachedRegistryAt = now;
+    return cachedRegistry;
+  } catch {
+    return null;
+  }
+}
+
+// Single-account discovery via the registry: ask the backend which state
+// account the operator pinned for `programKey`, then read it directly via
+// getAccountInfo. No getProgramAccounts call. Returns null on miss.
+export async function discoverViaRegistry({ rpcUrl, explorerApiUrl, programKey, decode }) {
+  const registry = await fetchSocialRegistry(explorerApiUrl);
+  const address = registry?.[programKey];
+  if (!address) return null;
+  const r = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'getAccountInfo',
+      params: [address, { commitment: 'confirmed', encoding: 'base64' }],
+    }),
+  });
+  if (!r.ok) return null;
+  const body = await r.json();
+  const info = body?.result?.value;
+  if (!info?.data?.[0]) return null;
+  try {
+    const decoded = decode(info.data[0]);
+    if (!decoded.isInitialized) return null;
+    return { address, decoded, lamports: info.lamports };
+  } catch {
+    return null;
+  }
+}
+
 export async function discoverProgramState({ rpcUrl, programId, decode, pickBest }) {
   const res = await fetch(rpcUrl, {
     method: 'POST',
@@ -279,9 +342,19 @@ export async function discoverProgramState({ rpcUrl, programId, decode, pickBest
   return best;
 }
 
-// Backwards-compatible wrapper used by the Mini Feed tab. Throws on missing
-// state because the feed needs it to render anything at all.
-export async function discoverSocialPostsStateAccount(rpcUrl) {
+// Try the operator-published registry first (one HTTP call, no
+// getProgramAccounts). Fall back to RPC scanning so local dev clusters that
+// don't run an explorer-backend still work.
+export async function discoverSocialPostsStateAccount(rpcUrl, explorerApiUrl) {
+  if (explorerApiUrl) {
+    const fromRegistry = await discoverViaRegistry({
+      rpcUrl,
+      explorerApiUrl,
+      programKey: 'posts',
+      decode: decodeSocialPostsStateAccount,
+    });
+    if (fromRegistry) return fromRegistry;
+  }
   const hit = await discoverProgramState({
     rpcUrl,
     programId: SOCIAL_POSTS_PROGRAM_ID,
@@ -292,7 +365,7 @@ export async function discoverSocialPostsStateAccount(rpcUrl) {
   });
   if (!hit) {
     throw new Error(
-      'No social-posts state account on chain. Run `aeko-social-bootstrap` to initialize the feed.',
+      'No social-posts state account on chain. Set AEKO_SOCIAL_POSTS_STATE on the explorer-backend (operator-published registry) or run `aeko-social-bootstrap`.',
     );
   }
   return hit;

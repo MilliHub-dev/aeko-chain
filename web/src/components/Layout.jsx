@@ -20,30 +20,38 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="fixed top-4 inset-x-4 md:top-6 md:inset-x-0 md:max-w-5xl md:mx-auto z-50">
-      <div className="bg-aeko-dark/70 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-full shadow-2xl shadow-black/50">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/" className="flex items-center space-x-3 group">
+    // Use lg as the breakpoint for the desktop pill nav. With 8 link items
+    // plus the brand + 2 icon buttons, the md (768px) breakpoint was too
+    // tight — links wrapped to two lines or got clipped behind the right-
+    // side controls at 800–1000px. Below lg we fall back to the mobile
+    // hamburger so the layout is never broken.
+    <nav className="fixed top-4 inset-x-4 lg:top-6 lg:inset-x-0 lg:max-w-6xl lg:mx-auto z-50">
+      <div className="bg-aeko-dark/70 backdrop-blur-xl border border-white/10 rounded-2xl lg:rounded-full shadow-2xl shadow-black/50">
+        <div className="px-4 sm:px-6 lg:px-6 xl:px-8">
+          <div className="flex items-center justify-between gap-4 h-16">
+            <Link to="/" className="flex items-center space-x-3 group shrink-0">
               <div className="relative">
                 <div className="absolute inset-0 bg-aeko-accent/20 blur-md rounded-full group-hover:bg-aeko-accent/40 transition-all duration-300" />
                 <img src={logo} alt="AEKO Logo" className="relative w-9 h-9 rounded-xl border border-white/10" />
               </div>
-              <span className="font-bold text-lg text-nowrap tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 group-hover:from-white group-hover:to-white transition-all duration-300">
+              <span className="font-bold text-lg whitespace-nowrap tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 group-hover:from-white group-hover:to-white transition-all duration-300">
                 AEKO CHAIN
               </span>
             </Link>
 
-            {/* Desktop Menu */}
-            <div className="hidden md:block">
-              <div className="flex items-center space-x-2">
+            {/* Desktop Menu — visible from lg up. Items use whitespace-nowrap
+                so labels never break mid-word. The container shrinks links'
+                horizontal padding at lg→xl gracefully so all 8 items + the
+                icon buttons fit a 1024px viewport without overflow. */}
+            <div className="hidden lg:block">
+              <div className="flex items-center gap-1 xl:gap-2">
                 {links.map((link) => {
                   const isActive = location.pathname === link.path;
                   return (
                     <Link
                       key={link.name}
                       to={link.path}
-                      className={`relative px-4 py-2 text-sm font-medium transition-all duration-300 rounded-full hover:text-white ${
+                      className={`relative px-3 xl:px-4 py-2 text-sm font-medium whitespace-nowrap transition-all duration-300 rounded-full hover:text-white ${
                         isActive ? 'text-white' : 'text-gray-400'
                       }`}
                     >
@@ -58,10 +66,11 @@ const Navbar = () => {
                     </Link>
                   );
                 })}
-                <div className="w-px h-6 bg-white/10 mx-2" />
+                <div className="w-px h-6 bg-white/10 mx-1 xl:mx-2 shrink-0" />
                 <Link
                   to="/explorer"
-                  className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all duration-300 group relative"
+                  aria-label="Aeko Scan"
+                  className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all duration-300 group relative shrink-0"
                 >
                   <Activity size={20} />
                   <span className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
@@ -72,17 +81,20 @@ const Navbar = () => {
                   href="https://github.com/MilliHub-dev/aeko-chain"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all duration-300"
+                  aria-label="GitHub repository"
+                  className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all duration-300 shrink-0"
                 >
                   <Github size={20} />
                 </a>
               </div>
             </div>
 
-            {/* Mobile Menu Button */}
-            <div className="md:hidden">
+            {/* Mobile/tablet menu button — visible below lg. */}
+            <div className="lg:hidden">
               <button
                 onClick={() => setIsOpen(!isOpen)}
+                aria-label={isOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={isOpen}
                 className="text-gray-300 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
                 {isOpen ? <X size={24} /> : <Menu size={24} />}
@@ -98,7 +110,7 @@ const Navbar = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-t border-white/10 overflow-hidden"
+              className="lg:hidden border-t border-white/10 overflow-hidden"
             >
               <div className="px-4 pt-2 pb-4 space-y-1">
                 {links.map((link) => (
@@ -106,7 +118,7 @@ const Navbar = () => {
                     key={link.name}
                     to={link.path}
                     onClick={() => setIsOpen(false)}
-                    className={`block px-4 py-3 rounded-xl text-base font-medium transition-colors ${
+                    className={`block px-4 py-3 rounded-xl text-base font-medium whitespace-nowrap transition-colors ${
                       location.pathname === link.path
                         ? 'bg-aeko-accent/10 text-aeko-accent'
                         : 'text-gray-300 hover:text-white hover:bg-white/5'

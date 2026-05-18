@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
+import { ToasterProvider } from './components/Toaster';
 import Home from './pages/Home';
 import Docs from './pages/Docs';
 import Token from './pages/Token';
@@ -21,6 +22,7 @@ import ScrollToTop from './components/ScrollToTop';
 
 function App() {
   return (
+    <ToasterProvider>
     <Layout>
       <ScrollToTop />
       <Routes>
@@ -43,6 +45,7 @@ function App() {
         <Route path="/nft-demo" element={<NftDemo />} />
       </Routes>
     </Layout>
+    </ToasterProvider>
   );
 }
 

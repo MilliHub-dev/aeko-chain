@@ -23,9 +23,12 @@ use {
         },
         store::ExplorerReadStore,
     },
-    anyhow::{Context, Result},
-    sqlx::{postgres::PgPoolOptions, PgPool, Row},
-    std::time::Duration,
+    anyhow::{anyhow, Context, Result},
+    sqlx::{
+        postgres::{PgConnectOptions, PgPoolOptions, PgSslMode},
+        ConnectOptions, PgPool, Row,
+    },
+    std::{str::FromStr, time::Duration},
     tokio::runtime::Handle,
 };
 
@@ -39,14 +42,35 @@ impl PgExplorerStore {
     /// fixed connect timeout because Coolify deploys often race the DB
     /// resource on first boot — better to log "DB not ready, retrying"
     /// than to hang forever.
+    ///
+    /// On failure, logs the host/port/db/user/sslmode (no password) and a
+    /// "what to check" hint that points the operator at the real fix:
+    /// security-group rules on a self-hosted DB, sslmode mismatches on a
+    /// managed DB, or wrong internal hostname when both run in compose.
     pub async fn connect(database_url: &str) -> Result<Self> {
+        let connect_opts = PgConnectOptions::from_str(database_url)
+            .context("parsing DATABASE_URL")?
+            // Fail fast on the TCP/TLS step rather than letting the pool's
+            // 10s acquire_timeout swallow a 75s OS-default connect hang.
+            .log_statements(tracing::log::LevelFilter::Trace);
+
+        // Pull the parts we want to log (or use to hint) BEFORE we move
+        // connect_opts into the pool builder. Password is intentionally not
+        // accessible here — sqlx only exposes the redacted form via Debug.
+        let host = extract_host(database_url).unwrap_or_else(|| "?".into());
+        let port = extract_port(database_url).unwrap_or(5432);
+        let db = extract_db(database_url).unwrap_or_else(|| "?".into());
+        let user = extract_user(database_url).unwrap_or_else(|| "?".into());
+        let sslmode = extract_sslmode(database_url).unwrap_or_else(|| "prefer (default)".into());
+        tracing::info!(host, port, db, user, sslmode, "connecting to postgres");
+
         let pool = PgPoolOptions::new()
             .max_connections(16)
             .min_connections(1)
             .acquire_timeout(Duration::from_secs(10))
-            .connect(database_url)
+            .connect_with(connect_opts)
             .await
-            .context("connecting to DATABASE_URL")?;
+            .map_err(|e| diagnose_connect_error(e, &host, port))?;
 
         sqlx::migrate!("./migrations")
             .run(&pool)
@@ -862,3 +886,83 @@ impl ExplorerReadStore for PgExplorerStore {
         })
     }
 }
+
+// ---------- connect diagnostics ----------
+//
+// sqlx 0.7 buries the underlying io::Error inside its `sqlx::Error::Io`
+// and `sqlx::Error::PoolTimedOut` variants without exposing host/port. We
+// re-parse the URL ourselves so the failure log says *what* was unreachable
+// and points the operator at the most likely fix.
+
+fn diagnose_connect_error(err: sqlx::Error, host: &str, port: u16) -> anyhow::Error {
+    use sqlx::Error::*;
+    let hint = match &err {
+        Io(_) | PoolTimedOut => format!(
+            "could not reach postgres at {host}:{port}. Check (1) the DB host's firewall / \
+             AWS security group allows inbound {port} from this container's egress IP, \
+             (2) postgresql.conf `listen_addresses` includes that interface, and \
+             (3) pg_hba.conf has a `host` line for this client. \
+             If the DB is in another compose service, use its service name as the host."
+        ),
+        Tls(_) => format!(
+            "TLS handshake to {host}:{port} failed. Most managed Postgres providers require \
+             `?sslmode=require` (or `verify-ca`) in DATABASE_URL."
+        ),
+        Database(db_err) => format!(
+            "postgres reachable at {host}:{port} but rejected the connection: {db_err}. \
+             Usually wrong user/password or missing database."
+        ),
+        _ => format!("postgres at {host}:{port} returned an unexpected error."),
+    };
+    anyhow!(err).context("connecting to DATABASE_URL").context(hint)
+}
+
+fn extract_host(url: &str) -> Option<String> {
+    let rest = url.split("://").nth(1)?;
+    let after_auth = rest.rsplit_once('@').map(|(_, h)| h).unwrap_or(rest);
+    let host_port = after_auth.split(['/', '?']).next()?;
+    let host = host_port.rsplit_once(':').map(|(h, _)| h).unwrap_or(host_port);
+    Some(host.trim_matches(|c| c == '[' || c == ']').to_string())
+}
+
+fn extract_port(url: &str) -> Option<u16> {
+    let rest = url.split("://").nth(1)?;
+    let after_auth = rest.rsplit_once('@').map(|(_, h)| h).unwrap_or(rest);
+    let host_port = after_auth.split(['/', '?']).next()?;
+    host_port.rsplit_once(':').and_then(|(_, p)| p.parse().ok())
+}
+
+fn extract_db(url: &str) -> Option<String> {
+    let rest = url.split("://").nth(1)?;
+    let after_host = rest.split_once('/')?.1;
+    let db = after_host.split('?').next()?;
+    if db.is_empty() {
+        None
+    } else {
+        Some(db.to_string())
+    }
+}
+
+fn extract_user(url: &str) -> Option<String> {
+    let rest = url.split("://").nth(1)?;
+    let auth = rest.rsplit_once('@').map(|(a, _)| a)?;
+    Some(auth.split(':').next().unwrap_or(auth).to_string())
+}
+
+fn extract_sslmode(url: &str) -> Option<String> {
+    let query = url.split_once('?').map(|(_, q)| q)?;
+    for pair in query.split('&') {
+        if let Some((k, v)) = pair.split_once('=') {
+            if k.eq_ignore_ascii_case("sslmode") {
+                return Some(v.to_string());
+            }
+        }
+    }
+    None
+}
+
+// Silence "unused" on PgSslMode for now — kept in scope so a future change
+// can plumb a default sslmode override through PgConnectOptions::ssl_mode()
+// without re-introducing the import.
+#[allow(dead_code)]
+fn _ssl_mode_marker(_: PgSslMode) {}

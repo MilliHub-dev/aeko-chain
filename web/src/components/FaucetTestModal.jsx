@@ -46,6 +46,7 @@ import {
   decodeSocialStakingStateAccount,
   discoverProgramState,
   discoverSocialPostsStateAccount,
+  discoverViaRegistry,
   randomBytes32,
   sha256,
   summarizeEngagements,
@@ -728,6 +729,7 @@ function ProgramCard({ program, slice, onJumpToFeed, explorerHost }) {
 const PROGRAM_DEFS_FACTORY = () => [
   {
     key: 'posts',
+    registryKey: 'posts',
     name: 'social-posts',
     programId: SOCIAL_POSTS_PROGRAM_ID,
     blurb: 'Anchors user posts and engagement proofs on chain.',
@@ -743,6 +745,7 @@ const PROGRAM_DEFS_FACTORY = () => [
   },
   {
     key: 'rewards',
+    registryKey: 'rewards',
     name: 'social-rewards',
     programId: SOCIAL_REWARDS_PROGRAM_ID,
     blurb: 'Distributes creator + engagement rewards.',
@@ -758,6 +761,7 @@ const PROGRAM_DEFS_FACTORY = () => [
   },
   {
     key: 'staking',
+    registryKey: 'staking',
     name: 'social-staking',
     programId: SOCIAL_STAKING_PROGRAM_ID,
     blurb: 'Stake AEKO behind creators; cooldown + slashable.',
@@ -773,6 +777,7 @@ const PROGRAM_DEFS_FACTORY = () => [
   },
   {
     key: 'antiSpam',
+    registryKey: 'antiSpam',
     name: 'social-anti-spam',
     programId: SOCIAL_ANTI_SPAM_PROGRAM_ID,
     blurb: 'Reputation, throttling, slash signals.',
@@ -788,6 +793,7 @@ const PROGRAM_DEFS_FACTORY = () => [
   },
   {
     key: 'monetization',
+    registryKey: 'monetization',
     name: 'social-monetization',
     programId: SOCIAL_MONETIZATION_PROGRAM_ID,
     blurb: 'Tips, subscriptions, paid-content unlocks.',
@@ -807,7 +813,7 @@ const PROGRAM_DEFS_FACTORY = () => [
   },
 ];
 
-function ProgramsTab({ rpcUrl, onJumpToFeed }) {
+function ProgramsTab({ rpcUrl, explorerApiUrl, onJumpToFeed }) {
   const programs = useMemo(() => PROGRAM_DEFS_FACTORY(), []);
   const [slices, setSlices] = useState(() =>
     programs.reduce((acc, p) => ({ ...acc, [p.key]: { status: 'loading' } }), {}),
@@ -828,11 +834,25 @@ function ProgramsTab({ rpcUrl, onJumpToFeed }) {
   const probeOne = useCallback(
     async (program) => {
       try {
-        const hit = await discoverProgramState({
-          rpcUrl,
-          programId: program.programId,
-          decode: program.decode,
-        });
+        // Registry first (operator-published, single HTTP call). Falls
+        // back to getProgramAccounts only if the registry has no entry
+        // for this program — which is fine for local dev clusters.
+        let hit = null;
+        if (explorerApiUrl) {
+          hit = await discoverViaRegistry({
+            rpcUrl,
+            explorerApiUrl,
+            programKey: program.registryKey,
+            decode: program.decode,
+          });
+        }
+        if (!hit) {
+          hit = await discoverProgramState({
+            rpcUrl,
+            programId: program.programId,
+            decode: program.decode,
+          });
+        }
         if (!hit) {
           setSlices((s) => ({ ...s, [program.key]: { status: 'missing' } }));
           return;
@@ -853,7 +873,7 @@ function ProgramsTab({ rpcUrl, onJumpToFeed }) {
         }));
       }
     },
-    [rpcUrl],
+    [rpcUrl, explorerApiUrl],
   );
 
   const probeAll = useCallback(async () => {
@@ -999,7 +1019,7 @@ function AvatarDot({ address, size = 36 }) {
   );
 }
 
-function MiniFeedTab({ wallets, balances, refreshBalance, rpcUrl }) {
+function MiniFeedTab({ wallets, balances, refreshBalance, rpcUrl, explorerApiUrl }) {
   const [discovery, setDiscovery] = useState({ status: 'loading' });
   const [state, setState] = useState(null);
   const [poll, setPoll] = useState({ refreshing: false, error: null, lastSync: null });
@@ -1026,7 +1046,10 @@ function MiniFeedTab({ wallets, balances, refreshBalance, rpcUrl }) {
     async ({ silent = false } = {}) => {
       if (!silent) setPoll((p) => ({ ...p, refreshing: true, error: null }));
       try {
-        const { address, decoded } = await discoverSocialPostsStateAccount(rpcUrl);
+        const { address, decoded } = await discoverSocialPostsStateAccount(
+          rpcUrl,
+          explorerApiUrl,
+        );
         setDiscovery({ status: 'ok', stateAccount: address });
         setState(decoded);
         setPoll({ refreshing: false, error: null, lastSync: Date.now() });
@@ -1035,7 +1058,7 @@ function MiniFeedTab({ wallets, balances, refreshBalance, rpcUrl }) {
         setDiscovery((d) => (d.status === 'ok' ? d : { status: 'error', message: e.message || String(e) }));
       }
     },
-    [rpcUrl],
+    [rpcUrl, explorerApiUrl],
   );
 
   useEffect(() => {
@@ -1423,7 +1446,7 @@ function MiniFeedTab({ wallets, balances, refreshBalance, rpcUrl }) {
 
 // ---------- modal shell ----------
 
-export default function FaucetTestModal({ open, onClose, rpcUrl, network }) {
+export default function FaucetTestModal({ open, onClose, rpcUrl, network, explorerApiUrl }) {
   const [tab, setTab] = useState('wallets');
   const [wallets, setWallets] = useState([]);
   const [balances, setBalances] = useState({});
@@ -1610,7 +1633,11 @@ export default function FaucetTestModal({ open, onClose, rpcUrl, network }) {
                 />
               )}
               {tab === 'programs' && (
-                <ProgramsTab rpcUrl={rpcUrl} onJumpToFeed={() => setTab('social')} />
+                <ProgramsTab
+                  rpcUrl={rpcUrl}
+                  explorerApiUrl={explorerApiUrl}
+                  onJumpToFeed={() => setTab('social')}
+                />
               )}
               {tab === 'social' && (
                 <MiniFeedTab
@@ -1618,6 +1645,7 @@ export default function FaucetTestModal({ open, onClose, rpcUrl, network }) {
                   balances={balances}
                   refreshBalance={refreshBalance}
                   rpcUrl={rpcUrl}
+                  explorerApiUrl={explorerApiUrl}
                 />
               )}
             </div>

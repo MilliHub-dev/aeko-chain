@@ -113,6 +113,7 @@ aeko airdrop 10 <recipient-address> --url ${config.cliCluster}`}</code>
         onClose={() => setTestOpen(false)}
         rpcUrl={modalRpc}
         network={config.label}
+        explorerApiUrl={config.explorerApiUrl}
       />
     </div>
   );

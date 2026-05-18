@@ -1,8 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Activity, Blocks, ChevronLeft, ChevronRight, Image, RotateCcw, Search, Sparkles, Wallet } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { fetchExplorerHome, getExplorerAvailability, searchExplorer } from '../utils/explorerApi';
+import {
+  ActiveFiltersBar,
+  ExplorerFiltersModal,
+  FILTER_FIELDS,
+  sanitizeCursor,
+  sanitizeSearchQuery,
+  SEARCH_QUERY_MIN,
+} from '../components/ExplorerFilters';
+import { StatusBannerStack } from '../components/StatusBanner';
+import { useToaster } from '../components/Toaster';
+
+// Wait this long after the last filter change before firing a new fetch.
+// Removing three chips in quick succession should be ONE backend call, not
+// three. 250ms is short enough that single removals still feel instant.
+const FILTER_FETCH_DEBOUNCE_MS = 250;
 
 export default function Explorer() {
   const [network, setNetwork] = useState('testnet');
@@ -18,34 +33,41 @@ export default function Explorer() {
   });
   const [query, setQuery] = useState(searchParams.get('q') || '');
   const [searchState, setSearchState] = useState({ loading: false, error: '', matches: [] });
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const toaster = useToaster();
 
   const unavailable = !getExplorerAvailability(network);
   const networkLabel = useMemo(() => network.charAt(0).toUpperCase() + network.slice(1), [network]);
 
-  const filters = useMemo(
-    () => ({
-      txAddress: searchParams.get('txAddress') || '',
-      txType: searchParams.get('txType') || '',
-      txStatus: searchParams.get('txStatus') || '',
-      txBefore: searchParams.get('txBefore') || '',
-      txAfter: searchParams.get('txAfter') || '',
-      postCreator: searchParams.get('postCreator') || '',
-      postKind: searchParams.get('postKind') || '',
-      postVisibility: searchParams.get('postVisibility') || '',
-      postBefore: searchParams.get('postBefore') || '',
-      postAfter: searchParams.get('postAfter') || '',
-      blockBefore: searchParams.get('blockBefore') || '',
-      blockAfter: searchParams.get('blockAfter') || '',
-      stakeWallet: searchParams.get('stakeWallet') || '',
-      stakeCreator: searchParams.get('stakeCreator') || '',
-      stakeStaker: searchParams.get('stakeStaker') || '',
-      stakeState: searchParams.get('stakeState') || '',
-      nftCollection: searchParams.get('nftCollection') || '',
-      nftOwner: searchParams.get('nftOwner') || '',
-      nftCreator: searchParams.get('nftCreator') || '',
-    }),
-    [searchParams],
-  );
+  // Sanitize every URL-derived filter value before it can reach the backend.
+  // Hand-edited URLs can carry anything — control chars, megabyte strings,
+  // SQL-keyword pastes. sqlx parameterizes so injection is impossible, but
+  // an unsanitized value still costs a wasted scan. Clip to reasonable
+  // bounds and drop obviously-bad cursors.
+  const filters = useMemo(() => {
+    const get = (key, max = 128) => (searchParams.get(key) || '').trim().slice(0, max);
+    return {
+      txAddress: get('txAddress', 64),
+      txType: get('txType'),
+      txStatus: get('txStatus', 16),
+      txBefore: sanitizeCursor(searchParams.get('txBefore')),
+      txAfter: sanitizeCursor(searchParams.get('txAfter')),
+      postCreator: get('postCreator', 64),
+      postKind: get('postKind', 16),
+      postVisibility: get('postVisibility', 24),
+      postBefore: sanitizeCursor(searchParams.get('postBefore')),
+      postAfter: sanitizeCursor(searchParams.get('postAfter')),
+      blockBefore: sanitizeCursor(searchParams.get('blockBefore')),
+      blockAfter: sanitizeCursor(searchParams.get('blockAfter')),
+      stakeWallet: get('stakeWallet', 64),
+      stakeCreator: get('stakeCreator', 64),
+      stakeStaker: get('stakeStaker', 64),
+      stakeState: get('stakeState', 16),
+      nftCollection: get('nftCollection', 64),
+      nftOwner: get('nftOwner', 64),
+      nftCreator: get('nftCreator', 64),
+    };
+  }, [searchParams]);
 
   useEffect(() => {
     if (unavailable) {
@@ -58,15 +80,19 @@ export default function Explorer() {
         stakes: [],
         nfts: [],
       });
-      return;
+      return undefined;
     }
 
     let cancelled = false;
     setHomeState((current) => ({ ...current, loading: true, error: '' }));
 
-    fetchExplorerHome(network, filters)
-      .then((data) => {
-        if (!cancelled) {
+    // Debounce so rapid filter changes coalesce into a single backend call.
+    // The cleanup also cancels the in-flight fetch by flipping `cancelled`,
+    // so its callback is a no-op even if it resolves after the next request.
+    const timer = setTimeout(() => {
+      fetchExplorerHome(network, filters)
+        .then((data) => {
+          if (cancelled) return;
           setHomeState({
             loading: false,
             error: '',
@@ -76,10 +102,9 @@ export default function Explorer() {
             stakes: data.stakes || [],
             nfts: data.nfts || [],
           });
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
+        })
+        .catch((error) => {
+          if (cancelled) return;
           setHomeState({
             loading: false,
             error: error.message,
@@ -89,71 +114,134 @@ export default function Explorer() {
             stakes: [],
             nfts: [],
           });
-        }
-      });
+        });
+    }, FILTER_FETCH_DEBOUNCE_MS);
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [network, unavailable, filters]);
 
+  const lastSearchRef = useRef('');
+
   async function handleSearch(event) {
     event.preventDefault();
-    if (!query.trim() || unavailable) {
+    if (unavailable) return;
+
+    const cleaned = sanitizeSearchQuery(query);
+    if (cleaned.length < SEARCH_QUERY_MIN) {
+      setSearchState({
+        loading: false,
+        error: `Type at least ${SEARCH_QUERY_MIN} characters to search.`,
+        matches: [],
+      });
       return;
     }
+    // Skip identical re-submits — common when users hit Enter twice or
+    // when the input still holds the last successful query.
+    if (cleaned === lastSearchRef.current) return;
+    lastSearchRef.current = cleaned;
 
     setSearchState({ loading: true, error: '', matches: [] });
     try {
-      const payload = await searchExplorer(network, query.trim());
+      const payload = await searchExplorer(network, cleaned);
       setSearchState({
         loading: false,
         error: '',
         matches: payload.matches || [],
       });
       const next = new URLSearchParams(searchParams);
-      next.set('q', query.trim());
+      next.set('q', cleaned);
       setSearchParams(next, { replace: true });
     } catch (error) {
       setSearchState({ loading: false, error: error.message, matches: [] });
     }
   }
 
-  function updateFilter(name, value) {
-    const next = new URLSearchParams(searchParams);
-    if (value) {
-      next.set(name, value);
-    } else {
-      next.delete(name);
-    }
-    setSearchParams(next, { replace: true });
-  }
+  const updateFilter = useCallback(
+    (name, value) => {
+      const next = new URLSearchParams(searchParams);
+      if (value) {
+        next.set(name, value);
+      } else {
+        next.delete(name);
+      }
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
-  function clearFilters() {
+  const clearFilters = useCallback(() => {
     const next = new URLSearchParams(searchParams);
     [
-      'txAddress',
-      'txType',
-      'txStatus',
+      ...FILTER_FIELDS.map((f) => f.key),
+      // Pagination cursors live in URL too; clearing the user's "where am I
+      // looking" intent should also reset their scroll-through-time position.
       'txBefore',
       'txAfter',
-      'postCreator',
-      'postKind',
-      'postVisibility',
       'postBefore',
       'postAfter',
       'blockBefore',
       'blockAfter',
-      'stakeWallet',
-      'stakeCreator',
-      'stakeStaker',
-      'stakeState',
-      'nftCollection',
-      'nftOwner',
-      'nftCreator',
     ].forEach((key) => next.delete(key));
     setSearchParams(next, { replace: true });
-  }
+    toaster.info('Filters cleared.');
+  }, [searchParams, setSearchParams, toaster]);
+
+  // Apply a whole filter set from the modal in one URL update. Surfaces a
+  // success banner with a quick summary of how many filters landed.
+  const applyFilters = useCallback(
+    (next) => {
+      const params = new URLSearchParams(searchParams);
+      let appliedCount = 0;
+      FILTER_FIELDS.forEach((f) => {
+        const v = (next[f.key] || '').trim();
+        if (v) {
+          params.set(f.key, v);
+          appliedCount += 1;
+        } else {
+          params.delete(f.key);
+        }
+      });
+      setSearchParams(params, { replace: true });
+      if (appliedCount === 0) {
+        toaster.info('Filters cleared — showing latest network activity.');
+      } else {
+        toaster.success(
+          `${appliedCount} filter${appliedCount === 1 ? '' : 's'} applied. Refreshing results…`,
+        );
+      }
+    },
+    [searchParams, setSearchParams, toaster],
+  );
+
+  // Suggestion sources for each autocomplete field — drawn from what's
+  // currently rendered on the page so users can one-tap fill from context.
+  const pageSuggestions = useMemo(() => {
+    const txAddrs = new Set();
+    const txPrograms = new Set();
+    homeState.transactions.forEach((t) => {
+      if (t.signer) txAddrs.add(t.signer);
+      if (t.primaryProgram) txPrograms.add(t.primaryProgram);
+    });
+    const creators = new Set(homeState.posts.map((p) => p.creator).filter(Boolean));
+    const stakers = new Set(homeState.stakes.map((s) => s.staker).filter(Boolean));
+    const stakeCreators = new Set(homeState.stakes.map((s) => s.creator).filter(Boolean));
+    const nftOwners = new Set(homeState.nfts.map((n) => n.owner).filter(Boolean));
+    const nftCreators = new Set(homeState.nfts.map((n) => n.creator).filter(Boolean));
+    const nftCollections = new Set(homeState.nfts.map((n) => n.collection).filter(Boolean));
+    return {
+      txAddress: [...txAddrs],
+      txType: [...txPrograms],
+      postCreator: [...creators],
+      stakeWallet: [...stakers],
+      stakeCreator: [...stakeCreators],
+      nftOwner: [...nftOwners],
+      nftCreator: [...nftCreators],
+      nftCollection: [...nftCollections],
+    };
+  }, [homeState]);
 
   function paginateWindow(kind, direction) {
     const next = new URLSearchParams(searchParams);
@@ -223,56 +311,61 @@ export default function Explorer() {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
         <input
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            // Cap typed length up front so paste-bombs don't enter state.
+            // Control chars are stripped at submit, but trimming whitespace
+            // here keeps the visible value clean too.
+            setQuery(event.target.value.slice(0, 100));
+          }}
           placeholder="Search blocks, transactions, addresses, posts, NFTs"
+          maxLength={100}
+          spellCheck="false"
+          autoComplete="off"
+          aria-label="Explorer search"
           className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-28 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-aeko-accent/50"
         />
         <button
           type="submit"
-          className="absolute right-2 top-2 bottom-2 px-5 rounded-xl bg-aeko-accent/10 hover:bg-aeko-accent/20 text-aeko-accent transition-colors"
+          disabled={searchState.loading}
+          className="absolute right-2 top-2 bottom-2 px-5 rounded-xl bg-aeko-accent/10 hover:bg-aeko-accent/20 text-aeko-accent transition-colors disabled:opacity-50"
         >
-          Search
+          {searchState.loading ? 'Searching…' : 'Search'}
         </button>
       </form>
 
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8">
-        <div className="flex items-center justify-between gap-4 mb-5">
-          <h2 className="text-lg font-bold">Explorer Filters</h2>
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="text-sm text-gray-400 hover:text-white transition-colors"
-          >
-            Clear filters
-          </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <FilterInput label="Tx Address" value={filters.txAddress} onChange={(value) => updateFilter('txAddress', value)} />
-          <FilterInput label="Tx Program" value={filters.txType} onChange={(value) => updateFilter('txType', value)} />
-          <FilterSelect label="Tx Status" value={filters.txStatus} onChange={(value) => updateFilter('txStatus', value)} options={['', 'success', 'failed']} />
-          <FilterInput label="Post Creator" value={filters.postCreator} onChange={(value) => updateFilter('postCreator', value)} />
-          <FilterSelect label="Post Kind" value={filters.postKind} onChange={(value) => updateFilter('postKind', value)} options={['', 'original', 'reply', 'repost', 'quote']} />
-          <FilterSelect label="Visibility" value={filters.postVisibility} onChange={(value) => updateFilter('postVisibility', value)} options={['', 'public', 'followers-only', 'permissioned', 'paid']} />
-          <FilterInput label="Stake Wallet" value={filters.stakeWallet} onChange={(value) => updateFilter('stakeWallet', value)} />
-          <FilterInput label="Stake Creator" value={filters.stakeCreator} onChange={(value) => updateFilter('stakeCreator', value)} />
-          <FilterSelect label="Stake State" value={filters.stakeState} onChange={(value) => updateFilter('stakeState', value)} options={['', 'active', 'cooling-down', 'closed', 'slashed']} />
-          <FilterInput label="NFT Collection" value={filters.nftCollection} onChange={(value) => updateFilter('nftCollection', value)} />
-          <FilterInput label="NFT Owner" value={filters.nftOwner} onChange={(value) => updateFilter('nftOwner', value)} />
-          <FilterInput label="NFT Creator" value={filters.nftCreator} onChange={(value) => updateFilter('nftCreator', value)} />
-        </div>
-      </div>
+      <ActiveFiltersBar
+        filters={filters}
+        onOpen={() => setFiltersOpen(true)}
+        onRemove={(key) => updateFilter(key, '')}
+        onClearAll={clearFilters}
+      />
 
-      {unavailable ? (
-        <div className="mb-8 bg-amber-500/10 border border-amber-500/20 text-amber-200 rounded-2xl p-6">
-          Explorer API not configured for {network}.
-        </div>
-      ) : null}
+      <ExplorerFiltersModal
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        initialFilters={filters}
+        pageSuggestions={pageSuggestions}
+        onApply={applyFilters}
+      />
 
-      {!unavailable && searchState.error ? (
-        <div className="mb-8 bg-red-500/10 border border-red-500/20 text-red-200 rounded-2xl p-6">
-          {searchState.error}
-        </div>
-      ) : null}
+      <StatusBannerStack
+        banners={[
+          unavailable && {
+            id: 'unavailable',
+            kind: 'info',
+            title: 'Explorer API not configured',
+            children: `The ${networkLabel} network has no explorer API endpoint set. Switch network or configure VITE_AEKO_${network.toUpperCase()}_EXPLORER_API.`,
+          },
+          !unavailable && searchState.error && {
+            id: 'search-error',
+            kind: 'error',
+            title: 'Search failed',
+            children: searchState.error,
+            onDismiss: () =>
+              setSearchState((s) => ({ ...s, error: '' })),
+          },
+        ].filter(Boolean)}
+      />
 
       {!unavailable && (searchState.loading || searchState.matches.length > 0) ? (
         <div className="mb-10 bg-white/5 border border-white/10 rounded-2xl p-6">
@@ -289,11 +382,22 @@ export default function Explorer() {
         </div>
       ) : null}
 
-      {!unavailable && homeState.error ? (
-        <div className="mb-8 bg-red-500/10 border border-red-500/20 text-red-200 rounded-2xl p-6">
-          {homeState.error}
+      {!unavailable && homeState.error && (
+        <div className="mb-8">
+          <StatusBannerStack
+            banners={[
+              {
+                id: 'home-error',
+                kind: 'error',
+                title: 'Couldn’t load explorer data',
+                children: homeState.error,
+                onDismiss: () =>
+                  setHomeState((s) => ({ ...s, error: '' })),
+              },
+            ]}
+          />
         </div>
-      ) : null}
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-10">
         <StatCard icon={Blocks} label="Recent Blocks" value={homeState.blocks.length} />
@@ -477,38 +581,6 @@ function PagerControls({ active, onOlder, onNewer, onReset }) {
         </button>
       ) : null}
     </div>
-  );
-}
-
-function FilterInput({ label, value, onChange }) {
-  return (
-    <label className="block">
-      <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">{label}</div>
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-aeko-accent/40"
-      />
-    </label>
-  );
-}
-
-function FilterSelect({ label, value, onChange, options }) {
-  return (
-    <label className="block">
-      <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">{label}</div>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-aeko-accent/40"
-      >
-        {options.map((option) => (
-          <option key={option || 'all'} value={option} className="bg-aeko-dark">
-            {option || 'All'}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }
 
