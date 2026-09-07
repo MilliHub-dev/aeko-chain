@@ -25,7 +25,7 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          # Convert repo name to lowercase to prevent GHCR naming errors
+          # Convert repo name to lowercase to prevent GHCR naming errors and deploy
           IMAGE_NAME=$(echo "ghcr.io/${{ github.repository }}/aeko-node:latest" | tr '[:upper:]' '[:lower:]')
           
           docker build -t $IMAGE_NAME .
