@@ -100,6 +100,19 @@ if [ "$#" -eq 0 ]; then
       exit 64
       ;;
   esac
+
+  # Docker bridge deployments must explicitly advertise the host address and
+  # publish the same validator transport range. These flags are opt-in so the
+  # portable/local compose retains its existing behavior.
+  if [ -n "${AEKO_GOSSIP_HOST:-}" ]; then
+    set -- "$@" --gossip-host "$AEKO_GOSSIP_HOST"
+  fi
+  if [ -n "${AEKO_DYNAMIC_PORT_RANGE:-}" ]; then
+    set -- "$@" --dynamic-port-range "$AEKO_DYNAMIC_PORT_RANGE"
+  fi
+  if [ -n "${AEKO_PUBLIC_RPC_ADDRESS:-}" ]; then
+    set -- "$@" --public-rpc-address "$AEKO_PUBLIC_RPC_ADDRESS"
+  fi
 fi
 
 exec aeko-validator "$@"
