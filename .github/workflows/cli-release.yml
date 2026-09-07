@@ -44,11 +44,16 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       CARGO_PROFILE_RELEASE_STRIP: symbols
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
       TARGET: ${{ matrix.target }}
       ARCHIVE: ${{ matrix.archive }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
 
       - name: Install pinned Rust toolchain
         shell: bash
@@ -59,6 +64,7 @@ jobs:
           rustup default 1.85.0
           rustc --version
           cargo --version
+          sccache --version
 
       - name: Install Linux native dependencies
         if: runner.os == 'Linux'
