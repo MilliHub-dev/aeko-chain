@@ -18,6 +18,20 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Validate deployment contracts
+        shell: bash
+        env:
+          AEKO_PUBLIC_IP: 203.0.113.10
+          AEKO_KEYS_DIR: ../files/aeko-keys
+          EXPLORER_DATABASE_URL: postgres://aeko:aeko@postgres:5432/aeko_explorer
+          AEKO_IMAGE_TAG: ci
+        run: |
+          set -euo pipefail
+          bash -n docker/validator-entrypoint.sh
+          bash -n scripts/deploy-testnet.sh
+          docker compose -f docker-compose.yml config >/dev/null
+          docker compose -f docker-compose.dokploy.yml config >/dev/null
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
