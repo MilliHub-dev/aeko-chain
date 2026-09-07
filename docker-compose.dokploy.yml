@@ -1,0 +1,228 @@
+name: aeko-public-network
+
+# Dokploy production/testnet deployment contract.
+#
+# This file intentionally contains no `build:` directives. Every runtime is
+# pulled from Docker Hub, so Dokploy deploys the exact images published by the
+# GitHub Actions main-branch image workflow.
+#
+# Required Dokploy environment variables:
+#   AEKO_PUBLIC_IP=<public IPv4/IPv6 address advertised by the validator>
+#   AEKO_KEYS_DIR=../files/aeko-keys
+#   EXPLORER_DATABASE_URL=postgres://...
+#
+# Recommended:
+#   AEKO_IMAGE_TAG=<12-char main commit SHA>
+# Use `latest` only when automatic roll-forward is intentional.
+#
+# Public HTTPS/WSS domains are configured in Dokploy's Domains UI:
+#   rpc.aeko.online  -> rpc-node:8899
+#   ws.aeko.online   -> rpc-node:8900
+#   api.aeko.online  -> explorer-api:8088
+#   scan.aeko.online -> explorer-ui:4000
+#
+# Validator transport is not HTTP. DNS for gossip.aeko.online must resolve to
+# AEKO_PUBLIC_IP and the host firewall/security group must allow TCP+UDP
+# 8000-8050. The validator advertises exactly that range.
+
+services:
+  faucet:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-faucet:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    volumes:
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/faucet-keypair.json:/keys/faucet.json:ro
+    command:
+      - --keypair
+      - /keys/faucet.json
+    expose:
+      - "9900"
+    networks: [aeko]
+
+  validator:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-validator:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      AEKO_NODE_ROLE: validator
+      AEKO_BOOTSTRAP: "1"
+      AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
+      AEKO_FAUCET_ADDRESS: faucet:9900
+      AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?Set AEKO_PUBLIC_IP to the public address of this Dokploy server}
+      AEKO_GOSSIP_PORT: "8001"
+      AEKO_DYNAMIC_PORT_RANGE: 8000-8050
+    ulimits:
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    # AEKO/Solana-style validator transport uses more than the gossip socket.
+    # Keep a same-port host mapping so the address advertised in gossip remains
+    # reachable by future external validators and RPC peers.
+    ports:
+      - "8000-8050:8000-8050/tcp"
+      - "8000-8050:8000-8050/udp"
+    expose:
+      - "8899"
+      - "8900"
+    volumes:
+      - validator-ledger:/ledger
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/validator-1-keypair.json:/keys/identity.json:ro
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/vote-1-keypair.json:/keys/vote.json:ro
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/stake-keypair.json:/keys/stake.json:ro
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/faucet-keypair.json:/keys/faucet.json:ro
+    depends_on:
+      faucet:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS -X POST -H 'Content-Type: application/json'
+          -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+          http://127.0.0.1:8899 | grep -q '"result":"ok"'
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    networks: [aeko]
+
+  # Public read/write RPC edge. This is the same validator executable running
+  # with --no-voting. Keeping RPC/PubSub off the block producer isolates public
+  # application traffic from consensus work.
+  rpc-node:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-validator:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      AEKO_NODE_ROLE: rpc
+      AEKO_ENTRYPOINT: validator:8001
+      AEKO_FAUCET_ADDRESS: faucet:9900
+      # The RPC replica participates over the private Compose network. Its
+      # public client surface is provided by Dokploy/Traefik on 8899 and 8900.
+      AEKO_DYNAMIC_PORT_RANGE: 8051-8101
+    ulimits:
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    expose:
+      - "8899"
+      - "8900"
+    volumes:
+      - rpc-ledger:/ledger
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/rpc-node-keypair.json:/keys/identity.json:ro
+    depends_on:
+      validator:
+        condition: service_healthy
+      faucet:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS -X POST -H 'Content-Type: application/json'
+          -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+          http://127.0.0.1:8899 | grep -q '"result":"ok"'
+      interval: 30s
+      timeout: 5s
+      retries: 6
+      start_period: 180s
+    networks: [aeko]
+
+  # Idempotent one-shot initialization of the five native SocialFi programs.
+  # State keypairs and the generated registry survive redeploys in social-state.
+  social-bootstrap:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    environment:
+      AEKO_RPC_URL: http://validator:8899
+      AEKO_PAYER_KEYPAIR: /keys/faucet.json
+      AEKO_BOOTSTRAP_OUT_DIR: /state
+      AEKO_TREASURY_ADDRESS: ${AEKO_TREASURY_ADDRESS:-}
+      AEKO_REWARD_VAULT: ${AEKO_REWARD_VAULT:-}
+      AEKO_STAKE_VAULT: ${AEKO_STAKE_VAULT:-}
+      AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-200}
+    volumes:
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/faucet-keypair.json:/keys/faucet.json:ro
+      - social-state:/state
+    depends_on:
+      validator:
+        condition: service_healthy
+    restart: on-failure:20
+    networks: [aeko]
+
+  explorer-api:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-explorer-api:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      # Index through the dedicated RPC replica rather than loading consensus.
+      AEKO_EXPLORER_RPC: http://rpc-node:8899
+      AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-testnet}
+      AEKO_EXPLORER_BIND: 0.0.0.0:8088
+      AEKO_EXPLORER_START_SLOT: ${AEKO_EXPLORER_START_SLOT:-0}
+      DATABASE_URL: ${EXPLORER_DATABASE_URL:?Set EXPLORER_DATABASE_URL to persistent PostgreSQL}
+      AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env
+      # Optional operator overrides. Empty values fall back to the registry
+      # generated by social-bootstrap.
+      AEKO_SOCIAL_POSTS_STATE: ${AEKO_SOCIAL_POSTS_STATE:-}
+      AEKO_SOCIAL_REWARDS_STATE: ${AEKO_SOCIAL_REWARDS_STATE:-}
+      AEKO_SOCIAL_STAKING_STATE: ${AEKO_SOCIAL_STAKING_STATE:-}
+      AEKO_SOCIAL_ANTI_SPAM_STATE: ${AEKO_SOCIAL_ANTI_SPAM_STATE:-}
+      AEKO_SOCIAL_MONETIZATION_STATE: ${AEKO_SOCIAL_MONETIZATION_STATE:-}
+      AEKO_REWARD_VAULT_ACCOUNT: ${AEKO_REWARD_VAULT_ACCOUNT:-}
+      AEKO_TREASURY_ADDRESS: ${AEKO_TREASURY_ADDRESS:-}
+      AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-}
+    expose:
+      - "8088"
+    volumes:
+      - social-state:/state:ro
+    depends_on:
+      rpc-node:
+        condition: service_healthy
+      social-bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks: [aeko]
+
+  explorer-ui:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-explorer-ui:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    expose:
+      - "4000"
+    depends_on:
+      explorer-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks: [aeko]
+
+  # Wallets are cryptographic identities, not a long-running chain node. This
+  # optional operator profile supplies the AEKO CLI/keygen image for creating
+  # and inspecting wallet/keypair material without putting it in validator.
+  wallet-tools:
+    profiles: ["ops"]
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    command: ["aeko", "--help"]
+    volumes:
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys
+    networks: [aeko]
+
+networks:
+  aeko:
+    driver: bridge
+
+volumes:
+  validator-ledger:
+  rpc-ledger:
+  social-state:
