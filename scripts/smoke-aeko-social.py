@@ -2,8 +2,9 @@
 """Smoke-test the deployed AEKO network and SocialFi read path.
 
 This intentionally uses only the Python standard library. It proves deployment
-wiring and on-chain SocialFi state ownership; it does not fabricate a signed
-post transaction. Use the Explorer/Faucet test console for the write-path test.
+wiring, all five on-chain SocialFi state accounts, indexed SocialFi reads, and
+the Explorer live-status bridge. It does not fabricate a signed user write;
+use the Explorer SocialFi test page for that write-path acceptance step.
 """
 
 from __future__ import annotations
@@ -166,17 +167,45 @@ def check_state_owners(registry: dict[str, str]) -> None:
         print(f"[ok] {key} state exists, initialized, and is owned by {expected_owner}")
 
 
+def check_explorer_social_status() -> None:
+    body = explorer("/social/status")
+    if not isinstance(body, dict):
+        raise SmokeFailure(f"/social/status returned unexpected shape: {body!r}")
+    meta = body.get("meta")
+    if not isinstance(meta, dict) or meta.get("source") != "rpc-live":
+        raise SmokeFailure(f"/social/status must identify source=rpc-live: {body}")
+    status = data_envelope(body)
+    if not isinstance(status, dict) or status.get("complete") is not True:
+        raise SmokeFailure(f"/social/status is incomplete: {status!r}")
+    domains = status.get("domains")
+    if not isinstance(domains, dict):
+        raise SmokeFailure(f"/social/status domains missing: {status!r}")
+    for key in PROGRAM_FILL_BYTES:
+        domain = domains.get(key)
+        if not isinstance(domain, dict):
+            raise SmokeFailure(f"/social/status missing {key}: {domains!r}")
+        if domain.get("ownerMatches") is not True or domain.get("initialized") is not True:
+            raise SmokeFailure(f"/social/status {key} is not healthy: {domain!r}")
+        if domain.get("error") is not None:
+            raise SmokeFailure(f"/social/status {key} reported error: {domain!r}")
+    print("[ok] Explorer /social/status live-verifies all five SocialFi domains")
+
+
 def check_explorer_social_reads() -> None:
-    posts = explorer("/posts?limit=1")
-    if not isinstance(posts, dict):
-        raise SmokeFailure(f"/posts returned unexpected shape: {posts!r}")
-    engagement = explorer("/engagement?limit=1")
-    if not isinstance(engagement, dict):
-        raise SmokeFailure(f"/engagement returned unexpected shape: {engagement!r}")
-    stakes = explorer("/stakes?limit=1")
-    if not isinstance(stakes, dict):
-        raise SmokeFailure(f"/stakes returned unexpected shape: {stakes!r}")
-    print("[ok] Explorer SocialFi read endpoints respond: /posts, /engagement, /stakes")
+    paths = [
+        "/posts?limit=1",
+        "/engagement?limit=1",
+        "/stakes?limit=1",
+        "/rewards?limit=1",
+    ]
+    for path in paths:
+        body = explorer(path)
+        if not isinstance(body, dict):
+            raise SmokeFailure(f"{path} returned unexpected shape: {body!r}")
+        meta = body.get("meta")
+        if not isinstance(meta, dict) or meta.get("source") != "indexer":
+            raise SmokeFailure(f"{path} must identify source=indexer: {body!r}")
+    print("[ok] indexed SocialFi reads respond: /posts, /engagement, /stakes, /rewards")
 
 
 def main() -> int:
@@ -188,12 +217,13 @@ def main() -> int:
         check_explorer_health()
         registry = check_social_registry()
         check_state_owners(registry)
+        check_explorer_social_status()
         check_explorer_social_reads()
     except SmokeFailure as exc:
         print(f"[FAIL] {exc}", file=sys.stderr)
         return 1
 
-    print("[PASS] AEKO deployment and SocialFi read path are wired correctly")
+    print("[PASS] AEKO deployment and all-five SocialFi read surfaces are wired correctly")
     return 0
 
 
