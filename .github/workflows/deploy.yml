@@ -1,12 +1,23 @@
-name: Build Aeko Node & Deploy via Dokploy
+name: Build Aeko Stack & Deploy via Dokploy
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dockerfile: Dockerfile.validator
+            image_name: aeko-node
+          - dockerfile: Dockerfile.explorer
+            image_name: aeko-explorer-backend
+          - dockerfile: Dockerfile.explorer-ui
+            image_name: aeko-explorer-ui
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -19,10 +30,16 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          IMAGE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/aeko-node:latest"
-          docker build -f Dockerfile.validator -t $IMAGE_TAG .
-          docker push $IMAGE_TAG
+          IMAGE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image_name }}:latest"
+          docker build -f "${{ matrix.dockerfile }}" -t "$IMAGE_TAG" .
+          docker push "$IMAGE_TAG"
 
+  trigger-dokploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
       - name: Trigger Dokploy Webhook to Auto-Deploy
+        env:
+          DOKPLOY_WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
         run: |
-          curl -X POST "${{ secrets.DOKPLOY_WEBHOOK_URL }}"
+          curl --fail-with-body --silent --show-error --request POST "$DOKPLOY_WEBHOOK_URL"
