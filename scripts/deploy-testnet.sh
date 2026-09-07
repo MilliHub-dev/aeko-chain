@@ -7,8 +7,8 @@
 #   1. Sanity-checks Docker, disk and ulimits.
 #   2. Generates missing keypairs with the `tools` Docker target.
 #   3. Builds the role-specific runtime images from the single root Dockerfile.
-#   4. Starts faucet + validator + explorer-api + explorer-ui.
-#   5. Verifies RPC health and that slots advance.
+#   4. Starts faucet + validator + SocialFi bootstrap + explorer API/UI.
+#   5. Verifies RPC health, slot advancement and a complete SocialFi registry.
 #
 # PostgreSQL is external. Set EXPLORER_DATABASE_URL for persistent explorer
 # storage. If it is unset the explorer uses its in-memory fallback.
@@ -122,8 +122,8 @@ if [ -z "${AEKO_EXPLORER_START_SLOT:-}" ]; then
   fi
 fi
 
-log "starting faucet, validator, explorer-api and explorer-ui"
-docker compose -f "$COMPOSE_FILE" up -d faucet validator explorer-api explorer-ui
+log "starting faucet, validator, SocialFi bootstrap, explorer-api and explorer-ui"
+docker compose -f "$COMPOSE_FILE" up -d faucet validator social-bootstrap explorer-api explorer-ui
 
 log "waiting for validator RPC (max 90s)"
 HEALTHY=0
@@ -169,7 +169,29 @@ if [ "$ADVANCED" -ne 1 ]; then
   exit 3
 fi
 
-log "✓ testnet is live (slot $SLOT_B, advancing)"
+log "waiting for Explorer + SocialFi registry (max 180s)"
+SOCIAL_READY=0
+REGISTRY=""
+for _ in $(seq 1 90); do
+  sleep 2
+  REGISTRY=$(curl -fsS --max-time 3 http://127.0.0.1:8088/registry/social 2>/dev/null || true)
+  if printf '%s' "$REGISTRY" | grep -Eq '"complete"[[:space:]]*:[[:space:]]*true'; then
+    SOCIAL_READY=1
+    break
+  fi
+  printf '.'
+done
+echo
+
+if [ "$SOCIAL_READY" -ne 1 ]; then
+  err "Explorer did not expose a complete SocialFi registry within 180s"
+  err "last registry response: $REGISTRY"
+  err "bootstrap logs: docker logs --tail 80 aeko-social-bootstrap"
+  err "explorer logs: docker logs --tail 80 aeko-explorer-api"
+  exit 4
+fi
+
+log "✓ testnet is live (slot $SLOT_B, advancing; SocialFi registry complete)"
 cat <<EOF2
 
   Direct host endpoints:
@@ -185,15 +207,22 @@ cat <<EOF2
     Explorer UI  https://scan.aeko.online
     Gossip       gossip.aeko.online:8001 (raw TCP/UDP, not HTTP)
 
+  Complete deployment + SocialFi read-path smoke test:
+    python3 scripts/smoke-aeko-social.py
+
   Quick checks:
     curl -s -X POST -H 'Content-Type: application/json' \\
       -d '{"jsonrpc":"2.0","id":1,"method":"getSlot"}' \\
       http://127.0.0.1:8899
 
+    curl -s http://127.0.0.1:8088/registry/social
+
     docker logs -f aeko-validator
+    docker logs -f aeko-social-bootstrap
     docker logs -f aeko-explorer-api
     docker logs -f aeko-explorer-ui
 
-  See DEPLOYMENT.md for the deployment topology.
+  See README.md for the social-first developer mental model and
+  DEPLOYMENT.md for the operator deployment contract.
 
 EOF2

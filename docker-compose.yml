@@ -2,14 +2,16 @@ name: aeko-network
 
 # Portable AEKO testnet runtime definition.
 #
-# This file intentionally contains NO PostgreSQL service and NO platform-
-# specific reverse-proxy labels. Supply EXPLORER_DATABASE_URL from Dokploy,
-# RDS, Neon, Supabase, or any PostgreSQL provider. Configure HTTP domains in
-# your deployment platform against the container ports documented below.
+# PostgreSQL is external/managed. Supply EXPLORER_DATABASE_URL from Dokploy,
+# RDS, Neon, Supabase, or another PostgreSQL provider.
 #
 # Keypairs are mounted from AEKO_KEYS_DIR. For local use it defaults to
-# ./local-testnet. In Dokploy you can point AEKO_KEYS_DIR at a persistent host
-# directory or mount managed secret files at the same filenames.
+# ./local-testnet. In production point AEKO_KEYS_DIR at persistent secret files.
+#
+# SocialFi state is batteries-included: the one-shot social-bootstrap service
+# runs after the validator is healthy, persists the five state keypairs plus a
+# canonical registry into the social-state volume, and Explorer waits for that
+# bootstrap to complete before starting.
 
 services:
   faucet:
@@ -63,9 +65,9 @@ services:
       start_period: 90s
     networks: [aeko]
 
-  # Optional public RPC replica. It uses the SAME validator image because the
-  # underlying executable is the same; AEKO_NODE_ROLE changes runtime behavior
-  # to a non-voting gossip-connected RPC node.
+  # Same executable/image as a validator, but no voting. Enable when public RPC
+  # load should be isolated from the block-producing validator:
+  #   docker compose --profile rpc up -d rpc-node
   rpc-node:
     profiles: ["rpc"]
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-validator:${AEKO_IMAGE_TAG:-latest}
@@ -103,6 +105,30 @@ services:
       start_period: 180s
     networks: [aeko]
 
+  # One-shot initialization of the five SocialFi state accounts. This is part
+  # of the default stack. The bootstrap is idempotent when its social-state
+  # volume is preserved: existing initialized program-owned accounts are never
+  # sent another Initialize instruction.
+  social-bootstrap:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:-latest}
+    container_name: aeko-social-bootstrap
+    environment:
+      AEKO_RPC_URL: http://validator:8899
+      AEKO_PAYER_KEYPAIR: /keys/faucet.json
+      AEKO_BOOTSTRAP_OUT_DIR: /state
+      AEKO_TREASURY_ADDRESS: ${AEKO_TREASURY_ADDRESS:-}
+      AEKO_REWARD_VAULT: ${AEKO_REWARD_VAULT:-}
+      AEKO_STAKE_VAULT: ${AEKO_STAKE_VAULT:-}
+      AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-200}
+    volumes:
+      - ${AEKO_KEYS_DIR:-./local-testnet}/faucet-keypair.json:/keys/faucet.json:ro
+      - social-state:/state
+    depends_on:
+      validator:
+        condition: service_healthy
+    restart: on-failure:20
+    networks: [aeko]
+
   explorer-api:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-explorer-api:${AEKO_IMAGE_TAG:-latest}
     container_name: aeko-explorer-api
@@ -113,6 +139,9 @@ services:
       AEKO_EXPLORER_BIND: 0.0.0.0:8088
       AEKO_EXPLORER_START_SLOT: ${AEKO_EXPLORER_START_SLOT:-0}
       DATABASE_URL: ${EXPLORER_DATABASE_URL:-}
+      AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env
+      # Explicit values remain supported as operator overrides. Empty values
+      # fall back to the generated registry file.
       AEKO_SOCIAL_POSTS_STATE: ${AEKO_SOCIAL_POSTS_STATE:-}
       AEKO_SOCIAL_REWARDS_STATE: ${AEKO_SOCIAL_REWARDS_STATE:-}
       AEKO_SOCIAL_STAKING_STATE: ${AEKO_SOCIAL_STAKING_STATE:-}
@@ -120,12 +149,14 @@ services:
       AEKO_SOCIAL_MONETIZATION_STATE: ${AEKO_SOCIAL_MONETIZATION_STATE:-}
       AEKO_REWARD_VAULT_ACCOUNT: ${AEKO_REWARD_VAULT_ACCOUNT:-}
       AEKO_TREASURY_ADDRESS: ${AEKO_TREASURY_ADDRESS:-}
-      AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-200}
+      AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-}
     ports:
       - "${AEKO_EXPLORER_API_HOST_PORT:-8088}:8088"
+    volumes:
+      - social-state:/state:ro
     depends_on:
-      validator:
-        condition: service_healthy
+      social-bootstrap:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/health || exit 1"]
       interval: 30s
@@ -149,25 +180,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
-    networks: [aeko]
-
-  # One-shot initialization of SocialFi state accounts. Run only after the
-  # validator is healthy, then persist the emitted addresses as deployment env.
-  social-bootstrap:
-    profiles: ["bootstrap"]
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:-latest}
-    container_name: aeko-social-bootstrap
-    environment:
-      AEKO_RPC_URL: http://validator:8899
-      AEKO_PAYER_KEYPAIR: /keys/faucet.json
-      AEKO_BOOTSTRAP_OUT_DIR: /state
-    volumes:
-      - ${AEKO_KEYS_DIR:-./local-testnet}/faucet-keypair.json:/keys/faucet.json:ro
-      - social-state:/state
-    depends_on:
-      validator:
-        condition: service_healthy
-    restart: on-failure:20
     networks: [aeko]
 
 networks:
