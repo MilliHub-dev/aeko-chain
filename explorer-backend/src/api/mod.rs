@@ -21,7 +21,9 @@ pub mod health;
 pub mod nfts;
 pub mod posts;
 pub mod registry;
+pub mod rewards;
 pub mod search;
+pub mod social_status;
 pub mod stakes;
 pub mod tokens;
 pub mod transactions;
@@ -42,8 +44,10 @@ pub fn router() -> Router<SharedState> {
         .merge(posts::router())
         .merge(engagement::router())
         .merge(stakes::router())
+        .merge(rewards::router())
         .merge(creators::router())
         .merge(accounts::router())
         .merge(registry::router())
+        .merge(social_status::router())
         .merge(search::router())
 }

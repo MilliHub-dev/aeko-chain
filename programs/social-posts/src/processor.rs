@@ -108,23 +108,14 @@ impl Processor {
         let creator_key = *creator.get_key();
         drop(creator);
 
-        // If the caller includes an anti-spam state account (account 2), enforce gating rules.
-        // The account is optional so that existing call-sites without anti-spam remain valid.
-        let num_accounts = instruction_context.get_number_of_instruction_accounts();
-        if num_accounts >= 3 {
-            let anti_spam_account =
-                instruction_context.try_borrow_instruction_account(transaction_context, 2)?;
-            // Only enforce if the account is actually owned by the anti-spam program
-            if *anti_spam_account.get_owner() == aeko_social_anti_spam_program::id() {
-                let anti_spam_state =
-                    SocialAntiSpamStateAccount::deserialize_padded(anti_spam_account.get_data())
-                        .map_err(|_| InstructionError::InvalidAccountData)?;
-                if anti_spam_state.is_initialized {
-                    Self::check_anti_spam_eligibility(&anti_spam_state, &creator_key)?;
-                }
-            }
-            drop(anti_spam_account);
-        }
+        let current_epoch = invoke_context.get_sysvar_cache().get_clock()?.epoch;
+        Self::check_optional_anti_spam(
+            invoke_context,
+            instruction_context,
+            transaction_context,
+            creator_key,
+            current_epoch,
+        )?;
 
         let mut state_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
@@ -142,18 +133,46 @@ impl Processor {
         Self::write_back(&mut state_account, &state)
     }
 
-    /// Check whether a wallet is allowed to post based on the anti-spam program state.
-    /// Mirrors the eligibility logic in `social-anti-spam`'s `evaluate_eligibility`, but
-    /// runs read-only inside the social-posts program without a CPI.
+    fn check_optional_anti_spam(
+        invoke_context: &InvokeContext,
+        instruction_context: &aeko_sdk::transaction_context::InstructionContext,
+        transaction_context: &aeko_sdk::transaction_context::TransactionContext,
+        wallet: Pubkey,
+        current_epoch: u64,
+    ) -> Result<(), InstructionError> {
+        if instruction_context.get_number_of_instruction_accounts() < 3 {
+            return Ok(());
+        }
+        let anti_spam_account =
+            instruction_context.try_borrow_instruction_account(transaction_context, 2)?;
+        if *anti_spam_account.get_owner() != aeko_social_anti_spam_program::id() {
+            return Err(InstructionError::InvalidAccountOwner);
+        }
+        let anti_spam_state =
+            SocialAntiSpamStateAccount::deserialize_padded(anti_spam_account.get_data())
+                .map_err(|_| InstructionError::InvalidAccountData)?;
+        drop(anti_spam_account);
+        if anti_spam_state.is_initialized {
+            Self::check_anti_spam_eligibility(&anti_spam_state, &wallet, current_epoch)?;
+        }
+        let _ = invoke_context;
+        Ok(())
+    }
+
+    /// Check whether a wallet is allowed to interact based on the anti-spam program state.
+    /// This mirrors the anti-spam program's current eligibility semantics for the
+    /// information available to Social Posts. Stake-gated mode still requires a
+    /// separate anti-spam eligibility instruction because staking state is not an
+    /// account on this instruction.
     fn check_anti_spam_eligibility(
         anti_spam_state: &SocialAntiSpamStateAccount,
         wallet: &Pubkey,
+        current_epoch: u64,
     ) -> Result<(), InstructionError> {
         let profile = anti_spam_state.profile_for_wallet(wallet);
 
-        // If the wallet is in a cooldown (gated) period, block posting regardless of mode.
         if let Some(profile) = profile {
-            if profile.gated_until_epoch.is_some() {
+            if profile.gated_until_epoch.unwrap_or(0) > current_epoch {
                 return Err(InstructionError::Custom(
                     aeko_social_anti_spam_program::error::SocialAntiSpamError::CooldownActive as u32,
                 ));
@@ -163,9 +182,6 @@ impl Processor {
         match anti_spam_state.config.mode {
             AntiSpamMode::ObserveOnly => Ok(()),
             AntiSpamMode::GateByReputation => {
-                // Reputation score is computed externally; here we gate wallets that have
-                // accumulated spam flags above a safe threshold (each flag is worth ~50 points
-                // out of 1000 in the explorer reputation model).
                 let spam_flags = profile.map(|p| p.spam_flags).unwrap_or(0);
                 let estimated_score = 1_000u32
                     .saturating_sub(u32::from(spam_flags).saturating_mul(50))
@@ -178,13 +194,7 @@ impl Processor {
                 }
                 Ok(())
             }
-            AntiSpamMode::GateByStake | AntiSpamMode::PenaltyEnabled => {
-                // Stake enforcement requires the staking program's data which is not passed
-                // into this instruction. Wallets with cooldowns are already blocked above;
-                // full stake verification is left to the anti-spam program's CheckSpam
-                // instruction which should be included in the same transaction.
-                Ok(())
-            }
+            AntiSpamMode::GateByStake | AntiSpamMode::PenaltyEnabled => Ok(()),
         }
     }
 
@@ -274,7 +284,7 @@ impl Processor {
 
     fn process_record_engagement(
         invoke_context: &mut InvokeContext,
-        proof: EngagementProof,
+        mut proof: EngagementProof,
     ) -> Result<(), InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
@@ -286,6 +296,15 @@ impl Processor {
         }
         let actor_key = *actor.get_key();
         drop(actor);
+
+        let clock = invoke_context.get_sysvar_cache().get_clock()?;
+        Self::check_optional_anti_spam(
+            invoke_context,
+            instruction_context,
+            transaction_context,
+            actor_key,
+            clock.epoch,
+        )?;
 
         let mut state_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
@@ -300,6 +319,10 @@ impl Processor {
         if actor_key != proof.actor {
             return Err(InstructionError::IncorrectAuthority);
         }
+
+        proof.slot = clock.slot;
+        proof.unix_timestamp = clock.unix_timestamp;
+
         Self::validate_engagement_proof(&state, &proof)?;
         state.engagement_proofs.push(proof);
         Self::write_back(&mut state_account, &state)
@@ -369,6 +392,18 @@ impl Processor {
                 SocialPostsError::DuplicateReplayGuard.into(),
             ));
         }
+        if let Some(target_post_id) = proof.target_post_id {
+            let target = state
+                .posts
+                .iter()
+                .find(|post| post.post_id == target_post_id)
+                .ok_or_else(|| Self::map_program_error(SocialPostsError::PostNotFound.into()))?;
+            if target.creator != proof.target_creator {
+                return Err(Self::map_program_error(
+                    SocialPostsError::InvalidEngagementTarget.into(),
+                ));
+            }
+        }
         Ok(())
     }
 
@@ -430,6 +465,20 @@ mod tests {
         }
     }
 
+    fn engagement(actor: Pubkey, target_creator: Pubkey, target_post_id: Option<[u8; 32]>) -> EngagementProof {
+        EngagementProof {
+            proof_id: [5u8; 32],
+            actor,
+            target_post_id,
+            target_creator,
+            action_kind: EngagementActionKind::Like,
+            action_weight: 1,
+            slot: 10,
+            unix_timestamp: 1_700_000_020,
+            replay_guard: [9u8; 32],
+        }
+    }
+
     #[test]
     fn validate_post_anchor_rejects_duplicates() {
         let creator = Pubkey::new_unique();
@@ -473,5 +522,43 @@ mod tests {
             },
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_engagement_proof_rejects_missing_target_post() {
+        let creator = Pubkey::new_unique();
+        let actor = Pubkey::new_unique();
+        let state = test_state();
+        let result = Processor::validate_engagement_proof(
+            &state,
+            &engagement(actor, creator, Some([1u8; 32])),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_engagement_proof_rejects_wrong_target_creator() {
+        let creator = Pubkey::new_unique();
+        let actor = Pubkey::new_unique();
+        let mut state = test_state();
+        state.posts.push(test_post(creator));
+        let result = Processor::validate_engagement_proof(
+            &state,
+            &engagement(actor, Pubkey::new_unique(), Some([1u8; 32])),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_engagement_proof_accepts_bound_target() {
+        let creator = Pubkey::new_unique();
+        let actor = Pubkey::new_unique();
+        let mut state = test_state();
+        state.posts.push(test_post(creator));
+        let result = Processor::validate_engagement_proof(
+            &state,
+            &engagement(actor, creator, Some([1u8; 32])),
+        );
+        assert!(result.is_ok());
     }
 }

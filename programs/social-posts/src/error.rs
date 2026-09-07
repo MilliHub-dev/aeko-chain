@@ -13,6 +13,7 @@ pub enum SocialPostsError {
     InvalidContentUri = 8,
     InvalidTimestamp = 9,
     InvalidEdit = 10,
+    InvalidEngagementTarget = 11,
 }
 
 impl From<SocialPostsError> for ProgramError {

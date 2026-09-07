@@ -1,0 +1,192 @@
+name: aeko-network
+
+# Portable AEKO testnet runtime definition.
+#
+# PostgreSQL is external/managed. Supply EXPLORER_DATABASE_URL from Dokploy,
+# RDS, Neon, Supabase, or another PostgreSQL provider.
+#
+# Keypairs are mounted from AEKO_KEYS_DIR. For local use it defaults to
+# ./local-testnet. In production point AEKO_KEYS_DIR at persistent secret files.
+#
+# SocialFi state is batteries-included: the one-shot social-bootstrap service
+# runs after the validator is healthy, persists the five state keypairs plus a
+# canonical registry into the social-state volume, and Explorer waits for that
+# bootstrap to complete before starting.
+
+services:
+  faucet:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-faucet:${AEKO_IMAGE_TAG:-latest}
+    container_name: aeko-faucet
+    restart: unless-stopped
+    volumes:
+      - ${AEKO_KEYS_DIR:-./local-testnet}/faucet-keypair.json:/keys/faucet.json:ro
+    command:
+      - --keypair
+      - /keys/faucet.json
+    networks: [aeko]
+
+  validator:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-validator:${AEKO_IMAGE_TAG:-latest}
+    container_name: aeko-validator
+    restart: unless-stopped
+    environment:
+      AEKO_NODE_ROLE: validator
+      AEKO_BOOTSTRAP: ${AEKO_BOOTSTRAP:-1}
+      AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
+      AEKO_FAUCET_ADDRESS: faucet:9900
+    ulimits:
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    ports:
+      - "${AEKO_GOSSIP_HOST_PORT:-8001}:8001/udp"
+      - "${AEKO_GOSSIP_HOST_PORT:-8001}:8001/tcp"
+      - "${AEKO_RPC_HOST_PORT:-8899}:8899"
+      - "${AEKO_WS_HOST_PORT:-8900}:8900"
+    volumes:
+      - validator-ledger:/ledger
+      - ${AEKO_KEYS_DIR:-./local-testnet}/validator-1-keypair.json:/keys/identity.json:ro
+      - ${AEKO_KEYS_DIR:-./local-testnet}/vote-1-keypair.json:/keys/vote.json:ro
+      - ${AEKO_KEYS_DIR:-./local-testnet}/stake-keypair.json:/keys/stake.json:ro
+      - ${AEKO_KEYS_DIR:-./local-testnet}/faucet-keypair.json:/keys/faucet.json:ro
+    depends_on:
+      faucet:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS -X POST -H 'Content-Type: application/json'
+          -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+          http://127.0.0.1:8899 | grep -q '"result":"ok"'
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    networks: [aeko]
+
+  # Same executable/image as a validator, but no voting. Enable when public RPC
+  # load should be isolated from the block-producing validator:
+  #   docker compose --profile rpc up -d rpc-node
+  rpc-node:
+    profiles: ["rpc"]
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-validator:${AEKO_IMAGE_TAG:-latest}
+    container_name: aeko-rpc-node
+    restart: unless-stopped
+    environment:
+      AEKO_NODE_ROLE: rpc
+      AEKO_ENTRYPOINT: validator:8001
+      AEKO_FAUCET_ADDRESS: faucet:9900
+    ulimits:
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    ports:
+      - "${AEKO_RPC_REPLICA_HOST_PORT:-8898}:8899"
+      - "${AEKO_WS_REPLICA_HOST_PORT:-8896}:8900"
+    volumes:
+      - rpc-ledger:/ledger
+      - ${AEKO_KEYS_DIR:-./local-testnet}/rpc-node-keypair.json:/keys/identity.json:ro
+    depends_on:
+      validator:
+        condition: service_healthy
+      faucet:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS -X POST -H 'Content-Type: application/json'
+          -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+          http://127.0.0.1:8899 | grep -q '"result":"ok"'
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 180s
+    networks: [aeko]
+
+  # One-shot initialization of the five SocialFi state accounts. This is part
+  # of the default stack. The bootstrap is idempotent when its social-state
+  # volume is preserved: existing initialized program-owned accounts are never
+  # sent another Initialize instruction.
+  social-bootstrap:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:-latest}
+    container_name: aeko-social-bootstrap
+    environment:
+      AEKO_RPC_URL: http://validator:8899
+      AEKO_PAYER_KEYPAIR: /keys/faucet.json
+      AEKO_BOOTSTRAP_OUT_DIR: /state
+      AEKO_TREASURY_ADDRESS: ${AEKO_TREASURY_ADDRESS:-}
+      AEKO_REWARD_VAULT: ${AEKO_REWARD_VAULT:-}
+      AEKO_STAKE_VAULT: ${AEKO_STAKE_VAULT:-}
+      AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-200}
+    volumes:
+      - ${AEKO_KEYS_DIR:-./local-testnet}/faucet-keypair.json:/keys/faucet.json:ro
+      - social-state:/state
+    depends_on:
+      validator:
+        condition: service_healthy
+    restart: on-failure:20
+    networks: [aeko]
+
+  explorer-api:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-explorer-api:${AEKO_IMAGE_TAG:-latest}
+    container_name: aeko-explorer-api
+    restart: unless-stopped
+    environment:
+      AEKO_EXPLORER_RPC: http://validator:8899
+      AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-testnet}
+      AEKO_EXPLORER_BIND: 0.0.0.0:8088
+      AEKO_EXPLORER_START_SLOT: ${AEKO_EXPLORER_START_SLOT:-0}
+      DATABASE_URL: ${EXPLORER_DATABASE_URL:-}
+      AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env
+      # Explicit values remain supported as operator overrides. Empty values
+      # fall back to the generated registry file.
+      AEKO_SOCIAL_POSTS_STATE: ${AEKO_SOCIAL_POSTS_STATE:-}
+      AEKO_SOCIAL_REWARDS_STATE: ${AEKO_SOCIAL_REWARDS_STATE:-}
+      AEKO_SOCIAL_STAKING_STATE: ${AEKO_SOCIAL_STAKING_STATE:-}
+      AEKO_SOCIAL_ANTI_SPAM_STATE: ${AEKO_SOCIAL_ANTI_SPAM_STATE:-}
+      AEKO_SOCIAL_MONETIZATION_STATE: ${AEKO_SOCIAL_MONETIZATION_STATE:-}
+      AEKO_REWARD_VAULT_ACCOUNT: ${AEKO_REWARD_VAULT_ACCOUNT:-}
+      AEKO_TREASURY_ADDRESS: ${AEKO_TREASURY_ADDRESS:-}
+      AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-}
+    ports:
+      - "${AEKO_EXPLORER_API_HOST_PORT:-8088}:8088"
+    volumes:
+      - social-state:/state:ro
+    depends_on:
+      social-bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    networks: [aeko]
+
+  explorer-ui:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-explorer-ui:${AEKO_IMAGE_TAG:-latest}
+    container_name: aeko-explorer-ui
+    restart: unless-stopped
+    ports:
+      - "${AEKO_FRONTEND_HOST_PORT:-4000}:4000"
+    depends_on:
+      explorer-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks: [aeko]
+
+networks:
+  aeko:
+    driver: bridge
+
+volumes:
+  validator-ledger:
+  rpc-ledger:
+  social-state:
