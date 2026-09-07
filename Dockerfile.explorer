@@ -7,8 +7,17 @@ branches: [ "main" ]
 jobs:
 build-and-push:
 runs-on: ubuntu-latest
+strategy:
+matrix:
+include:
+- dockerfile: Dockerfile
+image_name: aeko-node
+- dockerfile: Dockerfile.explorer-backend
+image_name: aeko-explorer-backend
+- dockerfile: Dockerfile.explorer-ui
+image_name: aeko-explorer-ui
 steps:
-- name: Checkout Code
+- name: Checkout Repository
 uses: actions/checkout@v4
 
 - name: Log in to Docker Hub
@@ -17,25 +26,16 @@ with:
 username: ${{ secrets.DOCKERHUB_USERNAME }}
 password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-# 1. Build & Push Validator (matches docker-compose.yml)
-- name: Build & Push Validator
+- name: Build & Push Image
 run: |
-docker build -f Dockerfile.validator -t surdma/aeko-validator:latest .
-docker push surdma/aeko-validator:latest
+IMAGE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image_name }}:latest"
+docker build -f ${{ matrix.dockerfile }} -t $IMAGE_TAG .
+docker push $IMAGE_TAG
 
-# 2. Build & Push Explorer Backend
-- name: Build & Push Explorer Backend
-run: |
-docker build -f Dockerfile.explorer-backend -t surdma/aeko-explorer-backend:latest .
-docker push surdma/aeko-explorer-backend:latest
-
-# 3. Build & Push Explorer UI
-- name: Build & Push Explorer UI
-run: |
-docker build -f Dockerfile.explorer-ui -t surdma/aeko-explorer-ui:latest .
-docker push surdma/aeko-explorer-ui:latest
-
-# 4. Trigger Dokploy Deployment
-- name: Trigger Dokploy Webhook
+trigger-dokploy:
+needs: build-and-push
+runs-on: ubuntu-latest
+steps:
+- name: Call Dokploy Webhook
 run: |
 curl -X POST "${{ secrets.DOKPLOY_WEBHOOK_URL }}"
