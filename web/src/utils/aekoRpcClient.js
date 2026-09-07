@@ -1,8 +1,7 @@
 // Thin JSON-RPC client for the AEKO testnet validator.
 //
-// Used by the /faucet test console to drive airdrops, transfers, and read
-// SocialFi state without going through the explorer-backend (so the modal
-// still works even when the explorer-backend deploy is unhealthy).
+// Used by the /faucet and SocialFi test consoles to drive airdrops,
+// transactions, and read SocialFi state.
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 
@@ -17,10 +16,6 @@ async function rpc(url, method, params, { timeoutMs = DEFAULT_TIMEOUT_MS } = {})
       signal: controller.signal,
     });
     if (!res.ok) {
-      // Bubble up Traefik 502/503 plain-text bodies as a typed error instead
-      // of letting JSON.parse blow up with the confusing
-      // "Unexpected token 'B', 'Bad Gateway'" message users have been
-      // seeing on /explorer.
       const text = await res.text();
       throw new Error(
         `RPC ${method} failed: ${res.status} ${res.statusText} — ${text.slice(0, 140)}`,
@@ -40,6 +35,10 @@ export async function getSlot(rpcUrl) {
   return rpc(rpcUrl, 'getSlot', []);
 }
 
+export async function getEpochInfo(rpcUrl) {
+  return rpc(rpcUrl, 'getEpochInfo', [{ commitment: 'confirmed' }]);
+}
+
 export async function getHealth(rpcUrl) {
   return rpc(rpcUrl, 'getHealth', []);
 }
@@ -51,7 +50,6 @@ export async function getLatestBlockhash(rpcUrl) {
 
 export async function getBalance(rpcUrl, address) {
   const r = await rpc(rpcUrl, 'getBalance', [address, { commitment: 'confirmed' }]);
-  // Validator returns { context, value: <lamports> }
   return typeof r === 'number' ? r : r?.value ?? 0;
 }
 
@@ -90,8 +88,6 @@ export async function confirmSignature(rpcUrl, signature, { attempts = 20, inter
   throw new Error('Transaction not confirmed within timeout window.');
 }
 
-// Lamports <-> AEKO display helpers. The chain uses 9 decimal places, the
-// same as the Solana-style fork it's built from.
 export const LAMPORTS_PER_AEKO = 1_000_000_000;
 
 export function lamportsToAeko(lamports) {
@@ -105,7 +101,5 @@ export function aekoToLamports(aeko) {
 export function formatAeko(lamports) {
   const value = lamportsToAeko(lamports);
   if (Number.isNaN(value)) return '—';
-  // Show up to 6 fractional digits but strip trailing zeros; fee math here
-  // is in 5000-lamport increments so 4 dp would round it off.
   return `${value.toLocaleString('en-US', { maximumFractionDigits: 6 })} AEKO`;
 }
