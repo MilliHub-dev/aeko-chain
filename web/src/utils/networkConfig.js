@@ -6,7 +6,7 @@
 const TESTNET_DEFAULTS = {
   rpc: 'https://rpc.aeko.online',
   ws: 'wss://ws.aeko.online',
-  explorer: 'https://gossip.aeko.online',
+  explorer: 'https://scan.aeko.online',
   explorerApi: 'https://api.aeko.online',
 };
 

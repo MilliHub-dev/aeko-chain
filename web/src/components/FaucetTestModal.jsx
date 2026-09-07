@@ -271,7 +271,7 @@ function WalletRow({ wallet, balance, onRefresh, onRemove, rpcUrl }) {
 
   const explorerHost = useMemo(() => {
     try {
-      return new URL(rpcUrl).host.replace('rpc.', 'gossip.');
+      return new URL(rpcUrl).host.replace('rpc.', 'scan.');
     } catch {
       return '';
     }
@@ -380,7 +380,7 @@ function AirdropTransferTab({ wallets, balances, refreshBalance, rpcUrl }) {
 
   const explorerHost = useMemo(() => {
     try {
-      return new URL(rpcUrl).host.replace('rpc.', 'gossip.');
+      return new URL(rpcUrl).host.replace('rpc.', 'scan.');
     } catch {
       return '';
     }
@@ -825,7 +825,7 @@ function ProgramsTab({ rpcUrl, explorerApiUrl, onJumpToFeed }) {
 
   const explorerHost = useMemo(() => {
     try {
-      return new URL(rpcUrl).host.replace('rpc.', 'gossip.');
+      return new URL(rpcUrl).host.replace('rpc.', 'scan.');
     } catch {
       return '';
     }
