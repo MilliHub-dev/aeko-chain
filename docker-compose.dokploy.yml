@@ -97,6 +97,9 @@ services:
       AEKO_NODE_ROLE: rpc
       AEKO_ENTRYPOINT: validator:8001
       AEKO_FAUCET_ADDRESS: faucet:9900
+      # Keep intentional fresh-genesis reset semantics aligned with validator;
+      # both persistent ledgers must belong to the same chain.
+      AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       # The RPC replica participates over the private Compose network. Its
       # public client surface is provided by Dokploy/Traefik on 8899 and 8900.
       AEKO_DYNAMIC_PORT_RANGE: 8051-8101
@@ -137,6 +140,9 @@ services:
       AEKO_RPC_URL: http://validator:8899
       AEKO_PAYER_KEYPAIR: /keys/faucet.json
       AEKO_BOOTSTRAP_OUT_DIR: /state
+      # Keep fail-closed for normal redeploys. Set to 1 only for an intentional
+      # fresh-genesis recovery where persisted state keys no longer exist on-chain.
+      AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}
       AEKO_TREASURY_ADDRESS: ${AEKO_TREASURY_ADDRESS:-}
       AEKO_REWARD_VAULT: ${AEKO_REWARD_VAULT:-}
       AEKO_STAKE_VAULT: ${AEKO_STAKE_VAULT:-}

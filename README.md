@@ -1,113 +1,155 @@
 # AEKO Chain
 
-AEKO Chain is a Solana-derived blockchain runtime extended with native SocialFi programs for verifiable social content, engagement, rewards, staking, anti-spam policy, and monetization.
+AEKO Chain is a Solana-derived, SVM-compatible blockchain runtime extended with native SocialFi programs for Aeko Social. This repository contains the **chain and chain-facing infrastructure**: validator/RPC runtime, native programs, CLI/key tooling, SocialFi bootstrap, Explorer/indexer, SDKs, deployment definitions and integration documentation.
 
-This repository contains the **chain and chain-facing infrastructure**: validator/RPC runtime, native programs, CLI/key tooling, SocialFi bootstrap, explorer/indexer, deployment definitions, and integration documentation. The Aeko product backend lives separately in `MilliHub-dev/Aeko_backend`.
+The Aeko product backend is a separate service/repository (`MilliHub-dev/Aeko_backend`, currently `:4101`).
 
 ## Mental model
 
-Do not think of AEKO as one web server or one Docker container. A usable public deployment is a set of cooperating roles:
+Do not think of AEKO as one validator container or one web server. A usable public deployment is a set of cooperating roles:
 
 ```text
-Aeko app / backend / SDK clients
+Aeko Social / wallet / dApp / SDK
               |
-              +---- HTTPS JSON-RPC ----> public RPC node :8899
-              +---- WSS PubSub --------> public RPC node :8900
-              +---- Explorer REST -----> explorer API :8088
-              |                              |
-              |                              +--> PostgreSQL
-              |                              +--> SocialFi registry
-              |
-              +---- Explorer web ------> explorer UI :4000
+      +-------+---------+----------------+
+      |                 |                |
+      v                 v                v
+ JSON-RPC           WebSocket        Explorer REST/UI
+ rpc.aeko.online    ws.aeko.online   api/scan.aeko.online
+      |                 |                |
+      +------ public non-voting RPC node +
+                         |
+                  private gossip
+                         |
+                  voting validator
+                         |
+              native AEKO SocialFi
+                         |
+                 persistent ledger
 
-public RPC node -- gossip/validator transport --> validator / block producer
-                                              |
-                                              +--> ledger + consensus
-                                              +--> five native SocialFi programs
-                                              +--> internal faucet (testnet)
+Explorer API :8088 <---- rpc-node
+       |
+       +---- PostgreSQL
+       +---- SocialFi registry
 
-social-bootstrap -- one-shot transactions --> SocialFi state accounts
-                 -- persistent registry -----> explorer API
+Internal only:
+  faucet :9900
+  social-bootstrap (one-shot)
+
+Separate product stack:
+  Aeko application backend :4101
+  application database
 ```
 
-### What each role owns
+Consumers, wallets and dApps use **RPC/WS**, never gossip. Index-heavy reads can use the **Explorer API**. Humans use the **Explorer UI**. Validator/node operators additionally use gossip and validator transport.
+
+### Runtime responsibilities
 
 | Role | Image | Responsibility |
 | --- | --- | --- |
-| Validator | `surdma/aeko-validator` | Block production, voting, ledger, consensus, validator transport, private/internal RPC |
-| RPC node | `surdma/aeko-validator` | Same executable in `AEKO_NODE_ROLE=rpc`; non-voting public JSON-RPC and PubSub/WebSocket edge |
-| Faucet | `surdma/aeko-faucet` | Testnet airdrop service consumed internally by validator/RPC |
-| SocialFi bootstrap | `surdma/aeko-social-bootstrap` | Idempotently creates and initializes the five required SocialFi state accounts and writes the registry |
-| Explorer API | `surdma/aeko-explorer-api` | Chain indexer, REST read API, SocialFi registry/read endpoints |
-| Explorer UI | `surdma/aeko-explorer-ui` | Browser block/social explorer |
-| Wallet/operator tools | `surdma/aeko-tools` | `aeko` CLI and `aeko-keygen`; wallets are keypairs/signers, not a long-running network node |
+| Validator | `surdma/aeko-validator` | voting block producer, ledger, consensus, validator transport, private/internal RPC |
+| RPC node | `surdma/aeko-validator` | same executable with `AEKO_NODE_ROLE=rpc`; non-voting public JSON-RPC and PubSub edge |
+| Faucet | `surdma/aeko-faucet` | internal testnet airdrop service consumed by RPC |
+| SocialFi bootstrap | `surdma/aeko-social-bootstrap` | verifies/initializes the five SocialFi state accounts and writes the registry |
+| Explorer API | `surdma/aeko-explorer-api` | chain indexer, REST API and SocialFi registry/read endpoints |
+| Explorer UI | `surdma/aeko-explorer-ui` | browser block/social explorer and test console |
+| Wallet/operator tools | `surdma/aeko-tools` | `aeko` CLI and `aeko-keygen`; wallets are signers, not a network daemon |
 
-A **WebSocket node is not a separate daemon**. PubSub/WebSocket is served by the validator/RPC process on port `8900`. Likewise, a **wallet node does not exist**: wallet identity and signing belong to clients or a custody backend; operator key generation is provided by `aeko-tools`.
+A **WebSocket node is not a separate daemon**. PubSub/WebSocket is served by the validator/RPC process on port `8900`. Likewise, there is no permanent **wallet node**: wallet identity/signing belongs to a client, wallet adapter, HSM/custody service or application backend. `aeko-tools` supplies CLI/key generation.
 
-## SocialFi runtime
+## Public endpoint contract
 
-AEKO currently registers five SocialFi programs directly in `runtime/src/builtins.rs`, so validators recognize them from chain startup without a BPF deployment step:
+| Purpose | Public endpoint | Runtime owner |
+| --- | --- | --- |
+| JSON-RPC | `https://rpc.aeko.online` | non-voting RPC node `:8899` |
+| WebSocket / PubSub | `wss://ws.aeko.online` | non-voting RPC node `:8900` |
+| Explorer REST API | `https://api.aeko.online` | Explorer API `:8088` |
+| Explorer UI | `https://scan.aeko.online` | Explorer UI `:4000` |
+| Validator gossip | `gossip.aeko.online:8001` | validator gossip entrypoint |
 
-- `aeko_social_posts_program`
-- `aeko_social_rewards_program`
-- `aeko_social_staking_program`
-- `aeko_social_anti_spam_program`
-- `aeko_social_monetization_program`
+The Dokploy validator publishes the public validator TCP+UDP transport range `8000-8050`; gossip starts at `8001`. `gossip.aeko.online` is **not an Explorer website** and must never be used as an Explorer fallback.
 
-Being registered is only the first half of readiness. Each program also needs an initialized program-owned state account. `aeko-social-bootstrap` performs that initialization after the validator reports healthy.
+### Port map
 
-The deployment flow is intentionally automatic and idempotent:
+| Port/range | Protocol | Purpose | Exposure |
+| --- | --- | --- | --- |
+| `8000-8050` | TCP + UDP | public validator transport/dynamic range | direct node-to-node |
+| `8001` | TCP + UDP | gossip entrypoint inside the range | direct node-to-node |
+| `8899` | HTTP JSON-RPC | wallet/dApp/CLI RPC | `rpc.aeko.online` via RPC node |
+| `8900` | WebSocket | RPC PubSub | `ws.aeko.online` via RPC node |
+| `9900` | TCP | testnet faucet | internal only |
+| `8088` | HTTP | Explorer/indexer REST API | `api.aeko.online` |
+| `4000` | HTTP | Explorer UI | `scan.aeko.online` |
+| `4101` | HTTP/Socket.IO | separate Aeko application backend | separate deployment |
+| `5432` | PostgreSQL | durable storage where configured | internal only |
 
-1. validator becomes healthy;
-2. `social-bootstrap` loads or creates persistent state keypairs;
-3. it verifies existing accounts before reusing them and refuses unexpected owners/state;
-4. it initializes missing SocialFi state;
-5. it writes `social-registry.env` into the persistent `social-state` volume;
-6. Explorer waits for bootstrap success before starting;
-7. `/registry/social` exposes the resolved registry and reports `complete: true` only when all five program state addresses exist in the registry.
+## Native Aeko SocialFi
 
-Operator environment variables can override registry values intentionally, but the normal deployment does not require copying addresses by hand between containers.
+AEKO registers **five SocialFi programs directly in `runtime/src/builtins.rs`**. They are native runtime built-ins, so developers do not first deploy five separate BPF contracts.
 
-## Social write and read paths
+| Built-in | Current capability |
+| --- | --- |
+| Social Posts | original/reply/repost/quote anchors, content + metadata hashes, visibility, moderation, edits and creator transaction-signature checks |
+| Engagement | implemented inside Social Posts: like/comment/repost/quote/share/save proofs plus duplicate/replay protection |
+| Social Rewards | creator reward accounting, settlement epochs and claim accounting |
+| Social Staking | creator/staker position state, lifecycle, cooldown and yield accounting |
+| Social Anti-Spam | wallet profiles, reputation/stake modes, cooldowns and penalty state; bootstrap defaults to `ObserveOnly` |
+| Social Monetization | tip/subscription/paid-content records and creator-revenue accounting |
 
-The chain is not the social feed database. The intended split is:
+Engagement is a Social Posts capability, not a sixth native program.
+
+### SocialFi state bootstrap and discovery
+
+Native program registration alone is not enough. Each SocialFi program needs a program-owned state account. `aeko-social-bootstrap` runs automatically after the validator becomes healthy.
+
+Normal redeploy behavior is fail-closed and idempotent at the deployment boundary:
+
+1. SocialFi state keypairs are persisted in the `social-state` volume.
+2. Bootstrap reads the corresponding account from-chain.
+3. An initialized account owned by the expected program is reused without another Initialize transaction.
+4. Wrong-owner, malformed or unexpectedly missing persisted state fails deployment instead of silently overwriting social state.
+5. Bootstrap writes `/state/social-registry.env`.
+6. Explorer mounts the same volume read-only through `AEKO_SOCIAL_REGISTRY_FILE=/state/social-registry.env`.
+7. Explorer starts only after bootstrap exits successfully.
+
+Operator env vars can intentionally override registry values, but normal deployment no longer requires copying/renaming state addresses by hand.
+
+### Intentional fresh-genesis recovery
+
+If the chain is deliberately reset while the SocialFi state-key volume is retained, use both switches for that one recovery deployment:
+
+```text
+AEKO_RESET_LEDGER=1
+AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1
+```
+
+The Dokploy Compose passes `AEKO_RESET_LEDGER` to **both validator and RPC replica**, so their persistent ledgers cannot straddle two chains. `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE` is deliberately separate and defaults to `0`; do not leave it enabled for ordinary redeploys. Return both switches to `0` after recovery.
+
+## Social write/read split
 
 ```text
 Write path
 Aeko client/backend
-  -> construct/sign AEKO transaction
+  -> construct + sign transaction
   -> JSON-RPC sendTransaction
   -> validator/runtime
   -> native SocialFi program
-  -> canonical on-chain state / proof
+  -> on-chain SocialFi state/proof
 
 Read path
 validator ledger
-  -> explorer indexer
+  -> RPC replica
+  -> Explorer indexer
   -> PostgreSQL/indexed views
   -> Explorer REST
   -> Aeko backend/client
 ```
 
-Large media, feed ranking, chat payloads, auth sessions, and product data remain application/backend concerns. Chain state is used for the parts that need cryptographic ownership, settlement, proof, rewards, staking, reputation/anti-spam state, or monetization guarantees.
-
-## Public endpoint contract
-
-The intended public endpoint ownership is:
-
-| Endpoint | Owner | Protocol |
-| --- | --- | --- |
-| `https://rpc.aeko.online` | dedicated RPC node | JSON-RPC |
-| `wss://ws.aeko.online` | dedicated RPC node | PubSub/WebSocket |
-| `https://api.aeko.online` | explorer API | HTTP REST |
-| `https://scan.aeko.online` | explorer UI | HTTPS |
-| `gossip.aeko.online:8001` | validator | raw validator gossip, not HTTP |
-
-A public validator also needs its validator transport range reachable. The Dokploy deployment pins this to TCP+UDP `8000-8050` and advertises `AEKO_PUBLIC_IP` through `--gossip-host`.
+Large media, feed ranking, chat payloads, auth sessions and ordinary product data remain application/backend concerns. The chain owns the state/proofs that are explicitly implemented on-chain.
 
 ## Build model
 
-There is one root `Dockerfile` with named runtime targets:
+There is one root [`Dockerfile`](./Dockerfile) with named runtime targets:
 
 ```text
 validator
@@ -118,7 +160,7 @@ explorer-api
 explorer-ui
 ```
 
-Build examples:
+Examples:
 
 ```bash
 docker build --target validator -t surdma/aeko-validator:latest .
@@ -129,15 +171,13 @@ docker build --target explorer-api -t surdma/aeko-explorer-api:latest .
 docker build --target explorer-ui -t surdma/aeko-explorer-ui:latest .
 ```
 
-`.github/workflows/build-images.yml` builds every target on pull requests. On `main`, the same workflow logs in to Docker Hub and publishes both `latest` and the 12-character Git commit tag. Compatibility aliases are also published for the older `aeko-node` and `aeko-explorer-backend` names.
+`.github/workflows/build-images.yml` validates the deployment contracts and builds every target on pull requests. On `main`, it publishes both `latest` and a 12-character commit tag. Compatibility aliases remain temporarily available for `aeko-node` and `aeko-explorer-backend`.
 
-For production-like deployments, prefer the immutable commit tag over `latest` so rollback is deterministic.
+Prefer immutable commit tags for controlled public releases and rollback.
 
-## Deployment choices
+## Local / portable deployment
 
-### Local / portable Compose
-
-`docker-compose.yml` is the development/portable topology. It starts the validator, faucet, automatic SocialFi bootstrap, Explorer API and Explorer UI. The optional RPC replica is enabled with the `rpc` profile.
+[`docker-compose.yml`](./docker-compose.yml) is the portable local/testnet topology. It starts faucet, validator, automatic SocialFi bootstrap, Explorer API and Explorer UI. Validator RPC/WS are host-published for local convenience; the non-voting RPC replica is optional.
 
 ```bash
 export AEKO_KEYS_DIR="$PWD/local-testnet"
@@ -145,20 +185,46 @@ export EXPLORER_DATABASE_URL='postgres://...'
 docker compose up -d
 ```
 
-### Dokploy / public testnet
+Optional local RPC replica:
 
-`docker-compose.dokploy.yml` is the image-only Dokploy contract. It does **not** build source on the server. Every service uses `pull_policy: always` and pulls the image/tag published by the main-branch Docker workflow.
-
-Required Dokploy environment:
-
-```text
-AEKO_PUBLIC_IP=<server public IP>
-AEKO_KEYS_DIR=../files/aeko-keys
-EXPLORER_DATABASE_URL=postgres://...
-AEKO_IMAGE_TAG=<recommended 12-char published main commit SHA>
+```bash
+docker compose --profile rpc up -d rpc-node
 ```
 
-The key directory must persist across deployments and contain:
+For a deliberate local chain reset use the repository helper:
+
+```bash
+./scripts/deploy-testnet.sh --reset-chain
+```
+
+## Dokploy / public deployment
+
+[`docker-compose.dokploy.yml`](./docker-compose.dokploy.yml) is the image-only public deployment contract. It contains **no `build:` directive**. Every service references a Docker Hub image and uses `pull_policy: always`.
+
+The always-running public topology is:
+
+```text
+faucet
+validator
+rpc-node
+social-bootstrap
+explorer-api
+explorer-ui
+```
+
+`wallet-tools` is an optional `ops` profile, not a public daemon.
+
+### Required Dokploy environment
+
+```text
+AEKO_PUBLIC_IP=<public IP of Dokploy host>
+AEKO_KEYS_DIR=../files/aeko-keys
+EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
+AEKO_IMAGE_REPOSITORY=surdma
+AEKO_IMAGE_TAG=<recommended 12-character published main SHA>
+```
+
+Required persistent key files:
 
 ```text
 validator-1-keypair.json
@@ -168,51 +234,184 @@ faucet-keypair.json
 rpc-node-keypair.json
 ```
 
-Never commit those keypairs to Git.
+Never commit those keypairs. Keep them in persistent restricted storage/File Mounts; do not depend on files inside an AutoDeploy Git checkout.
 
-In Dokploy Domains configure:
+Optional SocialFi configuration:
 
 ```text
-rpc.aeko.online  -> rpc-node      port 8899
-ws.aeko.online   -> rpc-node      port 8900
-api.aeko.online  -> explorer-api  port 8088
-scan.aeko.online -> explorer-ui   port 4000
+AEKO_TREASURY_ADDRESS=<pubkey>
+AEKO_REWARD_VAULT=<pubkey>
+AEKO_STAKE_VAULT=<pubkey>
+AEKO_PLATFORM_FEE_BPS=200
 ```
 
-Also point `gossip.aeko.online` DNS directly at `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050` in the host/cloud firewall. Gossip is not routed as an HTTP domain.
+### Dokploy network/routing
 
-See [`DEPLOYMENT.md`](DEPLOYMENT.md) for the complete operator procedure.
+Set the Compose path to:
 
-## Wallets and keys
+```text
+./docker-compose.dokploy.yml
+```
 
-A wallet is a signer/keypair, not a chain service. The public network therefore does not run a container called `wallet`.
+Dokploy's native **Domains** UI can inject Traefik routing, so the repository Compose does not hard-code platform labels. Configure:
 
-Use the tools image for operator keys:
+```text
+rpc.aeko.online   -> rpc-node:8899
+ws.aeko.online    -> rpc-node:8900
+api.aeko.online   -> explorer-api:8088
+scan.aeko.online  -> explorer-ui:4000
+```
+
+Set `AEKO_PUBLIC_IP` to the externally reachable node address. Point `gossip.aeko.online` DNS directly to it and allow inbound TCP+UDP `8000-8050`. Gossip/validator transport is not an HTTP route and must not go through the Explorer/Traefik domain path.
+
+Equivalent host-side Compose behavior:
 
 ```bash
-docker run --rm -v "$PWD/local-testnet:/keys" \
+docker compose -f docker-compose.dokploy.yml pull
+docker compose -f docker-compose.dokploy.yml up -d
+docker compose -f docker-compose.dokploy.yml ps
+```
+
+The GitHub deployment workflow calls the configured Dokploy webhook only after the image build succeeds on `main`. The Dokploy resource itself must be configured to use `docker-compose.dokploy.yml`; the webhook does not choose the topology.
+
+## Create and use a wallet
+
+You do not need the validator image just to create a wallet:
+
+```bash
+mkdir -p "$HOME/.aeko"
+
+docker run --rm -it \
+  -v "$HOME/.aeko:/wallet" \
   surdma/aeko-tools:latest \
-  aeko-keygen new --no-bip39-passphrase --silent --outfile /keys/example-wallet.json
+  aeko-keygen new \
+  --no-bip39-passphrase \
+  --outfile /wallet/id.json
 ```
 
-The Aeko application backend may implement its own custodial/non-custodial wallet policy. That is intentionally outside validator consensus.
+Get the address:
 
-## Consuming AEKO from Aeko Social
+```bash
+docker run --rm \
+  -v "$HOME/.aeko:/wallet:ro" \
+  surdma/aeko-tools:latest \
+  aeko address --keypair /wallet/id.json
+```
 
-At minimum, a consuming backend/client needs the public RPC and Explorer endpoints:
+With the CLI installed locally:
+
+```bash
+aeko config set --url https://rpc.aeko.online
+aeko address --keypair ~/.aeko/id.json
+aeko balance <WALLET_ADDRESS>
+```
+
+## RPC examples
+
+Health:
+
+```bash
+curl -s https://rpc.aeko.online \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+```
+
+A healthy endpoint returns `result: "ok"`.
+
+Slot:
+
+```bash
+curl -s https://rpc.aeko.online \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getSlot"}'
+```
+
+Call it twice and verify the slot advances.
+
+Balance:
+
+```bash
+curl -s https://rpc.aeko.online \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "jsonrpc":"2.0",
+    "id":1,
+    "method":"getBalance",
+    "params":["<WALLET_ADDRESS>"]
+  }'
+```
+
+Testnet airdrop is requested through RPC; faucet `:9900` remains private:
+
+```bash
+aeko airdrop 1 <WALLET_ADDRESS> --url https://rpc.aeko.online
+```
+
+## WebSocket / PubSub
+
+Use:
 
 ```text
-AEKO_RPC_URL=https://rpc.aeko.online
-AEKO_EXPLORER_URL=https://api.aeko.online
+wss://ws.aeko.online
 ```
 
-SocialFi state discovery is available from:
+for chain subscriptions such as account, signature, slot and log notifications. WebSocket clients do not connect to `gossip.aeko.online`.
 
-```text
-GET https://api.aeko.online/registry/social
+## Explorer and SocialFi registry
+
+Humans use `https://scan.aeko.online`; applications can use `https://api.aeko.online` for indexed resources including blocks, transactions, accounts, posts, engagement, stakes and search.
+
+Registry acceptance:
+
+```bash
+curl -s https://api.aeko.online/registry/social
 ```
 
-A healthy deployment returns a registry whose `complete` field is `true`. The repository smoke test then verifies RPC health, slot advancement, all five initialized program-owned state accounts, and the Explorer SocialFi read surfaces:
+Explorer uses a common response envelope. A ready deployment has the logical shape:
+
+```json
+{
+  "data": {
+    "posts": "<pubkey>",
+    "rewards": "<pubkey>",
+    "staking": "<pubkey>",
+    "antiSpam": "<pubkey>",
+    "monetization": "<pubkey>",
+    "rewardVault": "<pubkey-or-null>",
+    "treasury": "<pubkey-or-null>",
+    "platformFeeBps": 200,
+    "complete": true
+  },
+  "meta": {
+    "network": "testnet",
+    "source": "indexer"
+  }
+}
+```
+
+For public deployment, `data.complete == true` is a hard acceptance criterion, but it is not by itself proof of the signed write path.
+
+## Aeko Social end-to-end acceptance
+
+The Explorer site's Faucet/Test Console has a real browser path for signed social transactions. It creates test Ed25519 wallets, requests an airdrop, transfers AEKO, discovers SocialFi state, builds/signs an `AnchorPost`, submits it through RPC, creates a signed Like engagement transaction and reads state back from-chain.
+
+Use this sequence before certifying a deployment:
+
+1. RPC `getHealth == "ok"`.
+2. `getSlot` advances.
+3. `/registry/social` returns `data.complete == true`.
+4. All five SocialFi state addresses are non-null.
+5. Each state account exists, is initialized and has the expected SocialFi program owner.
+6. Create a test wallet.
+7. Request an airdrop and verify balance.
+8. Submit a signed `AnchorPost`.
+9. Confirm the transaction.
+10. Read the post back from Social Posts state.
+11. Submit and confirm a signed Like/engagement proof.
+12. Query Explorer `/posts` and `/engagement`.
+13. Verify the Explorer UI displays the resulting activity.
+
+Automated deployment/read-path verification:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
@@ -220,70 +419,92 @@ AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-social.py
 ```
 
-That smoke test proves the deployed **read path and state wiring**. It intentionally does not claim a signed social write unless a real signed transaction has also been exercised.
+The smoke script verifies RPC health, slot advancement, registry completeness, all five state-account owners/initialized markers and Explorer SocialFi reads. It intentionally does not fabricate a signed write transaction.
 
-## What "ready" means
+## Consumer, developer and operator responsibilities
 
-Use the following gates rather than treating a successful Docker build as deployment proof:
+A normal dApp/wallet developer primarily needs:
 
-1. all six Docker targets build;
-2. the selected main commit images exist in Docker Hub;
-3. validator `getHealth` returns `ok` and slots advance;
-4. the dedicated RPC node reports healthy;
-5. SocialFi bootstrap exits successfully;
-6. Explorer `/health` succeeds;
-7. `/registry/social` reports `complete: true`;
-8. each SocialFi state account exists, is initialized and has the expected program owner;
-9. `/posts`, `/engagement`, and `/stakes` respond through Explorer;
-10. public HTTPS/WSS domains and validator TCP+UDP transport are reachable from outside the Dokploy host;
-11. a real signed Aeko Social transaction is submitted and its resulting state/read model is observed end-to-end before calling the write path production-verified.
+```text
+RPC          https://rpc.aeko.online
+WebSocket    wss://ws.aeko.online
+Explorer API https://api.aeko.online
+Explorer     https://scan.aeko.online
+```
 
-Passing GitHub image builds alone is **build readiness**, not proof of public production readiness.
+A validator operator additionally needs:
 
-## Solana relationship and scope
+```text
+gossip.aeko.online:8001
+public validator TCP+UDP 8000-8050
+```
 
-AEKO reuses a Solana-style validator/runtime/network architecture and exposes familiar JSON-RPC and PubSub concepts, but this repository should not be described as "as full as Solana" merely because the services are containerized. Solana-scale public-network maturity also includes independent validators, stake distribution, redundant RPC fleets, snapshot/bootstrap infrastructure, monitoring/alerting, abuse protection, capacity planning, backups, key management, incident response, and sustained adversarial/load testing.
+Independent validators require separately provisioned identity/vote/stake state. They should not be faked as extra local voting containers without the required chain setup.
 
-The Dokploy stack gives AEKO a coherent **single-host public testnet topology and consumption contract**. Decentralization and mainnet-grade operational maturity are separate release milestones.
+## What “ready” means
+
+Use precise gates:
+
+- **Build-ready**: deployment contracts parse and all Docker targets build.
+- **Publish-ready**: main CI has pushed the selected Docker Hub tags.
+- **Deploy-ready**: Dokploy has persistent keys, durable Explorer DB, domains/firewall and the production Compose configuration.
+- **Integration-verified**: the deployed public RPC/Explorer SocialFi smoke passes.
+- **Write-path verified**: a real signed SocialFi transaction succeeds and the resulting state is observable through chain/Explorer reads.
+- **Mainnet/production mature**: requires decentralization, redundant RPC, monitoring, backups, security, capacity/load and incident-response work beyond this single-host reference stack.
+
+A green Docker build is not evidence for the later states.
+
+### Remaining SocialFi protocol-maturity work
+
+Deployment completeness must not be used to hide protocol gaps that remain in the current implementation:
+
+| Area | Current boundary |
+| --- | --- |
+| Canonical post payload signatures | the creator must sign the transaction and content/metadata hashes are anchored, but the chain does not yet independently verify a separate canonical post-payload Ed25519 signature referenced by `signature_ref` |
+| Social staking | stake amount/lifecycle/cooldown/yield are recorded, but opening a social stake position does not yet atomically transfer/escrow the recorded lamports and yield claims remain accounting rather than a fully funded transfer path |
+| Social monetization | tips/subscriptions/unlocks record the signed actor and amount, but the action does not yet atomically debit the actor's wallet; payout uses configured treasury accounting |
+| Anti-spam | enforcement primitives exist, but bootstrap defaults to `ObserveOnly` with permissive thresholds rather than production economic gating |
+
+Those are protocol-hardening items, not missing Docker services. The repository should not claim production-grade SocialFi economics or full Solana parity until those paths are enforced and independently tested on-chain.
+
+## Solana relationship and public-network scope
+
+AEKO uses a Solana-style validator/runtime/RPC/PubSub/network model, but container completeness is not Solana-scale operational maturity. A public network also needs independent validators, stake distribution, redundant RPC fleets, snapshot/bootstrap strategy, observability, rate limiting/abuse protection, backups, key custody, incident response and sustained adversarial/load testing.
+
+`docker-compose.dokploy.yml` is the **complete single-host AEKO public testnet service topology and consumption contract**, not proof of decentralization or mainnet-grade Solana parity.
+
+## Separate Aeko application backend
+
+The product backend is deployed separately on `:4101`. It owns product concerns such as users/auth, application DB state, chat, feed/product orchestration and wallet/custody policy. It consumes AEKO through RPC/WS/Explorer interfaces.
+
+Do not confuse:
+
+```text
+Explorer API :8088 = indexed blockchain read service in this repository
+App backend  :4101 = separate Aeko product service
+```
 
 ## Repository map
 
-Key areas to understand first:
-
 ```text
-runtime/src/builtins.rs              native program registration
-programs/social-*                    SocialFi program logic/state/instructions
-social-bootstrap/                    SocialFi state initialization + registry
-validator/                           validator executable and CLI
-rpc/                                 JSON-RPC implementation
-explorer-backend/                    indexer + REST API
-web/                                 Explorer UI
-docker/validator-entrypoint.sh       container role/bootstrap entrypoint
-Dockerfile                           canonical multi-target image build
-docker-compose.yml                   portable/local runtime
-docker-compose.dokploy.yml           Dokploy image-only public runtime
-scripts/deploy-testnet.sh             local/server deployment helper
-scripts/smoke-aeko-social.py          deployment + SocialFi read-path smoke test
-docs/socialfi/                        SocialFi contracts and flows
-docs/aeko-social-integration/         Aeko Social integration guidance
-docs/rpc-and-apis/                    RPC/API contracts
+runtime/src/builtins.rs               native program registration
+programs/social-*                     SocialFi program logic/state/instructions
+social-bootstrap/                     state initialization + registry
+validator/                            validator executable and CLI
+rpc/                                  JSON-RPC implementation
+explorer-backend/                     indexer + REST API
+web/                                  Explorer UI/test console
+docker/validator-entrypoint.sh        validator/RPC container roles
+Dockerfile                            canonical multi-target build
+docker-compose.yml                    portable/local runtime
+docker-compose.dokploy.yml            Docker Hub/Dokploy public runtime
+scripts/deploy-testnet.sh             local deployment helper
+scripts/smoke-aeko-social.py          live deployment/read-path smoke
+scripts/validate-deployment-contract.py static deployment invariant gate
+docs/                                 protocol/SDK/wallet/operations docs
 DEPLOYMENT.md                         operator deployment contract
 ```
 
-## Security and operational boundaries
+## License
 
-- Keep validator identity, vote, stake, faucet and RPC-node keypairs outside Git and in persistent restricted storage.
-- Never reset a persistent ledger accidentally. `AEKO_RESET_LEDGER=1` is destructive and should be used only for an intentional fresh genesis.
-- Use persistent PostgreSQL for public Explorer deployments.
-- Prefer immutable image tags for production deployment and rollback.
-- Do not expose the faucet directly unless a public faucet policy is intentionally designed.
-- Keep block-producing validator capacity isolated from public RPC load.
-- Treat a single-validator deployment as centralized testnet infrastructure, not decentralized mainnet.
-
-## More documentation
-
-- [`DEPLOYMENT.md`](DEPLOYMENT.md)
-- [`docs/introduction/architecture-overview.md`](docs/introduction/architecture-overview.md)
-- [`docs/socialfi/`](docs/socialfi/)
-- [`docs/aeko-social-integration/`](docs/aeko-social-integration/)
-- [`docs/rpc-and-apis/`](docs/rpc-and-apis/)
+MIT. See [`LICENSE`](./LICENSE).
