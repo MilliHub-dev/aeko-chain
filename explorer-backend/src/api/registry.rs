@@ -17,7 +17,7 @@ use {
 
 const REGISTRY_FILE_ENV: &str = "AEKO_SOCIAL_REGISTRY_FILE";
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SocialRegistry {
     pub posts: Option<String>,
@@ -38,6 +38,10 @@ pub fn router() -> Router<SharedState> {
 async fn get_social_registry(
     State(state): State<SharedState>,
 ) -> ApiResult<Json<response::DataEnvelope<SocialRegistry>>> {
+    Ok(response::data(&state.network, resolve_social_registry()))
+}
+
+pub(crate) fn resolve_social_registry() -> SocialRegistry {
     let file_values = load_registry_file();
     let read = |key: &str| read_value(key, &file_values);
 
@@ -52,7 +56,7 @@ async fn get_social_registry(
         && anti_spam.is_some()
         && monetization.is_some();
 
-    let registry = SocialRegistry {
+    SocialRegistry {
         posts,
         rewards,
         staking,
@@ -62,9 +66,7 @@ async fn get_social_registry(
         treasury: read("AEKO_TREASURY_ADDRESS"),
         platform_fee_bps: read("AEKO_PLATFORM_FEE_BPS").and_then(|s| s.parse().ok()),
         complete,
-    };
-
-    Ok(response::data(&state.network, registry))
+    }
 }
 
 fn read_value(key: &str, file_values: &HashMap<String, String>) -> Option<String> {
