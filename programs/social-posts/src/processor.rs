@@ -274,7 +274,7 @@ impl Processor {
 
     fn process_record_engagement(
         invoke_context: &mut InvokeContext,
-        proof: EngagementProof,
+        mut proof: EngagementProof,
     ) -> Result<(), InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
@@ -300,6 +300,14 @@ impl Processor {
         if actor_key != proof.actor {
             return Err(InstructionError::IncorrectAuthority);
         }
+
+        // Engagement ordering and time filters in Explorer must come from chain
+        // state, not user-supplied metadata. Stamp both values from the runtime
+        // clock before validation/persistence.
+        let clock = invoke_context.get_sysvar_cache().get_clock()?;
+        proof.slot = clock.slot;
+        proof.unix_timestamp = clock.unix_timestamp;
+
         Self::validate_engagement_proof(&state, &proof)?;
         state.engagement_proofs.push(proof);
         Self::write_back(&mut state_account, &state)
@@ -369,6 +377,18 @@ impl Processor {
                 SocialPostsError::DuplicateReplayGuard.into(),
             ));
         }
+        if let Some(target_post_id) = proof.target_post_id {
+            let target = state
+                .posts
+                .iter()
+                .find(|post| post.post_id == target_post_id)
+                .ok_or_else(|| Self::map_program_error(SocialPostsError::PostNotFound.into()))?;
+            if target.creator != proof.target_creator {
+                return Err(Self::map_program_error(
+                    SocialPostsError::InvalidEngagementTarget.into(),
+                ));
+            }
+        }
         Ok(())
     }
 
@@ -430,6 +450,20 @@ mod tests {
         }
     }
 
+    fn engagement(actor: Pubkey, target_creator: Pubkey, target_post_id: Option<[u8; 32]>) -> EngagementProof {
+        EngagementProof {
+            proof_id: [5u8; 32],
+            actor,
+            target_post_id,
+            target_creator,
+            action_kind: EngagementActionKind::Like,
+            action_weight: 1,
+            slot: 10,
+            unix_timestamp: 1_700_000_020,
+            replay_guard: [9u8; 32],
+        }
+    }
+
     #[test]
     fn validate_post_anchor_rejects_duplicates() {
         let creator = Pubkey::new_unique();
@@ -473,5 +507,43 @@ mod tests {
             },
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_engagement_proof_rejects_missing_target_post() {
+        let creator = Pubkey::new_unique();
+        let actor = Pubkey::new_unique();
+        let state = test_state();
+        let result = Processor::validate_engagement_proof(
+            &state,
+            &engagement(actor, creator, Some([1u8; 32])),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_engagement_proof_rejects_wrong_target_creator() {
+        let creator = Pubkey::new_unique();
+        let actor = Pubkey::new_unique();
+        let mut state = test_state();
+        state.posts.push(test_post(creator));
+        let result = Processor::validate_engagement_proof(
+            &state,
+            &engagement(actor, Pubkey::new_unique(), Some([1u8; 32])),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_engagement_proof_accepts_bound_target() {
+        let creator = Pubkey::new_unique();
+        let actor = Pubkey::new_unique();
+        let mut state = test_state();
+        state.posts.push(test_post(creator));
+        let result = Processor::validate_engagement_proof(
+            &state,
+            &engagement(actor, creator, Some([1u8; 32])),
+        );
+        assert!(result.is_ok());
     }
 }
