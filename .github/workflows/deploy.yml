@@ -1,36 +1,28 @@
-name: Build & Deploy Aeko Node to GHCR
+name: Build Aeko Node & Deploy via Dokploy
 
 on:
   push:
     branches: [ "main" ]
 
-# Grants workflow permission to publish packages to GHCR
-permissions:
-  contents: read
-  packages: write
-
 jobs:
-  build-and-push:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v2
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.CONTAINER_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and Push Docker Image
         run: |
-          # Convert repo name to lowercase to prevent GHCR naming errors and deploy
-          IMAGE_NAME=$(echo "ghcr.io/${{ github.repository }}/aeko-node:latest" | tr '[:upper:]' '[:lower:]')
-          
-          docker build -t $IMAGE_NAME .
-          docker push $IMAGE_NAME
+          IMAGE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/aeko-node:latest"
+          docker build -t $IMAGE_TAG .
+          docker push $IMAGE_TAG
 
-      - name: Trigger Dokploy Deployment
+      - name: Trigger Dokploy Webhook to Auto-Deploy
         run: |
           curl -X POST "${{ secrets.DOKPLOY_WEBHOOK_URL }}"
