@@ -20,7 +20,7 @@ jobs:
       - name: Build and Push Docker Image
         run: |
           IMAGE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/aeko-node:latest"
-          docker build -t $IMAGE_TAG .
+          docker build -f Dockerfile.validator -t $IMAGE_TAG .
           docker push $IMAGE_TAG
 
       - name: Trigger Dokploy Webhook to Auto-Deploy
