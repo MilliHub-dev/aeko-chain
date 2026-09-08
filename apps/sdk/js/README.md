@@ -19,9 +19,9 @@ This package is the Ticket 4.3 JS-first foundation. It is not published yet.
 ## Local Verification
 
 ```bash
-npm --prefix sdk/js install
-npm --prefix sdk/js run typecheck
-npm --prefix sdk/js run build
+npm --prefix apps/sdk/js install
+npm --prefix apps/sdk/js run typecheck
+npm --prefix apps/sdk/js run build
 ```
 
 ## Local layout
@@ -29,7 +29,6 @@ npm --prefix sdk/js run build
 - `src/connection.ts`: RPC client and subscription helpers
 - `src/accounts.ts`: account queries and AEKO-721 decoders
 - `src/base58.ts`: shared base58 helpers
-- `src/builders.ts`: AEKO-721 prepared transaction builders
 - `src/builders.ts`: AEKO-721 and wallet-permissions prepared transaction builders
 - `src/transactions.ts`: send / confirm helpers
 - `src/wallet.ts`: injected wallet adapter interfaces and helpers
@@ -78,6 +77,6 @@ console.log(latest, wallet?.publicKey, request);
 
 ## Examples
 
-- [`examples/basic-usage.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/examples/basic-usage.ts)
-- [`examples/subscription-usage.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/examples/subscription-usage.ts)
-- [`examples/permission-usage.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/examples/permission-usage.ts)
+- `apps/sdk/js/examples/basic-usage.ts`
+- `apps/sdk/js/examples/subscription-usage.ts`
+- `apps/sdk/js/examples/permission-usage.ts`
