@@ -13,6 +13,7 @@ DOCKERFILE = ROOT / "Dockerfile"
 VALIDATOR_ENTRYPOINT = ROOT / "docker" / "validator-entrypoint.sh"
 SOCIAL_BOOTSTRAP = ROOT / "social-bootstrap" / "src" / "main.rs"
 README = ROOT / "README.md"
+DEPLOYMENT = ROOT / "DEPLOYMENT.md"
 
 
 class ContractFailure(RuntimeError):
@@ -47,6 +48,7 @@ def main() -> int:
     validator_entrypoint = read(VALIDATOR_ENTRYPOINT)
     social_bootstrap = read(SOCIAL_BOOTSTRAP)
     readme = read(README)
+    deployment = read(DEPLOYMENT)
 
     # One canonical build recipe, with all role-specific images produced from it.
     for target in ("validator", "faucet", "social-bootstrap", "tools", "explorer-api", "explorer-ui"):
@@ -56,6 +58,7 @@ def main() -> int:
         )
 
     # Portable topology remains convenient for local use but still batteries-includes SocialFi.
+    # The non-voting RPC replica stays an opt-in local experiment/profile, not a public startup gate.
     for service in ("faucet", "validator", "rpc-node", "social-bootstrap", "explorer-api", "explorer-ui"):
         require(re.search(rf"^  {re.escape(service)}:\s*$", portable, re.MULTILINE) is not None, f"portable compose missing {service}")
     require('profiles: ["rpc"]' in portable, "portable rpc-node must remain optional")
@@ -91,15 +94,18 @@ def main() -> int:
 
     # Dokploy is an image-pull deployment contract, never a second build system.
     require(re.search(r"^\s+build:\s*$", dokploy, re.MULTILINE) is None, "Dokploy compose must pull prebuilt images, not build source")
-    ordered = ["faucet", "validator", "rpc-node", "social-bootstrap", "explorer-api", "explorer-ui", "wallet-tools"]
+    require(
+        re.search(r"^  rpc-node:\s*$", dokploy, re.MULTILINE) is None,
+        "Dokploy must not make the non-voting RPC replica a mandatory/default service",
+    )
+    ordered = ["faucet", "validator", "social-bootstrap", "explorer-api", "explorer-ui", "wallet-tools"]
     for index, service in enumerate(ordered):
         next_service = ordered[index + 1] if index + 1 < len(ordered) else None
         block = service_block(dokploy, service, next_service)
         require("image:" in block, f"Dokploy {service} must use a published image")
         require("pull_policy: always" in block, f"Dokploy {service} must pull the selected Docker Hub tag")
 
-    validator = service_block(dokploy, "validator", "rpc-node")
-    rpc_node = service_block(dokploy, "rpc-node", "social-bootstrap")
+    validator = service_block(dokploy, "validator", "social-bootstrap")
     bootstrap = service_block(dokploy, "social-bootstrap", "explorer-api")
     explorer = service_block(dokploy, "explorer-api", "explorer-ui")
     explorer_ui = service_block(dokploy, "explorer-ui", "wallet-tools")
@@ -111,33 +117,22 @@ def main() -> int:
     require('"8000-8050:8000-8050/tcp"' in validator, "validator TCP transport range must be published")
     require('"8000-8050:8000-8050/udp"' in validator, "validator UDP transport range must be published")
     validator_ports = validator.split("    ports:", 1)[1].split("    expose:", 1)[0]
-    require(":8899" not in validator_ports and ":8900" not in validator_ports, "voting validator RPC/WS must not be host-published in Dokploy")
-    require(
-        "AEKO_PUBLIC_RPC_ADDRESS: ${AEKO_VALIDATOR_BOOTSTRAP_RPC_ADDRESS:-validator:8899}" in validator,
-        "voting validator must advertise a Docker-reachable RPC for same-host replica bootstrap",
-    )
+    require(":8899" not in validator_ports and ":8900" not in validator_ports, "validator RPC/WS must be routed by Dokploy, not host-published directly")
+    require('      - "8899"' in validator and '      - "8900"' in validator, "validator must expose RPC and PubSub to Dokploy/Traefik")
+    require("AEKO_PUBLIC_RPC_ADDRESS" not in validator, "single-validator Dokploy must not advertise a Docker-private RPC address through gossip")
     require(
         "AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}" in validator,
-        "voting validator RPC must route submitted transactions over the internal QUIC TPU",
-    )
-
-    require("AEKO_NODE_ROLE: rpc" in rpc_node, "public RPC replica must use rpc role")
-    require("profiles:" not in rpc_node, "public Dokploy rpc-node must start by default")
-    require("AEKO_ENTRYPOINT: validator:8001" in rpc_node, "public RPC replica must join validator gossip")
-    require("AEKO_DYNAMIC_PORT_RANGE: 8051-8101" in rpc_node, "RPC replica must have a non-overlapping transport range")
-    require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in rpc_node, "RPC ledger reset must track an intentional validator reset")
-    require('      - "8899"' in rpc_node and '      - "8900"' in rpc_node, "rpc-node must expose RPC and PubSub ports")
-    require(
-        "AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}" in rpc_node,
-        "public RPC replica must forward submitted transactions over the internal validator QUIC TPU",
+        "validator RPC must route submitted transactions over the internal QUIC TPU",
     )
 
     require("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}" in bootstrap, "SocialFi reset recovery must be an explicit opt-in")
     require("social-state:/state" in bootstrap, "SocialFi state/registry must persist")
+    require("AEKO_RPC_URL: http://validator:8899" in bootstrap, "SocialFi bootstrap must use the healthy validator RPC")
 
-    require("AEKO_EXPLORER_RPC: http://rpc-node:8899" in explorer, "public Explorer must index through rpc-node")
+    require("AEKO_EXPLORER_RPC: http://validator:8899" in explorer, "public Explorer must index directly through the healthy validator RPC")
     require("EXPLORER_DATABASE_URL:?" in explorer, "public Explorer must require durable PostgreSQL")
     require("AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env" in explorer, "Explorer must consume generated SocialFi registry")
+    require("validator:" in explorer and "condition: service_healthy" in explorer, "Explorer must wait for validator health")
     require("condition: service_completed_successfully" in explorer, "Explorer must wait for SocialFi bootstrap")
     require("/blocks?limit=1" in explorer, "Explorer readiness must exercise its configured read store")
     require("/social/status" in explorer and '"complete":true' in explorer, "Explorer readiness must live-verify all five SocialFi states through RPC")
@@ -145,6 +140,8 @@ def main() -> int:
     require("/social/status" in explorer_ui and '"complete":true' in explorer_ui, "Explorer UI health must remain coupled to live SocialFi readiness")
     require('profiles: ["ops"]' in wallet_tools, "wallet tools must be operator-only, not a public daemon")
     require(re.search(r"^  postgres(?:ql)?:", dokploy, re.MULTILINE) is None, "Dokploy compose must not embed PostgreSQL")
+    require("rpc-node-keypair.json" not in dokploy, "default Dokploy topology must not require an unused RPC-replica identity")
+    require("rpc-ledger:" not in dokploy, "default Dokploy topology must not retain an unused RPC-replica ledger volume")
 
     # Public endpoint and operator mental model must remain canonical.
     for endpoint in (
@@ -159,6 +156,10 @@ def main() -> int:
     require("/registry/social" in readme and "complete" in readme, "README must document SocialFi registry acceptance")
     require("wallet" in readme.lower() and "not a" in readme.lower(), "README must explain wallet/client versus daemon responsibilities")
     require("protocol-maturity" in readme.lower() or "protocol maturity" in readme.lower(), "README must disclose remaining SocialFi protocol maturity boundaries")
+
+    require("rpc.aeko.online` | `validator` | `8899" in deployment, "deployment guide must route public RPC to validator")
+    require("ws.aeko.online` | `validator` | `8900" in deployment, "deployment guide must route public WebSocket to validator")
+    require("public/Dokploy stack; uses prebuilt Docker Hub images and serves RPC/WS from the healthy voting validator" in deployment, "deployment guide must describe the single-validator Dokploy RPC topology")
 
     print("[PASS] AEKO portable + Dokploy deployment contracts are internally consistent")
     return 0
