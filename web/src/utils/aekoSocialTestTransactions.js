@@ -254,11 +254,14 @@ export function buildSocialLikeTestTx({
   antiSpamState,
   recentBlockhash,
   postId,
+  postIdHex,
   targetCreator,
 }) {
   const proofId = random32();
   const replayGuard = random32();
-  const targetPostId = decodeBase58(postId);
+  // postIdHex is kept as a compatibility alias for the pre-base58 E2E caller.
+  // Both values now carry the canonical base58 Explorer identifier.
+  const targetPostId = decodeBase58(postId || postIdHex);
   const data = concat(
     Uint8Array.from([4]), // RecordEngagement
     proofId,
