@@ -10,6 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 PORTABLE = ROOT / "docker-compose.yml"
 DOKPLOY = ROOT / "docker-compose.dokploy.yml"
 DOCKERFILE = ROOT / "Dockerfile"
+VALIDATOR_ENTRYPOINT = ROOT / "docker" / "validator-entrypoint.sh"
+SOCIAL_BOOTSTRAP = ROOT / "social-bootstrap" / "src" / "main.rs"
 README = ROOT / "README.md"
 
 
@@ -42,6 +44,8 @@ def main() -> int:
     portable = read(PORTABLE)
     dokploy = read(DOKPLOY)
     dockerfile = read(DOCKERFILE)
+    validator_entrypoint = read(VALIDATOR_ENTRYPOINT)
+    social_bootstrap = read(SOCIAL_BOOTSTRAP)
     readme = read(README)
 
     # One canonical build recipe, with all role-specific images produced from it.
@@ -58,6 +62,33 @@ def main() -> int:
     require("condition: service_completed_successfully" in portable, "portable Explorer must wait for SocialFi bootstrap")
     require("AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env" in portable, "portable Explorer must consume generated SocialFi registry")
 
+    # Validator image runtime must fail closed on key material and support the
+    # same-host transaction peer used by the public Dokploy topology.
+    require(
+        '[ ! -f "$path" ] || [ ! -s "$path" ]' in validator_entrypoint,
+        "validator entrypoint must reject non-files as keypairs",
+    )
+    require(
+        '--rpc-send-transaction-tpu-peer "$AEKO_RPC_SEND_TRANSACTION_TPU_PEER"' in validator_entrypoint,
+        "validator entrypoint must support an explicit RPC transaction TPU peer",
+    )
+
+    # SocialFi bootstrap must distinguish an incomplete first boot from a
+    # missing state on a previously completed chain. The former may safely
+    # retry the persisted key; the latter is explicit recovery only.
+    require(
+        'parse_bool_flag("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE")' in social_bootstrap,
+        "SocialFi bootstrap must consume AEKO_BOOTSTRAP_ALLOW_MISSING_STATE",
+    )
+    require(
+        "registry_preexisted && !allow_missing_state" in social_bootstrap,
+        "SocialFi bootstrap must fail closed when completed registry state disappears",
+    )
+    require(
+        "existing initialized state verified; skipping initialization" in social_bootstrap,
+        "SocialFi bootstrap must remain idempotent for already initialized state",
+    )
+
     # Dokploy is an image-pull deployment contract, never a second build system.
     require(re.search(r"^\s+build:\s*$", dokploy, re.MULTILINE) is None, "Dokploy compose must pull prebuilt images, not build source")
     ordered = ["faucet", "validator", "rpc-node", "social-bootstrap", "explorer-api", "explorer-ui", "wallet-tools"]
@@ -71,6 +102,7 @@ def main() -> int:
     rpc_node = service_block(dokploy, "rpc-node", "social-bootstrap")
     bootstrap = service_block(dokploy, "social-bootstrap", "explorer-api")
     explorer = service_block(dokploy, "explorer-api", "explorer-ui")
+    explorer_ui = service_block(dokploy, "explorer-ui", "wallet-tools")
     wallet_tools = service_block(dokploy, "wallet-tools")
 
     require("AEKO_NODE_ROLE: validator" in validator, "validator role must be explicit")
@@ -80,6 +112,14 @@ def main() -> int:
     require('"8000-8050:8000-8050/udp"' in validator, "validator UDP transport range must be published")
     validator_ports = validator.split("    ports:", 1)[1].split("    expose:", 1)[0]
     require(":8899" not in validator_ports and ":8900" not in validator_ports, "voting validator RPC/WS must not be host-published in Dokploy")
+    require(
+        "AEKO_PUBLIC_RPC_ADDRESS: ${AEKO_VALIDATOR_BOOTSTRAP_RPC_ADDRESS:-validator:8899}" in validator,
+        "voting validator must advertise a Docker-reachable RPC for same-host replica bootstrap",
+    )
+    require(
+        "AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}" in validator,
+        "voting validator RPC must route submitted transactions over the internal QUIC TPU",
+    )
 
     require("AEKO_NODE_ROLE: rpc" in rpc_node, "public RPC replica must use rpc role")
     require("profiles:" not in rpc_node, "public Dokploy rpc-node must start by default")
@@ -87,6 +127,10 @@ def main() -> int:
     require("AEKO_DYNAMIC_PORT_RANGE: 8051-8101" in rpc_node, "RPC replica must have a non-overlapping transport range")
     require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in rpc_node, "RPC ledger reset must track an intentional validator reset")
     require('      - "8899"' in rpc_node and '      - "8900"' in rpc_node, "rpc-node must expose RPC and PubSub ports")
+    require(
+        "AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}" in rpc_node,
+        "public RPC replica must forward submitted transactions over the internal validator QUIC TPU",
+    )
 
     require("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}" in bootstrap, "SocialFi reset recovery must be an explicit opt-in")
     require("social-state:/state" in bootstrap, "SocialFi state/registry must persist")
@@ -95,6 +139,10 @@ def main() -> int:
     require("EXPLORER_DATABASE_URL:?" in explorer, "public Explorer must require durable PostgreSQL")
     require("AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env" in explorer, "Explorer must consume generated SocialFi registry")
     require("condition: service_completed_successfully" in explorer, "Explorer must wait for SocialFi bootstrap")
+    require("/blocks?limit=1" in explorer, "Explorer readiness must exercise its configured read store")
+    require("/social/status" in explorer and '"complete":true' in explorer, "Explorer readiness must live-verify all five SocialFi states through RPC")
+    require("/blocks?limit=1" in explorer_ui, "Explorer UI health must fail when the Explorer read path is unavailable")
+    require("/social/status" in explorer_ui and '"complete":true' in explorer_ui, "Explorer UI health must remain coupled to live SocialFi readiness")
     require('profiles: ["ops"]' in wallet_tools, "wallet tools must be operator-only, not a public daemon")
     require(re.search(r"^  postgres(?:ql)?:", dokploy, re.MULTILINE) is None, "Dokploy compose must not embed PostgreSQL")
 

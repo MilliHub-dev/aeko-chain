@@ -75,6 +75,8 @@ fn main() -> Result<()> {
             .unwrap_or_else(|_| "./local-testnet/social-state".to_string()),
     );
     fs::create_dir_all(&out_dir).context("creating state-keypair output directory")?;
+    let registry_preexisted = out_dir.join(REGISTRY_FILE_NAME).is_file();
+    let allow_missing_state = parse_bool_flag("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE")?;
 
     let client = RpcClient::new_with_commitment(rpc_url.clone(), CommitmentConfig::confirmed());
 
@@ -84,6 +86,9 @@ fn main() -> Result<()> {
     eprintln!("    authority: {}", authority.pubkey());
     eprintln!("    treasury:  {treasury}");
     eprintln!("    out-dir:   {}", out_dir.display());
+    eprintln!(
+        "    recovery:  registry_preexisted={registry_preexisted} allow_missing_state={allow_missing_state}"
+    );
     eprintln!();
 
     wait_for_rpc_ready(&client)?;
@@ -121,6 +126,8 @@ fn main() -> Result<()> {
         posts_ix,
         "social-posts",
         posts_state_initialized,
+        registry_preexisted,
+        allow_missing_state,
     )?;
 
     // ---- social-rewards ----
@@ -152,6 +159,8 @@ fn main() -> Result<()> {
         rewards_ix,
         "social-rewards",
         rewards_state_initialized,
+        registry_preexisted,
+        allow_missing_state,
     )?;
 
     // ---- social-staking ----
@@ -183,6 +192,8 @@ fn main() -> Result<()> {
         staking_ix,
         "social-staking",
         staking_state_initialized,
+        registry_preexisted,
+        allow_missing_state,
     )?;
 
     // ---- social-anti-spam ----
@@ -215,6 +226,8 @@ fn main() -> Result<()> {
         anti_spam_ix,
         "social-anti-spam",
         anti_spam_state_initialized,
+        registry_preexisted,
+        allow_missing_state,
     )?;
 
     // ---- social-monetization ----
@@ -246,6 +259,8 @@ fn main() -> Result<()> {
         monet_ix,
         "social-monetization",
         monetization_state_initialized,
+        registry_preexisted,
+        allow_missing_state,
     )?;
 
     let registry = format!(
@@ -287,6 +302,20 @@ fn parse_optional_pubkey(env_name: &str) -> Result<Option<Pubkey>> {
             .map(Some)
             .map_err(|e| anyhow!("{env_name} is not a valid pubkey: {e}")),
         _ => Ok(None),
+    }
+}
+
+fn parse_bool_flag(env_name: &str) -> Result<bool> {
+    match env::var(env_name) {
+        Ok(value) => match value.trim().to_ascii_lowercase().as_str() {
+            "" | "0" | "false" | "no" | "off" => Ok(false),
+            "1" | "true" | "yes" | "on" => Ok(true),
+            _ => Err(anyhow!(
+                "{env_name} must be one of 0/1, false/true, no/yes, or off/on"
+            )),
+        },
+        Err(env::VarError::NotPresent) => Ok(false),
+        Err(error) => Err(anyhow!("failed to read {env_name}: {error}")),
     }
 }
 
@@ -418,6 +447,8 @@ fn create_and_init(
     init_ix: Instruction,
     label: &str,
     state_initialized: fn(&[u8]) -> Result<bool>,
+    registry_preexisted: bool,
+    allow_missing_state: bool,
 ) -> Result<()> {
     let state_pubkey = state.pubkey();
     eprintln!("[{label}] state pubkey: {state_pubkey}");
@@ -425,6 +456,12 @@ fn create_and_init(
     if existing_state_is_initialized(client, &state_pubkey, program_id, label, state_initialized)? {
         eprintln!("[{label}] existing initialized state verified; skipping initialization.");
         return Ok(());
+    }
+
+    if registry_preexisted && !allow_missing_state {
+        return Err(anyhow!(
+            "[{label}] state account {state_pubkey} is missing even though {REGISTRY_FILE_NAME} already exists; refusing to recreate protocol state on an established chain. Set AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1 only for an intentional fresh-genesis recovery."
+        ));
     }
 
     let instructions = vec![

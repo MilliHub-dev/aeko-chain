@@ -95,6 +95,12 @@ services:
       AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?Set AEKO_PUBLIC_IP to the public address of this Dokploy server}
       AEKO_GOSSIP_PORT: "8001"
       AEKO_DYNAMIC_PORT_RANGE: 8000-8050
+      # The voting validator keeps client RPC private, but joining same-host
+      # replicas still need a reachable RPC address for genesis/snapshot boot.
+      AEKO_PUBLIC_RPC_ADDRESS: ${AEKO_VALIDATOR_BOOTSTRAP_RPC_ADDRESS:-validator:8899}
+      # RPC send-transaction uses QUIC by default. Route submissions directly
+      # over the Docker network instead of hairpinning to AEKO_PUBLIC_IP:8009.
+      AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}
     ulimits:
       nofile:
         soft: 1000000
@@ -147,6 +153,9 @@ services:
       # The RPC replica participates over the private Compose network. Its
       # public client surface is provided by Dokploy/Traefik on 8899 and 8900.
       AEKO_DYNAMIC_PORT_RANGE: 8051-8101
+      # Public RPC submissions should enter the voting validator over its
+      # internal QUIC TPU instead of attempting public-IP hairpin routing.
+      AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}
     ulimits:
       nofile:
         soft: 1000000
@@ -233,10 +242,17 @@ services:
         condition: service_healthy
       social-bootstrap:
         condition: service_completed_successfully
+    # Readiness, not just process liveness: /blocks exercises the configured
+    # store (PostgreSQL in Dokploy), while /social/status live-reads all five
+    # SocialFi states through rpc-node and verifies owner + initialization.
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/health || exit 1"]
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS 'http://127.0.0.1:8088/blocks?limit=1' >/dev/null &&
+          curl -fsS http://127.0.0.1:8088/social/status | grep -q '"complete":true'
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 5
       start_period: 60s
     networks: [aeko]
@@ -250,10 +266,17 @@ services:
     depends_on:
       explorer-api:
         condition: service_healthy
+    # UI health remains coupled to the API's real read path so a static SPA
+    # cannot be marked healthy while its backend is unavailable or disconnected.
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/ >/dev/null || exit 1"]
+      test:
+        - CMD-SHELL
+        - >-
+          wget -qO- http://127.0.0.1:4000/ >/dev/null &&
+          wget -qO- 'http://explorer-api:8088/blocks?limit=1' >/dev/null &&
+          wget -qO- http://explorer-api:8088/social/status | grep -q '"complete":true'
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
       start_period: 30s
     networks: [aeko]
