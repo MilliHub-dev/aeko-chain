@@ -2,8 +2,9 @@ use {
     crate::{
         config::ExplorerBackendConfig,
         models::{
-            AssetSnapshot, ChainAccountRecord, CoreSlotRecord, NftCollectionRecord, NftRecord,
-            TokenAccountRecord, TokenMintRecord, TokenTransferRecord, TransactionRecord, BlockRecord,
+            AssetSnapshot, BlockRecord, ChainAccountRecord, CoreSlotRecord, NftCollectionRecord,
+            NftRecord, TokenAccountRecord, TokenMintRecord, TokenTransferRecord,
+            TransactionAccountRecord, TransactionRecord,
         },
     },
     anyhow::{anyhow, bail, Context, Result},
@@ -71,10 +72,15 @@ impl RpcChainClient {
         Ok(())
     }
 
+    /// The durable Explorer projection follows finalized chain state. This
+    /// keeps PostgreSQL monotonic without pretending we have reorg rollback
+    /// support for merely confirmed slots.
     pub fn latest_slot(&self) -> Result<u64> {
-        self.rpc_request("getSlot", json!([{ "commitment": "confirmed" }]))
+        self.rpc_request("getSlot", json!([{ "commitment": "finalized" }]))
     }
 
+    /// Live account pages may use confirmed state because they are explicitly
+    /// identified as RPC-backed live reads rather than durable history.
     pub fn fetch_account(&self, address: &str) -> Result<Option<ChainAccountRecord>> {
         let _: Pubkey = address
             .parse()
@@ -109,7 +115,7 @@ impl RpcChainClient {
             json!([
                 slot,
                 {
-                    "commitment": "confirmed",
+                    "commitment": "finalized",
                     "encoding": "json",
                     "transactionDetails": "full",
                     "rewards": false,
@@ -118,7 +124,7 @@ impl RpcChainClient {
             ]),
         )?;
         let Some(block) = block else {
-            // A confirmed slot can legitimately be skipped. Advancing the
+            // A finalized slot can legitimately be skipped. Advancing the
             // durable cursor over a null getBlock is correct; inventing an
             // empty block record is not.
             return Ok(CoreSlotRecord {
@@ -156,9 +162,17 @@ impl RpcChainClient {
         };
 
         let mut records = Vec::with_capacity(transactions.len());
+        let mut transaction_accounts = Vec::new();
         let mut transfer_drafts = Vec::new();
         for tx in transactions {
-            let (record, mut drafts) = parse_transaction(slot, tx)?;
+            let (record, account_keys, mut drafts) = parse_transaction(slot, tx)?;
+            transaction_accounts.extend(account_keys.into_iter().enumerate().map(
+                |(account_index, address)| TransactionAccountRecord {
+                    signature: record.signature.clone(),
+                    account_index,
+                    address,
+                },
+            ));
             records.push(record);
             transfer_drafts.append(&mut drafts);
         }
@@ -168,6 +182,7 @@ impl RpcChainClient {
             slot,
             block: Some(block_record),
             transactions: records,
+            transaction_accounts,
             token_transfers,
         })
     }
@@ -280,7 +295,7 @@ impl RpcChainClient {
     ) -> Result<T> {
         let value: Value = self.rpc_request(
             "getAccountInfo",
-            json!([address, {"commitment": "confirmed", "encoding": "base64"}]),
+            json!([address, {"commitment": "finalized", "encoding": "base64"}]),
         )?;
         if value.is_null() {
             bail!("canonical {label} state account {address} does not exist");
@@ -303,7 +318,7 @@ impl RpcChainClient {
             "getProgramAccounts",
             json!([
                 program_id.to_string(),
-                {"commitment": "confirmed", "encoding": "base64"}
+                {"commitment": "finalized", "encoding": "base64"}
             ]),
         )
     }
@@ -328,7 +343,7 @@ impl RpcChainClient {
         for chunk in addresses.chunks(MAX_MULTIPLE_ACCOUNTS) {
             let values: Vec<Option<Value>> = self.rpc_request(
                 "getMultipleAccounts",
-                json!([chunk, {"commitment": "confirmed", "encoding": "base64"}]),
+                json!([chunk, {"commitment": "finalized", "encoding": "base64"}]),
             )?;
             if values.len() != chunk.len() {
                 bail!(
@@ -428,7 +443,10 @@ impl RpcChainClient {
     }
 }
 
-fn parse_transaction(slot: u64, value: &Value) -> Result<(TransactionRecord, Vec<TransferDraft>)> {
+fn parse_transaction(
+    slot: u64,
+    value: &Value,
+) -> Result<(TransactionRecord, Vec<String>, Vec<TransferDraft>)> {
     let transaction = value
         .get("transaction")
         .ok_or_else(|| anyhow!("slot {slot} transaction entry is missing transaction"))?;
@@ -511,6 +529,7 @@ fn parse_transaction(slot: u64, value: &Value) -> Result<(TransactionRecord, Vec
             primary_program,
             signer,
         },
+        account_keys,
         drafts,
     ))
 }
@@ -696,6 +715,34 @@ mod tests {
     }
 
     #[test]
+    fn transaction_parser_preserves_static_and_loaded_accounts() {
+        let payer = Pubkey::new_unique().to_string();
+        let program = Pubkey::new_unique().to_string();
+        let writable = Pubkey::new_unique().to_string();
+        let readonly = Pubkey::new_unique().to_string();
+        let value = json!({
+            "transaction": {
+                "signatures": ["signature"],
+                "message": {
+                    "accountKeys": [payer.clone(), program.clone()],
+                    "instructions": []
+                }
+            },
+            "meta": {
+                "err": null,
+                "fee": 5000,
+                "loadedAddresses": {
+                    "writable": [writable.clone()],
+                    "readonly": [readonly.clone()]
+                }
+            }
+        });
+
+        let (_, accounts, _) = parse_transaction(9, &value).unwrap();
+        assert_eq!(accounts, vec![payer, program, writable, readonly]);
+    }
+
+    #[test]
     fn failed_transactions_never_emit_transfer_events() {
         let payer = Pubkey::new_unique().to_string();
         let destination = Pubkey::new_unique().to_string();
@@ -716,7 +763,7 @@ mod tests {
             },
             "meta": {"err": {"InstructionError": [0, "Custom"]}, "fee": 5000}
         });
-        let (_, drafts) = parse_transaction(9, &value).unwrap();
+        let (_, _, drafts) = parse_transaction(9, &value).unwrap();
         assert!(drafts.is_empty());
     }
 }

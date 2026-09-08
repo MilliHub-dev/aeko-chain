@@ -20,6 +20,7 @@ struct ReadinessStatus {
     latest_chain_slot: Option<u64>,
     latest_indexed_slot: Option<u64>,
     lag_slots: Option<u64>,
+    chain_behind_indexer: bool,
     max_ready_lag_slots: u64,
 }
 
@@ -71,12 +72,21 @@ async fn readiness(State(state): State<SharedState>) -> Response {
         }
     };
 
-    let lag_slots = latest_chain_slot.zip(latest_indexed_slot).map(|(chain, indexed)| {
-        chain.saturating_sub(indexed)
-    });
+    let chain_behind_indexer = latest_chain_slot
+        .zip(latest_indexed_slot)
+        .is_some_and(|(chain, indexed)| chain < indexed);
+    if chain_behind_indexer {
+        tracing::error!(
+            latest_chain_slot = ?latest_chain_slot,
+            latest_indexed_slot = ?latest_indexed_slot,
+            "readiness rejected because validator chain is behind durable Explorer history"
+        );
+    }
+    let lag_slots = readiness_lag(latest_chain_slot, latest_indexed_slot);
     let ready = database_result.is_ok()
         && latest_chain_slot.is_some()
         && latest_indexed_slot.is_some()
+        && !chain_behind_indexer
         && lag_slots.is_some_and(|lag| lag <= state.max_ready_lag_slots);
     let status = ReadinessStatus {
         ok: ready,
@@ -85,6 +95,7 @@ async fn readiness(State(state): State<SharedState>) -> Response {
         latest_chain_slot,
         latest_indexed_slot,
         lag_slots,
+        chain_behind_indexer,
         max_ready_lag_slots: state.max_ready_lag_slots,
     };
     let body = response::data_from_source(&state.network, status, "readiness");
@@ -93,4 +104,22 @@ async fn readiness(State(state): State<SharedState>) -> Response {
         body,
     )
         .into_response()
+}
+
+fn readiness_lag(latest_chain_slot: Option<u64>, latest_indexed_slot: Option<u64>) -> Option<u64> {
+    latest_chain_slot
+        .zip(latest_indexed_slot)
+        .and_then(|(chain, indexed)| chain.checked_sub(indexed))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::readiness_lag;
+
+    #[test]
+    fn readiness_lag_rejects_a_chain_behind_the_indexer() {
+        assert_eq!(readiness_lag(Some(99), Some(100)), None);
+        assert_eq!(readiness_lag(Some(100), Some(100)), Some(0));
+        assert_eq!(readiness_lag(Some(105), Some(100)), Some(5));
+    }
 }

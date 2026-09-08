@@ -24,6 +24,13 @@ pub struct TransactionRecord {
     pub signer: Option<String>,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TransactionAccountRecord {
+    pub signature: String,
+    pub account_index: usize,
+    pub address: String,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenTransferRecord {
@@ -187,6 +194,8 @@ pub struct ChainAccountRecord {
 pub struct AccountDetailRecord {
     pub account: ChainAccountRecord,
     pub profile: WalletProfileRecord,
+    pub token_holdings: Vec<TokenAccountRecord>,
+    pub nft_holdings: Vec<NftRecord>,
     pub recent_transactions: Vec<TransactionRecord>,
     pub recent_posts: Vec<SocialPostRecord>,
     pub social_stakes: Vec<SocialStakeRecord>,
@@ -219,19 +228,20 @@ pub enum SearchResultRecord {
     Engagement(EngagementRecord),
 }
 
-/// One confirmed chain slot, persisted atomically with its transaction events
-/// and durable next-slot cursor.
+/// One finalized chain slot, persisted atomically with its transaction events,
+/// involved account projection, and durable next-slot cursor.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CoreSlotRecord {
     pub slot: u64,
     pub block: Option<BlockRecord>,
     pub transactions: Vec<TransactionRecord>,
+    pub transaction_accounts: Vec<TransactionAccountRecord>,
     pub token_transfers: Vec<TokenTransferRecord>,
 }
 
-/// Periodic current-state projection. Unlike transfer/event rows these records
-/// describe account state at a specific slot and can safely replace older
-/// snapshots after the full RPC scan succeeds.
+/// Periodic current-state projection. `slot` is a finalized watermark read
+/// immediately before the complete RPC scan; the records describe current
+/// finalized state observed at or after that watermark.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AssetSnapshot {
     pub slot: u64,

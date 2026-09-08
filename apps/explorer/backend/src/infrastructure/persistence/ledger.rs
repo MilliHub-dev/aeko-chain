@@ -1,8 +1,9 @@
 use {
     super::PostgresRepository,
     crate::models::{BlockRecord, CoreSlotRecord, TransactionRecord},
-    anyhow::{Context, Result},
+    anyhow::{bail, Context, Result},
     sqlx::Row,
+    std::collections::HashSet,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -24,9 +25,68 @@ pub struct TransactionQuery {
 
 impl PostgresRepository {
     pub async fn persist_core_slot(&self, record: CoreSlotRecord) -> Result<()> {
+        let CoreSlotRecord {
+            slot,
+            block,
+            transactions,
+            transaction_accounts,
+            token_transfers,
+        } = record;
+
+        if block.as_ref().is_some_and(|value| value.slot != slot) {
+            bail!("core slot record contains a block from a different slot");
+        }
+        if transactions.iter().any(|value| value.slot != slot) {
+            bail!("core slot record contains a transaction from a different slot");
+        }
+        if token_transfers.iter().any(|value| value.slot != slot) {
+            bail!("core slot record contains a token transfer from a different slot");
+        }
+        let transaction_signatures = transactions
+            .iter()
+            .map(|value| value.signature.clone())
+            .collect::<HashSet<_>>();
+        if transaction_signatures.len() != transactions.len() {
+            bail!("core slot record contains duplicate transaction signatures");
+        }
+        if transaction_accounts
+            .iter()
+            .any(|value| !transaction_signatures.contains(&value.signature))
+        {
+            bail!("core slot record contains an account for a transaction outside the slot");
+        }
+        if token_transfers
+            .iter()
+            .any(|value| !transaction_signatures.contains(&value.signature))
+        {
+            bail!("core slot record contains a token transfer for a transaction outside the slot");
+        }
+
+        let slot_i64 = i64::try_from(slot).context("core slot exceeds PostgreSQL BIGINT")?;
         let mut tx = self.pool.begin().await.context("begin core-slot transaction")?;
 
-        if let Some(block) = record.block {
+        // A finalized slot is an authoritative replacement, not an upsert onto
+        // whatever was previously observed at confirmed commitment. Clearing
+        // the old slot projection prevents fork-only blocks, transactions,
+        // participant rows, or transfer events from surviving the finalized
+        // replay. The enclosing transaction makes the replacement atomic.
+        sqlx::query("DELETE FROM token_transfers WHERE slot = $1")
+            .bind(slot_i64)
+            .execute(&mut *tx)
+            .await
+            .context("clearing prior token transfers for finalized slot")?;
+        sqlx::query("DELETE FROM transactions WHERE slot = $1")
+            .bind(slot_i64)
+            .execute(&mut *tx)
+            .await
+            .context("clearing prior transactions for finalized slot")?;
+        sqlx::query("DELETE FROM blocks WHERE slot = $1")
+            .bind(slot_i64)
+            .execute(&mut *tx)
+            .await
+            .context("clearing prior block for finalized slot")?;
+
+        if let Some(block) = block {
             sqlx::query(
                 r#"
                 INSERT INTO blocks
@@ -52,7 +112,7 @@ impl PostgresRepository {
             .context("persisting block")?;
         }
 
-        for transaction in record.transactions {
+        for transaction in transactions {
             sqlx::query(
                 r#"
                 INSERT INTO transactions
@@ -76,9 +136,49 @@ impl PostgresRepository {
             .execute(&mut *tx)
             .await
             .with_context(|| format!("persisting transaction {}", transaction.signature))?;
+
+            // A signature may have been observed on a different confirmed slot,
+            // or parser rules may have changed. Rebuild its child projections
+            // from the finalized transaction instead of retaining stale rows.
+            sqlx::query("DELETE FROM transaction_accounts WHERE signature = $1")
+                .bind(&transaction.signature)
+                .execute(&mut *tx)
+                .await
+                .with_context(|| {
+                    format!("clearing transaction accounts for {}", transaction.signature)
+                })?;
+            sqlx::query("DELETE FROM token_transfers WHERE signature = $1")
+                .bind(&transaction.signature)
+                .execute(&mut *tx)
+                .await
+                .with_context(|| {
+                    format!("clearing token transfers for {}", transaction.signature)
+                })?;
         }
 
-        for transfer in record.token_transfers {
+        for account in transaction_accounts {
+            sqlx::query(
+                r#"
+                INSERT INTO transaction_accounts (signature, account_index, address)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (signature, account_index) DO UPDATE SET
+                    address = EXCLUDED.address
+                "#,
+            )
+            .bind(&account.signature)
+            .bind(i32::try_from(account.account_index).context("transaction account index exceeds INTEGER")?)
+            .bind(&account.address)
+            .execute(&mut *tx)
+            .await
+            .with_context(|| {
+                format!(
+                    "persisting transaction account {}:{}",
+                    account.signature, account.account_index
+                )
+            })?;
+        }
+
+        for transfer in token_transfers {
             sqlx::query(
                 r#"
                 INSERT INTO token_transfers
@@ -110,10 +210,7 @@ impl PostgresRepository {
             })?;
         }
 
-        let next_slot = record
-            .slot
-            .checked_add(1)
-            .context("core slot cursor overflow")?;
+        let next_slot = slot.checked_add(1).context("core slot cursor overflow")?;
         sqlx::query(
             r#"
             INSERT INTO indexer_cursors (stream, next_slot)
@@ -170,14 +267,22 @@ impl PostgresRepository {
         let after = query.after.map(i64::try_from).transpose().context("after slot exceeds BIGINT")?;
         let rows = sqlx::query(
             r#"
-            SELECT signature, slot, success, fee, primary_program, signer
-            FROM transactions
-            WHERE ($1::BIGINT IS NULL OR slot < $1)
-              AND ($2::BIGINT IS NULL OR slot > $2)
-              AND ($3::TEXT IS NULL OR signer = $3)
-              AND ($4::TEXT IS NULL OR primary_program = $4)
-              AND ($5::BOOLEAN IS NULL OR success = $5)
-            ORDER BY slot DESC, signature ASC
+            SELECT t.signature, t.slot, t.success, t.fee, t.primary_program, t.signer
+            FROM transactions t
+            WHERE ($1::BIGINT IS NULL OR t.slot < $1)
+              AND ($2::BIGINT IS NULL OR t.slot > $2)
+              AND (
+                    $3::TEXT IS NULL
+                    OR EXISTS (
+                        SELECT 1
+                        FROM transaction_accounts ta
+                        WHERE ta.signature = t.signature
+                          AND ta.address = $3
+                    )
+                  )
+              AND ($4::TEXT IS NULL OR t.primary_program = $4)
+              AND ($5::BOOLEAN IS NULL OR t.success = $5)
+            ORDER BY t.slot DESC, t.signature ASC
             LIMIT $6
             "#,
         )

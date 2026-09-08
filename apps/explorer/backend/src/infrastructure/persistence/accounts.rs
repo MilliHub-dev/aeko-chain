@@ -1,5 +1,6 @@
 use {
     super::{
+        assets::NftQuery,
         ledger::TransactionQuery,
         social::{PostQuery, StakeQuery},
         PostgresRepository,
@@ -51,6 +52,16 @@ impl PostgresRepository {
         let profile = self
             .build_wallet_profile(&account.address, Some(account.lamports), reputation_score)
             .await?;
+        let token_holdings = self
+            .list_token_accounts_by_owner(&account.address, limit)
+            .await?;
+        let nft_holdings = self
+            .list_nfts(&NftQuery {
+                owner: Some(account.address.clone()),
+                limit,
+                ..NftQuery::default()
+            })
+            .await?;
         let recent_transactions = self
             .list_transactions(&TransactionQuery {
                 address: Some(account.address.clone()),
@@ -79,6 +90,8 @@ impl PostgresRepository {
         Ok(AccountDetailRecord {
             account,
             profile,
+            token_holdings,
+            nft_holdings,
             recent_transactions,
             recent_posts,
             social_stakes,

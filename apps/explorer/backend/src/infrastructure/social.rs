@@ -38,7 +38,7 @@ impl CanonicalChainDataSource {
         let address = registry.posts.as_deref().ok_or_else(|| {
             anyhow!("social-posts state is missing from the canonical bootstrap registry")
         })?;
-        let state = self.rpc.fetch_owned_state(
+        let state = self.rpc.fetch_owned_state::<SocialPostsStateAccount>(
             address,
             aeko_social_posts_program::id(),
             "social-posts",
@@ -54,7 +54,7 @@ impl CanonicalChainDataSource {
         let address = registry.rewards.as_deref().ok_or_else(|| {
             anyhow!("social-rewards state is missing from the canonical bootstrap registry")
         })?;
-        let state = self.rpc.fetch_owned_state(
+        let state = self.rpc.fetch_owned_state::<SocialRewardsStateAccount>(
             address,
             aeko_social_rewards_program::id(),
             "social-rewards",
@@ -70,7 +70,7 @@ impl CanonicalChainDataSource {
         let address = registry.staking.as_deref().ok_or_else(|| {
             anyhow!("social-staking state is missing from the canonical bootstrap registry")
         })?;
-        let state = self.rpc.fetch_owned_state(
+        let state = self.rpc.fetch_owned_state::<SocialStakingStateAccount>(
             address,
             aeko_social_staking_program::id(),
             "social-staking",
