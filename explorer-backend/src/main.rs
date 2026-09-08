@@ -91,14 +91,18 @@ async fn main() -> Result<()> {
             Ok(Ok(slot)) => slot,
             Ok(Err(e)) => {
                 tracing::error!(error = %e, "latest_slot() failed at boot; deferring catch-up");
-                start_slot
+                start_slot.saturating_sub(1)
             }
             Err(e) => {
                 tracing::error!(error = %e, "spawn_blocking panicked at boot");
-                start_slot
+                start_slot.saturating_sub(1)
             }
         };
 
+        // Track the next slot that still needs core ingestion. Unlike a
+        // last-synced cursor this works for start_slot=0 without underflow and,
+        // crucially, remains unchanged when catch-up fails.
+        let mut next_slot = start_slot;
         if initial_target >= start_slot {
             let data_source = sync_source.clone();
             let sink = Arc::clone(&sync_sink);
@@ -114,38 +118,38 @@ async fn main() -> Result<()> {
             .await;
             match result {
                 Ok(Ok(())) => {
-                    tracing::info!(through_slot = initial_target, "initial catch-up complete")
+                    next_slot = initial_target.saturating_add(1);
+                    tracing::info!(through_slot = initial_target, "initial catch-up complete");
                 }
-                Ok(Err(e)) => tracing::error!(error = %e, "initial catch-up failed"),
-                Err(e) => tracing::error!(error = %e, "catch-up task panicked"),
+                Ok(Err(e)) => tracing::error!(error = %e, retry_from = next_slot, "initial catch-up failed; live sync will retry"),
+                Err(e) => tracing::error!(error = %e, retry_from = next_slot, "catch-up task panicked; live sync will retry"),
             }
         }
 
-        let mut last_synced_slot = initial_target;
         loop {
             tokio::time::sleep(sync_interval).await;
             let data_source = sync_source.clone();
             let sink = Arc::clone(&sync_sink);
             let result = tokio::task::spawn_blocking(move || {
                 let latest = data_source.latest_slot()?;
-                if latest > last_synced_slot {
+                if latest >= next_slot {
                     sync_range_resilient(
                         &data_source,
                         &sink,
-                        last_synced_slot + 1,
+                        next_slot,
                         latest,
                         persist_socialfi_views,
                     )?;
-                    Ok::<u64, anyhow::Error>(latest)
+                    Ok::<u64, anyhow::Error>(latest.saturating_add(1))
                 } else {
-                    Ok::<u64, anyhow::Error>(last_synced_slot)
+                    Ok::<u64, anyhow::Error>(next_slot)
                 }
             })
             .await;
             match result {
-                Ok(Ok(new_slot)) => last_synced_slot = new_slot,
-                Ok(Err(e)) => tracing::warn!(error = %e, "live sync core tick failed"),
-                Err(e) => tracing::error!(error = %e, "live sync task panicked"),
+                Ok(Ok(new_next_slot)) => next_slot = new_next_slot,
+                Ok(Err(e)) => tracing::warn!(error = %e, retry_from = next_slot, "live sync core tick failed"),
+                Err(e) => tracing::error!(error = %e, retry_from = next_slot, "live sync task panicked"),
             }
         }
     });
