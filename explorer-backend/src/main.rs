@@ -8,14 +8,16 @@
 //!        - unset → `InMemoryExplorerStore::new()` (local dev / smoke tests).
 //!   4. Wire the store as both `IndexSink` (writes) and `ExplorerReadStore`
 //!      (reads) — same instance behind two trait objects.
-//!   5. Spawn the catch-up + live-sync tasks off-thread so the HTTP server
-//!      binds RIGHT AWAY (closed port → 502 behind Traefik).
+//!   5. Spawn catch-up + live-sync off-thread so the HTTP server binds
+//!      immediately. Core block/transaction indexing is isolated from optional
+//!      token/NFT/SocialFi projection refreshes so an RPC enrichment failure
+//!      cannot freeze the Explorer cursor.
 //!   6. Serve.
 
 use {
     aeko_explorer_backend::{
         app, config,
-        indexer::{ExplorerIndexer, IndexSink},
+        indexer::IndexSink,
         services::ExplorerApiService,
         state::AppState,
         store::{ExplorerReadStore, InMemoryExplorerStore, PgExplorerStore},
@@ -25,6 +27,14 @@ use {
     std::sync::Arc,
     tokio::net::TcpListener,
 };
+
+// Program-account snapshots are chain-wide views, not per-slot events. Running
+// the same getProgramAccounts scans for every slot is wasteful and, more
+// importantly, previously allowed one optional projection error to stop block
+// and transaction indexing forever. Social views refresh more frequently than
+// token/NFT inventory while core block/transaction ingestion stays per-slot.
+const SOCIAL_VIEW_REFRESH_SLOTS: u64 = 16;
+const ASSET_VIEW_REFRESH_SLOTS: u64 = 64;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -48,9 +58,6 @@ async fn main() -> Result<()> {
         "explorer-backend starting"
     );
 
-    // 3. Pick the storage backend. Each branch hands back an `Arc<dyn ...>`
-    //    for the read path and an `Arc<dyn IndexSink>` for the write path —
-    //    same physical object behind two trait views.
     let (read_store, sink): (Arc<dyn ExplorerReadStore>, Arc<dyn IndexSink>) =
         match backend_cfg.database_url.as_deref() {
             Some(url) => {
@@ -66,22 +73,19 @@ async fn main() -> Result<()> {
             }
         };
 
-    // 4. Indexer. `ExplorerIndexer` is generic over `S: IndexSink`; we hand
-    //    it the Arc-trait sink so the same code path drives both backends.
     let data_source = RpcChainDataSource::new(backend_cfg.clone());
-    let indexer = Arc::new(ExplorerIndexer::new(backend_cfg.clone(), data_source, sink));
 
-    // 5. Off-thread catch-up + live-sync. All chain RPC + DB writes go
-    //    through `tokio::task::spawn_blocking` — the indexer's data-source
-    //    methods are sync, and the PgStore deliberately calls block_on
-    //    inside its trait impls (see store/postgres.rs header).
+    // Catch-up + live-sync. All RPC and synchronous store work runs inside
+    // spawn_blocking because the Postgres store bridges sync traits to sqlx.
     let start_slot = backend_cfg.start_slot;
-    let sync_indexer = Arc::clone(&indexer);
     let sync_interval = server_cfg.sync_interval;
+    let persist_socialfi_views = backend_cfg.persist_socialfi_views;
+    let sync_source = data_source.clone();
+    let sync_sink = Arc::clone(&sink);
     tokio::spawn(async move {
         let initial_target_task = {
-            let indexer = Arc::clone(&sync_indexer);
-            tokio::task::spawn_blocking(move || indexer.data_source.latest_slot())
+            let data_source = sync_source.clone();
+            tokio::task::spawn_blocking(move || data_source.latest_slot())
         };
         let initial_target = match initial_target_task.await {
             Ok(Ok(slot)) => slot,
@@ -95,10 +99,17 @@ async fn main() -> Result<()> {
             }
         };
 
-        if initial_target > start_slot {
-            let indexer = Arc::clone(&sync_indexer);
+        if initial_target >= start_slot {
+            let data_source = sync_source.clone();
+            let sink = Arc::clone(&sync_sink);
             let result = tokio::task::spawn_blocking(move || {
-                indexer.sync_range(start_slot, initial_target)
+                sync_range_resilient(
+                    &data_source,
+                    &sink,
+                    start_slot,
+                    initial_target,
+                    persist_socialfi_views,
+                )
             })
             .await;
             match result {
@@ -113,11 +124,18 @@ async fn main() -> Result<()> {
         let mut last_synced_slot = initial_target;
         loop {
             tokio::time::sleep(sync_interval).await;
-            let indexer = Arc::clone(&sync_indexer);
+            let data_source = sync_source.clone();
+            let sink = Arc::clone(&sync_sink);
             let result = tokio::task::spawn_blocking(move || {
-                let latest = indexer.data_source.latest_slot()?;
+                let latest = data_source.latest_slot()?;
                 if latest > last_synced_slot {
-                    indexer.sync_range(last_synced_slot + 1, latest)?;
+                    sync_range_resilient(
+                        &data_source,
+                        &sink,
+                        last_synced_slot + 1,
+                        latest,
+                        persist_socialfi_views,
+                    )?;
                     Ok::<u64, anyhow::Error>(latest)
                 } else {
                     Ok::<u64, anyhow::Error>(last_synced_slot)
@@ -126,14 +144,12 @@ async fn main() -> Result<()> {
             .await;
             match result {
                 Ok(Ok(new_slot)) => last_synced_slot = new_slot,
-                Ok(Err(e)) => tracing::warn!(error = %e, "live sync tick failed"),
+                Ok(Err(e)) => tracing::warn!(error = %e, "live sync core tick failed"),
                 Err(e) => tracing::error!(error = %e, "live sync task panicked"),
             }
         }
     });
 
-    // 6. Serve. The HTTP layer only needs the read view of the store —
-    //    ApiService composes the Arc<dyn ExplorerReadStore>.
     let api = ExplorerApiService::from_arc(read_store);
     let state = AppState::new(api, backend_cfg.network.clone()).shared();
     let app = app::build_router(state, &server_cfg);
@@ -151,6 +167,76 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+fn sync_range_resilient(
+    data_source: &RpcChainDataSource,
+    sink: &Arc<dyn IndexSink>,
+    start_slot: u64,
+    end_slot: u64,
+    persist_socialfi_views: bool,
+) -> Result<()> {
+    for slot in start_slot..=end_slot {
+        sync_slot_resilient(data_source, sink, slot, persist_socialfi_views)?;
+    }
+    Ok(())
+}
+
+fn sync_slot_resilient(
+    data_source: &RpcChainDataSource,
+    sink: &Arc<dyn IndexSink>,
+    slot: u64,
+    persist_socialfi_views: bool,
+) -> Result<()> {
+    // These are the core Explorer contract. If either fails, do not advance the
+    // cursor: the next live tick retries this slot and the stores are idempotent.
+    if let Some(block) = data_source.fetch_block(slot)? {
+        sink.persist_block(block)?;
+    }
+    sink.persist_transactions(data_source.fetch_transactions(slot)?)?;
+
+    // Token/NFT/program-account snapshots must never hold the block/transaction
+    // cursor hostage. Refresh periodically and keep their error causes visible.
+    if slot % ASSET_VIEW_REFRESH_SLOTS == 0 {
+        best_effort_projection(slot, "token transfers", || {
+            sink.persist_token_transfers(data_source.fetch_token_transfers(slot)?)
+        });
+        best_effort_projection(slot, "nft inventory", || {
+            sink.persist_nft_updates(data_source.fetch_nft_updates(slot)?)
+        });
+    }
+
+    if persist_socialfi_views && slot % SOCIAL_VIEW_REFRESH_SLOTS == 0 {
+        best_effort_projection(slot, "social posts", || {
+            sink.persist_social_posts(data_source.fetch_social_posts(slot)?)
+        });
+        best_effort_projection(slot, "creator rewards", || {
+            sink.persist_creator_rewards(data_source.fetch_creator_rewards(slot)?)
+        });
+        best_effort_projection(slot, "engagement events", || {
+            sink.persist_engagement_events(data_source.fetch_engagement_events(slot)?)
+        });
+        best_effort_projection(slot, "social stakes", || {
+            sink.persist_social_stakes(data_source.fetch_social_stakes(slot)?)
+        });
+    }
+
+    if persist_socialfi_views && slot % ASSET_VIEW_REFRESH_SLOTS == 0 {
+        best_effort_projection(slot, "wallet profiles", || {
+            sink.persist_wallet_profiles(data_source.fetch_wallet_profiles(slot)?)
+        });
+    }
+
+    Ok(())
+}
+
+fn best_effort_projection<F>(slot: u64, label: &'static str, projection: F)
+where
+    F: FnOnce() -> Result<()>,
+{
+    if let Err(error) = projection() {
+        tracing::warn!(slot, projection = label, error = %error, "optional explorer projection refresh failed");
+    }
+}
+
 async fn shutdown_signal() {
     let ctrl_c = async {
         tokio::signal::ctrl_c()
@@ -163,7 +249,7 @@ async fn shutdown_signal() {
             .expect("install SIGTERM handler")
             .recv()
             .await;
-    };
+    }
     #[cfg(not(unix))]
     let terminate = std::future::pending::<()>();
 
