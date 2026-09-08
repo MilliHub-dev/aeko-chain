@@ -18,6 +18,7 @@ import ExplorerCollection from './pages/ExplorerCollection';
 import Bridge from './pages/Bridge';
 import NftDemo from './pages/NftDemo';
 import Faucet from './pages/Faucet';
+import SocialTest from './pages/SocialTest';
 import ScrollToTop from './components/ScrollToTop';
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
           <Route path="/explorer/collection/:collectionId" element={<ExplorerCollection />} />
           <Route path="/bridge" element={<Bridge />} />
           <Route path="/network-tools" element={<Faucet />} />
+          <Route path="/network-tools/social-e2e" element={<SocialTest />} />
           <Route path="/faucet" element={<Navigate to="/network-tools" replace />} />
           <Route path="/nft-demo" element={<NftDemo />} />
         </Routes>
