@@ -84,6 +84,7 @@ def main() -> int:
     rpc_node = service_block(dokploy, "rpc-node", "social-bootstrap")
     bootstrap = service_block(dokploy, "social-bootstrap", "explorer-api")
     explorer = service_block(dokploy, "explorer-api", "explorer-ui")
+    explorer_ui = service_block(dokploy, "explorer-ui", "wallet-tools")
     wallet_tools = service_block(dokploy, "wallet-tools")
 
     require("AEKO_NODE_ROLE: validator" in validator, "validator role must be explicit")
@@ -120,6 +121,10 @@ def main() -> int:
     require("EXPLORER_DATABASE_URL:?" in explorer, "public Explorer must require durable PostgreSQL")
     require("AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env" in explorer, "Explorer must consume generated SocialFi registry")
     require("condition: service_completed_successfully" in explorer, "Explorer must wait for SocialFi bootstrap")
+    require("/blocks?limit=1" in explorer, "Explorer readiness must exercise its configured read store")
+    require("/social/status" in explorer and '"complete":true' in explorer, "Explorer readiness must live-verify all five SocialFi states through RPC")
+    require("/blocks?limit=1" in explorer_ui, "Explorer UI health must fail when the Explorer read path is unavailable")
+    require("/social/status" in explorer_ui and '"complete":true' in explorer_ui, "Explorer UI health must remain coupled to live SocialFi readiness")
     require('profiles: ["ops"]' in wallet_tools, "wallet tools must be operator-only, not a public daemon")
     require(re.search(r"^  postgres(?:ql)?:", dokploy, re.MULTILINE) is None, "Dokploy compose must not embed PostgreSQL")
 
