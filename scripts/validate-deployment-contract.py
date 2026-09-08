@@ -11,6 +11,7 @@ PORTABLE = ROOT / "docker-compose.yml"
 DOKPLOY = ROOT / "docker-compose.dokploy.yml"
 DOCKERFILE = ROOT / "Dockerfile"
 VALIDATOR_ENTRYPOINT = ROOT / "docker" / "validator-entrypoint.sh"
+SOCIAL_BOOTSTRAP = ROOT / "social-bootstrap" / "src" / "main.rs"
 README = ROOT / "README.md"
 
 
@@ -44,6 +45,7 @@ def main() -> int:
     dokploy = read(DOKPLOY)
     dockerfile = read(DOCKERFILE)
     validator_entrypoint = read(VALIDATOR_ENTRYPOINT)
+    social_bootstrap = read(SOCIAL_BOOTSTRAP)
     readme = read(README)
 
     # One canonical build recipe, with all role-specific images produced from it.
@@ -69,6 +71,22 @@ def main() -> int:
     require(
         '--rpc-send-transaction-tpu-peer "$AEKO_RPC_SEND_TRANSACTION_TPU_PEER"' in validator_entrypoint,
         "validator entrypoint must support an explicit RPC transaction TPU peer",
+    )
+
+    # SocialFi bootstrap must distinguish an incomplete first boot from a
+    # missing state on a previously completed chain. The former may safely
+    # retry the persisted key; the latter is explicit recovery only.
+    require(
+        'parse_bool_flag("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE")' in social_bootstrap,
+        "SocialFi bootstrap must consume AEKO_BOOTSTRAP_ALLOW_MISSING_STATE",
+    )
+    require(
+        "registry_preexisted && !allow_missing_state" in social_bootstrap,
+        "SocialFi bootstrap must fail closed when completed registry state disappears",
+    )
+    require(
+        "existing initialized state verified; skipping initialization" in social_bootstrap,
+        "SocialFi bootstrap must remain idempotent for already initialized state",
     )
 
     # Dokploy is an image-pull deployment contract, never a second build system.
