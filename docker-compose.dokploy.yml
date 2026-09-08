@@ -140,11 +140,13 @@ services:
 
   # Idempotent one-shot initialization of the five native SocialFi programs.
   # State keypairs and the generated registry survive redeploys in social-state.
-  # `Exited (0)` is success: all five states were verified/initialized and the
-  # registry was written. This service is intentionally not a permanent daemon.
+  # `Exited (0)` is success. A non-zero exit is intentionally terminal so the
+  # exact bootstrap failure remains visible instead of being hidden by a Docker
+  # restart storm; the binary already owns bounded RPC/transaction retries.
   social-bootstrap:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
+    restart: "no"
     environment:
       AEKO_RPC_URL: http://validator:8899
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
@@ -164,7 +166,6 @@ services:
         condition: service_healthy
       key-preflight:
         condition: service_completed_successfully
-    restart: on-failure:20
     networks: [aeko]
 
   explorer-api:
@@ -194,20 +195,23 @@ services:
       - "8088"
     volumes:
       - social-state:/state:ro
+    # Explorer is a long-running observability/API service. It starts as soon
+    # as core chain RPC is healthy even if SocialFi initialization is degraded;
+    # registry/status endpoints dynamically report incomplete SocialFi state.
     depends_on:
       validator:
         condition: service_healthy
-      social-bootstrap:
-        condition: service_completed_successfully
-    # Readiness, not just process liveness: /blocks exercises the configured
-    # store (PostgreSQL in Dokploy), while /social/status live-reads all five
-    # SocialFi states through validator RPC and verifies owner + initialization.
+    # Core readiness proves PostgreSQL reads and validator RPC. SocialFi
+    # completeness is a separate deployment-acceptance signal exposed by
+    # /social/status and scripts/smoke-aeko-social.py, not a process-liveness gate.
     healthcheck:
       test:
         - CMD-SHELL
         - >-
           curl -fsS 'http://127.0.0.1:8088/blocks?limit=1' >/dev/null &&
-          curl -fsS http://127.0.0.1:8088/social/status | grep -q '"complete":true'
+          curl -fsS -X POST -H 'Content-Type: application/json'
+          -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+          http://validator:8899 | grep -q '"result":"ok"'
       interval: 30s
       timeout: 10s
       retries: 5
@@ -223,15 +227,14 @@ services:
     depends_on:
       explorer-api:
         condition: service_healthy
-    # UI health remains coupled to the API's real read path so a static SPA
-    # cannot be marked healthy while its backend is unavailable or disconnected.
+    # UI readiness proves the SPA and core Explorer read path. SocialFi can be
+    # visibly degraded without preventing the UI process from serving diagnostics.
     healthcheck:
       test:
         - CMD-SHELL
         - >-
           wget -qO- http://127.0.0.1:4000/ >/dev/null &&
-          wget -qO- 'http://explorer-api:8088/blocks?limit=1' >/dev/null &&
-          wget -qO- http://explorer-api:8088/social/status | grep -q '"complete":true'
+          wget -qO- 'http://explorer-api:8088/blocks?limit=1' >/dev/null
       interval: 30s
       timeout: 10s
       retries: 3
