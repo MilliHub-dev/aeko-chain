@@ -1,8 +1,8 @@
 //! Strict environment-backed configuration for the Explorer backend.
 //!
-//! The production binary must never guess which chain or database it should
-//! use. Connection endpoints and deployment identity are required at startup;
-//! operational tuning remains explicit environment configuration as well.
+//! Production must never guess its RPC endpoint, database, deployment
+//! identity, readiness policy, or indexing cadence. All environment-specific
+//! values are required and documented in `.env.example`.
 
 use {
     anyhow::{anyhow, Context, Result},
@@ -14,17 +14,18 @@ pub struct ExplorerBackendConfig {
     pub rpc_url: String,
     pub websocket_url: Option<String>,
     pub network: String,
-    /// First slot to index when the database has no durable cursor yet.
+    /// First slot to index only when PostgreSQL has no durable cursor yet.
     pub start_slot: u64,
     pub max_batch_size: usize,
     pub persist_socialfi_views: bool,
-    /// Postgres is the production system of record. The backend refuses to
-    /// start when neither supported database environment variable is present.
     pub database_url: String,
     pub db_max_connections: u32,
     pub db_min_connections: u32,
     pub db_acquire_timeout: Duration,
     pub rpc_timeout: Duration,
+    pub asset_refresh_slots: u64,
+    pub social_refresh_slots: u64,
+    pub max_ready_lag_slots: u64,
 }
 
 impl ExplorerBackendConfig {
@@ -33,10 +34,7 @@ impl ExplorerBackendConfig {
         let websocket_url = optional_env("AEKO_EXPLORER_WS");
         let network = required_env("AEKO_EXPLORER_NETWORK")?;
         let start_slot = required_parse_env::<u64>("AEKO_EXPLORER_START_SLOT")?;
-        let max_batch_size = required_parse_env::<usize>("AEKO_EXPLORER_MAX_BATCH_SIZE")?;
-        if max_batch_size == 0 {
-            return Err(anyhow!("AEKO_EXPLORER_MAX_BATCH_SIZE must be greater than zero"));
-        }
+        let max_batch_size = required_nonzero::<usize>("AEKO_EXPLORER_MAX_BATCH_SIZE")?;
         let persist_socialfi_views =
             required_parse_env::<bool>("AEKO_EXPLORER_PERSIST_SOCIALFI_VIEWS")?;
         let database_url = optional_env("AEKO_EXPLORER_DATABASE_URL")
@@ -47,35 +45,22 @@ impl ExplorerBackendConfig {
                 )
             })?;
         let db_max_connections =
-            required_parse_env::<u32>("AEKO_EXPLORER_DB_MAX_CONNECTIONS")?;
+            required_nonzero::<u32>("AEKO_EXPLORER_DB_MAX_CONNECTIONS")?;
         let db_min_connections =
-            required_parse_env::<u32>("AEKO_EXPLORER_DB_MIN_CONNECTIONS")?;
-        if db_max_connections == 0 || db_min_connections == 0 {
-            return Err(anyhow!(
-                "AEKO_EXPLORER_DB_MAX_CONNECTIONS and AEKO_EXPLORER_DB_MIN_CONNECTIONS must be greater than zero"
-            ));
-        }
+            required_nonzero::<u32>("AEKO_EXPLORER_DB_MIN_CONNECTIONS")?;
         if db_min_connections > db_max_connections {
             return Err(anyhow!(
                 "AEKO_EXPLORER_DB_MIN_CONNECTIONS cannot exceed AEKO_EXPLORER_DB_MAX_CONNECTIONS"
             ));
         }
-        let db_acquire_timeout = Duration::from_secs(required_parse_env::<u64>(
-            "AEKO_EXPLORER_DB_ACQUIRE_TIMEOUT_SECS",
-        )?);
-        if db_acquire_timeout.is_zero() {
-            return Err(anyhow!(
-                "AEKO_EXPLORER_DB_ACQUIRE_TIMEOUT_SECS must be greater than zero"
-            ));
-        }
-        let rpc_timeout = Duration::from_secs(required_parse_env::<u64>(
-            "AEKO_EXPLORER_RPC_TIMEOUT_SECS",
-        )?);
-        if rpc_timeout.is_zero() {
-            return Err(anyhow!(
-                "AEKO_EXPLORER_RPC_TIMEOUT_SECS must be greater than zero"
-            ));
-        }
+        let db_acquire_timeout = required_duration("AEKO_EXPLORER_DB_ACQUIRE_TIMEOUT_SECS")?;
+        let rpc_timeout = required_duration("AEKO_EXPLORER_RPC_TIMEOUT_SECS")?;
+        let asset_refresh_slots =
+            required_nonzero::<u64>("AEKO_EXPLORER_ASSET_REFRESH_SLOTS")?;
+        let social_refresh_slots =
+            required_nonzero::<u64>("AEKO_EXPLORER_SOCIAL_REFRESH_SLOTS")?;
+        let max_ready_lag_slots =
+            required_parse_env::<u64>("AEKO_EXPLORER_MAX_READY_LAG_SLOTS")?;
 
         Ok(Self {
             rpc_url,
@@ -89,6 +74,9 @@ impl ExplorerBackendConfig {
             db_min_connections,
             db_acquire_timeout,
             rpc_timeout,
+            asset_refresh_slots,
+            social_refresh_slots,
+            max_ready_lag_slots,
         })
     }
 }
@@ -107,26 +95,9 @@ impl ServerConfig {
         let bind_addr = bind_value
             .parse::<SocketAddr>()
             .with_context(|| format!("AEKO_EXPLORER_BIND={bind_value:?} is not a valid host:port"))?;
-        let request_timeout = Duration::from_secs(required_parse_env::<u64>(
-            "AEKO_EXPLORER_REQUEST_TIMEOUT_SECS",
-        )?);
-        if request_timeout.is_zero() {
-            return Err(anyhow!(
-                "AEKO_EXPLORER_REQUEST_TIMEOUT_SECS must be greater than zero"
-            ));
-        }
-        let max_body_bytes = required_parse_env::<usize>("AEKO_EXPLORER_MAX_BODY_BYTES")?;
-        if max_body_bytes == 0 {
-            return Err(anyhow!("AEKO_EXPLORER_MAX_BODY_BYTES must be greater than zero"));
-        }
-        let sync_interval = Duration::from_secs(required_parse_env::<u64>(
-            "AEKO_EXPLORER_SYNC_INTERVAL_SECS",
-        )?);
-        if sync_interval.is_zero() {
-            return Err(anyhow!(
-                "AEKO_EXPLORER_SYNC_INTERVAL_SECS must be greater than zero"
-            ));
-        }
+        let request_timeout = required_duration("AEKO_EXPLORER_REQUEST_TIMEOUT_SECS")?;
+        let max_body_bytes = required_nonzero::<usize>("AEKO_EXPLORER_MAX_BODY_BYTES")?;
+        let sync_interval = required_duration("AEKO_EXPLORER_SYNC_INTERVAL_SECS")?;
 
         Ok(Self {
             bind_addr,
@@ -158,6 +129,23 @@ where
         .map_err(|error| anyhow!("{key}={value:?} is not parseable: {error}"))
 }
 
+fn required_nonzero<T>(key: &str) -> Result<T>
+where
+    T: std::str::FromStr + PartialEq + Default,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    let value = required_parse_env::<T>(key)?;
+    if value == T::default() {
+        return Err(anyhow!("{key} must be greater than zero"));
+    }
+    Ok(value)
+}
+
+fn required_duration(key: &str) -> Result<Duration> {
+    let seconds = required_nonzero::<u64>(key)?;
+    Ok(Duration::from_secs(seconds))
+}
+
 #[cfg(test)]
 impl Default for ExplorerBackendConfig {
     fn default() -> Self {
@@ -173,6 +161,9 @@ impl Default for ExplorerBackendConfig {
             db_min_connections: 1,
             db_acquire_timeout: Duration::from_secs(5),
             rpc_timeout: Duration::from_secs(5),
+            asset_refresh_slots: 64,
+            social_refresh_slots: 16,
+            max_ready_lag_slots: 128,
         }
     }
 }

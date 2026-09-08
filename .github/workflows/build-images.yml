@@ -13,6 +13,20 @@ permissions:
 jobs:
   build-images:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aeko
+          POSTGRES_PASSWORD: aeko
+          POSTGRES_DB: aeko_explorer_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aeko -d aeko_explorer_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout source
@@ -32,6 +46,11 @@ jobs:
           python3 scripts/validate-deployment-contract.py
           docker compose -f docker-compose.yml config >/dev/null
           docker compose -f docker-compose.dokploy.yml config >/dev/null
+
+      - name: Validate Explorer PostgreSQL backend
+        env:
+          AEKO_EXPLORER_TEST_DATABASE_URL: postgres://aeko:aeko@127.0.0.1:5432/aeko_explorer_test
+        run: cargo test -p aeko-explorer-backend
 
       - name: Validate Node Social SDK wire contract
         working-directory: apps/sdk/node
@@ -67,9 +86,6 @@ jobs:
             shift
             local tags=()
             local image
-
-            # PR builds prove every target is buildable. Main builds publish
-            # canonical and temporary compatibility names.
             if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
               tags+=(--tag "aeko-ci/${target}:${SHA_TAG}")
             else
@@ -78,7 +94,6 @@ jobs:
                 tags+=(--tag "${REGISTRY_USER}/${image}:${SHA_TAG}")
               done
             fi
-
             echo "==> Building ${target}"
             docker buildx build \
               --file Dockerfile \
@@ -88,12 +103,9 @@ jobs:
               .
           }
 
-          # Same executable, two runtime roles: validator + optional RPC node.
-          # aeko-node is retained as a temporary compatibility alias.
           build_target validator aeko-validator aeko-node
           build_target faucet aeko-faucet
           build_target social-bootstrap aeko-social-bootstrap
           build_target tools aeko-tools
-          # aeko-explorer-backend is retained as a compatibility alias.
           build_target explorer-api aeko-explorer-api aeko-explorer-backend
           build_target explorer-ui aeko-explorer-ui

@@ -9,10 +9,6 @@
 #   tools            aeko CLI + aeko-keygen operator utilities
 #   explorer-api     Rust explorer indexer / REST API
 #   explorer-ui      Vite explorer frontend
-#
-# Build a specific runtime image with:
-#   docker build --target <target> -t <image> .
-# Plain `docker build .` produces the validator image.
 
 FROM rust:1.75 AS rust-builder
 
@@ -33,9 +29,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /aeko
 COPY . .
 
-# Compile the complete Rust runtime set once. Runtime targets below copy only
-# the binaries they actually need, so a validator container no longer carries
-# faucet/bootstrap/operator tooling.
 RUN --mount=type=cache,id=aeko-sccache,target=/root/.cache/sccache \
     --mount=type=cache,id=aeko-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=aeko-git,target=/usr/local/cargo/git \
@@ -66,9 +59,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libudev1 \
     && rm -rf /var/lib/apt/lists/*
 
-# ---------------------------------------------------------------------------
-# Validator / RPC node runtime
-# ---------------------------------------------------------------------------
 FROM rust-runtime AS validator
 COPY --from=rust-builder /binaries/aeko-validator /usr/local/bin/aeko-validator
 COPY --from=rust-builder /binaries/aeko-genesis /usr/local/bin/aeko-genesis
@@ -77,41 +67,28 @@ RUN chmod 0755 /usr/local/bin/validator-entrypoint.sh
 EXPOSE 8001/tcp 8001/udp 8899/tcp 8900/tcp
 ENTRYPOINT ["/usr/local/bin/validator-entrypoint.sh"]
 
-# ---------------------------------------------------------------------------
-# Faucet runtime
-# ---------------------------------------------------------------------------
 FROM rust-runtime AS faucet
 COPY --from=rust-builder /binaries/aeko-faucet /usr/local/bin/aeko-faucet
 EXPOSE 9900/tcp
 ENTRYPOINT ["aeko-faucet"]
 
-# ---------------------------------------------------------------------------
-# One-shot SocialFi state bootstrap runtime
-# ---------------------------------------------------------------------------
 FROM rust-runtime AS social-bootstrap
 COPY --from=rust-builder /binaries/aeko-social-bootstrap /usr/local/bin/aeko-social-bootstrap
 ENTRYPOINT ["aeko-social-bootstrap"]
 
-# ---------------------------------------------------------------------------
-# Operator tooling runtime. No fixed entrypoint so either binary can be called.
-# ---------------------------------------------------------------------------
 FROM rust-runtime AS tools
 COPY --from=rust-builder /binaries/aeko /usr/local/bin/aeko
 COPY --from=rust-builder /binaries/aeko-keygen /usr/local/bin/aeko-keygen
 CMD ["aeko", "--help"]
 
-# ---------------------------------------------------------------------------
-# Explorer indexer / REST API runtime
-# ---------------------------------------------------------------------------
 FROM rust-runtime AS explorer-api
 COPY --from=rust-builder /binaries/aeko-explorer-backend /usr/local/bin/aeko-explorer-backend
-ENV AEKO_EXPLORER_BIND=0.0.0.0:8088
 EXPOSE 8088/tcp
-CMD ["sh", "-c", "while true; do aeko-explorer-backend && break || (echo 'explorer-api exited, retrying in 5s' && sleep 5); done"]
+# Fail closed. Docker/Dokploy owns restart policy; the image must not hide a
+# missing database, bad migration, or invalid RPC configuration in an internal
+# shell retry loop.
+ENTRYPOINT ["aeko-explorer-backend"]
 
-# ---------------------------------------------------------------------------
-# Explorer web frontend runtime
-# ---------------------------------------------------------------------------
 FROM node:18-alpine AS explorer-ui-builder
 WORKDIR /web
 COPY apps/explorer/web/package*.json ./
@@ -126,5 +103,4 @@ COPY --from=explorer-ui-builder /web/dist /app/dist
 EXPOSE 4000/tcp
 CMD ["serve", "-s", "/app/dist", "-l", "4000"]
 
-# Default target for `docker build .`.
 FROM validator AS default

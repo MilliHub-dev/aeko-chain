@@ -1,25 +1,33 @@
-//! `AppState` — the type passed to every Axum handler via
-//! `State<Arc<AppState>>`. Holds the read store wrapped in the service layer,
-//! plus per-deployment metadata (network name) for response envelopes.
-//!
-//! Today the store is the in-memory implementation. When the durable store
-//! lands, only this type changes: handlers stay identical because they go
-//! through `services::ExplorerApiService`.
+//! Shared application dependencies for feature routes.
 
-use {crate::services::ExplorerApiService, std::sync::Arc};
+use {
+    crate::{
+        infrastructure::{chain::RpcChainClient, persistence::PostgresRepository},
+    },
+    std::sync::Arc,
+};
 
 pub type SharedState = Arc<AppState>;
 
 pub struct AppState {
-    pub api: ExplorerApiService,
+    pub repository: PostgresRepository,
+    pub rpc: Arc<RpcChainClient>,
     pub network: String,
+    pub max_ready_lag_slots: u64,
 }
 
 impl AppState {
-    pub fn new(api: ExplorerApiService, network: impl Into<String>) -> Self {
+    pub fn new(
+        repository: PostgresRepository,
+        rpc: Arc<RpcChainClient>,
+        network: impl Into<String>,
+        max_ready_lag_slots: u64,
+    ) -> Self {
         Self {
-            api,
+            repository,
+            rpc,
             network: network.into(),
+            max_ready_lag_slots,
         }
     }
 
