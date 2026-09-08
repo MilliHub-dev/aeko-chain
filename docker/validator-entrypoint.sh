@@ -11,8 +11,8 @@ NODE_ROLE=${AEKO_NODE_ROLE:-validator}
 require_file() {
   local path=$1
   local label=$2
-  if [ ! -s "$path" ]; then
-    echo "error: required ${label} keypair is missing or empty: ${path}" >&2
+  if [ ! -f "$path" ] || [ ! -s "$path" ]; then
+    echo "error: required ${label} keypair is missing, empty, or not a regular file: ${path}" >&2
     exit 64
   fi
 }
@@ -112,6 +112,13 @@ if [ "$#" -eq 0 ]; then
   fi
   if [ -n "${AEKO_PUBLIC_RPC_ADDRESS:-}" ]; then
     set -- "$@" --public-rpc-address "$AEKO_PUBLIC_RPC_ADDRESS"
+  fi
+
+  # On a Docker-hosted single-validator network, RPC submissions must not
+  # hairpin through the validator's public TPU address. An explicit peer lets
+  # validator/RPC services send directly to the validator's internal QUIC TPU.
+  if [ -n "${AEKO_RPC_SEND_TRANSACTION_TPU_PEER:-}" ]; then
+    set -- "$@" --rpc-send-transaction-tpu-peer "$AEKO_RPC_SEND_TRANSACTION_TPU_PEER"
   fi
 fi
 
