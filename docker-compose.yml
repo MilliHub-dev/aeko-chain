@@ -1,17 +1,8 @@
 name: aeko-network
 
 # Portable AEKO testnet runtime definition.
-#
-# PostgreSQL is external/managed. Supply EXPLORER_DATABASE_URL from Dokploy,
-# RDS, Neon, Supabase, or another PostgreSQL provider.
-#
-# Keypairs are mounted from AEKO_KEYS_DIR. For local use it defaults to
-# ./local-testnet. In production point AEKO_KEYS_DIR at persistent secret files.
-#
-# SocialFi state is batteries-included: the one-shot social-bootstrap service
-# runs after the validator is healthy, persists the five state keypairs plus a
-# canonical registry into the social-state volume, and Explorer waits for that
-# bootstrap to complete before starting.
+# PostgreSQL is external/managed and is mandatory for Explorer. Supply
+# EXPLORER_DATABASE_URL from Dokploy, RDS, Neon, Supabase, or another provider.
 
 services:
   faucet:
@@ -65,9 +56,6 @@ services:
       start_period: 90s
     networks: [aeko]
 
-  # Same executable/image as a validator, but no voting. Enable when public RPC
-  # load should be isolated from the block-producing validator:
-  #   docker compose --profile rpc up -d rpc-node
   rpc-node:
     profiles: ["rpc"]
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-validator:${AEKO_IMAGE_TAG:-latest}
@@ -105,10 +93,6 @@ services:
       start_period: 180s
     networks: [aeko]
 
-  # One-shot initialization of the five SocialFi state accounts. This is part
-  # of the default stack. The bootstrap is idempotent when its social-state
-  # volume is preserved: existing initialized program-owned accounts are never
-  # sent another Initialize instruction.
   social-bootstrap:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:-latest}
     container_name: aeko-social-bootstrap
@@ -138,10 +122,20 @@ services:
       AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-testnet}
       AEKO_EXPLORER_BIND: 0.0.0.0:8088
       AEKO_EXPLORER_START_SLOT: ${AEKO_EXPLORER_START_SLOT:-0}
-      DATABASE_URL: ${EXPLORER_DATABASE_URL:-}
+      AEKO_EXPLORER_MAX_BATCH_SIZE: ${AEKO_EXPLORER_MAX_BATCH_SIZE:-256}
+      AEKO_EXPLORER_PERSIST_SOCIALFI_VIEWS: ${AEKO_EXPLORER_PERSIST_SOCIALFI_VIEWS:-true}
+      AEKO_EXPLORER_ASSET_REFRESH_SLOTS: ${AEKO_EXPLORER_ASSET_REFRESH_SLOTS:-64}
+      AEKO_EXPLORER_SOCIAL_REFRESH_SLOTS: ${AEKO_EXPLORER_SOCIAL_REFRESH_SLOTS:-16}
+      AEKO_EXPLORER_MAX_READY_LAG_SLOTS: ${AEKO_EXPLORER_MAX_READY_LAG_SLOTS:-128}
+      AEKO_EXPLORER_DB_MAX_CONNECTIONS: ${AEKO_EXPLORER_DB_MAX_CONNECTIONS:-16}
+      AEKO_EXPLORER_DB_MIN_CONNECTIONS: ${AEKO_EXPLORER_DB_MIN_CONNECTIONS:-1}
+      AEKO_EXPLORER_DB_ACQUIRE_TIMEOUT_SECS: ${AEKO_EXPLORER_DB_ACQUIRE_TIMEOUT_SECS:-10}
+      AEKO_EXPLORER_RPC_TIMEOUT_SECS: ${AEKO_EXPLORER_RPC_TIMEOUT_SECS:-15}
+      AEKO_EXPLORER_REQUEST_TIMEOUT_SECS: ${AEKO_EXPLORER_REQUEST_TIMEOUT_SECS:-30}
+      AEKO_EXPLORER_MAX_BODY_BYTES: ${AEKO_EXPLORER_MAX_BODY_BYTES:-1048576}
+      AEKO_EXPLORER_SYNC_INTERVAL_SECS: ${AEKO_EXPLORER_SYNC_INTERVAL_SECS:-2}
+      DATABASE_URL: ${EXPLORER_DATABASE_URL:?Set EXPLORER_DATABASE_URL to persistent PostgreSQL}
       AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env
-      # Explicit values remain supported as operator overrides. Empty values
-      # fall back to the generated registry file.
       AEKO_SOCIAL_POSTS_STATE: ${AEKO_SOCIAL_POSTS_STATE:-}
       AEKO_SOCIAL_REWARDS_STATE: ${AEKO_SOCIAL_REWARDS_STATE:-}
       AEKO_SOCIAL_STAKING_STATE: ${AEKO_SOCIAL_STAKING_STATE:-}
@@ -158,11 +152,11 @@ services:
       social-bootstrap:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/health >/dev/null || exit 1"]
       interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
     networks: [aeko]
 
   explorer-ui:

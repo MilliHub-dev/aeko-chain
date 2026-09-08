@@ -1,8 +1,13 @@
+//! Canonical SocialFi chain projection.
+//!
+//! Social state is read only from bootstrap-registered, program-owned state
+//! accounts through `getAccountInfo`. There is no `getProgramAccounts`
+//! fallback for SocialFi and no fabricated local state.
+
 use {
     crate::{
-        api::registry::resolve_social_registry,
         indexing::ChainDataSource,
-        infrastructure::chain::RpcChainClient,
+        infrastructure::{chain::RpcChainClient, registry::resolve_social_registry},
         models::{
             AssetSnapshot, CoreSlotRecord, CreatorRewardRecord, EngagementRecord, SocialPostRecord,
             SocialStakeRecord,

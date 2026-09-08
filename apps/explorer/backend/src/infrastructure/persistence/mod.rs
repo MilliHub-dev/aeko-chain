@@ -8,6 +8,7 @@ use {
     std::str::FromStr,
 };
 
+pub mod accounts;
 pub mod assets;
 pub mod ledger;
 pub mod search;
@@ -23,7 +24,6 @@ impl PostgresRepository {
         let connect_options = PgConnectOptions::from_str(&config.database_url)
             .context("parsing Explorer PostgreSQL URL")?
             .log_statements(tracing::log::LevelFilter::Trace);
-
         let pool = PgPoolOptions::new()
             .max_connections(config.db_max_connections)
             .min_connections(config.db_min_connections)

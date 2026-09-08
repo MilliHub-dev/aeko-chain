@@ -1,42 +1,13 @@
 name: aeko-public-network
 
 # Dokploy production/testnet deployment contract.
-#
-# This file intentionally contains no `build:` directives. Every runtime is
-# pulled from Docker Hub, so Dokploy deploys the exact images published by the
-# GitHub Actions main-branch image workflow.
-#
-# Required Dokploy environment variables:
-#   AEKO_PUBLIC_IP=<public IPv4/IPv6 address advertised by the validator>
+# Images are pulled from Docker Hub; no service builds locally.
+# Required operator values:
+#   AEKO_PUBLIC_IP=<public address advertised by validator>
 #   AEKO_KEYS_DIR=../files/aeko-keys
 #   EXPLORER_DATABASE_URL=postgres://...
-#
-# AEKO_KEYS_DIR is mounted as one directory. Individual key files are never
-# file-level bind sources; this prevents Docker from silently creating
-# directories named *.json when a key file is missing.
-#
-# Recommended:
-#   AEKO_IMAGE_TAG=<12-char main commit SHA>
-# Use `latest` only when automatic roll-forward is intentional.
-#
-# Public HTTPS/WSS domains are configured in Dokploy's Domains UI:
-#   rpc.aeko.online  -> validator:8899
-#   ws.aeko.online   -> validator:8900
-#   api.aeko.online  -> explorer-api:8088
-#   scan.aeko.online -> explorer-ui:4000
-#
-# The production testnet intentionally serves RPC/PubSub from the healthy
-# block-producing validator. A separate non-voting RPC replica remains an
-# optional local/portable profile and is not a Dokploy startup dependency.
-#
-# Validator transport is not HTTP. DNS for gossip.aeko.online must resolve to
-# AEKO_PUBLIC_IP and the host firewall/security group must allow TCP+UDP
-# 8000-8050. The validator advertises exactly that range.
 
 services:
-  # One-shot validation gate. `Exited (0)` is the successful steady state for
-  # this job; it is not a failed daemon. Long-running services start only after
-  # this command completes successfully.
   key-preflight:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
@@ -99,21 +70,14 @@ services:
       AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?Set AEKO_PUBLIC_IP to the public address of this Dokploy server}
       AEKO_GOSSIP_PORT: "8001"
       AEKO_DYNAMIC_PORT_RANGE: 8000-8050
-      # RPC send-transaction uses QUIC by default. Route submissions directly
-      # over the Docker network instead of hairpinning to AEKO_PUBLIC_IP:8009.
       AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}
     ulimits:
       nofile:
         soft: 1000000
         hard: 1000000
-    # AEKO/Solana-style validator transport uses more than the gossip socket.
-    # Keep a same-port host mapping so the address advertised in gossip remains
-    # reachable by future external validators.
     ports:
       - "8000-8050:8000-8050/tcp"
       - "8000-8050:8000-8050/udp"
-    # Dokploy/Traefik routes public HTTPS/WSS to these container ports. They are
-    # not host-published directly.
     expose:
       - "8899"
       - "8900"
@@ -138,11 +102,6 @@ services:
       start_period: 120s
     networks: [aeko]
 
-  # Idempotent one-shot initialization of the five native SocialFi programs.
-  # State keypairs and the generated registry survive redeploys in social-state.
-  # `Exited (0)` is success. A non-zero exit is intentionally terminal so the
-  # exact bootstrap failure remains visible instead of being hidden by a Docker
-  # restart storm; the binary already owns bounded RPC/transaction retries.
   social-bootstrap:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
@@ -151,8 +110,6 @@ services:
       AEKO_RPC_URL: http://validator:8899
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_BOOTSTRAP_OUT_DIR: /state
-      # Keep fail-closed for normal redeploys. Set to 1 only for an intentional
-      # fresh-genesis recovery where persisted state keys no longer exist on-chain.
       AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}
       AEKO_TREASURY_ADDRESS: ${AEKO_TREASURY_ADDRESS:-}
       AEKO_REWARD_VAULT: ${AEKO_REWARD_VAULT:-}
@@ -173,16 +130,24 @@ services:
     pull_policy: always
     restart: unless-stopped
     environment:
-      # The validator already exposes the complete RPC surface required by the
-      # Explorer. Avoid making the public stack depend on an unnecessary replica.
       AEKO_EXPLORER_RPC: http://validator:8899
       AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-testnet}
       AEKO_EXPLORER_BIND: 0.0.0.0:8088
       AEKO_EXPLORER_START_SLOT: ${AEKO_EXPLORER_START_SLOT:-0}
+      AEKO_EXPLORER_MAX_BATCH_SIZE: ${AEKO_EXPLORER_MAX_BATCH_SIZE:-256}
+      AEKO_EXPLORER_PERSIST_SOCIALFI_VIEWS: ${AEKO_EXPLORER_PERSIST_SOCIALFI_VIEWS:-true}
+      AEKO_EXPLORER_ASSET_REFRESH_SLOTS: ${AEKO_EXPLORER_ASSET_REFRESH_SLOTS:-64}
+      AEKO_EXPLORER_SOCIAL_REFRESH_SLOTS: ${AEKO_EXPLORER_SOCIAL_REFRESH_SLOTS:-16}
+      AEKO_EXPLORER_MAX_READY_LAG_SLOTS: ${AEKO_EXPLORER_MAX_READY_LAG_SLOTS:-128}
+      AEKO_EXPLORER_DB_MAX_CONNECTIONS: ${AEKO_EXPLORER_DB_MAX_CONNECTIONS:-16}
+      AEKO_EXPLORER_DB_MIN_CONNECTIONS: ${AEKO_EXPLORER_DB_MIN_CONNECTIONS:-1}
+      AEKO_EXPLORER_DB_ACQUIRE_TIMEOUT_SECS: ${AEKO_EXPLORER_DB_ACQUIRE_TIMEOUT_SECS:-10}
+      AEKO_EXPLORER_RPC_TIMEOUT_SECS: ${AEKO_EXPLORER_RPC_TIMEOUT_SECS:-15}
+      AEKO_EXPLORER_REQUEST_TIMEOUT_SECS: ${AEKO_EXPLORER_REQUEST_TIMEOUT_SECS:-30}
+      AEKO_EXPLORER_MAX_BODY_BYTES: ${AEKO_EXPLORER_MAX_BODY_BYTES:-1048576}
+      AEKO_EXPLORER_SYNC_INTERVAL_SECS: ${AEKO_EXPLORER_SYNC_INTERVAL_SECS:-2}
       DATABASE_URL: ${EXPLORER_DATABASE_URL:?Set EXPLORER_DATABASE_URL to persistent PostgreSQL}
       AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env
-      # Optional operator overrides. Empty values fall back to the registry
-      # generated by social-bootstrap.
       AEKO_SOCIAL_POSTS_STATE: ${AEKO_SOCIAL_POSTS_STATE:-}
       AEKO_SOCIAL_REWARDS_STATE: ${AEKO_SOCIAL_REWARDS_STATE:-}
       AEKO_SOCIAL_STAKING_STATE: ${AEKO_SOCIAL_STAKING_STATE:-}
@@ -195,27 +160,15 @@ services:
       - "8088"
     volumes:
       - social-state:/state:ro
-    # Explorer is a long-running observability/API service. It starts as soon
-    # as core chain RPC is healthy even if SocialFi initialization is degraded;
-    # registry/status endpoints dynamically report incomplete SocialFi state.
     depends_on:
       validator:
         condition: service_healthy
-    # Core readiness proves PostgreSQL reads and validator RPC. SocialFi
-    # completeness is a separate deployment-acceptance signal exposed by
-    # /social/status and scripts/smoke-aeko-social.py, not a process-liveness gate.
     healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          curl -fsS 'http://127.0.0.1:8088/blocks?limit=1' >/dev/null &&
-          curl -fsS -X POST -H 'Content-Type: application/json'
-          -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
-          http://validator:8899 | grep -q '"result":"ok"'
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/health >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 90s
     networks: [aeko]
 
   explorer-ui:
@@ -227,8 +180,6 @@ services:
     depends_on:
       explorer-api:
         condition: service_healthy
-    # UI readiness proves the SPA and core Explorer read path. SocialFi can be
-    # visibly degraded without preventing the UI process from serving diagnostics.
     healthcheck:
       test:
         - CMD-SHELL
@@ -241,9 +192,6 @@ services:
       start_period: 30s
     networks: [aeko]
 
-  # Wallets are cryptographic identities, not a long-running chain node. This
-  # optional operator profile supplies the AEKO CLI/keygen image for creating
-  # and inspecting wallet/keypair material without putting it in validator.
   wallet-tools:
     profiles: ["ops"]
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}

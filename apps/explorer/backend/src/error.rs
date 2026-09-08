@@ -1,9 +1,3 @@
-//! Error type that flows through every Axum handler.
-//!
-//! Handlers return `Result<_, ApiError>`. `ApiError::into_response` builds the
-//! `{"error": {"code", "message"}}` JSON envelope that the web UI already
-//! expects (kept identical to the pre-axum hyper layer for backward compat).
-
 use {
     axum::{
         http::StatusCode,
@@ -39,27 +33,32 @@ impl ApiError {
             Self::Internal(_) => "internal_error",
         }
     }
+
+    fn public_message(&self) -> String {
+        match self {
+            Self::Internal(_) => "internal server error".to_string(),
+            _ => self.to_string(),
+        }
+    }
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let status = self.status();
         let code = self.code();
-        // Log every 5xx with stack of causes; 4xx logs at debug.
         if status.is_server_error() {
-            tracing::error!(error.code = code, error.message = %self, "request failed");
+            tracing::error!(error.code = code, error = ?self, "request failed");
         } else {
-            tracing::debug!(error.code = code, error.message = %self, "request rejected");
+            tracing::debug!(error.code = code, error = %self, "request rejected");
         }
         let body = Json(json!({
             "error": {
                 "code": code,
-                "message": self.to_string(),
+                "message": self.public_message(),
             }
         }));
         (status, body).into_response()
     }
 }
 
-/// Convenience alias for handler return types.
 pub type ApiResult<T> = Result<T, ApiError>;

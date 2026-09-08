@@ -1,7 +1,7 @@
 [package]
 name = "aeko-explorer-backend"
 description = "AEKO Explorer backend and indexer"
-documentation = "https://github.com/MilliHub-dev/aeko-chain/tree/main/explorer-backend"
+documentation = "https://github.com/MilliHub-dev/aeko-chain/tree/main/apps/explorer/backend"
 version = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -22,10 +22,6 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 url = { workspace = true }
 
-# HTTP stack — axum + tower-http for type-safe routes, extractors, and
-# middleware (CORS, tracing, compression, request-id). We pin minor
-# versions here rather than in the workspace because no other crate uses
-# this stack today.
 axum = { version = "0.7.5", features = ["macros", "tokio"] }
 tower = { version = "0.4.13", features = ["util"] }
 tower-http = { version = "0.5.2", features = [
@@ -40,10 +36,9 @@ tower-http = { version = "0.5.2", features = [
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt", "json"] }
 
-# Postgres-backed durable store (optional — falls back to in-memory when
-# DATABASE_URL is unset, see store::postgres for the picker).
-# `runtime-tokio-rustls` matches our async runtime + TLS to the rest of the
-# crate. `chrono` enables TIMESTAMPTZ ↔ DateTime mapping.
+# PostgreSQL is the mandatory durable Explorer store. There is deliberately no
+# Redis or production in-memory-store dependency: RPC owns authoritative live
+# chain state and PostgreSQL owns durable indexed/query state.
 sqlx = { version = "0.7.4", default-features = false, features = [
     "runtime-tokio-rustls",
     "postgres",
@@ -67,9 +62,6 @@ aeko-token-721-program = { workspace = true }
 crate-type = ["lib"]
 name = "aeko_explorer_backend"
 
-# Primary deployable: production binary used by Dockerfile.explorer.
-# `examples/api_server.rs` still works (it now thinly wraps the same
-# entrypoint), but production builds should target this bin.
 [[bin]]
 name = "aeko-explorer-backend"
 path = "src/main.rs"
