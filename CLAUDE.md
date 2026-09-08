@@ -16,6 +16,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a large Rust monorepo (~150+ crates) organized as follows:
 
+- **Applications** (`apps/`): deployable/user-facing and off-chain surfaces. See `apps/README.md` for the boundary.
+  - `apps/admin/`: administrative web application
+  - `apps/cli/`: end-user/operator `aeko` CLI
+  - `apps/explorer/backend/`: Explorer indexer and REST API
+  - `apps/explorer/web/`: Explorer and Network Tools web application
+  - `apps/sdk/`: external client SDKs for JavaScript, Node.js, Python, and high-level Rust clients
 - **Core blockchain** (`core/`, `runtime/`, `ledger/`, `poh/`): Consensus, transaction execution, and state management
 - **Programs** (`programs/`): On-chain smart contracts
   - System programs (`system/`, `stake/`, `vote/`, `config/`)
@@ -26,10 +32,9 @@ This is a large Rust monorepo (~150+ crates) organized as follows:
   - SBF/BPF programs: `programs/sbf/rust/` contains bytecode programs (excluded from main workspace, compiled separately)
 - **Network** (`gossip/`, `turbine/`, `quic-client/`, `streamer/`): P2P communication and message propagation
 - **RPC & APIs** (`rpc/`, `rpc-client-api/`, `pubsub-client/`): JSON-RPC and WebSocket interfaces
-- **SDK & Tools** (`sdk/`, `cli/`, `keygen/`, `validator/`, `test-validator/`): Developer tools and CLI utilities
+- **Core SDK & chain tooling** (`sdk/`, `keygen/`, `validator/`, `test-validator/`): low-level Rust protocol/runtime SDK and network-critical tooling. Do not confuse root `sdk/` with the external client packages in `apps/sdk/`.
 - **Execution** (`svm/`, `program-runtime/`): Solana Virtual Machine and program execution sandbox
 - **Security & Crypto** (`encryption-module/`, `zk-token-sdk/`, `zk-keygen/`, `wallet-core/`): Encryption (AES-GCM, ECIES, ratchet), ZK proofs, wallet permissions
-- **Explorer** (`explorer-backend/`): Block explorer API (indexer, store, server)
 - **Auxiliary** (`metrics/`, `logger/`, `accounts-db/`, `storage-bigtable/`): Infrastructure and utilities
 
 ## Common Development Commands
