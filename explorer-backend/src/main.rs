@@ -257,7 +257,7 @@ async fn shutdown_signal() {
             .expect("install SIGTERM handler")
             .recv()
             .await;
-    }
+    };
     #[cfg(not(unix))]
     let terminate = std::future::pending::<()>();
 
