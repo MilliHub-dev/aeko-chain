@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import { ToasterProvider } from './components/Toaster';
 import Home from './pages/Home';
@@ -23,28 +23,29 @@ import ScrollToTop from './components/ScrollToTop';
 function App() {
   return (
     <ToasterProvider>
-    <Layout>
-      <ScrollToTop />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/docs" element={<Docs />} />
-        <Route path="/token" element={<Token />} />
-        <Route path="/developers" element={<Developers />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/explorer" element={<Explorer />} />
-        <Route path="/explorer/tx/:hash" element={<TransactionDetails />} />
-        <Route path="/explorer/block/:height" element={<BlockDetails />} />
-        <Route path="/explorer/account/:address" element={<ExplorerAccount />} />
-        <Route path="/explorer/creator/:address" element={<ExplorerCreator />} />
-        <Route path="/explorer/post/:postId" element={<ExplorerPost />} />
-        <Route path="/explorer/nft/:tokenId" element={<ExplorerNft />} />
-        <Route path="/explorer/token/:mint" element={<ExplorerToken />} />
-        <Route path="/explorer/collection/:collectionId" element={<ExplorerCollection />} />
-        <Route path="/bridge" element={<Bridge />} />
-        <Route path="/faucet" element={<Faucet />} />
-        <Route path="/nft-demo" element={<NftDemo />} />
-      </Routes>
-    </Layout>
+      <Layout>
+        <ScrollToTop />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/docs" element={<Docs />} />
+          <Route path="/token" element={<Token />} />
+          <Route path="/developers" element={<Developers />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/explorer" element={<Explorer />} />
+          <Route path="/explorer/tx/:hash" element={<TransactionDetails />} />
+          <Route path="/explorer/block/:height" element={<BlockDetails />} />
+          <Route path="/explorer/account/:address" element={<ExplorerAccount />} />
+          <Route path="/explorer/creator/:address" element={<ExplorerCreator />} />
+          <Route path="/explorer/post/:postId" element={<ExplorerPost />} />
+          <Route path="/explorer/nft/:tokenId" element={<ExplorerNft />} />
+          <Route path="/explorer/token/:mint" element={<ExplorerToken />} />
+          <Route path="/explorer/collection/:collectionId" element={<ExplorerCollection />} />
+          <Route path="/bridge" element={<Bridge />} />
+          <Route path="/network-tools" element={<Faucet />} />
+          <Route path="/faucet" element={<Navigate to="/network-tools" replace />} />
+          <Route path="/nft-demo" element={<NftDemo />} />
+        </Routes>
+      </Layout>
     </ToasterProvider>
   );
 }
