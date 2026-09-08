@@ -11,6 +11,10 @@ name: aeko-public-network
 #   AEKO_KEYS_DIR=../files/aeko-keys
 #   EXPLORER_DATABASE_URL=postgres://...
 #
+# AEKO_KEYS_DIR is mounted as one directory. Individual key files are never
+# file-level bind sources; this prevents Docker from silently creating
+# directories named *.json when a key file is missing.
+#
 # Recommended:
 #   AEKO_IMAGE_TAG=<12-char main commit SHA>
 # Use `latest` only when automatic roll-forward is intentional.
@@ -26,15 +30,51 @@ name: aeko-public-network
 # 8000-8050. The validator advertises exactly that range.
 
 services:
+  # Fail before faucet/validator startup if persistent key material is absent,
+  # directory-valued, empty, or not parseable as an AEKO keypair.
+  key-preflight:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        for key in \
+          faucet-keypair.json \
+          stake-keypair.json \
+          validator-1-keypair.json \
+          vote-1-keypair.json \
+          rpc-node-keypair.json
+        do
+          path="/keys/$key"
+          if [ ! -f "$path" ] || [ ! -s "$path" ]; then
+            echo "error: required AEKO keypair is missing, empty, or not a regular file: $path" >&2
+            exit 64
+          fi
+          if ! aeko-keygen pubkey "$path" >/dev/null 2>&1; then
+            echo "error: invalid AEKO keypair: $path" >&2
+            exit 65
+          fi
+          echo "validated $key"
+        done
+        echo "AEKO key preflight complete"
+    volumes:
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
+    networks: [aeko]
+
   faucet:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-faucet:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
     restart: unless-stopped
     volumes:
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/faucet-keypair.json:/keys/faucet.json:ro
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
     command:
       - --keypair
-      - /keys/faucet.json
+      - /keys/faucet-keypair.json
+    depends_on:
+      key-preflight:
+        condition: service_completed_successfully
     expose:
       - "9900"
     networks: [aeko]
@@ -46,6 +86,10 @@ services:
     environment:
       AEKO_NODE_ROLE: validator
       AEKO_BOOTSTRAP: "1"
+      AEKO_IDENTITY_FILE: /keys/validator-1-keypair.json
+      AEKO_VOTE_FILE: /keys/vote-1-keypair.json
+      AEKO_STAKE_FILE: /keys/stake-keypair.json
+      AEKO_FAUCET_FILE: /keys/faucet-keypair.json
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       AEKO_FAUCET_ADDRESS: faucet:9900
       AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?Set AEKO_PUBLIC_IP to the public address of this Dokploy server}
@@ -66,11 +110,10 @@ services:
       - "8900"
     volumes:
       - validator-ledger:/ledger
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/validator-1-keypair.json:/keys/identity.json:ro
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/vote-1-keypair.json:/keys/vote.json:ro
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/stake-keypair.json:/keys/stake.json:ro
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/faucet-keypair.json:/keys/faucet.json:ro
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
     depends_on:
+      key-preflight:
+        condition: service_completed_successfully
       faucet:
         condition: service_started
     healthcheck:
@@ -95,6 +138,7 @@ services:
     restart: unless-stopped
     environment:
       AEKO_NODE_ROLE: rpc
+      AEKO_IDENTITY_FILE: /keys/rpc-node-keypair.json
       AEKO_ENTRYPOINT: validator:8001
       AEKO_FAUCET_ADDRESS: faucet:9900
       # Keep intentional fresh-genesis reset semantics aligned with validator;
@@ -112,7 +156,7 @@ services:
       - "8900"
     volumes:
       - rpc-ledger:/ledger
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/rpc-node-keypair.json:/keys/identity.json:ro
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
     depends_on:
       validator:
         condition: service_healthy
@@ -138,7 +182,7 @@ services:
     pull_policy: always
     environment:
       AEKO_RPC_URL: http://validator:8899
-      AEKO_PAYER_KEYPAIR: /keys/faucet.json
+      AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_BOOTSTRAP_OUT_DIR: /state
       # Keep fail-closed for normal redeploys. Set to 1 only for an intentional
       # fresh-genesis recovery where persisted state keys no longer exist on-chain.
@@ -148,11 +192,13 @@ services:
       AEKO_STAKE_VAULT: ${AEKO_STAKE_VAULT:-}
       AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-200}
     volumes:
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}/faucet-keypair.json:/keys/faucet.json:ro
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
       - social-state:/state
     depends_on:
       validator:
         condition: service_healthy
+      key-preflight:
+        condition: service_completed_successfully
     restart: on-failure:20
     networks: [aeko]
 
