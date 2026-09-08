@@ -1,6 +1,6 @@
 // Signed browser transactions used only by the Explorer SocialFi test page.
 // They intentionally exercise the native program account contracts directly.
-// Test wallets are the existing localStorage-only faucet wallets; never use
+// Test wallets are the existing localStorage-only testnet wallets; never use
 // these helpers as a production custody implementation.
 import { signMessage } from './aekoTestKeypair';
 import {
@@ -33,6 +33,28 @@ function decodeBase58(value) {
   const decoded = Uint8Array.from(bytes.reverse());
   if (decoded.length !== 32) throw new Error(`Expected a 32-byte public key, got ${decoded.length}.`);
   return decoded;
+}
+
+function encodeBase58(bytes) {
+  if (!(bytes instanceof Uint8Array) || bytes.length === 0) return '';
+  let zeros = 0;
+  while (zeros < bytes.length && bytes[zeros] === 0) zeros += 1;
+  const digits = [0];
+  for (let i = zeros; i < bytes.length; i += 1) {
+    let carry = bytes[i];
+    for (let j = 0; j < digits.length; j += 1) {
+      const value = digits[j] * 256 + carry;
+      digits[j] = value % 58;
+      carry = Math.floor(value / 58);
+    }
+    while (carry > 0) {
+      digits.push(carry % 58);
+      carry = Math.floor(carry / 58);
+    }
+  }
+  let encoded = '1'.repeat(zeros);
+  for (let i = digits.length - 1; i >= 0; i -= 1) encoded += BASE58_ALPHABET[digits[i]];
+  return encoded;
 }
 
 function concat(...parts) {
@@ -85,10 +107,6 @@ function random32() {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
   return bytes;
-}
-
-function hex(bytes) {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 function base64(bytes) {
@@ -215,7 +233,7 @@ export async function buildSocialPostTestTx({
     Uint8Array.from([0]), // signature_ref=None
   );
   return {
-    id: hex(postId),
+    id: encodeBase58(postId),
     transaction: buildAndSign({
       wallet,
       recentBlockhash,
@@ -235,19 +253,21 @@ export function buildSocialLikeTestTx({
   postsState,
   antiSpamState,
   recentBlockhash,
+  postId,
   postIdHex,
   targetCreator,
 }) {
   const proofId = random32();
   const replayGuard = random32();
-  const postId = Uint8Array.from(postIdHex.match(/.{1,2}/g).map((pair) => Number.parseInt(pair, 16)));
-  if (postId.length !== 32) throw new Error('Post id must be a 32-byte hex value.');
+  // postIdHex is kept as a compatibility alias for the pre-base58 E2E caller.
+  // Both values now carry the canonical base58 Explorer identifier.
+  const targetPostId = decodeBase58(postId || postIdHex);
   const data = concat(
     Uint8Array.from([4]), // RecordEngagement
     proofId,
     decodeBase58(wallet.address),
     Uint8Array.from([1]),
-    postId,
+    targetPostId,
     decodeBase58(targetCreator),
     Uint8Array.from([0]), // Like
     u32LE(1),
@@ -256,7 +276,7 @@ export function buildSocialLikeTestTx({
     replayGuard,
   );
   return {
-    id: hex(proofId),
+    id: encodeBase58(proofId),
     transaction: buildAndSign({
       wallet,
       recentBlockhash,
@@ -293,7 +313,7 @@ export function buildSocialStakeTestTx({
     Uint8Array.from([0]), // SocialStakeState::Active
   );
   return {
-    id: hex(positionId),
+    id: encodeBase58(positionId),
     transaction: buildAndSign({
       wallet,
       recentBlockhash,
@@ -324,7 +344,7 @@ export function buildSocialTipTestTx({
     i64LE(Math.floor(Date.now() / 1000)),
   );
   return {
-    id: hex(tipId),
+    id: encodeBase58(tipId),
     transaction: buildAndSign({
       wallet,
       recentBlockhash,

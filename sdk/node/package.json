@@ -19,7 +19,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "release:check": "npm run typecheck && npm run build",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "release:check": "npm run typecheck && npm test",
     "release:publish": "npm run release:check && npm publish --access public"
   },
   "dependencies": {

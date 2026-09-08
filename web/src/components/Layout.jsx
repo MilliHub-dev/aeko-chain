@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Github, Twitter, ExternalLink, Activity } from 'lucide-react';
+import { Menu, X, Github, Twitter, Activity } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/icon.jpg';
@@ -11,7 +11,7 @@ const Navbar = () => {
   const links = [
     { name: 'Home', path: '/' },
     { name: 'Docs', path: '/docs' },
-    { name: 'Faucet', path: '/faucet' },
+    { name: 'Network Tools', path: '/network-tools' },
     { name: 'Token', path: '/token' },
     { name: 'NFT Demo', path: '/nft-demo' },
     { name: 'Developers', path: '/developers' },
@@ -20,11 +20,6 @@ const Navbar = () => {
   ];
 
   return (
-    // Use lg as the breakpoint for the desktop pill nav. With 8 link items
-    // plus the brand + 2 icon buttons, the md (768px) breakpoint was too
-    // tight — links wrapped to two lines or got clipped behind the right-
-    // side controls at 800–1000px. Below lg we fall back to the mobile
-    // hamburger so the layout is never broken.
     <nav className="fixed top-4 inset-x-4 lg:top-6 lg:inset-x-0 lg:max-w-6xl lg:mx-auto z-50">
       <div className="bg-aeko-dark/70 backdrop-blur-xl border border-white/10 rounded-2xl lg:rounded-full shadow-2xl shadow-black/50">
         <div className="px-4 sm:px-6 lg:px-6 xl:px-8">
@@ -39,10 +34,6 @@ const Navbar = () => {
               </span>
             </Link>
 
-            {/* Desktop Menu — visible from lg up. Items use whitespace-nowrap
-                so labels never break mid-word. The container shrinks links'
-                horizontal padding at lg→xl gracefully so all 8 items + the
-                icon buttons fit a 1024px viewport without overflow. */}
             <div className="hidden lg:block">
               <div className="flex items-center gap-1 xl:gap-2">
                 {links.map((link) => {
@@ -59,7 +50,7 @@ const Navbar = () => {
                         <motion.div
                           layoutId="navbar-indicator"
                           className="absolute inset-0 bg-white/10 rounded-full"
-                          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                          transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
                         />
                       )}
                       <span className="relative z-10">{link.name}</span>
@@ -89,7 +80,6 @@ const Navbar = () => {
               </div>
             </div>
 
-            {/* Mobile/tablet menu button — visible below lg. */}
             <div className="lg:hidden">
               <button
                 onClick={() => setIsOpen(!isOpen)}
@@ -103,7 +93,6 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* Mobile Menu */}
         <AnimatePresence>
           {isOpen && (
             <motion.div
@@ -127,7 +116,6 @@ const Navbar = () => {
                     {link.name}
                   </Link>
                 ))}
-                
                 <div className="border-t border-white/10 my-2 pt-2">
                   <Link
                     to="/explorer"
@@ -171,16 +159,15 @@ const Footer = () => {
               <span className="font-bold text-lg">AEKO CHAIN</span>
             </div>
             <p className="text-gray-400 max-w-sm">
-              The first Layer-1 blockchain built for the SocialFi era. 
-              Featuring a native Permission Layer and High-Performance SVM Runtime.
+              The first Layer-1 blockchain built for the SocialFi era. Featuring a native Permission Layer and High-Performance SVM Runtime.
             </p>
           </div>
-          
+
           <div>
             <h3 className="font-bold mb-4">Ecosystem</h3>
             <ul className="space-y-2 text-gray-400">
               <li><Link to="/token" className="hover:text-aeko-accent">Tokenomics</Link></li>
-              <li><Link to="/faucet" className="hover:text-aeko-accent">Faucet & Access</Link></li>
+              <li><Link to="/network-tools" className="hover:text-aeko-accent">Network Tools</Link></li>
               <li><Link to="/nft-demo" className="hover:text-aeko-accent">AEKO-721 Demo</Link></li>
               <li><Link to="/developers" className="hover:text-aeko-accent">Build on Aeko</Link></li>
               <li><Link to="/explorer" className="hover:text-aeko-accent">Explorer/Aeko Scan</Link></li>
@@ -208,9 +195,7 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-screen flex flex-col bg-aeko-dark text-white font-sans selection:bg-aeko-accent selection:text-black">
       <Navbar />
-      <main className="flex-grow pt-16">
-        {children}
-      </main>
+      <main className="flex-grow pt-16">{children}</main>
       <Footer />
     </div>
   );

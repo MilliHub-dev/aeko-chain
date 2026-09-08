@@ -195,15 +195,18 @@ function buildLegacyMessage(input) {
         ...remaining.filter((meta) => !meta.isSigner && !meta.isWritable),
     ].filter(Boolean);
     const accountIndex = new Map(ordered.map((meta, index) => [Array.from(meta.pubkey).join(','), index]));
+    const numRequiredSignatures = ordered.filter((meta) => meta.isSigner).length;
+    const numReadonlySignedAccounts = ordered.filter((meta) => meta.isSigner && !meta.isWritable).length;
+    const numReadonlyUnsignedAccounts = ordered.filter((meta) => !meta.isSigner && !meta.isWritable).length;
     const header = Uint8Array.from([
-        ordered.filter((meta) => meta.isSigner).length,
-        ordered.filter((meta) => !meta.isSigner && !meta.isWritable).length,
-        ordered.filter((meta) => meta.isSigner && !meta.isWritable).length,
+        numRequiredSignatures,
+        numReadonlySignedAccounts,
+        numReadonlyUnsignedAccounts,
     ]);
     const compiledInstructions = input.instructions.map((instruction) => concatBytes(Uint8Array.from([accountIndex.get(Array.from(instruction.programId).join(',')) ?? 0]), encodeShortVec(instruction.accounts.length), Uint8Array.from(instruction.accounts.map((account) => accountIndex.get(Array.from(account.pubkey).join(',')) ?? 0)), encodeShortVec(instruction.data.length), instruction.data));
     return {
         messageBytes: concatBytes(header, encodeShortVec(ordered.length), ...ordered.map((meta) => meta.pubkey), blockhashBytes, encodeShortVec(compiledInstructions.length), ...compiledInstructions),
-        numSigners: ordered.filter((meta) => meta.isSigner).length,
+        numSigners: numRequiredSignatures,
     };
 }
 function buildPreparedTransaction(input) {

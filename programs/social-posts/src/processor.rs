@@ -6,7 +6,10 @@ use {
     },
     aeko_program_runtime::invoke_context::InvokeContext,
     aeko_sdk::{instruction::InstructionError, pubkey::Pubkey},
-    aeko_social_anti_spam_program::state::{AntiSpamMode, SocialAntiSpamStateAccount},
+    aeko_social_anti_spam_program::{
+        error::SocialAntiSpamError,
+        state::{AntiSpamMode, SocialAntiSpamStateAccount},
+    },
     borsh::{to_vec, BorshDeserialize},
 };
 
@@ -96,10 +99,11 @@ impl Processor {
         invoke_context: &mut InvokeContext,
         post: PostAnchor,
     ) -> Result<(), InstructionError> {
-        // Accounts: 0=posts_state, 1=creator (signer), 2=anti_spam_state (optional, read-only)
+        // Accounts: 0=posts_state, 1=creator (signer), 2=anti_spam_state (read-only).
+        // Anti-spam is protocol enforcement, not an optional client hint.
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        instruction_context.check_number_of_instruction_accounts(2)?;
+        instruction_context.check_number_of_instruction_accounts(3)?;
 
         let creator = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         if !creator.is_signer() {
@@ -109,8 +113,7 @@ impl Processor {
         drop(creator);
 
         let current_epoch = invoke_context.get_sysvar_cache().get_clock()?.epoch;
-        Self::check_optional_anti_spam(
-            invoke_context,
+        Self::check_anti_spam(
             instruction_context,
             transaction_context,
             creator_key,
@@ -133,16 +136,12 @@ impl Processor {
         Self::write_back(&mut state_account, &state)
     }
 
-    fn check_optional_anti_spam(
-        invoke_context: &InvokeContext,
+    fn check_anti_spam(
         instruction_context: &aeko_sdk::transaction_context::InstructionContext,
         transaction_context: &aeko_sdk::transaction_context::TransactionContext,
         wallet: Pubkey,
         current_epoch: u64,
     ) -> Result<(), InstructionError> {
-        if instruction_context.get_number_of_instruction_accounts() < 3 {
-            return Ok(());
-        }
         let anti_spam_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 2)?;
         if *anti_spam_account.get_owner() != aeko_social_anti_spam_program::id() {
@@ -152,18 +151,12 @@ impl Processor {
             SocialAntiSpamStateAccount::deserialize_padded(anti_spam_account.get_data())
                 .map_err(|_| InstructionError::InvalidAccountData)?;
         drop(anti_spam_account);
-        if anti_spam_state.is_initialized {
-            Self::check_anti_spam_eligibility(&anti_spam_state, &wallet, current_epoch)?;
-        }
-        let _ = invoke_context;
-        Ok(())
+        anti_spam_state
+            .ensure_initialized()
+            .map_err(Self::map_program_error)?;
+        Self::check_anti_spam_eligibility(&anti_spam_state, &wallet, current_epoch)
     }
 
-    /// Check whether a wallet is allowed to interact based on the anti-spam program state.
-    /// This mirrors the anti-spam program's current eligibility semantics for the
-    /// information available to Social Posts. Stake-gated mode still requires a
-    /// separate anti-spam eligibility instruction because staking state is not an
-    /// account on this instruction.
     fn check_anti_spam_eligibility(
         anti_spam_state: &SocialAntiSpamStateAccount,
         wallet: &Pubkey,
@@ -174,7 +167,7 @@ impl Processor {
         if let Some(profile) = profile {
             if profile.gated_until_epoch.unwrap_or(0) > current_epoch {
                 return Err(InstructionError::Custom(
-                    aeko_social_anti_spam_program::error::SocialAntiSpamError::CooldownActive as u32,
+                    SocialAntiSpamError::CooldownActive as u32,
                 ));
             }
         }
@@ -182,19 +175,26 @@ impl Processor {
         match anti_spam_state.config.mode {
             AntiSpamMode::ObserveOnly => Ok(()),
             AntiSpamMode::GateByReputation => {
-                let spam_flags = profile.map(|p| p.spam_flags).unwrap_or(0);
-                let estimated_score = 1_000u32
-                    .saturating_sub(u32::from(spam_flags).saturating_mul(50))
-                    as u16;
-                if estimated_score < anti_spam_state.config.min_post_reputation {
-                    return Err(InstructionError::Custom(
-                        aeko_social_anti_spam_program::error::SocialAntiSpamError::ReputationTooLow
-                            as u32,
-                    ));
+                let spam_flags = profile.map(|entry| entry.spam_flags).unwrap_or(0);
+                let slash_count = profile.map(|entry| entry.slash_count).unwrap_or(0);
+                let penalty = u32::from(spam_flags)
+                    .saturating_mul(50)
+                    .saturating_add(u32::from(slash_count).saturating_mul(150))
+                    .min(1_000);
+                let score = 1_000u32.saturating_sub(penalty) as u16;
+                if score < anti_spam_state.config.min_post_reputation {
+                    Err(InstructionError::Custom(
+                        SocialAntiSpamError::ReputationTooLow as u32,
+                    ))
+                } else {
+                    Ok(())
                 }
-                Ok(())
             }
-            AntiSpamMode::GateByStake | AntiSpamMode::PenaltyEnabled => Ok(()),
+            // Until Social Staking escrows real AEKO, accepting stake values here
+            // would make the gate dependent on self-reported accounting records.
+            AntiSpamMode::GateByStake | AntiSpamMode::PenaltyEnabled => Err(
+                InstructionError::Custom(SocialAntiSpamError::NotAllowedByMode as u32),
+            ),
         }
     }
 
@@ -288,7 +288,7 @@ impl Processor {
     ) -> Result<(), InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        instruction_context.check_number_of_instruction_accounts(2)?;
+        instruction_context.check_number_of_instruction_accounts(3)?;
 
         let actor = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         if !actor.is_signer() {
@@ -298,8 +298,7 @@ impl Processor {
         drop(actor);
 
         let clock = invoke_context.get_sysvar_cache().get_clock()?;
-        Self::check_optional_anti_spam(
-            invoke_context,
+        Self::check_anti_spam(
             instruction_context,
             transaction_context,
             actor_key,
@@ -437,6 +436,9 @@ mod tests {
             EngagementActionKind, EngagementProof, ModerationState, PostAnchor, PostKind,
             SocialPostsConfig, VisibilityClass,
         },
+        aeko_social_anti_spam_program::state::{
+            AntiSpamConfig, AntiSpamMode, AntiSpamProfile, SocialAntiSpamStateAccount,
+        },
     };
 
     fn test_state() -> SocialPostsStateAccount {
@@ -479,6 +481,17 @@ mod tests {
         }
     }
 
+    fn anti_spam_state(mode: AntiSpamMode) -> SocialAntiSpamStateAccount {
+        SocialAntiSpamStateAccount::new(AntiSpamConfig {
+            authority: Pubkey::new_unique(),
+            mode,
+            min_post_stake: 1,
+            min_post_reputation: 900,
+            cooldown_epochs: 1,
+            slash_bps: 0,
+        })
+    }
+
     #[test]
     fn validate_post_anchor_rejects_duplicates() {
         let creator = Pubkey::new_unique();
@@ -487,6 +500,32 @@ mod tests {
         state.posts.push(post.clone());
         let result = Processor::validate_post_anchor(&state, &post);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn anti_spam_reputation_is_derived_from_chain_profile() {
+        let wallet = Pubkey::new_unique();
+        let mut state = anti_spam_state(AntiSpamMode::GateByReputation);
+        state.profiles.push(AntiSpamProfile {
+            wallet,
+            post_count_window: 0,
+            engagement_count_window: 0,
+            spam_flags: 1,
+            gated_until_epoch: None,
+            slash_count: 1,
+            last_flagged_at_unix: None,
+        });
+        assert!(Processor::check_anti_spam_eligibility(&state, &wallet, 1).is_err());
+    }
+
+    #[test]
+    fn unsupported_stake_gate_fails_closed() {
+        let wallet = Pubkey::new_unique();
+        let state = anti_spam_state(AntiSpamMode::GateByStake);
+        assert_eq!(
+            Processor::check_anti_spam_eligibility(&state, &wallet, 1),
+            Err(InstructionError::Custom(SocialAntiSpamError::NotAllowedByMode as u32))
+        );
     }
 
     #[test]

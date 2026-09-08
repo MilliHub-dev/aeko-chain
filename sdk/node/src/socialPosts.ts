@@ -310,11 +310,17 @@ function buildLegacyMessage(input: {
   ].filter(Boolean) as Array<{ pubkey: Uint8Array; isSigner: boolean; isWritable: boolean }>;
 
   const accountIndex = new Map(ordered.map((meta, index) => [Array.from(meta.pubkey).join(','), index]));
-
+  const numRequiredSignatures = ordered.filter((meta) => meta.isSigner).length;
+  const numReadonlySignedAccounts = ordered.filter(
+    (meta) => meta.isSigner && !meta.isWritable,
+  ).length;
+  const numReadonlyUnsignedAccounts = ordered.filter(
+    (meta) => !meta.isSigner && !meta.isWritable,
+  ).length;
   const header = Uint8Array.from([
-    ordered.filter((meta) => meta.isSigner).length,
-    ordered.filter((meta) => !meta.isSigner && !meta.isWritable).length,
-    ordered.filter((meta) => meta.isSigner && !meta.isWritable).length,
+    numRequiredSignatures,
+    numReadonlySignedAccounts,
+    numReadonlyUnsignedAccounts,
   ]);
 
   const compiledInstructions = input.instructions.map((instruction) =>
@@ -340,7 +346,7 @@ function buildLegacyMessage(input: {
       encodeShortVec(compiledInstructions.length),
       ...compiledInstructions,
     ),
-    numSigners: ordered.filter((meta) => meta.isSigner).length,
+    numSigners: numRequiredSignatures,
   };
 }
 
