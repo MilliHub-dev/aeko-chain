@@ -47,16 +47,16 @@ services:
           vote-1-keypair.json \
           rpc-node-keypair.json
         do
-          path="/keys/$key"
-          if [ ! -f "$path" ] || [ ! -s "$path" ]; then
-            echo "error: required AEKO keypair is missing, empty, or not a regular file: $path" >&2
+          path="/keys/$$key"
+          if [ ! -f "$$path" ] || [ ! -s "$$path" ]; then
+            echo "error: required AEKO keypair is missing, empty, or not a regular file: $$path" >&2
             exit 64
           fi
-          if ! aeko-keygen pubkey "$path" >/dev/null 2>&1; then
-            echo "error: invalid AEKO keypair: $path" >&2
+          if ! aeko-keygen pubkey "$$path" >/dev/null 2>&1; then
+            echo "error: invalid AEKO keypair: $$path" >&2
             exit 65
           fi
-          echo "validated $key"
+          echo "validated $$key"
         done
         echo "AEKO key preflight complete"
     volumes:
