@@ -13,7 +13,7 @@ AEKO intentionally has two Compose files because local convenience and public de
 
 The root `Dockerfile` remains the canonical image build definition. Do not add a second production Dockerfile merely to deploy prebuilt images.
 
-The separate non-voting `rpc-node` remains an opt-in portable/local profile. It is **not** a mandatory Dokploy dependency for the current single-validator public testnet. The block-producing validator already runs the full RPC surface required by wallets, SocialFi bootstrap and Explorer (`--full-rpc-api`, transaction history and PubSub).
+The non-voting `rpc-node` remains an opt-in portable/local profile. It is not a mandatory Dokploy dependency for the current single-validator public testnet because the block-producing validator already runs the full RPC, transaction-history and PubSub surface required by wallets, bootstrap and Explorer.
 
 ## Image pipeline
 
@@ -41,11 +41,11 @@ Internet wallets / dApps / SDKs
        |                    |
  rpc.aeko.online       ws.aeko.online
        |                    |
-       +------ validator (:8899/:8900) -------+
+       +------ validator (:8899/:8900) ------+
                          |                    |
-                  ledger / consensus     Explorer API :8088
+                  ledger / consensus    Explorer API :8088
                          |                    |
-              native AEKO SocialFi     PostgreSQL + registry
+                  native SocialFi       PostgreSQL + registry
 
 scan.aeko.online -> explorer-ui :4000 -> explorer-api :8088
 
@@ -54,7 +54,7 @@ validator host TCP+UDP 8000-8050 -> public validator transport range
 faucet :9900 -> internal only
 ```
 
-The current Dokploy topology intentionally does not start a second non-voting validator just to provide RPC. In the single-validator public testnet that replica added another genesis/snapshot/gossip bootstrap lifecycle without adding functional capability, and a failed replica prevented Explorer from starting despite the voting validator being healthy. Public HTTPS/WSS is therefore routed directly to the validator's already-enabled full RPC/PubSub ports.
+The Dokploy public testnet routes RPC/PubSub directly to the healthy block-producing validator. The separate non-voting replica added another genesis/snapshot/gossip bootstrap lifecycle without adding required functionality to the single-validator deployment, and a failed replica could block Explorer even while the validator remained healthy. The validator advertises `AEKO_PUBLIC_IP` with `--gossip-host` and uses `8000-8050` as its public dynamic transport range.
 
 A wallet is not a network daemon. Use `aeko-tools`, SDKs or wallet adapters to sign client transactions. WebSocket is RPC PubSub on port `8900`, not a separate service image.
 
@@ -73,7 +73,7 @@ Persist:
 
 The `social-state` volume contains the five SocialFi state keypairs plus `social-registry.env`.
 
-The optional portable/local RPC replica has its own identity/ledger when that profile is explicitly enabled; those are not requirements of the default Dokploy topology.
+The optional portable/local RPC replica keeps its own identity and ledger when that profile is explicitly enabled; those are not requirements of the default Dokploy topology.
 
 ## Required production environment
 
@@ -119,31 +119,24 @@ docker run --rm \
 
 Keep key files in persistent restricted storage. Do not rely on keys living inside an AutoDeploy Git checkout and never commit them.
 
-## One-shot initialization jobs
-
-Two default services are initialization jobs rather than daemons:
-
-- `key-preflight` validates persistent key material and exits **0**;
-- `social-bootstrap` verifies/initializes all five native SocialFi state accounts, writes the registry and exits **0**.
-
-Docker/Dokploy displays a successfully completed one-shot process as `Exited (0)`. That is success, not a crash. Long-running services are `faucet`, `validator`, `explorer-api` and `explorer-ui`.
-
 ## SocialFi bootstrap lifecycle
 
 `social-bootstrap` is part of the default network, not an optional manual afterthought.
+
+`key-preflight` and `social-bootstrap` are one-shot initialization jobs. In Docker/Dokploy their successful steady state is `Exited (0)`: that means the job completed successfully, not that a long-running daemon crashed.
 
 Startup ordering is:
 
 ```text
 key-preflight exits 0
-  -> faucet running
+  -> faucet
   -> validator healthy
        -> social-bootstrap exits 0
             -> explorer-api healthy
-                 -> explorer-ui healthy
+                 -> explorer-ui
 ```
 
-Bootstrap is safe for a normal redeploy because it does not send another Initialize instruction when the persisted key resolves to an initialized account owned by the expected SocialFi program. Wrong-owner, malformed or unexpectedly missing established state fails closed.
+Bootstrap is safe for a normal redeploy because it does not send another Initialize instruction when the persisted key resolves to an initialized account owned by the expected SocialFi program. Wrong-owner, malformed or unexpectedly missing existing state fails closed.
 
 The bootstrap writes:
 
@@ -161,14 +154,14 @@ No manual renaming from `SOCIAL_*_STATE_ACCOUNT` to `AEKO_SOCIAL_*` is required.
 
 ### Intentional chain reset
 
-A deliberate validator ledger reset makes the old persisted SocialFi keypairs point at accounts that no longer exist in the new chain. For that one intentional recovery deployment set:
+A deliberate ledger reset makes the old persisted SocialFi keypairs point at accounts that no longer exist in the new chain. For that one intentional recovery deployment set:
 
 ```text
 AEKO_RESET_LEDGER=1
 AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1
 ```
 
-`AEKO_RESET_LEDGER` clears the validator ledger for the intended fresh genesis. `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE` lets bootstrap recreate only the state expected to be absent after that deliberate reset. After reset/bootstrap succeeds, return both switches to `0` before subsequent redeploys.
+The Dokploy Compose resets the validator ledger for the intentional fresh genesis. `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE` lets bootstrap recreate only the state that is expected to be absent after that deliberate fresh genesis. After reset/bootstrap succeeds, return both switches to `0` before subsequent redeploys.
 
 ## Portable/local deployment
 
@@ -178,7 +171,7 @@ export EXPLORER_DATABASE_URL='postgres://...'
 docker compose up -d
 ```
 
-The default portable stack starts faucet, validator, automatic SocialFi bootstrap, Explorer API and Explorer UI. Add the local non-voting RPC replica only when explicitly testing that topology:
+The default portable stack starts faucet, validator, automatic SocialFi bootstrap, Explorer API and Explorer UI. Add the local non-voting RPC replica with:
 
 ```bash
 docker compose --profile rpc up -d rpc-node
@@ -225,16 +218,102 @@ docker compose -f docker-compose.dokploy.yml ps
 
 The GitHub `Build AEKO Network Images` workflow validates both Compose contracts and publishes images first. `Deploy AEKO Network via Dokploy` runs only after that workflow succeeds on `main` and calls `DOKPLOY_WEBHOOK_URL`.
 
+The webhook triggers the preconfigured Dokploy resource. It does not choose the Compose path on its own, so the resource must point to `docker-compose.dokploy.yml`.
+
 ## Deployment acceptance
 
-Do not certify a Dokploy deployment from container creation alone. Verify:
+Do not certify the public network merely because containers are `running`.
 
-1. `key-preflight` is `Exited (0)`.
-2. `faucet` is running.
-3. `validator` is running and healthy with an advancing slot.
-4. `social-bootstrap` is `Exited (0)` and `/state/social-registry.env` is complete.
-5. `explorer-api` is running/healthy; its health gate exercises PostgreSQL plus `/social/status`.
-6. `explorer-ui` is running/healthy and can reach the API read path.
-7. `https://rpc.aeko.online` returns `getHealth = ok` and advancing `getSlot`.
-8. `https://api.aeko.online/registry/social` reports `complete = true`.
-9. `scripts/smoke-aeko-social.py` passes against the public RPC and Explorer API.
+### RPC
+
+```bash
+curl -s https://rpc.aeko.online \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+```
+
+It must return `result: "ok"`. Call `getSlot` twice and confirm it advances.
+
+### SocialFi registry
+
+```bash
+curl -s https://api.aeko.online/registry/social
+```
+
+The response is wrapped under `data`. Acceptance requires:
+
+```json
+{
+  "data": {
+    "complete": true,
+    "posts": "<non-null>",
+    "rewards": "<non-null>",
+    "staking": "<non-null>",
+    "antiSpam": "<non-null>",
+    "monetization": "<non-null>"
+  }
+}
+```
+
+### Automated read-path smoke
+
+```bash
+AEKO_RPC_URL=https://rpc.aeko.online \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
+python3 scripts/smoke-aeko-social.py
+```
+
+That verifies RPC health, slot advancement, registry completeness, state-account ownership/initialization and Explorer SocialFi reads.
+
+### Signed write path
+
+Use `https://scan.aeko.online/faucet` and open the Test Console:
+
+1. create a test wallet;
+2. request an airdrop;
+3. verify balance;
+4. submit a signed `AnchorPost`;
+5. confirm the transaction;
+6. read the post back;
+7. submit signed Like/engagement;
+8. confirm it;
+9. verify `/posts` and `/engagement`;
+10. verify Explorer UI activity.
+
+## Security/exposure rules
+
+- Never expose faucet `9900` publicly.
+- Never expose PostgreSQL `5432` publicly.
+- Public dApps never connect to gossip.
+- Route public RPC/WS through Dokploy/Traefik to the validator's exposed `8899`/`8900` ports for the current single-validator topology.
+- Keep node and SocialFi key material out of Git.
+- Preserve ledger and SocialFi volumes on normal redeploys.
+- Treat `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1` as a deliberate reset/recovery switch, not a normal setting.
+
+## Protocol maturity boundary
+
+The deployment described here makes the network topology, SocialFi bootstrap/discovery, posts/engagement path and Explorer consumption deployable. It does **not** convert known SocialFi protocol gaps into finished economics:
+
+- the creator signs the post transaction and hashes are anchored, but the chain does not yet independently verify a separate canonical post-payload Ed25519 signature referenced by `signature_ref`;
+- Social Staking records stake/lifecycle/cooldown/yield accounting without full atomic lamport escrow and funded-yield transfer enforcement;
+- Social Monetization records signed tip/subscription/unlock amounts without atomically debiting the actor during the action; payout is treasury-backed accounting;
+- Anti-Spam bootstrap defaults to `ObserveOnly` with permissive thresholds.
+
+Those require protocol changes and dedicated economic/security integration tests. They should remain visible rather than being mislabeled as Docker/deployment work.
+
+## Release-readiness language
+
+Use precise states:
+
+- **Build-ready**: all Docker targets build and deployment contracts parse.
+- **Publish-ready**: main CI has pushed the selected Docker Hub image tags.
+- **Deploy-ready**: Dokploy has persistent keys, database, domains/firewall and the production Compose configuration.
+- **Integration-verified**: the deployed public RPC/Explorer SocialFi smoke passes.
+- **Write-path verified**: a signed SocialFi transaction succeeds end-to-end and its result is observable.
+- **Mainnet/production mature**: requires decentralization, redundancy, monitoring, backups, security, capacity/load and incident-response work beyond this single-host reference stack.
+
+A green image build alone is not sufficient evidence for the later states.
+
+## Separate Aeko product backend
+
+The Aeko application backend is a separate repository/service on `:4101`. It is not included in the chain Dokploy Compose and should have its own database and deployment lifecycle. It consumes AEKO Chain through RPC/WS/Explorer APIs.
