@@ -43,7 +43,9 @@ export type ApiErrorCode =
   | 'bad_request'
   | 'invalid_signature'
   | 'invalid_payload'
-  | 'rpc_submission_failed';
+  | 'rpc_submission_failed'
+  | 'rpc_confirmation_failed'
+  | 'onchain_verification_failed';
 
 export interface StoredVerificationRecord {
   postId: string;
@@ -65,6 +67,7 @@ export interface StoredVerificationRecord {
     | 'verified'
     | 'anchor_pending'
     | 'anchored'
+    | 'onchain_verified'
     | 'anchor_failed';
   preparedTransactionBase64?: string;
   anchorTransactionSignature?: string;
@@ -137,6 +140,27 @@ export class SocialBackendError extends Error {
     this.name = 'SocialBackendError';
   }
 }
+
+interface SignatureStatusLike {
+  err: unknown;
+  confirmationStatus?: 'processed' | 'confirmed' | 'finalized' | null;
+  slot?: number | null;
+}
+
+interface RpcEnvelope<T> {
+  value: T;
+}
+
+interface OnchainPostAnchor {
+  postId: string;
+  creator: string;
+  contentHash: string;
+  metadataHash: string;
+  contentUri: string;
+}
+
+const DEFAULT_CONFIRM_TIMEOUT_MS = 30_000;
+const DEFAULT_CONFIRM_POLL_MS = 750;
 
 export class SocialPostVerificationService {
   constructor(
@@ -247,46 +271,66 @@ export class SocialPostVerificationService {
       updatedAtUnix: nowUnix(),
     });
 
+    let transactionSignature: string | undefined;
     try {
-      const transactionSignature = await this.client.sendTransaction(request.signedTransactionBase64, {
+      transactionSignature = await this.client.sendTransaction(request.signedTransactionBase64, {
         encoding: 'base64',
       });
-
-      const verificationRecord = await this.store.upsert(request.anchor.postId, {
-        postId: request.anchor.postId,
-        creator: request.anchor.creator,
-        preparedTransactionBase64,
-        anchorTransactionSignature: transactionSignature,
-        anchorStatus: 'anchored',
-        verificationMode: 'anchored-reference',
-        lastErrorCode: undefined,
-        lastErrorMessage: undefined,
-        updatedAtUnix: nowUnix(),
-      });
-
-      return {
-        mode: 'submitted' as const,
-        transactionSignature,
-        preparedTransactionBase64,
-        verificationRecord,
-      };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown_error';
-      const verificationRecord = await this.store.upsert(request.anchor.postId, {
-        postId: request.anchor.postId,
-        creator: request.anchor.creator,
+      await this.failAnchor(
+        request,
         preparedTransactionBase64,
-        anchorStatus: 'anchor_failed',
-        verificationMode: 'anchored-reference',
-        lastErrorCode: 'rpc_submission_failed',
-        lastErrorMessage: message,
-        updatedAtUnix: nowUnix(),
-      });
-
-      throw new SocialBackendError('rpc_submission_failed', message, 502, {
-        verificationRecord,
-      });
+        undefined,
+        'rpc_submission_failed',
+        errorMessage(error),
+      );
     }
+
+    try {
+      await waitForConfirmation(this.client, transactionSignature!);
+    } catch (error) {
+      await this.failAnchor(
+        request,
+        preparedTransactionBase64,
+        transactionSignature,
+        'rpc_confirmation_failed',
+        errorMessage(error),
+      );
+    }
+
+    let onchainPost: OnchainPostAnchor;
+    try {
+      onchainPost = await waitForPostAnchor(this.client, request.anchor.postId);
+      assertAnchorMatchesRequest(onchainPost, request.anchor);
+    } catch (error) {
+      await this.failAnchor(
+        request,
+        preparedTransactionBase64,
+        transactionSignature,
+        'onchain_verification_failed',
+        errorMessage(error),
+      );
+    }
+
+    const verificationRecord = await this.store.upsert(request.anchor.postId, {
+      postId: request.anchor.postId,
+      creator: request.anchor.creator,
+      preparedTransactionBase64,
+      anchorTransactionSignature: transactionSignature,
+      anchorStatus: 'onchain_verified',
+      verificationMode: 'onchain-verified',
+      lastErrorCode: undefined,
+      lastErrorMessage: undefined,
+      updatedAtUnix: nowUnix(),
+    });
+
+    return {
+      mode: 'onchain-verified' as const,
+      transactionSignature: transactionSignature!,
+      preparedTransactionBase64,
+      onchainPost: onchainPost!,
+      verificationRecord,
+    };
   }
 
   async getVerification(postId: string) {
@@ -301,6 +345,91 @@ export class SocialPostVerificationService {
     }
     return record;
   }
+
+  private async failAnchor(
+    request: AnchorPostRequest,
+    preparedTransactionBase64: string,
+    transactionSignature: string | undefined,
+    code: ApiErrorCode,
+    message: string,
+  ): Promise<never> {
+    const verificationRecord = await this.store.upsert(request.anchor.postId, {
+      postId: request.anchor.postId,
+      creator: request.anchor.creator,
+      preparedTransactionBase64,
+      anchorTransactionSignature: transactionSignature,
+      anchorStatus: 'anchor_failed',
+      verificationMode: transactionSignature ? 'anchored-reference' : 'backend-only',
+      lastErrorCode: code,
+      lastErrorMessage: message,
+      updatedAtUnix: nowUnix(),
+    });
+
+    const statusCode = code === 'rpc_submission_failed' ? 502 : 504;
+    throw new SocialBackendError(code, message, statusCode, {
+      transactionSignature,
+      verificationRecord,
+    });
+  }
+}
+
+async function waitForConfirmation(
+  client: AekoNodeClient,
+  signature: string,
+  timeoutMs = DEFAULT_CONFIRM_TIMEOUT_MS,
+): Promise<SignatureStatusLike> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const [status] = (await client.getSignatureStatuses([signature])) as Array<SignatureStatusLike | null>;
+    if (status) {
+      if (status.err !== null) {
+        throw new Error(`Anchor transaction ${signature} failed: ${JSON.stringify(status.err)}`);
+      }
+      if (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized') {
+        return status;
+      }
+    }
+    await sleep(DEFAULT_CONFIRM_POLL_MS);
+  }
+  throw new Error(`Timed out waiting for anchor transaction ${signature} to confirm.`);
+}
+
+async function waitForPostAnchor(
+  client: AekoNodeClient,
+  postId: string,
+  timeoutMs = DEFAULT_CONFIRM_TIMEOUT_MS,
+): Promise<OnchainPostAnchor> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      const response = await client.rpc<RpcEnvelope<OnchainPostAnchor | null>>('getPostAnchor', [
+        postId,
+        { commitment: 'confirmed' },
+      ]);
+      if (response.value) return response.value;
+    } catch (error) {
+      lastError = error;
+    }
+    await sleep(DEFAULT_CONFIRM_POLL_MS);
+  }
+  const suffix = lastError ? ` Last RPC error: ${errorMessage(lastError)}` : '';
+  throw new Error(`Confirmed anchor ${postId} was not readable from getPostAnchor.${suffix}`);
+}
+
+function assertAnchorMatchesRequest(
+  post: OnchainPostAnchor,
+  expected: AnchorPostTransactionInput,
+): void {
+  const mismatches: string[] = [];
+  if (post.postId !== expected.postId) mismatches.push('postId');
+  if (post.creator !== expected.creator) mismatches.push('creator');
+  if (post.contentHash !== expected.contentHash) mismatches.push('contentHash');
+  if (post.metadataHash !== expected.metadataHash) mismatches.push('metadataHash');
+  if (post.contentUri !== expected.contentUri) mismatches.push('contentUri');
+  if (mismatches.length) {
+    throw new Error(`On-chain anchor does not match submitted payload: ${mismatches.join(', ')}`);
+  }
 }
 
 function parsePayload(payload: string): { postId?: string; creator?: PublicKeyString } | null {
@@ -309,6 +438,14 @@ function parsePayload(payload: string): { postId?: string; creator?: PublicKeySt
   } catch {
     return null;
   }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error ?? 'unknown_error');
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function nowUnix(): number {
