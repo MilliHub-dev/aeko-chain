@@ -33,6 +33,12 @@ jobs:
           docker compose -f docker-compose.yml config >/dev/null
           docker compose -f docker-compose.dokploy.yml config >/dev/null
 
+      - name: Validate Node Social SDK wire contract
+        working-directory: apps/sdk/node
+        run: |
+          npm ci
+          npm run release:check
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 

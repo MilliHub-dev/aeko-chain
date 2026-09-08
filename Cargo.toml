@@ -21,7 +21,7 @@ members = [
     "cargo-registry",
     "clap-utils",
     "clap-v3-utils",
-    "cli",
+    "apps/cli",
     "cli-config",
     "cli-output",
     "client",
@@ -32,7 +32,7 @@ members = [
     "dos",
     "download-utils",
     "entry",
-    "explorer-backend",
+    "apps/explorer/backend",
     "faucet",
     "frozen-abi",
     "frozen-abi/macro",
@@ -107,7 +107,7 @@ members = [
     "sdk/gen-headers",
     "sdk/macro",
     "sdk/program",
-    "sdk/rust-client",
+    "apps/sdk/rust-client",
     "send-transaction-service",
     "stake-accounts",
     "storage-bigtable",
@@ -356,7 +356,7 @@ aeko-bucket-map = { path = "bucket_map", version = "=2.0.0" }
 aeko-cargo-registry = { path = "cargo-registry", version = "=2.0.0" }
 aeko-clap-utils = { path = "clap-utils", version = "=2.0.0" }
 aeko-clap-v3-utils = { path = "clap-v3-utils", version = "=2.0.0" }
-aeko-cli = { path = "cli", version = "=2.0.0" }
+aeko-cli = { path = "apps/cli", version = "=2.0.0" }
 aeko-cli-config = { path = "cli-config", version = "=2.0.0" }
 aeko-cli-output = { path = "cli-output", version = "=2.0.0" }
 aeko-client = { path = "client", version = "=2.0.0" }
@@ -401,7 +401,7 @@ aeko-rpc = { path = "rpc", version = "=2.0.0" }
 aeko-rpc-client = { path = "rpc-client", version = "=2.0.0", default-features = false }
 aeko-rpc-client-api = { path = "rpc-client-api", version = "=2.0.0" }
 aeko-rpc-client-nonce-utils = { path = "rpc-client-nonce-utils", version = "=2.0.0" }
-aeko-rust-sdk = { path = "sdk/rust-client", version = "=2.0.0" }
+aeko-rust-sdk = { path = "apps/sdk/rust-client", version = "=2.0.0" }
 aeko-runtime = { path = "runtime", version = "=2.0.0" }
 aeko-runtime-transaction = { path = "runtime-transaction", version = "=2.0.0" }
 aeko-sdk = { path = "sdk", version = "=2.0.0" }

@@ -114,9 +114,9 @@ CMD ["sh", "-c", "while true; do aeko-explorer-backend && break || (echo 'explor
 # ---------------------------------------------------------------------------
 FROM node:18-alpine AS explorer-ui-builder
 WORKDIR /web
-COPY web/package*.json ./
+COPY apps/explorer/web/package*.json ./
 RUN npm install
-COPY web/ ./
+COPY apps/explorer/web/ ./
 RUN npm run build
 
 FROM node:18-alpine AS explorer-ui
