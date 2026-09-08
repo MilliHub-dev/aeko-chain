@@ -5,7 +5,7 @@ use {
         infrastructure::persistence::PostgresRepository,
         models::CoreSlotRecord,
     },
-    anyhow::{Context, Result},
+    anyhow::{bail, Context, Result},
     std::{sync::Arc, time::Duration},
 };
 
@@ -48,6 +48,11 @@ impl IndexerService {
         let latest_slot = tokio::task::spawn_blocking(move || source.latest_slot())
             .await
             .context("latest-slot worker panicked")??;
+        if core_cursor_is_ahead(next_slot, latest_slot) {
+            bail!(
+                "durable Explorer cursor next_slot {next_slot} is ahead of finalized chain tip {latest_slot}; refusing to serve stale history from a reset or mismatched network"
+            );
+        }
         if next_slot > latest_slot {
             return Ok(());
         }
@@ -86,17 +91,28 @@ impl IndexerService {
         Ok(())
     }
 
-    async fn refresh_assets(&self, slot: u64) {
+    async fn refresh_assets(&self, trigger_slot: u64) {
         let source = Arc::clone(&self.source);
-        let snapshot = tokio::task::spawn_blocking(move || source.fetch_asset_snapshot(slot)).await;
+        let snapshot = tokio::task::spawn_blocking(move || {
+            // Asset RPC scans return current finalized state, not historical
+            // state for the core slot that happened to trigger the refresh.
+            // Read a current finalized watermark first so cursor rewinds never
+            // regress last_seen_slot or keep stale holdings alive.
+            let snapshot_slot = source
+                .latest_slot()
+                .context("reading finalized asset snapshot watermark")?;
+            source.fetch_asset_snapshot(snapshot_slot)
+        })
+        .await;
         match snapshot {
             Ok(Ok(snapshot)) => {
+                let snapshot_slot = snapshot.slot;
                 if let Err(error) = self.repository.persist_asset_snapshot(snapshot).await {
-                    tracing::warn!(slot, error = ?error, "asset snapshot persistence failed; core cursor remains valid");
+                    tracing::warn!(trigger_slot, snapshot_slot, error = ?error, "asset snapshot persistence failed; core cursor remains valid");
                 }
             }
-            Ok(Err(error)) => tracing::warn!(slot, error = ?error, "asset snapshot RPC refresh failed; core cursor remains valid"),
-            Err(error) => tracing::error!(slot, error = %error, "asset snapshot worker panicked"),
+            Ok(Err(error)) => tracing::warn!(trigger_slot, error = ?error, "asset snapshot RPC refresh failed; core cursor remains valid"),
+            Err(error) => tracing::error!(trigger_slot, error = %error, "asset snapshot worker panicked"),
         }
     }
 
@@ -139,6 +155,12 @@ impl IndexerService {
     }
 }
 
+fn core_cursor_is_ahead(next_slot: u64, latest_slot: u64) -> bool {
+    latest_slot
+        .checked_add(1)
+        .is_some_and(|expected_next| next_slot > expected_next)
+}
+
 fn is_proven_skipped_slot(error: &anyhow::Error) -> bool {
     let message = error.to_string();
     // AEKO rpc-client-api reserves -32007 for SlotSkipped and -32009 for
@@ -151,7 +173,7 @@ fn is_proven_skipped_slot(error: &anyhow::Error) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::is_proven_skipped_slot;
+    use super::{core_cursor_is_ahead, is_proven_skipped_slot};
 
     #[test]
     fn only_explicit_skipped_slot_rpc_codes_advance_cursor() {
@@ -164,5 +186,12 @@ mod tests {
         assert!(!is_proven_skipped_slot(&anyhow::anyhow!(
             "RPC getBlock failed (-32004): block not available"
         )));
+    }
+
+    #[test]
+    fn cursor_may_be_exactly_one_past_tip_but_never_further() {
+        assert!(!core_cursor_is_ahead(101, 100));
+        assert!(!core_cursor_is_ahead(100, 100));
+        assert!(core_cursor_is_ahead(102, 100));
     }
 }

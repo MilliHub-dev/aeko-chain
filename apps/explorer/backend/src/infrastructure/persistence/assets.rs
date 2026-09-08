@@ -1,8 +1,8 @@
 use {
-    super::{parse_u64_text, PostgresRepository},
+    super::PostgresRepository,
     crate::models::{
-        AssetSnapshot, CollectionSummaryRecord, NftRecord, TokenMintRecord, TokenSummaryRecord,
-        TokenTransferRecord,
+        AssetSnapshot, CollectionSummaryRecord, NftRecord, TokenAccountRecord, TokenMintRecord,
+        TokenSummaryRecord, TokenTransferRecord,
     },
     anyhow::{Context, Result},
     sqlx::Row,
@@ -193,6 +193,28 @@ impl PostgresRepository {
         rows.into_iter().map(token_transfer_from_row).collect()
     }
 
+    pub async fn list_token_accounts_by_owner(
+        &self,
+        owner: &str,
+        limit: usize,
+    ) -> Result<Vec<TokenAccountRecord>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT address, owner, mint, balance, frozen, last_seen_slot
+            FROM token_accounts
+            WHERE owner = $1 AND balance <> '0'
+            ORDER BY mint ASC, address ASC
+            LIMIT $2
+            "#,
+        )
+        .bind(owner)
+        .bind(limit as i64)
+        .fetch_all(&self.pool)
+        .await
+        .context("listing account token holdings")?;
+        rows.into_iter().map(token_account_from_row).collect()
+    }
+
     pub async fn get_token_mint(&self, mint: &str) -> Result<Option<TokenMintRecord>> {
         let row = sqlx::query(
             r#"
@@ -335,6 +357,22 @@ fn token_transfer_from_row(row: sqlx::postgres::PgRow) -> Result<TokenTransferRe
         signature: row.get("signature"),
         event_index: row.get("event_index"),
         slot: u64::try_from(row.get::<i64, _>("slot")).context("negative token transfer slot")?,
+    })
+}
+
+fn token_account_from_row(row: sqlx::postgres::PgRow) -> Result<TokenAccountRecord> {
+    let balance: String = row.get("balance");
+    balance
+        .parse::<u128>()
+        .with_context(|| format!("invalid token account balance {balance:?}"))?;
+    Ok(TokenAccountRecord {
+        address: row.get("address"),
+        owner: row.get("owner"),
+        mint: row.get("mint"),
+        balance,
+        frozen: row.get("frozen"),
+        last_seen_slot: u64::try_from(row.get::<i64, _>("last_seen_slot"))
+            .context("negative token account last_seen_slot")?,
     })
 }
 

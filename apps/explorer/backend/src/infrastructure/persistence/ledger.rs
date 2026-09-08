@@ -1,8 +1,9 @@
 use {
     super::PostgresRepository,
     crate::models::{BlockRecord, CoreSlotRecord, TransactionRecord},
-    anyhow::{Context, Result},
+    anyhow::{bail, Context, Result},
     sqlx::Row,
+    std::collections::HashSet,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -31,7 +32,59 @@ impl PostgresRepository {
             transaction_accounts,
             token_transfers,
         } = record;
+
+        if block.as_ref().is_some_and(|value| value.slot != slot) {
+            bail!("core slot record contains a block from a different slot");
+        }
+        if transactions.iter().any(|value| value.slot != slot) {
+            bail!("core slot record contains a transaction from a different slot");
+        }
+        if token_transfers.iter().any(|value| value.slot != slot) {
+            bail!("core slot record contains a token transfer from a different slot");
+        }
+        let transaction_signatures = transactions
+            .iter()
+            .map(|value| value.signature.clone())
+            .collect::<HashSet<_>>();
+        if transaction_signatures.len() != transactions.len() {
+            bail!("core slot record contains duplicate transaction signatures");
+        }
+        if transaction_accounts
+            .iter()
+            .any(|value| !transaction_signatures.contains(&value.signature))
+        {
+            bail!("core slot record contains an account for a transaction outside the slot");
+        }
+        if token_transfers
+            .iter()
+            .any(|value| !transaction_signatures.contains(&value.signature))
+        {
+            bail!("core slot record contains a token transfer for a transaction outside the slot");
+        }
+
+        let slot_i64 = i64::try_from(slot).context("core slot exceeds PostgreSQL BIGINT")?;
         let mut tx = self.pool.begin().await.context("begin core-slot transaction")?;
+
+        // A finalized slot is an authoritative replacement, not an upsert onto
+        // whatever was previously observed at confirmed commitment. Clearing
+        // the old slot projection prevents fork-only blocks, transactions,
+        // participant rows, or transfer events from surviving the finalized
+        // replay. The enclosing transaction makes the replacement atomic.
+        sqlx::query("DELETE FROM token_transfers WHERE slot = $1")
+            .bind(slot_i64)
+            .execute(&mut *tx)
+            .await
+            .context("clearing prior token transfers for finalized slot")?;
+        sqlx::query("DELETE FROM transactions WHERE slot = $1")
+            .bind(slot_i64)
+            .execute(&mut *tx)
+            .await
+            .context("clearing prior transactions for finalized slot")?;
+        sqlx::query("DELETE FROM blocks WHERE slot = $1")
+            .bind(slot_i64)
+            .execute(&mut *tx)
+            .await
+            .context("clearing prior block for finalized slot")?;
 
         if let Some(block) = block {
             sqlx::query(
@@ -84,15 +137,22 @@ impl PostgresRepository {
             .await
             .with_context(|| format!("persisting transaction {}", transaction.signature))?;
 
-            // Replays are idempotent, but account tables must also converge if
-            // transaction parsing changes. Remove prior positions before
-            // inserting the authoritative account list for this transaction.
+            // A signature may have been observed on a different confirmed slot,
+            // or parser rules may have changed. Rebuild its child projections
+            // from the finalized transaction instead of retaining stale rows.
             sqlx::query("DELETE FROM transaction_accounts WHERE signature = $1")
                 .bind(&transaction.signature)
                 .execute(&mut *tx)
                 .await
                 .with_context(|| {
                     format!("clearing transaction accounts for {}", transaction.signature)
+                })?;
+            sqlx::query("DELETE FROM token_transfers WHERE signature = $1")
+                .bind(&transaction.signature)
+                .execute(&mut *tx)
+                .await
+                .with_context(|| {
+                    format!("clearing token transfers for {}", transaction.signature)
                 })?;
         }
 
