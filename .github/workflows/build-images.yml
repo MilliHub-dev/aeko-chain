@@ -47,6 +47,11 @@ jobs:
           docker compose -f docker-compose.yml config >/dev/null
           docker compose -f docker-compose.dokploy.yml config >/dev/null
 
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.3
+        with:
+          version: "v0.5.4"
+
       - name: Validate Explorer PostgreSQL backend
         env:
           AEKO_EXPLORER_TEST_DATABASE_URL: postgres://aeko:aeko@127.0.0.1:5432/aeko_explorer_test
@@ -78,7 +83,9 @@ jobs:
           PUSH_ARGS=()
           if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
             : "${REGISTRY_USER:?DOCKERHUB_USERNAME secret is required for image publishing}"
-            PUSH_ARGS=(--push)
+            PUSH_ARGS+=(--push)
+          else
+            PUSH_ARGS+=(--load)
           fi
 
           build_target() {
