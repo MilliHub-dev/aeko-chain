@@ -34,7 +34,7 @@ jobs:
           docker compose -f docker-compose.dokploy.yml config >/dev/null
 
       - name: Validate Node Social SDK wire contract
-        working-directory: sdk/node
+        working-directory: apps/sdk/node
         run: |
           npm ci
           npm run release:check
