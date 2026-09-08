@@ -121,24 +121,26 @@ Keep key files in persistent restricted storage. Do not rely on keys living insi
 
 ## SocialFi bootstrap lifecycle
 
-`social-bootstrap` is part of the default network, not an optional manual afterthought.
+`social-bootstrap` is part of the default network, but it is a one-shot initializer rather than a long-running daemon.
 
-`key-preflight` and `social-bootstrap` are one-shot initialization jobs. In Docker/Dokploy their successful steady state is `Exited (0)`: that means the job completed successfully, not that a long-running daemon crashed.
+`key-preflight` and `social-bootstrap` both use `restart: "no"` in Dokploy. Successful completion is `Exited (0)`. A SocialFi bootstrap non-zero exit is deliberately left terminal so the exact error stays visible; the bootstrap binary already performs bounded RPC readiness and transaction retries internally.
 
-Startup ordering is:
+The Dokploy startup graph is intentionally failure-isolated:
 
 ```text
 key-preflight exits 0
   -> faucet
   -> validator healthy
-       -> social-bootstrap exits 0
-            -> explorer-api healthy
-                 -> explorer-ui
+       |-> social-bootstrap (one shot: exit 0 or visible terminal failure)
+       |-> explorer-api healthy
+              -> explorer-ui healthy
 ```
 
-Bootstrap is safe for a normal redeploy because it does not send another Initialize instruction when the persisted key resolves to an initialized account owned by the expected SocialFi program. Wrong-owner, malformed or unexpectedly missing existing state fails closed.
+Explorer API/UI remain available in a degraded state when SocialFi bootstrap fails. The Explorer loads `/state/social-registry.env` dynamically and `/social/status` reports `complete: false` plus per-domain errors until the registry and all five on-chain states are valid. This keeps the operational UI/API observable without pretending SocialFi initialization succeeded.
 
-The bootstrap writes:
+Bootstrap remains safe for a normal redeploy because it does not send another Initialize instruction when the persisted key resolves to an initialized account owned by the expected SocialFi program. Wrong-owner, malformed or unexpectedly missing state on an established chain fails closed.
+
+The bootstrap writes the registry atomically to:
 
 ```text
 /state/social-registry.env
@@ -152,6 +154,8 @@ AEKO_SOCIAL_REGISTRY_FILE=/state/social-registry.env
 
 No manual renaming from `SOCIAL_*_STATE_ACCOUNT` to `AEKO_SOCIAL_*` is required.
 
+A running/healthy Explorer does **not** certify SocialFi. SocialFi acceptance remains separate and requires `/registry/social` and `/social/status` to be complete plus the SocialFi smoke test to pass.
+
 ### Intentional chain reset
 
 A deliberate ledger reset makes the old persisted SocialFi keypairs point at accounts that no longer exist in the new chain. For that one intentional recovery deployment set:
@@ -162,6 +166,8 @@ AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1
 ```
 
 The Dokploy Compose resets the validator ledger for the intentional fresh genesis. `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE` lets bootstrap recreate only the state that is expected to be absent after that deliberate fresh genesis. After reset/bootstrap succeeds, return both switches to `0` before subsequent redeploys.
+
+Do not enable `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1` merely to silence a bootstrap error on an established chain. First determine why the persisted registry no longer matches on-chain state.
 
 ## Portable/local deployment
 
@@ -218,11 +224,13 @@ docker compose -f docker-compose.dokploy.yml ps
 
 The GitHub `Build AEKO Network Images` workflow validates both Compose contracts and publishes images first. `Deploy AEKO Network via Dokploy` runs only after that workflow succeeds on `main` and calls `DOKPLOY_WEBHOOK_URL`.
 
-The webhook triggers the preconfigured Dokploy resource. It does not choose the Compose path on its own, so the resource must point to `docker-compose.dokploy.yml`.
+The webhook only triggers the preconfigured Dokploy resource. It does not rewrite Dokploy environment variables. In particular, if `AEKO_IMAGE_TAG` is pinned to an immutable SHA, update that Dokploy environment value to the newly published 12-character main SHA before/with the deployment. Otherwise Dokploy can read the newest Compose while still pulling older runtime binaries. Use `latest` only when intentional automatic roll-forward is preferred over immutable releases.
+
+The webhook also does not choose the Compose path on its own, so the resource must point to `docker-compose.dokploy.yml`.
 
 ## Deployment acceptance
 
-Do not certify the public network merely because containers are `running`.
+Do not certify the public network merely because containers are `running` or because Explorer is healthy.
 
 ### RPC
 
@@ -254,6 +262,14 @@ The response is wrapped under `data`. Acceptance requires:
   }
 }
 ```
+
+Also check live state verification:
+
+```bash
+curl -s https://api.aeko.online/social/status
+```
+
+Acceptance requires `data.complete == true`. A healthy Explorer with `complete: false` is intentionally a degraded/diagnostic state, not SocialFi success.
 
 ### Automated read-path smoke
 
