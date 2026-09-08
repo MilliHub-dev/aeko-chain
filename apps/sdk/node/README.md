@@ -15,14 +15,14 @@ This package is the Ticket 4.3 Node.js foundation and is now published as `@aeko
 ## Local Verification
 
 ```bash
-npm --prefix sdk/node install
-npm --prefix sdk/node run typecheck
-npm --prefix sdk/node run build
+npm --prefix apps/sdk/node install
+npm --prefix apps/sdk/node run typecheck
+npm --prefix apps/sdk/node run build
 ```
 
 ## Release Note
 
-The Node SDK now consumes `@aeko-chain/web3.js` through package exports instead of repo-local `dist` imports, which makes the boundary much closer to publish-ready.
+The Node SDK consumes `@aeko-chain/web3.js` through package exports instead of repo-local `dist` imports, which keeps the package boundary aligned with how consumers use it after publication.
 
 ## Local layout
 
@@ -35,17 +35,15 @@ The Node SDK now consumes `@aeko-chain/web3.js` through package exports instead 
 
 ## Examples
 
-- `examples/server-signing.ts`
-- `examples/webhook-listener.ts`
-- `examples/social-posts-backend.ts`
+- `apps/sdk/node/examples/server-signing.ts`
+- `apps/sdk/node/examples/webhook-listener.ts`
+- `apps/sdk/node/examples/social-posts-backend.ts`
 
-The SocialFi backend example now includes:
+The SocialFi backend example includes:
 
 - deterministic post hash and verify routes
 - prepared or submitted `AnchorPost` flow
 - persisted verification lookup
 - a pluggable store interface with a JSON-file reference implementation
 
-The reusable backend module for that example now lives in:
-
-- `src/socialBackend.ts`
+The reusable backend module for that example lives in `apps/sdk/node/src/socialBackend.ts`.

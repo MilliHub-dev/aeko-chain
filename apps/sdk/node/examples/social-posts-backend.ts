@@ -15,7 +15,7 @@ const bindHost = process.env.AEKO_SOCIAL_BIND_HOST ?? '127.0.0.1';
 const bindPort = Number.parseInt(process.env.AEKO_SOCIAL_BIND_PORT ?? '8787', 10);
 const persistencePath =
   process.env.AEKO_SOCIAL_STATE_PATH ??
-  `${process.cwd()}/sdk/node/.aeko-social-posts-backend.json`;
+  `${process.cwd()}/apps/sdk/node/.aeko-social-posts-backend.json`;
 
 const client = new AekoNodeClient(rpcUrl, {
   appName: 'aeko-social-backend-reference',
