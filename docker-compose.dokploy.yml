@@ -242,10 +242,17 @@ services:
         condition: service_healthy
       social-bootstrap:
         condition: service_completed_successfully
+    # Readiness, not just process liveness: /blocks exercises the configured
+    # store (PostgreSQL in Dokploy), while /social/status live-reads all five
+    # SocialFi states through rpc-node and verifies owner + initialization.
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/health || exit 1"]
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS 'http://127.0.0.1:8088/blocks?limit=1' >/dev/null &&
+          curl -fsS http://127.0.0.1:8088/social/status | grep -q '"complete":true'
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 5
       start_period: 60s
     networks: [aeko]
@@ -259,10 +266,17 @@ services:
     depends_on:
       explorer-api:
         condition: service_healthy
+    # UI health remains coupled to the API's real read path so a static SPA
+    # cannot be marked healthy while its backend is unavailable or disconnected.
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/ >/dev/null || exit 1"]
+      test:
+        - CMD-SHELL
+        - >-
+          wget -qO- http://127.0.0.1:4000/ >/dev/null &&
+          wget -qO- 'http://explorer-api:8088/blocks?limit=1' >/dev/null &&
+          wget -qO- http://explorer-api:8088/social/status | grep -q '"complete":true'
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
       start_period: 30s
     networks: [aeko]
