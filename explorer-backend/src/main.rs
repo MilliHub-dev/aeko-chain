@@ -11,7 +11,9 @@
 //!   5. Spawn catch-up + live-sync off-thread so the HTTP server binds
 //!      immediately. Core block/transaction indexing is isolated from optional
 //!      token/NFT/SocialFi projection refreshes so an RPC enrichment failure
-//!      cannot freeze the Explorer cursor.
+//!      cannot freeze the Explorer cursor. SocialFi projections read the exact
+//!      state accounts published by `aeko-social-bootstrap` instead of scanning
+//!      the public RPC with `getProgramAccounts`.
 //!   6. Serve.
 
 use {
@@ -21,7 +23,7 @@ use {
         services::ExplorerApiService,
         state::AppState,
         store::{ExplorerReadStore, InMemoryExplorerStore, PgExplorerStore},
-        telemetry, ChainDataSource, RpcChainDataSource,
+        telemetry, CanonicalSocialChainDataSource, ChainDataSource, RpcChainDataSource,
     },
     anyhow::{Context, Result},
     std::sync::Arc,
@@ -73,7 +75,7 @@ async fn main() -> Result<()> {
             }
         };
 
-    let data_source = RpcChainDataSource::new(backend_cfg.clone());
+    let data_source = CanonicalSocialChainDataSource::new(RpcChainDataSource::new(backend_cfg.clone()));
 
     // Catch-up + live-sync. All RPC and synchronous store work runs inside
     // spawn_blocking because the Postgres store bridges sync traits to sqlx.
@@ -172,7 +174,7 @@ async fn main() -> Result<()> {
 }
 
 fn sync_range_resilient(
-    data_source: &RpcChainDataSource,
+    data_source: &CanonicalSocialChainDataSource,
     sink: &Arc<dyn IndexSink>,
     start_slot: u64,
     end_slot: u64,
@@ -185,7 +187,7 @@ fn sync_range_resilient(
 }
 
 fn sync_slot_resilient(
-    data_source: &RpcChainDataSource,
+    data_source: &CanonicalSocialChainDataSource,
     sink: &Arc<dyn IndexSink>,
     slot: u64,
     persist_socialfi_views: bool,
@@ -197,8 +199,10 @@ fn sync_slot_resilient(
     }
     sink.persist_transactions(data_source.fetch_transactions(slot)?)?;
 
-    // Token/NFT/program-account snapshots must never hold the block/transaction
-    // cursor hostage. Refresh periodically and keep their error causes visible.
+    // Token/NFT snapshots must never hold the block/transaction cursor hostage.
+    // SocialFi uses direct canonical state-account reads through the bootstrap
+    // registry, but remains best-effort so a broken Social state cannot freeze
+    // core Explorer ingestion.
     if slot % ASSET_VIEW_REFRESH_SLOTS == 0 {
         best_effort_projection(slot, "token transfers", || {
             sink.persist_token_transfers(data_source.fetch_token_transfers(slot)?)
