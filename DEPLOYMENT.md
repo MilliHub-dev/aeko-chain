@@ -9,9 +9,11 @@ AEKO intentionally has two Compose files because local convenience and public de
 | File | Purpose |
 | --- | --- |
 | `docker-compose.yml` | portable local/testnet stack; validator RPC/WS are host-published and `rpc-node` is optional |
-| `docker-compose.dokploy.yml` | public/Dokploy stack; uses prebuilt Docker Hub images, makes `rpc-node` mandatory, keeps the voting validator's RPC/WS private and publishes validator transport directly |
+| `docker-compose.dokploy.yml` | public/Dokploy stack; uses prebuilt Docker Hub images and serves RPC/WS from the healthy voting validator |
 
 The root `Dockerfile` remains the canonical image build definition. Do not add a second production Dockerfile merely to deploy prebuilt images.
+
+The non-voting `rpc-node` remains an opt-in portable/local profile. It is not a mandatory Dokploy dependency for the current single-validator public testnet because the block-producing validator already runs the full RPC, transaction-history and PubSub surface required by wallets, bootstrap and Explorer.
 
 ## Image pipeline
 
@@ -39,14 +41,11 @@ Internet wallets / dApps / SDKs
        |                    |
  rpc.aeko.online       ws.aeko.online
        |                    |
-       +------ rpc-node (:8899/:8900) ------+
-                         |                   |
-                 private gossip        Explorer API :8088
-                  validator:8001             |
-                         |              PostgreSQL + registry
-                     validator
-                         |
-                  ledger / consensus
+       +------ validator (:8899/:8900) ------+
+                         |                    |
+                  ledger / consensus    Explorer API :8088
+                         |                    |
+                  native SocialFi       PostgreSQL + registry
 
 scan.aeko.online -> explorer-ui :4000 -> explorer-api :8088
 
@@ -55,7 +54,7 @@ validator host TCP+UDP 8000-8050 -> public validator transport range
 faucet :9900 -> internal only
 ```
 
-The public RPC replica uses the **same validator image** with `AEKO_NODE_ROLE=rpc`. It runs `--no-voting` and joins the block-producing validator via `validator:8001`. The validator advertises `AEKO_PUBLIC_IP` with `--gossip-host` and uses `8000-8050` as its public dynamic transport range; the private RPC replica uses a separate `8051-8101` range inside Docker.
+The Dokploy public testnet routes RPC/PubSub directly to the healthy block-producing validator. The separate non-voting replica added another genesis/snapshot/gossip bootstrap lifecycle without adding required functionality to the single-validator deployment, and a failed replica could block Explorer even while the validator remained healthy. The validator advertises `AEKO_PUBLIC_IP` with `--gossip-host` and uses `8000-8050` as its public dynamic transport range.
 
 A wallet is not a network daemon. Use `aeko-tools`, SDKs or wallet adapters to sign client transactions. WebSocket is RPC PubSub on port `8900`, not a separate service image.
 
@@ -66,15 +65,15 @@ Never treat a normal redeploy as a fresh chain.
 Persist:
 
 - `validator-ledger` named volume;
-- `rpc-ledger` named volume;
 - `social-state` named volume;
 - validator identity key;
 - vote-account key;
 - stake key;
-- faucet key;
-- RPC-node identity key.
+- faucet key.
 
 The `social-state` volume contains the five SocialFi state keypairs plus `social-registry.env`.
+
+The optional portable/local RPC replica keeps its own identity and ledger when that profile is explicitly enabled; those are not requirements of the default Dokploy topology.
 
 ## Required production environment
 
@@ -99,14 +98,13 @@ AEKO_PLATFORM_FEE_BPS=200
 
 ## Required key files
 
-`AEKO_KEYS_DIR` must contain:
+The default Dokploy `AEKO_KEYS_DIR` must contain:
 
 ```text
 validator-1-keypair.json
 vote-1-keypair.json
 stake-keypair.json
 faucet-keypair.json
-rpc-node-keypair.json
 ```
 
 Generate missing keys with `aeko-tools`. Do not use the validator image just to create a wallet/keypair.
@@ -116,7 +114,7 @@ docker run --rm \
   -v "$PWD/local-testnet:/keys" \
   surdma/aeko-tools:latest \
   aeko-keygen new --no-bip39-passphrase --silent \
-  --outfile /keys/rpc-node-keypair.json
+  --outfile /keys/validator-1-keypair.json
 ```
 
 Keep key files in persistent restricted storage. Do not rely on keys living inside an AutoDeploy Git checkout and never commit them.
@@ -125,13 +123,15 @@ Keep key files in persistent restricted storage. Do not rely on keys living insi
 
 `social-bootstrap` is part of the default network, not an optional manual afterthought.
 
+`key-preflight` and `social-bootstrap` are one-shot initialization jobs. In Docker/Dokploy their successful steady state is `Exited (0)`: that means the job completed successfully, not that a long-running daemon crashed.
+
 Startup ordering is:
 
 ```text
-faucet
+key-preflight exits 0
+  -> faucet
   -> validator healthy
-       -> rpc-node healthy
-       -> social-bootstrap completes successfully
+       -> social-bootstrap exits 0
             -> explorer-api healthy
                  -> explorer-ui
 ```
@@ -161,7 +161,7 @@ AEKO_RESET_LEDGER=1
 AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1
 ```
 
-The Dokploy Compose passes `AEKO_RESET_LEDGER` to both validator and RPC replica, so both persisted ledgers are cleared together. `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE` lets bootstrap recreate only the state that is expected to be absent after that deliberate fresh genesis. After reset/bootstrap succeeds, return both switches to `0` before subsequent redeploys.
+The Dokploy Compose resets the validator ledger for the intentional fresh genesis. `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE` lets bootstrap recreate only the state that is expected to be absent after that deliberate fresh genesis. After reset/bootstrap succeeds, return both switches to `0` before subsequent redeploys.
 
 ## Portable/local deployment
 
@@ -197,14 +197,14 @@ Dokploy's native Domains feature is preferred. Route:
 
 | Domain | Service | Container port |
 | --- | --- | ---: |
-| `rpc.aeko.online` | `rpc-node` | `8899` |
-| `ws.aeko.online` | `rpc-node` | `8900` |
+| `rpc.aeko.online` | `validator` | `8899` |
+| `ws.aeko.online` | `validator` | `8900` |
 | `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
 
 Do not route `gossip.aeko.online` through Traefik. DNS should point it directly at `AEKO_PUBLIC_IP`. Gossip starts on `8001`, and the Compose publishes the full validator TCP+UDP `8000-8050` transport range with same-port host mappings so advertised peer addresses stay reachable.
 
-The services share the private `aeko` Docker network for validator/RPC/faucet/bootstrap/Explorer communication. The optional `wallet-tools` service is an `ops` profile for CLI/key generation and is not a public daemon. If Dokploy Isolated Deployments is enabled, Dokploy can add its routing network to domain-selected services while the private AEKO network remains intact.
+The services share the private `aeko` Docker network for validator/faucet/bootstrap/Explorer communication. The optional `wallet-tools` service is an `ops` profile for CLI/key generation and is not a public daemon. If Dokploy Isolated Deployments is enabled, Dokploy can add its routing network to domain-selected services while the private AEKO network remains intact.
 
 ## Deploy / update behavior
 
@@ -285,7 +285,7 @@ Use `https://scan.aeko.online/faucet` and open the Test Console:
 - Never expose faucet `9900` publicly.
 - Never expose PostgreSQL `5432` publicly.
 - Public dApps never connect to gossip.
-- Prefer public RPC/WS through `rpc-node`, not the voting validator.
+- Route public RPC/WS through Dokploy/Traefik to the validator's exposed `8899`/`8900` ports for the current single-validator topology.
 - Keep node and SocialFi key material out of Git.
 - Preserve ledger and SocialFi volumes on normal redeploys.
 - Treat `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1` as a deliberate reset/recovery switch, not a normal setting.

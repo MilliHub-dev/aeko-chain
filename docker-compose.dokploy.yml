@@ -20,18 +20,23 @@ name: aeko-public-network
 # Use `latest` only when automatic roll-forward is intentional.
 #
 # Public HTTPS/WSS domains are configured in Dokploy's Domains UI:
-#   rpc.aeko.online  -> rpc-node:8899
-#   ws.aeko.online   -> rpc-node:8900
+#   rpc.aeko.online  -> validator:8899
+#   ws.aeko.online   -> validator:8900
 #   api.aeko.online  -> explorer-api:8088
 #   scan.aeko.online -> explorer-ui:4000
+#
+# The production testnet intentionally serves RPC/PubSub from the healthy
+# block-producing validator. A separate non-voting RPC replica remains an
+# optional local/portable profile and is not a Dokploy startup dependency.
 #
 # Validator transport is not HTTP. DNS for gossip.aeko.online must resolve to
 # AEKO_PUBLIC_IP and the host firewall/security group must allow TCP+UDP
 # 8000-8050. The validator advertises exactly that range.
 
 services:
-  # Fail before faucet/validator startup if persistent key material is absent,
-  # directory-valued, empty, or not parseable as an AEKO keypair.
+  # One-shot validation gate. `Exited (0)` is the successful steady state for
+  # this job; it is not a failed daemon. Long-running services start only after
+  # this command completes successfully.
   key-preflight:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
@@ -44,8 +49,7 @@ services:
           faucet-keypair.json \
           stake-keypair.json \
           validator-1-keypair.json \
-          vote-1-keypair.json \
-          rpc-node-keypair.json
+          vote-1-keypair.json
         do
           path="/keys/$$key"
           if [ ! -f "$$path" ] || [ ! -s "$$path" ]; then
@@ -95,9 +99,6 @@ services:
       AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?Set AEKO_PUBLIC_IP to the public address of this Dokploy server}
       AEKO_GOSSIP_PORT: "8001"
       AEKO_DYNAMIC_PORT_RANGE: 8000-8050
-      # The voting validator keeps client RPC private, but joining same-host
-      # replicas still need a reachable RPC address for genesis/snapshot boot.
-      AEKO_PUBLIC_RPC_ADDRESS: ${AEKO_VALIDATOR_BOOTSTRAP_RPC_ADDRESS:-validator:8899}
       # RPC send-transaction uses QUIC by default. Route submissions directly
       # over the Docker network instead of hairpinning to AEKO_PUBLIC_IP:8009.
       AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}
@@ -107,10 +108,12 @@ services:
         hard: 1000000
     # AEKO/Solana-style validator transport uses more than the gossip socket.
     # Keep a same-port host mapping so the address advertised in gossip remains
-    # reachable by future external validators and RPC peers.
+    # reachable by future external validators.
     ports:
       - "8000-8050:8000-8050/tcp"
       - "8000-8050:8000-8050/udp"
+    # Dokploy/Traefik routes public HTTPS/WSS to these container ports. They are
+    # not host-published directly.
     expose:
       - "8899"
       - "8900"
@@ -135,57 +138,10 @@ services:
       start_period: 120s
     networks: [aeko]
 
-  # Public read/write RPC edge. This is the same validator executable running
-  # with --no-voting. Keeping RPC/PubSub off the block producer isolates public
-  # application traffic from consensus work.
-  rpc-node:
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-validator:${AEKO_IMAGE_TAG:-latest}
-    pull_policy: always
-    restart: unless-stopped
-    environment:
-      AEKO_NODE_ROLE: rpc
-      AEKO_IDENTITY_FILE: /keys/rpc-node-keypair.json
-      AEKO_ENTRYPOINT: validator:8001
-      AEKO_FAUCET_ADDRESS: faucet:9900
-      # Keep intentional fresh-genesis reset semantics aligned with validator;
-      # both persistent ledgers must belong to the same chain.
-      AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
-      # The RPC replica participates over the private Compose network. Its
-      # public client surface is provided by Dokploy/Traefik on 8899 and 8900.
-      AEKO_DYNAMIC_PORT_RANGE: 8051-8101
-      # Public RPC submissions should enter the voting validator over its
-      # internal QUIC TPU instead of attempting public-IP hairpin routing.
-      AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}
-    ulimits:
-      nofile:
-        soft: 1000000
-        hard: 1000000
-    expose:
-      - "8899"
-      - "8900"
-    volumes:
-      - rpc-ledger:/ledger
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
-    depends_on:
-      validator:
-        condition: service_healthy
-      faucet:
-        condition: service_started
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          curl -fsS -X POST -H 'Content-Type: application/json'
-          -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
-          http://127.0.0.1:8899 | grep -q '"result":"ok"'
-      interval: 30s
-      timeout: 5s
-      retries: 6
-      start_period: 180s
-    networks: [aeko]
-
   # Idempotent one-shot initialization of the five native SocialFi programs.
   # State keypairs and the generated registry survive redeploys in social-state.
+  # `Exited (0)` is success: all five states were verified/initialized and the
+  # registry was written. This service is intentionally not a permanent daemon.
   social-bootstrap:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
@@ -216,8 +172,9 @@ services:
     pull_policy: always
     restart: unless-stopped
     environment:
-      # Index through the dedicated RPC replica rather than loading consensus.
-      AEKO_EXPLORER_RPC: http://rpc-node:8899
+      # The validator already exposes the complete RPC surface required by the
+      # Explorer. Avoid making the public stack depend on an unnecessary replica.
+      AEKO_EXPLORER_RPC: http://validator:8899
       AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-testnet}
       AEKO_EXPLORER_BIND: 0.0.0.0:8088
       AEKO_EXPLORER_START_SLOT: ${AEKO_EXPLORER_START_SLOT:-0}
@@ -238,13 +195,13 @@ services:
     volumes:
       - social-state:/state:ro
     depends_on:
-      rpc-node:
+      validator:
         condition: service_healthy
       social-bootstrap:
         condition: service_completed_successfully
     # Readiness, not just process liveness: /blocks exercises the configured
     # store (PostgreSQL in Dokploy), while /social/status live-reads all five
-    # SocialFi states through rpc-node and verifies owner + initialization.
+    # SocialFi states through validator RPC and verifies owner + initialization.
     healthcheck:
       test:
         - CMD-SHELL
@@ -299,5 +256,4 @@ networks:
 
 volumes:
   validator-ledger:
-  rpc-ledger:
   social-state:
