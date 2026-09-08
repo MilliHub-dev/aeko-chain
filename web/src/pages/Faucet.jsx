@@ -1,5 +1,5 @@
 import { Droplets, FlaskConical, Network, Terminal, WalletCards } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import NetworkToggle from '../components/NetworkToggle';
 import NetworkToolsPanel from '../components/NetworkToolsPanel';
 import NetworkConsoleModal from '../components/NetworkConsoleModal';
@@ -73,7 +73,7 @@ export default function Faucet() {
                 <h2 className="text-xl font-semibold mb-1">AEKO Network Console</h2>
                 <p className="text-sm text-gray-400 max-w-2xl">
                   A URL-addressable testnet workspace for account funding, transfers, live
-                  SocialFi bootstrap verification, and real signed Social Posts actions.
+                  SocialFi bootstrap verification, real signed Social actions, and end-to-end acceptance checks.
                 </p>
               </div>
             </div>
@@ -87,7 +87,7 @@ export default function Faucet() {
             </button>
           </div>
 
-          <div className="mt-5 grid gap-2 sm:grid-cols-3">
+          <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <button type="button" onClick={() => openConsole('accounts')} className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-left hover:bg-white/5 transition">
               <div className="text-sm font-medium text-white">Accounts</div>
               <div className="mt-1 text-xs text-gray-500">Wallets, balances, airdrops, transfers</div>
@@ -100,6 +100,10 @@ export default function Faucet() {
               <div className="text-sm font-medium text-white">Social</div>
               <div className="mt-1 text-xs text-gray-500">Timeline, profiles, posts, replies, likes</div>
             </button>
+            <Link to="/network-tools/social-e2e" className="rounded-xl border border-aeko-accent/25 bg-aeko-accent/[0.06] px-4 py-3 text-left hover:bg-aeko-accent/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent/70">
+              <div className="text-sm font-medium text-aeko-accent">Social E2E</div>
+              <div className="mt-1 text-xs text-gray-500">Sign, submit, confirm, index, and read the full SocialFi flow</div>
+            </Link>
           </div>
         </div>
       )}
