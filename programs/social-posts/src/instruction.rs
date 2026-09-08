@@ -60,6 +60,7 @@ pub fn anchor_post(
     program_id: &Pubkey,
     state_pubkey: &Pubkey,
     creator_pubkey: &Pubkey,
+    anti_spam_state_pubkey: &Pubkey,
     post: crate::state::PostAnchor,
 ) -> Instruction {
     Instruction::new_with_borsh(
@@ -68,6 +69,7 @@ pub fn anchor_post(
         vec![
             AccountMeta::new(*state_pubkey, false),
             AccountMeta::new_readonly(*creator_pubkey, true),
+            AccountMeta::new_readonly(*anti_spam_state_pubkey, false),
         ],
     )
 }
@@ -124,6 +126,7 @@ pub fn record_engagement(
     program_id: &Pubkey,
     state_pubkey: &Pubkey,
     actor_pubkey: &Pubkey,
+    anti_spam_state_pubkey: &Pubkey,
     proof: EngagementProof,
 ) -> Instruction {
     Instruction::new_with_borsh(
@@ -132,6 +135,7 @@ pub fn record_engagement(
         vec![
             AccountMeta::new(*state_pubkey, false),
             AccountMeta::new_readonly(*actor_pubkey, true),
+            AccountMeta::new_readonly(*anti_spam_state_pubkey, false),
         ],
     )
 }
