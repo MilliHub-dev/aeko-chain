@@ -24,6 +24,13 @@ pub struct TransactionRecord {
     pub signer: Option<String>,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TransactionAccountRecord {
+    pub signature: String,
+    pub account_index: usize,
+    pub address: String,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenTransferRecord {
@@ -219,13 +226,14 @@ pub enum SearchResultRecord {
     Engagement(EngagementRecord),
 }
 
-/// One confirmed chain slot, persisted atomically with its transaction events
-/// and durable next-slot cursor.
+/// One finalized chain slot, persisted atomically with its transaction events,
+/// involved account projection, and durable next-slot cursor.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CoreSlotRecord {
     pub slot: u64,
     pub block: Option<BlockRecord>,
     pub transactions: Vec<TransactionRecord>,
+    pub transaction_accounts: Vec<TransactionAccountRecord>,
     pub token_transfers: Vec<TokenTransferRecord>,
 }
 

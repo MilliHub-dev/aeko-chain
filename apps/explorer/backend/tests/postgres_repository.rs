@@ -8,7 +8,7 @@ use {
         },
         models::{
             AssetSnapshot, BlockRecord, CoreSlotRecord, TokenAccountRecord, TokenMintRecord,
-            TokenTransferRecord, TransactionRecord,
+            TokenTransferRecord, TransactionAccountRecord, TransactionRecord,
         },
     },
     anyhow::{Context, Result},
@@ -44,6 +44,8 @@ async fn postgres_cursor_filters_and_asset_aggregates_are_durable() -> Result<()
     let signer = "11111111111111111111111111111111".to_string();
     let other = "22222222222222222222222222222222".to_string();
     let mint = "33333333333333333333333333333333".to_string();
+    let participant = "44444444444444444444444444444444".to_string();
+    let replacement_participant = "55555555555555555555555555555555".to_string();
     repository
         .persist_core_slot(CoreSlotRecord {
             slot,
@@ -70,7 +72,24 @@ async fn postgres_cursor_filters_and_asset_aggregates_are_durable() -> Result<()
                     success: false,
                     fee: 5_000,
                     primary_program: Some("program-b".to_string()),
-                    signer: Some(other),
+                    signer: Some(other.clone()),
+                },
+            ],
+            transaction_accounts: vec![
+                TransactionAccountRecord {
+                    signature: "integration-signature-match".to_string(),
+                    account_index: 0,
+                    address: signer.clone(),
+                },
+                TransactionAccountRecord {
+                    signature: "integration-signature-match".to_string(),
+                    account_index: 1,
+                    address: participant.clone(),
+                },
+                TransactionAccountRecord {
+                    signature: "integration-signature-other".to_string(),
+                    account_index: 0,
+                    address: other,
                 },
             ],
             token_transfers: vec![TokenTransferRecord {
@@ -98,7 +117,7 @@ async fn postgres_cursor_filters_and_asset_aggregates_are_durable() -> Result<()
 
     let transactions = repository
         .list_transactions(&TransactionQuery {
-            address: Some(signer),
+            address: Some(signer.clone()),
             success: Some(true),
             limit: 5,
             ..TransactionQuery::default()
@@ -106,6 +125,68 @@ async fn postgres_cursor_filters_and_asset_aggregates_are_durable() -> Result<()
         .await?;
     assert_eq!(transactions.len(), 1);
     assert_eq!(transactions[0].signature, "integration-signature-match");
+
+    let participant_transactions = repository
+        .list_transactions(&TransactionQuery {
+            address: Some(participant.clone()),
+            success: Some(true),
+            limit: 5,
+            ..TransactionQuery::default()
+        })
+        .await?;
+    assert_eq!(participant_transactions.len(), 1);
+    assert_eq!(
+        participant_transactions[0].signature,
+        "integration-signature-match"
+    );
+
+    // Re-indexing the same transaction must replace its account projection,
+    // not leave stale addresses that continue to match Explorer history.
+    repository
+        .persist_core_slot(CoreSlotRecord {
+            slot,
+            block: None,
+            transactions: vec![TransactionRecord {
+                signature: "integration-signature-match".to_string(),
+                slot,
+                success: true,
+                fee: 5_000,
+                primary_program: Some("program-a".to_string()),
+                signer: Some(signer.clone()),
+            }],
+            transaction_accounts: vec![
+                TransactionAccountRecord {
+                    signature: "integration-signature-match".to_string(),
+                    account_index: 0,
+                    address: signer,
+                },
+                TransactionAccountRecord {
+                    signature: "integration-signature-match".to_string(),
+                    account_index: 1,
+                    address: replacement_participant.clone(),
+                },
+            ],
+            token_transfers: Vec::new(),
+        })
+        .await?;
+
+    let stale = repository
+        .list_transactions(&TransactionQuery {
+            address: Some(participant),
+            limit: 5,
+            ..TransactionQuery::default()
+        })
+        .await?;
+    assert!(stale.is_empty());
+    let replacement = repository
+        .list_transactions(&TransactionQuery {
+            address: Some(replacement_participant),
+            limit: 5,
+            ..TransactionQuery::default()
+        })
+        .await?;
+    assert_eq!(replacement.len(), 1);
+    assert_eq!(replacement[0].signature, "integration-signature-match");
 
     let transfers = repository
         .list_token_transfers(&TokenTransferQuery {
