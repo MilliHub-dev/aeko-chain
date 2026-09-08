@@ -135,4 +135,4 @@ test('submitAnchor rejects a confirmed transaction when getPostAnchor returns di
       return true;
     },
   );
-}
+});
