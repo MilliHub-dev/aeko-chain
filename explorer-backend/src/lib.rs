@@ -9,6 +9,7 @@
 //!   - `models`     — record types serialized to JSON
 //!   - `response`   — shared `{data, meta}` envelope
 //!   - `services`   — `ExplorerApiService` composes store calls
+//!   - `social_chain` — canonical SocialFi registry → RPC state bridge
 //!   - `state`      — `AppState` shared with handlers
 //!   - `store`      — `ExplorerReadStore` trait + `InMemoryExplorerStore`
 //!   - `telemetry`  — tracing setup
@@ -25,6 +26,7 @@ pub mod indexer;
 pub mod models;
 pub mod response;
 pub mod services;
+pub mod social_chain;
 pub mod state;
 pub mod store;
 pub mod telemetry;
@@ -35,6 +37,7 @@ pub use {
     indexer::{ChainDataSource, ExplorerIndexer, IndexSink, RpcChainDataSource},
     models::*,
     services::ExplorerApiService,
+    social_chain::CanonicalSocialChainDataSource,
     store::{ExplorerReadStore, InMemoryExplorerStore, PgExplorerStore},
 };
 
