@@ -12,6 +12,7 @@ DOKPLOY = ROOT / "docker-compose.dokploy.yml"
 DOCKERFILE = ROOT / "Dockerfile"
 VALIDATOR_ENTRYPOINT = ROOT / "docker" / "validator-entrypoint.sh"
 SOCIAL_BOOTSTRAP = ROOT / "social-bootstrap" / "src" / "main.rs"
+EXPLORER_HEALTH = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "health" / "mod.rs"
 README = ROOT / "README.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
 
@@ -47,6 +48,7 @@ def main() -> int:
     dockerfile = read(DOCKERFILE)
     validator_entrypoint = read(VALIDATOR_ENTRYPOINT)
     social_bootstrap = read(SOCIAL_BOOTSTRAP)
+    explorer_health = read(EXPLORER_HEALTH)
     readme = read(README)
     deployment = read(DEPLOYMENT)
 
@@ -135,8 +137,11 @@ def main() -> int:
     require("AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env" in explorer, "Explorer must consume generated SocialFi registry")
     require("validator:" in explorer and "condition: service_healthy" in explorer, "Explorer must wait for validator health")
     require("condition: service_completed_successfully" not in explorer, "Explorer process startup must not be blocked by a failed one-shot SocialFi bootstrap")
-    require("/blocks?limit=1" in explorer, "Explorer readiness must exercise its configured read store")
-    require("http://validator:8899" in explorer and "getHealth" in explorer, "Explorer readiness must prove validator RPC availability")
+    require("http://127.0.0.1:8088/health" in explorer, "Explorer container health must use the backend readiness endpoint")
+    require("repository.ping().await" in explorer_health, "Explorer readiness must prove PostgreSQL availability")
+    require("rpc.health()?" in explorer_health and "rpc.latest_slot()" in explorer_health, "Explorer readiness must prove validator RPC health and slot availability")
+    require("latest_indexed_slot().await" in explorer_health, "Explorer readiness must inspect the durable indexer cursor")
+    require("StatusCode::SERVICE_UNAVAILABLE" in explorer_health, "Explorer readiness must fail closed when dependencies or cursor lag are unhealthy")
     require('"complete":true' not in explorer, "Explorer core health must not be coupled to SocialFi completeness")
     require("/blocks?limit=1" in explorer_ui, "Explorer UI health must fail when the Explorer read path is unavailable")
     require('"complete":true' not in explorer_ui, "Explorer UI liveness must not be coupled to SocialFi completeness")
