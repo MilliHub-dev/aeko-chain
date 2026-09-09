@@ -2,10 +2,15 @@
 
 use {
     crate::{config::ServerConfig, features, state::SharedState},
-    axum::Router,
+    axum::{
+        http::{header, HeaderName, Method},
+        Router,
+    },
     tower_http::{
+        compression::CompressionLayer,
         cors::{Any, CorsLayer},
         limit::RequestBodyLimitLayer,
+        request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
         timeout::TimeoutLayer,
         trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer},
         LatencyUnit,
@@ -15,9 +20,10 @@ use {
 pub fn build_router(state: SharedState, server: &ServerConfig) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any)
+        .allow_methods([Method::GET, Method::HEAD, Method::OPTIONS])
+        .allow_headers([header::ACCEPT, header::CONTENT_TYPE])
         .max_age(std::time::Duration::from_secs(300));
+    let request_id_header = HeaderName::from_static("x-request-id");
     let trace = TraceLayer::new_for_http()
         .make_span_with(DefaultMakeSpan::new().include_headers(false))
         .on_response(
@@ -28,7 +34,10 @@ pub fn build_router(state: SharedState, server: &ServerConfig) -> Router {
 
     features::router()
         .with_state(state)
+        .layer(PropagateRequestIdLayer::new(request_id_header.clone()))
         .layer(trace)
+        .layer(SetRequestIdLayer::new(request_id_header, MakeRequestUuid))
+        .layer(CompressionLayer::new())
         .layer(TimeoutLayer::new(server.request_timeout))
         .layer(RequestBodyLimitLayer::new(server.max_body_bytes))
         .layer(cors)
