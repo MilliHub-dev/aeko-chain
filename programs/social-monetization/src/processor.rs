@@ -188,6 +188,9 @@ impl Processor {
         state.ensure_initialized().map_err(Self::map_program_error)?;
         if authority_key != creator && authority_key != state.config.authority { return Err(Self::map_program_error(SocialMonetizationError::Unauthorized.into())); }
         Self::verify_owned_account(invoke_context, 1, state.config.treasury)?;
+        // The destination is protocol-bound to the creator. Administrative
+        // authorization may approve a payout but may not redirect it.
+        Self::verify_account_key(invoke_context, 2, creator)?;
         let revenue = state.revenues.iter_mut().find(|entry| entry.creator == creator)
             .ok_or_else(|| Self::map_program_error(SocialMonetizationError::NothingToClaim.into()))?;
         if amount == 0 { return Err(Self::map_program_error(SocialMonetizationError::InvalidAmount.into())); }
@@ -224,6 +227,14 @@ impl Processor {
         let account = instruction_context.try_borrow_instruction_account(transaction_context, index)?;
         if !account.is_signer() { return Err(InstructionError::MissingRequiredSignature); }
         Ok(*account.get_key())
+    }
+
+    fn verify_account_key(invoke_context: &InvokeContext, index: u16, expected: Pubkey) -> Result<(), InstructionError> {
+        let transaction_context = &invoke_context.transaction_context;
+        let instruction_context = transaction_context.get_current_instruction_context()?;
+        let account = instruction_context.try_borrow_instruction_account(transaction_context, index)?;
+        if *account.get_key() != expected { return Err(InstructionError::InvalidArgument); }
+        Ok(())
     }
 
     fn verify_owned_account(invoke_context: &InvokeContext, index: u16, expected: Pubkey) -> Result<(), InstructionError> {
