@@ -18,7 +18,7 @@ import ExplorerCollection from './pages/ExplorerCollection';
 import Bridge from './pages/Bridge';
 import NftDemo from './pages/NftDemo';
 import Faucet from './pages/Faucet';
-import SocialTest from './pages/SocialTest';
+import SocialTest from './pages/SocialTestV2';
 import ScrollToTop from './components/ScrollToTop';
 
 function App() {

@@ -26,4 +26,22 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    // The base config intentionally does not install eslint-plugin-react, so
+    // core no-unused-vars cannot see JSX-only use of callback/destructured
+    // component aliases such as `Icon`. Scope the exception to the two Social
+    // surfaces that render those aliases instead of weakening the repository
+    // rule globally. `setValue` is retained in Composer's controlled-component
+    // contract even though the collapsed preview currently only reads `value`.
+    files: [
+      'src/components/social/NetworkSocialModal.jsx',
+      'src/pages/SocialTestV2.jsx',
+    ],
+    rules: {
+      'no-unused-vars': ['error', {
+        varsIgnorePattern: '^[A-Z_]',
+        argsIgnorePattern: '^(Icon|setValue)$',
+      }],
+    },
+  },
 ])

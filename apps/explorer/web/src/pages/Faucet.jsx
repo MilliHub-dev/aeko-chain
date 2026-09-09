@@ -3,9 +3,11 @@ import { Link, useSearchParams } from 'react-router-dom';
 import NetworkToggle from '../components/NetworkToggle';
 import NetworkToolsPanel from '../components/NetworkToolsPanel';
 import NetworkConsoleModal from '../components/NetworkConsoleModal';
+import NetworkSocialModal from '../components/social/NetworkSocialModal';
 import { getNetworkConfig } from '../utils/networkConfig';
 
 const CONSOLE_TABS = new Set(['accounts', 'programs', 'social']);
+const SOCIAL_QUERY_KEYS = ['social', 'profile', 'post', 'dialog', 'target', 'persona'];
 
 export default function Faucet() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -23,8 +25,9 @@ export default function Faucet() {
       ? import.meta.env.VITE_AEKO_LOCAL_RPC
       : config.rpcUrl;
 
-  const updateParams = (updates, { replace = false } = {}) => {
+  const updateParams = (updates, { replace = false, remove = [] } = {}) => {
     const next = new URLSearchParams(searchParams);
+    remove.forEach((key) => next.delete(key));
     Object.entries(updates).forEach(([key, value]) => {
       if (value == null || value === '') next.delete(key);
       else next.set(key, value);
@@ -33,15 +36,29 @@ export default function Faucet() {
   };
 
   const setNetwork = (nextNetwork) => {
-    updateParams({ network: nextNetwork === 'testnet' ? null : nextNetwork });
+    updateParams(
+      { network: nextNetwork === 'testnet' ? null : nextNetwork },
+      { remove: SOCIAL_QUERY_KEYS },
+    );
   };
 
   const openConsole = (tab = 'accounts') => {
-    updateParams({ console: '1', tab });
+    const updates = { console: '1', tab };
+    if (tab === 'social' && !searchParams.get('social')) updates.social = 'feed';
+    updateParams(updates, { remove: tab === 'social' ? [] : SOCIAL_QUERY_KEYS });
   };
 
   const closeConsole = () => {
-    updateParams({ console: null, tab: null });
+    updateParams(
+      { console: null, tab: null },
+      { remove: SOCIAL_QUERY_KEYS },
+    );
+  };
+
+  const switchConsoleTab = (tab) => {
+    const updates = { console: '1', tab };
+    if (tab === 'social') updates.social = searchParams.get('social') || 'feed';
+    updateParams(updates, { remove: tab === 'social' ? [] : SOCIAL_QUERY_KEYS });
   };
 
   return (
@@ -156,16 +173,20 @@ export default function Faucet() {
         </div>
       </div>
 
-      <NetworkConsoleModal
-        open={consoleOpen}
-        onClose={closeConsole}
-        tab={consoleTab}
-        onTabChange={(tab) => updateParams({ console: '1', tab })}
-        rpcUrl={modalRpc}
-        network={config.label}
-        explorerApiUrl={config.explorerApiUrl}
-        explorerUrl={config.explorerUrl}
-      />
+      {consoleOpen && consoleTab === 'social' ? (
+        <NetworkSocialModal network={network} onClose={closeConsole} />
+      ) : (
+        <NetworkConsoleModal
+          open={consoleOpen}
+          onClose={closeConsole}
+          tab={consoleTab}
+          onTabChange={switchConsoleTab}
+          rpcUrl={modalRpc}
+          network={config.label}
+          explorerApiUrl={config.explorerApiUrl}
+          explorerUrl={config.explorerUrl}
+        />
+      )}
     </div>
   );
 }

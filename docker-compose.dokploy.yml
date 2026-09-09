@@ -142,9 +142,11 @@ services:
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_BOOTSTRAP_OUT_DIR: /state
       AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}
-      AEKO_TREASURY_ADDRESS: ${AEKO_TREASURY_ADDRESS:-}
-      AEKO_REWARD_VAULT: ${AEKO_REWARD_VAULT:-}
-      AEKO_STAKE_VAULT: ${AEKO_STAKE_VAULT:-}
+      # Bootstrap creates persisted program-owned vault accounts. These optional
+      # amounts only seed payout liquidity; zero remains the safe default.
+      AEKO_REWARDS_TREASURY_SEED_LAMPORTS: ${AEKO_REWARDS_TREASURY_SEED_LAMPORTS:-0}
+      AEKO_REWARD_VAULT_SEED_LAMPORTS: ${AEKO_REWARD_VAULT_SEED_LAMPORTS:-0}
+      AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS: ${AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS:-0}
       AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-200}
     volumes:
       - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
@@ -185,7 +187,10 @@ services:
       AEKO_SOCIAL_STAKING_STATE: ${AEKO_SOCIAL_STAKING_STATE:-}
       AEKO_SOCIAL_ANTI_SPAM_STATE: ${AEKO_SOCIAL_ANTI_SPAM_STATE:-}
       AEKO_SOCIAL_MONETIZATION_STATE: ${AEKO_SOCIAL_MONETIZATION_STATE:-}
+      AEKO_REWARDS_TREASURY_ACCOUNT: ${AEKO_REWARDS_TREASURY_ACCOUNT:-}
       AEKO_REWARD_VAULT_ACCOUNT: ${AEKO_REWARD_VAULT_ACCOUNT:-}
+      AEKO_STAKE_VAULT_ACCOUNT: ${AEKO_STAKE_VAULT_ACCOUNT:-}
+      AEKO_STAKE_REWARD_VAULT_ACCOUNT: ${AEKO_STAKE_REWARD_VAULT_ACCOUNT:-}
       AEKO_TREASURY_ADDRESS: ${AEKO_TREASURY_ADDRESS:-}
       AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-}
     expose:
@@ -210,15 +215,11 @@ services:
     restart: unless-stopped
     expose:
       - "4000"
-    depends_on:
-      explorer-api:
-        condition: service_healthy
+    # UI lifecycle is intentionally independent of Explorer API readiness.
+    # The static app must still start and render degraded/error states while
+    # the API or its upstream dependencies recover.
     healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          wget -qO- http://127.0.0.1:4000/ >/dev/null &&
-          wget -qO- 'http://explorer-api:8088/blocks?limit=1' >/dev/null
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/ >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -89,11 +89,20 @@ EXPOSE 8088/tcp
 # shell retry loop.
 ENTRYPOINT ["aeko-explorer-backend"]
 
-FROM node:18-alpine AS explorer-ui-builder
+FROM node:22-alpine AS explorer-ui-builder
 WORKDIR /web
 COPY apps/explorer/web/package*.json ./
 RUN npm install
 COPY apps/explorer/web/ ./
+# Vite endpoint values are build-time configuration. These optional args are
+# intentionally empty for normal production builds; PR dogfood supplies local
+# runner endpoints so the exact PR-built UI exercises the exact PR-built chain.
+ARG VITE_AEKO_LOCAL_RPC=
+ARG VITE_AEKO_LOCAL_WS=
+ARG VITE_AEKO_LOCAL_EXPLORER_API=
+ENV VITE_AEKO_LOCAL_RPC=${VITE_AEKO_LOCAL_RPC} \
+    VITE_AEKO_LOCAL_WS=${VITE_AEKO_LOCAL_WS} \
+    VITE_AEKO_LOCAL_EXPLORER_API=${VITE_AEKO_LOCAL_EXPLORER_API}
 RUN npm run build
 
 FROM node:18-alpine AS explorer-ui
