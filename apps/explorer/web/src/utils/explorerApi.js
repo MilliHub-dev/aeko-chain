@@ -1,4 +1,16 @@
+import { getSlot } from './aekoRpcClient';
+import { normalizeSearchMatches } from './explorerData';
 import { getNetworkConfig } from './networkConfig';
+
+class ExplorerApiError extends Error {
+  constructor(message, { status = null, path = '', cause = null } = {}) {
+    super(message);
+    this.name = 'ExplorerApiError';
+    this.status = status;
+    this.path = path;
+    this.cause = cause;
+  }
+}
 
 function getExplorerApiBase(network) {
   const active = getNetworkConfig(network);
@@ -16,45 +28,141 @@ function buildQuery(params = {}) {
   return encoded ? `?${encoded}` : '';
 }
 
-async function fetchJson(path, network) {
+async function fetchEnvelope(path, network) {
   const base = getExplorerApiBase(network);
   if (!base) {
-    throw new Error('Explorer API URL is not configured');
+    throw new ExplorerApiError('Explorer API URL is not configured', { path });
   }
 
-  const response = await fetch(`${base}${path}`);
+  let response;
+  try {
+    response = await fetch(`${base}${path}`);
+  } catch (cause) {
+    throw new ExplorerApiError('Explorer API request failed before receiving a response', {
+      path,
+      cause,
+    });
+  }
 
-  // Reverse proxies (Traefik / Coolify / nginx) return HTML when the upstream
-  // service is down or restarting — most commonly a 502/503/504. Calling
-  // .json() on that body throws "Unexpected token 'B', \"Bad Gateway\" is not
-  // valid JSON", which is what users saw on /explorer. Sniff the content-type
-  // and convert to a friendly typed error before JSON-parsing.
+  // Reverse proxies (Traefik / Dokploy / nginx) may return HTML while an
+  // upstream service is restarting. Preserve the HTTP status so callers can
+  // distinguish an unsupported additive endpoint from a genuine outage.
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) {
     const text = await response.text().catch(() => '');
     const snippet = text.replace(/<[^>]*>/g, ' ').trim().slice(0, 120);
-    throw new Error(
+    throw new ExplorerApiError(
       response.status === 502 || response.status === 503 || response.status === 504
-        ? `Indexer is unreachable (${response.status}). The explorer-backend may be restarting or syncing — retry in a moment.`
+        ? `Indexer is unreachable (${response.status}). The explorer backend may be restarting or syncing — retry in a moment.`
         : `Indexer returned non-JSON (${response.status}). ${snippet}`,
+      { status: response.status, path },
     );
   }
 
   const payload = await response.json();
 
   if (!response.ok) {
-    throw new Error(payload?.error?.message || `Request failed: ${response.status}`);
+    throw new ExplorerApiError(
+      payload?.error?.message || `Request failed: ${response.status}`,
+      { status: response.status, path },
+    );
   }
 
+  return payload;
+}
+
+async function fetchJson(path, network) {
+  const payload = await fetchEnvelope(path, network);
   return payload?.data;
+}
+
+function emptyOverview(overrides = {}) {
+  return {
+    backendOverviewAvailable: false,
+    dataSource: 'overview-unavailable',
+    overviewError: '',
+    rpcAvailable: false,
+    latestChainSlot: null,
+    latestIndexedSlot: null,
+    indexLagSlots: null,
+    latestAssetSlot: null,
+    assetLagSlots: null,
+    latestSocialSlot: null,
+    socialLagSlots: null,
+    indexedBlocks: null,
+    indexedTransactions: null,
+    indexedTokens: null,
+    indexedNfts: null,
+    indexedPosts: null,
+    indexedStakes: null,
+    ...overrides,
+  };
+}
+
+function overviewEndpointUnsupported(error) {
+  return error instanceof ExplorerApiError && [404, 405, 501].includes(error.status);
 }
 
 export function getExplorerAvailability(network) {
   return Boolean(getExplorerApiBase(network));
 }
 
+export async function fetchExplorerOverview(network) {
+  try {
+    const payload = await fetchEnvelope('/overview', network);
+    return emptyOverview({
+      ...payload?.data,
+      backendOverviewAvailable: true,
+      dataSource: payload?.meta?.source || 'explorer-backend',
+    });
+  } catch (error) {
+    // Backward-compatible rollout only: if an older Explorer backend does not
+    // yet implement /overview, the UI may read the live slot directly from
+    // the configured public RPC. A backend outage (5xx/network failure) is NOT
+    // silently bypassed, because the Explorer backend remains authoritative
+    // for indexed history and aggregates.
+    if (!overviewEndpointUnsupported(error)) {
+      throw error;
+    }
+
+    const rpcUrl = getNetworkConfig(network).rpcUrl;
+    if (!rpcUrl) {
+      return emptyOverview({
+        dataSource: 'explorer-backend-legacy',
+        overviewError: 'Explorer backend does not expose /overview and no RPC fallback is configured.',
+      });
+    }
+
+    try {
+      const latestChainSlot = await getSlot(rpcUrl);
+      return emptyOverview({
+        dataSource: 'rpc-live-fallback',
+        rpcAvailable: true,
+        latestChainSlot,
+        overviewError: 'Explorer backend is running an older contract without /overview.',
+      });
+    } catch (rpcError) {
+      return emptyOverview({
+        dataSource: 'explorer-backend-legacy',
+        overviewError: `Explorer backend lacks /overview and RPC fallback failed: ${rpcError.message}`,
+      });
+    }
+  }
+}
+
 export async function fetchExplorerHome(network, filters = {}) {
-  const [blocks, transactions, posts, stakes, nfts] = await Promise.all([
+  // Overview is informative and additive. If it is unavailable, preserve the
+  // primary indexed lists rather than turning a dashboard-summary failure into
+  // a total Explorer outage.
+  const overviewPromise = fetchExplorerOverview(network).catch((error) =>
+    emptyOverview({
+      overviewError: error.message,
+      dataSource: 'overview-error',
+    }),
+  );
+
+  const [overview, blocks, transactions, posts, stakes, nfts] = await Promise.all([
+    overviewPromise,
     fetchJson(`/blocks${buildQuery({ limit: 6, before: filters.blockBefore, after: filters.blockAfter })}`, network),
     fetchJson(`/transactions${buildQuery({
       limit: 6,
@@ -87,7 +195,7 @@ export async function fetchExplorerHome(network, filters = {}) {
     })}`, network),
   ]);
 
-  return { blocks, transactions, posts, stakes, nfts };
+  return { overview, blocks, transactions, posts, stakes, nfts };
 }
 
 export async function fetchBlockDetails(network, slot) {
@@ -123,5 +231,6 @@ export async function fetchNftDetails(network, tokenId) {
 }
 
 export async function searchExplorer(network, query) {
-  return fetchJson(`/search?q=${encodeURIComponent(query)}&limit=8`, network);
+  const payload = await fetchJson(`/search?q=${encodeURIComponent(query)}&limit=8`, network);
+  return { matches: normalizeSearchMatches(payload) };
 }
