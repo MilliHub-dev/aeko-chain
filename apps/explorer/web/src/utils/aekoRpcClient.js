@@ -1,7 +1,7 @@
 // Thin JSON-RPC client for the AEKO testnet validator.
 //
-// Used by the /faucet and SocialFi test consoles to drive airdrops,
-// transactions, and read SocialFi state.
+// Used by the network/test consoles to drive airdrops, transactions, explicit
+// live-chain reads, and the Explorer's narrowly scoped compatibility fallback.
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 
@@ -33,6 +33,10 @@ async function rpc(url, method, params, { timeoutMs = DEFAULT_TIMEOUT_MS } = {})
 
 export async function getSlot(rpcUrl) {
   return rpc(rpcUrl, 'getSlot', []);
+}
+
+export async function getFinalizedSlot(rpcUrl) {
+  return rpc(rpcUrl, 'getSlot', [{ commitment: 'finalized' }]);
 }
 
 export async function getEpochInfo(rpcUrl) {
