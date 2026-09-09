@@ -81,7 +81,9 @@ export async function fetchSocialProjection(baseUrl, { wallet = '', creator = ''
   const safeLimit = Math.max(1, Math.min(Number(limit) || 50, 100));
   const requests = {
     posts: `/posts${queryString({ creator: creator || undefined, limit: safeLimit })}`,
-    engagement: `/engagement${queryString({ actor: wallet || undefined, creator: creator || undefined, limit: safeLimit })}`,
+    // Engagement is deliberately not actor-filtered: the console renders the
+    // real aggregate activity for each post, not just actions from the selected wallet.
+    engagement: `/engagement${queryString({ creator: creator || undefined, limit: safeLimit })}`,
     stakes: `/stakes${queryString({ wallet: wallet || undefined, creator: creator || undefined, limit: safeLimit })}`,
     rewards: `/rewards${queryString({ creator: creator || undefined, limit: safeLimit })}`,
     rewardAccounts: `/social/reward-accounts${queryString({ creator: creator || undefined, limit: safeLimit })}`,
