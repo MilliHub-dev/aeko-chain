@@ -123,6 +123,7 @@ jobs:
             local target="$1"
             shift
             local tags=()
+            local build_args=()
             local image
             if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
               # Use the same role names consumed by docker-compose.yml so the
@@ -130,6 +131,13 @@ jobs:
               for image in "$@"; do
                 tags+=(--tag "aeko-ci/${image}:${SHA_TAG}")
               done
+              if [ "$target" = "explorer-ui" ]; then
+                build_args+=(
+                  --build-arg VITE_AEKO_LOCAL_RPC=http://127.0.0.1:8899
+                  --build-arg VITE_AEKO_LOCAL_WS=ws://127.0.0.1:8900
+                  --build-arg VITE_AEKO_LOCAL_EXPLORER_API=http://127.0.0.1:8088
+                )
+              fi
             else
               for image in "$@"; do
                 tags+=(--tag "${REGISTRY_USER}/${image}:latest")
@@ -140,6 +148,7 @@ jobs:
             docker buildx build \
               --file Dockerfile \
               --target "${target}" \
+              "${build_args[@]}" \
               "${tags[@]}" \
               "${PUSH_ARGS[@]}" \
               .
@@ -152,7 +161,7 @@ jobs:
           build_target explorer-api aeko-explorer-api aeko-explorer-backend
           build_target explorer-ui aeko-explorer-ui
 
-      - name: Dogfood PR-built network read path
+      - name: Dogfood PR-built network and Social custody flow
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
@@ -236,3 +245,69 @@ jobs:
             python3 scripts/smoke-aeko-social.py
 
           curl -fsS http://127.0.0.1:4000/ >/dev/null
+
+          # Execute the actual SocialTestV2 page in a real browser. The page
+          # creates/signs with its own browser-local test wallet and only marks
+          # the full flow PASS after post/NFT/engagement/custody records are
+          # confirmed on RPC and observed through Explorer projections.
+          BROWSER_DIR=$(mktemp -d)
+          cd "$BROWSER_DIR"
+          npm init -y >/dev/null 2>&1
+          npm install --silent --ignore-scripts playwright@1.55.0
+          CHROME_BIN=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)
+          if [ -z "$CHROME_BIN" ]; then
+            npx playwright install --with-deps chromium
+          fi
+          export CHROME_BIN
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+
+          const executablePath = process.env.CHROME_BIN || undefined;
+          const browser = await chromium.launch({
+            headless: true,
+            executablePath,
+            args: ['--no-sandbox'],
+          });
+          const page = await browser.newPage();
+          const consoleErrors = [];
+          page.on('console', (message) => {
+            if (message.type() === 'error') consoleErrors.push(message.text());
+          });
+          page.on('pageerror', (error) => consoleErrors.push(error.message));
+
+          try {
+            const response = await page.goto('http://127.0.0.1:4000/network-tools/social-e2e', {
+              waitUntil: 'domcontentloaded',
+              timeout: 30_000,
+            });
+            if (!response?.ok()) throw new Error(`Social E2E page returned HTTP ${response?.status()}`);
+            const runButton = page.getByRole('button', { name: 'Run custody + asset flow' });
+            await runButton.waitFor({ state: 'visible', timeout: 30_000 });
+            await runButton.click();
+
+            const success = 'Post + NFT + engagement + real stake escrow + real tip transfer + Explorer projections all passed.';
+            let finalState = 'running';
+            let excerpt = '';
+            for (let attempt = 0; attempt < 300; attempt += 1) {
+              const result = await page.evaluate((successText) => {
+                const text = document.body.innerText;
+                if (text.includes(successText)) return { state: 'pass', excerpt: successText };
+                const marker = text.indexOf('Full custody + asset flow');
+                const sample = marker >= 0 ? text.slice(marker, marker + 900) : text.slice(0, 900);
+                if (sample.includes('FAIL')) return { state: 'fail', excerpt: sample };
+                return { state: 'running', excerpt: sample };
+              }, success);
+              finalState = result.state;
+              excerpt = result.excerpt;
+              if (finalState !== 'running') break;
+              await page.waitForTimeout(1_000);
+            }
+            if (finalState !== 'pass') {
+              throw new Error(`SocialTestV2 did not pass. State=${finalState}. UI evidence: ${excerpt}`);
+            }
+            console.log('[PASS] SocialTestV2 signed custody + NFT flow passed against PR-built runtime');
+            if (consoleErrors.length) console.log('[browser console errors observed]', consoleErrors.join('\n'));
+          } finally {
+            await browser.close();
+          }
+          NODE
