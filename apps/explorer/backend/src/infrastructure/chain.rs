@@ -49,6 +49,11 @@ struct JsonRpcEnvelope<T> {
 }
 
 #[derive(Debug, Deserialize)]
+struct RpcContextResponse<T> {
+    value: T,
+}
+
+#[derive(Debug, Deserialize)]
 struct JsonRpcError {
     code: i64,
     message: String,
@@ -95,13 +100,13 @@ impl RpcChainClient {
         let _: Pubkey = address
             .parse()
             .with_context(|| format!("invalid AEKO account address {address:?}"))?;
-        let value: Value = self.rpc_request(
+        let value: Option<Value> = self.rpc_context_value_request(
             "getAccountInfo",
             json!([address, {"commitment": "confirmed", "encoding": "base64"}]),
         )?;
-        if value.is_null() {
+        let Some(value) = value else {
             return Ok(None);
-        }
+        };
         let lamports = required_u64(&value, "lamports", "getAccountInfo")?;
         let owner = required_str(&value, "owner", "getAccountInfo")?.to_string();
         let executable = value
@@ -134,9 +139,6 @@ impl RpcChainClient {
             ]),
         )?;
         let Some(block) = block else {
-            // A finalized slot can legitimately be skipped. Advancing the
-            // durable cursor over a null getBlock is correct; inventing an
-            // empty block record is not.
             return Ok(CoreSlotRecord {
                 slot,
                 ..CoreSlotRecord::default()
@@ -304,13 +306,13 @@ impl RpcChainClient {
         expected_owner: Pubkey,
         label: &str,
     ) -> Result<T> {
-        let value: Value = self.rpc_request(
+        let value: Option<Value> = self.rpc_context_value_request(
             "getAccountInfo",
             json!([address, {"commitment": "finalized", "encoding": "base64"}]),
         )?;
-        if value.is_null() {
+        let Some(value) = value else {
             bail!("canonical {label} state account {address} does not exist");
-        }
+        };
         let owner = required_str(&value, "owner", "getAccountInfo")?;
         if owner != expected_owner.to_string() {
             bail!(
@@ -364,7 +366,7 @@ impl RpcChainClient {
         let mut mint_by_account = HashMap::<String, String>::new();
 
         for chunk in addresses.chunks(MAX_MULTIPLE_ACCOUNTS) {
-            let values: Vec<Option<Value>> = self.rpc_request(
+            let values: Vec<Option<Value>> = self.rpc_context_value_request(
                 "getMultipleAccounts",
                 json!([chunk, {"commitment": "finalized", "encoding": "base64"}]),
             )?;
@@ -434,6 +436,11 @@ impl RpcChainClient {
             });
         }
         Ok(transfers)
+    }
+
+    fn rpc_context_value_request<T: DeserializeOwned>(&self, method: &str, params: Value) -> Result<T> {
+        let response: RpcContextResponse<T> = self.rpc_request(method, params)?;
+        Ok(response.value)
     }
 
     fn rpc_request<T: DeserializeOwned>(&self, method: &str, params: Value) -> Result<T> {
@@ -709,6 +716,38 @@ mod tests {
     fn malformed_block_fields_are_errors_not_defaults() {
         let value = json!({"parentSlot": 1, "transactions": []});
         assert!(required_str(&value, "blockhash", "getBlock").is_err());
+    }
+
+    #[test]
+    fn contextual_account_response_decodes_account_and_null_values() {
+        let account: RpcContextResponse<Option<Value>> = serde_json::from_value(json!({
+            "context": {"slot": 42},
+            "value": {"owner": "owner", "lamports": 7, "executable": false, "data": ["", "base64"]}
+        }))
+        .unwrap();
+        assert_eq!(
+            account.value.as_ref().and_then(|value| value.get("owner")).and_then(Value::as_str),
+            Some("owner")
+        );
+
+        let missing: RpcContextResponse<Option<Value>> = serde_json::from_value(json!({
+            "context": {"slot": 42},
+            "value": null
+        }))
+        .unwrap();
+        assert!(missing.value.is_none());
+    }
+
+    #[test]
+    fn contextual_multiple_accounts_response_preserves_null_entries() {
+        let response: RpcContextResponse<Vec<Option<Value>>> = serde_json::from_value(json!({
+            "context": {"slot": 42},
+            "value": [{"owner": "owner"}, null]
+        }))
+        .unwrap();
+        assert_eq!(response.value.len(), 2);
+        assert!(response.value[0].is_some());
+        assert!(response.value[1].is_none());
     }
 
     #[test]
