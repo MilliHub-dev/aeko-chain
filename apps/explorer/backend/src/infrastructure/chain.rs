@@ -1,6 +1,7 @@
 use {
     crate::{
         config::ExplorerBackendConfig,
+        infrastructure::rpc_error::RpcRequestError,
         models::{
             AssetSnapshot, BlockRecord, ChainAccountRecord, CoreSlotRecord, NftCollectionRecord,
             NftRecord, TokenAccountRecord, TokenMintRecord, TokenTransferRecord,
@@ -8,6 +9,12 @@ use {
         },
     },
     anyhow::{anyhow, bail, Context, Result},
+    aeko_sdk::pubkey::Pubkey,
+    aeko_token_20_program::{
+        instruction::Token20Instruction,
+        state::{Aeko20Account, Aeko20Mint, MintPolicy},
+    },
+    aeko_token_721_program::state::{Aeko721Collection, Aeko721Token},
     base64::{prelude::BASE64_STANDARD, Engine},
     borsh::BorshDeserialize,
     reqwest::blocking::Client,
@@ -15,12 +22,6 @@ use {
     serde::Deserialize,
     serde_json::{json, Value},
     std::collections::{BTreeSet, HashMap},
-    aeko_sdk::pubkey::Pubkey,
-    aeko_token_20_program::{
-        instruction::Token20Instruction,
-        state::{Aeko20Account, Aeko20Mint, MintPolicy},
-    },
-    aeko_token_721_program::state::{Aeko721Collection, Aeko721Token},
 };
 
 const MAX_MULTIPLE_ACCOUNTS: usize = 100;
@@ -77,6 +78,15 @@ impl RpcChainClient {
     /// support for merely confirmed slots.
     pub fn latest_slot(&self) -> Result<u64> {
         self.rpc_request("getSlot", json!([{ "commitment": "finalized" }]))
+    }
+
+    /// Current finalized epoch used when projecting Social anti-spam reputation.
+    pub fn current_epoch(&self) -> Result<u64> {
+        let value: Value = self.rpc_request(
+            "getEpochInfo",
+            json!([{ "commitment": "finalized" }]),
+        )?;
+        required_u64(&value, "epoch", "getEpochInfo")
     }
 
     /// Live account pages may use confirmed state because they are explicitly
@@ -151,13 +161,14 @@ impl RpcChainClient {
             ),
             None => None,
         };
+        let producer = self.slot_producer(slot)?;
 
         let block_record = BlockRecord {
             slot,
             blockhash,
             parent_slot,
             transaction_count: transactions.len() as u64,
-            producer: None,
+            producer: Some(producer),
             unix_timestamp,
         };
 
@@ -313,6 +324,18 @@ impl RpcChainClient {
         })
     }
 
+    fn slot_producer(&self, slot: u64) -> Result<String> {
+        let leaders: Vec<String> = self.rpc_request("getSlotLeaders", json!([slot, 1u64]))?;
+        let producer = leaders
+            .first()
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| anyhow!("getSlotLeaders({slot}, 1) returned no leader"))?;
+        let _: Pubkey = producer
+            .parse()
+            .with_context(|| format!("getSlotLeaders({slot}, 1) returned invalid pubkey {producer:?}"))?;
+        Ok(producer.clone())
+    }
+
     fn fetch_program_accounts(&self, program_id: &Pubkey) -> Result<Vec<Value>> {
         self.rpc_request(
             "getProgramAccounts",
@@ -431,11 +454,7 @@ impl RpcChainClient {
             .json()
             .with_context(|| format!("RPC response decode failed for {method}"))?;
         if let Some(error) = envelope.error {
-            let suffix = error
-                .data
-                .map(|data| format!(" data={data}"))
-                .unwrap_or_default();
-            bail!("RPC {method} failed ({}): {}{suffix}", error.code, error.message);
+            return Err(RpcRequestError::new(method, error.code, error.message, error.data).into());
         }
         envelope
             .result
