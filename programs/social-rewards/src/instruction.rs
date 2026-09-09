@@ -29,9 +29,12 @@ pub fn record_reward_epoch(program_id: &Pubkey, state_pubkey: &Pubkey, authority
     Instruction::new_with_borsh(*program_id, &SocialRewardsInstruction::RecordRewardEpoch { record }, vec![AccountMeta::new(*state_pubkey, false), AccountMeta::new_readonly(*authority_pubkey, true)])
 }
 
-pub fn claim_creator_reward(program_id: &Pubkey, state_pubkey: &Pubkey, reward_vault_pubkey: &Pubkey, destination_pubkey: &Pubkey, authority_pubkey: &Pubkey, creator: Pubkey, amount: u64) -> Instruction {
+pub fn claim_creator_reward(program_id: &Pubkey, state_pubkey: &Pubkey, reward_vault_pubkey: &Pubkey, authority_pubkey: &Pubkey, creator: Pubkey, amount: u64) -> Instruction {
     Instruction::new_with_borsh(*program_id, &SocialRewardsInstruction::ClaimCreatorReward { creator, amount }, vec![
-        AccountMeta::new(*state_pubkey, false), AccountMeta::new(*reward_vault_pubkey, false), AccountMeta::new(*destination_pubkey, false), AccountMeta::new_readonly(*authority_pubkey, true),
+        AccountMeta::new(*state_pubkey, false),
+        AccountMeta::new(*reward_vault_pubkey, false),
+        AccountMeta::new(creator, false),
+        AccountMeta::new_readonly(*authority_pubkey, true),
     ])
 }
 
