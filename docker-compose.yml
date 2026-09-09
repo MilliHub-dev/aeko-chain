@@ -1,8 +1,9 @@
 name: aeko-network
 
-# Portable AEKO testnet runtime definition.
-# PostgreSQL is external/managed and is mandatory for Explorer. Supply
-# EXPLORER_DATABASE_URL from Dokploy, RDS, Neon, Supabase, or another provider.
+# Portable AEKO local-network runtime definition.
+# PostgreSQL is external/managed and is mandatory for Explorer. Supply a
+# database dedicated to this local chain. Explorer now binds the database to
+# the validator genesis and refuses to mix histories from another chain.
 
 services:
   faucet:
@@ -120,7 +121,7 @@ services:
     restart: unless-stopped
     environment:
       AEKO_EXPLORER_RPC: http://validator:8899
-      AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-testnet}
+      AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-localnet}
       AEKO_EXPLORER_BIND: 0.0.0.0:8088
       AEKO_EXPLORER_START_SLOT: ${AEKO_EXPLORER_START_SLOT:-0}
       AEKO_EXPLORER_MAX_BATCH_SIZE: ${AEKO_EXPLORER_MAX_BATCH_SIZE:-256}
@@ -135,7 +136,7 @@ services:
       AEKO_EXPLORER_REQUEST_TIMEOUT_SECS: ${AEKO_EXPLORER_REQUEST_TIMEOUT_SECS:-30}
       AEKO_EXPLORER_MAX_BODY_BYTES: ${AEKO_EXPLORER_MAX_BODY_BYTES:-1048576}
       AEKO_EXPLORER_SYNC_INTERVAL_SECS: ${AEKO_EXPLORER_SYNC_INTERVAL_SECS:-2}
-      DATABASE_URL: ${EXPLORER_DATABASE_URL:?Set EXPLORER_DATABASE_URL to persistent PostgreSQL}
+      DATABASE_URL: ${EXPLORER_DATABASE_URL:?Set EXPLORER_DATABASE_URL to a PostgreSQL database dedicated to this local chain}
       AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env
       AEKO_SOCIAL_POSTS_STATE: ${AEKO_SOCIAL_POSTS_STATE:-}
       AEKO_SOCIAL_REWARDS_STATE: ${AEKO_SOCIAL_REWARDS_STATE:-}
@@ -156,7 +157,10 @@ services:
       social-bootstrap:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/health >/dev/null || exit 1"]
+      # Container liveness is intentionally weaker than operational readiness.
+      # `/` proves the API process is serving; `/health` remains the strict
+      # DB/RPC/indexer/Social readiness endpoint used by monitoring and CI.
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/ >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

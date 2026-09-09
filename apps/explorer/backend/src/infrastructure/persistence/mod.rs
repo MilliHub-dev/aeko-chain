@@ -51,6 +51,90 @@ impl PostgresRepository {
         Ok(())
     }
 
+    pub async fn bind_chain_identity(&self, network: &str, genesis_hash: &str) -> Result<()> {
+        if network.trim().is_empty() {
+            return Err(anyhow!("Explorer network identity cannot be empty"));
+        }
+        if genesis_hash.trim().is_empty() {
+            return Err(anyhow!("Explorer genesis hash cannot be empty"));
+        }
+
+        let mut transaction = self
+            .pool
+            .begin()
+            .await
+            .context("starting Explorer chain-identity transaction")?;
+        sqlx::query("LOCK TABLE explorer_chain_identity IN EXCLUSIVE MODE")
+            .execute(&mut *transaction)
+            .await
+            .context("locking Explorer chain-identity table")?;
+
+        let existing: Option<(String, String)> = sqlx::query_as(
+            "SELECT network, genesis_hash FROM explorer_chain_identity WHERE singleton = TRUE",
+        )
+        .fetch_optional(&mut *transaction)
+        .await
+        .context("reading Explorer chain identity")?;
+
+        match existing {
+            Some((bound_network, bound_genesis_hash)) => {
+                if bound_network != network || bound_genesis_hash != genesis_hash {
+                    return Err(anyhow!(
+                        "Explorer PostgreSQL chain mismatch: database is bound to network {bound_network:?} genesis {bound_genesis_hash}, but this process is configured for network {network:?} genesis {genesis_hash}. Refusing to mix histories"
+                    ));
+                }
+                sqlx::query(
+                    "UPDATE explorer_chain_identity SET last_verified_at = NOW() WHERE singleton = TRUE",
+                )
+                .execute(&mut *transaction)
+                .await
+                .context("refreshing Explorer chain-identity verification timestamp")?;
+            }
+            None => {
+                sqlx::query(
+                    "INSERT INTO explorer_chain_identity (singleton, network, genesis_hash) VALUES (TRUE, $1, $2)",
+                )
+                .bind(network)
+                .bind(genesis_hash)
+                .execute(&mut *transaction)
+                .await
+                .context("binding Explorer PostgreSQL to validator chain identity")?;
+            }
+        }
+
+        transaction
+            .commit()
+            .await
+            .context("committing Explorer chain-identity transaction")?;
+        Ok(())
+    }
+
+    pub async fn chain_identity(&self) -> Result<Option<(String, String)>> {
+        sqlx::query_as(
+            "SELECT network, genesis_hash FROM explorer_chain_identity WHERE singleton = TRUE",
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context("reading Explorer chain identity")
+    }
+
+    pub async fn latest_persisted_block_identity(&self) -> Result<Option<(u64, String)>> {
+        let row: Option<(i64, String)> = sqlx::query_as(
+            "SELECT slot, blockhash FROM blocks ORDER BY slot DESC LIMIT 1",
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context("reading latest persisted block identity")?;
+        match row {
+            Some((slot, blockhash)) if slot >= 0 && !blockhash.is_empty() => {
+                Ok(Some((slot as u64, blockhash)))
+            }
+            Some((slot, _)) if slot < 0 => Err(anyhow!("persisted block slot is negative: {slot}")),
+            Some((slot, _)) => Err(anyhow!("persisted block {slot} has an empty blockhash")),
+            None => Ok(None),
+        }
+    }
+
     pub async fn next_core_slot(&self, configured_start_slot: u64) -> Result<u64> {
         let row: Option<i64> = sqlx::query_scalar("SELECT next_slot FROM indexer_cursors WHERE stream = 'core'").fetch_optional(&self.pool).await.context("reading core indexer cursor")?;
         match row {

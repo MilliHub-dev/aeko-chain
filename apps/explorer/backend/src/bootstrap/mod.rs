@@ -5,12 +5,13 @@ use {
         indexing::service::IndexerService,
         infrastructure::{
             chain::RpcChainClient,
+            chain_identity::{fetch_finalized_blockhash, fetch_genesis_hash},
             persistence::PostgresRepository,
             social::CanonicalChainDataSource,
         },
         observability,
     },
-    anyhow::{Context, Result},
+    anyhow::{anyhow, Context, Result},
     std::sync::Arc,
     tokio::net::TcpListener,
 };
@@ -22,18 +23,59 @@ pub async fn run() -> Result<()> {
     let server = ServerConfig::from_env()
         .context("loading Explorer server environment")?;
 
-    let repository = PostgresRepository::connect(&backend)
-        .await
-        .context("initializing required PostgreSQL repository")?;
     let rpc = RpcChainClient::new(backend.clone()).context("initializing validator RPC client")?;
     let startup_rpc = rpc.clone();
     tokio::task::spawn_blocking(move || startup_rpc.health())
         .await
         .context("validator RPC startup health worker panicked")??;
 
+    let identity_config = backend.clone();
+    let genesis_hash = tokio::task::spawn_blocking(move || fetch_genesis_hash(&identity_config))
+        .await
+        .context("validator genesis-hash worker panicked")??;
+
+    let repository = PostgresRepository::connect(&backend)
+        .await
+        .context("initializing required PostgreSQL repository")?;
+
+    // Migration 0006 adds chain identity to databases that may already contain
+    // Explorer history. Before the first binding of a non-empty legacy DB,
+    // prove that its newest persisted block is present with the same hash on
+    // the configured validator. This prevents an accidentally configured local
+    // validator from claiming a production database (or vice versa).
+    if repository.chain_identity().await?.is_none() {
+        if let Some((slot, persisted_blockhash)) = repository.latest_persisted_block_identity().await? {
+            let history_config = backend.clone();
+            let live_blockhash = tokio::task::spawn_blocking(move || {
+                fetch_finalized_blockhash(&history_config, slot)
+            })
+            .await
+            .context("legacy Explorer history verification worker panicked")??;
+            match live_blockhash {
+                Some(value) if value == persisted_blockhash => {}
+                Some(value) => {
+                    return Err(anyhow!(
+                        "Explorer PostgreSQL history mismatch at finalized slot {slot}: database has blockhash {persisted_blockhash}, configured validator has {value}. Refusing first chain binding"
+                    ));
+                }
+                None => {
+                    return Err(anyhow!(
+                        "Explorer PostgreSQL already contains finalized slot {slot}, but the configured validator cannot provide that block. Refusing first chain binding"
+                    ));
+                }
+            }
+        }
+    }
+
+    repository
+        .bind_chain_identity(&backend.network, &genesis_hash)
+        .await
+        .context("verifying Explorer PostgreSQL belongs to this validator chain")?;
+
     tracing::info!(
         rpc = %backend.rpc_url,
         network = %backend.network,
+        genesis_hash = %genesis_hash,
         bind = %server.bind_addr,
         start_slot = backend.start_slot,
         "Explorer production dependencies ready"
@@ -50,6 +92,7 @@ pub async fn run() -> Result<()> {
         repository,
         Arc::new(rpc),
         backend.network.clone(),
+        genesis_hash,
         backend.max_ready_lag_slots,
         backend.persist_socialfi_views,
     )

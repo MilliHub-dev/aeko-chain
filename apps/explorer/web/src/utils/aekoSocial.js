@@ -163,7 +163,6 @@ class Reader {
     return new DataView(this.readFixed(8).buffer).getBigInt64(0, true);
   }
   readU128() {
-    // Borsh u128 = 16 bytes little-endian. Read low/high u64s and combine.
     const bytes = this.readFixed(16);
     const lo = new DataView(bytes.buffer, bytes.byteOffset, 8).getBigUint64(0, true);
     const hi = new DataView(bytes.buffer, bytes.byteOffset + 8, 8).getBigUint64(0, true);
@@ -182,6 +181,13 @@ class Reader {
   }
   readOption(inner) {
     return this.readU8() === 1 ? inner(this) : null;
+  }
+  assertZeroPadding() {
+    for (let i = this.off; i < this.bytes.length; i += 1) {
+      if (this.bytes[i] !== 0) {
+        throw new Error(`Borsh state has non-zero trailing data at byte ${i}`);
+      }
+    }
   }
 }
 
@@ -217,12 +223,7 @@ function decodeEngagementProof(r) {
 }
 
 export function decodeSocialPostsStateAccount(base64Data) {
-  const raw = decodeBase64(base64Data);
-  // State account is allocated padded to 64 KB; trim trailing zeros the way
-  // SocialPostsStateAccount::deserialize_padded does on-chain.
-  let end = raw.length;
-  while (end > 0 && raw[end - 1] === 0) end -= 1;
-  const r = new Reader(raw.slice(0, end));
+  const r = new Reader(decodeBase64(base64Data));
   const isInitialized = r.readBool();
   const config = {
     authority: r.readPubkey(),
@@ -236,6 +237,7 @@ export function decodeSocialPostsStateAccount(base64Data) {
   const proofsLen = r.readU32();
   const engagementProofs = [];
   for (let i = 0; i < proofsLen; i += 1) engagementProofs.push(decodeEngagementProof(r));
+  r.assertZeroPadding();
   return { isInitialized, config, posts, engagementProofs };
 }
 
@@ -278,9 +280,6 @@ export async function fetchSocialRegistry(explorerApiUrl) {
   }
 }
 
-// Single-account discovery via the registry: ask the backend which state
-// account the operator pinned for `programKey`, then read it directly via
-// getAccountInfo. No getProgramAccounts call. Returns null on miss.
 export async function discoverViaRegistry({ rpcUrl, explorerApiUrl, programKey, decode }) {
   const registry = await fetchSocialRegistry(explorerApiUrl);
   const address = registry?.[programKey];
@@ -342,9 +341,6 @@ export async function discoverProgramState({ rpcUrl, programId, decode, pickBest
   return best;
 }
 
-// Try the operator-published registry first (one HTTP call, no
-// getProgramAccounts). Fall back to RPC scanning so local dev clusters that
-// don't run an explorer-backend still work.
 export async function discoverSocialPostsStateAccount(rpcUrl, explorerApiUrl) {
   if (explorerApiUrl) {
     const fromRegistry = await discoverViaRegistry({
@@ -359,8 +355,6 @@ export async function discoverSocialPostsStateAccount(rpcUrl, explorerApiUrl) {
     rpcUrl,
     programId: SOCIAL_POSTS_PROGRAM_ID,
     decode: decodeSocialPostsStateAccount,
-    // If multiple match (shouldn't happen on a bootstrapped chain), prefer the
-    // one with more posts so the feed shows the busiest state account.
     pickBest: (a, b) => a.decoded.posts.length > b.decoded.posts.length,
   });
   if (!hit) {
@@ -408,10 +402,12 @@ function buildLegacyMessage({ payerBytes, recentBlockhashBytes, accountKeys, ins
 }
 
 // Build, sign, and base64-encode an AnchorPost transaction.
+// Program contract: [posts_state(writable), creator(signer), anti_spam_state(writable)].
 // `creatorWallet` doubles as fee payer (single-signer flow).
 export function buildSignedAnchorPostTx({
   creatorWallet,
   stateAccount,
+  antiSpamStateAccount,
   recentBlockhash,
   postId,
   contentHash,
@@ -424,11 +420,11 @@ export function buildSignedAnchorPostTx({
 }) {
   const creatorBytes = decodeBase58(creatorWallet.address);
   const stateBytes = decodeBase58(stateAccount);
+  const antiSpamStateBytes = decodeBase58(antiSpamStateAccount);
   const recentBytes = decodeBase58(recentBlockhash);
 
-  // PostAnchor body (Borsh).
   const instructionData = concat(
-    Uint8Array.from([1]), // AnchorPost variant
+    Uint8Array.from([1]),
     postId,
     creatorBytes,
     contentHash,
@@ -437,27 +433,29 @@ export function buildSignedAnchorPostTx({
     encodeOption32(parentPostId),
     Uint8Array.from([POST_KIND_TAG[postKind] ?? 0]),
     i64LE(createdAtUnix),
-    Uint8Array.from([0]), // edited_at_unix = None
+    Uint8Array.from([0]),
     Uint8Array.from([VISIBILITY_TAG[visibility] ?? 0]),
-    Uint8Array.from([0]), // moderation_state = Active
-    Uint8Array.from([0]), // signature_ref = None
+    Uint8Array.from([0]),
+    Uint8Array.from([0]),
   );
 
-  // Accounts: signer-writable (creator/payer) first, then writable state,
-  // then readonly program id. Header counts MUST match this ordering or the
-  // validator will reject with InvalidAccountIndex.
-  const accountKeys = [creatorBytes, stateBytes, SOCIAL_POSTS_PROGRAM_ID_BYTES];
+  // Message order preserves signer/writable classification; instruction order
+  // below follows the Rust processor contract.
+  const accountKeys = [
+    creatorBytes,
+    stateBytes,
+    antiSpamStateBytes,
+    SOCIAL_POSTS_PROGRAM_ID_BYTES,
+  ];
   const header = Uint8Array.from([
-    1, // num_required_signatures (creator only)
-    0, // num_readonly_signed
-    1, // num_readonly_unsigned (program id)
+    1,
+    0,
+    1,
   ]);
 
-  // Instruction accounts in PROGRAM order, not message order. Program
-  // expects [state(writable), creator(signer)] per processor.rs.
   const ix = {
-    programIdIndex: 2,
-    accounts: [1, 0],
+    programIdIndex: 3,
+    accounts: [1, 0, 2],
     data: instructionData,
   };
 
@@ -470,11 +468,10 @@ export function buildSignedAnchorPostTx({
   });
 
   const signature = signMessage(creatorWallet, messageBytes);
-  void getSecretKeyBytes; // keeps the helper referenced if signMessage changes shape
+  void getSecretKeyBytes;
   return encodeBase64(concat(encodeShortVec(1), signature, messageBytes));
 }
 
-// Build, sign, and base64-encode a RecordEngagement (Like) transaction.
 export function buildSignedLikeTx({
   actorWallet,
   stateAccount,
@@ -492,14 +489,14 @@ export function buildSignedLikeTx({
   const replayGuard = randomBytes32();
 
   const instructionData = concat(
-    Uint8Array.from([4]), // RecordEngagement variant
+    Uint8Array.from([4]),
     proofId,
     actorBytes,
     encodeOption32(targetPostId),
     targetCreatorBytes,
     Uint8Array.from([ENGAGEMENT_TAG.like]),
-    u32LE(1), // action_weight
-    u64LE(0), // slot — program ignores client value; on-chain handler stamps it
+    u32LE(1),
+    u64LE(0),
     i64LE(unixTimestamp),
     replayGuard,
   );
@@ -531,7 +528,6 @@ function encodeStringBytes(value) {
   return concat(u32LE(buf.length), buf);
 }
 
-// Accepts either a 32-byte Uint8Array, a hex string (64 chars), or null.
 function encodeOption32(value) {
   if (value == null) return Uint8Array.from([0]);
   let bytes;
@@ -549,8 +545,6 @@ function encodeOption32(value) {
 
 // ---------- engagement aggregation ----------
 
-// Reduce the on-chain engagement proofs to per-post like counts and a
-// per-(post,actor) set so the UI can render a toggled state without re-fetch.
 export function summarizeEngagements(engagementProofs) {
   const likeCountByPost = new Map();
   const likedByActorAndPost = new Set();
@@ -564,13 +558,12 @@ export function summarizeEngagements(engagementProofs) {
 
 // ---------- decoders for the other 4 SocialFi state accounts ----------
 
-// Wraps Reader setup the same way decodeSocialPostsStateAccount does: base64 →
-// bytes → trim trailing zero pad (matches `deserialize_padded` on chain).
+// Borsh state accounts are fixed-size and zero padded. Do not trim trailing
+// zeros before parsing: zero bytes may be part of legitimate serialized Borsh
+// values (for example an empty Vec length). Parse the prefix, then validate
+// that every unread byte is padding.
 function makeReader(base64Data) {
-  const raw = decodeBase64(base64Data);
-  let end = raw.length;
-  while (end > 0 && raw[end - 1] === 0) end -= 1;
-  return new Reader(raw.slice(0, end));
+  return new Reader(decodeBase64(base64Data));
 }
 
 const STAKE_STATE_NAME = ['active', 'coolingDown', 'closed', 'slashed'];
@@ -592,28 +585,29 @@ export function decodeSocialRewardsStateAccount(base64Data) {
   let totalEarned = 0n;
   let totalClaimable = 0n;
   for (let i = 0; i < creatorsLen; i += 1) {
-    r.readPubkey(); // creator
+    r.readPubkey();
     totalEarned += r.readU128();
-    r.readU128(); // total_claimed
+    r.readU128();
     totalClaimable += BigInt(r.readU64());
-    r.readU64(); // last_settled_epoch
+    r.readU64();
   }
   const epochsLen = r.readU32();
   for (let i = 0; i < epochsLen; i += 1) {
-    r.readU64(); // epoch
-    r.readPubkey(); // creator
-    r.readU128(); // earned_points
-    r.readU64(); // reward_amount
-    r.readU64(); // claimed_amount
-    r.readU16(); // penalty_bps
+    r.readU64();
+    r.readPubkey();
+    r.readU128();
+    r.readU64();
+    r.readU64();
+    r.readU16();
   }
   const settlementsLen = r.readU32();
   for (let i = 0; i < settlementsLen; i += 1) {
-    r.readU64(); // epoch
-    r.readU64(); // reward_pool_amount
-    r.readU128(); // total_effective_points
-    r.readU32(); // settled_creator_count
+    r.readU64();
+    r.readU64();
+    r.readU128();
+    r.readU32();
   }
+  r.assertZeroPadding();
   return {
     isInitialized,
     config,
@@ -640,25 +634,26 @@ export function decodeSocialStakingStateAccount(base64Data) {
   let activePositions = 0;
   let totalStaked = 0n;
   for (let i = 0; i < positionsLen; i += 1) {
-    r.readFixed(32); // position_id
-    r.readPubkey(); // staker
-    r.readPubkey(); // creator
-    totalStaked += BigInt(r.readU64()); // staked_amount
-    r.readU64(); // activated_at_epoch
-    r.readOption((x) => x.readU64()); // unlock_epoch
-    r.readU64(); // accumulated_yield
-    r.readU64(); // claimed_yield
+    r.readFixed(32);
+    r.readPubkey();
+    r.readPubkey();
+    totalStaked += BigInt(r.readU64());
+    r.readU64();
+    r.readOption((x) => x.readU64());
+    r.readU64();
+    r.readU64();
     const stateIdx = r.readU8();
     if (stateIdx === 0) activePositions += 1;
   }
   const yieldsLen = r.readU32();
   for (let i = 0; i < yieldsLen; i += 1) {
-    r.readU64(); // epoch
-    r.readFixed(32); // position_id
-    r.readPubkey(); // creator
-    r.readPubkey(); // staker
-    r.readU64(); // yield_amount
+    r.readU64();
+    r.readFixed(32);
+    r.readPubkey();
+    r.readPubkey();
+    r.readU64();
   }
+  r.assertZeroPadding();
   return {
     isInitialized,
     config,
@@ -671,8 +666,6 @@ export function decodeSocialAntiSpamStateAccount(base64Data) {
   const r = makeReader(base64Data);
   const isInitialized = r.readBool();
   const modeIdx = (() => {
-    // mode comes BEFORE min_post_stake in struct, but AFTER authority. We need
-    // to read authority first then mode.
     const authority = r.readPubkey();
     const modeByte = r.readU8();
     return { authority, modeByte };
@@ -689,15 +682,16 @@ export function decodeSocialAntiSpamStateAccount(base64Data) {
   let gatedProfiles = 0;
   let totalSlashes = 0;
   for (let i = 0; i < profilesLen; i += 1) {
-    r.readPubkey(); // wallet
-    r.readU32(); // post_count_window
-    r.readU32(); // engagement_count_window
-    r.readU16(); // spam_flags
-    const gated = r.readOption((x) => x.readU64()); // gated_until_epoch
+    r.readPubkey();
+    r.readU32();
+    r.readU32();
+    r.readU16();
+    const gated = r.readOption((x) => x.readU64());
     if (gated != null) gatedProfiles += 1;
-    totalSlashes += r.readU16(); // slash_count
-    r.readOption((x) => x.readI64()); // last_flagged_at_unix
+    totalSlashes += r.readU16();
+    r.readOption((x) => x.readI64());
   }
+  r.assertZeroPadding();
   return {
     isInitialized,
     config,
@@ -718,41 +712,42 @@ export function decodeSocialMonetizationStateAccount(base64Data) {
   const tipsLen = r.readU32();
   let tipsTotal = 0n;
   for (let i = 0; i < tipsLen; i += 1) {
-    r.readFixed(32); // tip_id
-    r.readPubkey(); // creator
-    r.readPubkey(); // sender
-    tipsTotal += BigInt(r.readU64()); // amount
-    r.readI64(); // timestamp
+    r.readFixed(32);
+    r.readPubkey();
+    r.readPubkey();
+    tipsTotal += BigInt(r.readU64());
+    r.readI64();
   }
   const subscriptionsLen = r.readU32();
   let activeSubscriptions = 0;
   for (let i = 0; i < subscriptionsLen; i += 1) {
-    r.readFixed(32); // subscription_id
-    r.readPubkey(); // creator
-    r.readPubkey(); // subscriber
-    r.readU64(); // amount_per_period
-    r.readU64(); // period_seconds
-    r.readI64(); // started_at_unix
-    r.readI64(); // valid_until_unix
+    r.readFixed(32);
+    r.readPubkey();
+    r.readPubkey();
+    r.readU64();
+    r.readU64();
+    r.readI64();
+    r.readI64();
     if (SUBSCRIPTION_STATE_NAME[r.readU8()] === 'active') activeSubscriptions += 1;
   }
   const unlocksLen = r.readU32();
   for (let i = 0; i < unlocksLen; i += 1) {
-    r.readFixed(32); // unlock_id
-    r.readFixed(32); // content_id
-    r.readPubkey(); // creator
-    r.readPubkey(); // buyer
-    r.readU64(); // amount
-    r.readI64(); // unlocked_at_unix
+    r.readFixed(32);
+    r.readFixed(32);
+    r.readPubkey();
+    r.readPubkey();
+    r.readU64();
+    r.readI64();
   }
   const revenuesLen = r.readU32();
   let totalEarned = 0n;
   for (let i = 0; i < revenuesLen; i += 1) {
-    r.readPubkey(); // creator
-    totalEarned += r.readU128(); // total_earned
-    r.readU128(); // total_claimed
-    r.readU64(); // claimable_amount
+    r.readPubkey();
+    totalEarned += r.readU128();
+    r.readU128();
+    r.readU64();
   }
+  r.assertZeroPadding();
   return {
     isInitialized,
     config,

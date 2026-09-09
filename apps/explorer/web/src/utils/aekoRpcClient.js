@@ -47,6 +47,10 @@ export async function getHealth(rpcUrl) {
   return rpc(rpcUrl, 'getHealth', []);
 }
 
+export async function getGenesisHash(rpcUrl) {
+  return rpc(rpcUrl, 'getGenesisHash', []);
+}
+
 export async function getLatestBlockhash(rpcUrl) {
   const r = await rpc(rpcUrl, 'getLatestBlockhash', [{ commitment: 'confirmed' }]);
   return r?.value?.blockhash || r?.blockhash;

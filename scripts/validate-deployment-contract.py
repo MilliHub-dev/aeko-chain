@@ -201,7 +201,8 @@ def main() -> int:
         require(registry_key in explorer, f"Explorer explicit registry overrides must include {registry_key}")
     require("validator:" in explorer and "condition: service_healthy" in explorer, "Explorer must wait for validator health")
     require("condition: service_completed_successfully" not in explorer, "Explorer process startup must not be blocked by a failed one-shot SocialFi bootstrap")
-    require("http://127.0.0.1:8088/health" in explorer, "Explorer container health must use the backend readiness endpoint")
+    require("http://127.0.0.1:8088/" in explorer, "Explorer container health must use process liveness")
+    require("http://127.0.0.1:8088/health" not in explorer, "Explorer container health must not couple process liveness to strict readiness")
     require("repository.ping().await" in explorer_health, "Explorer readiness must prove PostgreSQL availability")
     require("rpc.health()?" in explorer_health and "rpc.latest_slot()" in explorer_health, "Explorer readiness must prove validator RPC health and slot availability")
     require("latest_indexed_slot().await" in explorer_health, "Explorer readiness must inspect the durable indexer cursor")
@@ -221,6 +222,9 @@ def main() -> int:
     portable_bootstrap = service_block(portable, "social-bootstrap", "explorer-api")
     portable_explorer = service_block(portable, "explorer-api", "explorer-ui")
     require("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}" in portable_bootstrap, "portable bootstrap must expose explicit recovery")
+    require("AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-localnet}" in portable_explorer, "portable Explorer must default to localnet identity rather than production testnet")
+    require("http://127.0.0.1:8088/" in portable_explorer, "portable Explorer container health must use process liveness")
+    require("http://127.0.0.1:8088/health" not in portable_explorer, "portable Explorer container health must not couple process liveness to readiness")
     for seed_env in (
         "AEKO_REWARDS_TREASURY_SEED_LAMPORTS",
         "AEKO_REWARD_VAULT_SEED_LAMPORTS",
