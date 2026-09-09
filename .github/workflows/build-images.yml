@@ -57,6 +57,14 @@ jobs:
           AEKO_EXPLORER_TEST_DATABASE_URL: postgres://aeko:aeko@127.0.0.1:5432/aeko_explorer_test
         run: cargo test -p aeko-explorer-backend
 
+      - name: Validate Explorer web backend contract
+        working-directory: apps/explorer/web
+        run: |
+          npm ci
+          npm test
+          npm run lint
+          npm run build
+
       - name: Validate Node Social SDK wire contract
         working-directory: apps/sdk/node
         run: |
