@@ -14,6 +14,7 @@ pub mod ledger;
 pub mod overview;
 pub mod search;
 pub mod social;
+pub mod social_feed;
 
 #[derive(Clone)]
 pub struct PostgresRepository {
@@ -40,32 +41,18 @@ impl PostgresRepository {
 
         let repository = Self { pool };
         repository.ping().await?;
-        tracing::info!(
-            max_connections = config.db_max_connections,
-            min_connections = config.db_min_connections,
-            "Explorer PostgreSQL repository ready"
-        );
+        tracing::info!(max_connections = config.db_max_connections, min_connections = config.db_min_connections, "Explorer PostgreSQL repository ready");
         Ok(repository)
     }
 
     pub async fn ping(&self) -> Result<()> {
-        let value: i32 = sqlx::query_scalar("SELECT 1")
-            .fetch_one(&self.pool)
-            .await
-            .context("Explorer PostgreSQL readiness query failed")?;
-        if value != 1 {
-            return Err(anyhow!("Explorer PostgreSQL readiness query returned {value}"));
-        }
+        let value: i32 = sqlx::query_scalar("SELECT 1").fetch_one(&self.pool).await.context("Explorer PostgreSQL readiness query failed")?;
+        if value != 1 { return Err(anyhow!("Explorer PostgreSQL readiness query returned {value}")); }
         Ok(())
     }
 
     pub async fn next_core_slot(&self, configured_start_slot: u64) -> Result<u64> {
-        let row: Option<i64> = sqlx::query_scalar(
-            "SELECT next_slot FROM indexer_cursors WHERE stream = 'core'",
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .context("reading core indexer cursor")?;
+        let row: Option<i64> = sqlx::query_scalar("SELECT next_slot FROM indexer_cursors WHERE stream = 'core'").fetch_optional(&self.pool).await.context("reading core indexer cursor")?;
         match row {
             Some(value) if value >= 0 => Ok(value as u64),
             Some(value) => Err(anyhow!("persisted core cursor is negative: {value}")),
@@ -74,12 +61,7 @@ impl PostgresRepository {
     }
 
     pub async fn latest_indexed_slot(&self) -> Result<Option<u64>> {
-        let next: Option<i64> = sqlx::query_scalar(
-            "SELECT next_slot FROM indexer_cursors WHERE stream = 'core'",
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .context("reading latest indexed slot")?;
+        let next: Option<i64> = sqlx::query_scalar("SELECT next_slot FROM indexer_cursors WHERE stream = 'core'").fetch_optional(&self.pool).await.context("reading latest indexed slot")?;
         match next {
             Some(value) if value > 0 => Ok(Some((value - 1) as u64)),
             Some(0) | None => Ok(None),
@@ -88,13 +70,8 @@ impl PostgresRepository {
     }
 
     pub async fn latest_projection_slot(&self, stream: &str) -> Result<Option<u64>> {
-        let next: Option<i64> = sqlx::query_scalar(
-            "SELECT next_slot FROM indexer_cursors WHERE stream = $1",
-        )
-        .bind(stream)
-        .fetch_optional(&self.pool)
-        .await
-        .with_context(|| format!("reading {stream} projection cursor"))?;
+        let next: Option<i64> = sqlx::query_scalar("SELECT next_slot FROM indexer_cursors WHERE stream = $1")
+            .bind(stream).fetch_optional(&self.pool).await.with_context(|| format!("reading {stream} projection cursor"))?;
         match next {
             Some(value) if value > 0 => Ok(Some((value - 1) as u64)),
             Some(0) | None => Ok(None),
@@ -104,26 +81,18 @@ impl PostgresRepository {
 
     pub async fn mark_projection_slot(&self, stream: &str, slot: u64) -> Result<()> {
         let next_slot = slot.checked_add(1).context("projection slot overflow")?;
-        sqlx::query(
-            r#"
+        sqlx::query(r#"
             INSERT INTO indexer_cursors (stream, next_slot)
             VALUES ($1, $2)
-            ON CONFLICT (stream) DO UPDATE SET
-                next_slot = EXCLUDED.next_slot,
-                updated_at = NOW()
-            "#,
-        )
-        .bind(stream)
-        .bind(i64::try_from(next_slot).context("projection next slot exceeds BIGINT")?)
-        .execute(&self.pool)
-        .await
-        .with_context(|| format!("marking {stream} projection cursor"))?;
+            ON CONFLICT (stream) DO UPDATE SET next_slot = EXCLUDED.next_slot, updated_at = NOW()
+            "#)
+            .bind(stream)
+            .bind(i64::try_from(next_slot).context("projection next slot exceeds BIGINT")?)
+            .execute(&self.pool).await.with_context(|| format!("marking {stream} projection cursor"))?;
         Ok(())
     }
 }
 
 pub(crate) fn parse_u64_text(value: &str, column: &'static str) -> Result<u64> {
-    value
-        .parse::<u64>()
-        .with_context(|| format!("invalid u64 persisted in {column}: {value:?}"))
+    value.parse::<u64>().with_context(|| format!("invalid u64 persisted in {column}: {value:?}"))
 }
