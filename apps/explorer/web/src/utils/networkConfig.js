@@ -32,6 +32,21 @@ if (hasAnyLocalOverride && !hasCompleteLocalOverride) {
   );
 }
 
+function isLoopbackEndpoint(value) {
+  if (!value) return false;
+  const hostname = new URL(value).hostname.toLowerCase();
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+}
+
+if (hasCompleteLocalOverride) {
+  const locality = localOverrideValues.map(isLoopbackEndpoint);
+  if (!locality.every((value) => value === locality[0])) {
+    throw new Error(
+      'AEKO local endpoint overrides cannot mix localhost and remote services. RPC, WebSocket, and Explorer API must belong to one environment.',
+    );
+  }
+}
+
 const forceIsolatedDev =
   import.meta.env.DEV && import.meta.env.VITE_AEKO_ALLOW_REMOTE_IN_DEV !== 'true';
 const useLocalEndpoints = hasCompleteLocalOverride || forceIsolatedDev;
