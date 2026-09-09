@@ -32,8 +32,12 @@ use {
 //   to catch back up to where it was when it stopped
 pub const DEFAULT_MAX_LEDGER_SHREDS: u64 = 200_000_000;
 
-// Allow down to 50m, or 3.5 days at idle, 1hr at 50k load, around ~100GB
-pub const DEFAULT_MIN_MAX_LEDGER_SHREDS: u64 = 50_000_000;
+// AEKO keeps the upstream 200m default, but permits an explicit lower limit for
+// constrained development/testnet validators. At roughly 2KB/shred, 5m shreds
+// is about a 10GB blockstore target before RocksDB overhead. Operators choosing
+// a small value must retain snapshots and use the Explorer/archive layer for
+// historical queries because old blockstore shreds will be pruned.
+pub const DEFAULT_MIN_MAX_LEDGER_SHREDS: u64 = 5_000_000;
 
 // Perform blockstore cleanup at this interval to limit the overhead of cleanup
 // Cleanup will be considered after the latest root has advanced by this value
