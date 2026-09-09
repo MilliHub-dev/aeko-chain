@@ -9,6 +9,7 @@ pub mod health;
 pub mod ledger;
 pub mod search;
 pub mod social;
+pub mod social_feed;
 
 const DEFAULT_LIST_LIMIT: usize = 25;
 const MAX_LIST_LIMIT: usize = 500;
@@ -24,5 +25,6 @@ pub fn router() -> Router<SharedState> {
         .merge(accounts::router())
         .merge(assets::router())
         .merge(social::router())
+        .merge(social_feed::router())
         .merge(search::router())
 }
