@@ -62,9 +62,12 @@ pub fn unlock_paid_content(program_id: &Pubkey, state_pubkey: &Pubkey, buyer_pub
     ])
 }
 
-pub fn claim_monetization_payout(program_id: &Pubkey, state_pubkey: &Pubkey, treasury_pubkey: &Pubkey, destination_pubkey: &Pubkey, authority_pubkey: &Pubkey, creator: Pubkey, amount: u64) -> Instruction {
+pub fn claim_monetization_payout(program_id: &Pubkey, state_pubkey: &Pubkey, treasury_pubkey: &Pubkey, authority_pubkey: &Pubkey, creator: Pubkey, amount: u64) -> Instruction {
     Instruction::new_with_borsh(*program_id, &SocialMonetizationInstruction::ClaimMonetizationPayout { creator, amount }, vec![
-        AccountMeta::new(*state_pubkey, false), AccountMeta::new(*treasury_pubkey, false), AccountMeta::new(*destination_pubkey, false), AccountMeta::new_readonly(*authority_pubkey, true),
+        AccountMeta::new(*state_pubkey, false),
+        AccountMeta::new(*treasury_pubkey, false),
+        AccountMeta::new(creator, false),
+        AccountMeta::new_readonly(*authority_pubkey, true),
     ])
 }
 
