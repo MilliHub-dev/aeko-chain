@@ -64,7 +64,15 @@ pub fn router() -> Router<SharedState> {
 async fn liveness(
     State(state): State<SharedState>,
 ) -> Json<response::DataEnvelope<serde_json::Value>> {
-    response::data_from_source(&state.network, json!({ "ok": true }), "process")
+    response::data_from_source(
+        &state.network,
+        json!({
+            "ok": true,
+            "network": &state.network,
+            "genesisHash": &state.genesis_hash,
+        }),
+        "process",
+    )
 }
 
 async fn overview(
