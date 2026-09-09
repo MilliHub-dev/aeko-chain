@@ -4,7 +4,7 @@ import {
   SOCIAL_POSTS_PROGRAM_ID,
   SOCIAL_REWARDS_PROGRAM_ID,
   SOCIAL_STAKING_PROGRAM_ID,
-} from './aekoSocial.js';
+} from './aekoSocialProgramIds.js';
 
 const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 const ENGAGEMENT = { like: 0, comment: 1, repost: 2, quote: 3, share: 4, save: 5 };
