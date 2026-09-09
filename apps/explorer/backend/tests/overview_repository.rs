@@ -33,15 +33,11 @@ async fn overview_counts_query_the_real_explorer_tables() -> Result<()> {
     let repository = PostgresRepository::connect(&test_config(database_url)).await?;
 
     // This is intentionally a database-contract test rather than a mocked unit
-    // test. It proves the overview query is executable against the migrations
-    // that CI applies for blocks, transactions, tokens, NFTs and Social state.
-    let first = repository.explorer_overview_counts().await?;
-    let second = repository.explorer_overview_counts().await?;
-
-    // Counts may be non-zero because PostgreSQL integration tests share the CI
-    // database, but a read-only overview call must be stable in the absence of
-    // mutations from this test itself.
-    assert_eq!(first, second);
+    // test. A successful result proves the overview query executes against the
+    // real migrated blocks, transactions, token, NFT and Social tables. Other
+    // integration tests share this database and may mutate counts concurrently,
+    // so this test deliberately makes no cross-query equality assumption.
+    let _counts = repository.explorer_overview_counts().await?;
 
     Ok(())
 }
