@@ -1,8 +1,4 @@
 //! Production Explorer API + indexer entrypoint.
-//!
-//! Startup is fail-closed for required infrastructure: configuration,
-//! PostgreSQL/migrations, and validator RPC health must all succeed. The HTTP
-//! server never substitutes an in-memory store.
 
 use {
     aeko_explorer_backend::{
@@ -59,6 +55,7 @@ async fn main() -> Result<()> {
         Arc::new(rpc),
         backend.network.clone(),
         backend.max_ready_lag_slots,
+        backend.persist_socialfi_views,
     )
     .shared();
     let router = app::build_router(state, &server);
