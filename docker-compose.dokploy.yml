@@ -215,15 +215,11 @@ services:
     restart: unless-stopped
     expose:
       - "4000"
-    depends_on:
-      explorer-api:
-        condition: service_healthy
+    # UI lifecycle is intentionally independent of Explorer API readiness.
+    # The static app must still start and render degraded/error states while
+    # the API or its upstream dependencies recover.
     healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          wget -qO- http://127.0.0.1:4000/ >/dev/null &&
-          wget -qO- 'http://explorer-api:8088/blocks?limit=1' >/dev/null
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/ >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
