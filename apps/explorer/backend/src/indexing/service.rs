@@ -2,8 +2,12 @@ use {
     super::ChainDataSource,
     crate::{
         config::ExplorerBackendConfig,
-        infrastructure::persistence::PostgresRepository,
+        infrastructure::{persistence::PostgresRepository, rpc_error::RpcRequestError},
         models::CoreSlotRecord,
+    },
+    aeko_rpc_client_api::custom_error::{
+        JSON_RPC_SERVER_ERROR_LONG_TERM_STORAGE_SLOT_SKIPPED,
+        JSON_RPC_SERVER_ERROR_SLOT_SKIPPED,
     },
     anyhow::{bail, Context, Result},
     std::{sync::Arc, time::Duration},
@@ -32,7 +36,10 @@ impl IndexerService {
     pub async fn run(self, interval: Duration) {
         loop {
             if let Err(error) = self.sync_batch().await {
-                tracing::error!(error = ?error, "Explorer indexer batch failed; durable cursor remains at the first uncommitted core slot");
+                tracing::error!(
+                    error = ?error,
+                    "Explorer indexer batch failed; durable cursor remains at the first uncommitted core slot"
+                );
             }
             tokio::time::sleep(interval).await;
         }
@@ -50,16 +57,19 @@ impl IndexerService {
             .context("latest-slot worker panicked")??;
         if core_cursor_is_ahead(next_slot, latest_slot) {
             bail!(
-                "durable Explorer cursor next_slot {next_slot} is ahead of finalized chain tip {latest_slot}; refusing to serve stale history from a reset or mismatched network"
+                "durable Explorer cursor next_slot {next_slot} is ahead of finalized chain tip {latest_slot}; refusing a reset or mismatched network"
             );
         }
         if next_slot > latest_slot {
+            tracing::debug!(next_slot, latest_slot, "Explorer indexer is caught up");
             return Ok(());
         }
 
         let batch_span = u64::try_from(self.config.max_batch_size.saturating_sub(1))
             .context("max batch size does not fit u64")?;
         let end_slot = next_slot.saturating_add(batch_span).min(latest_slot);
+        tracing::info!(next_slot, end_slot, latest_slot, "starting Explorer index batch");
+
         for slot in next_slot..=end_slot {
             let source = Arc::clone(&self.source);
             let fetched = tokio::task::spawn_blocking(move || source.fetch_core_slot(slot))
@@ -68,7 +78,12 @@ impl IndexerService {
             let core = match fetched {
                 Ok(record) => record,
                 Err(error) if is_proven_skipped_slot(&error) => {
-                    tracing::info!(slot, error = %error, "advancing durable cursor across RPC-proven skipped slot");
+                    let rpc = error.downcast_ref::<RpcRequestError>();
+                    tracing::info!(
+                        slot,
+                        rpc_code = rpc.map(|value| value.code),
+                        "advancing durable cursor across RPC-proven skipped slot"
+                    );
                     CoreSlotRecord {
                         slot,
                         ..CoreSlotRecord::default()
@@ -81,23 +96,41 @@ impl IndexerService {
                 .await
                 .with_context(|| format!("persisting core slot {slot}"))?;
 
-            if slot % self.config.asset_refresh_slots == 0 {
+            if self
+                .projection_refresh_due("assets", slot, self.config.asset_refresh_slots)
+                .await?
+            {
                 self.refresh_assets(slot).await;
             }
-            if self.config.persist_socialfi_views && slot % self.config.social_refresh_slots == 0 {
+            if self.config.persist_socialfi_views
+                && self
+                    .projection_refresh_due("social", slot, self.config.social_refresh_slots)
+                    .await?
+            {
                 self.refresh_social(slot).await;
             }
         }
+        tracing::info!(next_slot, end_slot, "completed Explorer index batch");
         Ok(())
+    }
+
+    async fn projection_refresh_due(
+        &self,
+        stream: &str,
+        trigger_slot: u64,
+        cadence: u64,
+    ) -> Result<bool> {
+        let last = self
+            .repository
+            .latest_projection_slot(stream)
+            .await
+            .with_context(|| format!("reading {stream} projection freshness"))?;
+        Ok(last.map_or(true, |last| trigger_slot.saturating_sub(last) >= cadence))
     }
 
     async fn refresh_assets(&self, trigger_slot: u64) {
         let source = Arc::clone(&self.source);
         let snapshot = tokio::task::spawn_blocking(move || {
-            // Asset RPC scans return current finalized state, not historical
-            // state for the core slot that happened to trigger the refresh.
-            // Read a current finalized watermark first so cursor rewinds never
-            // regress last_seen_slot or keep stale holdings alive.
             let snapshot_slot = source
                 .latest_slot()
                 .context("reading finalized asset snapshot watermark")?;
@@ -107,50 +140,77 @@ impl IndexerService {
         match snapshot {
             Ok(Ok(snapshot)) => {
                 let snapshot_slot = snapshot.slot;
-                if let Err(error) = self.repository.persist_asset_snapshot(snapshot).await {
-                    tracing::warn!(trigger_slot, snapshot_slot, error = ?error, "asset snapshot persistence failed; core cursor remains valid");
+                match self.repository.persist_asset_snapshot(snapshot).await {
+                    Ok(()) => {
+                        if let Err(error) = self
+                            .repository
+                            .mark_projection_slot("assets", snapshot_slot)
+                            .await
+                        {
+                            tracing::warn!(
+                                trigger_slot,
+                                snapshot_slot,
+                                error = ?error,
+                                "asset data persisted but freshness cursor update failed"
+                            );
+                        } else {
+                            tracing::info!(trigger_slot, snapshot_slot, "asset snapshot refreshed");
+                        }
+                    }
+                    Err(error) => tracing::warn!(
+                        trigger_slot,
+                        snapshot_slot,
+                        error = ?error,
+                        "asset snapshot persistence failed; core cursor remains valid"
+                    ),
                 }
             }
-            Ok(Err(error)) => tracing::warn!(trigger_slot, error = ?error, "asset snapshot RPC refresh failed; core cursor remains valid"),
+            Ok(Err(error)) => tracing::warn!(
+                trigger_slot,
+                error = ?error,
+                "asset snapshot RPC refresh failed; core cursor remains valid"
+            ),
             Err(error) => tracing::error!(trigger_slot, error = %error, "asset snapshot worker panicked"),
         }
     }
 
-    async fn refresh_social(&self, slot: u64) {
+    async fn refresh_social(&self, trigger_slot: u64) {
         let source = Arc::clone(&self.source);
-        let projection = tokio::task::spawn_blocking(move || {
-            Ok::<_, anyhow::Error>((
-                source.fetch_social_posts()?,
-                source.fetch_creator_rewards()?,
-                source.fetch_engagement_events()?,
-                source.fetch_social_stakes()?,
-            ))
+        let snapshot = tokio::task::spawn_blocking(move || {
+            let snapshot_slot = source
+                .latest_slot()
+                .context("reading finalized Social snapshot watermark")?;
+            source.fetch_social_snapshot(snapshot_slot)
         })
         .await;
 
-        let (posts, rewards, engagement, stakes) = match projection {
-            Ok(Ok(values)) => values,
-            Ok(Err(error)) => {
-                tracing::warn!(slot, error = ?error, "canonical SocialFi refresh failed; core cursor remains valid");
-                return;
+        match snapshot {
+            Ok(Ok(snapshot)) => {
+                let snapshot_slot = snapshot.slot;
+                let snapshot_epoch = snapshot.epoch;
+                if let Err(error) = self.repository.persist_social_snapshot(snapshot).await {
+                    tracing::warn!(
+                        trigger_slot,
+                        snapshot_slot,
+                        snapshot_epoch,
+                        error = ?error,
+                        "canonical Social snapshot persistence failed; core cursor remains valid"
+                    );
+                } else {
+                    tracing::info!(
+                        trigger_slot,
+                        snapshot_slot,
+                        snapshot_epoch,
+                        "canonical five-domain Social snapshot refreshed"
+                    );
+                }
             }
-            Err(error) => {
-                tracing::error!(slot, error = %error, "SocialFi refresh worker panicked");
-                return;
-            }
-        };
-
-        if let Err(error) = self.repository.persist_social_posts(posts).await {
-            tracing::warn!(slot, error = ?error, "social-post projection persistence failed");
-        }
-        if let Err(error) = self.repository.persist_creator_rewards(rewards).await {
-            tracing::warn!(slot, error = ?error, "creator-reward projection persistence failed");
-        }
-        if let Err(error) = self.repository.persist_engagement_events(engagement).await {
-            tracing::warn!(slot, error = ?error, "engagement projection persistence failed");
-        }
-        if let Err(error) = self.repository.persist_social_stakes(stakes).await {
-            tracing::warn!(slot, error = ?error, "social-stake projection persistence failed");
+            Ok(Err(error)) => tracing::warn!(
+                trigger_slot,
+                error = ?error,
+                "canonical Social snapshot RPC refresh failed; core cursor remains valid"
+            ),
+            Err(error) => tracing::error!(trigger_slot, error = %error, "Social snapshot worker panicked"),
         }
     }
 }
@@ -162,30 +222,56 @@ fn core_cursor_is_ahead(next_slot: u64, latest_slot: u64) -> bool {
 }
 
 fn is_proven_skipped_slot(error: &anyhow::Error) -> bool {
-    let message = error.to_string();
-    // AEKO rpc-client-api reserves -32007 for SlotSkipped and -32009 for
-    // LongTermStorageSlotSkipped. Those responses prove there is no block to
-    // index. Other availability/history errors are retried and never advance
-    // the cursor.
-    message.contains("RPC getBlock failed (-32007)")
-        || message.contains("RPC getBlock failed (-32009)")
+    error.downcast_ref::<RpcRequestError>().is_some_and(|rpc| {
+        rpc.method == "getBlock"
+            && matches!(
+                rpc.code,
+                JSON_RPC_SERVER_ERROR_SLOT_SKIPPED
+                    | JSON_RPC_SERVER_ERROR_LONG_TERM_STORAGE_SLOT_SKIPPED
+            )
+    })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{core_cursor_is_ahead, is_proven_skipped_slot};
+    use {
+        super::{core_cursor_is_ahead, is_proven_skipped_slot},
+        crate::infrastructure::rpc_error::RpcRequestError,
+        aeko_rpc_client_api::custom_error::{
+            JSON_RPC_SERVER_ERROR_BLOCK_NOT_AVAILABLE,
+            JSON_RPC_SERVER_ERROR_LONG_TERM_STORAGE_SLOT_SKIPPED,
+            JSON_RPC_SERVER_ERROR_SLOT_SKIPPED,
+        },
+        anyhow::Error,
+    };
 
     #[test]
-    fn only_explicit_skipped_slot_rpc_codes_advance_cursor() {
-        assert!(is_proven_skipped_slot(&anyhow::anyhow!(
-            "RPC getBlock failed (-32007): Slot skipped"
-        )));
-        assert!(is_proven_skipped_slot(&anyhow::anyhow!(
-            "RPC getBlock failed (-32009): long-term storage slot skipped"
-        )));
-        assert!(!is_proven_skipped_slot(&anyhow::anyhow!(
-            "RPC getBlock failed (-32004): block not available"
-        )));
+    fn typed_skipped_slot_codes_advance_cursor_including_production_incident() {
+        let production = Error::new(RpcRequestError::new(
+            "getBlock",
+            JSON_RPC_SERVER_ERROR_SLOT_SKIPPED,
+            "Slot 104369 was skipped, or missing due to ledger jump to recent snapshot",
+            None,
+        ));
+        assert!(is_proven_skipped_slot(&production));
+        assert!(is_proven_skipped_slot(&Error::new(RpcRequestError::new(
+            "getBlock",
+            JSON_RPC_SERVER_ERROR_LONG_TERM_STORAGE_SLOT_SKIPPED,
+            "Slot 104369 was skipped, or missing in long-term storage",
+            None,
+        ))));
+        assert!(!is_proven_skipped_slot(&Error::new(RpcRequestError::new(
+            "getBlock",
+            JSON_RPC_SERVER_ERROR_BLOCK_NOT_AVAILABLE,
+            "Block not available",
+            None,
+        ))));
+        assert!(!is_proven_skipped_slot(&Error::new(RpcRequestError::new(
+            "getSlot",
+            JSON_RPC_SERVER_ERROR_SLOT_SKIPPED,
+            "not a getBlock response",
+            None,
+        ))));
     }
 
     #[test]
