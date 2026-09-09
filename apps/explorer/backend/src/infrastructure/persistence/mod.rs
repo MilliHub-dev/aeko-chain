@@ -11,6 +11,7 @@ use {
 pub mod accounts;
 pub mod assets;
 pub mod ledger;
+pub mod overview;
 pub mod search;
 pub mod social;
 
