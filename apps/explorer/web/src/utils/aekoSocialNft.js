@@ -1,4 +1,5 @@
 import { confirmSignature, getAccountInfo, getLatestBlockhash, sendTransaction } from './aekoRpcClient';
+import { assertRpcExplorerAlignment } from './networkIdentity';
 import { signMessage } from './aekoTestKeypair';
 import {
   buildPreparedCollectionSetupTransaction,
@@ -44,6 +45,11 @@ async function confirmPrepared(rpcUrl, wallet, prepared) {
 export async function mintSocialPostAsNft({ rpcUrl, explorerApiUrl, wallet, post, explorerOrigin = window.location.origin }) {
   if (!wallet?.address) throw new Error('Select an owned test wallet before minting.');
   if (post?.creator !== wallet.address) throw new Error('Only the wallet that created this Social post can mint it as an NFT.');
+
+  // The mint is written through RPC and then required to appear through the
+  // Explorer API. Prove both endpoints represent the same chain before any
+  // rent funding, collection setup, signing, or mint transaction occurs.
+  await assertRpcExplorerAlignment({ rpcUrl, explorerApiUrl });
 
   const postHash = await digestHex(post.postId);
   const collectionSeed = 'aeko-social-posts';
