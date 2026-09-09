@@ -5,6 +5,7 @@ use {
         indexing::service::IndexerService,
         infrastructure::{
             chain::RpcChainClient,
+            chain_identity::fetch_genesis_hash,
             persistence::PostgresRepository,
             social::CanonicalChainDataSource,
         },
@@ -22,18 +23,29 @@ pub async fn run() -> Result<()> {
     let server = ServerConfig::from_env()
         .context("loading Explorer server environment")?;
 
-    let repository = PostgresRepository::connect(&backend)
-        .await
-        .context("initializing required PostgreSQL repository")?;
     let rpc = RpcChainClient::new(backend.clone()).context("initializing validator RPC client")?;
     let startup_rpc = rpc.clone();
     tokio::task::spawn_blocking(move || startup_rpc.health())
         .await
         .context("validator RPC startup health worker panicked")??;
 
+    let identity_config = backend.clone();
+    let genesis_hash = tokio::task::spawn_blocking(move || fetch_genesis_hash(&identity_config))
+        .await
+        .context("validator genesis-hash worker panicked")??;
+
+    let repository = PostgresRepository::connect(&backend)
+        .await
+        .context("initializing required PostgreSQL repository")?;
+    repository
+        .bind_chain_identity(&backend.network, &genesis_hash)
+        .await
+        .context("verifying Explorer PostgreSQL belongs to this validator chain")?;
+
     tracing::info!(
         rpc = %backend.rpc_url,
         network = %backend.network,
+        genesis_hash = %genesis_hash,
         bind = %server.bind_addr,
         start_slot = backend.start_slot,
         "Explorer production dependencies ready"
@@ -50,6 +62,7 @@ pub async fn run() -> Result<()> {
         repository,
         Arc::new(rpc),
         backend.network.clone(),
+        genesis_hash,
         backend.max_ready_lag_slots,
         backend.persist_socialfi_views,
     )
