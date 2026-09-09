@@ -89,7 +89,7 @@ EXPOSE 8088/tcp
 # shell retry loop.
 ENTRYPOINT ["aeko-explorer-backend"]
 
-FROM node:18-alpine AS explorer-ui-builder
+FROM node:22-alpine AS explorer-ui-builder
 WORKDIR /web
 COPY apps/explorer/web/package*.json ./
 RUN npm install
