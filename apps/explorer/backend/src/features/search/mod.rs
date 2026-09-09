@@ -35,12 +35,8 @@ async fn search(
     let query = params.query.trim().to_string();
     let mut items = state.repository.search(&query, limit).await?;
 
-    // Legacy wallet_profiles rows may exist from old deployments. They are no
-    // longer a source of truth, so never return them as wallet search results.
     items.retain(|item| !matches!(item, SearchResultRecord::Wallet(_)));
 
-    // Exact valid account-address searches are enriched from live chain state
-    // and current PostgreSQL holdings instead of a stale profile snapshot.
     if query.parse::<Pubkey>().is_ok() {
         let rpc = state.rpc.clone();
         let address = query.clone();
@@ -50,7 +46,7 @@ async fn search(
         if let Some(account) = account {
             let profile = state
                 .repository
-                .build_wallet_profile(&account.address, Some(account.lamports), None)
+                .build_wallet_profile(&account.address, Some(account.lamports))
                 .await?;
             items.insert(0, SearchResultRecord::Wallet(profile));
         }
