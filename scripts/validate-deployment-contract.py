@@ -11,6 +11,7 @@ PORTABLE = ROOT / "docker-compose.yml"
 DOKPLOY = ROOT / "docker-compose.dokploy.yml"
 DOCKERFILE = ROOT / "Dockerfile"
 VALIDATOR_ENTRYPOINT = ROOT / "docker" / "validator-entrypoint.sh"
+BLOCKSTORE_CLEANUP = ROOT / "ledger" / "src" / "blockstore_cleanup_service.rs"
 SOCIAL_BOOTSTRAP = ROOT / "social-bootstrap" / "src" / "main.rs"
 EXPLORER_HEALTH = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "health" / "mod.rs"
 README = ROOT / "README.md"
@@ -47,6 +48,7 @@ def main() -> int:
     dokploy = read(DOKPLOY)
     dockerfile = read(DOCKERFILE)
     validator_entrypoint = read(VALIDATOR_ENTRYPOINT)
+    blockstore_cleanup = read(BLOCKSTORE_CLEANUP)
     social_bootstrap = read(SOCIAL_BOOTSTRAP)
     explorer_health = read(EXPLORER_HEALTH)
     readme = read(README)
@@ -76,6 +78,18 @@ def main() -> int:
     require(
         '--rpc-send-transaction-tpu-peer "$AEKO_RPC_SEND_TRANSACTION_TPU_PEER"' in validator_entrypoint,
         "validator entrypoint must support an explicit RPC transaction TPU peer",
+    )
+    for storage_flag in (
+        '--maximum-full-snapshots-to-retain "$AEKO_MAX_FULL_SNAPSHOTS"',
+        '--maximum-incremental-snapshots-to-retain "$AEKO_MAX_INCREMENTAL_SNAPSHOTS"',
+        '--accounts-shrink-optimize-total-space "$AEKO_ACCOUNTS_SHRINK_OPTIMIZE_TOTAL_SPACE"',
+        '--accounts-db-cache-limit-mb "$AEKO_ACCOUNTS_DB_CACHE_LIMIT_MB"',
+        '--accounts-index-memory-limit-mb "$AEKO_ACCOUNTS_INDEX_MEMORY_LIMIT_MB"',
+    ):
+        require(storage_flag in validator_entrypoint, f"validator entrypoint missing storage tuning flag: {storage_flag}")
+    require(
+        "pub const DEFAULT_MIN_MAX_LEDGER_SHREDS: u64 = 5_000_000;" in blockstore_cleanup,
+        "AEKO validator must permit the constrained Dokploy ledger retention floor",
     )
 
     # SocialFi bootstrap must distinguish an incomplete first boot from a
@@ -126,6 +140,20 @@ def main() -> int:
         "AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}" in validator,
         "validator RPC must route submitted transactions over the internal QUIC TPU",
     )
+
+    # A 45GB-class test server cannot reach the upstream 50m-shred cleanup
+    # floor safely. Dokploy must therefore opt into AEKO's constrained profile,
+    # while leaving the portable/high-capacity validator defaults unchanged.
+    require("AEKO_LEDGER_LIMIT: ${AEKO_LEDGER_LIMIT:-8000000}" in validator, "Dokploy validator must use bounded low-storage ledger retention")
+    require("AEKO_MAX_FULL_SNAPSHOTS: ${AEKO_MAX_FULL_SNAPSHOTS:-1}" in validator, "Dokploy validator must bound full snapshot retention")
+    require("AEKO_MAX_INCREMENTAL_SNAPSHOTS: ${AEKO_MAX_INCREMENTAL_SNAPSHOTS:-1}" in validator, "Dokploy validator must bound incremental snapshot retention")
+    require("AEKO_ACCOUNTS_SHRINK_OPTIMIZE_TOTAL_SPACE: ${AEKO_ACCOUNTS_SHRINK_OPTIMIZE_TOTAL_SPACE:-true}" in validator, "Dokploy validator must optimize AccountsDB for disk usage")
+    require("AEKO_ACCOUNTS_DB_CACHE_LIMIT_MB: ${AEKO_ACCOUNTS_DB_CACHE_LIMIT_MB:-512}" in validator, "Dokploy validator must bound AccountsDB write cache memory")
+    require("AEKO_ACCOUNTS_INDEX_MEMORY_LIMIT_MB: ${AEKO_ACCOUNTS_INDEX_MEMORY_LIMIT_MB:-512}" in validator, "Dokploy validator must bound accounts-index memory")
+    require("AEKO_MIN_FREE_DISK_KB: ${AEKO_MIN_FREE_DISK_KB:-2097152}" in validator, "Dokploy validator must expose a low-disk health threshold")
+    require("df -Pk /ledger" in validator, "validator healthcheck must reject critically low ledger disk space")
+    require("${AEKO_VALIDATOR_LEDGER_VOLUME:-validator-ledger}:/ledger" in validator, "validator ledger must support a separately mounted block volume")
+    require("x-logging: &default-logging" in dokploy and "max-size: ${AEKO_LOG_MAX_SIZE:-10m}" in dokploy, "Dokploy must rotate container logs instead of allowing unbounded json-file growth")
 
     require("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}" in bootstrap, "SocialFi reset recovery must be an explicit opt-in")
     require("social-state:/state" in bootstrap, "SocialFi state/registry must persist")
