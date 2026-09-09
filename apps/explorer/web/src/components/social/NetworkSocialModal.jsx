@@ -7,7 +7,7 @@ import {
   Sparkles, UserRound, Users, Wallet, X,
 } from 'lucide-react';
 import { getNetworkConfig } from '../../utils/networkConfig';
-import { aekoToLamports, confirmSignature, formatAeko, getBalance, getEpochInfo, getLatestBlockhash, sendTransaction } from '../../utils/aekoRpcClient';
+import { aekoToLamports, confirmSignature, formatAeko, getEpochInfo, getLatestBlockhash, sendTransaction } from '../../utils/aekoRpcClient';
 import { loadWallets, shortAddress } from '../../utils/aekoTestKeypair';
 import { buildSignedAnchorPostTx, randomBytes32, sha256 } from '../../utils/aekoSocial';
 import {
@@ -154,9 +154,12 @@ export default function NetworkSocialModal({ network = 'testnet', onClose }) {
 
   const refreshPersona = useCallback(async () => {
     if (!persona) return;
-    const [nextBalance, nextEpoch] = await Promise.all([getBalance(rpcUrl, persona.address), getEpochInfo(rpcUrl)]);
-    setBalance(nextBalance); setEpoch(Number(nextEpoch?.epoch || 0));
-  }, [persona, rpcUrl]);
+    const [walletProfile, nextEpoch] = await Promise.all([
+      fetchWalletProfile(explorerApiUrl, persona.address),
+      getEpochInfo(rpcUrl),
+    ]);
+    setBalance(walletProfile?.nativeBalance ?? null); setEpoch(Number(nextEpoch?.epoch || 0));
+  }, [explorerApiUrl, persona, rpcUrl]);
 
   const resetFeed = useCallback(async () => {
     setLoadingFeed(true);
