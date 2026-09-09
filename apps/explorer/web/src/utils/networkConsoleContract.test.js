@@ -44,6 +44,15 @@ test('console reads are API-first and direct RPC is limited to unsupported write
   }
 });
 
+test('nested social modal keeps normal balance reads behind the Explorer API', async () => {
+  const social = await source('components/social/NetworkSocialModal.jsx');
+
+  assert.doesNotMatch(social, /\bgetBalance\b/);
+  assert.match(social, /fetchWalletProfile\(explorerApiUrl, persona\.address\)/);
+  assert.match(social, /setBalance\(walletProfile\?\.nativeBalance \?\? null\)/);
+  assert.match(social, /getEpochInfo\(rpcUrl\)/);
+});
+
 test('console websocket drives slot, wallet and API-derived social state subscriptions', async () => {
   const implementation = await source('components/NetworkConsoleModalV2.jsx');
   assert.match(implementation, /subscribeSlot/);
