@@ -30,3 +30,13 @@ test('console websocket drives slot, wallet and social state subscriptions', asy
   assert.match(implementation, /subscribeAccount\(wallet\.address/);
   assert.match(implementation, /subscribeAccount\(discovered\.address/);
 });
+
+test('wallet and social interactions remain wired while transport changes', async () => {
+  const implementation = await source('components/NetworkConsoleModalV2.jsx');
+  assert.match(implementation, /renameWallet/);
+  assert.match(implementation, /postKind: composer\.kind/);
+  assert.match(implementation, /parentPostId: composer\.parent\?\.postId/);
+  assert.match(implementation, /kind: 'reply'/);
+  assert.match(implementation, /kind: 'quote'/);
+  assert.match(implementation, /setFeedCreator/);
+});
