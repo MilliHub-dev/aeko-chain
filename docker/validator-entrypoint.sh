@@ -101,6 +101,27 @@ if [ "$#" -eq 0 ]; then
       ;;
   esac
 
+  # Optional low-resource tuning. These are deliberately environment-driven so
+  # portable/high-capacity deployments retain the validator defaults unless an
+  # operator explicitly opts into a constrained profile.
+  if [ -n "${AEKO_MAX_FULL_SNAPSHOTS:-}" ]; then
+    set -- "$@" --maximum-full-snapshots-to-retain "$AEKO_MAX_FULL_SNAPSHOTS"
+  fi
+  if [ -n "${AEKO_MAX_INCREMENTAL_SNAPSHOTS:-}" ]; then
+    set -- "$@" --maximum-incremental-snapshots-to-retain "$AEKO_MAX_INCREMENTAL_SNAPSHOTS"
+  fi
+  if [ -n "${AEKO_ACCOUNTS_SHRINK_OPTIMIZE_TOTAL_SPACE:-}" ]; then
+    set -- "$@" --accounts-shrink-optimize-total-space "$AEKO_ACCOUNTS_SHRINK_OPTIMIZE_TOTAL_SPACE"
+  fi
+  if [ -n "${AEKO_ACCOUNTS_DB_CACHE_LIMIT_MB:-}" ]; then
+    set -- "$@" --accounts-db-cache-limit-mb "$AEKO_ACCOUNTS_DB_CACHE_LIMIT_MB"
+  fi
+  if [ -n "${AEKO_ACCOUNTS_INDEX_MEMORY_LIMIT_MB:-}" ]; then
+    set -- "$@" --accounts-index-memory-limit-mb "$AEKO_ACCOUNTS_INDEX_MEMORY_LIMIT_MB"
+  fi
+
+  echo "==> AEKO validator storage profile: ledger_limit=${AEKO_LEDGER_LIMIT:-200000000} shreds, full_snapshots=${AEKO_MAX_FULL_SNAPSHOTS:-validator-default}, incremental_snapshots=${AEKO_MAX_INCREMENTAL_SNAPSHOTS:-validator-default}"
+
   # Docker bridge deployments must explicitly advertise the host address and
   # publish the same validator transport range. These flags are opt-in so the
   # portable/local compose retains its existing behavior.
