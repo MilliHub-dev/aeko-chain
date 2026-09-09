@@ -91,7 +91,7 @@ impl Processor {
     ) -> Result<(), InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        instruction_context.check_number_of_instruction_accounts(2)?;
+        instruction_context.check_number_of_instruction_accounts(3)?;
 
         let sender = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         if !sender.is_signer() {
@@ -99,25 +99,31 @@ impl Processor {
         }
         let sender_key = *sender.get_key();
         drop(sender);
-
         if sender_key != record.sender {
             return Err(InstructionError::IncorrectAuthority);
         }
 
         let mut state_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        if *state_account.get_owner() != crate::id() {
+            return Err(InstructionError::InvalidAccountOwner);
+        }
         let mut state = SocialMonetizationStateAccount::deserialize_padded(state_account.get_data())
             .map_err(|_| InstructionError::InvalidAccountData)?;
         state.ensure_initialized().map_err(Self::map_program_error)?;
+        Self::verify_account_key(invoke_context, 2, state.config.treasury)?;
         if record.amount == 0 {
             return Err(Self::map_program_error(SocialMonetizationError::InvalidAmount.into()));
         }
         if state.tip_exists(&record.tip_id) {
             return Err(Self::map_program_error(SocialMonetizationError::DuplicateTip.into()));
         }
+
         state.tips.push(record.clone());
         Self::credit_creator(&mut state, record.creator, record.amount);
-        Self::write_back(&mut state_account, &state)
+        Self::write_back(&mut state_account, &state)?;
+        drop(state_account);
+        Self::transfer_lamports(invoke_context, 1, 2, record.amount)
     }
 
     fn process_create_subscription(
@@ -126,7 +132,7 @@ impl Processor {
     ) -> Result<(), InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        instruction_context.check_number_of_instruction_accounts(2)?;
+        instruction_context.check_number_of_instruction_accounts(3)?;
 
         let subscriber = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         if !subscriber.is_signer() {
@@ -137,9 +143,13 @@ impl Processor {
 
         let mut state_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        if *state_account.get_owner() != crate::id() {
+            return Err(InstructionError::InvalidAccountOwner);
+        }
         let mut state = SocialMonetizationStateAccount::deserialize_padded(state_account.get_data())
             .map_err(|_| InstructionError::InvalidAccountData)?;
         state.ensure_initialized().map_err(Self::map_program_error)?;
+        Self::verify_account_key(invoke_context, 2, state.config.treasury)?;
         if !state.config.subscriptions_enabled {
             return Err(Self::map_program_error(
                 SocialMonetizationError::SubscriptionsDisabled.into(),
@@ -161,9 +171,12 @@ impl Processor {
                 SocialMonetizationError::DuplicateSubscription.into(),
             ));
         }
+
         state.subscriptions.push(record.clone());
         Self::credit_creator(&mut state, record.creator, record.amount_per_period);
-        Self::write_back(&mut state_account, &state)
+        Self::write_back(&mut state_account, &state)?;
+        drop(state_account);
+        Self::transfer_lamports(invoke_context, 1, 2, record.amount_per_period)
     }
 
     fn process_renew_subscription(
@@ -173,7 +186,7 @@ impl Processor {
     ) -> Result<(), InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        instruction_context.check_number_of_instruction_accounts(2)?;
+        instruction_context.check_number_of_instruction_accounts(3)?;
 
         let subscriber = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         if !subscriber.is_signer() {
@@ -184,9 +197,13 @@ impl Processor {
 
         let mut state_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        if *state_account.get_owner() != crate::id() {
+            return Err(InstructionError::InvalidAccountOwner);
+        }
         let mut state = SocialMonetizationStateAccount::deserialize_padded(state_account.get_data())
             .map_err(|_| InstructionError::InvalidAccountData)?;
         state.ensure_initialized().map_err(Self::map_program_error)?;
+        Self::verify_account_key(invoke_context, 2, state.config.treasury)?;
         let subscription = state
             .subscriptions
             .iter_mut()
@@ -207,7 +224,9 @@ impl Processor {
         let creator = subscription.creator;
         let amount = subscription.amount_per_period;
         Self::credit_creator(&mut state, creator, amount);
-        Self::write_back(&mut state_account, &state)
+        Self::write_back(&mut state_account, &state)?;
+        drop(state_account);
+        Self::transfer_lamports(invoke_context, 1, 2, amount)
     }
 
     fn process_cancel_subscription(
@@ -227,6 +246,9 @@ impl Processor {
 
         let mut state_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        if *state_account.get_owner() != crate::id() {
+            return Err(InstructionError::InvalidAccountOwner);
+        }
         let mut state = SocialMonetizationStateAccount::deserialize_padded(state_account.get_data())
             .map_err(|_| InstructionError::InvalidAccountData)?;
         state.ensure_initialized().map_err(Self::map_program_error)?;
@@ -250,7 +272,7 @@ impl Processor {
     ) -> Result<(), InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        instruction_context.check_number_of_instruction_accounts(2)?;
+        instruction_context.check_number_of_instruction_accounts(3)?;
 
         let buyer = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         if !buyer.is_signer() {
@@ -261,9 +283,13 @@ impl Processor {
 
         let mut state_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        if *state_account.get_owner() != crate::id() {
+            return Err(InstructionError::InvalidAccountOwner);
+        }
         let mut state = SocialMonetizationStateAccount::deserialize_padded(state_account.get_data())
             .map_err(|_| InstructionError::InvalidAccountData)?;
         state.ensure_initialized().map_err(Self::map_program_error)?;
+        Self::verify_account_key(invoke_context, 2, state.config.treasury)?;
         if !state.config.paid_content_enabled {
             return Err(Self::map_program_error(
                 SocialMonetizationError::PaidContentDisabled.into(),
@@ -278,9 +304,12 @@ impl Processor {
         if state.unlock_exists(&record.unlock_id) {
             return Err(Self::map_program_error(SocialMonetizationError::DuplicateUnlock.into()));
         }
+
         state.unlocks.push(record.clone());
         Self::credit_creator(&mut state, record.creator, record.amount);
-        Self::write_back(&mut state_account, &state)
+        Self::write_back(&mut state_account, &state)?;
+        drop(state_account);
+        Self::transfer_lamports(invoke_context, 1, 2, record.amount)
     }
 
     fn process_claim(
@@ -288,7 +317,6 @@ impl Processor {
         creator: Pubkey,
         amount: u64,
     ) -> Result<(), InstructionError> {
-        // Accounts: 0=state, 1=treasury (source), 2=destination, 3=authority (signer)
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
         instruction_context.check_number_of_instruction_accounts(4)?;
@@ -302,21 +330,16 @@ impl Processor {
 
         let mut state_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        if *state_account.get_owner() != crate::id() {
+            return Err(InstructionError::InvalidAccountOwner);
+        }
         let mut state = SocialMonetizationStateAccount::deserialize_padded(state_account.get_data())
             .map_err(|_| InstructionError::InvalidAccountData)?;
         state.ensure_initialized().map_err(Self::map_program_error)?;
         if authority_key != creator && authority_key != state.config.authority {
             return Err(Self::map_program_error(SocialMonetizationError::Unauthorized.into()));
         }
-
-        // Verify the provided treasury matches the configured one
-        {
-            let treasury =
-                instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
-            if *treasury.get_key() != state.config.treasury {
-                return Err(InstructionError::InvalidArgument);
-            }
-        }
+        Self::verify_account_key(invoke_context, 1, state.config.treasury)?;
 
         let revenue = state
             .revenues
@@ -333,18 +356,7 @@ impl Processor {
         revenue.total_claimed = revenue.total_claimed.saturating_add(amount as u128);
         Self::write_back(&mut state_account, &state)?;
         drop(state_account);
-
-        // Transfer lamports from treasury to creator's destination account
-        let mut treasury =
-            instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
-        treasury.checked_sub_lamports(amount)?;
-        drop(treasury);
-
-        let mut destination =
-            instruction_context.try_borrow_instruction_account(transaction_context, 2)?;
-        destination.checked_add_lamports(amount)?;
-
-        Ok(())
+        Self::transfer_lamports(invoke_context, 1, 2, amount)
     }
 
     fn process_read(
@@ -373,6 +385,39 @@ impl Processor {
         invoke_context
             .transaction_context
             .set_return_data(crate::id(), return_data)?;
+        Ok(())
+    }
+
+    fn verify_account_key(
+        invoke_context: &InvokeContext,
+        instruction_index: u16,
+        expected: Pubkey,
+    ) -> Result<(), InstructionError> {
+        let transaction_context = &invoke_context.transaction_context;
+        let instruction_context = transaction_context.get_current_instruction_context()?;
+        let account = instruction_context
+            .try_borrow_instruction_account(transaction_context, instruction_index)?;
+        if *account.get_key() != expected {
+            return Err(InstructionError::InvalidArgument);
+        }
+        Ok(())
+    }
+
+    fn transfer_lamports(
+        invoke_context: &InvokeContext,
+        source_index: u16,
+        destination_index: u16,
+        amount: u64,
+    ) -> Result<(), InstructionError> {
+        let transaction_context = &invoke_context.transaction_context;
+        let instruction_context = transaction_context.get_current_instruction_context()?;
+        let mut source = instruction_context
+            .try_borrow_instruction_account(transaction_context, source_index)?;
+        source.checked_sub_lamports(amount)?;
+        drop(source);
+        let mut destination = instruction_context
+            .try_borrow_instruction_account(transaction_context, destination_index)?;
+        destination.checked_add_lamports(amount)?;
         Ok(())
     }
 
@@ -481,7 +526,6 @@ mod tests {
             valid_until_unix: 40,
             state: SubscriptionState::Active,
         });
-
         let subscription = state.subscriptions.first_mut().unwrap();
         subscription.valid_until_unix = 70;
         assert_eq!(subscription.state, SubscriptionState::Active);

@@ -11,6 +11,7 @@ use {
 pub mod accounts;
 pub mod assets;
 pub mod ledger;
+pub mod overview;
 pub mod search;
 pub mod social;
 
@@ -84,6 +85,40 @@ impl PostgresRepository {
             Some(0) | None => Ok(None),
             Some(value) => Err(anyhow!("persisted core cursor is negative: {value}")),
         }
+    }
+
+    pub async fn latest_projection_slot(&self, stream: &str) -> Result<Option<u64>> {
+        let next: Option<i64> = sqlx::query_scalar(
+            "SELECT next_slot FROM indexer_cursors WHERE stream = $1",
+        )
+        .bind(stream)
+        .fetch_optional(&self.pool)
+        .await
+        .with_context(|| format!("reading {stream} projection cursor"))?;
+        match next {
+            Some(value) if value > 0 => Ok(Some((value - 1) as u64)),
+            Some(0) | None => Ok(None),
+            Some(value) => Err(anyhow!("persisted {stream} projection cursor is negative: {value}")),
+        }
+    }
+
+    pub async fn mark_projection_slot(&self, stream: &str, slot: u64) -> Result<()> {
+        let next_slot = slot.checked_add(1).context("projection slot overflow")?;
+        sqlx::query(
+            r#"
+            INSERT INTO indexer_cursors (stream, next_slot)
+            VALUES ($1, $2)
+            ON CONFLICT (stream) DO UPDATE SET
+                next_slot = EXCLUDED.next_slot,
+                updated_at = NOW()
+            "#,
+        )
+        .bind(stream)
+        .bind(i64::try_from(next_slot).context("projection next slot exceeds BIGINT")?)
+        .execute(&self.pool)
+        .await
+        .with_context(|| format!("marking {stream} projection cursor"))?;
+        Ok(())
     }
 }
 

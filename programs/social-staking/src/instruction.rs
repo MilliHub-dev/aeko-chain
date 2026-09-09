@@ -57,6 +57,7 @@ pub fn open_position(
     program_id: &Pubkey,
     state_pubkey: &Pubkey,
     staker_pubkey: &Pubkey,
+    stake_vault_pubkey: &Pubkey,
     position: SocialStakePosition,
 ) -> Instruction {
     Instruction::new_with_borsh(
@@ -64,7 +65,8 @@ pub fn open_position(
         &SocialStakingInstruction::OpenPosition { position },
         vec![
             AccountMeta::new(*state_pubkey, false),
-            AccountMeta::new_readonly(*staker_pubkey, true),
+            AccountMeta::new(*staker_pubkey, true),
+            AccountMeta::new(*stake_vault_pubkey, false),
         ],
     )
 }
@@ -93,6 +95,7 @@ pub fn finalize_unstake(
     program_id: &Pubkey,
     state_pubkey: &Pubkey,
     staker_pubkey: &Pubkey,
+    stake_vault_pubkey: &Pubkey,
     position_id: [u8; 32],
     current_epoch: u64,
 ) -> Instruction {
@@ -104,7 +107,8 @@ pub fn finalize_unstake(
         },
         vec![
             AccountMeta::new(*state_pubkey, false),
-            AccountMeta::new_readonly(*staker_pubkey, true),
+            AccountMeta::new(*staker_pubkey, true),
+            AccountMeta::new(*stake_vault_pubkey, false),
         ],
     )
 }
@@ -129,6 +133,7 @@ pub fn claim_stake_yield(
     program_id: &Pubkey,
     state_pubkey: &Pubkey,
     staker_pubkey: &Pubkey,
+    reward_vault_pubkey: &Pubkey,
     position_id: [u8; 32],
     amount: u64,
 ) -> Instruction {
@@ -137,7 +142,8 @@ pub fn claim_stake_yield(
         &SocialStakingInstruction::ClaimStakeYield { position_id, amount },
         vec![
             AccountMeta::new(*state_pubkey, false),
-            AccountMeta::new_readonly(*staker_pubkey, true),
+            AccountMeta::new(*staker_pubkey, true),
+            AccountMeta::new(*reward_vault_pubkey, false),
         ],
     )
 }

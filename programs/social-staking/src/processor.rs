@@ -5,7 +5,7 @@ use {
         state::{SocialStakePosition, SocialStakeState, SocialStakingStateAccount, StakeYieldRecord},
     },
     aeko_program_runtime::invoke_context::InvokeContext,
-    aeko_sdk::instruction::InstructionError,
+    aeko_sdk::{instruction::InstructionError, pubkey::Pubkey},
     borsh::{to_vec, BorshDeserialize},
 };
 
@@ -61,7 +61,6 @@ impl Processor {
         }
         let authority_key = *authority.get_key();
         drop(authority);
-
         if authority_key != state.config.authority {
             return Err(InstructionError::IncorrectAuthority);
         }
@@ -87,7 +86,7 @@ impl Processor {
     ) -> Result<(), InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        instruction_context.check_number_of_instruction_accounts(2)?;
+        instruction_context.check_number_of_instruction_accounts(3)?;
 
         let staker = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         if !staker.is_signer() {
@@ -104,13 +103,14 @@ impl Processor {
         let mut state = SocialStakingStateAccount::deserialize_padded(state_account.get_data())
             .map_err(|_| InstructionError::InvalidAccountData)?;
         state.ensure_initialized().map_err(Self::map_program_error)?;
+        Self::verify_account_key(invoke_context, 2, state.config.stake_vault)?;
         if !state.config.staking_enabled {
             return Err(Self::map_program_error(SocialStakingError::StakingDisabled.into()));
         }
         if position.staker != staker_key {
             return Err(InstructionError::IncorrectAuthority);
         }
-        if position.staked_amount < state.config.min_stake_amount {
+        if position.staked_amount == 0 || position.staked_amount < state.config.min_stake_amount {
             return Err(Self::map_program_error(SocialStakingError::StakeTooLow.into()));
         }
         if position.state != SocialStakeState::Active {
@@ -121,8 +121,11 @@ impl Processor {
                 SocialStakingError::PositionAlreadyExists.into(),
             ));
         }
+        let amount = position.staked_amount;
         state.positions.push(position);
-        Self::write_back(&mut state_account, &state)
+        Self::write_back(&mut state_account, &state)?;
+        drop(state_account);
+        Self::transfer_lamports(invoke_context, 1, 2, amount)
     }
 
     fn process_request_unstake(
@@ -143,6 +146,9 @@ impl Processor {
 
         let mut state_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        if *state_account.get_owner() != crate::id() {
+            return Err(InstructionError::InvalidAccountOwner);
+        }
         let mut state = SocialStakingStateAccount::deserialize_padded(state_account.get_data())
             .map_err(|_| InstructionError::InvalidAccountData)?;
         state.ensure_initialized().map_err(Self::map_program_error)?;
@@ -171,7 +177,7 @@ impl Processor {
     ) -> Result<(), InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        instruction_context.check_number_of_instruction_accounts(2)?;
+        instruction_context.check_number_of_instruction_accounts(3)?;
 
         let staker = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         if !staker.is_signer() {
@@ -182,9 +188,13 @@ impl Processor {
 
         let mut state_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        if *state_account.get_owner() != crate::id() {
+            return Err(InstructionError::InvalidAccountOwner);
+        }
         let mut state = SocialStakingStateAccount::deserialize_padded(state_account.get_data())
             .map_err(|_| InstructionError::InvalidAccountData)?;
         state.ensure_initialized().map_err(Self::map_program_error)?;
+        Self::verify_account_key(invoke_context, 2, state.config.stake_vault)?;
         let position = state
             .positions
             .iter_mut()
@@ -196,8 +206,11 @@ impl Processor {
         if position.unlock_epoch.unwrap_or(u64::MAX) > current_epoch {
             return Err(Self::map_program_error(SocialStakingError::CooldownNotReached.into()));
         }
+        let amount = position.staked_amount;
         position.state = SocialStakeState::Closed;
-        Self::write_back(&mut state_account, &state)
+        Self::write_back(&mut state_account, &state)?;
+        drop(state_account);
+        Self::transfer_lamports(invoke_context, 2, 1, amount)
     }
 
     fn process_record_yield(
@@ -217,6 +230,9 @@ impl Processor {
 
         let mut state_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        if *state_account.get_owner() != crate::id() {
+            return Err(InstructionError::InvalidAccountOwner);
+        }
         let mut state = SocialStakingStateAccount::deserialize_padded(state_account.get_data())
             .map_err(|_| InstructionError::InvalidAccountData)?;
         state.ensure_initialized().map_err(Self::map_program_error)?;
@@ -229,8 +245,7 @@ impl Processor {
         if position.state != SocialStakeState::Active {
             return Err(Self::map_program_error(SocialStakingError::PositionNotActive.into()));
         }
-        if record.yield_amount == 0 || record.creator != position.creator || record.staker != position.staker
-        {
+        if record.yield_amount == 0 || record.creator != position.creator || record.staker != position.staker {
             return Err(Self::map_program_error(SocialStakingError::InvalidYieldRecord.into()));
         }
         position.accumulated_yield = position.accumulated_yield.saturating_add(record.yield_amount);
@@ -245,7 +260,7 @@ impl Processor {
     ) -> Result<(), InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        instruction_context.check_number_of_instruction_accounts(2)?;
+        instruction_context.check_number_of_instruction_accounts(3)?;
 
         let staker = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         if !staker.is_signer() {
@@ -256,9 +271,13 @@ impl Processor {
 
         let mut state_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        if *state_account.get_owner() != crate::id() {
+            return Err(InstructionError::InvalidAccountOwner);
+        }
         let mut state = SocialStakingStateAccount::deserialize_padded(state_account.get_data())
             .map_err(|_| InstructionError::InvalidAccountData)?;
         state.ensure_initialized().map_err(Self::map_program_error)?;
+        Self::verify_account_key(invoke_context, 2, state.config.reward_vault)?;
         let position = state
             .positions
             .iter_mut()
@@ -269,7 +288,9 @@ impl Processor {
         }
         position.accumulated_yield -= amount;
         position.claimed_yield = position.claimed_yield.saturating_add(amount);
-        Self::write_back(&mut state_account, &state)
+        Self::write_back(&mut state_account, &state)?;
+        drop(state_account);
+        Self::transfer_lamports(invoke_context, 2, 1, amount)
     }
 
     fn process_read(
@@ -298,6 +319,39 @@ impl Processor {
         invoke_context
             .transaction_context
             .set_return_data(crate::id(), return_data)?;
+        Ok(())
+    }
+
+    fn verify_account_key(
+        invoke_context: &InvokeContext,
+        instruction_index: u16,
+        expected: Pubkey,
+    ) -> Result<(), InstructionError> {
+        let transaction_context = &invoke_context.transaction_context;
+        let instruction_context = transaction_context.get_current_instruction_context()?;
+        let account = instruction_context
+            .try_borrow_instruction_account(transaction_context, instruction_index)?;
+        if *account.get_key() != expected {
+            return Err(InstructionError::InvalidArgument);
+        }
+        Ok(())
+    }
+
+    fn transfer_lamports(
+        invoke_context: &InvokeContext,
+        source_index: u16,
+        destination_index: u16,
+        amount: u64,
+    ) -> Result<(), InstructionError> {
+        let transaction_context = &invoke_context.transaction_context;
+        let instruction_context = transaction_context.get_current_instruction_context()?;
+        let mut source = instruction_context
+            .try_borrow_instruction_account(transaction_context, source_index)?;
+        source.checked_sub_lamports(amount)?;
+        drop(source);
+        let mut destination = instruction_context
+            .try_borrow_instruction_account(transaction_context, destination_index)?;
+        destination.checked_add_lamports(amount)?;
         Ok(())
     }
 
@@ -371,26 +425,21 @@ mod tests {
         let position_id = [1u8; 32];
         let mut state = test_state(100, 3);
         state.positions.push(test_position(staker, creator, position_id, 500, 10));
-
         {
             let position = state.positions.first_mut().expect("position");
             position.state = SocialStakeState::CoolingDown;
             position.unlock_epoch = Some(13);
         }
-
         let position = state.positions.first().expect("position");
         assert_eq!(position.state, SocialStakeState::CoolingDown);
         assert_eq!(position.unlock_epoch, Some(13));
-
         {
             let position = state.positions.first_mut().expect("position");
             if position.unlock_epoch.unwrap() <= 13 {
                 position.state = SocialStakeState::Closed;
             }
         }
-
-        let position = state.positions.first().expect("position");
-        assert_eq!(position.state, SocialStakeState::Closed);
+        assert_eq!(state.positions.first().expect("position").state, SocialStakeState::Closed);
     }
 
     #[test]
@@ -400,7 +449,6 @@ mod tests {
         let position_id = [2u8; 32];
         let mut state = test_state(100, 3);
         state.positions.push(test_position(staker, creator, position_id, 500, 7));
-
         let record = StakeYieldRecord {
             epoch: 8,
             position_id,
@@ -408,11 +456,9 @@ mod tests {
             staker,
             yield_amount: 120,
         };
-
         let position = state.positions.first_mut().expect("position");
         position.accumulated_yield = position.accumulated_yield.saturating_add(record.yield_amount);
         state.yield_records.push(record);
-
         let position = state.positions.first_mut().expect("position");
         assert_eq!(position.accumulated_yield, 120);
         position.accumulated_yield -= 70;
@@ -429,7 +475,6 @@ mod tests {
         let position_id = [3u8; 32];
         let mut state = test_state(100, 2);
         state.positions.push(test_position(staker, creator, position_id, 500, 1));
-
         let record = StakeYieldRecord {
             epoch: 2,
             position_id,
@@ -437,7 +482,6 @@ mod tests {
             staker,
             yield_amount: 50,
         };
-
         let position = state.positions.first().expect("position");
         assert_ne!(record.creator, position.creator);
     }

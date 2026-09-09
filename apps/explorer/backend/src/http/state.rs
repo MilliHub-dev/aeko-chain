@@ -1,9 +1,5 @@
-//! Shared application dependencies for feature routes.
-
 use {
-    crate::{
-        infrastructure::{chain::RpcChainClient, persistence::PostgresRepository},
-    },
+    crate::infrastructure::{chain::RpcChainClient, persistence::PostgresRepository},
     std::sync::Arc,
 };
 
@@ -14,6 +10,7 @@ pub struct AppState {
     pub rpc: Arc<RpcChainClient>,
     pub network: String,
     pub max_ready_lag_slots: u64,
+    pub social_enabled: bool,
 }
 
 impl AppState {
@@ -22,12 +19,14 @@ impl AppState {
         rpc: Arc<RpcChainClient>,
         network: impl Into<String>,
         max_ready_lag_slots: u64,
+        social_enabled: bool,
     ) -> Self {
         Self {
             repository,
             rpc,
             network: network.into(),
             max_ready_lag_slots,
+            social_enabled,
         }
     }
 

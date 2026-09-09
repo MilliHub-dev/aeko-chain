@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Activity, Blocks, ChevronLeft, ChevronRight, Image, RotateCcw, Search, Sparkles, Wallet } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { fetchExplorerHome, getExplorerAvailability, searchExplorer } from '../utils/explorerApi';
+import { formatExplorerMetric } from '../utils/explorerData';
 import {
   ActiveFiltersBar,
   ExplorerFiltersModal,
@@ -25,6 +26,7 @@ export default function Explorer() {
   const [homeState, setHomeState] = useState({
     loading: true,
     error: '',
+    overview: null,
     blocks: [],
     transactions: [],
     posts: [],
@@ -74,6 +76,7 @@ export default function Explorer() {
       setHomeState({
         loading: false,
         error: '',
+        overview: null,
         blocks: [],
         transactions: [],
         posts: [],
@@ -96,6 +99,7 @@ export default function Explorer() {
           setHomeState({
             loading: false,
             error: '',
+            overview: data.overview || null,
             blocks: data.blocks || [],
             transactions: data.transactions || [],
             posts: data.posts || [],
@@ -108,6 +112,7 @@ export default function Explorer() {
           setHomeState({
             loading: false,
             error: error.message,
+            overview: null,
             blocks: [],
             transactions: [],
             posts: [],
@@ -216,8 +221,9 @@ export default function Explorer() {
     [searchParams, setSearchParams, toaster],
   );
 
-  // Suggestion sources for each autocomplete field — drawn from what's
-  // currently rendered on the page so users can one-tap fill from context.
+  // Suggestion sources for each autocomplete field are drawn from records the
+  // Explorer backend returned for the current view. They are hints only, never
+  // locally fabricated chain entities.
   const pageSuggestions = useMemo(() => {
     const txAddrs = new Set();
     const txPrograms = new Set();
@@ -230,7 +236,7 @@ export default function Explorer() {
     const stakeCreators = new Set(homeState.stakes.map((s) => s.creator).filter(Boolean));
     const nftOwners = new Set(homeState.nfts.map((n) => n.owner).filter(Boolean));
     const nftCreators = new Set(homeState.nfts.map((n) => n.creator).filter(Boolean));
-    const nftCollections = new Set(homeState.nfts.map((n) => n.collection).filter(Boolean));
+    const nftCollections = new Set(homeState.nfts.map((n) => n.collectionId).filter(Boolean));
     return {
       txAddress: [...txAddrs],
       txType: [...txPrograms],
@@ -294,6 +300,8 @@ export default function Explorer() {
     setSearchParams(next, { replace: true });
   }
 
+  const overview = homeState.overview;
+
   return (
     <div className="pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-12">
@@ -301,7 +309,7 @@ export default function Explorer() {
           <div className="text-sm uppercase tracking-[0.3em] text-aeko-accent mb-3">Explorer</div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Aeko Scan</h1>
           <p className="text-lg text-gray-400 max-w-3xl">
-            Inspect live blocks, transactions, account activity, creator rewards, and SocialFi state from the explorer backend.
+            Inspect live chain position and durable blocks, transactions, assets, accounts, and SocialFi state through the Explorer backend.
           </p>
         </div>
         <NetworkToggle value={network} onChange={setNetwork} />
@@ -364,6 +372,12 @@ export default function Explorer() {
             onDismiss: () =>
               setSearchState((s) => ({ ...s, error: '' })),
           },
+          !unavailable && overview?.overviewError && {
+            id: 'overview-warning',
+            kind: 'info',
+            title: 'Explorer overview is degraded',
+            children: overview.overviewError,
+          },
         ].filter(Boolean)}
       />
 
@@ -399,13 +413,37 @@ export default function Explorer() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-10">
-        <StatCard icon={Blocks} label="Recent Blocks" value={homeState.blocks.length} />
-        <StatCard icon={Activity} label="Recent Transactions" value={homeState.transactions.length} />
-        <StatCard icon={Sparkles} label="Indexed Posts" value={homeState.posts.length} />
-        <StatCard icon={Wallet} label="Stake Records" value={homeState.stakes.length} />
-        <StatCard icon={Image} label="NFT Records" value={homeState.nfts.length} />
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
+        <StatCard icon={Blocks} label="Live Chain Slot" value={formatExplorerMetric(overview?.latestChainSlot)} />
+        <StatCard icon={Blocks} label="Indexed Blocks" value={formatExplorerMetric(overview?.indexedBlocks)} />
+        <StatCard icon={Activity} label="Indexed Transactions" value={formatExplorerMetric(overview?.indexedTransactions)} />
+        <StatCard icon={Sparkles} label="Indexed Posts" value={formatExplorerMetric(overview?.indexedPosts)} />
+        <StatCard icon={Wallet} label="Stake Positions" value={formatExplorerMetric(overview?.indexedStakes)} />
+        <StatCard icon={Image} label="Indexed NFTs" value={formatExplorerMetric(overview?.indexedNfts)} />
+        <StatCard icon={Sparkles} label="Indexed Tokens" value={formatExplorerMetric(overview?.indexedTokens)} />
       </div>
+
+      {overview ? (
+        <div className="mb-10 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm text-gray-400">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <span>
+              Source: <strong className="text-white font-medium">{overview.dataSource}</strong>
+            </span>
+            <span>
+              Core: <strong className="text-white font-medium">{formatExplorerMetric(overview.latestIndexedSlot)}</strong>
+              {overview.indexLagSlots != null ? ` (${formatExplorerMetric(overview.indexLagSlots)} slot lag)` : ''}
+            </span>
+            <span>
+              Assets: <strong className="text-white font-medium">{formatExplorerMetric(overview.latestAssetSlot)}</strong>
+              {overview.assetLagSlots != null ? ` (${formatExplorerMetric(overview.assetLagSlots)} slot lag)` : ''}
+            </span>
+            <span>
+              Social: <strong className="text-white font-medium">{formatExplorerMetric(overview.latestSocialSlot)}</strong>
+              {overview.socialLagSlots != null ? ` (${formatExplorerMetric(overview.socialLagSlots)} slot lag)` : ''}
+            </span>
+          </div>
+        </div>
+      ) : null}
 
       {!unavailable && homeState.loading ? (
         <div className="text-gray-400">Loading explorer dashboard...</div>
@@ -585,7 +623,7 @@ function PagerControls({ active, onOlder, onNewer, onReset }) {
 }
 
 function SearchResultRow({ match }) {
-  const data = match[match.kind];
+  const data = match.data || {};
   let href = '/explorer';
 
   if (match.kind === 'block') href = `/explorer/block/${data.slot}`;

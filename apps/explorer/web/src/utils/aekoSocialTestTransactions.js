@@ -45,7 +45,7 @@ function encodeBase58(bytes) {
     for (let j = 0; j < digits.length; j += 1) {
       const value = digits[j] * 256 + carry;
       digits[j] = value % 58;
-      carry = Math.floor(value / 58);
+      carry = Math.floor(carry / 58);
     }
     while (carry > 0) {
       digits.push(carry % 58);
@@ -218,19 +218,19 @@ export async function buildSocialPostTestTx({
   const contentHash = await sha256(contentUri);
   const metadataHash = await sha256('aeko-social-test');
   const data = concat(
-    Uint8Array.from([1]), // AnchorPost
+    Uint8Array.from([1]),
     postId,
     creator,
     contentHash,
     metadataHash,
     stringBytes(contentUri),
-    Uint8Array.from([0]), // parent_post_id=None
-    Uint8Array.from([0]), // PostKind::Original
+    Uint8Array.from([0]),
+    Uint8Array.from([0]),
     i64LE(createdAt),
-    Uint8Array.from([0]), // edited_at_unix=None
-    Uint8Array.from([0]), // VisibilityClass::Public
-    Uint8Array.from([0]), // ModerationState::Active
-    Uint8Array.from([0]), // signature_ref=None
+    Uint8Array.from([0]),
+    Uint8Array.from([0]),
+    Uint8Array.from([0]),
+    Uint8Array.from([0]),
   );
   return {
     id: encodeBase58(postId),
@@ -259,20 +259,18 @@ export function buildSocialLikeTestTx({
 }) {
   const proofId = random32();
   const replayGuard = random32();
-  // postIdHex is kept as a compatibility alias for the pre-base58 E2E caller.
-  // Both values now carry the canonical base58 Explorer identifier.
   const targetPostId = decodeBase58(postId || postIdHex);
   const data = concat(
-    Uint8Array.from([4]), // RecordEngagement
+    Uint8Array.from([4]),
     proofId,
     decodeBase58(wallet.address),
     Uint8Array.from([1]),
     targetPostId,
     decodeBase58(targetCreator),
-    Uint8Array.from([0]), // Like
+    Uint8Array.from([0]),
     u32LE(1),
-    u64LE(0), // runtime stamps canonical slot
-    i64LE(Math.floor(Date.now() / 1000)), // runtime stamps canonical timestamp
+    u64LE(0),
+    i64LE(Math.floor(Date.now() / 1000)),
     replayGuard,
   );
   return {
@@ -294,23 +292,25 @@ export function buildSocialLikeTestTx({
 export function buildSocialStakeTestTx({
   wallet,
   stakingState,
+  stakeVault,
   recentBlockhash,
   creator,
   amount,
   currentEpoch,
 }) {
+  if (!stakeVault) throw new Error('Stake vault is required for a real escrowed stake.');
   const positionId = random32();
   const data = concat(
-    Uint8Array.from([1]), // OpenPosition
+    Uint8Array.from([1]),
     positionId,
     decodeBase58(wallet.address),
     decodeBase58(creator),
     u64LE(amount),
     u64LE(currentEpoch),
-    Uint8Array.from([0]), // unlock_epoch=None
+    Uint8Array.from([0]),
     u64LE(0),
     u64LE(0),
-    Uint8Array.from([0]), // SocialStakeState::Active
+    Uint8Array.from([0]),
   );
   return {
     id: encodeBase58(positionId),
@@ -321,6 +321,7 @@ export function buildSocialStakeTestTx({
       accounts: [
         { address: stakingState, isSigner: false, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
+        { address: stakeVault, isSigner: false, isWritable: true },
       ],
       data,
     }),
@@ -330,13 +331,15 @@ export function buildSocialStakeTestTx({
 export function buildSocialTipTestTx({
   wallet,
   monetizationState,
+  treasury,
   recentBlockhash,
   creator,
   amount,
 }) {
+  if (!treasury) throw new Error('Treasury is required for a real creator tip.');
   const tipId = random32();
   const data = concat(
-    Uint8Array.from([1]), // SendCreatorTip
+    Uint8Array.from([1]),
     tipId,
     decodeBase58(creator),
     decodeBase58(wallet.address),
@@ -352,6 +355,7 @@ export function buildSocialTipTestTx({
       accounts: [
         { address: monetizationState, isSigner: false, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
+        { address: treasury, isSigner: false, isWritable: true },
       ],
       data,
     }),

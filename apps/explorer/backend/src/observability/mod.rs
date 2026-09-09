@@ -1,6 +1,4 @@
-//! Tracing/logging setup. Pulls filter from `RUST_LOG` (default `info`).
-//! When `AEKO_EXPLORER_LOG_FORMAT=json` the output is JSON for ingestion by
-//! a log aggregator; otherwise it's human-readable on stdout.
+//! Explorer tracing and structured logging.
 
 use {
     std::env,

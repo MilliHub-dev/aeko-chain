@@ -58,7 +58,7 @@ async fn get_account(
         .ok_or(ApiError::NotFound("account"))?;
     let detail = state
         .repository
-        .get_account_detail_from_chain(account, None, clamp_limit(params.limit))
+        .get_account_detail_from_chain(account, clamp_limit(params.limit))
         .await?;
     Ok(response::data_from_source(&state.network, detail, "rpc+indexer"))
 }
@@ -75,7 +75,6 @@ async fn get_creator(
         .get_creator_profile_from_chain(
             &address,
             Some(account.lamports),
-            None,
             clamp_limit(params.limit),
         )
         .await?;

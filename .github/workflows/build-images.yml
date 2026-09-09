@@ -57,6 +57,30 @@ jobs:
           AEKO_EXPLORER_TEST_DATABASE_URL: postgres://aeko:aeko@127.0.0.1:5432/aeko_explorer_test
         run: cargo test -p aeko-explorer-backend
 
+      - name: Validate Explorer web backend contract
+        working-directory: apps/explorer/web
+        run: |
+          npm ci
+          npm test
+          # The application already has unrelated repository-wide ESLint debt.
+          # Gate the Explorer/backend contract and the active test console
+          # integration directly, then use the full Vite production build as
+          # the broad frontend integration check.
+          npx eslint \
+            src/components/NetworkConsoleModal.jsx \
+            src/components/NetworkConsoleModalV2.jsx \
+            src/utils/explorerApi.js \
+            src/utils/explorerData.js \
+            src/utils/aekoRpcClient.js \
+            src/utils/aekoWsClient.js \
+            src/utils/testConsoleApi.js \
+            src/utils/aekoRpcClient.test.js \
+            src/utils/aekoWsClient.test.js \
+            src/utils/explorerData.test.js \
+            src/utils/explorerSourcePolicy.test.js \
+            src/utils/networkConsoleContract.test.js
+          npm run build
+
       - name: Validate Node Social SDK wire contract
         working-directory: apps/sdk/node
         run: |

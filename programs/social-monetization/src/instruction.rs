@@ -62,6 +62,7 @@ pub fn send_creator_tip(
     program_id: &Pubkey,
     state_pubkey: &Pubkey,
     sender_pubkey: &Pubkey,
+    treasury_pubkey: &Pubkey,
     record: CreatorTipRecord,
 ) -> Instruction {
     Instruction::new_with_borsh(
@@ -69,7 +70,8 @@ pub fn send_creator_tip(
         &SocialMonetizationInstruction::SendCreatorTip { record },
         vec![
             AccountMeta::new(*state_pubkey, false),
-            AccountMeta::new_readonly(*sender_pubkey, true),
+            AccountMeta::new(*sender_pubkey, true),
+            AccountMeta::new(*treasury_pubkey, false),
         ],
     )
 }
@@ -78,6 +80,7 @@ pub fn create_subscription(
     program_id: &Pubkey,
     state_pubkey: &Pubkey,
     subscriber_pubkey: &Pubkey,
+    treasury_pubkey: &Pubkey,
     record: SubscriptionRecord,
 ) -> Instruction {
     Instruction::new_with_borsh(
@@ -85,7 +88,8 @@ pub fn create_subscription(
         &SocialMonetizationInstruction::CreateSubscription { record },
         vec![
             AccountMeta::new(*state_pubkey, false),
-            AccountMeta::new_readonly(*subscriber_pubkey, true),
+            AccountMeta::new(*subscriber_pubkey, true),
+            AccountMeta::new(*treasury_pubkey, false),
         ],
     )
 }
@@ -94,6 +98,7 @@ pub fn renew_subscription(
     program_id: &Pubkey,
     state_pubkey: &Pubkey,
     subscriber_pubkey: &Pubkey,
+    treasury_pubkey: &Pubkey,
     subscription_id: [u8; 32],
     valid_until_unix: i64,
 ) -> Instruction {
@@ -105,7 +110,8 @@ pub fn renew_subscription(
         },
         vec![
             AccountMeta::new(*state_pubkey, false),
-            AccountMeta::new_readonly(*subscriber_pubkey, true),
+            AccountMeta::new(*subscriber_pubkey, true),
+            AccountMeta::new(*treasury_pubkey, false),
         ],
     )
 }
@@ -130,6 +136,7 @@ pub fn unlock_paid_content(
     program_id: &Pubkey,
     state_pubkey: &Pubkey,
     buyer_pubkey: &Pubkey,
+    treasury_pubkey: &Pubkey,
     record: PaidContentUnlockRecord,
 ) -> Instruction {
     Instruction::new_with_borsh(
@@ -137,7 +144,8 @@ pub fn unlock_paid_content(
         &SocialMonetizationInstruction::UnlockPaidContent { record },
         vec![
             AccountMeta::new(*state_pubkey, false),
-            AccountMeta::new_readonly(*buyer_pubkey, true),
+            AccountMeta::new(*buyer_pubkey, true),
+            AccountMeta::new(*treasury_pubkey, false),
         ],
     )
 }
@@ -156,8 +164,8 @@ pub fn claim_monetization_payout(
         &SocialMonetizationInstruction::ClaimMonetizationPayout { creator, amount },
         vec![
             AccountMeta::new(*state_pubkey, false),
-            AccountMeta::new(*treasury_pubkey, false),    // source of lamports
-            AccountMeta::new(*destination_pubkey, false), // creator's wallet
+            AccountMeta::new(*treasury_pubkey, false),
+            AccountMeta::new(*destination_pubkey, false),
             AccountMeta::new_readonly(*authority_pubkey, true),
         ],
     )

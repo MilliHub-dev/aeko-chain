@@ -1,17 +1,3 @@
-//! Response envelope shared by every handler:
-//!
-//! ```json
-//! {
-//!   "data": <T>,
-//!   "meta": { "cursor": null, "nextCursor": null, "network": "...", "source": "indexer" }
-//! }
-//! ```
-//!
-//! The shape is identical to what the pre-axum hyper layer returned, so the
-//! web UI keeps working without changes. `cursor`/`nextCursor` are wired up
-//! as `null` for now — they exist in the schema so paginating endpoints can
-//! fill them in once the durable store lands without breaking the contract.
-
 use {
     axum::Json,
     serde::Serialize,
