@@ -25,6 +25,7 @@ import {
 import { buildSignedAnchorPostTx, randomBytes32, sha256 } from '../utils/aekoSocial';
 import { buildEngagementTx, buildOpenStakeTx, buildTipTx } from '../utils/aekoSocialActions';
 import {
+  encodeBase58,
   generateTestWallet,
   loadWallets,
   saveWallets,
@@ -173,14 +174,15 @@ export default function SocialTestV2() {
   async function runPost(target, resolvedRegistry) {
     updateStep('post', 'running', 'Submitting a signed Social post and waiting for Explorer indexing.');
     const recentBlockhash = await getLatestBlockhash(rpcUrl);
-    const postId = randomBytes32();
+    const postIdBytes = randomBytes32();
+    const postId = encodeBase58(postIdBytes);
     const contentUri = `AEKO Social E2E ${Date.now()}`;
     const transaction = buildSignedAnchorPostTx({
       creatorWallet: target,
       stateAccount: resolvedRegistry.posts,
       antiSpamStateAccount: resolvedRegistry.antiSpam,
       recentBlockhash,
-      postId,
+      postId: postIdBytes,
       contentHash: await sha256(contentUri),
       metadataHash: await sha256(JSON.stringify({ test: 'social-e2e-custody' })),
       contentUri,
