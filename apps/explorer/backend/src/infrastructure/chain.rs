@@ -680,12 +680,12 @@ fn account_data_bytes(account: &Value) -> Result<Vec<u8>> {
 }
 
 fn deserialize_exact_padded<T: BorshDeserialize>(data: &[u8]) -> Option<T> {
-    let end = data
-        .iter()
-        .rposition(|byte| *byte != 0)
-        .map(|index| index + 1)
-        .unwrap_or(0);
-    T::try_from_slice(&data[..end]).ok()
+    let mut input = data;
+    let value = T::deserialize(&mut input).ok()?;
+    if input.iter().any(|byte| *byte != 0) {
+        return None;
+    }
+    Some(value)
 }
 
 fn required_str<'a>(value: &'a Value, key: &str, context: &str) -> Result<&'a str> {
@@ -714,6 +714,37 @@ fn mint_policy_label(policy: MintPolicy) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Debug, PartialEq, borsh::BorshSerialize, borsh::BorshDeserialize)]
+    struct EndsWithEmptyVec {
+        prefix: u8,
+        items: Vec<u8>,
+    }
+
+    #[test]
+    fn padded_borsh_decoder_preserves_legitimate_trailing_zero_bytes() {
+        let value = EndsWithEmptyVec {
+            prefix: 7,
+            items: Vec::new(),
+        };
+        let mut data = borsh::to_vec(&value).unwrap();
+        assert!(data.ends_with(&[0, 0, 0, 0]));
+        data.resize(64, 0);
+
+        assert_eq!(deserialize_exact_padded::<EndsWithEmptyVec>(&data), Some(value));
+    }
+
+    #[test]
+    fn padded_borsh_decoder_rejects_non_zero_unread_bytes() {
+        let value = EndsWithEmptyVec {
+            prefix: 7,
+            items: Vec::new(),
+        };
+        let mut data = borsh::to_vec(&value).unwrap();
+        data.extend_from_slice(&[0, 0, 9]);
+
+        assert!(deserialize_exact_padded::<EndsWithEmptyVec>(&data).is_none());
+    }
 
     #[test]
     fn malformed_block_fields_are_errors_not_defaults() {
