@@ -6,6 +6,20 @@ name: aeko-public-network
 #   AEKO_PUBLIC_IP=<public address advertised by validator>
 #   AEKO_KEYS_DIR=../files/aeko-keys
 #   EXPLORER_DATABASE_URL=postgres://...
+#
+# Low-resource Dokploy defaults target small test servers. The validator keeps
+# only a bounded recent blockstore; the Explorer PostgreSQL database is the
+# durable historical query store. On a ~45GB host, EXPLORER_DATABASE_URL should
+# point to managed/external PostgreSQL or storage that is not competing with the
+# validator root disk. AEKO_VALIDATOR_LEDGER_VOLUME may be set to an absolute
+# host path such as /mnt/aeko-ledger when a separate Scaleway block volume is
+# attached.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: ${AEKO_LOG_MAX_SIZE:-10m}
+    max-file: ${AEKO_LOG_MAX_FILES:-3}
 
 services:
   key-preflight:
@@ -36,6 +50,7 @@ services:
         echo "AEKO key preflight complete"
     volumes:
       - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
+    logging: *default-logging
     networks: [aeko]
 
   faucet:
@@ -52,6 +67,7 @@ services:
         condition: service_completed_successfully
     expose:
       - "9900"
+    logging: *default-logging
     networks: [aeko]
 
   validator:
@@ -71,6 +87,18 @@ services:
       AEKO_GOSSIP_PORT: "8001"
       AEKO_DYNAMIC_PORT_RANGE: 8000-8050
       AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}
+
+      # Constrained testnet profile. 8m shreds is roughly a ~16GB blockstore
+      # target at ~2KB/shred before RocksDB overhead. This is retention, not an
+      # exact byte quota. The validator still preserves current AccountsDB and
+      # snapshots required to continue the chain.
+      AEKO_LEDGER_LIMIT: ${AEKO_LEDGER_LIMIT:-8000000}
+      AEKO_MAX_FULL_SNAPSHOTS: ${AEKO_MAX_FULL_SNAPSHOTS:-1}
+      AEKO_MAX_INCREMENTAL_SNAPSHOTS: ${AEKO_MAX_INCREMENTAL_SNAPSHOTS:-1}
+      AEKO_ACCOUNTS_SHRINK_OPTIMIZE_TOTAL_SPACE: ${AEKO_ACCOUNTS_SHRINK_OPTIMIZE_TOTAL_SPACE:-true}
+      AEKO_ACCOUNTS_DB_CACHE_LIMIT_MB: ${AEKO_ACCOUNTS_DB_CACHE_LIMIT_MB:-512}
+      AEKO_ACCOUNTS_INDEX_MEMORY_LIMIT_MB: ${AEKO_ACCOUNTS_INDEX_MEMORY_LIMIT_MB:-512}
+      AEKO_MIN_FREE_DISK_KB: ${AEKO_MIN_FREE_DISK_KB:-2097152}
     ulimits:
       nofile:
         soft: 1000000
@@ -82,7 +110,7 @@ services:
       - "8899"
       - "8900"
     volumes:
-      - validator-ledger:/ledger
+      - ${AEKO_VALIDATOR_LEDGER_VOLUME:-validator-ledger}:/ledger
       - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
     depends_on:
       key-preflight:
@@ -93,6 +121,7 @@ services:
       test:
         - CMD-SHELL
         - >-
+          test "$$(df -Pk /ledger | awk 'NR==2 {print $$4}')" -ge "$${AEKO_MIN_FREE_DISK_KB:-2097152}" &&
           curl -fsS -X POST -H 'Content-Type: application/json'
           -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
           http://127.0.0.1:8899 | grep -q '"result":"ok"'
@@ -100,6 +129,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 120s
+    stop_grace_period: 2m
+    logging: *default-logging
     networks: [aeko]
 
   social-bootstrap:
@@ -123,6 +154,7 @@ services:
         condition: service_healthy
       key-preflight:
         condition: service_completed_successfully
+    logging: *default-logging
     networks: [aeko]
 
   explorer-api:
@@ -169,6 +201,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 90s
+    logging: *default-logging
     networks: [aeko]
 
   explorer-ui:
@@ -190,6 +223,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    logging: *default-logging
     networks: [aeko]
 
   wallet-tools:
@@ -199,6 +233,7 @@ services:
     command: ["aeko", "--help"]
     volumes:
       - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys
+    logging: *default-logging
     networks: [aeko]
 
 networks:
