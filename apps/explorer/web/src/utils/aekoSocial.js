@@ -15,7 +15,7 @@
 //   `SocialPostsStateAccount { is_initialized, config, posts: Vec<PostAnchor>,
 //   engagement_proofs: Vec<EngagementProof> }`. We decode that blob
 //   directly to render the timeline.
-import { encodeBase58, getSecretKeyBytes, signMessage } from './aekoTestKeypair';
+import { encodeBase58, getSecretKeyBytes, signMessage } from './aekoTestKeypair.js';
 
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
