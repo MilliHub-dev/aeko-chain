@@ -66,8 +66,15 @@ export function fetchSocialRegistry(baseUrl) {
   return fetchConsoleApi(baseUrl, '/registry/social');
 }
 
-export function fetchWalletProfile(baseUrl, address) {
-  return fetchConsoleApi(baseUrl, `/accounts/${encodeURIComponent(address)}`);
+export async function fetchWalletProfile(baseUrl, address) {
+  const detail = await fetchConsoleApi(baseUrl, `/accounts/${encodeURIComponent(address)}`);
+  return {
+    ...detail,
+    tokenCount: detail?.profile?.tokenCount ?? null,
+    nftCount: detail?.profile?.nftCount ?? null,
+    reputationScore: detail?.profile?.reputationScore ?? null,
+    nativeBalance: detail?.profile?.nativeBalance ?? detail?.account?.lamports ?? null,
+  };
 }
 
 export async function fetchSocialProjection(baseUrl, { wallet = '', creator = '', limit = 50 } = {}) {
