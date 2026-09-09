@@ -65,6 +65,7 @@ function concatBytes(...parts) {
 }
 
 function encodeShortVec(n) {
+  // Compact-u16 / shortvec — 7 bits per byte, MSB = continuation.
   const out = [];
   let remaining = n >>> 0;
   while (true) {
@@ -98,38 +99,36 @@ function encodeBase64(bytes) {
 /**
  * Build, sign, and base64-encode a legacy single-instruction transfer.
  *
- * Existing callers use `fromWallet`/`toAddress`. The explicit
- * `senderWallet`/`recipient` aliases are accepted for UI call sites so the
- * transaction contract remains backwards compatible instead of being
- * duplicated in another signer.
+ * @param {object} args
+ * @param {{address:string,secretKeyB64:string}} args.fromWallet  Sender (also fee payer).
+ * @param {string} args.toAddress                                 Recipient base58 pubkey.
+ * @param {number} args.lamports                                  Amount in lamports.
+ * @param {string} args.recentBlockhash                           Fresh blockhash from RPC.
+ * @returns {string}                                              Base64-encoded signed tx.
  */
-export function buildSignedTransfer({
-  fromWallet,
-  senderWallet,
-  toAddress,
-  recipient,
-  lamports,
-  recentBlockhash,
-}) {
-  const effectiveWallet = fromWallet || senderWallet;
-  const effectiveRecipient = toAddress || recipient;
-  const fromBytes = decodeBase58(effectiveWallet?.address);
-  const toBytes = decodeBase58(effectiveRecipient);
+export function buildSignedTransfer({ fromWallet, toAddress, lamports, recentBlockhash }) {
+  const fromBytes = decodeBase58(fromWallet.address);
+  const toBytes = decodeBase58(toAddress);
   const blockhashBytes = decodeBase58(recentBlockhash);
 
+  // Account ordering: signer-writable first (fee payer), then writable, then
+  // readonly. For this single instruction: from (signer+writable), to
+  // (writable), system_program (readonly). The validator rejects the tx if
+  // the header counts don't match the actual ordering, so this is rigid.
   const accountKeys = [fromBytes, toBytes, SYSTEM_PROGRAM_ID];
   const header = Uint8Array.from([
-    1,
-    0,
-    1,
+    1, // num_required_signatures
+    0, // num_readonly_signed
+    1, // num_readonly_unsigned (system_program only)
   ]);
 
+  // System Program transfer: tag=2 u32 LE, lamports u64 LE.
   const instructionData = concatBytes(encodeU32LE(2), encodeU64LE(lamports));
 
   const compiledInstruction = concatBytes(
-    Uint8Array.from([2]),
+    Uint8Array.from([2]), // program_id_index → index of SYSTEM_PROGRAM_ID in accountKeys
     encodeShortVec(2),
-    Uint8Array.from([0, 1]),
+    Uint8Array.from([0, 1]), // from, to indices
     encodeShortVec(instructionData.length),
     instructionData,
   );
@@ -143,11 +142,14 @@ export function buildSignedTransfer({
     compiledInstruction,
   );
 
-  const signature = signMessage(effectiveWallet, messageBytes);
+  // Sign the message bytes with the sender's secret key.
+  const signature = signMessage(fromWallet, messageBytes);
+
   const signatureSection = concatBytes(encodeShortVec(1), signature);
   return encodeBase64(concatBytes(signatureSection, messageBytes));
 }
 
+// Useful sanity helper for tests / debugging.
 export function ensureSecretKeyMatchesAddress(wallet) {
   const sk = getSecretKeyBytes(wallet);
   const derivedPub = sk.slice(32);
