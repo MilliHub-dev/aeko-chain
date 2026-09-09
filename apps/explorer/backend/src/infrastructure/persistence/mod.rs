@@ -118,6 +118,23 @@ impl PostgresRepository {
         .context("reading Explorer chain identity")
     }
 
+    pub async fn latest_persisted_block_identity(&self) -> Result<Option<(u64, String)>> {
+        let row: Option<(i64, String)> = sqlx::query_as(
+            "SELECT slot, blockhash FROM blocks ORDER BY slot DESC LIMIT 1",
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context("reading latest persisted block identity")?;
+        match row {
+            Some((slot, blockhash)) if slot >= 0 && !blockhash.is_empty() => {
+                Ok(Some((slot as u64, blockhash)))
+            }
+            Some((slot, _)) if slot < 0 => Err(anyhow!("persisted block slot is negative: {slot}")),
+            Some((slot, _)) => Err(anyhow!("persisted block {slot} has an empty blockhash")),
+            None => Ok(None),
+        }
+    }
+
     pub async fn next_core_slot(&self, configured_start_slot: u64) -> Result<u64> {
         let row: Option<i64> = sqlx::query_scalar("SELECT next_slot FROM indexer_cursors WHERE stream = 'core'").fetch_optional(&self.pool).await.context("reading core indexer cursor")?;
         match row {
