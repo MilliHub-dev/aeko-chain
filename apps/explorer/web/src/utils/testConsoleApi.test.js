@@ -61,6 +61,14 @@ test('loads every durable Social projection without inventing local records', as
     assert.ok(urls.some((url) => url.includes('/social/unlocks')));
     assert.ok(urls.some((url) => url.includes('/social/revenues')));
     assert.ok(urls.every((url) => !url.includes('limit=999')));
+
+    const engagementUrl = urls.find((url) => url.includes('/engagement'));
+    assert.ok(engagementUrl);
+    assert.ok(engagementUrl.includes('creator=Creator456'));
+    assert.ok(!engagementUrl.includes('actor=Wallet123'));
+
+    assert.ok(urls.some((url) => url.includes('/stakes') && url.includes('wallet=Wallet123')));
+    assert.ok(urls.some((url) => url.includes('/social/anti-spam') && url.includes('wallet=Wallet123')));
   } finally {
     globalThis.fetch = originalFetch;
   }
