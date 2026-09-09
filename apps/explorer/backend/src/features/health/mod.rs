@@ -19,8 +19,15 @@ struct ReadinessStatus {
     rpc: &'static str,
     latest_chain_slot: Option<u64>,
     latest_indexed_slot: Option<u64>,
-    lag_slots: Option<u64>,
+    index_lag_slots: Option<u64>,
     chain_behind_indexer: bool,
+    latest_asset_slot: Option<u64>,
+    asset_lag_slots: Option<u64>,
+    chain_behind_assets: bool,
+    latest_social_slot: Option<u64>,
+    social_lag_slots: Option<u64>,
+    chain_behind_social: bool,
+    social_required: bool,
     max_ready_lag_slots: u64,
 }
 
@@ -42,16 +49,17 @@ async fn readiness(State(state): State<SharedState>) -> Response {
         tracing::warn!(error = ?error, "readiness PostgreSQL check failed");
     }
 
-    let latest_indexed_slot = if database_result.is_ok() {
-        match state.repository.latest_indexed_slot().await {
-            Ok(value) => value,
-            Err(error) => {
-                tracing::warn!(error = ?error, "readiness cursor check failed");
-                None
-            }
-        }
+    let (latest_indexed_slot, latest_asset_slot, latest_social_slot) = if database_result.is_ok() {
+        let core = state.repository.latest_indexed_slot().await;
+        let assets = state.repository.latest_projection_slot("assets").await;
+        let social = state.repository.latest_projection_slot("social").await;
+        (
+            log_cursor_result("core", core),
+            log_cursor_result("assets", assets),
+            log_cursor_result("social", social),
+        )
     } else {
-        None
+        (None, None, None)
     };
 
     let rpc = state.rpc.clone();
@@ -72,30 +80,30 @@ async fn readiness(State(state): State<SharedState>) -> Response {
         }
     };
 
-    let chain_behind_indexer = latest_chain_slot
-        .zip(latest_indexed_slot)
-        .is_some_and(|(chain, indexed)| chain < indexed);
-    if chain_behind_indexer {
-        tracing::error!(
-            latest_chain_slot = ?latest_chain_slot,
-            latest_indexed_slot = ?latest_indexed_slot,
-            "readiness rejected because validator chain is behind durable Explorer history"
-        );
-    }
-    let lag_slots = readiness_lag(latest_chain_slot, latest_indexed_slot);
+    let core = projection_readiness(latest_chain_slot, latest_indexed_slot, state.max_ready_lag_slots);
+    let assets = projection_readiness(latest_chain_slot, latest_asset_slot, state.max_ready_lag_slots);
+    let social = projection_readiness(latest_chain_slot, latest_social_slot, state.max_ready_lag_slots);
+
     let ready = database_result.is_ok()
         && latest_chain_slot.is_some()
-        && latest_indexed_slot.is_some()
-        && !chain_behind_indexer
-        && lag_slots.is_some_and(|lag| lag <= state.max_ready_lag_slots);
+        && core.ready
+        && assets.ready
+        && (!state.social_enabled || social.ready);
     let status = ReadinessStatus {
         ok: ready,
         database: if database_result.is_ok() { "ready" } else { "unavailable" },
         rpc: if latest_chain_slot.is_some() { "ready" } else { "unavailable" },
         latest_chain_slot,
         latest_indexed_slot,
-        lag_slots,
-        chain_behind_indexer,
+        index_lag_slots: core.lag,
+        chain_behind_indexer: core.chain_behind,
+        latest_asset_slot,
+        asset_lag_slots: assets.lag,
+        chain_behind_assets: assets.chain_behind,
+        latest_social_slot,
+        social_lag_slots: social.lag,
+        chain_behind_social: social.chain_behind,
+        social_required: state.social_enabled,
         max_ready_lag_slots: state.max_ready_lag_slots,
     };
     let body = response::data_from_source(&state.network, status, "readiness");
@@ -106,20 +114,65 @@ async fn readiness(State(state): State<SharedState>) -> Response {
         .into_response()
 }
 
-fn readiness_lag(latest_chain_slot: Option<u64>, latest_indexed_slot: Option<u64>) -> Option<u64> {
-    latest_chain_slot
-        .zip(latest_indexed_slot)
-        .and_then(|(chain, indexed)| chain.checked_sub(indexed))
+fn log_cursor_result(stream: &str, result: anyhow::Result<Option<u64>>) -> Option<u64> {
+    match result {
+        Ok(value) => value,
+        Err(error) => {
+            tracing::warn!(stream, error = ?error, "readiness projection cursor check failed");
+            None
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ProjectionReadiness {
+    lag: Option<u64>,
+    chain_behind: bool,
+    ready: bool,
+}
+
+fn projection_readiness(
+    latest_chain_slot: Option<u64>,
+    latest_projection_slot: Option<u64>,
+    max_ready_lag_slots: u64,
+) -> ProjectionReadiness {
+    match (latest_chain_slot, latest_projection_slot) {
+        (Some(chain), Some(projection)) if projection > chain => ProjectionReadiness {
+            lag: None,
+            chain_behind: true,
+            ready: false,
+        },
+        (Some(chain), Some(projection)) => {
+            let lag = chain - projection;
+            ProjectionReadiness {
+                lag: Some(lag),
+                chain_behind: false,
+                ready: lag <= max_ready_lag_slots,
+            }
+        }
+        _ => ProjectionReadiness {
+            lag: None,
+            chain_behind: false,
+            ready: false,
+        },
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::readiness_lag;
+    use super::projection_readiness;
 
     #[test]
-    fn readiness_lag_rejects_a_chain_behind_the_indexer() {
-        assert_eq!(readiness_lag(Some(99), Some(100)), None);
-        assert_eq!(readiness_lag(Some(100), Some(100)), Some(0));
-        assert_eq!(readiness_lag(Some(105), Some(100)), Some(5));
+    fn projection_readiness_fails_closed_for_missing_stale_and_regressed_state() {
+        assert!(!projection_readiness(Some(100), None, 10).ready);
+        let fresh = projection_readiness(Some(100), Some(95), 10);
+        assert!(fresh.ready);
+        assert_eq!(fresh.lag, Some(5));
+        let stale = projection_readiness(Some(100), Some(80), 10);
+        assert!(!stale.ready);
+        assert_eq!(stale.lag, Some(20));
+        let regression = projection_readiness(Some(100), Some(101), 10);
+        assert!(!regression.ready);
+        assert!(regression.chain_behind);
     }
 }
