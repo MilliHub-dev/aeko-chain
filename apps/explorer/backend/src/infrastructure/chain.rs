@@ -139,6 +139,9 @@ impl RpcChainClient {
             ]),
         )?;
         let Some(block) = block else {
+            // A finalized slot can legitimately be skipped. Advancing the
+            // durable cursor over a null getBlock is correct; inventing an
+            // empty block record is not.
             return Ok(CoreSlotRecord {
                 slot,
                 ..CoreSlotRecord::default()
