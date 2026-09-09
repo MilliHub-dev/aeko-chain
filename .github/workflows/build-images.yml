@@ -125,7 +125,11 @@ jobs:
             local tags=()
             local image
             if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-              tags+=(--tag "aeko-ci/${target}:${SHA_TAG}")
+              # Use the same role names consumed by docker-compose.yml so the
+              # exact images built for the PR can be booted for dogfood.
+              for image in "$@"; do
+                tags+=(--tag "aeko-ci/${image}:${SHA_TAG}")
+              done
             else
               for image in "$@"; do
                 tags+=(--tag "${REGISTRY_USER}/${image}:latest")
@@ -147,3 +151,88 @@ jobs:
           build_target tools aeko-tools
           build_target explorer-api aeko-explorer-api aeko-explorer-backend
           build_target explorer-ui aeko-explorer-ui
+
+      - name: Dogfood PR-built network read path
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA_TAG="${GITHUB_SHA::12}"
+          export AEKO_IMAGE_REPOSITORY=aeko-ci
+          export AEKO_IMAGE_TAG="$SHA_TAG"
+          export AEKO_KEYS_DIR="$PWD/local-testnet"
+          export EXPLORER_DATABASE_URL='postgres://aeko:aeko@postgres:5432/aeko_explorer_ci'
+
+          cleanup() {
+            docker rm -f aeko-ci-postgres >/dev/null 2>&1 || true
+            docker compose -f docker-compose.yml down -v >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          mkdir -p "$AEKO_KEYS_DIR"
+          for key in faucet-keypair stake-keypair validator-1-keypair vote-1-keypair rpc-node-keypair; do
+            docker run --rm \
+              -v "$AEKO_KEYS_DIR:/keys" \
+              "aeko-ci/aeko-tools:${SHA_TAG}" \
+              aeko-keygen new --no-bip39-passphrase --silent --outfile "/keys/${key}.json"
+          done
+
+          # Starting faucet creates the canonical Compose network. Attach an
+          # isolated PostgreSQL instance to that same network so Explorer uses
+          # a real database without adding PostgreSQL to the production stack.
+          docker compose -f docker-compose.yml up -d faucet
+          COMPOSE_NETWORK=$(docker inspect aeko-faucet --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{end}}')
+          test -n "$COMPOSE_NETWORK"
+          docker run -d --name aeko-ci-postgres \
+            --network "$COMPOSE_NETWORK" \
+            --network-alias postgres \
+            -e POSTGRES_USER=aeko \
+            -e POSTGRES_PASSWORD=aeko \
+            -e POSTGRES_DB=aeko_explorer_ci \
+            postgres:16-alpine >/dev/null
+
+          for _ in $(seq 1 30); do
+            if docker exec aeko-ci-postgres pg_isready -U aeko -d aeko_explorer_ci >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          docker exec aeko-ci-postgres pg_isready -U aeko -d aeko_explorer_ci
+
+          docker compose -f docker-compose.yml up -d validator social-bootstrap explorer-api explorer-ui
+
+          RPC_READY=0
+          for _ in $(seq 1 90); do
+            HEALTH=$(curl -sS --max-time 3 -X POST -H 'Content-Type: application/json' \
+              -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' \
+              http://127.0.0.1:8899 2>/dev/null || true)
+            if printf '%s' "$HEALTH" | grep -q '"result":"ok"'; then
+              RPC_READY=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$RPC_READY" -ne 1 ]; then
+            docker logs --tail 120 aeko-validator || true
+            exit 1
+          fi
+
+          API_READY=0
+          for _ in $(seq 1 120); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8088/health >/dev/null 2>&1; then
+              API_READY=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$API_READY" -ne 1 ]; then
+            docker logs --tail 120 aeko-social-bootstrap || true
+            docker logs --tail 120 aeko-explorer-api || true
+            exit 1
+          fi
+
+          AEKO_RPC_URL=http://127.0.0.1:8899 \
+          AEKO_EXPLORER_API_URL=http://127.0.0.1:8088 \
+            python3 scripts/smoke-aeko-social.py
+
+          curl -fsS http://127.0.0.1:4000/ >/dev/null
