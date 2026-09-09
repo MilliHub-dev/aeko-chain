@@ -1,5 +1,9 @@
 use {
-    crate::{response, state::SharedState},
+    crate::{
+        error::ApiResult,
+        response::{self, DataEnvelope},
+        state::SharedState,
+    },
     axum::{
         extract::State,
         http::StatusCode,
@@ -31,16 +35,93 @@ struct ReadinessStatus {
     max_ready_lag_slots: u64,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExplorerOverviewStatus {
+    rpc_available: bool,
+    latest_chain_slot: Option<u64>,
+    latest_indexed_slot: Option<u64>,
+    index_lag_slots: Option<u64>,
+    latest_asset_slot: Option<u64>,
+    asset_lag_slots: Option<u64>,
+    latest_social_slot: Option<u64>,
+    social_lag_slots: Option<u64>,
+    indexed_blocks: u64,
+    indexed_transactions: u64,
+    indexed_tokens: u64,
+    indexed_nfts: u64,
+    indexed_posts: u64,
+    indexed_stakes: u64,
+}
+
 pub fn router() -> Router<SharedState> {
     Router::new()
         .route("/", get(liveness))
         .route("/health", get(readiness))
+        .route("/overview", get(overview))
 }
 
 async fn liveness(
     State(state): State<SharedState>,
 ) -> Json<response::DataEnvelope<serde_json::Value>> {
     response::data_from_source(&state.network, json!({ "ok": true }), "process")
+}
+
+async fn overview(
+    State(state): State<SharedState>,
+) -> ApiResult<Json<DataEnvelope<ExplorerOverviewStatus>>> {
+    let counts = state.repository.explorer_overview_counts().await?;
+    let latest_indexed_slot = state.repository.latest_indexed_slot().await?;
+    let latest_asset_slot = state.repository.latest_projection_slot("assets").await?;
+    let latest_social_slot = state.repository.latest_projection_slot("social").await?;
+
+    let rpc = state.rpc.clone();
+    let latest_chain_slot = match tokio::task::spawn_blocking(move || {
+        rpc.health()?;
+        rpc.latest_slot()
+    })
+    .await
+    {
+        Ok(Ok(slot)) => Some(slot),
+        Ok(Err(error)) => {
+            tracing::warn!(error = ?error, "Explorer overview validator RPC check failed");
+            None
+        }
+        Err(error) => {
+            tracing::error!(error = %error, "Explorer overview validator RPC worker panicked");
+            None
+        }
+    };
+
+    let core = projection_readiness(latest_chain_slot, latest_indexed_slot, state.max_ready_lag_slots);
+    let assets = projection_readiness(latest_chain_slot, latest_asset_slot, state.max_ready_lag_slots);
+    let social = projection_readiness(latest_chain_slot, latest_social_slot, state.max_ready_lag_slots);
+    let source = if latest_chain_slot.is_some() {
+        "rpc+indexer"
+    } else {
+        "indexer-degraded"
+    };
+
+    Ok(response::data_from_source(
+        &state.network,
+        ExplorerOverviewStatus {
+            rpc_available: latest_chain_slot.is_some(),
+            latest_chain_slot,
+            latest_indexed_slot,
+            index_lag_slots: core.lag,
+            latest_asset_slot,
+            asset_lag_slots: assets.lag,
+            latest_social_slot,
+            social_lag_slots: social.lag,
+            indexed_blocks: counts.indexed_blocks,
+            indexed_transactions: counts.indexed_transactions,
+            indexed_tokens: counts.indexed_tokens,
+            indexed_nfts: counts.indexed_nfts,
+            indexed_posts: counts.indexed_posts,
+            indexed_stakes: counts.indexed_stakes,
+        },
+        source,
+    ))
 }
 
 async fn readiness(State(state): State<SharedState>) -> Response {
