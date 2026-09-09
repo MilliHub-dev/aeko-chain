@@ -27,6 +27,11 @@ pub fn fetch_genesis_hash(config: &ExplorerBackendConfig) -> Result<String> {
     Ok(genesis_hash)
 }
 
+pub fn fetch_first_available_block(config: &ExplorerBackendConfig) -> Result<u64> {
+    rpc_request(config, "getFirstAvailableBlock", json!([]))
+        .context("reading validator first available block")
+}
+
 pub fn fetch_finalized_blockhash(
     config: &ExplorerBackendConfig,
     slot: u64,
