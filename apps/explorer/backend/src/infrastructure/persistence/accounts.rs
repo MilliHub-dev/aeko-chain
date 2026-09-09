@@ -17,7 +17,6 @@ impl PostgresRepository {
         &self,
         address: &str,
         native_balance: Option<u64>,
-        reputation_score: Option<u16>,
     ) -> Result<WalletProfileRecord> {
         let token_count: i64 = sqlx::query_scalar(
             "SELECT COUNT(DISTINCT mint) FROM token_accounts WHERE owner = $1 AND balance <> '0'",
@@ -33,6 +32,7 @@ impl PostgresRepository {
         .fetch_one(&self.pool)
         .await
         .context("counting account NFT holdings")?;
+        let reputation_score = self.reputation_score(address).await?;
 
         Ok(WalletProfileRecord {
             address: address.to_string(),
@@ -46,11 +46,10 @@ impl PostgresRepository {
     pub async fn get_account_detail_from_chain(
         &self,
         account: ChainAccountRecord,
-        reputation_score: Option<u16>,
         limit: usize,
     ) -> Result<AccountDetailRecord> {
         let profile = self
-            .build_wallet_profile(&account.address, Some(account.lamports), reputation_score)
+            .build_wallet_profile(&account.address, Some(account.lamports))
             .await?;
         let token_holdings = self
             .list_token_accounts_by_owner(&account.address, limit)
@@ -103,11 +102,10 @@ impl PostgresRepository {
         &self,
         address: &str,
         native_balance: Option<u64>,
-        reputation_score: Option<u16>,
         limit: usize,
     ) -> Result<CreatorProfileRecord> {
         let profile = self
-            .build_wallet_profile(address, native_balance, reputation_score)
+            .build_wallet_profile(address, native_balance)
             .await?;
         let post_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM posts WHERE creator = $1")
             .bind(address)
