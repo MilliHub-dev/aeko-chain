@@ -1,6 +1,9 @@
-import { getSlot } from './aekoRpcClient';
+import { getFinalizedSlot } from './aekoRpcClient';
 import { normalizeSearchMatches } from './explorerData';
 import { getNetworkConfig } from './networkConfig';
+
+const OVERVIEW_CACHE_MS = 5_000;
+const overviewCache = new Map();
 
 class ExplorerApiError extends Error {
   constructor(message, { status = null, path = '', cause = null } = {}) {
@@ -107,7 +110,7 @@ export function getExplorerAvailability(network) {
   return Boolean(getExplorerApiBase(network));
 }
 
-export async function fetchExplorerOverview(network) {
+async function readExplorerOverview(network) {
   try {
     const payload = await fetchEnvelope('/overview', network);
     return emptyOverview({
@@ -117,10 +120,10 @@ export async function fetchExplorerOverview(network) {
     });
   } catch (error) {
     // Backward-compatible rollout only: if an older Explorer backend does not
-    // yet implement /overview, the UI may read the live slot directly from
-    // the configured public RPC. A backend outage (5xx/network failure) is NOT
-    // silently bypassed, because the Explorer backend remains authoritative
-    // for indexed history and aggregates.
+    // yet implement /overview, the UI may read the finalized live slot
+    // directly from the configured public RPC. A backend outage (5xx/network
+    // failure) is NOT silently bypassed, because the Explorer backend remains
+    // authoritative for indexed history and aggregates.
     if (!overviewEndpointUnsupported(error)) {
       throw error;
     }
@@ -134,7 +137,7 @@ export async function fetchExplorerOverview(network) {
     }
 
     try {
-      const latestChainSlot = await getSlot(rpcUrl);
+      const latestChainSlot = await getFinalizedSlot(rpcUrl);
       return emptyOverview({
         dataSource: 'rpc-live-fallback',
         rpcAvailable: true,
@@ -150,10 +153,22 @@ export async function fetchExplorerOverview(network) {
   }
 }
 
+export async function fetchExplorerOverview(network) {
+  const cached = overviewCache.get(network);
+  if (cached && Date.now() - cached.receivedAt < OVERVIEW_CACHE_MS) {
+    return cached.value;
+  }
+
+  const value = await readExplorerOverview(network);
+  overviewCache.set(network, { receivedAt: Date.now(), value });
+  return value;
+}
+
 export async function fetchExplorerHome(network, filters = {}) {
   // Overview is informative and additive. If it is unavailable, preserve the
   // primary indexed lists rather than turning a dashboard-summary failure into
-  // a total Explorer outage.
+  // a total Explorer outage. The short cache also keeps filter changes from
+  // repeatedly running global count queries against PostgreSQL.
   const overviewPromise = fetchExplorerOverview(network).catch((error) =>
     emptyOverview({
       overviewError: error.message,
