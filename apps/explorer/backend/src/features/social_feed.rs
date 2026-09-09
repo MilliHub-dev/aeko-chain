@@ -7,12 +7,14 @@ use {
         response::{self, DataEnvelope},
         state::SharedState,
     },
-    axum::{extract::{Query, State}, routing::get, Json, Router},
+    axum::{extract::{Path, Query, State}, routing::get, Json, Router},
     serde::{Deserialize, Serialize},
 };
 
 pub fn router() -> Router<SharedState> {
-    Router::new().route("/social/feed", get(list_feed))
+    Router::new()
+        .route("/social/feed", get(list_feed))
+        .route("/social/threads/:post_id", get(get_thread))
 }
 
 #[derive(Debug, Deserialize)]
@@ -23,6 +25,9 @@ struct FeedParams {
     limit: Option<usize>,
 }
 
+#[derive(Debug, Deserialize)]
+struct ThreadParams { limit: Option<usize> }
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FeedPage {
@@ -31,21 +36,22 @@ struct FeedPage {
     has_more: bool,
 }
 
-async fn list_feed(
-    State(state): State<SharedState>,
-    Query(params): Query<FeedParams>,
-) -> ApiResult<Json<DataEnvelope<FeedPage>>> {
+async fn list_feed(State(state): State<SharedState>, Query(params): Query<FeedParams>) -> ApiResult<Json<DataEnvelope<FeedPage>>> {
     let limit = clamp_limit(params.limit).min(100);
     let cursor = params.cursor.as_deref().map(parse_cursor).transpose()?;
-    let mut items = state.repository
-        .list_social_feed_page(params.creator.as_deref(), cursor.as_ref(), limit.saturating_add(1))
-        .await?;
+    let mut items = state.repository.list_social_feed_page(params.creator.as_deref(), cursor.as_ref(), limit.saturating_add(1)).await?;
     let has_more = items.len() > limit;
     if has_more { items.truncate(limit); }
-    let next_cursor = if has_more {
-        items.last().map(|post| format_cursor(post.created_at_unix, &post.post_id))
-    } else { None };
+    let next_cursor = if has_more { items.last().map(|post| format_cursor(post.created_at_unix, &post.post_id)) } else { None };
     Ok(response::data(&state.network, FeedPage { items, next_cursor, has_more }))
+}
+
+async fn get_thread(State(state): State<SharedState>, Path(post_id): Path<String>, Query(params): Query<ThreadParams>) -> ApiResult<Json<DataEnvelope<Vec<SocialPostRecord>>>> {
+    let items = state.repository.get_social_thread(&post_id, clamp_limit(params.limit).min(250)).await?;
+    if items.first().map(|post| post.post_id.as_str()) != Some(post_id.as_str()) {
+        return Err(ApiError::NotFound("post"));
+    }
+    Ok(response::data(&state.network, items))
 }
 
 fn parse_cursor(value: &str) -> ApiResult<SocialFeedCursor> {
@@ -54,19 +60,14 @@ fn parse_cursor(value: &str) -> ApiResult<SocialFeedCursor> {
     if post_id.is_empty() { return Err(ApiError::BadRequest("invalid social feed cursor post id".to_string())); }
     Ok(SocialFeedCursor { created_at_unix, post_id: post_id.to_string() })
 }
-
-fn format_cursor(timestamp: i64, post_id: &str) -> String {
-    format!("{timestamp}:{post_id}")
-}
+fn format_cursor(timestamp: i64, post_id: &str) -> String { format!("{timestamp}:{post_id}") }
 
 #[cfg(test)]
 mod tests {
     use super::{format_cursor, parse_cursor};
-
     #[test]
     fn cursor_round_trip_preserves_timestamp_and_tie_breaker() {
-        let value = format_cursor(123, "postABC");
-        let decoded = parse_cursor(&value).expect("cursor");
+        let decoded = parse_cursor(&format_cursor(123, "postABC")).expect("cursor");
         assert_eq!(decoded.created_at_unix, 123);
         assert_eq!(decoded.post_id, "postABC");
     }
