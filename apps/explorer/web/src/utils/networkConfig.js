@@ -38,13 +38,10 @@ function isLoopbackEndpoint(value) {
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
 }
 
-if (hasCompleteLocalOverride) {
-  const locality = localOverrideValues.map(isLoopbackEndpoint);
-  if (!locality.every((value) => value === locality[0])) {
-    throw new Error(
-      'AEKO local endpoint overrides cannot mix localhost and remote services. RPC, WebSocket, and Explorer API must belong to one environment.',
-    );
-  }
+if (hasCompleteLocalOverride && !localOverrideValues.every(isLoopbackEndpoint)) {
+  throw new Error(
+    'VITE_AEKO_LOCAL_* endpoints are loopback-only. Do not hide remote RPC/API hosts behind local variables; use the explicit testnet configuration and VITE_AEKO_ALLOW_REMOTE_IN_DEV=true when remote development is intentional.',
+  );
 }
 
 const forceIsolatedDev =
