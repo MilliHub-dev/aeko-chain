@@ -66,12 +66,12 @@ impl SocialAntiSpamStateAccount {
     }
 
     pub fn deserialize_padded(data: &[u8]) -> Result<Self, ProgramError> {
-        let end = data
-            .iter()
-            .rposition(|byte| *byte != 0)
-            .map(|index| index + 1)
-            .unwrap_or(0);
-        Self::try_from_slice(&data[..end]).map_err(|_| ProgramError::InvalidAccountData)
+        let mut input = data;
+        let value = Self::deserialize(&mut input).map_err(|_| ProgramError::InvalidAccountData)?;
+        if input.iter().any(|byte| *byte != 0) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+        Ok(value)
     }
 
     pub fn profile_for_wallet(&self, wallet: &Pubkey) -> Option<&AntiSpamProfile> {
