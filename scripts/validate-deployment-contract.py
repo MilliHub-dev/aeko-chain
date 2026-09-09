@@ -93,8 +93,9 @@ def main() -> int:
     )
 
     # SocialFi bootstrap must distinguish an incomplete first boot from a
-    # missing state on a previously completed chain. The former may safely
-    # retry the persisted key; the latter is explicit recovery only.
+    # missing state on a previously completed chain. It must also own the
+    # economic vault lifecycle so Social programs never need to debit arbitrary
+    # system-owned user accounts directly.
     require(
         'parse_bool_flag("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE")' in social_bootstrap,
         "SocialFi bootstrap must consume AEKO_BOOTSTRAP_ALLOW_MISSING_STATE",
@@ -104,9 +105,28 @@ def main() -> int:
         "SocialFi bootstrap must fail closed when completed registry state disappears",
     )
     require(
-        "existing initialized state verified; skipping initialization" in social_bootstrap,
+        "existing initialized state verified" in social_bootstrap,
         "SocialFi bootstrap must remain idempotent for already initialized state",
     )
+    for vault_file in (
+        "social-rewards-treasury.json",
+        "social-rewards-vault.json",
+        "social-staking-principal-vault.json",
+        "social-staking-reward-vault.json",
+        "social-monetization-treasury.json",
+    ):
+        require(vault_file in social_bootstrap, f"SocialFi bootstrap missing persisted program-owned vault: {vault_file}")
+    require("ensure_program_vault" in social_bootstrap, "SocialFi bootstrap must verify/create program-owned economic vaults")
+    require("account.owner != *owner" in social_bootstrap, "SocialFi bootstrap must reject vault owner mismatches")
+    require("account.data.is_empty()" in social_bootstrap, "SocialFi economic vaults must remain zero-data custody accounts")
+    for migration in ("update_vaults", "update_treasury"):
+        require(migration in social_bootstrap, f"SocialFi bootstrap must migrate existing protocol state with {migration}")
+    for seed_env in (
+        "AEKO_REWARDS_TREASURY_SEED_LAMPORTS",
+        "AEKO_REWARD_VAULT_SEED_LAMPORTS",
+        "AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS",
+    ):
+        require(seed_env in social_bootstrap, f"SocialFi bootstrap must expose payout-liquidity seed {seed_env}")
 
     # Dokploy is an image-pull deployment contract, never a second build system.
     require(re.search(r"^\s+build:\s*$", dokploy, re.MULTILINE) is None, "Dokploy compose must pull prebuilt images, not build source")
@@ -159,10 +179,26 @@ def main() -> int:
     require("social-state:/state" in bootstrap, "SocialFi state/registry must persist")
     require("AEKO_RPC_URL: http://validator:8899" in bootstrap, "SocialFi bootstrap must use the healthy validator RPC")
     require('restart: "no"' in bootstrap, "SocialFi bootstrap must fail once instead of entering an outer Docker restart storm")
+    for seed_env in (
+        "AEKO_REWARDS_TREASURY_SEED_LAMPORTS",
+        "AEKO_REWARD_VAULT_SEED_LAMPORTS",
+        "AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS",
+    ):
+        require(f"{seed_env}: ${{{seed_env}:-0}}" in bootstrap, f"Dokploy bootstrap must expose {seed_env} with a safe zero default")
+    for obsolete_override in ("AEKO_REWARD_VAULT:", "AEKO_STAKE_VAULT:"):
+        require(obsolete_override not in bootstrap, f"Dokploy bootstrap must not configure obsolete operator-owned vault address {obsolete_override}")
 
     require("AEKO_EXPLORER_RPC: http://validator:8899" in explorer, "public Explorer must index directly through the healthy validator RPC")
     require("EXPLORER_DATABASE_URL:?" in explorer, "public Explorer must require durable PostgreSQL")
     require("AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env" in explorer, "Explorer must consume generated SocialFi registry")
+    for registry_key in (
+        "AEKO_REWARDS_TREASURY_ACCOUNT",
+        "AEKO_REWARD_VAULT_ACCOUNT",
+        "AEKO_STAKE_VAULT_ACCOUNT",
+        "AEKO_STAKE_REWARD_VAULT_ACCOUNT",
+        "AEKO_TREASURY_ADDRESS",
+    ):
+        require(registry_key in explorer, f"Explorer explicit registry overrides must include {registry_key}")
     require("validator:" in explorer and "condition: service_healthy" in explorer, "Explorer must wait for validator health")
     require("condition: service_completed_successfully" not in explorer, "Explorer process startup must not be blocked by a failed one-shot SocialFi bootstrap")
     require("http://127.0.0.1:8088/health" in explorer, "Explorer container health must use the backend readiness endpoint")
@@ -177,6 +213,26 @@ def main() -> int:
     require(re.search(r"^  postgres(?:ql)?:", dokploy, re.MULTILINE) is None, "Dokploy compose must not embed PostgreSQL")
     require("rpc-node-keypair.json" not in dokploy, "default Dokploy topology must not require an unused RPC-replica identity")
     require("rpc-ledger:" not in dokploy, "default Dokploy topology must not retain an unused RPC-replica ledger volume")
+
+    # Portable compose must expose the same Social vault lifecycle so local
+    # validation and Dokploy do not exercise different custody models.
+    portable_bootstrap = service_block(portable, "social-bootstrap", "explorer-api")
+    portable_explorer = service_block(portable, "explorer-api", "explorer-ui")
+    require("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}" in portable_bootstrap, "portable bootstrap must expose explicit recovery")
+    for seed_env in (
+        "AEKO_REWARDS_TREASURY_SEED_LAMPORTS",
+        "AEKO_REWARD_VAULT_SEED_LAMPORTS",
+        "AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS",
+    ):
+        require(f"{seed_env}: ${{{seed_env}:-0}}" in portable_bootstrap, f"portable bootstrap must expose {seed_env}")
+    for registry_key in (
+        "AEKO_REWARDS_TREASURY_ACCOUNT",
+        "AEKO_REWARD_VAULT_ACCOUNT",
+        "AEKO_STAKE_VAULT_ACCOUNT",
+        "AEKO_STAKE_REWARD_VAULT_ACCOUNT",
+        "AEKO_TREASURY_ADDRESS",
+    ):
+        require(registry_key in portable_explorer, f"portable Explorer explicit overrides must include {registry_key}")
 
     # Public endpoint and operator mental model must remain canonical.
     for endpoint in (
