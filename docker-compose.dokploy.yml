@@ -200,8 +200,10 @@ services:
     depends_on:
       validator:
         condition: service_healthy
+    # Keep the process routable while projections recover. `/health` remains
+    # the strict DB/RPC/indexer/Social readiness endpoint for monitoring/CI.
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/health >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/ >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
