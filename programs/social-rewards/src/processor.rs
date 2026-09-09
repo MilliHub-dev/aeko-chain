@@ -104,6 +104,10 @@ impl Processor {
         if !state.config.rewards_enabled { return Err(Self::map_program_error(SocialRewardsError::RewardsPaused.into())); }
         if authority_key != creator && authority_key != state.config.authority { return Err(Self::map_program_error(SocialRewardsError::Unauthorized.into())); }
         Self::verify_owned_account(invoke_context, 1, state.config.reward_vault)?;
+        // Claims are always paid to the creator encoded in the instruction.
+        // Even the protocol authority may authorize a claim but cannot redirect
+        // creator funds to an arbitrary writable destination.
+        Self::verify_account_key(invoke_context, 2, creator)?;
         let reward_account = state.creators.iter_mut().find(|entry| entry.creator == creator).ok_or_else(|| Self::map_program_error(SocialRewardsError::NothingToClaim.into()))?;
         if amount < state.config.min_claim_amount { return Err(Self::map_program_error(SocialRewardsError::ClaimBelowMinimum.into())); }
         if reward_account.claimable_amount < amount || amount == 0 { return Err(Self::map_program_error(SocialRewardsError::NothingToClaim.into())); }
@@ -136,6 +140,14 @@ impl Processor {
         let account = instruction_context.try_borrow_instruction_account(transaction_context, index)?;
         if !account.is_signer() { return Err(InstructionError::MissingRequiredSignature); }
         Ok(*account.get_key())
+    }
+
+    fn verify_account_key(invoke_context: &InvokeContext, index: u16, expected: Pubkey) -> Result<(), InstructionError> {
+        let transaction_context = &invoke_context.transaction_context;
+        let instruction_context = transaction_context.get_current_instruction_context()?;
+        let account = instruction_context.try_borrow_instruction_account(transaction_context, index)?;
+        if *account.get_key() != expected { return Err(InstructionError::InvalidArgument); }
+        Ok(())
     }
 
     fn verify_owned_account(invoke_context: &InvokeContext, index: u16, expected: Pubkey) -> Result<(), InstructionError> {
