@@ -126,7 +126,7 @@ jobs:
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
-      - name: Validate/release selected external SDKs
+      - name: Validate selected external SDKs
         if: steps.changes.outputs.sdk_any == 'true' || steps.changes.outputs.core == 'true'
         uses: ./.github/actions/devops/sdk
         with:
@@ -138,10 +138,6 @@ jobs:
           release-node: ${{ steps.changes.outputs.sdk_release_node }}
           release-python: ${{ steps.changes.outputs.sdk_release_python }}
           release-rust: ${{ steps.changes.outputs.sdk_release_rust }}
-          publish: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.sdk_release_any == 'true') && 'true' || 'false' }}
-          npm-token: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.sdk_release_any == 'true') && secrets.NPM_TOKEN || '' }}
-          pypi-token: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.sdk_release_python == 'true') && secrets.PYPI_API_TOKEN || '' }}
-          crates-token: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.sdk_release_rust == 'true') && secrets.CRATES_IO_TOKEN || '' }}
 
       - name: Validate/build CLI and tools
         if: steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true'
@@ -184,6 +180,20 @@ jobs:
         with:
           registry-user: ${{ secrets.DOCKERHUB_USERNAME }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      # Package registries are irreversible release channels, so publish SDKs
+      # only after every selected validation/build (and core dogfood) succeeds.
+      - name: Publish changed SDK packages
+        if: steps.release.outputs.publish == 'true' && steps.changes.outputs.sdk_release_any == 'true'
+        uses: ./.github/actions/devops/sdk-publish
+        with:
+          js: ${{ steps.changes.outputs.sdk_release_js }}
+          node: ${{ steps.changes.outputs.sdk_release_node }}
+          python: ${{ steps.changes.outputs.sdk_release_python }}
+          rust: ${{ steps.changes.outputs.sdk_release_rust }}
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          pypi-token: ${{ secrets.PYPI_API_TOKEN }}
+          crates-token: ${{ secrets.CRATES_IO_TOKEN }}
 
       - name: Promote only validated Docker images to latest
         if: steps.release.outputs.publish == 'true' && steps.changes.outputs.dockerized == 'true'
