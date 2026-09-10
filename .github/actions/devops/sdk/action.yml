@@ -1,5 +1,5 @@
 name: External SDK DevOps
-description: Validate selected external SDKs and publish changed package versions only from main.
+description: Validate selected external SDKs and prove changed package versions are releasable.
 
 inputs:
   js:
@@ -19,51 +19,25 @@ inputs:
     required: false
     default: "false"
   release-js:
-    description: The JavaScript SDK package source changed and must use a new publishable version.
+    description: JavaScript SDK package source changed and must use a new publishable version.
     required: false
     default: "false"
   release-node:
-    description: The Node SDK package source changed and must use a new publishable version.
+    description: Node SDK package source changed and must use a new publishable version.
     required: false
     default: "false"
   release-python:
-    description: The Python SDK package source changed and must use a new publishable version.
+    description: Python SDK package source changed and must use a new publishable version.
     required: false
     default: "false"
   release-rust:
-    description: The Rust SDK package source changed and must use a new publishable version.
+    description: Rust SDK package source changed and must use a new publishable version.
     required: false
     default: "false"
-  publish:
-    description: Publish selected changed SDK packages. This is accepted only on main.
-    required: false
-    default: "false"
-  npm-token:
-    description: npm automation/access token used for main-only JS and Node package publication.
-    required: false
-    default: ""
-  pypi-token:
-    description: PyPI API token used for main-only Python package publication.
-    required: false
-    default: ""
-  crates-token:
-    description: crates.io token used for main-only Rust SDK publication.
-    required: false
-    default: ""
 
 runs:
   using: composite
   steps:
-    - name: Guard SDK publication branch
-      if: ${{ inputs.publish == 'true' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-          echo "SDK publication is permitted only from the main branch." >&2
-          exit 1
-        fi
-
     - name: JavaScript SDK install
       if: ${{ inputs.js == 'true' }}
       shell: bash
@@ -107,17 +81,6 @@ runs:
           exit 1
         fi
 
-    - name: Publish JavaScript SDK to npm
-      if: ${{ inputs.publish == 'true' && inputs.release-js == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/js
-      env:
-        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
-      run: |
-        set -euo pipefail
-        : "${NODE_AUTH_TOKEN:?npm-token is required to publish the JavaScript SDK}"
-        npm publish --access public --registry=https://registry.npmjs.org/
-
     - name: Node SDK install
       if: ${{ inputs.node == 'true' }}
       shell: bash
@@ -154,17 +117,6 @@ runs:
           echo "Unable to prove npm version availability for ${package}@${version}." >&2
           exit 1
         fi
-
-    - name: Publish Node SDK to npm
-      if: ${{ inputs.publish == 'true' && inputs.release-node == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/node
-      env:
-        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
-      run: |
-        set -euo pipefail
-        : "${NODE_AUTH_TOKEN:?npm-token is required to publish the Node SDK}"
-        npm publish --access public --registry=https://registry.npmjs.org/
 
     - name: Python SDK syntax validation
       if: ${{ inputs.python == 'true' }}
@@ -209,21 +161,6 @@ runs:
             exit 1
             ;;
         esac
-
-    - name: Publish Python SDK to PyPI
-      if: ${{ inputs.publish == 'true' && inputs.release-python == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/python
-      env:
-        TWINE_PASSWORD: ${{ inputs.pypi-token }}
-        TWINE_USERNAME: __token__
-      run: |
-        set -euo pipefail
-        : "${TWINE_PASSWORD:?pypi-token is required to publish the Python SDK}"
-        release_dir=$(mktemp -d)
-        python3 -m pip install --disable-pip-version-check build twine
-        python3 -m build --outdir "$release_dir" .
-        python3 -m twine upload "$release_dir"/*
 
     - name: Rust SDK format
       if: ${{ inputs.rust == 'true' }}
@@ -274,13 +211,3 @@ runs:
             exit 1
             ;;
         esac
-
-    - name: Publish Rust SDK to crates.io
-      if: ${{ inputs.publish == 'true' && inputs.release-rust == 'true' }}
-      shell: bash
-      env:
-        CRATES_IO_TOKEN: ${{ inputs.crates-token }}
-      run: |
-        set -euo pipefail
-        : "${CRATES_IO_TOKEN:?crates-token is required to publish the Rust SDK}"
-        cargo publish --locked -p aeko-rust-sdk --token "$CRATES_IO_TOKEN"
