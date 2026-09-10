@@ -21,6 +21,16 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Guard Explorer API publication branch
+      if: ${{ inputs.publish == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          echo "Explorer API publication is permitted only from main." >&2
+          exit 1
+        fi
+
     - name: Explorer backend format
       shell: bash
       run: cargo fmt --manifest-path apps/explorer/backend/Cargo.toml -- --check
