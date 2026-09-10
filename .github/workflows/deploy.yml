@@ -4,19 +4,26 @@ on:
   workflow_run:
     workflows: ["Build AEKO Network Images"]
     types: [completed]
+    branches: ["main"]
 
 permissions:
   contents: read
 
 jobs:
   trigger-dokploy:
+    # Defense in depth: only a successful main push/manual release may deploy.
+    # Pull-request and feature-branch workflow runs can never reach Dokploy.
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main'
+      github.event.workflow_run.head_branch == 'main' &&
+      (github.event.workflow_run.event == 'push' ||
+       github.event.workflow_run.event == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Dokploy deployment
         env:
           DOKPLOY_WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
         run: |
+          set -euo pipefail
+          : "${DOKPLOY_WEBHOOK_URL:?DOKPLOY_WEBHOOK_URL secret is required}"
           curl --fail-with-body --silent --show-error --request POST "$DOKPLOY_WEBHOOK_URL"
