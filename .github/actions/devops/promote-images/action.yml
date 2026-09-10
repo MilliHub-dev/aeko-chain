@@ -44,6 +44,10 @@ runs:
         PROMOTE_EXPLORER_WEB: ${{ inputs.explorer-web }}
       run: |
         set -euo pipefail
+        if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          echo "Docker latest promotion is permitted only from main." >&2
+          exit 1
+        fi
         : "${REGISTRY_USER:?registry-user is required}"
         : "${SHA_TAG:?sha-tag is required}"
 
