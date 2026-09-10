@@ -117,8 +117,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # On pull requests, independent domains are allowed to finish even if an
+      # earlier domain fails. The aggregate gate below still fails the PR.
+      # Main deliberately remains fail-fast so no later release/publish action
+      # can run after a failed validation/build.
       - name: Validate/build admin application
+        id: admin
         if: steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/admin
         with:
           build-image: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
@@ -127,7 +133,9 @@ jobs:
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate selected external SDKs
+        id: sdk
         if: steps.changes.outputs.sdk_any == 'true' || steps.changes.outputs.core == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/sdk
         with:
           js: ${{ (steps.changes.outputs.sdk_js == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
@@ -140,7 +148,9 @@ jobs:
           release-rust: ${{ steps.changes.outputs.sdk_release_rust }}
 
       - name: Validate/build CLI and tools
+        id: cli
         if: steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/cli
         with:
           build-image: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
@@ -149,7 +159,9 @@ jobs:
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate/build Explorer backend
+        id: explorer_backend
         if: steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/explorer-backend
         with:
           build-image: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
@@ -158,7 +170,9 @@ jobs:
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate/build Explorer frontend
+        id: explorer_web
         if: steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/explorer-web
         with:
           build-image: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
@@ -167,12 +181,52 @@ jobs:
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate/build full blockchain network
+        id: network
         if: steps.changes.outputs.core == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/network
         with:
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Aggregate pull-request validation results
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          ADMIN_OUTCOME: ${{ steps.admin.outcome }}
+          SDK_OUTCOME: ${{ steps.sdk.outcome }}
+          CLI_OUTCOME: ${{ steps.cli.outcome }}
+          EXPLORER_BACKEND_OUTCOME: ${{ steps.explorer_backend.outcome }}
+          EXPLORER_WEB_OUTCOME: ${{ steps.explorer_web.outcome }}
+          NETWORK_OUTCOME: ${{ steps.network.outcome }}
+        run: |
+          set -euo pipefail
+          failures=()
+          record_failure() {
+            local domain="$1"
+            local outcome="$2"
+            case "$outcome" in
+              failure|cancelled)
+                failures+=("${domain}:${outcome}")
+                ;;
+            esac
+          }
+
+          record_failure admin "$ADMIN_OUTCOME"
+          record_failure sdk "$SDK_OUTCOME"
+          record_failure cli "$CLI_OUTCOME"
+          record_failure explorer-backend "$EXPLORER_BACKEND_OUTCOME"
+          record_failure explorer-web "$EXPLORER_WEB_OUTCOME"
+          record_failure network "$NETWORK_OUTCOME"
+
+          if [ "${#failures[@]}" -gt 0 ]; then
+            printf 'One or more PR domains failed after all selected domains were exercised:\n' >&2
+            printf '  %s\n' "${failures[@]}" >&2
+            exit 1
+          fi
+
+          echo "All selected PR domains passed."
 
       - name: Dogfood immutable full-network release
         if: steps.changes.outputs.core == 'true' && steps.release.outputs.publish == 'true'
