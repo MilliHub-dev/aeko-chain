@@ -10,7 +10,7 @@
 #   explorer-api     Rust explorer indexer / REST API
 #   explorer-ui      Vite explorer frontend
 
-FROM rust:1.75 AS rust-builder
+FROM rust:1.75 AS rust-build-base
 
 RUN curl -fsSL https://github.com/mozilla/sccache/releases/download/v0.8.2/sccache-v0.8.2-x86_64-unknown-linux-musl.tar.gz \
     | tar xzf - --strip-components=1 -C /usr/local/cargo/bin sccache-v0.8.2-x86_64-unknown-linux-musl/sccache
@@ -29,6 +29,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /aeko
 COPY . .
 
+# Keep blockchain/network binaries on their own build path. Application-only
+# targets must not compile validator, genesis, faucet, or bootstrap binaries.
+FROM rust-build-base AS network-rust-builder
+
 RUN --mount=type=cache,id=aeko-sccache,target=/root/.cache/sccache \
     --mount=type=cache,id=aeko-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=aeko-git,target=/usr/local/cargo/git \
@@ -40,14 +44,24 @@ RUN --mount=type=cache,id=aeko-sccache,target=/root/.cache/sccache \
       --bin aeko \
       --bin aeko-faucet \
       --bin aeko-social-bootstrap && \
-    cargo build --release --bin aeko-explorer-backend -p aeko-explorer-backend && \
     mkdir -p /binaries && \
     cp target/release/aeko-validator /binaries/ && \
     cp target/release/aeko-keygen /binaries/ && \
     cp target/release/aeko-genesis /binaries/ && \
     cp target/release/aeko /binaries/ && \
     cp target/release/aeko-faucet /binaries/ && \
-    cp target/release/aeko-social-bootstrap /binaries/ && \
+    cp target/release/aeko-social-bootstrap /binaries/
+
+# Explorer API has an isolated Rust build stage so selecting explorer-api does
+# not build the blockchain/network executables above.
+FROM rust-build-base AS explorer-api-builder
+
+RUN --mount=type=cache,id=aeko-sccache,target=/root/.cache/sccache \
+    --mount=type=cache,id=aeko-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=aeko-git,target=/usr/local/cargo/git \
+    --mount=type=cache,id=aeko-target,target=/aeko/target \
+    cargo build --release --bin aeko-explorer-backend -p aeko-explorer-backend && \
+    mkdir -p /binaries && \
     cp target/release/aeko-explorer-backend /binaries/
 
 FROM debian:bookworm-slim AS rust-runtime
@@ -60,29 +74,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 FROM rust-runtime AS validator
-COPY --from=rust-builder /binaries/aeko-validator /usr/local/bin/aeko-validator
-COPY --from=rust-builder /binaries/aeko-genesis /usr/local/bin/aeko-genesis
+COPY --from=network-rust-builder /binaries/aeko-validator /usr/local/bin/aeko-validator
+COPY --from=network-rust-builder /binaries/aeko-genesis /usr/local/bin/aeko-genesis
 COPY docker/validator-entrypoint.sh /usr/local/bin/validator-entrypoint.sh
 RUN chmod 0755 /usr/local/bin/validator-entrypoint.sh
 EXPOSE 8001/tcp 8001/udp 8899/tcp 8900/tcp
 ENTRYPOINT ["/usr/local/bin/validator-entrypoint.sh"]
 
 FROM rust-runtime AS faucet
-COPY --from=rust-builder /binaries/aeko-faucet /usr/local/bin/aeko-faucet
+COPY --from=network-rust-builder /binaries/aeko-faucet /usr/local/bin/aeko-faucet
 EXPOSE 9900/tcp
 ENTRYPOINT ["aeko-faucet"]
 
 FROM rust-runtime AS social-bootstrap
-COPY --from=rust-builder /binaries/aeko-social-bootstrap /usr/local/bin/aeko-social-bootstrap
+COPY --from=network-rust-builder /binaries/aeko-social-bootstrap /usr/local/bin/aeko-social-bootstrap
 ENTRYPOINT ["aeko-social-bootstrap"]
 
 FROM rust-runtime AS tools
-COPY --from=rust-builder /binaries/aeko /usr/local/bin/aeko
-COPY --from=rust-builder /binaries/aeko-keygen /usr/local/bin/aeko-keygen
+COPY --from=network-rust-builder /binaries/aeko /usr/local/bin/aeko
+COPY --from=network-rust-builder /binaries/aeko-keygen /usr/local/bin/aeko-keygen
 CMD ["aeko", "--help"]
 
 FROM rust-runtime AS explorer-api
-COPY --from=rust-builder /binaries/aeko-explorer-backend /usr/local/bin/aeko-explorer-backend
+COPY --from=explorer-api-builder /binaries/aeko-explorer-backend /usr/local/bin/aeko-explorer-backend
 EXPOSE 8088/tcp
 # Fail closed. Docker/Dokploy owns restart policy; the image must not hide a
 # missing database, bad migration, or invalid RPC configuration in an internal
