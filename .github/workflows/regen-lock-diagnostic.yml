@@ -29,6 +29,8 @@ jobs:
 
       - name: Regenerate and verify the lockfile delta
         shell: bash
+        env:
+          RUSTC_WRAPPER: ""
         run: |
           set -euo pipefail
           cargo check -p aeko-rust-sdk --all-targets
