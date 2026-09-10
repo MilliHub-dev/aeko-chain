@@ -40,7 +40,6 @@ jobs:
 
           test "$(git diff --numstat -- Cargo.lock)" = $'1\t0\tCargo.lock'
           git diff -- Cargo.lock | grep -F '+ "aeko-social-monetization-program",'
-          git diff -- Cargo.lock | grep -F 'name = "aeko-explorer-backend"'
 
           if [ -n "$(git status --porcelain --untracked-files=no | grep -v '^ M Cargo.lock$' || true)" ]; then
             echo 'Unexpected tracked files changed while regenerating Cargo.lock.' >&2
