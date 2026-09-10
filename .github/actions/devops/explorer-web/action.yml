@@ -1,0 +1,96 @@
+name: Explorer web DevOps
+description: Fully lint, type-check, test, build, and optionally package the Explorer web application.
+
+inputs:
+  build-image:
+    description: Build the Explorer UI container image.
+    required: false
+    default: "false"
+  publish:
+    description: Push the immutable SHA-tagged image to Docker Hub.
+    required: false
+    default: "false"
+  registry-user:
+    description: Docker Hub namespace used when publishing.
+    required: false
+    default: ""
+  sha-tag:
+    description: Immutable release tag.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install Explorer web dependencies
+      shell: bash
+      working-directory: apps/explorer/web
+      run: npm ci
+
+    - name: Full Explorer web lint
+      shell: bash
+      working-directory: apps/explorer/web
+      run: npm run lint
+
+    - name: Explorer web JavaScript type-check
+      shell: bash
+      working-directory: apps/explorer/web
+      run: |
+        set -euo pipefail
+        mapfile -d '' sources < <(find src -type f \( -name '*.js' -o -name '*.jsx' \) -print0)
+        test "${#sources[@]}" -gt 0
+        npx --yes --package=typescript@5.9.3 tsc \
+          --noEmit \
+          --allowJs \
+          --checkJs \
+          --jsx react-jsx \
+          --target ES2022 \
+          --module ESNext \
+          --moduleResolution Bundler \
+          --lib ES2022,DOM,DOM.Iterable \
+          --types vite/client \
+          --skipLibCheck \
+          "${sources[@]}"
+
+    - name: Explorer web tests
+      shell: bash
+      working-directory: apps/explorer/web
+      run: npm test
+
+    - name: Explorer web production build
+      shell: bash
+      working-directory: apps/explorer/web
+      run: npm run build
+
+    - name: Build Explorer UI image
+      if: ${{ inputs.build-image == 'true' }}
+      shell: bash
+      env:
+        PUBLISH: ${{ inputs.publish }}
+        REGISTRY_USER: ${{ inputs.registry-user }}
+        SHA_TAG: ${{ inputs.sha-tag }}
+      run: |
+        set -euo pipefail
+        tags=()
+        output=(--load)
+        build_args=()
+
+        if [ "$PUBLISH" = "true" ]; then
+          : "${REGISTRY_USER:?registry-user is required when publishing}"
+          tags+=(--tag "${REGISTRY_USER}/aeko-explorer-ui:${SHA_TAG}")
+          output=(--push)
+        else
+          tags+=(--tag "aeko-ci/aeko-explorer-ui:${SHA_TAG}")
+          build_args+=(
+            --build-arg VITE_AEKO_LOCAL_RPC=http://127.0.0.1:8899
+            --build-arg VITE_AEKO_LOCAL_WS=ws://127.0.0.1:8900
+            --build-arg VITE_AEKO_LOCAL_EXPLORER_API=http://127.0.0.1:8088
+          )
+        fi
+
+        docker buildx build \
+          --file Dockerfile \
+          --target explorer-ui \
+          "${build_args[@]}" \
+          "${tags[@]}" \
+          "${output[@]}" \
+          .
