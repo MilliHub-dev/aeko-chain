@@ -87,6 +87,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          registry-url: "https://registry.npmjs.org"
           cache: npm
           cache-dependency-path: |
             apps/admin/package-lock.json
@@ -102,10 +103,11 @@ jobs:
 
       - name: Set up shared Docker Buildx
         if: >-
+          steps.changes.outputs.core == 'true' ||
+          steps.changes.outputs.admin == 'true' ||
           steps.changes.outputs.cli == 'true' ||
           steps.changes.outputs.explorer_backend == 'true' ||
-          steps.changes.outputs.explorer_web == 'true' ||
-          (steps.changes.outputs.core == 'true' && steps.release.outputs.publish == 'true')
+          steps.changes.outputs.explorer_web == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub once
@@ -115,11 +117,16 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Validate admin application
+      - name: Validate/build admin application
         if: steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true'
         uses: ./.github/actions/devops/admin
+        with:
+          build-image: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
 
-      - name: Validate selected external SDKs
+      - name: Validate/release selected external SDKs
         if: steps.changes.outputs.sdk_any == 'true' || steps.changes.outputs.core == 'true'
         uses: ./.github/actions/devops/sdk
         with:
@@ -127,12 +134,20 @@ jobs:
           node: ${{ (steps.changes.outputs.sdk_node == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
           python: ${{ (steps.changes.outputs.sdk_python == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
           rust: ${{ (steps.changes.outputs.sdk_rust == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          release-js: ${{ steps.changes.outputs.sdk_release_js }}
+          release-node: ${{ steps.changes.outputs.sdk_release_node }}
+          release-python: ${{ steps.changes.outputs.sdk_release_python }}
+          release-rust: ${{ steps.changes.outputs.sdk_release_rust }}
+          publish: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.sdk_release_any == 'true') && 'true' || 'false' }}
+          npm-token: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.sdk_release_any == 'true') && secrets.NPM_TOKEN || '' }}
+          pypi-token: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.sdk_release_python == 'true') && secrets.PYPI_API_TOKEN || '' }}
+          crates-token: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.sdk_release_rust == 'true') && secrets.CRATES_IO_TOKEN || '' }}
 
       - name: Validate/build CLI and tools
         if: steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true'
         uses: ./.github/actions/devops/cli
         with:
-          build-image: ${{ (steps.changes.outputs.cli == 'true' || (steps.changes.outputs.core == 'true' && steps.release.outputs.publish == 'true')) && 'true' || 'false' }}
+          build-image: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
@@ -141,7 +156,7 @@ jobs:
         if: steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true'
         uses: ./.github/actions/devops/explorer-backend
         with:
-          build-image: ${{ (steps.changes.outputs.explorer_backend == 'true' || (steps.changes.outputs.core == 'true' && steps.release.outputs.publish == 'true')) && 'true' || 'false' }}
+          build-image: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
@@ -150,7 +165,7 @@ jobs:
         if: steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true'
         uses: ./.github/actions/devops/explorer-web
         with:
-          build-image: ${{ (steps.changes.outputs.explorer_web == 'true' || (steps.changes.outputs.core == 'true' && steps.release.outputs.publish == 'true')) && 'true' || 'false' }}
+          build-image: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
@@ -170,13 +185,14 @@ jobs:
           registry-user: ${{ secrets.DOCKERHUB_USERNAME }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
-      - name: Promote only validated images to latest
+      - name: Promote only validated Docker images to latest
         if: steps.release.outputs.publish == 'true' && steps.changes.outputs.dockerized == 'true'
         uses: ./.github/actions/devops/promote-images
         with:
           registry-user: ${{ secrets.DOCKERHUB_USERNAME }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
           network: ${{ steps.changes.outputs.core }}
+          admin: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
           cli: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
           explorer-backend: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
           explorer-web: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
