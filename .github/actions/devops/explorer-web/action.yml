@@ -57,6 +57,7 @@ runs:
       run: npm test
 
     - name: Explorer web production build
+      if: ${{ inputs.build-image != 'true' }}
       shell: bash
       working-directory: apps/explorer/web
       run: npm run build
@@ -87,6 +88,8 @@ runs:
           )
         fi
 
+        # The Docker target runs npm run build, so this is also the production
+        # build gate when packaging is selected; we do not compile Vite twice.
         docker buildx build \
           --file Dockerfile \
           --target explorer-ui \
@@ -94,3 +97,10 @@ runs:
           "${tags[@]}" \
           "${output[@]}" \
           .
+
+    - name: Verify PR-built Explorer UI image exists
+      if: ${{ inputs.build-image == 'true' && inputs.publish != 'true' }}
+      shell: bash
+      env:
+        SHA_TAG: ${{ inputs.sha-tag }}
+      run: docker image inspect "aeko-ci/aeko-explorer-ui:${SHA_TAG}" >/dev/null
