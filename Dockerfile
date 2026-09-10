@@ -39,18 +39,27 @@ RUN --mount=type=cache,id=aeko-sccache,target=/root/.cache/sccache \
     --mount=type=cache,id=aeko-target,target=/aeko/target \
     cargo build --release \
       --bin aeko-validator \
-      --bin aeko-keygen \
       --bin aeko-genesis \
-      --bin aeko \
       --bin aeko-faucet \
       --bin aeko-social-bootstrap && \
     mkdir -p /binaries && \
     cp target/release/aeko-validator /binaries/ && \
-    cp target/release/aeko-keygen /binaries/ && \
     cp target/release/aeko-genesis /binaries/ && \
-    cp target/release/aeko /binaries/ && \
     cp target/release/aeko-faucet /binaries/ && \
     cp target/release/aeko-social-bootstrap /binaries/
+
+# The operator CLI is an app under apps/cli. Keep its Docker image isolated so
+# a CLI-only change does not build validator or other network executables.
+FROM rust-build-base AS tools-builder
+
+RUN --mount=type=cache,id=aeko-sccache,target=/root/.cache/sccache \
+    --mount=type=cache,id=aeko-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=aeko-git,target=/usr/local/cargo/git \
+    --mount=type=cache,id=aeko-target,target=/aeko/target \
+    cargo build --release --bin aeko --bin aeko-keygen && \
+    mkdir -p /binaries && \
+    cp target/release/aeko /binaries/ && \
+    cp target/release/aeko-keygen /binaries/
 
 # Explorer API has an isolated Rust build stage so selecting explorer-api does
 # not build the blockchain/network executables above.
@@ -91,8 +100,8 @@ COPY --from=network-rust-builder /binaries/aeko-social-bootstrap /usr/local/bin/
 ENTRYPOINT ["aeko-social-bootstrap"]
 
 FROM rust-runtime AS tools
-COPY --from=network-rust-builder /binaries/aeko /usr/local/bin/aeko
-COPY --from=network-rust-builder /binaries/aeko-keygen /usr/local/bin/aeko-keygen
+COPY --from=tools-builder /binaries/aeko /usr/local/bin/aeko
+COPY --from=tools-builder /binaries/aeko-keygen /usr/local/bin/aeko-keygen
 CMD ["aeko", "--help"]
 
 FROM rust-runtime AS explorer-api
