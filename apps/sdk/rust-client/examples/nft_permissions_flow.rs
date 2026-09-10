@@ -1,11 +1,9 @@
-use {
-    aeko_rust_sdk::{
-        build_freeze_wallet_instruction, build_initialize_collection_instruction,
-        build_transaction_plan, build_update_metadata_instruction, build_update_delegate_instruction,
-        default_token_721_program_id, default_wallet_permissions_program_id, FreezeWalletInput,
-        InitializeCollectionInput, MetadataAttribute, NftMetadata, PermissionRole,
-        SpendLimitPolicy, UpdateDelegateInput, UpdateMetadataInput,
-    },
+use aeko_rust_sdk::{
+    build_freeze_wallet_instruction, build_initialize_collection_instruction,
+    build_transaction_plan, build_update_delegate_instruction, build_update_metadata_instruction,
+    default_token_721_program_id, default_wallet_permissions_program_id, FreezeWalletInput,
+    InitializeCollectionInput, MetadataAttribute, NftMetadata, PermissionRole, SpendLimitPolicy,
+    UpdateDelegateInput, UpdateMetadataInput,
 };
 
 fn main() {
@@ -13,14 +11,15 @@ fn main() {
     let authority = fake_pubkey(2);
     let delegate = fake_pubkey(3);
 
-    let collection_instruction = build_initialize_collection_instruction(&InitializeCollectionInput {
-        program_id: default_token_721_program_id(),
-        collection: fake_pubkey(4),
-        authority: authority.clone(),
-        name: "AEKO Creators".to_string(),
-        symbol: "AEKOC".to_string(),
-        base_uri: Some("https://assets.aeko.chain/collections/creators".to_string()),
-    });
+    let collection_instruction =
+        build_initialize_collection_instruction(&InitializeCollectionInput {
+            program_id: default_token_721_program_id(),
+            collection: fake_pubkey(4),
+            authority: authority.clone(),
+            name: "AEKO Creators".to_string(),
+            symbol: "AEKOC".to_string(),
+            base_uri: Some("https://assets.aeko.chain/collections/creators".to_string()),
+        });
 
     let update_metadata_instruction = build_update_metadata_instruction(&UpdateMetadataInput {
         program_id: default_token_721_program_id(),
