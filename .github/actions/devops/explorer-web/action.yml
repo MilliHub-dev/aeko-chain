@@ -21,6 +21,16 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Guard Explorer UI publication branch
+      if: ${{ inputs.publish == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          echo "Explorer UI publication is permitted only from main." >&2
+          exit 1
+        fi
+
     - name: Install Explorer web dependencies
       shell: bash
       working-directory: apps/explorer/web
