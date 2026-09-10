@@ -164,7 +164,7 @@ runs:
 
     # Existing formatting debt in an unchanged SDK must not make a core CI
     # refactor look like an SDK release. When Rust SDK source changes, however,
-    # formatting is mandatory before that package version can be published.
+    # formatting and package verification are mandatory before publication.
     - name: Rust SDK format
       if: ${{ inputs.rust == 'true' && inputs.release-rust == 'true' }}
       shell: bash
@@ -191,7 +191,7 @@ runs:
       run: cargo build --locked --release -p aeko-rust-sdk
 
     - name: Rust SDK package dry-run
-      if: ${{ inputs.rust == 'true' }}
+      if: ${{ inputs.rust == 'true' && inputs.release-rust == 'true' }}
       shell: bash
       run: cargo publish --locked -p aeko-rust-sdk --dry-run
 
