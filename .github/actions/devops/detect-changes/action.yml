@@ -157,7 +157,7 @@ runs:
                 sdk_rust=true
                 sdk_release_rust=true
                 ;;
-              .github/actions/devops/sdk/*)
+              .github/actions/devops/sdk/*|.github/actions/devops/sdk-publish/*)
                 # CI implementation changes exercise every SDK without causing a
                 # registry release when the workflow later lands on main.
                 sdk_js=true
