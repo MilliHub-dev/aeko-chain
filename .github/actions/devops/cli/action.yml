@@ -39,17 +39,22 @@ runs:
       shell: bash
       run: cargo test --locked -p aeko-cli -p aeko-keygen
 
+    - name: Validate POSIX installer syntax
+      shell: bash
+      run: sh -n install/aeko-cli-install.sh
+
     - name: CLI and keygen release build
+      if: ${{ inputs.build-image != 'true' }}
       shell: bash
       run: cargo build --locked --release -p aeko-cli -p aeko-keygen
 
-    - name: Verify CLI binaries
+    - name: Verify host-built CLI binaries
+      if: ${{ inputs.build-image != 'true' }}
       shell: bash
       run: |
         set -euo pipefail
         target/release/aeko --version
         target/release/aeko-keygen --version
-        sh -n install/aeko-cli-install.sh
 
     - name: Build operator tools image
       if: ${{ inputs.build-image == 'true' }}
@@ -77,3 +82,13 @@ runs:
           "${tags[@]}" \
           "${output[@]}" \
           .
+
+    - name: Verify PR-built operator tools image
+      if: ${{ inputs.build-image == 'true' && inputs.publish != 'true' }}
+      shell: bash
+      env:
+        SHA_TAG: ${{ inputs.sha-tag }}
+      run: |
+        set -euo pipefail
+        docker run --rm "aeko-ci/aeko-tools:${SHA_TAG}" aeko --version
+        docker run --rm "aeko-ci/aeko-tools:${SHA_TAG}" aeko-keygen --version
