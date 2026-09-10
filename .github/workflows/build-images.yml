@@ -134,7 +134,7 @@ jobs:
         with:
           build-image: ${{ (steps.changes.outputs.cli == 'true' || (steps.changes.outputs.core == 'true' && steps.release.outputs.publish == 'true')) && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
-          registry-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate/build Explorer backend
@@ -143,7 +143,7 @@ jobs:
         with:
           build-image: ${{ (steps.changes.outputs.explorer_backend == 'true' || (steps.changes.outputs.core == 'true' && steps.release.outputs.publish == 'true')) && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
-          registry-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate/build Explorer frontend
@@ -152,7 +152,7 @@ jobs:
         with:
           build-image: ${{ (steps.changes.outputs.explorer_web == 'true' || (steps.changes.outputs.core == 'true' && steps.release.outputs.publish == 'true')) && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
-          registry-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate/build full blockchain network
@@ -160,7 +160,7 @@ jobs:
         uses: ./.github/actions/devops/network
         with:
           publish: ${{ steps.release.outputs.publish }}
-          registry-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Dogfood immutable full-network release
