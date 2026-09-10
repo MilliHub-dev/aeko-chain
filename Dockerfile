@@ -9,6 +9,7 @@
 #   tools            aeko CLI + aeko-keygen operator utilities
 #   explorer-api     Rust explorer indexer / REST API
 #   explorer-ui      Vite explorer frontend
+#   admin            Next.js administrative application
 
 FROM rust:1.75 AS rust-build-base
 
@@ -115,11 +116,11 @@ ENTRYPOINT ["aeko-explorer-backend"]
 FROM node:22-alpine AS explorer-ui-builder
 WORKDIR /web
 COPY apps/explorer/web/package*.json ./
-RUN npm install
+RUN npm ci
 COPY apps/explorer/web/ ./
 # Vite endpoint values are build-time configuration. These optional args are
-# intentionally empty for normal production builds; PR dogfood supplies local
-# runner endpoints so the exact PR-built UI exercises the exact PR-built chain.
+# intentionally empty for normal production builds; PR validation supplies local
+# runner endpoints so the exact PR-built UI can target the local release stack.
 ARG VITE_AEKO_LOCAL_RPC=
 ARG VITE_AEKO_LOCAL_WS=
 ARG VITE_AEKO_LOCAL_EXPLORER_API=
@@ -128,11 +129,32 @@ ENV VITE_AEKO_LOCAL_RPC=${VITE_AEKO_LOCAL_RPC} \
     VITE_AEKO_LOCAL_EXPLORER_API=${VITE_AEKO_LOCAL_EXPLORER_API}
 RUN npm run build
 
-FROM node:18-alpine AS explorer-ui
+FROM node:22-alpine AS explorer-ui
 WORKDIR /app
 RUN npm install -g serve@14
 COPY --from=explorer-ui-builder /web/dist /app/dist
 EXPOSE 4000/tcp
 CMD ["serve", "-s", "/app/dist", "-l", "4000"]
+
+# Admin is an independent off-chain application. Its target has no dependency
+# on any Rust/network builder, so an admin-only change cannot compile the chain.
+FROM node:22-alpine AS admin-builder
+WORKDIR /admin
+ENV NEXT_TELEMETRY_DISABLED=1
+COPY apps/admin/package*.json ./
+RUN npm ci
+COPY apps/admin/ ./
+RUN npm run build
+
+FROM node:22-alpine AS admin
+WORKDIR /app
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1
+COPY apps/admin/package*.json ./
+RUN npm ci --omit=dev
+COPY --from=admin-builder /admin/.next ./.next
+COPY --from=admin-builder /admin/next.config.js ./next.config.js
+EXPOSE 3001/tcp
+CMD ["npm", "run", "start"]
 
 FROM validator AS default
