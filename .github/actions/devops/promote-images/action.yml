@@ -1,0 +1,69 @@
+name: Promote AEKO release images
+description: Promote already-validated immutable SHA images to latest without rebuilding them.
+
+inputs:
+  registry-user:
+    description: Docker Hub namespace containing immutable release images.
+    required: true
+  sha-tag:
+    description: Immutable source tag.
+    required: true
+  network:
+    description: Promote validator, node alias, faucet, and social-bootstrap.
+    required: false
+    default: "false"
+  cli:
+    description: Promote the operator tools image.
+    required: false
+    default: "false"
+  explorer-backend:
+    description: Promote Explorer API/backend aliases.
+    required: false
+    default: "false"
+  explorer-web:
+    description: Promote the Explorer UI image.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Promote validated images to latest
+      shell: bash
+      env:
+        REGISTRY_USER: ${{ inputs.registry-user }}
+        SHA_TAG: ${{ inputs.sha-tag }}
+        PROMOTE_NETWORK: ${{ inputs.network }}
+        PROMOTE_CLI: ${{ inputs.cli }}
+        PROMOTE_EXPLORER_BACKEND: ${{ inputs.explorer-backend }}
+        PROMOTE_EXPLORER_WEB: ${{ inputs.explorer-web }}
+      run: |
+        set -euo pipefail
+        : "${REGISTRY_USER:?registry-user is required}"
+        : "${SHA_TAG:?sha-tag is required}"
+
+        promote() {
+          local image="$1"
+          local source="${REGISTRY_USER}/${image}:${SHA_TAG}"
+          local target="${REGISTRY_USER}/${image}:latest"
+          echo "Promoting ${source} -> ${target}"
+          docker buildx imagetools create --tag "$target" "$source"
+          docker buildx imagetools inspect "$target" >/dev/null
+        }
+
+        if [ "$PROMOTE_NETWORK" = "true" ]; then
+          promote aeko-validator
+          promote aeko-node
+          promote aeko-faucet
+          promote aeko-social-bootstrap
+        fi
+        if [ "$PROMOTE_CLI" = "true" ]; then
+          promote aeko-tools
+        fi
+        if [ "$PROMOTE_EXPLORER_BACKEND" = "true" ]; then
+          promote aeko-explorer-api
+          promote aeko-explorer-backend
+        fi
+        if [ "$PROMOTE_EXPLORER_WEB" = "true" ]; then
+          promote aeko-explorer-ui
+        fi
