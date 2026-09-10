@@ -1,9 +1,9 @@
 name: AEKO network DevOps
-description: Validate the blockchain/network release and publish only network-owned container images on main.
+description: Validate network contracts on PRs and run the complete blockchain release build only on main.
 
 inputs:
   publish:
-    description: Build and push immutable network images. Must only be true on main.
+    description: Run the main-only network compile/test/image release path.
     required: false
     default: "false"
   registry-user:
@@ -36,7 +36,10 @@ runs:
       shell: bash
       run: cargo fmt --all -- --check
 
+    # The remaining steps intentionally run only on main. Feature branches and
+    # PRs must never compile/package the full blockchain network.
     - name: Network binary type and target check
+      if: ${{ inputs.publish == 'true' }}
       shell: bash
       run: >-
         cargo check --locked --all-targets
@@ -46,6 +49,7 @@ runs:
         -p aeko-social-bootstrap
 
     - name: Network binary lint
+      if: ${{ inputs.publish == 'true' }}
       shell: bash
       run: >-
         cargo clippy --locked --all-targets
@@ -56,19 +60,10 @@ runs:
         -- -D warnings
 
     - name: Network binary tests
+      if: ${{ inputs.publish == 'true' }}
       shell: bash
       run: >-
         cargo test --locked
-        -p aeko-validator
-        -p aeko-genesis
-        -p aeko-faucet
-        -p aeko-social-bootstrap
-
-    - name: Network release build for non-publishing runs
-      if: ${{ inputs.publish != 'true' }}
-      shell: bash
-      run: >-
-        cargo build --locked --release
         -p aeko-validator
         -p aeko-genesis
         -p aeko-faucet
