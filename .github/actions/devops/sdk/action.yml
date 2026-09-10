@@ -1,0 +1,110 @@
+name: External SDK DevOps
+description: Validate and package only the external SDK languages selected by the orchestrator.
+
+inputs:
+  js:
+    description: Validate the JavaScript SDK.
+    required: false
+    default: "false"
+  node:
+    description: Validate the Node.js SDK.
+    required: false
+    default: "false"
+  python:
+    description: Validate the Python SDK.
+    required: false
+    default: "false"
+  rust:
+    description: Validate the high-level Rust SDK.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: JavaScript SDK install
+      if: ${{ inputs.js == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/js
+      run: npm ci
+
+    - name: JavaScript SDK type-check and build
+      if: ${{ inputs.js == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/js
+      run: npm run release:check
+
+    - name: JavaScript SDK tests
+      if: ${{ inputs.js == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/js
+      run: npm test --if-present
+
+    - name: JavaScript SDK package validation
+      if: ${{ inputs.js == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/js
+      run: npm pack --dry-run
+
+    - name: Node SDK install
+      if: ${{ inputs.node == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/node
+      run: npm ci
+
+    - name: Node SDK type-check, build, and tests
+      if: ${{ inputs.node == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/node
+      run: npm run release:check
+
+    - name: Node SDK package validation
+      if: ${{ inputs.node == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/node
+      run: npm pack --dry-run
+
+    - name: Python SDK syntax validation
+      if: ${{ inputs.python == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/python
+      run: python3 -m compileall -q src
+
+    - name: Python SDK build and import validation
+      if: ${{ inputs.python == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/python
+      run: |
+        set -euo pipefail
+        wheel_dir=$(mktemp -d)
+        install_dir=$(mktemp -d)
+        python3 -m pip wheel --disable-pip-version-check --no-deps . --wheel-dir "$wheel_dir"
+        wheel=$(find "$wheel_dir" -maxdepth 1 -name '*.whl' -print -quit)
+        test -n "$wheel"
+        python3 -m pip install --disable-pip-version-check --no-deps --target "$install_dir" "$wheel"
+        PYTHONPATH="$install_dir" python3 -c 'import aeko_sdk; print(aeko_sdk.__name__)'
+
+    - name: Rust SDK format
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      run: cargo fmt --manifest-path apps/sdk/rust-client/Cargo.toml -- --check
+
+    - name: Rust SDK type and target check
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      run: cargo check --locked -p aeko-rust-sdk --all-targets
+
+    - name: Rust SDK lint
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      run: cargo clippy --locked -p aeko-rust-sdk --all-targets -- -D warnings
+
+    - name: Rust SDK tests
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      run: cargo test --locked -p aeko-rust-sdk
+
+    - name: Rust SDK release build
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      run: cargo build --locked --release -p aeko-rust-sdk
