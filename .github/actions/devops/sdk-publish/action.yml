@@ -1,0 +1,112 @@
+name: Publish AEKO SDK packages
+description: Publish already-validated SDK package versions to their native registries from main only.
+
+inputs:
+  js:
+    description: Publish @aeko-chain/web3.js to npm.
+    required: false
+    default: "false"
+  node:
+    description: Publish @aeko-chain/sdk to npm.
+    required: false
+    default: "false"
+  python:
+    description: Publish aeko-sdk to PyPI.
+    required: false
+    default: "false"
+  rust:
+    description: Publish aeko-rust-sdk to crates.io.
+    required: false
+    default: "false"
+  npm-token:
+    description: npm automation/access token.
+    required: false
+    default: ""
+  pypi-token:
+    description: PyPI API token.
+    required: false
+    default: ""
+  crates-token:
+    description: crates.io API token.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Require main branch publication
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          echo "SDK packages may only be published from main." >&2
+          exit 1
+        fi
+
+    - name: Preflight all selected SDK release credentials
+      shell: bash
+      env:
+        PUBLISH_JS: ${{ inputs.js }}
+        PUBLISH_NODE: ${{ inputs.node }}
+        PUBLISH_PYTHON: ${{ inputs.python }}
+        PUBLISH_RUST: ${{ inputs.rust }}
+        NPM_TOKEN: ${{ inputs.npm-token }}
+        PYPI_API_TOKEN: ${{ inputs.pypi-token }}
+        CRATES_IO_TOKEN: ${{ inputs.crates-token }}
+      run: |
+        set -euo pipefail
+        if { [ "$PUBLISH_JS" = "true" ] || [ "$PUBLISH_NODE" = "true" ]; } && [ -z "$NPM_TOKEN" ]; then
+          echo "NPM_TOKEN is required for the selected npm SDK release." >&2
+          exit 1
+        fi
+        if [ "$PUBLISH_PYTHON" = "true" ] && [ -z "$PYPI_API_TOKEN" ]; then
+          echo "PYPI_API_TOKEN is required for the selected Python SDK release." >&2
+          exit 1
+        fi
+        if [ "$PUBLISH_RUST" = "true" ] && [ -z "$CRATES_IO_TOKEN" ]; then
+          echo "CRATES_IO_TOKEN is required for the selected Rust SDK release." >&2
+          exit 1
+        fi
+
+    - name: Publish JavaScript SDK to npm
+      if: ${{ inputs.js == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/js
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+      run: |
+        set -euo pipefail
+        npm publish --access public --registry=https://registry.npmjs.org/
+
+    - name: Publish Node SDK to npm
+      if: ${{ inputs.node == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/node
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
+      run: |
+        set -euo pipefail
+        npm publish --access public --registry=https://registry.npmjs.org/
+
+    - name: Publish Python SDK to PyPI
+      if: ${{ inputs.python == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/python
+      env:
+        TWINE_PASSWORD: ${{ inputs.pypi-token }}
+        TWINE_USERNAME: __token__
+      run: |
+        set -euo pipefail
+        release_dir=$(mktemp -d)
+        python3 -m pip install --disable-pip-version-check build twine
+        python3 -m build --outdir "$release_dir" .
+        python3 -m twine upload "$release_dir"/*
+
+    - name: Publish Rust SDK to crates.io
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      env:
+        CRATES_IO_TOKEN: ${{ inputs.crates-token }}
+      run: |
+        set -euo pipefail
+        cargo publish --locked -p aeko-rust-sdk --token "$CRATES_IO_TOKEN"

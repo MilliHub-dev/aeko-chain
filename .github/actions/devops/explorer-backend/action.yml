@@ -1,0 +1,121 @@
+name: Explorer backend DevOps
+description: Fully format, check, lint, test, build, and package the Explorer PostgreSQL backend without building network binaries.
+
+inputs:
+  build-image:
+    description: Build the Explorer API container image.
+    required: false
+    default: "false"
+  publish:
+    description: Push immutable SHA-tagged images to Docker Hub.
+    required: false
+    default: "false"
+  registry-user:
+    description: Docker Hub namespace used when publishing.
+    required: false
+    default: ""
+  sha-tag:
+    description: Immutable release tag.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Guard Explorer API publication branch
+      if: ${{ inputs.publish == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          echo "Explorer API publication is permitted only from main." >&2
+          exit 1
+        fi
+
+    - name: Explorer backend format
+      shell: bash
+      run: cargo fmt --manifest-path apps/explorer/backend/Cargo.toml -- --check
+
+    - name: Explorer backend type and target check
+      shell: bash
+      run: cargo check --locked -p aeko-explorer-backend --all-targets
+
+    - name: Explorer backend lint
+      shell: bash
+      run: cargo clippy --locked -p aeko-explorer-backend --all-targets -- -D warnings
+
+    - name: Start isolated PostgreSQL
+      shell: bash
+      run: |
+        set -euo pipefail
+        docker rm -f aeko-explorer-backend-ci-postgres >/dev/null 2>&1 || true
+        docker run -d --name aeko-explorer-backend-ci-postgres \
+          -e POSTGRES_USER=aeko \
+          -e POSTGRES_PASSWORD=aeko \
+          -e POSTGRES_DB=aeko_explorer_test \
+          -p 5432:5432 \
+          postgres:16-alpine >/dev/null
+
+        ready=0
+        for _ in $(seq 1 30); do
+          if docker exec aeko-explorer-backend-ci-postgres \
+            pg_isready -U aeko -d aeko_explorer_test >/dev/null 2>&1; then
+            ready=1
+            break
+          fi
+          sleep 1
+        done
+        if [ "$ready" -ne 1 ]; then
+          docker logs aeko-explorer-backend-ci-postgres || true
+          exit 1
+        fi
+
+    - name: Explorer backend tests
+      shell: bash
+      env:
+        AEKO_EXPLORER_TEST_DATABASE_URL: postgres://aeko:aeko@127.0.0.1:5432/aeko_explorer_test
+      run: cargo test --locked -p aeko-explorer-backend
+
+    - name: Stop isolated PostgreSQL
+      if: ${{ always() }}
+      shell: bash
+      run: docker rm -f aeko-explorer-backend-ci-postgres >/dev/null 2>&1 || true
+
+    - name: Explorer backend release build
+      if: ${{ inputs.build-image != 'true' }}
+      shell: bash
+      run: cargo build --locked --release -p aeko-explorer-backend
+
+    - name: Build Explorer API image
+      if: ${{ inputs.build-image == 'true' }}
+      shell: bash
+      env:
+        PUBLISH: ${{ inputs.publish }}
+        REGISTRY_USER: ${{ inputs.registry-user }}
+        SHA_TAG: ${{ inputs.sha-tag }}
+      run: |
+        set -euo pipefail
+        tags=()
+        output=(--load)
+
+        if [ "$PUBLISH" = "true" ]; then
+          : "${REGISTRY_USER:?registry-user is required when publishing}"
+          tags+=(--tag "${REGISTRY_USER}/aeko-explorer-api:${SHA_TAG}")
+          tags+=(--tag "${REGISTRY_USER}/aeko-explorer-backend:${SHA_TAG}")
+          output=(--push)
+        else
+          tags+=(--tag "aeko-ci/aeko-explorer-api:${SHA_TAG}")
+        fi
+
+        docker buildx build \
+          --file Dockerfile \
+          --target explorer-api \
+          "${tags[@]}" \
+          "${output[@]}" \
+          .
+
+    - name: Verify PR-built Explorer API image exists
+      if: ${{ inputs.build-image == 'true' && inputs.publish != 'true' }}
+      shell: bash
+      env:
+        SHA_TAG: ${{ inputs.sha-tag }}
+      run: docker image inspect "aeko-ci/aeko-explorer-api:${SHA_TAG}" >/dev/null

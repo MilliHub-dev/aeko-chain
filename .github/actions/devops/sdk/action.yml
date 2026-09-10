@@ -1,0 +1,216 @@
+name: External SDK DevOps
+description: Validate selected external SDKs and prove changed package versions are releasable.
+
+inputs:
+  js:
+    description: Validate the JavaScript SDK.
+    required: false
+    default: "false"
+  node:
+    description: Validate the Node.js SDK.
+    required: false
+    default: "false"
+  python:
+    description: Validate the Python SDK.
+    required: false
+    default: "false"
+  rust:
+    description: Validate the high-level Rust SDK.
+    required: false
+    default: "false"
+  release-js:
+    description: JavaScript SDK package source changed and must use a new publishable version.
+    required: false
+    default: "false"
+  release-node:
+    description: Node SDK package source changed and must use a new publishable version.
+    required: false
+    default: "false"
+  release-python:
+    description: Python SDK package source changed and must use a new publishable version.
+    required: false
+    default: "false"
+  release-rust:
+    description: Rust SDK package source changed and must use a new publishable version.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: JavaScript SDK install
+      if: ${{ inputs.js == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/js
+      run: npm ci
+
+    - name: JavaScript SDK type-check and build
+      if: ${{ inputs.js == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/js
+      run: npm run release:check
+
+    - name: JavaScript SDK tests
+      if: ${{ inputs.js == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/js
+      run: npm test --if-present
+
+    - name: JavaScript SDK package validation
+      if: ${{ inputs.js == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/js
+      run: npm pack --dry-run
+
+    - name: Require a new JavaScript SDK version
+      if: ${{ inputs.release-js == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/js
+      run: |
+        set -euo pipefail
+        package=$(node -p "require('./package.json').name")
+        version=$(node -p "require('./package.json').version")
+        err=$(mktemp)
+        if npm view "${package}@${version}" version --registry=https://registry.npmjs.org/ >/dev/null 2>"$err"; then
+          echo "${package}@${version} already exists on npm. Bump the package version before release." >&2
+          exit 1
+        fi
+        if ! grep -Eq 'E404|404 Not Found|is not in this registry' "$err"; then
+          cat "$err" >&2
+          echo "Unable to prove npm version availability for ${package}@${version}." >&2
+          exit 1
+        fi
+
+    - name: Node SDK install
+      if: ${{ inputs.node == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/node
+      run: npm ci
+
+    - name: Node SDK type-check, build, and tests
+      if: ${{ inputs.node == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/node
+      run: npm run release:check
+
+    - name: Node SDK package validation
+      if: ${{ inputs.node == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/node
+      run: npm pack --dry-run
+
+    - name: Require a new Node SDK version
+      if: ${{ inputs.release-node == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/node
+      run: |
+        set -euo pipefail
+        package=$(node -p "require('./package.json').name")
+        version=$(node -p "require('./package.json').version")
+        err=$(mktemp)
+        if npm view "${package}@${version}" version --registry=https://registry.npmjs.org/ >/dev/null 2>"$err"; then
+          echo "${package}@${version} already exists on npm. Bump the package version before release." >&2
+          exit 1
+        fi
+        if ! grep -Eq 'E404|404 Not Found|is not in this registry' "$err"; then
+          cat "$err" >&2
+          echo "Unable to prove npm version availability for ${package}@${version}." >&2
+          exit 1
+        fi
+
+    - name: Python SDK syntax validation
+      if: ${{ inputs.python == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/python
+      run: python3 -m compileall -q src
+
+    - name: Python SDK build and import validation
+      if: ${{ inputs.python == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/python
+      run: |
+        set -euo pipefail
+        wheel_dir=$(mktemp -d)
+        install_dir=$(mktemp -d)
+        python3 -m pip wheel --disable-pip-version-check --no-deps . --wheel-dir "$wheel_dir"
+        wheel=$(find "$wheel_dir" -maxdepth 1 -name '*.whl' -print -quit)
+        test -n "$wheel"
+        python3 -m pip install --disable-pip-version-check --no-deps --target "$install_dir" "$wheel"
+        PYTHONPATH="$install_dir" python3 -c 'import aeko_sdk; print(aeko_sdk.__name__)'
+
+    - name: Require a new Python SDK version
+      if: ${{ inputs.release-python == 'true' }}
+      shell: bash
+      working-directory: apps/sdk/python
+      run: |
+        set -euo pipefail
+        version=$(python3 - <<'PY'
+        import pathlib, tomllib
+        print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])
+        PY
+        )
+        status=$(curl -sS -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/aeko-sdk/${version}/json")
+        case "$status" in
+          404) ;;
+          200)
+            echo "aeko-sdk==${version} already exists on PyPI. Bump the package version before release." >&2
+            exit 1
+            ;;
+          *)
+            echo "Unable to prove PyPI version availability for aeko-sdk==${version}; HTTP ${status}." >&2
+            exit 1
+            ;;
+        esac
+
+    # Existing formatting debt in an unchanged SDK must not make a core CI
+    # refactor look like an SDK release. When Rust SDK source changes, however,
+    # formatting and package verification are mandatory before publication.
+    - name: Rust SDK format
+      if: ${{ inputs.rust == 'true' && inputs.release-rust == 'true' }}
+      shell: bash
+      run: cargo fmt --manifest-path apps/sdk/rust-client/Cargo.toml -- --check
+
+    - name: Rust SDK type and target check
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      run: cargo check --locked -p aeko-rust-sdk --all-targets
+
+    - name: Rust SDK lint
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      run: cargo clippy --locked -p aeko-rust-sdk --all-targets -- -D warnings
+
+    - name: Rust SDK tests
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      run: cargo test --locked -p aeko-rust-sdk
+
+    - name: Rust SDK release build
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      run: cargo build --locked --release -p aeko-rust-sdk
+
+    - name: Rust SDK package dry-run
+      if: ${{ inputs.rust == 'true' && inputs.release-rust == 'true' }}
+      shell: bash
+      run: cargo publish --locked -p aeko-rust-sdk --dry-run
+
+    - name: Require a new Rust SDK version
+      if: ${{ inputs.release-rust == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "aeko-rust-sdk") | .version')
+        test -n "$version"
+        status=$(curl -sS -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/aeko-rust-sdk/${version}")
+        case "$status" in
+          404) ;;
+          200)
+            echo "aeko-rust-sdk@${version} already exists on crates.io. Bump the package version before release." >&2
+            exit 1
+            ;;
+          *)
+            echo "Unable to prove crates.io version availability for aeko-rust-sdk@${version}; HTTP ${status}." >&2
+            exit 1
+            ;;
+        esac

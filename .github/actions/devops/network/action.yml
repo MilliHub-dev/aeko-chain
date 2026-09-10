@@ -1,0 +1,120 @@
+name: AEKO network DevOps
+description: Fully validate core changes, build network images locally on PRs, and publish them only from main.
+
+inputs:
+  publish:
+    description: Push immutable network images. This is accepted only on main.
+    required: false
+    default: "false"
+  registry-user:
+    description: Docker Hub namespace used when publishing.
+    required: false
+    default: ""
+  sha-tag:
+    description: Immutable release tag.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Guard network publication branch
+      if: ${{ inputs.publish == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          echo "Network publication is permitted only from the main branch." >&2
+          exit 1
+        fi
+
+    - name: Validate network deployment contracts
+      shell: bash
+      env:
+        AEKO_PUBLIC_IP: 203.0.113.10
+        AEKO_KEYS_DIR: ../files/aeko-keys
+        EXPLORER_DATABASE_URL: postgres://aeko:aeko@postgres:5432/aeko_explorer
+        AEKO_IMAGE_TAG: ci
+      run: |
+        set -euo pipefail
+        bash -n docker/validator-entrypoint.sh
+        bash -n scripts/deploy-testnet.sh
+        python3 scripts/validate-deployment-contract.py
+        docker compose -f docker-compose.yml config >/dev/null
+        docker compose -f docker-compose.dokploy.yml config >/dev/null
+
+    - name: Network Rust format
+      shell: bash
+      run: cargo fmt --all -- --check
+
+    - name: Network binary type and target check
+      shell: bash
+      run: >-
+        cargo check --locked --all-targets
+        -p aeko-validator
+        -p aeko-genesis
+        -p aeko-faucet
+        -p aeko-social-bootstrap
+
+    - name: Network binary lint
+      shell: bash
+      run: >-
+        cargo clippy --locked --all-targets
+        -p aeko-validator
+        -p aeko-genesis
+        -p aeko-faucet
+        -p aeko-social-bootstrap
+        -- -D warnings
+
+    - name: Network binary tests
+      shell: bash
+      run: >-
+        cargo test --locked
+        -p aeko-validator
+        -p aeko-genesis
+        -p aeko-faucet
+        -p aeko-social-bootstrap
+
+    - name: Build network image set
+      shell: bash
+      env:
+        PUBLISH: ${{ inputs.publish }}
+        REGISTRY_USER: ${{ inputs.registry-user }}
+        SHA_TAG: ${{ inputs.sha-tag }}
+      run: |
+        set -euo pipefail
+        output=(--load)
+        prefix="aeko-ci"
+
+        if [ "$PUBLISH" = "true" ]; then
+          : "${REGISTRY_USER:?registry-user is required when publishing}"
+          prefix="$REGISTRY_USER"
+          output=(--push)
+        fi
+
+        build_target() {
+          local target="$1"
+          shift
+          local tags=()
+          local image
+          for image in "$@"; do
+            tags+=(--tag "${prefix}/${image}:${SHA_TAG}")
+          done
+          docker buildx build \
+            --file Dockerfile \
+            --target "$target" \
+            "${tags[@]}" \
+            "${output[@]}" \
+            .
+        }
+
+        # network-rust-builder compiles validator, genesis, faucet and
+        # social-bootstrap once. BuildKit reuses that stage for these targets.
+        build_target validator aeko-validator aeko-node
+        build_target faucet aeko-faucet
+        build_target social-bootstrap aeko-social-bootstrap
+
+        if [ "$PUBLISH" = "true" ]; then
+          echo "Published immutable network images for ${SHA_TAG}."
+        else
+          echo "Built the network image set locally for validation only; nothing was pushed."
+        fi

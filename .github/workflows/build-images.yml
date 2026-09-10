@@ -1,43 +1,41 @@
-name: Build AEKO Network Images
+name: AEKO DevOps (single runner)
 
 on:
   pull_request:
     branches: ["main"]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "LICENSE*"
+      - "NOTICE*"
   push:
     branches: ["main"]
-    # Off-chain applications live under apps/. A main push that changes only
-    # non-Dockerized apps must not rebuild or redeploy the network images.
-    paths:
-      - "**"
-      - "!apps/**"
-      - "apps/cli/**"
-      - "apps/explorer/backend/**"
-      - "apps/explorer/web/**"
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "LICENSE*"
+      - "NOTICE*"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: aeko-devops-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: sccache
+
 jobs:
-  build-images:
-    # Manual runs are allowed to publish only when explicitly launched on main.
-    # Pull requests may validate/build app images, but never network images.
+  devops:
+    # Deliberately one job: every local composite action below executes on this
+    # same ubuntu-latest VM and shares its checkout, caches, Docker daemon,
+    # Buildx builder, authentication, and filesystem.
     if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: aeko
-          POSTGRES_PASSWORD: aeko
-          POSTGRES_DB: aeko_explorer_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U aeko -d aeko_explorer_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
 
     steps:
       - name: Checkout source
@@ -45,406 +43,230 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Classify changed paths
+      - name: Detect changed domains
         id: changes
+        uses: ./.github/actions/devops/detect-changes
+
+      - name: Reject unowned app paths
+        if: steps.changes.outputs.unmapped_app == 'true'
+        shell: bash
+        run: |
+          echo "An apps/** path changed without explicit DevOps ownership." >&2
+          echo "Add a classifier mapping and self-contained app action before merging." >&2
+          exit 1
+
+      - name: Resolve release mode
+        id: release
         shell: bash
         run: |
           set -euo pipefail
-
-          core=false
-          cli=false
-          explorer_backend=false
-          explorer_web=false
-          sdk_node=false
-
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
-            # A manual main run is an explicit full-network release request.
-            core=true
-            cli=true
-            explorer_backend=true
-            explorer_web=true
-            sdk_node=true
-          else
-            if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-              BASE_SHA="${{ github.event.pull_request.base.sha }}"
-            else
-              BASE_SHA="${{ github.event.before }}"
-            fi
-            HEAD_SHA="${GITHUB_SHA}"
-
-            if [[ "$BASE_SHA" =~ ^0+$ ]] || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
-              mapfile -t changed_files < <(
-                git diff-tree --root --no-commit-id --name-only -r "$HEAD_SHA"
-              )
-            else
-              mapfile -t changed_files < <(
-                git diff --name-only "$BASE_SHA" "$HEAD_SHA"
-              )
-            fi
-
-            printf 'Changed paths:\n'
-            printf '  %s\n' "${changed_files[@]:-<none>}"
-
-            for file in "${changed_files[@]}"; do
-              case "$file" in
-                apps/cli/*)
-                  cli=true
-                  ;;
-                apps/explorer/backend/*)
-                  explorer_backend=true
-                  ;;
-                apps/explorer/web/*)
-                  explorer_web=true
-                  ;;
-                apps/sdk/node/*)
-                  sdk_node=true
-                  ;;
-              esac
-
-              case "$file" in
-                apps/*)
-                  ;;
-                *)
-                  core=true
-                  ;;
-              esac
-            done
+          publish=false
+          if [ "$GITHUB_REF" = "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            publish=true
           fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          printf 'Release mode: publish=%s sha=%s\n' "$publish" "${GITHUB_SHA::12}"
 
-          {
-            echo "core=$core"
-            echo "cli=$cli"
-            echo "explorer_backend=$explorer_backend"
-            echo "explorer_web=$explorer_web"
-            echo "sdk_node=$sdk_node"
-          } >> "$GITHUB_OUTPUT"
-
-          printf 'Selection: core=%s cli=%s explorer_backend=%s explorer_web=%s sdk_node=%s\n' \
-            "$core" "$cli" "$explorer_backend" "$explorer_web" "$sdk_node"
-
-      - name: Validate deployment contracts
-        if: steps.changes.outputs.core == 'true'
+      - name: Install pinned Rust toolchain components
+        if: steps.changes.outputs.rust_needed == 'true'
         shell: bash
-        env:
-          AEKO_PUBLIC_IP: 203.0.113.10
-          AEKO_KEYS_DIR: ../files/aeko-keys
-          EXPLORER_DATABASE_URL: postgres://aeko:aeko@postgres:5432/aeko_explorer
-          AEKO_IMAGE_TAG: ci
         run: |
           set -euo pipefail
-          bash -n docker/validator-entrypoint.sh
-          bash -n scripts/deploy-testnet.sh
-          python3 scripts/validate-deployment-contract.py
-          docker compose -f docker-compose.yml config >/dev/null
-          docker compose -f docker-compose.dokploy.yml config >/dev/null
+          rustup toolchain install 1.85.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.85.0
+          rustc --version
+          cargo --version
 
-      - name: Set up sccache
-        if: steps.changes.outputs.core == 'true' || steps.changes.outputs.explorer_backend == 'true'
-        uses: mozilla-actions/sccache-action@v0.0.3
+      - name: Set up shared Rust compilation cache
+        if: steps.changes.outputs.rust_needed == 'true'
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
+
+      - name: Set up shared Node runtime/cache
+        if: steps.changes.outputs.node_needed == 'true'
+        uses: actions/setup-node@v4
         with:
-          version: "v0.5.4"
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: |
+            apps/admin/package-lock.json
+            apps/explorer/web/package-lock.json
+            apps/sdk/js/package-lock.json
+            apps/sdk/node/package-lock.json
 
-      - name: Validate Explorer PostgreSQL backend
-        if: steps.changes.outputs.core == 'true' || steps.changes.outputs.explorer_backend == 'true'
-        env:
-          AEKO_EXPLORER_TEST_DATABASE_URL: postgres://aeko:aeko@127.0.0.1:5432/aeko_explorer_test
-        run: cargo test -p aeko-explorer-backend
+      - name: Set up shared Python runtime
+        if: steps.changes.outputs.python_needed == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Validate Explorer web backend contract
-        if: steps.changes.outputs.core == 'true' || steps.changes.outputs.explorer_web == 'true'
-        working-directory: apps/explorer/web
-        run: |
-          npm ci
-          npm test
-          # The application already has unrelated repository-wide ESLint debt.
-          # Gate the Explorer/backend contract and the active network/social
-          # acceptance surfaces directly, then use the Vite production build
-          # as the broad frontend integration check.
-          npx eslint \
-            src/components/NetworkConsoleModal.jsx \
-            src/components/NetworkConsoleModalV2.jsx \
-            src/components/social/NetworkSocialModal.jsx \
-            src/pages/Faucet.jsx \
-            src/pages/SocialTestV2.jsx \
-            src/utils/explorerApi.js \
-            src/utils/explorerData.js \
-            src/utils/aekoRpcClient.js \
-            src/utils/aekoWsClient.js \
-            src/utils/aekoSocialActions.js \
-            src/utils/aekoSocialNft.js \
-            src/utils/socialConsoleState.js \
-            src/utils/testConsoleApi.js \
-            src/utils/aekoRpcClient.test.js \
-            src/utils/aekoWsClient.test.js \
-            src/utils/explorerData.test.js \
-            src/utils/explorerSourcePolicy.test.js \
-            src/utils/networkConsoleContract.test.js \
-            src/utils/socialConsoleState.test.js
-          npm run build
-
-      - name: Validate Node Social SDK wire contract
-        if: steps.changes.outputs.core == 'true' || steps.changes.outputs.sdk_node == 'true'
-        working-directory: apps/sdk/node
-        run: |
-          npm ci
-          npm run release:check
-
-      - name: Set up Docker Buildx
+      - name: Set up shared Docker Buildx
         if: >-
-          (steps.changes.outputs.core == 'true' &&
-           github.ref == 'refs/heads/main' &&
-           github.event_name != 'pull_request') ||
+          steps.changes.outputs.core == 'true' ||
+          steps.changes.outputs.admin == 'true' ||
           steps.changes.outputs.cli == 'true' ||
           steps.changes.outputs.explorer_backend == 'true' ||
           steps.changes.outputs.explorer_web == 'true'
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      - name: Log in to Docker Hub once
+        if: steps.release.outputs.publish == 'true' && steps.changes.outputs.dockerized == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build selected image set
-        if: >-
-          (steps.changes.outputs.core == 'true' &&
-           github.ref == 'refs/heads/main' &&
-           github.event_name != 'pull_request') ||
-          steps.changes.outputs.cli == 'true' ||
-          steps.changes.outputs.explorer_backend == 'true' ||
-          steps.changes.outputs.explorer_web == 'true'
+      # On pull requests, independent domains are allowed to finish even if an
+      # earlier domain fails. The aggregate gate below still fails the PR.
+      # Main deliberately remains fail-fast so no later release/publish action
+      # can run after a failed validation/build.
+      - name: Validate/build admin application
+        id: admin
+        if: steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/admin
+        with:
+          build-image: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Validate selected external SDKs
+        id: sdk
+        if: steps.changes.outputs.sdk_any == 'true' || steps.changes.outputs.core == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/sdk
+        with:
+          js: ${{ (steps.changes.outputs.sdk_js == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          node: ${{ (steps.changes.outputs.sdk_node == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          python: ${{ (steps.changes.outputs.sdk_python == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          rust: ${{ (steps.changes.outputs.sdk_rust == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          release-js: ${{ steps.changes.outputs.sdk_release_js }}
+          release-node: ${{ steps.changes.outputs.sdk_release_node }}
+          release-python: ${{ steps.changes.outputs.sdk_release_python }}
+          release-rust: ${{ steps.changes.outputs.sdk_release_rust }}
+
+      - name: Validate/build CLI and tools
+        id: cli
+        if: steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/cli
+        with:
+          build-image: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Validate/build Explorer backend
+        id: explorer_backend
+        if: steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/explorer-backend
+        with:
+          build-image: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Validate/build Explorer frontend
+        id: explorer_web
+        if: steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/explorer-web
+        with:
+          build-image: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Validate/build full blockchain network
+        id: network
+        if: steps.changes.outputs.core == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/network
+        with:
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Aggregate pull-request validation results
+        if: ${{ always() && github.event_name == 'pull_request' }}
         shell: bash
         env:
-          REGISTRY_USER: ${{ secrets.DOCKERHUB_USERNAME }}
-          CORE_CHANGED: ${{ steps.changes.outputs.core }}
-          CLI_CHANGED: ${{ steps.changes.outputs.cli }}
-          EXPLORER_BACKEND_CHANGED: ${{ steps.changes.outputs.explorer_backend }}
-          EXPLORER_WEB_CHANGED: ${{ steps.changes.outputs.explorer_web }}
+          ADMIN_OUTCOME: ${{ steps.admin.outcome }}
+          SDK_OUTCOME: ${{ steps.sdk.outcome }}
+          CLI_OUTCOME: ${{ steps.cli.outcome }}
+          EXPLORER_BACKEND_OUTCOME: ${{ steps.explorer_backend.outcome }}
+          EXPLORER_WEB_OUTCOME: ${{ steps.explorer_web.outcome }}
+          NETWORK_OUTCOME: ${{ steps.network.outcome }}
         run: |
           set -euo pipefail
-          SHA_TAG="${GITHUB_SHA::12}"
-          PUBLISH=false
-          PUSH_ARGS=()
-
-          if [ "${GITHUB_REF}" = "refs/heads/main" ] && [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
-            PUBLISH=true
-            : "${REGISTRY_USER:?DOCKERHUB_USERNAME secret is required for image publishing}"
-            PUSH_ARGS+=(--push)
-          else
-            PUSH_ARGS+=(--load)
-          fi
-
-          build_target() {
-            local target="$1"
-            shift
-            local tags=()
-            local build_args=()
-            local image
-
-            if [ "$PUBLISH" = "true" ]; then
-              for image in "$@"; do
-                tags+=(--tag "${REGISTRY_USER}/${image}:latest")
-                tags+=(--tag "${REGISTRY_USER}/${image}:${SHA_TAG}")
-              done
-            else
-              # PR images are local-only and can never reach Docker Hub.
-              for image in "$@"; do
-                tags+=(--tag "aeko-ci/${image}:${SHA_TAG}")
-              done
-              if [ "$target" = "explorer-ui" ]; then
-                build_args+=(
-                  --build-arg VITE_AEKO_LOCAL_RPC=http://127.0.0.1:8899
-                  --build-arg VITE_AEKO_LOCAL_WS=ws://127.0.0.1:8900
-                  --build-arg VITE_AEKO_LOCAL_EXPLORER_API=http://127.0.0.1:8088
-                )
-              fi
-            fi
-
-            echo "==> Building ${target}"
-            docker buildx build \
-              --file Dockerfile \
-              --target "${target}" \
-              "${build_args[@]}" \
-              "${tags[@]}" \
-              "${PUSH_ARGS[@]}" \
-              .
+          failures=()
+          record_failure() {
+            local domain="$1"
+            local outcome="$2"
+            case "$outcome" in
+              failure|cancelled)
+                failures+=("${domain}:${outcome}")
+                ;;
+            esac
           }
 
-          if [ "$PUBLISH" = "true" ] && [ "$CORE_CHANGED" = "true" ]; then
-            echo "Non-app change on main: building the complete network image set."
-            build_target validator aeko-validator aeko-node
-            build_target faucet aeko-faucet
-            build_target social-bootstrap aeko-social-bootstrap
-            build_target tools aeko-tools
-            build_target explorer-api aeko-explorer-api aeko-explorer-backend
-            build_target explorer-ui aeko-explorer-ui
-          else
-            echo "Feature branch or apps-only change: network images are blocked."
-            if [ "$CLI_CHANGED" = "true" ]; then
-              build_target tools aeko-tools
-            fi
-            if [ "$EXPLORER_BACKEND_CHANGED" = "true" ]; then
-              build_target explorer-api aeko-explorer-api aeko-explorer-backend
-            fi
-            if [ "$EXPLORER_WEB_CHANGED" = "true" ]; then
-              build_target explorer-ui aeko-explorer-ui
-            fi
-          fi
+          record_failure admin "$ADMIN_OUTCOME"
+          record_failure sdk "$SDK_OUTCOME"
+          record_failure cli "$CLI_OUTCOME"
+          record_failure explorer-backend "$EXPLORER_BACKEND_OUTCOME"
+          record_failure explorer-web "$EXPLORER_WEB_OUTCOME"
+          record_failure network "$NETWORK_OUTCOME"
 
-      - name: Dogfood main-published network and Social custody flow
-        if: >-
-          steps.changes.outputs.core == 'true' &&
-          github.ref == 'refs/heads/main' &&
-          github.event_name != 'pull_request'
-        shell: bash
-        env:
-          REGISTRY_USER: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: |
-          set -euo pipefail
-          : "${REGISTRY_USER:?DOCKERHUB_USERNAME secret is required for network dogfood}"
-          SHA_TAG="${GITHUB_SHA::12}"
-          export AEKO_IMAGE_REPOSITORY="$REGISTRY_USER"
-          export AEKO_IMAGE_TAG="$SHA_TAG"
-          export AEKO_KEYS_DIR="$PWD/local-testnet"
-          export EXPLORER_DATABASE_URL='postgres://aeko:aeko@postgres:5432/aeko_explorer_ci'
-
-          cleanup() {
-            docker rm -f aeko-ci-postgres >/dev/null 2>&1 || true
-            docker compose -f docker-compose.yml down -v >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
-
-          mkdir -p "$AEKO_KEYS_DIR"
-          for key in faucet-keypair stake-keypair validator-1-keypair vote-1-keypair rpc-node-keypair; do
-            docker run --rm \
-              -v "$AEKO_KEYS_DIR:/keys" \
-              "${AEKO_IMAGE_REPOSITORY}/aeko-tools:${SHA_TAG}" \
-              aeko-keygen new --no-bip39-passphrase --silent --outfile "/keys/${key}.json"
-          done
-
-          # Starting faucet creates the canonical Compose network. Attach an
-          # isolated PostgreSQL instance to that same network so Explorer uses
-          # a real database without adding PostgreSQL to the production stack.
-          docker compose -f docker-compose.yml up -d faucet
-          COMPOSE_NETWORK=$(docker inspect aeko-faucet --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{end}}')
-          test -n "$COMPOSE_NETWORK"
-          docker run -d --name aeko-ci-postgres \
-            --network "$COMPOSE_NETWORK" \
-            --network-alias postgres \
-            -e POSTGRES_USER=aeko \
-            -e POSTGRES_PASSWORD=aeko \
-            -e POSTGRES_DB=aeko_explorer_ci \
-            postgres:16-alpine >/dev/null
-
-          for _ in $(seq 1 30); do
-            if docker exec aeko-ci-postgres pg_isready -U aeko -d aeko_explorer_ci >/dev/null 2>&1; then
-              break
-            fi
-            sleep 1
-          done
-          docker exec aeko-ci-postgres pg_isready -U aeko -d aeko_explorer_ci
-
-          docker compose -f docker-compose.yml up -d validator social-bootstrap explorer-api explorer-ui
-
-          RPC_READY=0
-          for _ in $(seq 1 90); do
-            HEALTH=$(curl -sS --max-time 3 -X POST -H 'Content-Type: application/json' \
-              -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' \
-              http://127.0.0.1:8899 2>/dev/null || true)
-            if printf '%s' "$HEALTH" | grep -q '"result":"ok"'; then
-              RPC_READY=1
-              break
-            fi
-            sleep 2
-          done
-          if [ "$RPC_READY" -ne 1 ]; then
-            docker logs --tail 120 aeko-validator || true
+          if [ "${#failures[@]}" -gt 0 ]; then
+            printf 'One or more PR domains failed after all selected domains were exercised:\n' >&2
+            printf '  %s\n' "${failures[@]}" >&2
             exit 1
           fi
 
-          API_READY=0
-          for _ in $(seq 1 120); do
-            if curl -fsS --max-time 3 http://127.0.0.1:8088/health >/dev/null 2>&1; then
-              API_READY=1
-              break
-            fi
-            sleep 2
-          done
-          if [ "$API_READY" -ne 1 ]; then
-            docker logs --tail 120 aeko-social-bootstrap || true
-            docker logs --tail 120 aeko-explorer-api || true
-            exit 1
-          fi
+          echo "All selected PR domains passed."
 
-          AEKO_RPC_URL=http://127.0.0.1:8899 \
-          AEKO_EXPLORER_API_URL=http://127.0.0.1:8088 \
-            python3 scripts/smoke-aeko-social.py
+      - name: Dogfood immutable full-network release
+        if: steps.changes.outputs.core == 'true' && steps.release.outputs.publish == 'true'
+        uses: ./.github/actions/devops/network-dogfood
+        with:
+          registry-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
 
-          curl -fsS http://127.0.0.1:4000/ >/dev/null
+      # Package registries are irreversible release channels, so publish SDKs
+      # only after every selected validation/build (and core dogfood) succeeds.
+      - name: Publish changed SDK packages
+        if: steps.release.outputs.publish == 'true' && steps.changes.outputs.sdk_release_any == 'true'
+        uses: ./.github/actions/devops/sdk-publish
+        with:
+          js: ${{ steps.changes.outputs.sdk_release_js }}
+          node: ${{ steps.changes.outputs.sdk_release_node }}
+          python: ${{ steps.changes.outputs.sdk_release_python }}
+          rust: ${{ steps.changes.outputs.sdk_release_rust }}
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          pypi-token: ${{ secrets.PYPI_API_TOKEN }}
+          crates-token: ${{ secrets.CRATES_IO_TOKEN }}
 
-          # Execute the actual SocialTestV2 page in a real browser. The page
-          # creates/signs with its own browser-local test wallet and only marks
-          # the full flow PASS after post/NFT/engagement/custody records are
-          # confirmed on RPC and observed through Explorer projections.
-          BROWSER_DIR=$(mktemp -d)
-          cd "$BROWSER_DIR"
-          npm init -y >/dev/null 2>&1
-          npm install --silent --ignore-scripts playwright@1.55.0
-          CHROME_BIN=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)
-          if [ -z "$CHROME_BIN" ]; then
-            npx playwright install --with-deps chromium
-          fi
-          export CHROME_BIN
-          node --input-type=module <<'NODE'
-          import { chromium } from 'playwright';
+      - name: Promote only validated Docker images to latest
+        if: steps.release.outputs.publish == 'true' && steps.changes.outputs.dockerized == 'true'
+        uses: ./.github/actions/devops/promote-images
+        with:
+          registry-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+          network: ${{ steps.changes.outputs.core }}
+          admin: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          cli: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          explorer-backend: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          explorer-web: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
 
-          const executablePath = process.env.CHROME_BIN || undefined;
-          const browser = await chromium.launch({
-            headless: true,
-            executablePath,
-            args: ['--no-sandbox'],
-          });
-          const page = await browser.newPage();
-          const consoleErrors = [];
-          page.on('console', (message) => {
-            if (message.type() === 'error') consoleErrors.push(message.text());
-          });
-          page.on('pageerror', (error) => consoleErrors.push(error.message));
-
-          try {
-            const response = await page.goto('http://127.0.0.1:4000/network-tools/social-e2e', {
-              waitUntil: 'domcontentloaded',
-              timeout: 30_000,
-            });
-            if (!response?.ok()) throw new Error(`Social E2E page returned HTTP ${response?.status()}`);
-            const runButton = page.getByRole('button', { name: 'Run custody + asset flow' });
-            await runButton.waitFor({ state: 'visible', timeout: 30_000 });
-            await runButton.click();
-
-            const success = 'Post + NFT + engagement + real stake escrow + real tip transfer + Explorer projections all passed.';
-            let finalState = 'running';
-            let excerpt = '';
-            for (let attempt = 0; attempt < 300; attempt += 1) {
-              const result = await page.evaluate((successText) => {
-                const text = document.body.innerText;
-                if (text.includes(successText)) return { state: 'pass', excerpt: successText };
-                const marker = text.indexOf('Full custody + asset flow');
-                const sample = marker >= 0 ? text.slice(marker, marker + 900) : text.slice(0, 900);
-                if (sample.includes('FAIL')) return { state: 'fail', excerpt: sample };
-                return { state: 'running', excerpt: sample };
-              }, success);
-              finalState = result.state;
-              excerpt = result.excerpt;
-              if (finalState !== 'running') break;
-              await page.waitForTimeout(1_000);
-            }
-            if (finalState !== 'pass') {
-              throw new Error(`SocialTestV2 did not pass. State=${finalState}. UI evidence: ${excerpt}`);
-            }
-            console.log('[PASS] SocialTestV2 signed custody + NFT flow passed against main-published runtime');
-            if (consoleErrors.length) console.log('[browser console errors observed]', consoleErrors.join('\n'));
-          } finally {
-            await browser.close();
-          }
-          NODE
+      - name: Trigger Dokploy after successful promotion
+        if: steps.release.outputs.publish == 'true' && steps.changes.outputs.deployable == 'true'
+        shell: bash
+        env:
+          DOKPLOY_WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          : "${DOKPLOY_WEBHOOK_URL:?DOKPLOY_WEBHOOK_URL secret is required}"
+          curl --fail-with-body --silent --show-error --request POST "$DOKPLOY_WEBHOOK_URL"

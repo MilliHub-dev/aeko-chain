@@ -1,0 +1,94 @@
+name: Admin application DevOps
+description: Fully validate, build, and optionally publish the AEKO admin application image.
+
+inputs:
+  build-image:
+    description: Build the admin container image.
+    required: false
+    default: "false"
+  publish:
+    description: Push the immutable SHA-tagged admin image to Docker Hub.
+    required: false
+    default: "false"
+  registry-user:
+    description: Docker Hub namespace used when publishing.
+    required: false
+    default: ""
+  sha-tag:
+    description: Immutable release tag.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Guard admin image publication branch
+      if: ${{ inputs.publish == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          echo "Admin image publication is permitted only from main." >&2
+          exit 1
+        fi
+
+    - name: Install admin dependencies
+      shell: bash
+      working-directory: apps/admin
+      run: npm ci
+
+    - name: Admin lint
+      shell: bash
+      working-directory: apps/admin
+      run: npm run lint --if-present
+
+    - name: Admin type-check
+      shell: bash
+      working-directory: apps/admin
+      run: npx tsc --noEmit
+
+    - name: Admin tests
+      shell: bash
+      working-directory: apps/admin
+      run: npm test --if-present
+
+    - name: Admin production build
+      if: ${{ inputs.build-image != 'true' }}
+      shell: bash
+      working-directory: apps/admin
+      run: npm run build
+
+    - name: Build admin image
+      if: ${{ inputs.build-image == 'true' }}
+      shell: bash
+      env:
+        PUBLISH: ${{ inputs.publish }}
+        REGISTRY_USER: ${{ inputs.registry-user }}
+        SHA_TAG: ${{ inputs.sha-tag }}
+      run: |
+        set -euo pipefail
+        tags=()
+        output=(--load)
+
+        if [ "$PUBLISH" = "true" ]; then
+          : "${REGISTRY_USER:?registry-user is required when publishing}"
+          tags+=(--tag "${REGISTRY_USER}/aeko-admin:${SHA_TAG}")
+          output=(--push)
+        else
+          tags+=(--tag "aeko-ci/aeko-admin:${SHA_TAG}")
+        fi
+
+        # The admin Docker target performs npm ci + next build, so packaging is
+        # also the production build gate and we avoid compiling Next.js twice.
+        docker buildx build \
+          --file Dockerfile \
+          --target admin \
+          "${tags[@]}" \
+          "${output[@]}" \
+          .
+
+    - name: Verify PR-built admin image exists
+      if: ${{ inputs.build-image == 'true' && inputs.publish != 'true' }}
+      shell: bash
+      env:
+        SHA_TAG: ${{ inputs.sha-tag }}
+      run: docker image inspect "aeko-ci/aeko-admin:${SHA_TAG}" >/dev/null

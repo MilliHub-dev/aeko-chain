@@ -1,0 +1,104 @@
+name: CLI and tools DevOps
+description: Fully validate and build the AEKO CLI/keygen and optionally package the operator tools image.
+
+inputs:
+  build-image:
+    description: Build the operator tools container image.
+    required: false
+    default: "false"
+  publish:
+    description: Push the immutable SHA-tagged tools image to Docker Hub.
+    required: false
+    default: "false"
+  registry-user:
+    description: Docker Hub namespace used when publishing.
+    required: false
+    default: ""
+  sha-tag:
+    description: Immutable release tag.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Guard tools image publication branch
+      if: ${{ inputs.publish == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          echo "aeko-tools publication is permitted only from main." >&2
+          exit 1
+        fi
+
+    - name: CLI and keygen format
+      shell: bash
+      run: |
+        cargo fmt --manifest-path apps/cli/Cargo.toml -- --check
+        cargo fmt --manifest-path keygen/Cargo.toml -- --check
+
+    - name: CLI and keygen type/target check
+      shell: bash
+      run: cargo check --locked -p aeko-cli -p aeko-keygen --all-targets
+
+    - name: CLI and keygen lint
+      shell: bash
+      run: cargo clippy --locked -p aeko-cli -p aeko-keygen --all-targets -- -D warnings
+
+    - name: CLI and keygen tests
+      shell: bash
+      run: cargo test --locked -p aeko-cli -p aeko-keygen
+
+    - name: Validate POSIX installer syntax
+      shell: bash
+      run: sh -n install/aeko-cli-install.sh
+
+    - name: CLI and keygen release build
+      if: ${{ inputs.build-image != 'true' }}
+      shell: bash
+      run: cargo build --locked --release -p aeko-cli -p aeko-keygen
+
+    - name: Verify host-built CLI binaries
+      if: ${{ inputs.build-image != 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        target/release/aeko --version
+        target/release/aeko-keygen --version
+
+    - name: Build operator tools image
+      if: ${{ inputs.build-image == 'true' }}
+      shell: bash
+      env:
+        PUBLISH: ${{ inputs.publish }}
+        REGISTRY_USER: ${{ inputs.registry-user }}
+        SHA_TAG: ${{ inputs.sha-tag }}
+      run: |
+        set -euo pipefail
+        tags=()
+        output=(--load)
+
+        if [ "$PUBLISH" = "true" ]; then
+          : "${REGISTRY_USER:?registry-user is required when publishing}"
+          tags+=(--tag "${REGISTRY_USER}/aeko-tools:${SHA_TAG}")
+          output=(--push)
+        else
+          tags+=(--tag "aeko-ci/aeko-tools:${SHA_TAG}")
+        fi
+
+        docker buildx build \
+          --file Dockerfile \
+          --target tools \
+          "${tags[@]}" \
+          "${output[@]}" \
+          .
+
+    - name: Verify PR-built operator tools image
+      if: ${{ inputs.build-image == 'true' && inputs.publish != 'true' }}
+      shell: bash
+      env:
+        SHA_TAG: ${{ inputs.sha-tag }}
+      run: |
+        set -euo pipefail
+        docker run --rm "aeko-ci/aeko-tools:${SHA_TAG}" aeko --version
+        docker run --rm "aeko-ci/aeko-tools:${SHA_TAG}" aeko-keygen --version

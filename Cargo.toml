@@ -401,7 +401,7 @@ aeko-rpc = { path = "rpc", version = "=2.0.0" }
 aeko-rpc-client = { path = "rpc-client", version = "=2.0.0", default-features = false }
 aeko-rpc-client-api = { path = "rpc-client-api", version = "=2.0.0" }
 aeko-rpc-client-nonce-utils = { path = "rpc-client-nonce-utils", version = "=2.0.0" }
-aeko-rust-sdk = { path = "apps/sdk/rust-client", version = "=2.0.0" }
+aeko-rust-sdk = { path = "apps/sdk/rust-client", version = "=2.0.2" }
 aeko-runtime = { path = "runtime", version = "=2.0.0" }
 aeko-runtime-transaction = { path = "runtime-transaction", version = "=2.0.0" }
 aeko-sdk = { path = "sdk", version = "=2.0.0" }
