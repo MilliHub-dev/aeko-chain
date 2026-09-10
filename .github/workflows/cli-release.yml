@@ -3,7 +3,8 @@ name: AEKO CLI release binaries
 # Normal main/PR CLI validation and the aeko-tools image are owned by the
 # single-runner AEKO DevOps workflow. This workflow is intentionally reserved
 # for explicit cross-platform release artifact generation, which necessarily
-# uses platform-specific runners.
+# uses platform-specific runners. A release tag must point to a commit already
+# contained in main; feature branches can never publish a GitHub Release.
 on:
   workflow_dispatch:
   push:
@@ -41,6 +42,19 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require release tag commit on main
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "CLI release tags may only publish commits already contained in main." >&2
+            exit 1
+          fi
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
@@ -149,6 +163,18 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconfirm tag commit is on main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
       - name: Download built archives
         uses: actions/download-artifact@v4
         with:
