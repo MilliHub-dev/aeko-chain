@@ -1,0 +1,160 @@
+name: AEKO network dogfood
+description: Exercise the immutable main-published network, Explorer, and Social custody/NFT flow end to end.
+
+inputs:
+  registry-user:
+    description: Docker Hub namespace containing the immutable release images.
+    required: true
+  sha-tag:
+    description: Immutable release tag to dogfood.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Dogfood published network and Social custody flow
+      shell: bash
+      env:
+        REGISTRY_USER: ${{ inputs.registry-user }}
+        SHA_TAG: ${{ inputs.sha-tag }}
+      run: |
+        set -euo pipefail
+        : "${REGISTRY_USER:?registry-user is required for network dogfood}"
+        : "${SHA_TAG:?sha-tag is required for network dogfood}"
+        export AEKO_IMAGE_REPOSITORY="$REGISTRY_USER"
+        export AEKO_IMAGE_TAG="$SHA_TAG"
+        export AEKO_KEYS_DIR="$PWD/local-testnet"
+        export EXPLORER_DATABASE_URL='postgres://aeko:aeko@postgres:5432/aeko_explorer_ci'
+
+        cleanup() {
+          docker rm -f aeko-ci-postgres >/dev/null 2>&1 || true
+          docker compose -f docker-compose.yml down -v >/dev/null 2>&1 || true
+        }
+        trap cleanup EXIT
+
+        mkdir -p "$AEKO_KEYS_DIR"
+        for key in faucet-keypair stake-keypair validator-1-keypair vote-1-keypair rpc-node-keypair; do
+          docker run --rm \
+            -v "$AEKO_KEYS_DIR:/keys" \
+            "${AEKO_IMAGE_REPOSITORY}/aeko-tools:${SHA_TAG}" \
+            aeko-keygen new --no-bip39-passphrase --silent --outfile "/keys/${key}.json"
+        done
+
+        docker compose -f docker-compose.yml up -d faucet
+        COMPOSE_NETWORK=$(docker inspect aeko-faucet --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{end}}')
+        test -n "$COMPOSE_NETWORK"
+        docker run -d --name aeko-ci-postgres \
+          --network "$COMPOSE_NETWORK" \
+          --network-alias postgres \
+          -e POSTGRES_USER=aeko \
+          -e POSTGRES_PASSWORD=aeko \
+          -e POSTGRES_DB=aeko_explorer_ci \
+          postgres:16-alpine >/dev/null
+
+        for _ in $(seq 1 30); do
+          if docker exec aeko-ci-postgres pg_isready -U aeko -d aeko_explorer_ci >/dev/null 2>&1; then
+            break
+          fi
+          sleep 1
+        done
+        docker exec aeko-ci-postgres pg_isready -U aeko -d aeko_explorer_ci
+
+        docker compose -f docker-compose.yml up -d validator social-bootstrap explorer-api explorer-ui
+
+        RPC_READY=0
+        for _ in $(seq 1 90); do
+          HEALTH=$(curl -sS --max-time 3 -X POST -H 'Content-Type: application/json' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' \
+            http://127.0.0.1:8899 2>/dev/null || true)
+          if printf '%s' "$HEALTH" | grep -q '"result":"ok"'; then
+            RPC_READY=1
+            break
+          fi
+          sleep 2
+        done
+        if [ "$RPC_READY" -ne 1 ]; then
+          docker logs --tail 120 aeko-validator || true
+          exit 1
+        fi
+
+        API_READY=0
+        for _ in $(seq 1 120); do
+          if curl -fsS --max-time 3 http://127.0.0.1:8088/health >/dev/null 2>&1; then
+            API_READY=1
+            break
+          fi
+          sleep 2
+        done
+        if [ "$API_READY" -ne 1 ]; then
+          docker logs --tail 120 aeko-social-bootstrap || true
+          docker logs --tail 120 aeko-explorer-api || true
+          exit 1
+        fi
+
+        AEKO_RPC_URL=http://127.0.0.1:8899 \
+        AEKO_EXPLORER_API_URL=http://127.0.0.1:8088 \
+          python3 scripts/smoke-aeko-social.py
+
+        curl -fsS http://127.0.0.1:4000/ >/dev/null
+
+        BROWSER_DIR=$(mktemp -d)
+        cd "$BROWSER_DIR"
+        npm init -y >/dev/null 2>&1
+        npm install --silent --ignore-scripts playwright@1.55.0
+        CHROME_BIN=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)
+        if [ -z "$CHROME_BIN" ]; then
+          npx playwright install --with-deps chromium
+        fi
+        export CHROME_BIN
+        node --input-type=module <<'NODE'
+        import { chromium } from 'playwright';
+
+        const executablePath = process.env.CHROME_BIN || undefined;
+        const browser = await chromium.launch({
+          headless: true,
+          executablePath,
+          args: ['--no-sandbox'],
+        });
+        const page = await browser.newPage();
+        const consoleErrors = [];
+        page.on('console', (message) => {
+          if (message.type() === 'error') consoleErrors.push(message.text());
+        });
+        page.on('pageerror', (error) => consoleErrors.push(error.message));
+
+        try {
+          const response = await page.goto('http://127.0.0.1:4000/network-tools/social-e2e', {
+            waitUntil: 'domcontentloaded',
+            timeout: 30_000,
+          });
+          if (!response?.ok()) throw new Error(`Social E2E page returned HTTP ${response?.status()}`);
+          const runButton = page.getByRole('button', { name: 'Run custody + asset flow' });
+          await runButton.waitFor({ state: 'visible', timeout: 30_000 });
+          await runButton.click();
+
+          const success = 'Post + NFT + engagement + real stake escrow + real tip transfer + Explorer projections all passed.';
+          let finalState = 'running';
+          let excerpt = '';
+          for (let attempt = 0; attempt < 300; attempt += 1) {
+            const result = await page.evaluate((successText) => {
+              const text = document.body.innerText;
+              if (text.includes(successText)) return { state: 'pass', excerpt: successText };
+              const marker = text.indexOf('Full custody + asset flow');
+              const sample = marker >= 0 ? text.slice(marker, marker + 900) : text.slice(0, 900);
+              if (sample.includes('FAIL')) return { state: 'fail', excerpt: sample };
+              return { state: 'running', excerpt: sample };
+            }, success);
+            finalState = result.state;
+            excerpt = result.excerpt;
+            if (finalState !== 'running') break;
+            await page.waitForTimeout(1_000);
+          }
+          if (finalState !== 'pass') {
+            throw new Error(`SocialTestV2 did not pass. State=${finalState}. UI evidence: ${excerpt}`);
+          }
+          console.log('[PASS] SocialTestV2 signed custody + NFT flow passed against immutable release images');
+          if (consoleErrors.length) console.log('[browser console errors observed]', consoleErrors.join('\n'));
+        } finally {
+          await browser.close();
+        }
+        NODE
