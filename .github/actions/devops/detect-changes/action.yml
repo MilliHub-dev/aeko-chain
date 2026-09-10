@@ -6,32 +6,47 @@ outputs:
     description: Blockchain/network-critical files changed.
     value: ${{ steps.classify.outputs.core }}
   admin:
-    description: Admin application changed.
+    description: Admin application changed or must be validated by the orchestrator change.
     value: ${{ steps.classify.outputs.admin }}
   cli:
-    description: CLI application changed.
+    description: CLI application changed or must be validated by the orchestrator change.
     value: ${{ steps.classify.outputs.cli }}
   explorer_backend:
-    description: Explorer backend changed.
+    description: Explorer backend changed or must be validated by the orchestrator change.
     value: ${{ steps.classify.outputs.explorer_backend }}
   explorer_web:
-    description: Explorer web application changed.
+    description: Explorer web application changed or must be validated by the orchestrator change.
     value: ${{ steps.classify.outputs.explorer_web }}
   sdk_js:
-    description: JavaScript SDK changed.
+    description: JavaScript SDK must be validated.
     value: ${{ steps.classify.outputs.sdk_js }}
   sdk_node:
-    description: Node SDK changed.
+    description: Node SDK must be validated.
     value: ${{ steps.classify.outputs.sdk_node }}
   sdk_python:
-    description: Python SDK changed.
+    description: Python SDK must be validated.
     value: ${{ steps.classify.outputs.sdk_python }}
   sdk_rust:
-    description: Rust client SDK changed.
+    description: Rust client SDK must be validated.
     value: ${{ steps.classify.outputs.sdk_rust }}
+  sdk_release_js:
+    description: JavaScript SDK source/package changed and is eligible for a main-branch registry release.
+    value: ${{ steps.classify.outputs.sdk_release_js }}
+  sdk_release_node:
+    description: Node SDK source/package changed and is eligible for a main-branch registry release.
+    value: ${{ steps.classify.outputs.sdk_release_node }}
+  sdk_release_python:
+    description: Python SDK source/package changed and is eligible for a main-branch registry release.
+    value: ${{ steps.classify.outputs.sdk_release_python }}
+  sdk_release_rust:
+    description: Rust client SDK source/package changed and is eligible for a main-branch registry release.
+    value: ${{ steps.classify.outputs.sdk_release_rust }}
   sdk_any:
-    description: Any external client SDK changed.
+    description: Any external client SDK needs validation.
     value: ${{ steps.classify.outputs.sdk_any }}
+  sdk_release_any:
+    description: At least one external SDK package changed and is eligible for release.
+    value: ${{ steps.classify.outputs.sdk_release_any }}
   rust_needed:
     description: The run needs Rust tooling/cache.
     value: ${{ steps.classify.outputs.rust_needed }}
@@ -42,10 +57,10 @@ outputs:
     description: The run needs Python tooling.
     value: ${{ steps.classify.outputs.python_needed }}
   dockerized:
-    description: At least one Docker image-owning domain changed.
+    description: At least one Docker image-owning domain changed or a full core release is selected.
     value: ${{ steps.classify.outputs.dockerized }}
   deployable:
-    description: The change affects a long-running Dokploy service or the network.
+    description: The change affects a Dokploy-managed service or the network.
     value: ${{ steps.classify.outputs.deployable }}
   unmapped_app:
     description: A new/unmapped apps/ path changed and requires explicit CI ownership.
@@ -68,6 +83,10 @@ runs:
         sdk_node=false
         sdk_python=false
         sdk_rust=false
+        sdk_release_js=false
+        sdk_release_node=false
+        sdk_release_python=false
+        sdk_release_rust=false
         unmapped_app=false
 
         mark_all_apps() {
@@ -82,7 +101,8 @@ runs:
         }
 
         if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
-          # Manual main runs are explicit complete release validation.
+          # Manual main runs validate the complete release surface, but do not
+          # republish SDK package versions that did not change.
           core=true
           mark_all_apps
         else
@@ -123,28 +143,50 @@ runs:
                 ;;
               apps/sdk/js/*)
                 sdk_js=true
+                sdk_release_js=true
                 ;;
               apps/sdk/node/*)
                 sdk_node=true
+                sdk_release_node=true
                 ;;
               apps/sdk/python/*)
                 sdk_python=true
+                sdk_release_python=true
                 ;;
               apps/sdk/rust-client/*)
                 sdk_rust=true
+                sdk_release_rust=true
                 ;;
-              apps/sdk/*|.github/actions/devops/sdk/*)
-                # Shared SDK metadata/contracts require all external SDK packages.
+              .github/actions/devops/sdk/*)
+                # CI implementation changes exercise every SDK without causing a
+                # registry release when the workflow later lands on main.
                 sdk_js=true
                 sdk_node=true
                 sdk_python=true
                 sdk_rust=true
                 ;;
+              apps/sdk/*)
+                # A future non-document shared SDK contract may affect every SDK.
+                case "$file" in
+                  *.md) ;;
+                  *)
+                    sdk_js=true
+                    sdk_node=true
+                    sdk_python=true
+                    sdk_rust=true
+                    sdk_release_js=true
+                    sdk_release_node=true
+                    sdk_release_python=true
+                    sdk_release_rust=true
+                    ;;
+                esac
+                ;;
               .github/actions/devops/network/*|.github/actions/devops/network-dogfood/*)
                 core=true
                 ;;
               .github/actions/devops/detect-changes/*|.github/workflows/build-images.yml)
-                # Orchestrator/classifier changes exercise every owned app path on PRs.
+                # Orchestrator/classifier changes exercise every owned path, but
+                # are not application/package source releases themselves.
                 core=true
                 mark_all_apps
                 ;;
@@ -172,6 +214,11 @@ runs:
           sdk_any=true
         fi
 
+        sdk_release_any=false
+        if [ "$sdk_release_js" = true ] || [ "$sdk_release_node" = true ] || [ "$sdk_release_python" = true ] || [ "$sdk_release_rust" = true ]; then
+          sdk_release_any=true
+        fi
+
         rust_needed=false
         if [ "$core" = true ] || [ "$cli" = true ] || [ "$explorer_backend" = true ] || [ "$sdk_rust" = true ]; then
           rust_needed=true
@@ -188,7 +235,7 @@ runs:
         fi
 
         dockerized=false
-        if [ "$core" = true ] || [ "$cli" = true ] || [ "$explorer_backend" = true ] || [ "$explorer_web" = true ]; then
+        if [ "$core" = true ] || [ "$admin" = true ] || [ "$cli" = true ] || [ "$explorer_backend" = true ] || [ "$explorer_web" = true ]; then
           dockerized=true
         fi
 
@@ -207,7 +254,12 @@ runs:
           echo "sdk_node=$sdk_node"
           echo "sdk_python=$sdk_python"
           echo "sdk_rust=$sdk_rust"
+          echo "sdk_release_js=$sdk_release_js"
+          echo "sdk_release_node=$sdk_release_node"
+          echo "sdk_release_python=$sdk_release_python"
+          echo "sdk_release_rust=$sdk_release_rust"
           echo "sdk_any=$sdk_any"
+          echo "sdk_release_any=$sdk_release_any"
           echo "rust_needed=$rust_needed"
           echo "node_needed=$node_needed"
           echo "python_needed=$python_needed"
@@ -216,6 +268,7 @@ runs:
           echo "unmapped_app=$unmapped_app"
         } >> "$GITHUB_OUTPUT"
 
-        printf 'Selection: core=%s admin=%s cli=%s backend=%s web=%s sdk(js=%s,node=%s,python=%s,rust=%s) unmapped=%s\n' \
+        printf 'Selection: core=%s admin=%s cli=%s backend=%s web=%s sdk(js=%s,node=%s,python=%s,rust=%s) sdk-release(js=%s,node=%s,python=%s,rust=%s) unmapped=%s\n' \
           "$core" "$admin" "$cli" "$explorer_backend" "$explorer_web" \
-          "$sdk_js" "$sdk_node" "$sdk_python" "$sdk_rust" "$unmapped_app"
+          "$sdk_js" "$sdk_node" "$sdk_python" "$sdk_rust" \
+          "$sdk_release_js" "$sdk_release_node" "$sdk_release_python" "$sdk_release_rust" "$unmapped_app"
