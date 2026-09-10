@@ -70,9 +70,7 @@ runs:
         sdk_rust=false
         unmapped_app=false
 
-        if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
-          # Manual main runs are an explicit complete release validation.
-          core=true
+        mark_all_apps() {
           admin=true
           cli=true
           explorer_backend=true
@@ -81,6 +79,12 @@ runs:
           sdk_node=true
           sdk_python=true
           sdk_rust=true
+        }
+
+        if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+          # Manual main runs are explicit complete release validation.
+          core=true
+          mark_all_apps
         else
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
             BASE_SHA=$(jq -r '.pull_request.base.sha // empty' "$GITHUB_EVENT_PATH")
@@ -100,16 +104,16 @@ runs:
 
           for file in "${changed_files[@]}"; do
             case "$file" in
-              apps/admin/*)
+              apps/admin/*|.github/actions/devops/admin/*)
                 admin=true
                 ;;
-              apps/cli/*)
+              apps/cli/*|.github/actions/devops/cli/*)
                 cli=true
                 ;;
-              apps/explorer/backend/*)
+              apps/explorer/backend/*|.github/actions/devops/explorer-backend/*)
                 explorer_backend=true
                 ;;
-              apps/explorer/web/*)
+              apps/explorer/web/*|.github/actions/devops/explorer-web/*)
                 explorer_web=true
                 ;;
               apps/explorer/*)
@@ -129,12 +133,23 @@ runs:
               apps/sdk/rust-client/*)
                 sdk_rust=true
                 ;;
-              apps/sdk/*)
+              apps/sdk/*|.github/actions/devops/sdk/*)
                 # Shared SDK metadata/contracts require all external SDK packages.
                 sdk_js=true
                 sdk_node=true
                 sdk_python=true
                 sdk_rust=true
+                ;;
+              .github/actions/devops/network/*|.github/actions/devops/network-dogfood/*)
+                core=true
+                ;;
+              .github/actions/devops/detect-changes/*|.github/workflows/build-images.yml)
+                # Orchestrator/classifier changes exercise every owned app path on PRs.
+                core=true
+                mark_all_apps
+                ;;
+              .github/actions/devops/promote-images/*)
+                core=true
                 ;;
               apps/README.md)
                 ;;
