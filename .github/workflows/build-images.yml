@@ -10,6 +10,7 @@ on:
     paths:
       - "**"
       - "!apps/**"
+      - "apps/cli/**"
       - "apps/explorer/backend/**"
       - "apps/explorer/web/**"
   workflow_dispatch:
@@ -51,6 +52,7 @@ jobs:
           set -euo pipefail
 
           core=false
+          cli=false
           explorer_backend=false
           explorer_web=false
           sdk_node=false
@@ -58,6 +60,7 @@ jobs:
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             # A manual main run is an explicit full-network release request.
             core=true
+            cli=true
             explorer_backend=true
             explorer_web=true
             sdk_node=true
@@ -84,6 +87,9 @@ jobs:
 
             for file in "${changed_files[@]}"; do
               case "$file" in
+                apps/cli/*)
+                  cli=true
+                  ;;
                 apps/explorer/backend/*)
                   explorer_backend=true
                   ;;
@@ -107,13 +113,14 @@ jobs:
 
           {
             echo "core=$core"
+            echo "cli=$cli"
             echo "explorer_backend=$explorer_backend"
             echo "explorer_web=$explorer_web"
             echo "sdk_node=$sdk_node"
           } >> "$GITHUB_OUTPUT"
 
-          printf 'Selection: core=%s explorer_backend=%s explorer_web=%s sdk_node=%s\n' \
-            "$core" "$explorer_backend" "$explorer_web" "$sdk_node"
+          printf 'Selection: core=%s cli=%s explorer_backend=%s explorer_web=%s sdk_node=%s\n' \
+            "$core" "$cli" "$explorer_backend" "$explorer_web" "$sdk_node"
 
       - name: Validate deployment contracts
         if: steps.changes.outputs.core == 'true'
@@ -187,6 +194,7 @@ jobs:
           (steps.changes.outputs.core == 'true' &&
            github.ref == 'refs/heads/main' &&
            github.event_name != 'pull_request') ||
+          steps.changes.outputs.cli == 'true' ||
           steps.changes.outputs.explorer_backend == 'true' ||
           steps.changes.outputs.explorer_web == 'true'
         uses: docker/setup-buildx-action@v3
@@ -203,12 +211,14 @@ jobs:
           (steps.changes.outputs.core == 'true' &&
            github.ref == 'refs/heads/main' &&
            github.event_name != 'pull_request') ||
+          steps.changes.outputs.cli == 'true' ||
           steps.changes.outputs.explorer_backend == 'true' ||
           steps.changes.outputs.explorer_web == 'true'
         shell: bash
         env:
           REGISTRY_USER: ${{ secrets.DOCKERHUB_USERNAME }}
           CORE_CHANGED: ${{ steps.changes.outputs.core }}
+          CLI_CHANGED: ${{ steps.changes.outputs.cli }}
           EXPLORER_BACKEND_CHANGED: ${{ steps.changes.outputs.explorer_backend }}
           EXPLORER_WEB_CHANGED: ${{ steps.changes.outputs.explorer_web }}
         run: |
@@ -271,6 +281,9 @@ jobs:
             build_target explorer-ui aeko-explorer-ui
           else
             echo "Feature branch or apps-only change: network images are blocked."
+            if [ "$CLI_CHANGED" = "true" ]; then
+              build_target tools aeko-tools
+            fi
             if [ "$EXPLORER_BACKEND_CHANGED" = "true" ]; then
               build_target explorer-api aeko-explorer-api aeko-explorer-backend
             fi
