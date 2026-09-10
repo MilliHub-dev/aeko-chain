@@ -1,5 +1,22 @@
 name: Admin application DevOps
-description: Type-check and production-build the AEKO admin application, while running any app-owned lint/test scripts when present.
+description: Fully validate, build, and optionally publish the AEKO admin application image.
+
+inputs:
+  build-image:
+    description: Build the admin container image.
+    required: false
+    default: "false"
+  publish:
+    description: Push the immutable SHA-tagged admin image to Docker Hub.
+    required: false
+    default: "false"
+  registry-user:
+    description: Docker Hub namespace used when publishing.
+    required: false
+    default: ""
+  sha-tag:
+    description: Immutable release tag.
+    required: true
 
 runs:
   using: composite
@@ -28,3 +45,30 @@ runs:
       shell: bash
       working-directory: apps/admin
       run: npm run build
+
+    - name: Build admin image
+      if: ${{ inputs.build-image == 'true' }}
+      shell: bash
+      env:
+        PUBLISH: ${{ inputs.publish }}
+        REGISTRY_USER: ${{ inputs.registry-user }}
+        SHA_TAG: ${{ inputs.sha-tag }}
+      run: |
+        set -euo pipefail
+        tags=()
+        output=(--load)
+
+        if [ "$PUBLISH" = "true" ]; then
+          : "${REGISTRY_USER:?registry-user is required when publishing}"
+          tags+=(--tag "${REGISTRY_USER}/aeko-admin:${SHA_TAG}")
+          output=(--push)
+        else
+          tags+=(--tag "aeko-ci/aeko-admin:${SHA_TAG}")
+        fi
+
+        docker buildx build \
+          --file Dockerfile \
+          --target admin \
+          "${tags[@]}" \
+          "${output[@]}" \
+          .
