@@ -12,6 +12,10 @@ inputs:
     description: Promote validator, node alias, faucet, and social-bootstrap.
     required: false
     default: "false"
+  admin:
+    description: Promote the admin application image.
+    required: false
+    default: "false"
   cli:
     description: Promote the operator tools image.
     required: false
@@ -34,6 +38,7 @@ runs:
         REGISTRY_USER: ${{ inputs.registry-user }}
         SHA_TAG: ${{ inputs.sha-tag }}
         PROMOTE_NETWORK: ${{ inputs.network }}
+        PROMOTE_ADMIN: ${{ inputs.admin }}
         PROMOTE_CLI: ${{ inputs.cli }}
         PROMOTE_EXPLORER_BACKEND: ${{ inputs.explorer-backend }}
         PROMOTE_EXPLORER_WEB: ${{ inputs.explorer-web }}
@@ -56,6 +61,9 @@ runs:
           promote aeko-node
           promote aeko-faucet
           promote aeko-social-bootstrap
+        fi
+        if [ "$PROMOTE_ADMIN" = "true" ]; then
+          promote aeko-admin
         fi
         if [ "$PROMOTE_CLI" = "true" ]; then
           promote aeko-tools
