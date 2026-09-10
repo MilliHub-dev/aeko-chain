@@ -43,6 +43,31 @@ runs:
           exit 1
         fi
 
+    - name: Preflight all selected SDK release credentials
+      shell: bash
+      env:
+        PUBLISH_JS: ${{ inputs.js }}
+        PUBLISH_NODE: ${{ inputs.node }}
+        PUBLISH_PYTHON: ${{ inputs.python }}
+        PUBLISH_RUST: ${{ inputs.rust }}
+        NPM_TOKEN: ${{ inputs.npm-token }}
+        PYPI_API_TOKEN: ${{ inputs.pypi-token }}
+        CRATES_IO_TOKEN: ${{ inputs.crates-token }}
+      run: |
+        set -euo pipefail
+        if { [ "$PUBLISH_JS" = "true" ] || [ "$PUBLISH_NODE" = "true" ]; } && [ -z "$NPM_TOKEN" ]; then
+          echo "NPM_TOKEN is required for the selected npm SDK release." >&2
+          exit 1
+        fi
+        if [ "$PUBLISH_PYTHON" = "true" ] && [ -z "$PYPI_API_TOKEN" ]; then
+          echo "PYPI_API_TOKEN is required for the selected Python SDK release." >&2
+          exit 1
+        fi
+        if [ "$PUBLISH_RUST" = "true" ] && [ -z "$CRATES_IO_TOKEN" ]; then
+          echo "CRATES_IO_TOKEN is required for the selected Rust SDK release." >&2
+          exit 1
+        fi
+
     - name: Publish JavaScript SDK to npm
       if: ${{ inputs.js == 'true' }}
       shell: bash
@@ -51,7 +76,6 @@ runs:
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
       run: |
         set -euo pipefail
-        : "${NODE_AUTH_TOKEN:?npm-token is required to publish @aeko-chain/web3.js}"
         npm publish --access public --registry=https://registry.npmjs.org/
 
     - name: Publish Node SDK to npm
@@ -62,7 +86,6 @@ runs:
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
       run: |
         set -euo pipefail
-        : "${NODE_AUTH_TOKEN:?npm-token is required to publish @aeko-chain/sdk}"
         npm publish --access public --registry=https://registry.npmjs.org/
 
     - name: Publish Python SDK to PyPI
@@ -74,7 +97,6 @@ runs:
         TWINE_USERNAME: __token__
       run: |
         set -euo pipefail
-        : "${TWINE_PASSWORD:?pypi-token is required to publish aeko-sdk}"
         release_dir=$(mktemp -d)
         python3 -m pip install --disable-pip-version-check build twine
         python3 -m build --outdir "$release_dir" .
@@ -87,5 +109,4 @@ runs:
         CRATES_IO_TOKEN: ${{ inputs.crates-token }}
       run: |
         set -euo pipefail
-        : "${CRATES_IO_TOKEN:?crates-token is required to publish aeko-rust-sdk}"
         cargo publish --locked -p aeko-rust-sdk --token "$CRATES_IO_TOKEN"
