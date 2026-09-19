@@ -13,11 +13,15 @@ DOKPLOY = DOCKER_DIR / "compose.dokploy.yml"
 COOLIFY = DOCKER_DIR / "compose.coolify.yml"
 DOCKERFILE = DOCKER_DIR / "Dockerfile"
 VALIDATOR_ENTRYPOINT = DOCKER_DIR / "validator-entrypoint.sh"
+KEY_PREFLIGHT = DOCKER_DIR / "key-preflight.sh"
 BLOCKSTORE_CLEANUP = ROOT / "ledger" / "src" / "blockstore_cleanup_service.rs"
 SOCIAL_BOOTSTRAP = ROOT / "social-bootstrap" / "src" / "main.rs"
 EXPLORER_HEALTH = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "health" / "mod.rs"
 README = ROOT / "README.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
+DEVOPS_WORKFLOW = ROOT / ".github" / "workflows" / "build-images.yml"
+CHANGE_DETECTOR = ROOT / ".github" / "actions" / "devops" / "detect-changes" / "action.yml"
+NETWORK_ACTION = ROOT / ".github" / "actions" / "devops" / "network" / "action.yml"
 
 
 class ContractFailure(RuntimeError):
@@ -51,11 +55,15 @@ def main() -> int:
     coolify = read(COOLIFY)
     dockerfile = read(DOCKERFILE)
     validator_entrypoint = read(VALIDATOR_ENTRYPOINT)
+    key_preflight = read(KEY_PREFLIGHT)
     blockstore_cleanup = read(BLOCKSTORE_CLEANUP)
     social_bootstrap = read(SOCIAL_BOOTSTRAP)
     explorer_health = read(EXPLORER_HEALTH)
     readme = read(README)
     deployment = read(DEPLOYMENT)
+    devops_workflow = read(DEVOPS_WORKFLOW)
+    change_detector = read(CHANGE_DETECTOR)
+    network_action = read(NETWORK_ACTION)
 
     # One canonical build recipe, with all role-specific images produced from it.
     for target in ("validator", "faucet", "social-bootstrap", "tools", "explorer-api", "explorer-ui"):
@@ -231,6 +239,7 @@ def main() -> int:
         require("image:" in block, f"Coolify {service} must use a published image")
         require("pull_policy: always" in block, f"Coolify {service} must pull the selected Docker Hub tag")
 
+    coolify_preflight = service_block(coolify, "key-preflight", "faucet")
     coolify_validator = service_block(coolify, "validator", "social-bootstrap")
     coolify_bootstrap = service_block(coolify, "social-bootstrap", "explorer-api")
     coolify_explorer = service_block(coolify, "explorer-api", "explorer-ui")
@@ -239,6 +248,10 @@ def main() -> int:
     require("${AEKO_KEYS_DIR:-" not in coolify, "Coolify key bind sources must not use fallback interpolation")
     require(coolify.count("source: ${AEKO_KEYS_DIR}") >= 5, "Coolify services must share the explicit key bind source")
     require(coolify.count("read_only: true") >= 4, "Coolify runtime key mounts must remain read-only")
+    require("AEKO_KEYS_SOURCE: ${AEKO_KEYS_DIR}" in coolify_preflight, "Coolify preflight must receive the selected host key source")
+    require('entrypoint: ["/usr/local/bin/aeko-key-preflight"]' in coolify_preflight, "Coolify preflight must use the reusable tools-image helper")
+    require("exit 64" in key_preflight and "exit 65" in key_preflight, "key preflight must preserve distinct missing/invalid key exit codes")
+    require("mounted /keys currently contains:" in key_preflight, "key preflight must expose mount diagnostics without printing key contents")
     require("validator-ledger:/ledger" in coolify_validator, "Coolify validator must use a Docker-managed ledger volume by default")
     require("AEKO_VALIDATOR_LEDGER_VOLUME" not in coolify, "Coolify ledger source must not use interpolated volume-source syntax")
     require("AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?}" in coolify_validator, "Coolify must require the public validator address")
@@ -249,6 +262,42 @@ def main() -> int:
     require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?}" in coolify_explorer, "Coolify Explorer must require durable PostgreSQL")
     require('profiles: ["ops"]' in coolify_wallet_tools, "Coolify wallet tools must remain operator-only")
     require(re.search(r"^  postgres(?:ql)?:", coolify, re.MULTILINE) is None, "Coolify compose must not embed PostgreSQL")
+
+
+    # A core/container release builds every published image itself. App/SDK
+    # source quality gates run only when their owned source domain changed, so
+    # unrelated historical lint debt cannot block a Docker/Compose-only release.
+    orchestrator_case = change_detector.split(
+        ".github/actions/devops/detect-changes/*|.github/workflows/build-images.yml)",
+        1,
+    )[1].split(";;", 1)[0]
+    require("core=true" in orchestrator_case, "orchestrator changes must exercise the core release path")
+    require("mark_all_apps" not in orchestrator_case, "orchestrator changes must not force unrelated app/SDK source validation")
+
+    for output in ("admin", "cli", "explorer_backend", "explorer_web"):
+        require(
+            re.search(rf"^\s+if: steps\.changes\.outputs\.{output} == 'true'\s*$", devops_workflow, re.MULTILINE)
+            is not None,
+            f"{output} source validation must be selected only by its owned change flag",
+        )
+    require(
+        re.search(r"^\s+if: steps\.changes\.outputs\.sdk_any == 'true'\s*$", devops_workflow, re.MULTILINE)
+        is not None,
+        "SDK validation must not run merely because core/container files changed",
+    )
+    require("cargo fmt --all -- --check" not in network_action, "network formatting must not inherit unrelated workspace formatting debt")
+    for image in (
+        "aeko-validator",
+        "aeko-node",
+        "aeko-faucet",
+        "aeko-social-bootstrap",
+        "aeko-tools",
+        "aeko-explorer-api",
+        "aeko-explorer-backend",
+        "aeko-explorer-ui",
+        "aeko-admin",
+    ):
+        require(image in network_action, f"core release action must build/publish {image}")
 
     # Portable compose must expose the same Social vault lifecycle so local
     # validation and Dokploy do not exercise different custody models.
