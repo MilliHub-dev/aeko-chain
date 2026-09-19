@@ -1,0 +1,183 @@
+name: Finalize PR 34 implementation
+
+on:
+  push:
+    branches:
+      - fix/rust-sdk-lock-node24-actions
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.repository == 'MilliHub-dev/aeko-chain' && github.ref == 'refs/heads/fix/rust-sdk-lock-node24-actions'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Apply bounded deployment and CI fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"expected exactly one replacement in {path}, found {count}")
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              ".github/actions/devops/sdk/action.yml",
+              '''    - name: Diagnose Rust SDK lockfile and target check
+              if: ${{ inputs.rust == 'true' }}
+              shell: bash
+              run: |
+                set -euo pipefail
+                cargo check -p aeko-rust-sdk --all-targets
+                echo '=== Cargo.lock diff after Cargo resolution ==='
+                git diff -- Cargo.lock
+                if ! git diff --quiet -- Cargo.lock; then
+                  echo 'Cargo.lock is stale; the diff above is the exact resolver update required.' >&2
+                  exit 2
+                fi
+          ''',
+              '''    - name: Rust SDK compile-check
+              if: ${{ inputs.rust == 'true' }}
+              shell: bash
+              run: cargo check --locked -p aeko-rust-sdk --all-targets
+          ''',
+          )
+
+          replace_once(
+              "docker-compose.dokploy.yml",
+              '''    depends_on:
+              validator:
+                condition: service_healthy
+            # Keep the process routable while projections recover. `/health` remains
+          ''',
+              '''    depends_on:
+              validator:
+                condition: service_healthy
+              social-bootstrap:
+                condition: service_completed_successfully
+            # Keep the process routable while projections recover. `/health` remains
+          ''',
+          )
+
+          replace_once(
+              "scripts/validate-deployment-contract.py",
+              '''    require("validator:" in explorer and "condition: service_healthy" in explorer, "Explorer must wait for validator health")
+              require("condition: service_completed_successfully" not in explorer, "Explorer process startup must not be blocked by a failed one-shot SocialFi bootstrap")
+              require("http://127.0.0.1:8088/" in explorer, "Explorer container health must use process liveness")
+          ''',
+              '''    require("validator:" in explorer and "condition: service_healthy" in explorer, "Explorer must wait for validator health")
+              require(
+                  re.search(r"^\\s+social-bootstrap:\\s*\\n\\s+condition:\\s+service_completed_successfully\\s*$", explorer, re.MULTILINE) is not None,
+                  "Explorer must wait for successful SocialFi bootstrap",
+              )
+              require("http://127.0.0.1:8088/" in explorer, "Explorer container health must use process liveness")
+          ''',
+          )
+
+          replace_once(
+              "scripts/validate-deployment-contract.py",
+              '''    require("Explorer API/UI remain available in a degraded state" in deployment, "deployment guide must document degraded Explorer behavior when SocialFi bootstrap fails")
+          ''',
+              '''    require(
+                  "Explorer API startup is gated on successful SocialFi bootstrap" in deployment,
+                  "deployment guide must document the SocialFi bootstrap startup gate",
+              )
+          ''',
+          )
+
+          replace_once(
+              "DEPLOYMENT.md",
+              '''The Dokploy startup graph is intentionally failure-isolated:
+
+          ```text
+          key-preflight exits 0
+            -> faucet
+            -> validator healthy
+                 |-> social-bootstrap (one shot: exit 0 or visible terminal failure)
+                 |-> explorer-api healthy
+                        -> explorer-ui healthy
+          ```
+
+          Explorer API/UI remain available in a degraded state when SocialFi bootstrap fails. The Explorer loads `/state/social-registry.env` dynamically and `/social/status` reports `complete: false` plus per-domain errors until the registry and all five on-chain states are valid. This keeps the operational UI/API observable without pretending SocialFi initialization succeeded.
+          ''',
+              '''Explorer API startup is gated on successful SocialFi bootstrap. The Dokploy startup graph is:
+
+          ```text
+          key-preflight exits 0
+            -> faucet
+            -> validator healthy
+                 -> social-bootstrap exits 0
+                      -> explorer-api starts
+
+          explorer-ui starts independently for deployment diagnostics
+          ```
+
+          If bootstrap exits non-zero, `explorer-api` does not start and the deployment must not be treated as a usable Aeko Social backend. `explorer-ui` remains independently routable so operators can still reach the static diagnostic surface while correcting bootstrap or API dependencies.
+          ''',
+          )
+
+          replace_once(
+              "DEPLOYMENT.md",
+              '''A running/healthy Explorer does **not** certify SocialFi. SocialFi acceptance remains separate and requires `/registry/social` and `/social/status` to be complete plus the SocialFi smoke test to pass.
+          ''',
+              '''Explorer process liveness after startup does **not** by itself certify ongoing SocialFi readiness. SocialFi acceptance still requires `/registry/social` and `/social/status` to be complete plus the SocialFi smoke test to pass.
+          ''',
+          )
+          PY
+
+          rm -f .github/workflows/regen-lock-diagnostic.yml
+          rm -f .github/workflows/finalize-pr34.yml
+
+      - name: Verify bounded diff and deployment contract
+        shell: bash
+        env:
+          AEKO_PUBLIC_IP: 203.0.113.10
+          AEKO_KEYS_DIR: ../files/aeko-keys
+          EXPLORER_DATABASE_URL: postgres://aeko:aeko@db.example:5432/aeko_explorer
+        run: |
+          set -euo pipefail
+          git diff --check
+          python3 scripts/validate-deployment-contract.py
+          docker compose -f docker-compose.dokploy.yml config --quiet
+
+          changed=$(git status --short | awk '{$1=""; sub(/^ /, ""); print}' | sort)
+          expected=$(printf '%s\n' \
+            '.github/actions/devops/sdk/action.yml' \
+            '.github/workflows/finalize-pr34.yml' \
+            '.github/workflows/regen-lock-diagnostic.yml' \
+            'DEPLOYMENT.md' \
+            'docker-compose.dokploy.yml' \
+            'scripts/validate-deployment-contract.py' | sort)
+          test "$changed" = "$expected"
+
+      - name: Verify locked Rust SDK resolution
+        shell: bash
+        env:
+          RUSTC_WRAPPER: ""
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.85.0 --profile minimal
+          rustup default 1.85.0
+          cargo check --locked -p aeko-rust-sdk --all-targets
+
+      - name: Commit final implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(deploy): restore SocialFi gate and locked SDK validation'
+          git push origin "HEAD:${GITHUB_REF_NAME}"

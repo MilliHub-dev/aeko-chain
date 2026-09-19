@@ -928,6 +928,7 @@ dependencies = [
  "aeko-rpc-client-api",
  "aeko-sdk",
  "aeko-social-anti-spam-program",
+ "aeko-social-monetization-program",
  "aeko-social-posts-program",
  "aeko-social-rewards-program",
  "aeko-social-staking-program",

@@ -170,10 +170,18 @@ runs:
       shell: bash
       run: cargo fmt --manifest-path apps/sdk/rust-client/Cargo.toml -- --check
 
-    - name: Rust SDK type and target check
+    - name: Diagnose Rust SDK lockfile and target check
       if: ${{ inputs.rust == 'true' }}
       shell: bash
-      run: cargo check --locked -p aeko-rust-sdk --all-targets
+      run: |
+        set -euo pipefail
+        cargo check -p aeko-rust-sdk --all-targets
+        echo '=== Cargo.lock diff after Cargo resolution ==='
+        git diff -- Cargo.lock
+        if ! git diff --quiet -- Cargo.lock; then
+          echo 'Cargo.lock is stale; the diff above is the exact resolver update required.' >&2
+          exit 2
+        fi
 
     - name: Rust SDK lint
       if: ${{ inputs.rust == 'true' }}
