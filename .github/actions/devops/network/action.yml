@@ -2,6 +2,10 @@ name: AEKO network DevOps
 description: Validate core/network changes and build the complete immutable AEKO Docker release set.
 
 inputs:
+  validate-source:
+    description: Run host Rust format/check/lint/tests for changed network source.
+    required: false
+    default: "true"
   publish:
     description: Push immutable network images. This is accepted only on main.
     required: false
@@ -44,6 +48,7 @@ runs:
         docker compose -f docker/compose.coolify.yml config >/dev/null
 
     - name: Network Rust format
+      if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       run: |
         cargo fmt --package aeko-validator -- --check
@@ -52,6 +57,7 @@ runs:
         cargo fmt --package aeko-social-bootstrap -- --check
 
     - name: Network binary type and target check
+      if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       run: >-
         cargo check --locked --all-targets
@@ -61,6 +67,7 @@ runs:
         -p aeko-social-bootstrap
 
     - name: Network binary lint
+      if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       run: >-
         cargo clippy --locked --all-targets
@@ -71,6 +78,7 @@ runs:
         -- -D warnings
 
     - name: Network binary tests
+      if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       run: >-
         cargo test --locked
