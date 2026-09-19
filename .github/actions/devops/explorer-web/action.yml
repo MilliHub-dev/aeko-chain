@@ -91,7 +91,6 @@ runs:
         set -euo pipefail
         tags=()
         output=(--load)
-        build_args=()
 
         if [ "$PUBLISH" = "true" ]; then
           : "${REGISTRY_USER:?registry-user is required when publishing}"
@@ -99,19 +98,16 @@ runs:
           output=(--push)
         else
           tags+=(--tag "aeko-ci/aeko-explorer-ui:${SHA_TAG}")
-          build_args+=(
-            --build-arg VITE_AEKO_LOCAL_RPC=http://127.0.0.1:8899
-            --build-arg VITE_AEKO_LOCAL_WS=ws://127.0.0.1:8900
-            --build-arg VITE_AEKO_LOCAL_EXPLORER_API=http://127.0.0.1:8088
-          )
         fi
 
+        # Keep PR and main image contents equivalent: both use the canonical
+        # production endpoint configuration. CI dogfood remaps those requests
+        # at the browser boundary instead of baking localhost into the artifact.
         # The Docker target runs npm run build, so this is also the production
         # build gate when packaging is selected; we do not compile Vite twice.
         docker buildx build \
           --file docker/Dockerfile \
           --target explorer-ui \
-          "${build_args[@]}" \
           "${tags[@]}" \
           "${output[@]}" \
           .

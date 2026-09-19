@@ -1,9 +1,9 @@
 name: AEKO network dogfood
-description: Exercise the immutable main-published network, Explorer, and Social custody/NFT flow end to end.
+description: Exercise a tagged AEKO network, Explorer, and Social custody/NFT flow end to end.
 
 inputs:
   registry-user:
-    description: Docker Hub namespace containing the immutable release images.
+    description: Image namespace containing the release images (Docker Hub on main, local aeko-ci on PRs).
     required: true
   sha-tag:
     description: Immutable release tag to dogfood.
@@ -97,6 +97,9 @@ runs:
 
         curl -fsS http://127.0.0.1:4000/ >/dev/null
 
+        REPO_ROOT="$PWD"
+        export REPO_ROOT
+
         BROWSER_DIR=$(mktemp -d)
         cd "$BROWSER_DIR"
         npm init -y >/dev/null 2>&1
@@ -107,7 +110,12 @@ runs:
         fi
         export CHROME_BIN
         node --input-type=module <<'NODE'
+        import path from 'node:path';
+        import { pathToFileURL } from 'node:url';
         import { chromium } from 'playwright';
+
+        const helperUrl = pathToFileURL(path.join(process.env.REPO_ROOT, 'scripts/dogfood-browser-proxy.mjs')).href;
+        const { installDogfoodEndpointProxy } = await import(helperUrl);
 
         const executablePath = process.env.CHROME_BIN || undefined;
         const browser = await chromium.launch({
@@ -117,10 +125,21 @@ runs:
         });
         const page = await browser.newPage();
         const consoleErrors = [];
+        const failedRequests = [];
+        const badResponses = [];
         page.on('console', (message) => {
           if (message.type() === 'error') consoleErrors.push(message.text());
         });
         page.on('pageerror', (error) => consoleErrors.push(error.message));
+        page.on('requestfailed', (request) => {
+          failedRequests.push(`${request.method()} ${request.url()} :: ${request.failure()?.errorText || 'unknown failure'}`);
+        });
+        page.on('response', (response) => {
+          if (response.status() >= 400) badResponses.push(`${response.status()} ${response.url()}`);
+        });
+
+        await installDogfoodEndpointProxy(page);
+        console.log('[dogfood] canonical public RPC/API requests are proxied to the local release stack');
 
         try {
           const response = await page.goto('http://127.0.0.1:4000/network-tools/social-e2e', {
@@ -150,10 +169,17 @@ runs:
             await page.waitForTimeout(1_000);
           }
           if (finalState !== 'pass') {
-            throw new Error(`SocialTestV2 did not pass. State=${finalState}. UI evidence: ${excerpt}`);
+            const diagnostics = [
+              consoleErrors.length ? `Browser console errors:\n${consoleErrors.join('\n')}` : '',
+              failedRequests.length ? `Failed requests:\n${failedRequests.join('\n')}` : '',
+              badResponses.length ? `HTTP error responses:\n${badResponses.join('\n')}` : '',
+            ].filter(Boolean).join('\n');
+            throw new Error(`SocialTestV2 did not pass. State=${finalState}. UI evidence: ${excerpt}${diagnostics ? `\n${diagnostics}` : ''}`);
           }
-          console.log('[PASS] SocialTestV2 signed custody + NFT flow passed against immutable release images');
+          console.log('[PASS] SocialTestV2 signed custody + NFT flow passed against the tagged release images');
           if (consoleErrors.length) console.log('[browser console errors observed]', consoleErrors.join('\n'));
+          if (failedRequests.length) console.log('[browser request failures observed]', failedRequests.join('\n'));
+          if (badResponses.length) console.log('[browser HTTP errors observed]', badResponses.join('\n'));
         } finally {
           await browser.close();
         }
