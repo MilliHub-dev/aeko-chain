@@ -55,7 +55,19 @@ For example:
 sudo install -d -m 700 /data/aeko/keys
 ```
 
-Copy existing testnet keys into that directory, or generate new keys only when intentionally creating a new chain identity. Never commit keypairs or place them in a disposable Git checkout.
+If this Coolify deployment is replacing an existing Dokploy/AEKO deployment, copy the **same four existing keypairs** into this directory. Replacing them changes validator/faucet identity and can make the persisted ledger unusable for the intended chain. Generate new keys only when intentionally creating a fresh chain identity.
+
+Before deploying, verify the directory on the **Coolify deployment server**:
+
+```bash
+sudo test -d /data/aeko/keys
+for key in faucet-keypair.json stake-keypair.json validator-1-keypair.json vote-1-keypair.json; do
+  sudo test -s "/data/aeko/keys/$key" || { echo "missing: $key"; exit 1; }
+done
+sudo ls -la /data/aeko/keys
+```
+
+Never commit keypairs or place them in a disposable Git checkout.
 
 The Coolify Compose mounts this directory with long-form bind syntax and a simple `${AEKO_KEYS_DIR}` source. Runtime services mount it read-only; the optional `wallet-tools` profile can mount it read-write for explicit operator work.
 
@@ -146,3 +158,24 @@ If Coolify reports an error such as `Invalid Docker volume definition` or `Inval
 5. Redeploy after saving the environment value.
 
 Do not replace the Coolify bind mounts with the Dokploy `${VAR:?message}` volume-source form. The separate Coolify contract exists specifically to keep storage parsing portable.
+
+
+## Key preflight exit codes
+
+`key-preflight` deliberately fails before faucet/validator startup when persistent identity material is not usable.
+
+- **Exit 64**: a required file is missing, empty, or not a regular file. If the log names `/keys/faucet-keypair.json`, the bind mount parsed successfully but the host directory selected by `AEKO_KEYS_DIR` does not contain that file.
+- **Exit 65**: the file exists but `aeko-keygen pubkey` cannot parse it as a valid AEKO keypair.
+
+For exit 64, verify the exact Coolify variable value and inspect the same absolute path on the deployment server:
+
+```bash
+# AEKO_KEYS_DIR must be exactly /data/aeko/keys in this example, with no quotes.
+sudo ls -la /data/aeko/keys
+sudo test -s /data/aeko/keys/faucet-keypair.json
+sudo test -s /data/aeko/keys/stake-keypair.json
+sudo test -s /data/aeko/keys/validator-1-keypair.json
+sudo test -s /data/aeko/keys/vote-1-keypair.json
+```
+
+If the old deployment stores the keys elsewhere, copy those existing files into `AEKO_KEYS_DIR` and preserve them outside the Coolify resource lifecycle. Do not solve exit 64 by generating replacement identities unless a fresh genesis is intentional.

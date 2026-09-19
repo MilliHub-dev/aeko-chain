@@ -13,6 +13,7 @@ DOKPLOY = DOCKER_DIR / "compose.dokploy.yml"
 COOLIFY = DOCKER_DIR / "compose.coolify.yml"
 DOCKERFILE = DOCKER_DIR / "Dockerfile"
 VALIDATOR_ENTRYPOINT = DOCKER_DIR / "validator-entrypoint.sh"
+KEY_PREFLIGHT = DOCKER_DIR / "key-preflight.sh"
 BLOCKSTORE_CLEANUP = ROOT / "ledger" / "src" / "blockstore_cleanup_service.rs"
 SOCIAL_BOOTSTRAP = ROOT / "social-bootstrap" / "src" / "main.rs"
 EXPLORER_HEALTH = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "health" / "mod.rs"
@@ -51,6 +52,7 @@ def main() -> int:
     coolify = read(COOLIFY)
     dockerfile = read(DOCKERFILE)
     validator_entrypoint = read(VALIDATOR_ENTRYPOINT)
+    key_preflight = read(KEY_PREFLIGHT)
     blockstore_cleanup = read(BLOCKSTORE_CLEANUP)
     social_bootstrap = read(SOCIAL_BOOTSTRAP)
     explorer_health = read(EXPLORER_HEALTH)
@@ -231,6 +233,7 @@ def main() -> int:
         require("image:" in block, f"Coolify {service} must use a published image")
         require("pull_policy: always" in block, f"Coolify {service} must pull the selected Docker Hub tag")
 
+    coolify_preflight = service_block(coolify, "key-preflight", "faucet")
     coolify_validator = service_block(coolify, "validator", "social-bootstrap")
     coolify_bootstrap = service_block(coolify, "social-bootstrap", "explorer-api")
     coolify_explorer = service_block(coolify, "explorer-api", "explorer-ui")
@@ -239,6 +242,10 @@ def main() -> int:
     require("${AEKO_KEYS_DIR:-" not in coolify, "Coolify key bind sources must not use fallback interpolation")
     require(coolify.count("source: ${AEKO_KEYS_DIR}") >= 5, "Coolify services must share the explicit key bind source")
     require(coolify.count("read_only: true") >= 4, "Coolify runtime key mounts must remain read-only")
+    require("AEKO_KEYS_SOURCE: ${AEKO_KEYS_DIR}" in coolify_preflight, "Coolify preflight must receive the selected host key source")
+    require('entrypoint: ["/usr/local/bin/aeko-key-preflight"]' in coolify_preflight, "Coolify preflight must use the reusable tools-image helper")
+    require("exit 64" in key_preflight and "exit 65" in key_preflight, "key preflight must preserve distinct missing/invalid key exit codes")
+    require("mounted /keys currently contains:" in key_preflight, "key preflight must expose mount diagnostics without printing key contents")
     require("validator-ledger:/ledger" in coolify_validator, "Coolify validator must use a Docker-managed ledger volume by default")
     require("AEKO_VALIDATOR_LEDGER_VOLUME" not in coolify, "Coolify ledger source must not use interpolated volume-source syntax")
     require("AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?}" in coolify_validator, "Coolify must require the public validator address")

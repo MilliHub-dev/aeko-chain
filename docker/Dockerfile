@@ -103,6 +103,8 @@ ENTRYPOINT ["aeko-social-bootstrap"]
 FROM rust-runtime AS tools
 COPY --from=tools-builder /binaries/aeko /usr/local/bin/aeko
 COPY --from=tools-builder /binaries/aeko-keygen /usr/local/bin/aeko-keygen
+COPY docker/key-preflight.sh /usr/local/bin/aeko-key-preflight
+RUN chmod 0755 /usr/local/bin/aeko-key-preflight
 CMD ["aeko", "--help"]
 
 FROM rust-runtime AS explorer-api

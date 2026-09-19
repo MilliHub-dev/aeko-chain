@@ -26,28 +26,10 @@ services:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
     restart: "no"
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -eu
-        for key in \
-          faucet-keypair.json \
-          stake-keypair.json \
-          validator-1-keypair.json \
-          vote-1-keypair.json
-        do
-          path="/keys/$$key"
-          if [ ! -f "$$path" ] || [ ! -s "$$path" ]; then
-            echo "error: required AEKO keypair is missing, empty, or not a regular file: $$path" >&2
-            exit 64
-          fi
-          if ! aeko-keygen pubkey "$$path" >/dev/null 2>&1; then
-            echo "error: invalid AEKO keypair: $$path" >&2
-            exit 65
-          fi
-          echo "validated $$key"
-        done
-        echo "AEKO key preflight complete"
+    environment:
+      AEKO_KEYS_SOURCE: ${AEKO_KEYS_DIR}
+    entrypoint: ["/usr/local/bin/aeko-key-preflight"]
+    command: []
     volumes:
       - type: bind
         source: ${AEKO_KEYS_DIR}
