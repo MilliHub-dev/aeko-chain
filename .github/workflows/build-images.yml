@@ -234,15 +234,8 @@ jobs:
 
           echo "All selected PR domains passed."
 
-      - name: Dogfood full-network release image set
-        if: (steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && (github.event_name == 'pull_request' || steps.release.outputs.publish == 'true')
-        uses: ./.github/actions/devops/network-dogfood
-        with:
-          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || 'aeko-ci' }}
-          sha-tag: ${{ steps.release.outputs.sha_tag }}
-
       # Package registries are irreversible release channels, so publish SDKs
-      # only after every selected validation/build (and core dogfood) succeeds.
+      # only after every selected validation/build succeeds.
       - name: Publish changed SDK packages
         if: steps.release.outputs.publish == 'true' && steps.changes.outputs.sdk_release_any == 'true'
         uses: ./.github/actions/devops/sdk-publish

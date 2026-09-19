@@ -101,8 +101,8 @@ runs:
         fi
 
         # Keep PR and main image contents equivalent: both use the canonical
-        # production endpoint configuration. CI dogfood remaps those requests
-        # at the browser boundary instead of baking localhost into the artifact.
+        # production endpoint configuration rather than baking localhost
+        # endpoints into a release artifact.
         # The Docker target runs npm run build, so this is also the production
         # build gate when packaging is selected; we do not compile Vite twice.
         docker buildx build \

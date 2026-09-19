@@ -185,7 +185,7 @@ runs:
                     ;;
                 esac
                 ;;
-              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/validate-deployment-contract.py|.github/actions/devops/admin/*|.github/actions/devops/cli/*|.github/actions/devops/explorer-backend/*|.github/actions/devops/explorer-web/*|.github/actions/devops/network/*|.github/actions/devops/network-dogfood/*|.github/actions/devops/detect-changes/*|.github/actions/devops/promote-images/*|.github/workflows/build-images.yml)
+              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/validate-deployment-contract.py|.github/actions/devops/admin/*|.github/actions/devops/cli/*|.github/actions/devops/explorer-backend/*|.github/actions/devops/explorer-web/*|.github/actions/devops/network/*|.github/actions/devops/detect-changes/*|.github/actions/devops/promote-images/*|.github/workflows/build-images.yml)
                 # Packaging/deployment changes must prove every container target
                 # still builds, but they must not inherit unrelated source lint
                 # debt from SDK/app domains that did not change.
