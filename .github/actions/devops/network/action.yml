@@ -43,6 +43,7 @@ runs:
         bash -n docker/validator-entrypoint.sh
         bash -n scripts/deploy-testnet.sh
         python3 scripts/validate-deployment-contract.py
+        node --test .github/actions/devops/network-dogfood/browser-proxy.test.mjs
         docker compose -f docker/compose.local.yml config >/dev/null
         docker compose -f docker/compose.dokploy.yml config >/dev/null
         docker compose -f docker/compose.coolify.yml config >/dev/null
