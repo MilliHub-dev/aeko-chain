@@ -2,6 +2,10 @@ name: Explorer web DevOps
 description: Fully lint, type-check, test, build, and optionally package the Explorer web application.
 
 inputs:
+  validate-source:
+    description: Run source lint, type-check, tests, and host build gates.
+    required: false
+    default: "true"
   build-image:
     description: Build the Explorer UI container image.
     required: false
@@ -32,16 +36,19 @@ runs:
         fi
 
     - name: Install Explorer web dependencies
+      if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       working-directory: apps/explorer/web
       run: npm ci
 
     - name: Full Explorer web lint
+      if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       working-directory: apps/explorer/web
       run: npm run lint
 
     - name: Explorer web JavaScript type-check
+      if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       working-directory: apps/explorer/web
       run: |
@@ -62,12 +69,13 @@ runs:
           "${sources[@]}"
 
     - name: Explorer web tests
+      if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       working-directory: apps/explorer/web
       run: npm test
 
     - name: Explorer web production build
-      if: ${{ inputs.build-image != 'true' }}
+      if: ${{ inputs.validate-source == 'true' && inputs.build-image != 'true' }}
       shell: bash
       working-directory: apps/explorer/web
       run: npm run build
