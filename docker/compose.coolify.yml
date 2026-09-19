@@ -1,19 +1,19 @@
-name: aeko-public-network
-
-# Dokploy production/testnet deployment contract.
+# Coolify production/testnet deployment contract.
 # Images are pulled from Docker Hub; no service builds locally.
-# Required operator values:
+# Required Coolify values:
 #   AEKO_PUBLIC_IP=<public address advertised by validator>
-#   AEKO_KEYS_DIR=../files/aeko-keys
+#   AEKO_KEYS_DIR=/data/aeko/keys
 #   EXPLORER_DATABASE_URL=postgres://...
 #
-# Low-resource Dokploy defaults target small test servers. The validator keeps
+# Low-resource public defaults target small test servers. The validator keeps
 # only a bounded recent blockstore; the Explorer PostgreSQL database is the
 # durable historical query store. On a ~45GB host, EXPLORER_DATABASE_URL should
 # point to managed/external PostgreSQL or storage that is not competing with the
-# validator root disk. AEKO_VALIDATOR_LEDGER_VOLUME may be set to an absolute
-# host path such as /mnt/aeko-ledger when a separate Scaleway block volume is
-# attached.
+# validator root disk. The validator ledger uses a Docker-managed named volume
+# by default. Use an absolute AEKO_KEYS_DIR and enter Coolify environment values
+# without shell quotes. Coolify validates storage before containers start, so
+# this contract intentionally keeps volume sources to simple ${VAR} references
+# and Docker-managed named volumes.
 
 x-logging: &default-logging
   driver: json-file
@@ -49,7 +49,10 @@ services:
         done
         echo "AEKO key preflight complete"
     volumes:
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
+      - type: bind
+        source: ${AEKO_KEYS_DIR}
+        target: /keys
+        read_only: true
     logging: *default-logging
     networks: [aeko]
 
@@ -58,7 +61,10 @@ services:
     pull_policy: always
     restart: unless-stopped
     volumes:
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
+      - type: bind
+        source: ${AEKO_KEYS_DIR}
+        target: /keys
+        read_only: true
     command:
       - --keypair
       - /keys/faucet-keypair.json
@@ -83,7 +89,7 @@ services:
       AEKO_FAUCET_FILE: /keys/faucet-keypair.json
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       AEKO_FAUCET_ADDRESS: faucet:9900
-      AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?Set AEKO_PUBLIC_IP to the public address of this Dokploy server}
+      AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?}
       AEKO_GOSSIP_PORT: "8001"
       AEKO_DYNAMIC_PORT_RANGE: 8000-8050
       AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}
@@ -110,8 +116,11 @@ services:
       - "8899"
       - "8900"
     volumes:
-      - ${AEKO_VALIDATOR_LEDGER_VOLUME:-validator-ledger}:/ledger
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
+      - validator-ledger:/ledger
+      - type: bind
+        source: ${AEKO_KEYS_DIR}
+        target: /keys
+        read_only: true
     depends_on:
       key-preflight:
         condition: service_completed_successfully
@@ -149,7 +158,10 @@ services:
       AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS: ${AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS:-0}
       AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-200}
     volumes:
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
+      - type: bind
+        source: ${AEKO_KEYS_DIR}
+        target: /keys
+        read_only: true
       - social-state:/state
     depends_on:
       validator:
@@ -180,7 +192,7 @@ services:
       AEKO_EXPLORER_REQUEST_TIMEOUT_SECS: ${AEKO_EXPLORER_REQUEST_TIMEOUT_SECS:-30}
       AEKO_EXPLORER_MAX_BODY_BYTES: ${AEKO_EXPLORER_MAX_BODY_BYTES:-1048576}
       AEKO_EXPLORER_SYNC_INTERVAL_SECS: ${AEKO_EXPLORER_SYNC_INTERVAL_SECS:-2}
-      DATABASE_URL: ${EXPLORER_DATABASE_URL:?Set EXPLORER_DATABASE_URL to persistent PostgreSQL}
+      DATABASE_URL: ${EXPLORER_DATABASE_URL:?}
       AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env
       AEKO_SOCIAL_POSTS_STATE: ${AEKO_SOCIAL_POSTS_STATE:-}
       AEKO_SOCIAL_REWARDS_STATE: ${AEKO_SOCIAL_REWARDS_STATE:-}
@@ -235,7 +247,9 @@ services:
     pull_policy: always
     command: ["aeko", "--help"]
     volumes:
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys
+      - type: bind
+        source: ${AEKO_KEYS_DIR}
+        target: /keys
     logging: *default-logging
     networks: [aeko]
 

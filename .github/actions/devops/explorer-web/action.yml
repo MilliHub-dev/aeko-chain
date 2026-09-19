@@ -101,7 +101,7 @@ runs:
         # The Docker target runs npm run build, so this is also the production
         # build gate when packaging is selected; we do not compile Vite twice.
         docker buildx build \
-          --file Dockerfile \
+          --file docker/Dockerfile \
           --target explorer-ui \
           "${build_args[@]}" \
           "${tags[@]}" \

@@ -11,7 +11,7 @@ services:
     container_name: aeko-faucet
     restart: unless-stopped
     volumes:
-      - ${AEKO_KEYS_DIR:-./local-testnet}/faucet-keypair.json:/keys/faucet.json:ro
+      - ${AEKO_KEYS_DIR:-../local-testnet}/faucet-keypair.json:/keys/faucet.json:ro
     command:
       - --keypair
       - /keys/faucet.json
@@ -37,10 +37,10 @@ services:
       - "${AEKO_WS_HOST_PORT:-8900}:8900"
     volumes:
       - validator-ledger:/ledger
-      - ${AEKO_KEYS_DIR:-./local-testnet}/validator-1-keypair.json:/keys/identity.json:ro
-      - ${AEKO_KEYS_DIR:-./local-testnet}/vote-1-keypair.json:/keys/vote.json:ro
-      - ${AEKO_KEYS_DIR:-./local-testnet}/stake-keypair.json:/keys/stake.json:ro
-      - ${AEKO_KEYS_DIR:-./local-testnet}/faucet-keypair.json:/keys/faucet.json:ro
+      - ${AEKO_KEYS_DIR:-../local-testnet}/validator-1-keypair.json:/keys/identity.json:ro
+      - ${AEKO_KEYS_DIR:-../local-testnet}/vote-1-keypair.json:/keys/vote.json:ro
+      - ${AEKO_KEYS_DIR:-../local-testnet}/stake-keypair.json:/keys/stake.json:ro
+      - ${AEKO_KEYS_DIR:-../local-testnet}/faucet-keypair.json:/keys/faucet.json:ro
     depends_on:
       faucet:
         condition: service_started
@@ -75,7 +75,7 @@ services:
       - "${AEKO_WS_REPLICA_HOST_PORT:-8896}:8900"
     volumes:
       - rpc-ledger:/ledger
-      - ${AEKO_KEYS_DIR:-./local-testnet}/rpc-node-keypair.json:/keys/identity.json:ro
+      - ${AEKO_KEYS_DIR:-../local-testnet}/rpc-node-keypair.json:/keys/identity.json:ro
     depends_on:
       validator:
         condition: service_healthy
@@ -107,7 +107,7 @@ services:
       AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS: ${AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS:-0}
       AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-200}
     volumes:
-      - ${AEKO_KEYS_DIR:-./local-testnet}/faucet-keypair.json:/keys/faucet.json:ro
+      - ${AEKO_KEYS_DIR:-../local-testnet}/faucet-keypair.json:/keys/faucet.json:ro
       - social-state:/state
     depends_on:
       validator:

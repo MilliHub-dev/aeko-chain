@@ -17,17 +17,13 @@ Aeko Social / wallet / dApp / SDK
  JSON-RPC           WebSocket        Explorer REST/UI
  rpc.aeko.online    ws.aeko.online   api/scan.aeko.online
       |                 |                |
-      +------ public non-voting RPC node +
+      +------ voting validator (:8899/:8900)
                          |
-                  private gossip
-                         |
-                  voting validator
+                  ledger / consensus
                          |
               native AEKO SocialFi
-                         |
-                 persistent ledger
 
-Explorer API :8088 <---- rpc-node
+Explorer API :8088 <---- validator RPC
        |
        +---- PostgreSQL
        +---- SocialFi registry
@@ -35,6 +31,9 @@ Explorer API :8088 <---- rpc-node
 Internal only:
   faucet :9900
   social-bootstrap (one-shot)
+
+Optional local profile:
+  non-voting rpc-node
 
 Separate product stack:
   Aeko application backend :4101
@@ -47,8 +46,8 @@ Consumers, wallets and dApps use **RPC/WS**, never gossip. Index-heavy reads can
 
 | Role | Image | Responsibility |
 | --- | --- | --- |
-| Validator | `surdma/aeko-validator` | voting block producer, ledger, consensus, validator transport, private/internal RPC |
-| RPC node | `surdma/aeko-validator` | same executable with `AEKO_NODE_ROLE=rpc`; non-voting public JSON-RPC and PubSub edge |
+| Validator | `surdma/aeko-validator` | voting block producer, ledger, consensus, validator transport, and public RPC/PubSub for the current single-validator public testnet |
+| RPC node | `surdma/aeko-validator` | optional portable/local profile using `AEKO_NODE_ROLE=rpc`; not required by the default public deployment |
 | Faucet | `surdma/aeko-faucet` | internal testnet airdrop service consumed by RPC |
 | SocialFi bootstrap | `surdma/aeko-social-bootstrap` | verifies/initializes the five SocialFi state accounts and writes the registry |
 | Explorer API | `surdma/aeko-explorer-api` | chain indexer, REST API and SocialFi registry/read endpoints |
@@ -61,13 +60,13 @@ A **WebSocket node is not a separate daemon**. PubSub/WebSocket is served by the
 
 | Purpose | Public endpoint | Runtime owner |
 | --- | --- | --- |
-| JSON-RPC | `https://rpc.aeko.online` | non-voting RPC node `:8899` |
-| WebSocket / PubSub | `wss://ws.aeko.online` | non-voting RPC node `:8900` |
+| JSON-RPC | `https://rpc.aeko.online` | validator `:8899` |
+| WebSocket / PubSub | `wss://ws.aeko.online` | validator `:8900` |
 | Explorer REST API | `https://api.aeko.online` | Explorer API `:8088` |
 | Explorer UI | `https://scan.aeko.online` | Explorer UI `:4000` |
 | Validator gossip | `gossip.aeko.online:8001` | validator gossip entrypoint |
 
-The Dokploy validator publishes the public validator TCP+UDP transport range `8000-8050`; gossip starts at `8001`. `gossip.aeko.online` is **not an Explorer website** and must never be used as an Explorer fallback.
+The public validator publishes the public TCP+UDP transport range `8000-8050`; gossip starts at `8001`. `gossip.aeko.online` is **not an Explorer website** and must never be used as an Explorer fallback.
 
 ### Port map
 
@@ -75,8 +74,8 @@ The Dokploy validator publishes the public validator TCP+UDP transport range `80
 | --- | --- | --- | --- |
 | `8000-8050` | TCP + UDP | public validator transport/dynamic range | direct node-to-node |
 | `8001` | TCP + UDP | gossip entrypoint inside the range | direct node-to-node |
-| `8899` | HTTP JSON-RPC | wallet/dApp/CLI RPC | `rpc.aeko.online` via RPC node |
-| `8900` | WebSocket | RPC PubSub | `ws.aeko.online` via RPC node |
+| `8899` | HTTP JSON-RPC | wallet/dApp/CLI RPC | `rpc.aeko.online` via validator |
+| `8900` | WebSocket | RPC PubSub | `ws.aeko.online` via validator |
 | `9900` | TCP | testnet faucet | internal only |
 | `8088` | HTTP | Explorer/indexer REST API | `api.aeko.online` |
 | `4000` | HTTP | Explorer UI | `scan.aeko.online` |
@@ -123,7 +122,7 @@ AEKO_RESET_LEDGER=1
 AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1
 ```
 
-The Dokploy Compose passes `AEKO_RESET_LEDGER` to **both validator and RPC replica**, so their persistent ledgers cannot straddle two chains. `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE` is deliberately separate and defaults to `0`; do not leave it enabled for ordinary redeploys. Return both switches to `0` after recovery.
+The public Compose contracts pass `AEKO_RESET_LEDGER` to the validator. The optional portable RPC replica has its own local ledger and is not part of the default public topology. `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE` is deliberately separate and defaults to `0`; do not leave it enabled for ordinary redeploys. Return both switches to `0` after recovery.
 
 ## Social write/read split
 
@@ -137,8 +136,7 @@ Aeko client/backend
   -> on-chain SocialFi state/proof
 
 Read path
-validator ledger
-  -> RPC replica
+validator ledger / RPC
   -> Explorer indexer
   -> PostgreSQL/indexed views
   -> Explorer REST
@@ -149,7 +147,7 @@ Large media, feed ranking, chat payloads, auth sessions and ordinary product dat
 
 ## Build model
 
-There is one root [`Dockerfile`](./Dockerfile) with named runtime targets:
+There is one canonical [`docker/Dockerfile`](./docker/Dockerfile) with named runtime targets:
 
 ```text
 validator
@@ -163,12 +161,12 @@ explorer-ui
 Examples:
 
 ```bash
-docker build --target validator -t surdma/aeko-validator:latest .
-docker build --target faucet -t surdma/aeko-faucet:latest .
-docker build --target social-bootstrap -t surdma/aeko-social-bootstrap:latest .
-docker build --target tools -t surdma/aeko-tools:latest .
-docker build --target explorer-api -t surdma/aeko-explorer-api:latest .
-docker build --target explorer-ui -t surdma/aeko-explorer-ui:latest .
+docker build -f docker/Dockerfile --target validator -t surdma/aeko-validator:latest .
+docker build -f docker/Dockerfile --target faucet -t surdma/aeko-faucet:latest .
+docker build -f docker/Dockerfile --target social-bootstrap -t surdma/aeko-social-bootstrap:latest .
+docker build -f docker/Dockerfile --target tools -t surdma/aeko-tools:latest .
+docker build -f docker/Dockerfile --target explorer-api -t surdma/aeko-explorer-api:latest .
+docker build -f docker/Dockerfile --target explorer-ui -t surdma/aeko-explorer-ui:latest .
 ```
 
 `.github/workflows/build-images.yml` validates the deployment contracts and builds every target on pull requests. On `main`, it publishes both `latest` and a 12-character commit tag. Compatibility aliases remain temporarily available for `aeko-node` and `aeko-explorer-backend`.
@@ -177,18 +175,18 @@ Prefer immutable commit tags for controlled public releases and rollback.
 
 ## Local / portable deployment
 
-[`docker-compose.yml`](./docker-compose.yml) is the portable local/testnet topology. It starts faucet, validator, automatic SocialFi bootstrap, Explorer API and Explorer UI. Validator RPC/WS are host-published for local convenience; the non-voting RPC replica is optional.
+[`docker/compose.local.yml`](./docker/compose.local.yml) is the portable local/testnet topology. It starts faucet, validator, automatic SocialFi bootstrap, Explorer API and Explorer UI. Validator RPC/WS are host-published for local convenience; the non-voting RPC replica is optional.
 
 ```bash
 export AEKO_KEYS_DIR="$PWD/local-testnet"
 export EXPLORER_DATABASE_URL='postgres://...'
-docker compose up -d
+docker compose -f docker/compose.local.yml up -d
 ```
 
 Optional local RPC replica:
 
 ```bash
-docker compose --profile rpc up -d rpc-node
+docker compose -f docker/compose.local.yml --profile rpc up -d rpc-node
 ```
 
 For a deliberate local chain reset use the repository helper:
@@ -199,14 +197,13 @@ For a deliberate local chain reset use the repository helper:
 
 ## Dokploy / public deployment
 
-[`docker-compose.dokploy.yml`](./docker-compose.dokploy.yml) is the image-only public deployment contract. It contains **no `build:` directive**. Every service references a Docker Hub image and uses `pull_policy: always`.
+[`docker/compose.dokploy.yml`](./docker/compose.dokploy.yml) is the image-only public deployment contract. It contains **no `build:` directive**. Every service references a Docker Hub image and uses `pull_policy: always`.
 
 The always-running public topology is:
 
 ```text
 faucet
 validator
-rpc-node
 social-bootstrap
 explorer-api
 explorer-ui
@@ -231,7 +228,6 @@ validator-1-keypair.json
 vote-1-keypair.json
 stake-keypair.json
 faucet-keypair.json
-rpc-node-keypair.json
 ```
 
 Never commit those keypairs. Keep them in persistent restricted storage/File Mounts; do not depend on files inside an AutoDeploy Git checkout.
@@ -250,14 +246,14 @@ AEKO_PLATFORM_FEE_BPS=200
 Set the Compose path to:
 
 ```text
-./docker-compose.dokploy.yml
+./docker/compose.dokploy.yml
 ```
 
 Dokploy's native **Domains** UI can inject Traefik routing, so the repository Compose does not hard-code platform labels. Configure:
 
 ```text
-rpc.aeko.online   -> rpc-node:8899
-ws.aeko.online    -> rpc-node:8900
+rpc.aeko.online   -> validator:8899
+ws.aeko.online    -> validator:8900
 api.aeko.online   -> explorer-api:8088
 scan.aeko.online  -> explorer-ui:4000
 ```
@@ -267,12 +263,46 @@ Set `AEKO_PUBLIC_IP` to the externally reachable node address. Point `gossip.aek
 Equivalent host-side Compose behavior:
 
 ```bash
-docker compose -f docker-compose.dokploy.yml pull
-docker compose -f docker-compose.dokploy.yml up -d
-docker compose -f docker-compose.dokploy.yml ps
+docker compose -f docker/compose.dokploy.yml pull
+docker compose -f docker/compose.dokploy.yml up -d
+docker compose -f docker/compose.dokploy.yml ps
 ```
 
-The GitHub deployment workflow calls the configured Dokploy webhook only after the image build succeeds on `main`. The Dokploy resource itself must be configured to use `docker-compose.dokploy.yml`; the webhook does not choose the topology.
+The GitHub deployment workflow calls the configured Dokploy webhook only after the image build succeeds on `main`. The Dokploy resource itself must be configured to use `docker/compose.dokploy.yml`; the webhook does not choose the topology.
+
+
+## Coolify / public deployment
+
+Use [`docker/compose.coolify.yml`](./docker/compose.coolify.yml) for Coolify. It preserves the same public validator, SocialFi and Explorer topology as Dokploy, but its storage syntax avoids required/error and fallback interpolation in volume sources so Coolify can validate persistent storage before container startup.
+
+Set the Compose path to:
+
+```text
+./docker/compose.coolify.yml
+```
+
+Required Coolify variables:
+
+```text
+AEKO_PUBLIC_IP=<public IP of Coolify host>
+AEKO_KEYS_DIR=/data/aeko/keys
+EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
+AEKO_IMAGE_REPOSITORY=surdma
+AEKO_IMAGE_TAG=<recommended 12-character published main SHA>
+```
+
+Enter Coolify values without surrounding shell quotes. `AEKO_KEYS_DIR` must be an existing absolute host directory containing the four validator/faucet key files. The Coolify contract uses Docker-managed `validator-ledger` and `social-state` volumes by default. See [`docker/env.public.example`](./docker/env.public.example) for the complete public environment template.
+
+Configure Coolify domains against the internal service ports:
+
+```text
+rpc.aeko.online   -> validator:8899
+ws.aeko.online    -> validator:8900
+api.aeko.online   -> explorer-api:8088
+scan.aeko.online  -> explorer-ui:4000
+```
+
+As with Dokploy, `gossip.aeko.online` points directly to `AEKO_PUBLIC_IP`. Allow inbound TCP+UDP `8000-8050` and do not route gossip through the HTTP proxy.
 
 ## Create and use a wallet
 
@@ -471,7 +501,7 @@ Those are protocol-hardening items, not missing Docker services. The repository 
 
 AEKO uses a Solana-style validator/runtime/RPC/PubSub/network model, but container completeness is not Solana-scale operational maturity. A public network also needs independent validators, stake distribution, redundant RPC fleets, snapshot/bootstrap strategy, observability, rate limiting/abuse protection, backups, key custody, incident response and sustained adversarial/load testing.
 
-`docker-compose.dokploy.yml` is the **complete single-host AEKO public testnet service topology and consumption contract**, not proof of decentralization or mainnet-grade Solana parity.
+The public Compose contracts in `docker/compose.dokploy.yml` and `docker/compose.coolify.yml` describe the **complete single-host AEKO public testnet service topology and consumption contract**, not proof of decentralization or mainnet-grade Solana parity.
 
 ## Separate Aeko application backend
 
@@ -495,9 +525,11 @@ rpc/                                  JSON-RPC implementation
 explorer-backend/                     indexer + REST API
 web/                                  Explorer UI/test console
 docker/validator-entrypoint.sh        validator/RPC container roles
-Dockerfile                            canonical multi-target build
-docker-compose.yml                    portable/local runtime
-docker-compose.dokploy.yml            Docker Hub/Dokploy public runtime
+docker/Dockerfile                     canonical multi-target build
+docker/compose.local.yml              portable/local runtime
+docker/compose.dokploy.yml            Docker Hub/Dokploy public runtime
+docker/compose.coolify.yml            Docker Hub/Coolify public runtime
+docker/env.public.example             public deployment environment template
 scripts/deploy-testnet.sh             local deployment helper
 scripts/smoke-aeko-social.py          live deployment/read-path smoke
 scripts/validate-deployment-contract.py static deployment invariant gate

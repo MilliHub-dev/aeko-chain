@@ -10,7 +10,7 @@ The goal of this document: any operator with SSH access to a fresh Ubuntu host c
 
 The repository is the source of truth. **Nothing important lives only on the server.** Concretely:
 
-- Source code, Dockerfiles, compose files, entrypoint scripts — all in git.
+- Source code, Dockerfile and Compose files under `docker/`, entrypoint scripts — all in git.
 - The deploy script (`scripts/deploy-testnet.sh`) — in git.
 - The validator/vote/stake/faucet **keypairs** — NOT in git (they're secrets). The deploy script generates them on first run and reuses them on every subsequent run. They live under `local-testnet/*.json` which is `.gitignore`d.
 - The **chain ledger** — NOT in the repo. It lives in named docker volumes (`aeko_validator1-ledger` etc.) that persist across container/repo replacements. The chain survives a `git pull && deploy` cycle.
@@ -98,7 +98,7 @@ git pull origin main
 ./scripts/deploy-testnet.sh
 ```
 
-The deploy script is **idempotent**. Running it when nothing has changed just verifies health and exits in a few seconds. Running it after a `git pull` rebuilds the image only if Dockerfile/sources changed (Docker's layer cache + sccache handle that), restarts containers, and waits for liveness. The chain ledger in the named volume is preserved across all of this.
+The deploy script is **idempotent**. Running it when nothing has changed just verifies health and exits in a few seconds. Running it after a `git pull` rebuilds the image only if `docker/Dockerfile` or its sources changed (Docker's layer cache + sccache handle that), restarts containers, and waits for liveness. The chain ledger in the named volume is preserved across all of this.
 
 To start over from genesis (loses the chain history), pass `--reset-chain`:
 
@@ -174,7 +174,7 @@ If you (or a previous operator) edited files directly on the server without comm
 
 ```bash
 # 1. stop the containers (named volumes are NOT deleted)
-docker compose -f docker-compose-testnet.yml down
+docker compose -f docker/compose.local.yml down
 
 # 2. full backup of the current state
 mv ~/aeko ~/aeko-backup-$(date +%Y%m%d-%H%M%S)

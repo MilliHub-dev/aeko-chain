@@ -1,5 +1,8 @@
 # Aeko Testnet — what broke, what fixed it, and how to run it cleanly
 
+> **Historical incident notes.** This runbook preserves investigations from earlier testnet layouts. For current service names, Compose paths, public topology and deployment commands, use [`DEPLOYMENT.md`](../../DEPLOYMENT.md) and [`coolify.md`](./coolify.md). Commands that mention `docker-compose-testnet.yml`, `validator-1`, legacy Traefik labels or multi-validator profiles are historical and should not be copied into the current deployment.
+
+
 This is the long-form companion to the testnet-recovery PR. Read it once, keep it as a runbook.
 
 > **Deployment model:** the testnet is fronted by **Coolify + Traefik** (auto-TLS,
