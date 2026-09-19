@@ -3,8 +3,11 @@ description: Classify a change set into independently owned AEKO application and
 
 outputs:
   core:
-    description: Blockchain/network-critical files changed.
+    description: Blockchain/network release or packaging files changed.
     value: ${{ steps.classify.outputs.core }}
+  network_source:
+    description: Network Rust/toolchain source changed and needs host source validation.
+    value: ${{ steps.classify.outputs.network_source }}
   admin:
     description: Admin application changed or must be validated by the orchestrator change.
     value: ${{ steps.classify.outputs.admin }}
@@ -75,6 +78,7 @@ runs:
         set -euo pipefail
 
         core=false
+        network_source=false
         admin=false
         cli=false
         explorer_backend=false
@@ -104,6 +108,7 @@ runs:
           # Manual main runs validate the complete release surface, but do not
           # republish SDK package versions that did not change.
           core=true
+          network_source=true
           mark_all_apps
         else
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
@@ -204,6 +209,11 @@ runs:
                 ;;
               *)
                 core=true
+                case "$file" in
+                  *.rs|Cargo.toml|Cargo.lock|rust-toolchain*|.cargo/*)
+                    network_source=true
+                    ;;
+                esac
                 ;;
             esac
           done
@@ -220,7 +230,7 @@ runs:
         fi
 
         rust_needed=false
-        if [ "$core" = true ] || [ "$cli" = true ] || [ "$explorer_backend" = true ] || [ "$sdk_rust" = true ]; then
+        if [ "$network_source" = true ] || [ "$cli" = true ] || [ "$explorer_backend" = true ] || [ "$sdk_rust" = true ]; then
           rust_needed=true
         fi
 
@@ -246,6 +256,7 @@ runs:
 
         {
           echo "core=$core"
+          echo "network_source=$network_source"
           echo "admin=$admin"
           echo "cli=$cli"
           echo "explorer_backend=$explorer_backend"
@@ -268,7 +279,7 @@ runs:
           echo "unmapped_app=$unmapped_app"
         } >> "$GITHUB_OUTPUT"
 
-        printf 'Selection: core=%s admin=%s cli=%s backend=%s web=%s sdk(js=%s,node=%s,python=%s,rust=%s) sdk-release(js=%s,node=%s,python=%s,rust=%s) unmapped=%s\n' \
-          "$core" "$admin" "$cli" "$explorer_backend" "$explorer_web" \
+        printf 'Selection: core=%s network_source=%s admin=%s cli=%s backend=%s web=%s sdk(js=%s,node=%s,python=%s,rust=%s) sdk-release(js=%s,node=%s,python=%s,rust=%s) unmapped=%s\n' \
+          "$core" "$network_source" "$admin" "$cli" "$explorer_backend" "$explorer_web" \
           "$sdk_js" "$sdk_node" "$sdk_python" "$sdk_rust" \
           "$sdk_release_js" "$sdk_release_node" "$sdk_release_python" "$sdk_release_rust" "$unmapped_app"
