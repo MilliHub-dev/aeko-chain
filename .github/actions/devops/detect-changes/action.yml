@@ -210,7 +210,7 @@ runs:
               *)
                 core=true
                 case "$file" in
-                  *.rs|Cargo.toml|Cargo.lock|rust-toolchain*|.cargo/*)
+                  *.rs|Cargo.toml|*/Cargo.toml|Cargo.lock|rust-toolchain*|.cargo/*)
                     network_source=true
                     ;;
                 esac
