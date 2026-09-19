@@ -114,7 +114,7 @@ runs:
         import { pathToFileURL } from 'node:url';
         import { chromium } from 'playwright';
 
-        const helperUrl = pathToFileURL(path.join(process.env.REPO_ROOT, 'scripts/dogfood-browser-proxy.mjs')).href;
+        const helperUrl = pathToFileURL(path.join(process.env.REPO_ROOT, '.github/actions/devops/network-dogfood/browser-proxy.mjs')).href;
         const { installDogfoodEndpointProxy } = await import(helperUrl);
 
         const executablePath = process.env.CHROME_BIN || undefined;

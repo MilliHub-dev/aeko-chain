@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { DOGFOOD_ENDPOINTS, rewriteDogfoodUrl } from './dogfood-browser-proxy.mjs';
+import { DOGFOOD_ENDPOINTS, installDogfoodEndpointProxy, rewriteDogfoodUrl } from './browser-proxy.mjs';
 
 test('rewrites the canonical public RPC origin to the local dogfood RPC', () => {
   assert.equal(
@@ -42,4 +42,18 @@ test('supports an explicit endpoint contract without changing matching semantics
     rewriteDogfoodUrl('https://api.aeko.online/health', endpoints),
     'http://localhost:18088/health',
   );
+});
+
+test('installs proxy routes only for the two canonical public origins', async () => {
+  const patterns = [];
+  await installDogfoodEndpointProxy({
+    async route(pattern, handler) {
+      patterns.push(pattern);
+      assert.equal(typeof handler, 'function');
+    },
+  });
+  assert.deepEqual(patterns, [
+    'https://rpc.aeko.online/**',
+    'https://api.aeko.online/**',
+  ]);
 });
