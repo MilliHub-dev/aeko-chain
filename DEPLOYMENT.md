@@ -120,6 +120,8 @@ docker run --rm \
 
 Keep key files in persistent restricted storage. Do not rely on keys living inside an AutoDeploy Git checkout and never commit them.
 
+Public `key-preflight` uses exit `64` when one of these files is missing/empty/not a regular file and exit `65` when a file exists but is not a parseable AEKO keypair. On Coolify, an exit-64 path such as `/keys/faucet-keypair.json` means the Compose bind mount was accepted but the absolute host directory selected by `AEKO_KEYS_DIR` does not contain the required file.
+
 ## SocialFi bootstrap lifecycle
 
 `social-bootstrap` is part of the default network, but it is a one-shot initializer rather than a long-running daemon.
