@@ -2,6 +2,10 @@ name: Admin application DevOps
 description: Fully validate, build, and optionally publish the AEKO admin application image.
 
 inputs:
+  validate-source:
+    description: Run source lint, type-check, tests, and host build gates.
+    required: false
+    default: "true"
   build-image:
     description: Build the admin container image.
     required: false
@@ -32,27 +36,31 @@ runs:
         fi
 
     - name: Install admin dependencies
+      if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       working-directory: apps/admin
       run: npm ci
 
     - name: Admin lint
+      if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       working-directory: apps/admin
       run: npm run lint --if-present
 
     - name: Admin type-check
+      if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       working-directory: apps/admin
       run: npx tsc --noEmit
 
     - name: Admin tests
+      if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       working-directory: apps/admin
       run: npm test --if-present
 
     - name: Admin production build
-      if: ${{ inputs.build-image != 'true' }}
+      if: ${{ inputs.validate-source == 'true' && inputs.build-image != 'true' }}
       shell: bash
       working-directory: apps/admin
       run: npm run build
