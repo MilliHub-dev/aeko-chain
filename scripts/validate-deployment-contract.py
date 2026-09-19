@@ -273,6 +273,15 @@ def main() -> int:
     )[1].split(";;", 1)[0]
     require("core=true" in orchestrator_case, "orchestrator changes must exercise the core release path")
     require("mark_all_apps" not in orchestrator_case, "orchestrator changes must not force unrelated app/SDK source validation")
+    require('echo "network_source=$network_source"' in change_detector, "change detector must expose network-source validation intent")
+    require(
+        'validate-source: ${{ steps.changes.outputs.network_source }}' in devops_workflow,
+        "workflow must pass network-source validation intent into the core action",
+    )
+    require(
+        "if: ${{ inputs.validate-source == 'true' }}" in network_action,
+        "network host Rust source checks must be gated independently from container release checks",
+    )
 
     for output in ("admin", "cli", "explorer_backend", "explorer_web"):
         require(
