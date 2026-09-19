@@ -28,7 +28,7 @@ runs:
 
         cleanup() {
           docker rm -f aeko-ci-postgres >/dev/null 2>&1 || true
-          docker compose -f docker-compose.yml down -v >/dev/null 2>&1 || true
+          docker compose -f docker/compose.local.yml down -v >/dev/null 2>&1 || true
         }
         trap cleanup EXIT
 
@@ -40,7 +40,7 @@ runs:
             aeko-keygen new --no-bip39-passphrase --silent --outfile "/keys/${key}.json"
         done
 
-        docker compose -f docker-compose.yml up -d faucet
+        docker compose -f docker/compose.local.yml up -d faucet
         COMPOSE_NETWORK=$(docker inspect aeko-faucet --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{end}}')
         test -n "$COMPOSE_NETWORK"
         docker run -d --name aeko-ci-postgres \
@@ -59,7 +59,7 @@ runs:
         done
         docker exec aeko-ci-postgres pg_isready -U aeko -d aeko_explorer_ci
 
-        docker compose -f docker-compose.yml up -d validator social-bootstrap explorer-api explorer-ui
+        docker compose -f docker/compose.local.yml up -d validator social-bootstrap explorer-api explorer-ui
 
         RPC_READY=0
         for _ in $(seq 1 90); do

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static acceptance checks for AEKO's portable and Dokploy deployment contracts."""
+"""Static acceptance checks for AEKO's local, Dokploy and Coolify deployment contracts."""
 
 from __future__ import annotations
 
@@ -7,10 +7,12 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PORTABLE = ROOT / "docker-compose.yml"
-DOKPLOY = ROOT / "docker-compose.dokploy.yml"
-DOCKERFILE = ROOT / "Dockerfile"
-VALIDATOR_ENTRYPOINT = ROOT / "docker" / "validator-entrypoint.sh"
+DOCKER_DIR = ROOT / "docker"
+PORTABLE = DOCKER_DIR / "compose.local.yml"
+DOKPLOY = DOCKER_DIR / "compose.dokploy.yml"
+COOLIFY = DOCKER_DIR / "compose.coolify.yml"
+DOCKERFILE = DOCKER_DIR / "Dockerfile"
+VALIDATOR_ENTRYPOINT = DOCKER_DIR / "validator-entrypoint.sh"
 BLOCKSTORE_CLEANUP = ROOT / "ledger" / "src" / "blockstore_cleanup_service.rs"
 SOCIAL_BOOTSTRAP = ROOT / "social-bootstrap" / "src" / "main.rs"
 EXPLORER_HEALTH = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "health" / "mod.rs"
@@ -46,6 +48,7 @@ def service_block(compose: str, service: str, next_service: str | None = None) -
 def main() -> int:
     portable = read(PORTABLE)
     dokploy = read(DOKPLOY)
+    coolify = read(COOLIFY)
     dockerfile = read(DOCKERFILE)
     validator_entrypoint = read(VALIDATOR_ENTRYPOINT)
     blockstore_cleanup = read(BLOCKSTORE_CLEANUP)
@@ -217,6 +220,36 @@ def main() -> int:
     require("rpc-node-keypair.json" not in dokploy, "default Dokploy topology must not require an unused RPC-replica identity")
     require("rpc-ledger:" not in dokploy, "default Dokploy topology must not retain an unused RPC-replica ledger volume")
 
+    # Coolify mirrors the image-only public topology. Keep storage syntax
+    # deliberately conservative because Coolify validates volume sources before
+    # the containers are created.
+    require(re.search(r"^\\s+build:\\s*$", coolify, re.MULTILINE) is None, "Coolify compose must pull prebuilt images, not build source")
+    require(re.search(r"^  rpc-node:\\s*$", coolify, re.MULTILINE) is None, "Coolify must not make the optional RPC replica a default service")
+    for index, service in enumerate(ordered):
+        next_service = ordered[index + 1] if index + 1 < len(ordered) else None
+        block = service_block(coolify, service, next_service)
+        require("image:" in block, f"Coolify {service} must use a published image")
+        require("pull_policy: always" in block, f"Coolify {service} must pull the selected Docker Hub tag")
+
+    coolify_validator = service_block(coolify, "validator", "social-bootstrap")
+    coolify_bootstrap = service_block(coolify, "social-bootstrap", "explorer-api")
+    coolify_explorer = service_block(coolify, "explorer-api", "explorer-ui")
+    coolify_wallet_tools = service_block(coolify, "wallet-tools")
+    require("${AEKO_KEYS_DIR:?" not in coolify, "Coolify key bind sources must not use :? interpolation")
+    require("${AEKO_KEYS_DIR:-" not in coolify, "Coolify key bind sources must not use fallback interpolation")
+    require(coolify.count("source: ${AEKO_KEYS_DIR}") >= 5, "Coolify services must share the explicit key bind source")
+    require(coolify.count("read_only: true") >= 4, "Coolify runtime key mounts must remain read-only")
+    require("validator-ledger:/ledger" in coolify_validator, "Coolify validator must use a Docker-managed ledger volume by default")
+    require("AEKO_VALIDATOR_LEDGER_VOLUME" not in coolify, "Coolify ledger source must not use interpolated volume-source syntax")
+    require("AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?}" in coolify_validator, "Coolify must require the public validator address")
+    require('"8000-8050:8000-8050/tcp"' in coolify_validator, "Coolify validator TCP transport range must be published")
+    require('"8000-8050:8000-8050/udp"' in coolify_validator, "Coolify validator UDP transport range must be published")
+    require("AEKO_RPC_URL: http://validator:8899" in coolify_bootstrap, "Coolify bootstrap must use validator RPC")
+    require("AEKO_EXPLORER_RPC: http://validator:8899" in coolify_explorer, "Coolify Explorer must index validator RPC")
+    require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?}" in coolify_explorer, "Coolify Explorer must require durable PostgreSQL")
+    require('profiles: ["ops"]' in coolify_wallet_tools, "Coolify wallet tools must remain operator-only")
+    require(re.search(r"^  postgres(?:ql)?:", coolify, re.MULTILINE) is None, "Coolify compose must not embed PostgreSQL")
+
     # Portable compose must expose the same Social vault lifecycle so local
     # validation and Dokploy do not exercise different custody models.
     portable_bootstrap = service_block(portable, "social-bootstrap", "explorer-api")
@@ -249,7 +282,8 @@ def main() -> int:
         "gossip.aeko.online:8001",
     ):
         require(endpoint in readme, f"README missing public endpoint {endpoint}")
-    require("docker-compose.dokploy.yml" in readme, "README must document the Dokploy deployment contract")
+    require("docker/compose.dokploy.yml" in readme, "README must document the Dokploy deployment contract")
+    require("docker/compose.coolify.yml" in readme, "README must document the Coolify deployment contract")
     require("/registry/social" in readme and "complete" in readme, "README must document SocialFi registry acceptance")
     require("wallet" in readme.lower() and "not a" in readme.lower(), "README must explain wallet/client versus daemon responsibilities")
     require("protocol-maturity" in readme.lower() or "protocol maturity" in readme.lower(), "README must disclose remaining SocialFi protocol maturity boundaries")
@@ -258,8 +292,9 @@ def main() -> int:
     require("ws.aeko.online` | `validator` | `8900" in deployment, "deployment guide must route public WebSocket to validator")
     require("public/Dokploy stack; uses prebuilt Docker Hub images and serves RPC/WS from the healthy voting validator" in deployment, "deployment guide must describe the single-validator Dokploy RPC topology")
     require("Explorer API/UI remain available in a degraded state" in deployment, "deployment guide must document degraded Explorer behavior when SocialFi bootstrap fails")
+    require("docker/compose.coolify.yml" in deployment, "deployment guide must document the Coolify Compose path")
 
-    print("[PASS] AEKO portable + Dokploy deployment contracts are internally consistent")
+    print("[PASS] AEKO local + Dokploy + Coolify deployment contracts are internally consistent")
     return 0
 
 

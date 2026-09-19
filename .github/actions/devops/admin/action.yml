@@ -80,7 +80,7 @@ runs:
         # The admin Docker target performs npm ci + next build, so packaging is
         # also the production build gate and we avoid compiling Next.js twice.
         docker buildx build \
-          --file Dockerfile \
+          --file docker/Dockerfile \
           --target admin \
           "${tags[@]}" \
           "${output[@]}" \

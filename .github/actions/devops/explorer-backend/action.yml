@@ -107,7 +107,7 @@ runs:
         fi
 
         docker buildx build \
-          --file Dockerfile \
+          --file docker/Dockerfile \
           --target explorer-api \
           "${tags[@]}" \
           "${output[@]}" \

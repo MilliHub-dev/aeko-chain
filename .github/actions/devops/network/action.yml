@@ -39,8 +39,9 @@ runs:
         bash -n docker/validator-entrypoint.sh
         bash -n scripts/deploy-testnet.sh
         python3 scripts/validate-deployment-contract.py
-        docker compose -f docker-compose.yml config >/dev/null
-        docker compose -f docker-compose.dokploy.yml config >/dev/null
+        docker compose -f docker/compose.local.yml config >/dev/null
+        docker compose -f docker/compose.dokploy.yml config >/dev/null
+        docker compose -f docker/compose.coolify.yml config >/dev/null
 
     - name: Network Rust format
       shell: bash
@@ -100,7 +101,7 @@ runs:
             tags+=(--tag "${prefix}/${image}:${SHA_TAG}")
           done
           docker buildx build \
-            --file Dockerfile \
+            --file docker/Dockerfile \
             --target "$target" \
             "${tags[@]}" \
             "${output[@]}" \

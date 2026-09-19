@@ -1,0 +1,249 @@
+name: aeko-public-network
+
+# Dokploy production/testnet deployment contract.
+# Images are pulled from Docker Hub; no service builds locally.
+# Required operator values:
+#   AEKO_PUBLIC_IP=<public address advertised by validator>
+#   AEKO_KEYS_DIR=/data/aeko/keys
+#   EXPLORER_DATABASE_URL=postgres://...
+#
+# Low-resource Dokploy defaults target small test servers. The validator keeps
+# only a bounded recent blockstore; the Explorer PostgreSQL database is the
+# durable historical query store. On a ~45GB host, EXPLORER_DATABASE_URL should
+# point to managed/external PostgreSQL or storage that is not competing with the
+# validator root disk. AEKO_VALIDATOR_LEDGER_VOLUME may be set to an absolute
+# host path such as /mnt/aeko-ledger when a separate Scaleway block volume is
+# attached. Because this Compose file lives under docker/, use an absolute
+# AEKO_KEYS_DIR so the key location does not depend on Compose path resolution.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: ${AEKO_LOG_MAX_SIZE:-10m}
+    max-file: ${AEKO_LOG_MAX_FILES:-3}
+
+services:
+  key-preflight:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        for key in \
+          faucet-keypair.json \
+          stake-keypair.json \
+          validator-1-keypair.json \
+          vote-1-keypair.json
+        do
+          path="/keys/$$key"
+          if [ ! -f "$$path" ] || [ ! -s "$$path" ]; then
+            echo "error: required AEKO keypair is missing, empty, or not a regular file: $$path" >&2
+            exit 64
+          fi
+          if ! aeko-keygen pubkey "$$path" >/dev/null 2>&1; then
+            echo "error: invalid AEKO keypair: $$path" >&2
+            exit 65
+          fi
+          echo "validated $$key"
+        done
+        echo "AEKO key preflight complete"
+    volumes:
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
+    logging: *default-logging
+    networks: [aeko]
+
+  faucet:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-faucet:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    volumes:
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
+    command:
+      - --keypair
+      - /keys/faucet-keypair.json
+    depends_on:
+      key-preflight:
+        condition: service_completed_successfully
+    expose:
+      - "9900"
+    logging: *default-logging
+    networks: [aeko]
+
+  validator:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-validator:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      AEKO_NODE_ROLE: validator
+      AEKO_BOOTSTRAP: "1"
+      AEKO_IDENTITY_FILE: /keys/validator-1-keypair.json
+      AEKO_VOTE_FILE: /keys/vote-1-keypair.json
+      AEKO_STAKE_FILE: /keys/stake-keypair.json
+      AEKO_FAUCET_FILE: /keys/faucet-keypair.json
+      AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
+      AEKO_FAUCET_ADDRESS: faucet:9900
+      AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?Set AEKO_PUBLIC_IP to the public address of this Dokploy server}
+      AEKO_GOSSIP_PORT: "8001"
+      AEKO_DYNAMIC_PORT_RANGE: 8000-8050
+      AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}
+
+      # Constrained testnet profile. 8m shreds is roughly a ~16GB blockstore
+      # target at ~2KB/shred before RocksDB overhead. This is retention, not an
+      # exact byte quota. The validator still preserves current AccountsDB and
+      # snapshots required to continue the chain.
+      AEKO_LEDGER_LIMIT: ${AEKO_LEDGER_LIMIT:-8000000}
+      AEKO_MAX_FULL_SNAPSHOTS: ${AEKO_MAX_FULL_SNAPSHOTS:-1}
+      AEKO_MAX_INCREMENTAL_SNAPSHOTS: ${AEKO_MAX_INCREMENTAL_SNAPSHOTS:-1}
+      AEKO_ACCOUNTS_SHRINK_OPTIMIZE_TOTAL_SPACE: ${AEKO_ACCOUNTS_SHRINK_OPTIMIZE_TOTAL_SPACE:-true}
+      AEKO_ACCOUNTS_DB_CACHE_LIMIT_MB: ${AEKO_ACCOUNTS_DB_CACHE_LIMIT_MB:-512}
+      AEKO_ACCOUNTS_INDEX_MEMORY_LIMIT_MB: ${AEKO_ACCOUNTS_INDEX_MEMORY_LIMIT_MB:-512}
+      AEKO_MIN_FREE_DISK_KB: ${AEKO_MIN_FREE_DISK_KB:-2097152}
+    ulimits:
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    ports:
+      - "8000-8050:8000-8050/tcp"
+      - "8000-8050:8000-8050/udp"
+    expose:
+      - "8899"
+      - "8900"
+    volumes:
+      - ${AEKO_VALIDATOR_LEDGER_VOLUME:-validator-ledger}:/ledger
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
+    depends_on:
+      key-preflight:
+        condition: service_completed_successfully
+      faucet:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          test "$$(df -Pk /ledger | awk 'NR==2 {print $$4}')" -ge "$${AEKO_MIN_FREE_DISK_KB:-2097152}" &&
+          curl -fsS -X POST -H 'Content-Type: application/json'
+          -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+          http://127.0.0.1:8899 | grep -q '"result":"ok"'
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    stop_grace_period: 2m
+    logging: *default-logging
+    networks: [aeko]
+
+  social-bootstrap:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: "no"
+    environment:
+      AEKO_RPC_URL: http://validator:8899
+      AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
+      AEKO_BOOTSTRAP_OUT_DIR: /state
+      AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}
+      # Bootstrap creates persisted program-owned vault accounts. These optional
+      # amounts only seed payout liquidity; zero remains the safe default.
+      AEKO_REWARDS_TREASURY_SEED_LAMPORTS: ${AEKO_REWARDS_TREASURY_SEED_LAMPORTS:-0}
+      AEKO_REWARD_VAULT_SEED_LAMPORTS: ${AEKO_REWARD_VAULT_SEED_LAMPORTS:-0}
+      AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS: ${AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS:-0}
+      AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-200}
+    volumes:
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
+      - social-state:/state
+    depends_on:
+      validator:
+        condition: service_healthy
+      key-preflight:
+        condition: service_completed_successfully
+    logging: *default-logging
+    networks: [aeko]
+
+  explorer-api:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-explorer-api:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      AEKO_EXPLORER_RPC: http://validator:8899
+      AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-testnet}
+      AEKO_EXPLORER_BIND: 0.0.0.0:8088
+      AEKO_EXPLORER_START_SLOT: ${AEKO_EXPLORER_START_SLOT:-0}
+      AEKO_EXPLORER_MAX_BATCH_SIZE: ${AEKO_EXPLORER_MAX_BATCH_SIZE:-256}
+      AEKO_EXPLORER_PERSIST_SOCIALFI_VIEWS: ${AEKO_EXPLORER_PERSIST_SOCIALFI_VIEWS:-true}
+      AEKO_EXPLORER_ASSET_REFRESH_SLOTS: ${AEKO_EXPLORER_ASSET_REFRESH_SLOTS:-64}
+      AEKO_EXPLORER_SOCIAL_REFRESH_SLOTS: ${AEKO_EXPLORER_SOCIAL_REFRESH_SLOTS:-16}
+      AEKO_EXPLORER_MAX_READY_LAG_SLOTS: ${AEKO_EXPLORER_MAX_READY_LAG_SLOTS:-128}
+      AEKO_EXPLORER_DB_MAX_CONNECTIONS: ${AEKO_EXPLORER_DB_MAX_CONNECTIONS:-16}
+      AEKO_EXPLORER_DB_MIN_CONNECTIONS: ${AEKO_EXPLORER_DB_MIN_CONNECTIONS:-1}
+      AEKO_EXPLORER_DB_ACQUIRE_TIMEOUT_SECS: ${AEKO_EXPLORER_DB_ACQUIRE_TIMEOUT_SECS:-10}
+      AEKO_EXPLORER_RPC_TIMEOUT_SECS: ${AEKO_EXPLORER_RPC_TIMEOUT_SECS:-15}
+      AEKO_EXPLORER_REQUEST_TIMEOUT_SECS: ${AEKO_EXPLORER_REQUEST_TIMEOUT_SECS:-30}
+      AEKO_EXPLORER_MAX_BODY_BYTES: ${AEKO_EXPLORER_MAX_BODY_BYTES:-1048576}
+      AEKO_EXPLORER_SYNC_INTERVAL_SECS: ${AEKO_EXPLORER_SYNC_INTERVAL_SECS:-2}
+      DATABASE_URL: ${EXPLORER_DATABASE_URL:?Set EXPLORER_DATABASE_URL to persistent PostgreSQL}
+      AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env
+      AEKO_SOCIAL_POSTS_STATE: ${AEKO_SOCIAL_POSTS_STATE:-}
+      AEKO_SOCIAL_REWARDS_STATE: ${AEKO_SOCIAL_REWARDS_STATE:-}
+      AEKO_SOCIAL_STAKING_STATE: ${AEKO_SOCIAL_STAKING_STATE:-}
+      AEKO_SOCIAL_ANTI_SPAM_STATE: ${AEKO_SOCIAL_ANTI_SPAM_STATE:-}
+      AEKO_SOCIAL_MONETIZATION_STATE: ${AEKO_SOCIAL_MONETIZATION_STATE:-}
+      AEKO_REWARDS_TREASURY_ACCOUNT: ${AEKO_REWARDS_TREASURY_ACCOUNT:-}
+      AEKO_REWARD_VAULT_ACCOUNT: ${AEKO_REWARD_VAULT_ACCOUNT:-}
+      AEKO_STAKE_VAULT_ACCOUNT: ${AEKO_STAKE_VAULT_ACCOUNT:-}
+      AEKO_STAKE_REWARD_VAULT_ACCOUNT: ${AEKO_STAKE_REWARD_VAULT_ACCOUNT:-}
+      AEKO_TREASURY_ADDRESS: ${AEKO_TREASURY_ADDRESS:-}
+      AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-}
+    expose:
+      - "8088"
+    volumes:
+      - social-state:/state:ro
+    depends_on:
+      validator:
+        condition: service_healthy
+    # Keep the process routable while projections recover. `/health` remains
+    # the strict DB/RPC/indexer/Social readiness endpoint for monitoring/CI.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    logging: *default-logging
+    networks: [aeko]
+
+  explorer-ui:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-explorer-ui:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    expose:
+      - "4000"
+    # UI lifecycle is intentionally independent of Explorer API readiness.
+    # The static app must still start and render degraded/error states while
+    # the API or its upstream dependencies recover.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    networks: [aeko]
+
+  wallet-tools:
+    profiles: ["ops"]
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    command: ["aeko", "--help"]
+    volumes:
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys
+    logging: *default-logging
+    networks: [aeko]
+
+networks:
+  aeko:
+    driver: bridge
+
+volumes:
+  validator-ledger:
+  social-state:

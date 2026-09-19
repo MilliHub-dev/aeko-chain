@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 #
-# AEKO Testnet — one-shot local/server deploy using the canonical Dockerfile
-# and portable docker-compose.yml.
+# AEKO Testnet — one-shot local/server deploy using docker/Dockerfile
+# and docker/compose.local.yml.
 #
 # What this does (idempotent):
 #   1. Sanity-checks Docker, disk and ulimits.
 #   2. Generates missing keypairs with the `tools` Docker target.
-#   3. Builds the role-specific runtime images from the single root Dockerfile.
+#   3. Builds the role-specific runtime images from docker/Dockerfile.
 #   4. Starts faucet + validator + SocialFi bootstrap + explorer API/UI.
 #   5. Verifies RPC health, slot advancement and a complete SocialFi registry.
 #
-# PostgreSQL is external. Set EXPLORER_DATABASE_URL for persistent explorer
-# storage. If it is unset the explorer uses its in-memory fallback.
+# PostgreSQL is external and required. Set EXPLORER_DATABASE_URL to a database
+# dedicated to this chain before starting Explorer.
 
 set -euo pipefail
 
@@ -19,7 +19,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 cd "$REPO_ROOT"
 
-COMPOSE_FILE=${COMPOSE_FILE:-docker-compose.yml}
+COMPOSE_FILE=${COMPOSE_FILE:-docker/compose.local.yml}
 AEKO_DOMAIN=${AEKO_DOMAIN:-localhost}
 AEKO_KEYDIR=${AEKO_KEYDIR:-local-testnet}
 AEKO_IMAGE_REPOSITORY=${AEKO_IMAGE_REPOSITORY:-surdma}
@@ -44,7 +44,7 @@ log "checking host prerequisites"
 command -v docker >/dev/null 2>&1 || { err "docker not installed"; exit 1; }
 docker compose version >/dev/null 2>&1 || { err "docker compose plugin not installed"; exit 1; }
 [ -f "$COMPOSE_FILE" ] || { err "$COMPOSE_FILE not found"; exit 1; }
-[ -f Dockerfile ] || { err "root Dockerfile not found"; exit 1; }
+[ -f docker/Dockerfile ] || { err "docker/Dockerfile not found"; exit 1; }
 
 AVAIL_GB=$(df -BG --output=avail "$REPO_ROOT" 2>/dev/null | tail -1 | tr -dc '0-9')
 AVAIL_GB=${AVAIL_GB:-0}
@@ -68,7 +68,7 @@ TOOLS_IMAGE="${AEKO_IMAGE_REPOSITORY}/aeko-tools:${AEKO_IMAGE_TAG}"
 if [ "$NEED_KEYS" -eq 1 ]; then
   log "generating missing keypairs in $AEKO_KEYDIR/"
   if [ "$FORCE_REBUILD" -eq 1 ] || ! docker image inspect "$TOOLS_IMAGE" >/dev/null 2>&1; then
-    docker build --target tools -t "$TOOLS_IMAGE" . || { err "tools image build failed"; exit 2; }
+    docker build -f docker/Dockerfile --target tools -t "$TOOLS_IMAGE" . || { err "tools image build failed"; exit 2; }
   fi
   for key in "${KEYS[@]}"; do
     if [ ! -f "$AEKO_KEYDIR/$key.json" ]; then
@@ -100,7 +100,7 @@ build_target() {
   local image=$2
   if [ "$FORCE_REBUILD" -eq 1 ] || ! docker image inspect "$image" >/dev/null 2>&1; then
     log "building $image (target=$target)"
-    docker build --target "$target" -t "$image" . || { err "$target image build failed"; exit 2; }
+    docker build -f docker/Dockerfile --target "$target" -t "$image" . || { err "$target image build failed"; exit 2; }
   else
     log "$image already present — skipping build"
   fi
