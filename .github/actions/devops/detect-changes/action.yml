@@ -185,10 +185,10 @@ runs:
                 core=true
                 ;;
               .github/actions/devops/detect-changes/*|.github/workflows/build-images.yml)
-                # Orchestrator/classifier changes exercise every owned path, but
-                # are not application/package source releases themselves.
+                # Orchestrator/classifier changes exercise the core release path,
+                # whose container gate builds every published image. Do not turn
+                # unrelated application/SDK source debt into a packaging failure.
                 core=true
-                mark_all_apps
                 ;;
               .github/actions/devops/promote-images/*)
                 core=true
