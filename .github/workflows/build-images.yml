@@ -104,6 +104,7 @@ jobs:
       - name: Set up shared Docker Buildx
         if: >-
           steps.changes.outputs.core == 'true' ||
+          steps.changes.outputs.packaging == 'true' ||
           steps.changes.outputs.admin == 'true' ||
           steps.changes.outputs.cli == 'true' ||
           steps.changes.outputs.explorer_backend == 'true' ||
@@ -123,25 +124,26 @@ jobs:
       # can run after a failed validation/build.
       - name: Validate/build admin application
         id: admin
-        if: steps.changes.outputs.admin == 'true'
+        if: steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true'
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/admin
         with:
-          build-image: ${{ steps.changes.outputs.core != 'true' && 'true' || 'false' }}
-          publish: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.core != 'true') && 'true' || 'false' }}
-          registry-user: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.core != 'true') && secrets.DOCKERHUB_USERNAME || '' }}
+          validate-source: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          build-image: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate selected external SDKs
         id: sdk
-        if: steps.changes.outputs.sdk_any == 'true'
+        if: steps.changes.outputs.sdk_any == 'true' || steps.changes.outputs.core == 'true'
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/sdk
         with:
-          js: ${{ steps.changes.outputs.sdk_js }}
-          node: ${{ steps.changes.outputs.sdk_node }}
-          python: ${{ steps.changes.outputs.sdk_python }}
-          rust: ${{ steps.changes.outputs.sdk_rust }}
+          js: ${{ (steps.changes.outputs.sdk_js == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          node: ${{ (steps.changes.outputs.sdk_node == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          python: ${{ (steps.changes.outputs.sdk_python == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          rust: ${{ (steps.changes.outputs.sdk_rust == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
           release-js: ${{ steps.changes.outputs.sdk_release_js }}
           release-node: ${{ steps.changes.outputs.sdk_release_node }}
           release-python: ${{ steps.changes.outputs.sdk_release_python }}
@@ -149,44 +151,47 @@ jobs:
 
       - name: Validate/build CLI and tools
         id: cli
-        if: steps.changes.outputs.cli == 'true'
+        if: steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true'
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/cli
         with:
-          build-image: ${{ steps.changes.outputs.core != 'true' && 'true' || 'false' }}
-          publish: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.core != 'true') && 'true' || 'false' }}
-          registry-user: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.core != 'true') && secrets.DOCKERHUB_USERNAME || '' }}
+          validate-source: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          build-image: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate/build Explorer backend
         id: explorer_backend
-        if: steps.changes.outputs.explorer_backend == 'true'
+        if: steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true'
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/explorer-backend
         with:
-          build-image: ${{ steps.changes.outputs.core != 'true' && 'true' || 'false' }}
-          publish: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.core != 'true') && 'true' || 'false' }}
-          registry-user: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.core != 'true') && secrets.DOCKERHUB_USERNAME || '' }}
+          validate-source: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          build-image: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate/build Explorer frontend
         id: explorer_web
-        if: steps.changes.outputs.explorer_web == 'true'
+        if: steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true'
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/explorer-web
         with:
-          build-image: ${{ steps.changes.outputs.core != 'true' && 'true' || 'false' }}
-          publish: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.core != 'true') && 'true' || 'false' }}
-          registry-user: ${{ (steps.release.outputs.publish == 'true' && steps.changes.outputs.core != 'true') && secrets.DOCKERHUB_USERNAME || '' }}
+          validate-source: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          build-image: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate/build full blockchain network
         id: network
-        if: steps.changes.outputs.core == 'true'
+        if: steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true'
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/network
         with:
-          validate-source: ${{ steps.changes.outputs.network_source }}
+          validate-source: ${{ steps.changes.outputs.core }}
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
@@ -230,17 +235,12 @@ jobs:
           echo "All selected PR domains passed."
 
       - name: Dogfood immutable full-network release
-        if: steps.changes.outputs.core == 'true' && steps.release.outputs.publish == 'true'
+        if: (steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && steps.release.outputs.publish == 'true'
         uses: ./.github/actions/devops/network-dogfood
         with:
           registry-user: ${{ secrets.DOCKERHUB_USERNAME }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
-      # Core releases build/publish every Docker target inside the network action.
-      # App actions therefore own source validation and app-only image releases;
-      # when core and an app both change, the app validates source while the core
-      # release owns the single immutable container publication.
-      #
       # Package registries are irreversible release channels, so publish SDKs
       # only after every selected validation/build (and core dogfood) succeeds.
       - name: Publish changed SDK packages
@@ -261,11 +261,11 @@ jobs:
         with:
           registry-user: ${{ secrets.DOCKERHUB_USERNAME }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
-          network: ${{ steps.changes.outputs.core }}
-          admin: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          cli: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          explorer-backend: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          explorer-web: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          network: ${{ (steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          admin: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          cli: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          explorer-backend: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          explorer-web: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
 
       - name: Trigger Dokploy after successful promotion
         if: steps.release.outputs.publish == 'true' && steps.changes.outputs.deployable == 'true'

@@ -3,11 +3,11 @@ description: Classify a change set into independently owned AEKO application and
 
 outputs:
   core:
-    description: Blockchain/network release or packaging files changed.
+    description: Blockchain/network source changed and requires full source validation.
     value: ${{ steps.classify.outputs.core }}
-  network_source:
-    description: Network Rust/toolchain source changed and needs host source validation.
-    value: ${{ steps.classify.outputs.network_source }}
+  packaging:
+    description: Docker, Compose, deployment, or image-pipeline packaging changed.
+    value: ${{ steps.classify.outputs.packaging }}
   admin:
     description: Admin application changed or must be validated by the orchestrator change.
     value: ${{ steps.classify.outputs.admin }}
@@ -78,7 +78,7 @@ runs:
         set -euo pipefail
 
         core=false
-        network_source=false
+        packaging=false
         admin=false
         cli=false
         explorer_backend=false
@@ -108,7 +108,6 @@ runs:
           # Manual main runs validate the complete release surface, but do not
           # republish SDK package versions that did not change.
           core=true
-          network_source=true
           mark_all_apps
         else
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
@@ -129,16 +128,16 @@ runs:
 
           for file in "${changed_files[@]}"; do
             case "$file" in
-              apps/admin/*|.github/actions/devops/admin/*)
+              apps/admin/*)
                 admin=true
                 ;;
-              apps/cli/*|.github/actions/devops/cli/*)
+              apps/cli/*)
                 cli=true
                 ;;
-              apps/explorer/backend/*|.github/actions/devops/explorer-backend/*)
+              apps/explorer/backend/*)
                 explorer_backend=true
                 ;;
-              apps/explorer/web/*|.github/actions/devops/explorer-web/*)
+              apps/explorer/web/*)
                 explorer_web=true
                 ;;
               apps/explorer/*)
@@ -186,17 +185,11 @@ runs:
                     ;;
                 esac
                 ;;
-              .github/actions/devops/network/*|.github/actions/devops/network-dogfood/*)
-                core=true
-                ;;
-              .github/actions/devops/detect-changes/*|.github/workflows/build-images.yml)
-                # Orchestrator/classifier changes exercise the core release path,
-                # whose container gate builds every published image. Do not turn
-                # unrelated application/SDK source debt into a packaging failure.
-                core=true
-                ;;
-              .github/actions/devops/promote-images/*)
-                core=true
+              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/validate-deployment-contract.py|.github/actions/devops/admin/*|.github/actions/devops/cli/*|.github/actions/devops/explorer-backend/*|.github/actions/devops/explorer-web/*|.github/actions/devops/network/*|.github/actions/devops/network-dogfood/*|.github/actions/devops/detect-changes/*|.github/actions/devops/promote-images/*|.github/workflows/build-images.yml)
+                # Packaging/deployment changes must prove every container target
+                # still builds, but they must not inherit unrelated source lint
+                # debt from SDK/app domains that did not change.
+                packaging=true
                 ;;
               apps/README.md)
                 ;;
@@ -209,11 +202,6 @@ runs:
                 ;;
               *)
                 core=true
-                case "$file" in
-                  *.rs|Cargo.toml|*/Cargo.toml|Cargo.lock|rust-toolchain*|.cargo/*)
-                    network_source=true
-                    ;;
-                esac
                 ;;
             esac
           done
@@ -230,7 +218,7 @@ runs:
         fi
 
         rust_needed=false
-        if [ "$network_source" = true ] || [ "$cli" = true ] || [ "$explorer_backend" = true ] || [ "$sdk_rust" = true ]; then
+        if [ "$core" = true ] || [ "$cli" = true ] || [ "$explorer_backend" = true ] || [ "$sdk_rust" = true ]; then
           rust_needed=true
         fi
 
@@ -240,23 +228,23 @@ runs:
         fi
 
         python_needed=false
-        if [ "$core" = true ] || [ "$sdk_python" = true ]; then
+        if [ "$core" = true ] || [ "$packaging" = true ] || [ "$sdk_python" = true ]; then
           python_needed=true
         fi
 
         dockerized=false
-        if [ "$core" = true ] || [ "$admin" = true ] || [ "$cli" = true ] || [ "$explorer_backend" = true ] || [ "$explorer_web" = true ]; then
+        if [ "$core" = true ] || [ "$packaging" = true ] || [ "$admin" = true ] || [ "$cli" = true ] || [ "$explorer_backend" = true ] || [ "$explorer_web" = true ]; then
           dockerized=true
         fi
 
         deployable=false
-        if [ "$core" = true ] || [ "$explorer_backend" = true ] || [ "$explorer_web" = true ]; then
+        if [ "$core" = true ] || [ "$packaging" = true ] || [ "$explorer_backend" = true ] || [ "$explorer_web" = true ]; then
           deployable=true
         fi
 
         {
           echo "core=$core"
-          echo "network_source=$network_source"
+          echo "packaging=$packaging"
           echo "admin=$admin"
           echo "cli=$cli"
           echo "explorer_backend=$explorer_backend"
@@ -279,7 +267,7 @@ runs:
           echo "unmapped_app=$unmapped_app"
         } >> "$GITHUB_OUTPUT"
 
-        printf 'Selection: core=%s network_source=%s admin=%s cli=%s backend=%s web=%s sdk(js=%s,node=%s,python=%s,rust=%s) sdk-release(js=%s,node=%s,python=%s,rust=%s) unmapped=%s\n' \
-          "$core" "$network_source" "$admin" "$cli" "$explorer_backend" "$explorer_web" \
+        printf 'Selection: core=%s packaging=%s admin=%s cli=%s backend=%s web=%s sdk(js=%s,node=%s,python=%s,rust=%s) sdk-release(js=%s,node=%s,python=%s,rust=%s) unmapped=%s\n' \
+          "$core" "$packaging" "$admin" "$cli" "$explorer_backend" "$explorer_web" \
           "$sdk_js" "$sdk_node" "$sdk_python" "$sdk_rust" \
           "$sdk_release_js" "$sdk_release_node" "$sdk_release_python" "$sdk_release_rust" "$unmapped_app"

@@ -1,9 +1,9 @@
 name: AEKO network DevOps
-description: Validate core/network changes and build the complete immutable AEKO Docker release set.
+description: Fully validate core changes, build network images locally on PRs, and publish them only from main.
 
 inputs:
   validate-source:
-    description: Run host Rust format/check/lint/tests for changed network source.
+    description: Run network Rust format, check, lint, and tests.
     required: false
     default: "true"
   publish:
@@ -50,11 +50,7 @@ runs:
     - name: Network Rust format
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
-      run: |
-        cargo fmt --package aeko-validator -- --check
-        cargo fmt --package aeko-genesis -- --check
-        cargo fmt --package aeko-faucet -- --check
-        cargo fmt --package aeko-social-bootstrap -- --check
+      run: cargo fmt --all -- --check
 
     - name: Network binary type and target check
       if: ${{ inputs.validate-source == 'true' }}
@@ -87,7 +83,7 @@ runs:
         -p aeko-faucet
         -p aeko-social-bootstrap
 
-    - name: Build complete immutable image set
+    - name: Build network image set
       shell: bash
       env:
         PUBLISH: ${{ inputs.publish }}
@@ -120,19 +116,14 @@ runs:
             .
         }
 
-        # A core change can alter shared Rust/build inputs or the canonical
-        # Dockerfile, so the core release owns every published container target.
-        # BuildKit reuses the shared Rust/Node stages across these target builds.
+        # network-rust-builder compiles validator, genesis, faucet and
+        # social-bootstrap once. BuildKit reuses that stage for these targets.
         build_target validator aeko-validator aeko-node
         build_target faucet aeko-faucet
         build_target social-bootstrap aeko-social-bootstrap
-        build_target tools aeko-tools
-        build_target explorer-api aeko-explorer-api aeko-explorer-backend
-        build_target explorer-ui aeko-explorer-ui
-        build_target admin aeko-admin
 
         if [ "$PUBLISH" = "true" ]; then
-          echo "Published complete immutable AEKO image set for ${SHA_TAG}."
+          echo "Published immutable network images for ${SHA_TAG}."
         else
-          echo "Built the complete AEKO image set locally for validation only; nothing was pushed."
+          echo "Built the network image set locally for validation only; nothing was pushed."
         fi

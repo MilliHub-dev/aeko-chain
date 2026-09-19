@@ -19,9 +19,6 @@ SOCIAL_BOOTSTRAP = ROOT / "social-bootstrap" / "src" / "main.rs"
 EXPLORER_HEALTH = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "health" / "mod.rs"
 README = ROOT / "README.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
-DEVOPS_WORKFLOW = ROOT / ".github" / "workflows" / "build-images.yml"
-CHANGE_DETECTOR = ROOT / ".github" / "actions" / "devops" / "detect-changes" / "action.yml"
-NETWORK_ACTION = ROOT / ".github" / "actions" / "devops" / "network" / "action.yml"
 
 
 class ContractFailure(RuntimeError):
@@ -61,9 +58,6 @@ def main() -> int:
     explorer_health = read(EXPLORER_HEALTH)
     readme = read(README)
     deployment = read(DEPLOYMENT)
-    devops_workflow = read(DEVOPS_WORKFLOW)
-    change_detector = read(CHANGE_DETECTOR)
-    network_action = read(NETWORK_ACTION)
 
     # One canonical build recipe, with all role-specific images produced from it.
     for target in ("validator", "faucet", "social-bootstrap", "tools", "explorer-api", "explorer-ui"):
@@ -262,52 +256,6 @@ def main() -> int:
     require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?}" in coolify_explorer, "Coolify Explorer must require durable PostgreSQL")
     require('profiles: ["ops"]' in coolify_wallet_tools, "Coolify wallet tools must remain operator-only")
     require(re.search(r"^  postgres(?:ql)?:", coolify, re.MULTILINE) is None, "Coolify compose must not embed PostgreSQL")
-
-
-    # A core/container release builds every published image itself. App/SDK
-    # source quality gates run only when their owned source domain changed, so
-    # unrelated historical lint debt cannot block a Docker/Compose-only release.
-    orchestrator_case = change_detector.split(
-        ".github/actions/devops/detect-changes/*|.github/workflows/build-images.yml)",
-        1,
-    )[1].split(";;", 1)[0]
-    require("core=true" in orchestrator_case, "orchestrator changes must exercise the core release path")
-    require("mark_all_apps" not in orchestrator_case, "orchestrator changes must not force unrelated app/SDK source validation")
-    require('echo "network_source=$network_source"' in change_detector, "change detector must expose network-source validation intent")
-    require("*/Cargo.toml" in change_detector, "nested network crate manifests must trigger network-source validation")
-    require(
-        'validate-source: ${{ steps.changes.outputs.network_source }}' in devops_workflow,
-        "workflow must pass network-source validation intent into the core action",
-    )
-    require(
-        "if: ${{ inputs.validate-source == 'true' }}" in network_action,
-        "network host Rust source checks must be gated independently from container release checks",
-    )
-
-    for output in ("admin", "cli", "explorer_backend", "explorer_web"):
-        require(
-            re.search(rf"^\s+if: steps\.changes\.outputs\.{output} == 'true'\s*$", devops_workflow, re.MULTILINE)
-            is not None,
-            f"{output} source validation must be selected only by its owned change flag",
-        )
-    require(
-        re.search(r"^\s+if: steps\.changes\.outputs\.sdk_any == 'true'\s*$", devops_workflow, re.MULTILINE)
-        is not None,
-        "SDK validation must not run merely because core/container files changed",
-    )
-    require("cargo fmt --all -- --check" not in network_action, "network formatting must not inherit unrelated workspace formatting debt")
-    for image in (
-        "aeko-validator",
-        "aeko-node",
-        "aeko-faucet",
-        "aeko-social-bootstrap",
-        "aeko-tools",
-        "aeko-explorer-api",
-        "aeko-explorer-backend",
-        "aeko-explorer-ui",
-        "aeko-admin",
-    ):
-        require(image in network_action, f"core release action must build/publish {image}")
 
     # Portable compose must expose the same Social vault lifecycle so local
     # validation and Dokploy do not exercise different custody models.
