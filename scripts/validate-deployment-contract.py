@@ -274,6 +274,7 @@ def main() -> int:
     require("core=true" in orchestrator_case, "orchestrator changes must exercise the core release path")
     require("mark_all_apps" not in orchestrator_case, "orchestrator changes must not force unrelated app/SDK source validation")
     require('echo "network_source=$network_source"' in change_detector, "change detector must expose network-source validation intent")
+    require("*/Cargo.toml" in change_detector, "nested network crate manifests must trigger network-source validation")
     require(
         'validate-source: ${{ steps.changes.outputs.network_source }}' in devops_workflow,
         "workflow must pass network-source validation intent into the core action",
