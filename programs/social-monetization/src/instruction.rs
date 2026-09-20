@@ -6,6 +6,7 @@ use {
     aeko_sdk::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
+        system_program,
     },
     borsh::{BorshDeserialize, BorshSerialize},
 };
@@ -34,19 +35,19 @@ pub fn initialize_config(program_id: &Pubkey, state_pubkey: &Pubkey, payer_pubke
 
 pub fn send_creator_tip(program_id: &Pubkey, state_pubkey: &Pubkey, sender_pubkey: &Pubkey, treasury_pubkey: &Pubkey, record: CreatorTipRecord) -> Instruction {
     Instruction::new_with_borsh(*program_id, &SocialMonetizationInstruction::SendCreatorTip { record }, vec![
-        AccountMeta::new(*state_pubkey, false), AccountMeta::new(*sender_pubkey, true), AccountMeta::new(*treasury_pubkey, false),
+        AccountMeta::new(*state_pubkey, false), AccountMeta::new(*sender_pubkey, true), AccountMeta::new(*treasury_pubkey, false), AccountMeta::new_readonly(system_program::id(), false),
     ])
 }
 
 pub fn create_subscription(program_id: &Pubkey, state_pubkey: &Pubkey, subscriber_pubkey: &Pubkey, treasury_pubkey: &Pubkey, record: SubscriptionRecord) -> Instruction {
     Instruction::new_with_borsh(*program_id, &SocialMonetizationInstruction::CreateSubscription { record }, vec![
-        AccountMeta::new(*state_pubkey, false), AccountMeta::new(*subscriber_pubkey, true), AccountMeta::new(*treasury_pubkey, false),
+        AccountMeta::new(*state_pubkey, false), AccountMeta::new(*subscriber_pubkey, true), AccountMeta::new(*treasury_pubkey, false), AccountMeta::new_readonly(system_program::id(), false),
     ])
 }
 
 pub fn renew_subscription(program_id: &Pubkey, state_pubkey: &Pubkey, subscriber_pubkey: &Pubkey, treasury_pubkey: &Pubkey, subscription_id: [u8; 32], valid_until_unix: i64) -> Instruction {
     Instruction::new_with_borsh(*program_id, &SocialMonetizationInstruction::RenewSubscription { subscription_id, valid_until_unix }, vec![
-        AccountMeta::new(*state_pubkey, false), AccountMeta::new(*subscriber_pubkey, true), AccountMeta::new(*treasury_pubkey, false),
+        AccountMeta::new(*state_pubkey, false), AccountMeta::new(*subscriber_pubkey, true), AccountMeta::new(*treasury_pubkey, false), AccountMeta::new_readonly(system_program::id(), false),
     ])
 }
 
@@ -58,7 +59,7 @@ pub fn cancel_subscription(program_id: &Pubkey, state_pubkey: &Pubkey, subscribe
 
 pub fn unlock_paid_content(program_id: &Pubkey, state_pubkey: &Pubkey, buyer_pubkey: &Pubkey, treasury_pubkey: &Pubkey, record: PaidContentUnlockRecord) -> Instruction {
     Instruction::new_with_borsh(*program_id, &SocialMonetizationInstruction::UnlockPaidContent { record }, vec![
-        AccountMeta::new(*state_pubkey, false), AccountMeta::new(*buyer_pubkey, true), AccountMeta::new(*treasury_pubkey, false),
+        AccountMeta::new(*state_pubkey, false), AccountMeta::new(*buyer_pubkey, true), AccountMeta::new(*treasury_pubkey, false), AccountMeta::new_readonly(system_program::id(), false),
     ])
 }
 
