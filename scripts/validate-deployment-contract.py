@@ -243,6 +243,8 @@ def main() -> int:
     require(coolify.count("read_only: true") >= 3, "Coolify long-running runtime key mounts must remain read-only")
     require(re.search(r"^  key-preflight:\\s*$", coolify, re.MULTILINE) is None, "Coolify must not gate the whole stack on a one-shot key preflight container")
     require("condition: service_completed_successfully" not in coolify, "Coolify startup must not be blocked by completed one-shot helper services")
+    require('restart: "no"' in coolify_bootstrap, "Coolify SocialFi bootstrap must remain a one-shot initializer")
+    require('profiles: ["ops"]' in coolify_wallet_tools, "Coolify wallet tools must remain operator-only and absent from default startup")
     require("exit 64" in key_preflight and "exit 65" in key_preflight, "reusable key preflight helper must preserve distinct missing/invalid key exit codes")
     require("validator-ledger:/ledger" in coolify_validator, "Coolify validator must use a Docker-managed ledger volume by default")
     require("AEKO_VALIDATOR_LEDGER_VOLUME" not in coolify, "Coolify ledger source must not use interpolated volume-source syntax")
