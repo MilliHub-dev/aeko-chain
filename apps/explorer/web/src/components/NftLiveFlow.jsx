@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -89,8 +89,8 @@ function LiveMetric({ label, value }) {
 }
 
 export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
-  const wallets = useMemo(() => loadWallets(), []);
-  const [walletId, setWalletId] = useState(wallets[0]?.id || '');
+  const [wallets, setWallets] = useState(() => loadWallets());
+  const [walletId, setWalletId] = useState(() => loadWallets()[0]?.id || '');
   const wallet = wallets.find((item) => item.id === walletId) || wallets[0] || null;
   const [balance, setBalance] = useState(null);
   const [collectionSeed, setCollectionSeed] = useState('aeko-live-collection');
@@ -114,6 +114,12 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
   const appendLog = useCallback((message) => {
     setLog((current) => [message, ...current].slice(0, 8));
   }, []);
+
+  const refreshWallets = () => {
+    const next = loadWallets();
+    setWallets(next);
+    if (!next.some((item) => item.id === walletId)) setWalletId(next[0]?.id || '');
+  };
 
   const refreshBalance = useCallback(async () => {
     if (!wallet) {
@@ -355,6 +361,9 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
 
   const isFunded = Number(balance) > 0;
   const liveToken = live.token;
+  const selectedIsCreator = Boolean(liveToken && wallet && liveToken.creator === wallet.address);
+  const selectedIsOwner = Boolean(liveToken && wallet && liveToken.owner === wallet.address);
+  const selectedCanUpdate = selectedIsCreator || selectedIsOwner;
 
   return (
     <section className="mb-20 overflow-hidden rounded-3xl border border-aeko-accent/20 bg-gradient-to-br from-aeko-accent/[0.08] via-white/[0.025] to-transparent">
@@ -377,15 +386,18 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
             <div className="flex items-center gap-2 text-sm font-semibold text-white"><Wallet size={15} className="text-aeko-accent"/> Test wallet</div>
             {wallets.length ? (
               <>
-                <select value={wallet?.id || ''} onChange={(event) => setWalletId(event.target.value)} className="mt-3 h-10 w-full rounded-xl border border-white/10 bg-[#101018] px-3 text-xs text-white">
-                  {wallets.map((item) => <option key={item.id} value={item.id}>{item.name} · {shortAddress(item.address)}</option>)}
-                </select>
+                <div className="mt-3 flex gap-2">
+                  <select value={wallet?.id || ''} onChange={(event) => setWalletId(event.target.value)} className="h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-[#101018] px-3 text-xs text-white">
+                    {wallets.map((item) => <option key={item.id} value={item.id}>{item.name} · {shortAddress(item.address)}</option>)}
+                  </select>
+                  <button type="button" onClick={refreshWallets} className="h-10 rounded-xl border border-white/10 px-3 text-xs text-gray-300 hover:bg-white/5">Refresh</button>
+                </div>
                 <div className="mt-3 break-all font-mono text-[10px] text-gray-600">{wallet?.address}</div>
                 <div className="mt-3 flex items-center justify-between text-xs"><span className="text-gray-500">Live balance</span><span className={isFunded ? 'text-white' : 'text-amber-200'}>{balance == null ? 'Checking…' : isFunded ? formatAeko(balance) : 'Not funded'}</span></div>
                 <button type="button" onClick={fundWallet} disabled={Boolean(busy)} className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-aeko-accent/30 bg-aeko-accent/10 text-xs font-semibold text-aeko-accent disabled:opacity-40">{busy === 'fund' ? <Loader2 size={12} className="animate-spin"/> : null} Request 2 test AEKO</button>
               </>
             ) : (
-              <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">No browser-local test wallet exists yet. Create one in Network Tools → Accounts, then return here.</div>
+              <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">No browser-local test wallet exists yet. Create one in Network Tools → Accounts, then <button type="button" onClick={refreshWallets} className="font-semibold underline underline-offset-2">refresh wallets</button>.</div>
             )}
           </div>
 
@@ -418,13 +430,13 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
 
           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
             <div className="flex flex-wrap gap-2">
-              <button type="button" disabled={!liveToken || liveToken.frozen || Boolean(busy)} onClick={()=>runLifecycleAction('freeze')} className="inline-flex h-9 items-center gap-2 rounded-xl border border-cyan-400/20 px-3 text-xs text-cyan-200 disabled:opacity-35"><Snowflake size={13}/> Freeze</button>
-              <button type="button" disabled={!liveToken?.frozen || Boolean(busy)} onClick={()=>runLifecycleAction('thaw')} className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs text-gray-200 disabled:opacity-35"><RefreshCcw size={13}/> Thaw</button>
-              <button type="button" disabled={!liveToken || liveToken.frozen || Boolean(busy)} onClick={()=>runLifecycleAction('update')} className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs text-gray-200 disabled:opacity-35"><PenSquare size={13}/> Update metadata</button>
+              <button type="button" disabled={!liveToken || !selectedIsCreator || liveToken.frozen || Boolean(busy)} onClick={()=>runLifecycleAction('freeze')} className="inline-flex h-9 items-center gap-2 rounded-xl border border-cyan-400/20 px-3 text-xs text-cyan-200 disabled:opacity-35"><Snowflake size={13}/> Freeze</button>
+              <button type="button" disabled={!liveToken?.frozen || !selectedIsCreator || Boolean(busy)} onClick={()=>runLifecycleAction('thaw')} className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs text-gray-200 disabled:opacity-35"><RefreshCcw size={13}/> Thaw</button>
+              <button type="button" disabled={!liveToken || !selectedCanUpdate || liveToken.frozen || Boolean(busy)} onClick={()=>runLifecycleAction('update')} className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs text-gray-200 disabled:opacity-35"><PenSquare size={13}/> Update metadata</button>
             </div>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               <input value={recipient} onChange={(event)=>setRecipient(event.target.value)} placeholder="Recipient address for transfer" className="h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 font-mono text-xs text-white"/>
-              <button type="button" disabled={!liveToken || liveToken.frozen || !recipient.trim() || Boolean(busy)} onClick={()=>runLifecycleAction('transfer')} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-4 text-xs font-semibold text-black disabled:opacity-35"><Send size={13}/> Transfer</button>
+              <button type="button" disabled={!liveToken || !selectedIsOwner || liveToken.frozen || !recipient.trim() || Boolean(busy)} onClick={()=>runLifecycleAction('transfer')} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-4 text-xs font-semibold text-black disabled:opacity-35"><Send size={13}/> Transfer</button>
             </div>
           </div>
 
