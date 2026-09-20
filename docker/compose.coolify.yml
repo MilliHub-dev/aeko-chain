@@ -30,12 +30,12 @@ services:
       - |
         umask 077
         for key in faucet-keypair stake-keypair validator-1-keypair vote-1-keypair; do
-          path="/keys/${key}.json"
-          if [ ! -s "$path" ]; then
-            echo "==> Initializing missing persistent AEKO key: ${key}.json"
-            aeko-keygen new --no-bip39-passphrase --silent --outfile "$path"
+          path="/keys/$${key}.json"
+          if [ ! -s "$$path" ]; then
+            echo "==> Initializing missing persistent AEKO key: $${key}.json"
+            aeko-keygen new --no-bip39-passphrase --silent --outfile "$$path"
           fi
-          aeko-keygen pubkey "$path" >/dev/null
+          aeko-keygen pubkey "$$path" >/dev/null
         done
         echo "AEKO persistent key bootstrap complete"
     volumes:
