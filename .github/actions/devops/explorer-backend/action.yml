@@ -6,6 +6,10 @@ inputs:
     description: Run source lint, type-check, tests, and host build gates.
     required: false
     default: "true"
+  host-build:
+    description: Build the release Explorer binary on the host after validation.
+    required: false
+    default: "true"
   build-image:
     description: Build the Explorer API container image.
     required: false
@@ -90,7 +94,7 @@ runs:
       run: docker rm -f aeko-explorer-backend-ci-postgres >/dev/null 2>&1 || true
 
     - name: Explorer backend release build
-      if: ${{ inputs.validate-source == 'true' && inputs.build-image != 'true' }}
+      if: ${{ inputs.validate-source == 'true' && inputs.host-build == 'true' && inputs.build-image != 'true' }}
       shell: bash
       run: cargo build --locked --release -p aeko-explorer-backend
 
@@ -118,6 +122,8 @@ runs:
         docker buildx build \
           --file docker/Dockerfile \
           --target explorer-api \
+          --cache-from "type=gha,scope=aeko-explorer-api" \
+          --cache-to "type=gha,scope=aeko-explorer-api,mode=max,ignore-error=true" \
           "${tags[@]}" \
           "${output[@]}" \
           .
