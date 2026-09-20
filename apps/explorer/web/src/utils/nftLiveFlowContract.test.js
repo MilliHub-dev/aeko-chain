@@ -12,6 +12,7 @@ test('nft demo is live-first and no longer exposes the local lifecycle simulator
   const demo = await source('pages/NftDemo.jsx');
 
   assert.match(demo, /NftLiveFlow/);
+  assert.match(demo, /rpcUrl={networkConfig\.rpcUrl}/);
   assert.match(demo, /explorerApiUrl={networkConfig\.explorerApiUrl}/);
   assert.doesNotMatch(demo, /nftDemoExamples/);
   assert.doesNotMatch(demo, /handleMint/);
