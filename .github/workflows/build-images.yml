@@ -298,6 +298,7 @@ jobs:
           EXPLORER_BACKEND_OUTCOME: ${{ steps.explorer_backend.outcome }}
           EXPLORER_WEB_OUTCOME: ${{ steps.parallel_domains.outputs.explorer_web_outcome }}
           NETWORK_OUTCOME: ${{ steps.parallel_domains.outputs.network_outcome }}
+          PARALLEL_OUTCOME: ${{ steps.parallel_domains.outcome }}
         run: |
           set -euo pipefail
           failures=()
@@ -317,6 +318,16 @@ jobs:
           record_failure explorer-backend "$EXPLORER_BACKEND_OUTCOME"
           record_failure explorer-web "$EXPLORER_WEB_OUTCOME"
           record_failure network "$NETWORK_OUTCOME"
+
+          # A selected child normally records its own failure. If the parent
+          # orchestration step itself failed before producing a child outcome,
+          # fail closed rather than allowing an empty output to mask the error.
+          if [ "$PARALLEL_OUTCOME" = "failure" ] || [ "$PARALLEL_OUTCOME" = "cancelled" ]; then
+            if [ "$EXPLORER_WEB_OUTCOME" != "failure" ] && [ "$EXPLORER_WEB_OUTCOME" != "cancelled" ] &&
+               [ "$NETWORK_OUTCOME" != "failure" ] && [ "$NETWORK_OUTCOME" != "cancelled" ]; then
+              failures+=("parallel-domains:${PARALLEL_OUTCOME}")
+            fi
+          fi
 
           if [ "${#failures[@]}" -gt 0 ]; then
             printf 'One or more PR domains failed after all selected domains were exercised:\n' >&2
