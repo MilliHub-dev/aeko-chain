@@ -298,7 +298,7 @@ function ProgramsWorkspace({ rpcUrl, websocketUrl, explorerApiUrl, rpcState, wsS
   );
 }
 
-function SocialWorkspace({ rpcUrl, explorerApiUrl, explorerUrl, wallets, balances, socialPulse, socialStateAccount }) {
+function SocialWorkspace({ rpcUrl, explorerApiUrl, explorerUrl, wallets, balances, socialPulse, socialStateAccount, socialAntiSpamStateAccount }) {
   const [walletId, setWalletId] = useState(wallets[0]?.id || '');
   const [body, setBody] = useState('');
   const [composer, setComposer] = useState({ kind: 'original', parent: null });
@@ -338,6 +338,7 @@ function SocialWorkspace({ rpcUrl, explorerApiUrl, explorerUrl, wallets, balance
       const tx = buildSignedAnchorPostTx({
         creatorWallet: wallet,
         stateAccount: socialStateAccount,
+        antiSpamStateAccount: socialAntiSpamStateAccount,
         recentBlockhash,
         postId: randomBytes32(),
         contentHash: await sha256(content),
@@ -428,6 +429,7 @@ export default function NetworkConsoleModalV2({ open, onClose, tab, onTabChange,
   const [socialPulse, setSocialPulse] = useState(0);
   const wsRef = useRef(null);
   const socialStateAccount = socialStatus?.domains?.posts?.stateAccount || '';
+  const socialAntiSpamStateAccount = socialStatus?.domains?.antiSpam?.stateAccount || '';
 
   const refreshWallet = useCallback(async (address) => {
     try {
@@ -520,7 +522,7 @@ export default function NetworkConsoleModalV2({ open, onClose, tab, onTabChange,
           {rpcState.error ? <div className="mb-4 rounded-xl border border-red-400/20 bg-red-500/10 p-3 text-xs text-red-100">Network/API: {rpcState.error}</div> : null}
           {tab === 'accounts' ? <AccountsWorkspace rpcUrl={rpcUrl} explorerUrl={explorerUrl} wallets={wallets} setWallets={setWallets} balances={balances} walletProfiles={walletProfiles} walletErrors={walletErrors} refreshWallet={refreshWallet} rpcReady={rpcState.status === 'ready'} /> : null}
           {tab === 'programs' ? <ProgramsWorkspace rpcUrl={rpcUrl} websocketUrl={websocketUrl} explorerApiUrl={explorerApiUrl} rpcState={rpcState} wsState={wsState} overview={overview} socialStatus={socialStatus} refresh={refreshInfrastructure} /> : null}
-          {tab === 'social' ? <SocialWorkspace rpcUrl={rpcUrl} explorerApiUrl={explorerApiUrl} explorerUrl={explorerUrl} wallets={wallets} balances={balances} socialPulse={socialPulse} socialStateAccount={socialStateAccount} /> : null}
+          {tab === 'social' ? <SocialWorkspace rpcUrl={rpcUrl} explorerApiUrl={explorerApiUrl} explorerUrl={explorerUrl} wallets={wallets} balances={balances} socialPulse={socialPulse} socialStateAccount={socialStateAccount} socialAntiSpamStateAccount={socialAntiSpamStateAccount} /> : null}
         </div>
       </section>
     </div>
