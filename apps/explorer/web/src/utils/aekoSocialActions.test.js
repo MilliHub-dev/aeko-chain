@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildOpenStakeTx, buildTipTx } from './aekoSocialActions.js';
+import {
+  buildCreateSubscriptionTx,
+  buildOpenStakeTx,
+  buildRenewSubscriptionTx,
+  buildTipTx,
+  buildUnlockPaidContentTx,
+} from './aekoSocialActions.js';
 import { encodeBase58, generateTestWallet } from './aekoTestKeypair.js';
+
+const SYSTEM_PROGRAM_ID = '11111111111111111111111111111111';
 
 function shortVec(bytes, start) {
   let value = 0;
@@ -99,6 +107,10 @@ test('open stake signs with owned wallet and makes state and principal vault wri
   assert.equal(message.isWritable(walletIndex), true);
   assert.equal(message.isWritable(stateIndex), true);
   assert.equal(message.isWritable(vaultIndex), true);
+  const systemProgramIndex = accountIndex(message, SYSTEM_PROGRAM_ID);
+  assert.notEqual(systemProgramIndex, -1);
+  assert.equal(message.isSigner(systemProgramIndex), false);
+  assert.equal(message.isWritable(systemProgramIndex), false);
 });
 
 test('tip signs with sender and makes monetization state and treasury writable', () => {
@@ -124,4 +136,53 @@ test('tip signs with sender and makes monetization state and treasury writable',
   assert.equal(message.isWritable(walletIndex), true);
   assert.equal(message.isWritable(stateIndex), true);
   assert.equal(message.isWritable(treasuryIndex), true);
+  const systemProgramIndex = accountIndex(message, SYSTEM_PROGRAM_ID);
+  assert.notEqual(systemProgramIndex, -1);
+  assert.equal(message.isSigner(systemProgramIndex), false);
+  assert.equal(message.isWritable(systemProgramIndex), false);
+});
+
+test('all monetization debit builders expose the system program for native transfers', () => {
+  const wallet = generateTestWallet('monetization contract');
+  const monetizationState = encodeKey(51);
+  const treasury = encodeKey(52);
+  const creator = encodeKey(53);
+  const postId = encodeKey(54);
+  const recentBlockhash = encodeKey(55);
+
+  const transactions = [
+    buildCreateSubscriptionTx({
+      wallet,
+      monetizationState,
+      treasury,
+      recentBlockhash,
+      creator,
+      amount: 1_000_000,
+      periodSeconds: 86_400,
+    }).transaction,
+    buildRenewSubscriptionTx({
+      wallet,
+      monetizationState,
+      treasury,
+      recentBlockhash,
+      subscriptionId: encodeKey(56),
+      validUntil: 1_800_000_000,
+    }),
+    buildUnlockPaidContentTx({
+      wallet,
+      monetizationState,
+      treasury,
+      recentBlockhash,
+      post: { postId, creator },
+      amount: 1_000_000,
+    }).transaction,
+  ];
+
+  for (const transaction of transactions) {
+    const message = inspectTransaction(transaction);
+    const systemProgramIndex = accountIndex(message, SYSTEM_PROGRAM_ID);
+    assert.notEqual(systemProgramIndex, -1);
+    assert.equal(message.isSigner(systemProgramIndex), false);
+    assert.equal(message.isWritable(systemProgramIndex), false);
+  }
 });
