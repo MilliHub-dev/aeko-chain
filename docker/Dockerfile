@@ -104,7 +104,8 @@ FROM rust-runtime AS tools
 COPY --from=tools-builder /binaries/aeko /usr/local/bin/aeko
 COPY --from=tools-builder /binaries/aeko-keygen /usr/local/bin/aeko-keygen
 COPY docker/key-preflight.sh /usr/local/bin/aeko-key-preflight
-RUN chmod 0755 /usr/local/bin/aeko-key-preflight
+COPY docker/key-init.sh /usr/local/bin/aeko-key-init
+RUN chmod 0755 /usr/local/bin/aeko-key-preflight /usr/local/bin/aeko-key-init
 CMD ["aeko", "--help"]
 
 FROM rust-runtime AS explorer-api
