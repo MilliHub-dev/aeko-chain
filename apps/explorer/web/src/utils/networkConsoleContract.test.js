@@ -95,6 +95,8 @@ test('network social composes original posts inline with functional attachment a
   assert.match(social, /Followers-only visibility/);
   assert.match(social, /Permissioned visibility/);
   assert.match(social, /visibility: composerVisibility/);
+  assert.match(social, /AEKO_IMAGE:/);
+  assert.match(social, /alt="Post attachment"/);
   assert.doesNotMatch(social, /dialog==='compose'/);
 });
 
