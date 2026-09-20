@@ -26,6 +26,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: sccache
 
@@ -68,15 +69,20 @@ jobs:
           echo "sha_tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
           printf 'Release mode: publish=%s sha=%s\n' "$publish" "${GITHUB_SHA::12}"
 
-      - name: Install pinned Rust toolchain components
+      - name: Install pinned Rust toolchain and native prerequisites
         if: steps.changes.outputs.rust_needed == 'true'
         shell: bash
         run: |
           set -euo pipefail
           rustup toolchain install 1.85.0 --profile minimal --component rustfmt --component clippy
           rustup default 1.85.0
+          if ! command -v protoc >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends protobuf-compiler
+          fi
           rustc --version
           cargo --version
+          protoc --version
 
       - name: Set up shared Rust compilation cache
         if: steps.changes.outputs.rust_needed == 'true'
@@ -120,30 +126,32 @@ jobs:
 
       # On pull requests, independent domains are allowed to finish even if an
       # earlier domain fails. The aggregate gate below still fails the PR.
-      # Main deliberately remains fail-fast so no later release/publish action
-      # can run after a failed validation/build.
+      # Pull requests validate/build only the domains they actually touch plus
+      # the full network for core changes. A core change on main still rebuilds
+      # every deployable image before release. This keeps PR feedback fast while
+      # preserving the complete release gate.
       - name: Validate/build admin application
         id: admin
-        if: steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true'
+        if: steps.changes.outputs.admin == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/admin
         with:
-          validate-source: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          build-image: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          validate-source: ${{ steps.changes.outputs.admin == 'true' && 'true' || 'false' }}
+          build-image: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate selected external SDKs
         id: sdk
-        if: steps.changes.outputs.sdk_any == 'true' || steps.changes.outputs.core == 'true'
+        if: steps.changes.outputs.sdk_any == 'true'
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/sdk
         with:
-          js: ${{ (steps.changes.outputs.sdk_js == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          node: ${{ (steps.changes.outputs.sdk_node == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          python: ${{ (steps.changes.outputs.sdk_python == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          rust: ${{ (steps.changes.outputs.sdk_rust == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
+          js: ${{ steps.changes.outputs.sdk_js == 'true' && 'true' || 'false' }}
+          node: ${{ steps.changes.outputs.sdk_node == 'true' && 'true' || 'false' }}
+          python: ${{ steps.changes.outputs.sdk_python == 'true' && 'true' || 'false' }}
+          rust: ${{ steps.changes.outputs.sdk_rust == 'true' && 'true' || 'false' }}
           release-js: ${{ steps.changes.outputs.sdk_release_js }}
           release-node: ${{ steps.changes.outputs.sdk_release_node }}
           release-python: ${{ steps.changes.outputs.sdk_release_python }}
@@ -151,36 +159,36 @@ jobs:
 
       - name: Validate/build CLI and tools
         id: cli
-        if: steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true'
+        if: steps.changes.outputs.cli == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/cli
         with:
-          validate-source: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          build-image: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          validate-source: ${{ steps.changes.outputs.cli == 'true' && 'true' || 'false' }}
+          build-image: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate/build Explorer backend
         id: explorer_backend
-        if: steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true'
+        if: steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/explorer-backend
         with:
-          validate-source: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          build-image: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          validate-source: ${{ steps.changes.outputs.explorer_backend == 'true' && 'true' || 'false' }}
+          build-image: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate/build Explorer frontend
         id: explorer_web
-        if: steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true'
+        if: steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/explorer-web
         with:
-          validate-source: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          build-image: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          validate-source: ${{ steps.changes.outputs.explorer_web == 'true' && 'true' || 'false' }}
+          build-image: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
@@ -188,8 +196,8 @@ jobs:
       - name: Validate/build full blockchain network
         id: network
         if: >-
-          github.event_name != 'pull_request' &&
-          (steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true')
+          steps.changes.outputs.core == 'true' ||
+          steps.changes.outputs.packaging == 'true'
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/network
         with:

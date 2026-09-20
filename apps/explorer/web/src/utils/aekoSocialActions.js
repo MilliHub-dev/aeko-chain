@@ -7,12 +7,14 @@ import {
 } from './aekoSocialProgramIds.js';
 
 const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const SYSTEM_PROGRAM_ID = '11111111111111111111111111111111';
 const ENGAGEMENT = { like: 0, comment: 1, repost: 2, quote: 3, share: 4, save: 5 };
 
 function decode58(value) {
   if (!value) throw new Error('Missing base58 value.');
-  const bytes = [0];
-  for (const char of String(value).trim()) {
+  const input = String(value).trim();
+  const bytes = [];
+  for (const char of input) {
     const index = ALPHABET.indexOf(char);
     if (index < 0) throw new Error(`Invalid base58 character ${char}.`);
     let carry = index;
@@ -26,7 +28,7 @@ function decode58(value) {
       carry >>= 8;
     }
   }
-  for (let index = 0; index < value.length && value[index] === '1'; index += 1) bytes.push(0);
+  for (let index = 0; index < input.length && input[index] === '1'; index += 1) bytes.push(0);
   const decoded = Uint8Array.from(bytes.reverse());
   if (decoded.length !== 32) throw new Error(`Expected a 32-byte key, got ${decoded.length}.`);
   return decoded;
@@ -256,6 +258,7 @@ export function buildOpenStakeTx({ wallet, stakingState, stakeVault, recentBlock
         { address: stakingState, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
         { address: stakeVault, isWritable: true },
+        { address: SYSTEM_PROGRAM_ID },
       ],
       data,
     }),
@@ -315,6 +318,7 @@ export function buildTipTx({ wallet, monetizationState, treasury, recentBlockhas
         { address: monetizationState, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
         { address: treasury, isWritable: true },
+        { address: SYSTEM_PROGRAM_ID },
       ],
       data: concat(
         Uint8Array.from([1]), tipId, decode58(creator), decode58(wallet.address),
@@ -339,6 +343,7 @@ export function buildCreateSubscriptionTx({ wallet, monetizationState, treasury,
         { address: monetizationState, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
         { address: treasury, isWritable: true },
+        { address: SYSTEM_PROGRAM_ID },
       ],
       data: concat(
         Uint8Array.from([2]), subscriptionId, decode58(creator), decode58(wallet.address),
@@ -357,6 +362,7 @@ export function buildRenewSubscriptionTx({ wallet, monetizationState, treasury, 
       { address: monetizationState, isWritable: true },
       { address: wallet.address, isSigner: true, isWritable: true },
       { address: treasury, isWritable: true },
+      { address: SYSTEM_PROGRAM_ID },
     ],
     data: concat(Uint8Array.from([3]), decode58(subscriptionId), i64(validUntil)),
   });
@@ -387,6 +393,7 @@ export function buildUnlockPaidContentTx({ wallet, monetizationState, treasury, 
         { address: monetizationState, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
         { address: treasury, isWritable: true },
+        { address: SYSTEM_PROGRAM_ID },
       ],
       data: concat(
         Uint8Array.from([5]), unlockId, decode58(post.postId), decode58(post.creator),

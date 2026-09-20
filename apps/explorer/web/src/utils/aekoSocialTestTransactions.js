@@ -11,11 +11,13 @@ import {
 } from './aekoSocial';
 
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const SYSTEM_PROGRAM_ID = '11111111111111111111111111111111';
 
 function decodeBase58(value) {
   if (!value || typeof value !== 'string') throw new Error('Missing base58 public key.');
-  const bytes = [0];
-  for (const char of value.trim()) {
+  const input = value.trim();
+  const bytes = [];
+  for (const char of input) {
     const index = BASE58_ALPHABET.indexOf(char);
     if (index < 0) throw new Error(`Invalid base58 character "${char}".`);
     let carry = index;
@@ -29,7 +31,7 @@ function decodeBase58(value) {
       carry >>= 8;
     }
   }
-  for (let i = 0; i < value.length && value[i] === '1'; i += 1) bytes.push(0);
+  for (let i = 0; i < input.length && input[i] === '1'; i += 1) bytes.push(0);
   const decoded = Uint8Array.from(bytes.reverse());
   if (decoded.length !== 32) throw new Error(`Expected a 32-byte public key, got ${decoded.length}.`);
   return decoded;
@@ -322,6 +324,7 @@ export function buildSocialStakeTestTx({
         { address: stakingState, isSigner: false, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
         { address: stakeVault, isSigner: false, isWritable: true },
+        { address: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       data,
     }),
@@ -356,6 +359,7 @@ export function buildSocialTipTestTx({
         { address: monetizationState, isSigner: false, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
         { address: treasury, isSigner: false, isWritable: true },
+        { address: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       data,
     }),

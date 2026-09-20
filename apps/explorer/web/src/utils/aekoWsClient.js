@@ -12,7 +12,7 @@ export class AekoWsClient {
       websocketFactory = (endpoint) => new WebSocket(endpoint),
       reconnectMs = DEFAULT_RECONNECT_MS,
       maxReconnectMs = DEFAULT_MAX_RECONNECT_MS,
-      onStatus = () => {},
+      onStatus = (status) => status,
     } = {},
   ) {
     this.url = url;

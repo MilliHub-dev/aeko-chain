@@ -1,24 +1,17 @@
 import { useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   GalleryVerticalEnd,
-  Shield,
-  RefreshCcw,
-  PenSquare,
   ArrowRight,
   Sparkles,
-  Play,
-  Snowflake,
   Send,
-  ScrollText,
   Database,
   Radio,
   FileCode2,
   Wallet,
 } from 'lucide-react';
 import {
-  DEFAULT_RPC_ENDPOINT,
   decodeCollectionAccount,
   decodeTokenAccount,
   fetchAccountInfo,
@@ -45,80 +38,18 @@ import {
   estimateTokenAccountSpace,
   token721ProgramId,
 } from '../utils/nftTransactionBuilder';
-import { nftDemoExamples } from '../data/nftDemoExamples';
+import NftLiveFlow from '../components/NftLiveFlow';
+import { getNetworkConfig } from '../utils/networkConfig';
 
-const StepCard = ({ step, title, description, details, active }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true }}
-    className={`rounded-2xl p-6 border transition-colors ${
-      active ? 'bg-aeko-accent/10 border-aeko-accent/30' : 'bg-white/5 border-white/10'
-    }`}
-  >
-    <div className="flex items-center justify-between mb-4">
-      <span className="text-xs uppercase tracking-[0.2em] text-aeko-accent">Step {step}</span>
-      <div className="w-10 h-10 rounded-full bg-aeko-accent/10 border border-aeko-accent/20 flex items-center justify-center text-aeko-accent font-bold">
-        {step}
-      </div>
-    </div>
-    <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
-    <p className="text-gray-400 text-sm leading-relaxed mb-4">{description}</p>
-    <div className="space-y-2">
-      {details.map((detail) => (
-        <div key={detail} className="text-sm text-gray-300 flex items-start gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-aeko-accent mt-2" />
-          <span>{detail}</span>
-        </div>
-      ))}
-    </div>
-  </motion.div>
-);
-
-const ControlCard = ({ icon: Icon, title, description }) => (
-  <div className="bg-[#0f0f16] border border-white/10 rounded-2xl p-6">
-    <div className="w-12 h-12 rounded-xl bg-aeko-accent/10 border border-aeko-accent/20 flex items-center justify-center mb-4">
-      <Icon className="text-aeko-accent" size={22} />
-    </div>
-    <h3 className="text-lg font-bold text-white mb-2">{title}</h3>
-    <p className="text-sm text-gray-400 leading-relaxed">{description}</p>
-  </div>
-);
-
-const ActionButton = ({ icon: Icon, label, onClick, disabled, tone = 'default' }) => {
-  const tones = {
-    default: 'bg-white/5 border-white/10 hover:bg-white/10',
-    accent: 'bg-aeko-accent/10 border-aeko-accent/30 hover:bg-aeko-accent/20',
-    warn: 'bg-cyan-500/10 border-cyan-400/30 hover:bg-cyan-500/20',
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
-        tones[tone]
-      } ${disabled ? 'opacity-40 cursor-not-allowed' : 'text-white'}`}
-    >
-      <Icon size={16} className="text-aeko-accent" />
-      <span>{label}</span>
-    </button>
-  );
-};
-
-const StatRow = ({ label, value, subtle }) => (
+const StatRow = ({ label, value, subtle = false }) => (
   <div className="flex justify-between gap-4 py-3 border-b border-white/5 last:border-b-0">
     <span className="text-sm text-gray-400">{label}</span>
     <span className={`text-sm text-right break-all ${subtle ? 'text-gray-300' : 'text-white font-medium'}`}>{value}</span>
   </div>
 );
 
-const initialLogs = [
-  { id: 1, tone: 'text-aeko-accent', text: 'Demo ready. Collection is configured but the NFT has not been minted yet.' },
-];
-
 const defaultLiveRead = {
-  rpcEndpoint: DEFAULT_RPC_ENDPOINT,
+  rpcEndpoint: '',
   collectionAddress: '',
   tokenAddress: '',
 };
@@ -140,49 +71,12 @@ const actionOptions = [
   { value: 'update', label: 'UpdateMetadata', signer: 'Creator or owner' },
 ];
 
-const ExampleCard = ({ example, onLoad }) => (
-  <div className="bg-[#0f0f16] border border-white/10 rounded-2xl p-6">
-    <div className="flex items-center justify-between gap-4 mb-3">
-      <h3 className="text-lg font-bold text-white">{example.label}</h3>
-      <span
-        className={`px-3 py-1 rounded-full text-xs uppercase tracking-[0.2em] ${
-          example.status === 'live'
-            ? 'bg-aeko-accent/10 text-aeko-accent border border-aeko-accent/20'
-            : 'bg-amber-500/10 text-amber-200 border border-amber-500/20'
-        }`}
-      >
-        {example.status}
-      </span>
-    </div>
-    <p className="text-sm text-gray-400 mb-4">{example.description}</p>
-    <div className="space-y-1 mb-5">
-      <StatRow label="Collection" value={example.collectionAddress || 'Not published yet'} subtle />
-      <StatRow label="Token" value={example.tokenAddress || 'Not published yet'} subtle />
-      <StatRow label="RPC" value={example.rpcEndpoint} subtle />
-    </div>
-    <button
-      onClick={() => onLoad(example)}
-      className="inline-flex items-center gap-2 rounded-xl bg-aeko-accent/10 border border-aeko-accent/30 px-4 py-3 text-sm font-medium text-white hover:bg-aeko-accent/20 transition-colors"
-    >
-      <Database size={16} className="text-aeko-accent" />
-      Load Canonical Example
-    </button>
-  </div>
-);
-
 export default function NftDemo() {
-  const [token, setToken] = useState({
-    minted: false,
-    frozen: false,
-    owner: 'Wallet A',
-    creator: 'Creator Authority',
-    royaltyBps: 500,
-    metadataName: 'Genesis Pass #1',
-    metadataUri: 'ar://genesis-pass-1',
-    transferCount: 0,
-  });
-  const [logs, setLogs] = useState(initialLogs);
-  const [liveReadForm, setLiveReadForm] = useState(defaultLiveRead);
+  const networkConfig = getNetworkConfig('testnet');
+  const [liveReadForm, setLiveReadForm] = useState(() => ({
+    ...defaultLiveRead,
+    rpcEndpoint: networkConfig.rpcUrl,
+  }));
   const [liveReadState, setLiveReadState] = useState({
     loading: false,
     error: '',
@@ -243,86 +137,6 @@ export default function NftDemo() {
     };
   });
 
-  const appendLog = (text, tone = 'text-gray-300') => {
-    setLogs((current) => [{ id: current.length + 1, text, tone }, ...current]);
-  };
-
-  const handleMint = () => {
-    if (token.minted) {
-      appendLog('Mint rejected: this demo NFT has already been minted.', 'text-amber-300');
-      return;
-    }
-    setToken((current) => ({ ...current, minted: true }));
-    appendLog('Mint succeeded: Genesis Pass #1 was created with 500 bps creator royalty.', 'text-aeko-accent');
-  };
-
-  const handleFreeze = () => {
-    if (!token.minted || token.frozen) {
-      appendLog('Freeze rejected: NFT must exist and be unfrozen first.', 'text-amber-300');
-      return;
-    }
-    setToken((current) => ({ ...current, frozen: true }));
-    appendLog('Creator froze the NFT. Transfers and metadata edits are now blocked.', 'text-cyan-300');
-  };
-
-  const handleThaw = () => {
-    if (!token.minted || !token.frozen) {
-      appendLog('Thaw rejected: NFT is not currently frozen.', 'text-amber-300');
-      return;
-    }
-    setToken((current) => ({ ...current, frozen: false }));
-    appendLog('Creator thawed the NFT. Movement and edits are available again.', 'text-aeko-accent');
-  };
-
-  const handleTransfer = () => {
-    if (!token.minted) {
-      appendLog('Transfer rejected: NFT has not been minted yet.', 'text-amber-300');
-      return;
-    }
-    if (token.frozen) {
-      appendLog('Transfer rejected: frozen NFTs cannot move until thawed.', 'text-amber-300');
-      return;
-    }
-    const nextOwner = token.owner === 'Wallet A' ? 'Wallet B' : 'Wallet A';
-    setToken((current) => ({
-      ...current,
-      owner: nextOwner,
-      transferCount: current.transferCount + 1,
-    }));
-    appendLog(`Transfer succeeded: ownership moved to ${nextOwner}.`, 'text-aeko-accent');
-  };
-
-  const handleMetadataUpdate = () => {
-    if (!token.minted) {
-      appendLog('Metadata update rejected: NFT has not been minted yet.', 'text-amber-300');
-      return;
-    }
-    if (token.frozen) {
-      appendLog('Metadata update rejected: frozen NFTs cannot be edited.', 'text-amber-300');
-      return;
-    }
-    setToken((current) => ({
-      ...current,
-      metadataName: current.metadataName === 'Genesis Pass #1' ? 'Genesis Pass #1: Verified' : 'Genesis Pass #1',
-      metadataUri: current.metadataUri === 'ar://genesis-pass-1' ? 'ar://genesis-pass-1-verified' : 'ar://genesis-pass-1',
-    }));
-    appendLog('Metadata update succeeded: creator refreshed the NFT name and URI within validation bounds.', 'text-aeko-accent');
-  };
-
-  const handleReset = () => {
-    setToken({
-      minted: false,
-      frozen: false,
-      owner: 'Wallet A',
-      creator: 'Creator Authority',
-      royaltyBps: 500,
-      metadataName: 'Genesis Pass #1',
-      metadataUri: 'ar://genesis-pass-1',
-      transferCount: 0,
-    });
-    setLogs(initialLogs);
-  };
-
   const handleLiveFieldChange = (field, value) => {
     setLiveReadForm((current) => ({ ...current, [field]: value }));
   };
@@ -333,30 +147,6 @@ export default function NftDemo() {
 
   const handleSetupFieldChange = (field, value) => {
     setSetupForm((current) => ({ ...current, [field]: value }));
-  };
-
-  const handleLoadCanonicalExample = (example) => {
-    setLiveReadForm((current) => ({
-      ...current,
-      rpcEndpoint: example.rpcEndpoint,
-      collectionAddress: example.collectionAddress,
-      tokenAddress: example.tokenAddress,
-    }));
-    setSetupForm((current) => ({
-      ...current,
-      collectionSeed: example.collectionSeed,
-      tokenSeed: example.tokenSeed,
-      collectionName: example.collectionName,
-      collectionSymbol: example.collectionSymbol,
-      collectionBaseUri: example.collectionBaseUri,
-    }));
-    setWritePlan((current) => ({
-      ...current,
-      tokenId: example.tokenId,
-      royaltyBps: example.royaltyBps,
-      metadataName: example.metadataName,
-      metadataUri: example.metadataUri,
-    }));
   };
 
   const handleLoadLiveAccounts = async () => {
@@ -770,47 +560,6 @@ export default function NftDemo() {
     }
   };
 
-  const steps = useMemo(
-    () => [
-      {
-        step: '1',
-        title: 'Initialize Collection',
-        description: 'Create a collection authority and anchor the NFT series under a single on-chain collection account.',
-        details: ['Collection name and symbol are stored on-chain', 'Base URI may point to AEKO-hosted or immutable content gateways'],
-        active: true,
-      },
-      {
-        step: '2',
-        title: 'Mint Genesis NFT',
-        description: 'Mint a unique AEKO-721 asset with creator attribution, royalty basis points, and validated metadata.',
-        details: ['Unique token id per collection', 'Metadata name, URI, image URI, and attributes are bounded and validated'],
-        active: token.minted,
-      },
-      {
-        step: '3',
-        title: 'Freeze For Moderation',
-        description: 'Creator can freeze an NFT when an asset needs moderation, compliance review, or recovery handling.',
-        details: ['Frozen NFTs reject transfers', 'Frozen NFTs reject metadata edits until thawed'],
-        active: token.frozen,
-      },
-      {
-        step: '4',
-        title: 'Thaw And Transfer',
-        description: 'Once cleared, the creator thaws the NFT and the current owner can transfer it to a new wallet.',
-        details: ['Owner signature required for transfer', 'Ownership updates are written into the NFT state'],
-        active: token.minted && !token.frozen && token.transferCount > 0,
-      },
-      {
-        step: '5',
-        title: 'Update Metadata',
-        description: 'Creator or current owner can update metadata within validation rules, keeping the asset fresh without losing provenance.',
-        details: ['Royalty settings stay attached to the token', 'Metadata updates preserve creator and collection linkage'],
-        active: token.metadataUri !== 'ar://genesis-pass-1',
-      },
-    ],
-    [token],
-  );
-
   const selectedAction = actionOptions.find((option) => option.value === writePlan.action);
   const writePayload = useMemo(() => {
     const collectionAddress = liveReadForm.collectionAddress.trim() || '<collection-account>';
@@ -890,41 +639,34 @@ export default function NftDemo() {
     <div className="pt-24 pb-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-20">
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-aeko-accent/10 text-aeko-accent border border-aeko-accent/20 text-sm font-medium mb-6"
           >
             <GalleryVerticalEnd size={14} />
             <span>AEKO-721 Demo Flow</span>
-          </motion.div>
+          </Motion.div>
 
-          <motion.h1
+          <Motion.h1
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl md:text-6xl font-bold mb-6"
           >
             NFT Lifecycle <span className="text-gradient">In Public</span>
-          </motion.h1>
+          </Motion.h1>
           <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-            The page now does both: a local lifecycle simulator for the AEKO-721 flow, and real testnet-backed reads for collection and NFT accounts over AEKO JSON-RPC.
+            Create, mint, freeze, thaw, update, and transfer real AEKO-721 testnet assets, then verify the resulting state through RPC and the Explorer indexer.
           </p>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-8 mb-20">
-          <div className="flex items-center gap-3 mb-6">
-            <Database className="text-aeko-accent" />
-            <h2 className="text-2xl font-bold">Canonical Public Examples</h2>
-          </div>
-          <p className="text-sm text-gray-400 mb-6">
-            This section is where the public AEKO-721 walkthrough anchors. When canonical testnet accounts are published, these presets let anyone load the same collection and NFT state directly into the demo.
-          </p>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {nftDemoExamples.map((example) => (
-              <ExampleCard key={example.id} example={example} onLoad={handleLoadCanonicalExample} />
-            ))}
-          </div>
-        </div>
+        <NftLiveFlow
+          rpcUrl={networkConfig.rpcUrl}
+          explorerApiUrl={networkConfig.explorerApiUrl}
+          onUseAccounts={({ collectionAddress, tokenAddress }) => {
+            setLiveReadForm((current) => ({ ...current, collectionAddress, tokenAddress }));
+          }}
+        />
 
         <div className="bg-white/5 border border-white/10 rounded-3xl p-8 mb-20">
           <div className="flex items-center gap-3 mb-6">
@@ -966,7 +708,7 @@ export default function NftDemo() {
               {liveReadState.loading ? 'Loading Accounts...' : 'Load Live Accounts'}
             </button>
             <span className="text-xs text-gray-500">
-              Default RPC: <span className="text-gray-300">{DEFAULT_RPC_ENDPOINT}</span>
+              Default RPC: <span className="text-gray-300">{networkConfig.rpcUrl}</span>
             </span>
           </div>
 
@@ -1408,99 +1150,10 @@ export default function NftDemo() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-20">
-          <div className="lg:col-span-2 space-y-8">
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <Sparkles className="text-aeko-accent" />
-                <h2 className="text-2xl font-bold">Interactive Lifecycle</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {steps.map((step) => (
-                  <StepCard key={step.step} {...step} />
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-[#0f0f16] border border-white/10 rounded-3xl p-8">
-              <div className="flex items-center justify-between gap-4 mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold">Try The Flow</h2>
-                  <p className="text-sm text-gray-400 mt-1">These controls simulate the same guardrails as the on-chain AEKO-721 processor.</p>
-                </div>
-                <button onClick={handleReset} className="text-sm text-aeko-accent hover:text-white transition-colors">
-                  Reset demo
-                </button>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <ActionButton icon={Play} label="Mint NFT" onClick={handleMint} disabled={token.minted} tone="accent" />
-                <ActionButton icon={Snowflake} label="Freeze NFT" onClick={handleFreeze} disabled={!token.minted || token.frozen} tone="warn" />
-                <ActionButton icon={RefreshCcw} label="Thaw NFT" onClick={handleThaw} disabled={!token.frozen} />
-                <ActionButton icon={Send} label="Transfer NFT" onClick={handleTransfer} disabled={!token.minted} />
-                <ActionButton icon={PenSquare} label="Update Metadata" onClick={handleMetadataUpdate} disabled={!token.minted} />
-              </div>
-            </div>
-
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <ScrollText className="text-aeko-accent" />
-                <h2 className="text-2xl font-bold">Demo Event Log</h2>
-              </div>
-              <div className="space-y-3">
-                {logs.map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                    <p className={`text-sm ${entry.tone}`}>{entry.text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="bg-[#0f0f16] border border-white/10 rounded-3xl p-8">
-              <h2 className="text-2xl font-bold mb-4">{token.metadataName}</h2>
-              <div className={`aspect-square rounded-2xl border border-white/10 mb-6 flex items-end p-6 ${
-                token.frozen ? 'bg-gradient-to-br from-cyan-500/20 via-white/5 to-transparent' : 'bg-gradient-to-br from-aeko-accent/30 via-cyan-500/10 to-transparent'
-              }`}>
-                <div>
-                  <div className="text-xs uppercase tracking-[0.2em] text-aeko-accent mb-2">AEKO-721</div>
-                  <div className="text-2xl font-bold text-white">{token.minted ? 'Minted Asset' : 'Pending Mint'}</div>
-                  <div className="text-sm text-gray-400 mt-1">{token.royaltyBps} bps creator royalty</div>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <StatRow label="Collection" value="AEKO Genesis Passes" />
-                <StatRow label="Creator" value={token.creator} subtle />
-                <StatRow label="Owner" value={token.minted ? token.owner : 'Not minted'} />
-                <StatRow label="State" value={token.frozen ? 'Frozen' : token.minted ? 'Active' : 'Unminted'} />
-                <StatRow label="Metadata URI" value={token.metadataUri} subtle />
-                <StatRow label="Transfers" value={String(token.transferCount)} subtle />
-              </div>
-            </div>
-
-            <ControlCard
-              icon={Shield}
-              title="Moderation Ready"
-              description="Freeze and thaw controls let creators pause movement or edits while disputes, moderation actions, or compliance reviews are in flight."
-            />
-            <ControlCard
-              icon={RefreshCcw}
-              title="Transfer Safe"
-              description="Transfers require the current owner signature and fail cleanly when the NFT is frozen or the signer does not match ownership."
-            />
-            <ControlCard
-              icon={PenSquare}
-              title="Metadata Hygiene"
-              description="Metadata fields are validated for empty values, oversized content, invalid URI formats, and malformed attribute entries before updates land."
-            />
-          </div>
-        </div>
-
         <div className="border-t border-white/10 pt-16 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
-            <h2 className="text-2xl font-bold mb-2">Next Demo Layer</h2>
-            <p className="text-gray-400">The next step after client-side transaction construction is tightening this into a fully typed wallet adapter flow and adding collection-initialization plus account-creation helpers.</p>
+            <h2 className="text-2xl font-bold mb-2">Verified AEKO-721 Workflow</h2>
+            <p className="text-gray-400">Use the live flow above for browser-local test wallets. The lower-level read, setup, builder, and wallet-adapter panels remain available for protocol debugging and external wallet integration.</p>
           </div>
           <div className="flex flex-wrap gap-4">
             <Link to="/docs" className="flex items-center gap-2 text-aeko-accent hover:text-white transition-colors font-medium">
