@@ -260,12 +260,17 @@ jobs:
           explorer-backend: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
           explorer-web: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
 
-      - name: Trigger Dokploy after successful promotion
+      - name: Trigger production deployment after successful promotion
         if: steps.release.outputs.publish == 'true' && steps.changes.outputs.deployable == 'true'
         shell: bash
         env:
-          DOKPLOY_WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          WEBHOOK_API_KEY: ${{ secrets.WEBHOOK_API_KEY }}
         run: |
           set -euo pipefail
-          : "${DOKPLOY_WEBHOOK_URL:?DOKPLOY_WEBHOOK_URL secret is required}"
-          curl --fail-with-body --silent --show-error --request POST "$DOKPLOY_WEBHOOK_URL"
+          : "${WEBHOOK_URL:?WEBHOOK_URL secret is required}"
+          : "${WEBHOOK_API_KEY:?WEBHOOK_API_KEY secret is required}"
+          curl --fail-with-body --silent --show-error \
+            --request GET \
+            --header "Authorization: Bearer ${WEBHOOK_API_KEY}" \
+            "$WEBHOOK_URL"

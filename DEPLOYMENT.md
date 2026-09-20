@@ -251,7 +251,7 @@ Keep `gossip.aeko.online` outside the HTTP proxy. Point its DNS directly to `AEK
 
 ## Deploy / update behavior
 
-Manual equivalent:
+Manual Dokploy equivalent:
 
 ```bash
 docker compose -f docker/compose.dokploy.yml pull
@@ -259,11 +259,28 @@ docker compose -f docker/compose.dokploy.yml up -d
 docker compose -f docker/compose.dokploy.yml ps
 ```
 
-The GitHub `Build AEKO Network Images` workflow validates all three Compose contracts and publishes images first. `Deploy AEKO Network via Dokploy` runs only after that workflow succeeds on `main` and calls `DOKPLOY_WEBHOOK_URL`.
+Manual Coolify equivalent uses the separate Coolify deployment contract:
 
-The webhook only triggers the preconfigured Dokploy resource. It does not rewrite Dokploy environment variables. In particular, if `AEKO_IMAGE_TAG` is pinned to an immutable SHA, update that Dokploy environment value to the newly published 12-character main SHA before/with the deployment. Otherwise Dokploy can read the newest Compose while still pulling older runtime binaries. Use `latest` only when intentional automatic roll-forward is preferred over immutable releases.
+```bash
+docker compose -f docker/compose.coolify.yml pull
+docker compose -f docker/compose.coolify.yml up -d
+docker compose -f docker/compose.coolify.yml ps
+```
 
-The webhook also does not choose the Compose path on its own, so the resource must point to `docker/compose.dokploy.yml`.
+The GitHub `AEKO DevOps (single runner)` workflow validates the selected release surfaces, publishes and promotes validated images on `main`, then runs `Trigger production deployment after successful promotion`.
+
+The production deployment trigger is deliberately platform-neutral and uses two GitHub Actions secrets:
+
+```text
+WEBHOOK_URL=<authenticated production deploy webhook>
+WEBHOOK_API_KEY=<deployment API token>
+```
+
+For the current Coolify deployment, `WEBHOOK_URL` is the Coolify authenticated deploy webhook and `WEBHOOK_API_KEY` is the corresponding deploy-capable API token. CI sends the token as `Authorization: Bearer <token>`. Dokploy and Coolify remain separate deployment platforms with separate Compose contracts; this generic CI trigger does not make their configuration interchangeable.
+
+The webhook only triggers the preconfigured production resource. It does not rewrite deployment-platform environment variables. In particular, if `AEKO_IMAGE_TAG` is pinned to an immutable SHA, update that environment value to the newly published 12-character main SHA before/with the deployment. Otherwise the platform can read the newest Compose while still pulling older runtime binaries. Use `latest` only when intentional automatic roll-forward is preferred over immutable releases.
+
+The webhook also does not choose the Compose path. A Coolify resource must point to `docker/compose.coolify.yml`; a Dokploy resource must point to `docker/compose.dokploy.yml`.
 
 ## Deployment acceptance
 
@@ -360,7 +377,7 @@ Use precise states:
 
 - **Build-ready**: all Docker targets build and deployment contracts parse.
 - **Publish-ready**: main CI has pushed the selected Docker Hub image tags.
-- **Deploy-ready**: Dokploy has persistent keys, database, domains/firewall and the production Compose configuration.
+- **Deploy-ready**: the selected production platform (Coolify or Dokploy) has persistent keys, database, domains/firewall and the matching production Compose configuration.
 - **Integration-verified**: the deployed public RPC/Explorer SocialFi smoke passes.
 - **Write-path verified**: a signed SocialFi transaction succeeds end-to-end and its result is observable.
 - **Mainnet/production mature**: requires decentralization, redundancy, monitoring, backups, security, capacity/load and incident-response work beyond this single-host reference stack.
@@ -369,4 +386,4 @@ A green image build alone is not sufficient evidence for the later states.
 
 ## Separate Aeko product backend
 
-The Aeko application backend is a separate repository/service on `:4101`. It is not included in the chain Dokploy Compose and should have its own database and deployment lifecycle. It consumes AEKO Chain through RPC/WS/Explorer APIs.
+The Aeko application backend is a separate repository/service on `:4101`. It is not included in either chain production Compose contract and should have its own database and deployment lifecycle. It consumes AEKO Chain through RPC/WS/Explorer APIs.
