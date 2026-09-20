@@ -1,6 +1,6 @@
 use {
     crate::state::{SocialStakePosition, SocialStakingStateAccount, StakeYieldRecord},
-    aeko_sdk::{instruction::{AccountMeta, Instruction}, pubkey::Pubkey},
+    aeko_sdk::{instruction::{AccountMeta, Instruction}, pubkey::Pubkey, system_program},
     borsh::{BorshDeserialize, BorshSerialize},
 };
 
@@ -25,7 +25,7 @@ pub fn initialize_config(program_id: &Pubkey, state_pubkey: &Pubkey, payer_pubke
 
 pub fn open_position(program_id: &Pubkey, state_pubkey: &Pubkey, staker_pubkey: &Pubkey, stake_vault_pubkey: &Pubkey, position: SocialStakePosition) -> Instruction {
     Instruction::new_with_borsh(*program_id, &SocialStakingInstruction::OpenPosition { position }, vec![
-        AccountMeta::new(*state_pubkey, false), AccountMeta::new(*staker_pubkey, true), AccountMeta::new(*stake_vault_pubkey, false),
+        AccountMeta::new(*state_pubkey, false), AccountMeta::new(*staker_pubkey, true), AccountMeta::new(*stake_vault_pubkey, false), AccountMeta::new_readonly(system_program::id(), false),
     ])
 }
 
