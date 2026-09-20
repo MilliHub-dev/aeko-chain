@@ -63,10 +63,25 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+
+        set +e
         cargo check -p aeko-rust-sdk --all-targets
-        echo '=== Cargo.lock diff after Cargo resolution ==='
-        git diff -- Cargo.lock
+        check_status=$?
+        set -e
+
+        lock_changed=false
         if ! git diff --quiet -- Cargo.lock; then
+          lock_changed=true
+          echo '=== Cargo.lock diff after Cargo resolution ==='
+          git diff -- Cargo.lock
+          git restore --worktree -- Cargo.lock
+        fi
+
+        if [ "$check_status" -ne 0 ]; then
+          exit "$check_status"
+        fi
+
+        if [ "$lock_changed" = "true" ]; then
           echo 'Cargo.lock is stale; the diff above is the exact resolver update required.' >&2
           exit 2
         fi
