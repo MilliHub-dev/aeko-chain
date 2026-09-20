@@ -108,3 +108,15 @@ test('social payout actions preflight live program-owned vault liquidity', async
   assert.match(social, /Monetization treasury/);
   assert.match(social, /testnet operator must seed the payout vault/i);
 });
+
+
+test('accounts workspace distinguishes a browser-local unfunded wallet from an API outage', async () => {
+  const implementation = await source('components/NetworkConsoleModalV2.jsx');
+
+  assert.match(implementation, /profileIssue\?\.status === 404/);
+  assert.match(implementation, /Not funded yet/);
+  assert.match(implementation, /Local wallet only/);
+  assert.match(implementation, /Request test AEKO/);
+  assert.match(implementation, /hasSpendableBalance/);
+  assert.match(implementation, /rpcReady/);
+});
