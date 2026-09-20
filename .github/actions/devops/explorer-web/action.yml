@@ -98,7 +98,7 @@ runs:
 
         printf 'Linting changed Explorer files:\n'
         printf '  %s\n' "${lint_files[@]}"
-        npm exec eslint -- "${lint_files[@]}"
+        ./node_modules/.bin/eslint "${lint_files[@]}"
 
     - name: Explorer web JavaScript type-check
       if: ${{ inputs.validate-source == 'true' }}
