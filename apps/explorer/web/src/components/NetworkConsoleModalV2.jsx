@@ -108,6 +108,7 @@ function AccountsWorkspace({
   walletProfiles,
   walletErrors,
   refreshWallet,
+  rpcReady,
 }) {
   const [selectedId, setSelectedId] = useState(wallets[0]?.id || '');
   const [name, setName] = useState('');
@@ -119,7 +120,10 @@ function AccountsWorkspace({
 
   const wallet = wallets.find((item) => item.id === selectedId) || wallets[0] || null;
   const profile = wallet ? walletProfiles[wallet.address] : null;
-  const profileError = wallet ? walletErrors[wallet.address] : '';
+  const profileIssue = wallet ? walletErrors[wallet.address] : null;
+  const isUnfunded = profileIssue?.status === 404;
+  const liveBalance = wallet ? balances[wallet.address] : null;
+  const hasSpendableBalance = Number(liveBalance) > 0;
 
   const persist = useCallback((next) => {
     setWallets(next);
@@ -166,8 +170,16 @@ function AccountsWorkspace({
   const runTransfer = async () => {
     if (!wallet) return;
     const value = Number(amount);
+    if (!hasSpendableBalance) {
+      setResult({ kind: 'error', message: 'Fund this test wallet with AEKO before sending a transaction.' });
+      return;
+    }
     if (!recipient.trim() || !Number.isFinite(value) || value <= 0) {
       setResult({ kind: 'error', message: 'Enter a recipient and positive AEKO amount.' });
+      return;
+    }
+    if (aekoToLamports(value) > Number(liveBalance)) {
+      setResult({ kind: 'error', message: 'The send amount is greater than this wallet’s live AEKO balance.' });
       return;
     }
     setBusy('send');
@@ -205,7 +217,7 @@ function AccountsWorkspace({
         <div className="space-y-2">
           {wallets.map((item) => (
             <button key={item.id} type="button" onClick={() => setSelectedId(item.id)} className={`w-full rounded-xl border p-3 text-left ${wallet?.id === item.id ? 'border-aeko-accent/35 bg-aeko-accent/[0.07]' : 'border-white/10 bg-white/[0.025] hover:bg-white/[0.05]'}`}>
-              <div className="flex items-center justify-between gap-3"><span className="truncate text-sm font-medium text-white">{item.name}</span><span className="text-[10px] text-gray-500">{balances[item.address] == null ? '—' : formatAeko(balances[item.address])}</span></div>
+              <div className="flex items-center justify-between gap-3"><span className="truncate text-sm font-medium text-white">{item.name}</span><span className="text-[10px] text-gray-500">{balances[item.address] == null ? (walletErrors[item.address]?.status === 404 ? 'Not funded' : 'Unavailable') : formatAeko(balances[item.address])}</span></div>
               <div className="mt-1 font-mono text-[10px] text-gray-600">{shortAddress(item.address)}</div>
             </button>
           ))}
@@ -219,32 +231,35 @@ function AccountsWorkspace({
             <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div><div className="text-lg font-semibold text-white">{wallet.name}</div><div className="mt-1 break-all font-mono text-xs text-gray-500">{wallet.address}</div></div>
-                <div className="text-right"><div className="text-[10px] uppercase tracking-[0.16em] text-gray-600">API live balance</div><div className="mt-1 text-xl font-semibold text-white">{balances[wallet.address] == null ? 'Unavailable' : formatAeko(balances[wallet.address])}</div></div>
+                <div className="text-right"><div className="text-[10px] uppercase tracking-[0.16em] text-gray-600">On-chain balance</div><div className="mt-1 text-xl font-semibold text-white">{liveBalance == null ? (isUnfunded ? 'Not funded yet' : 'Unavailable') : formatAeko(liveBalance)}</div><div className="mt-1 text-[10px] text-gray-600">{isUnfunded ? 'Local wallet only' : liveBalance == null ? 'Live account read failed' : 'Live validator-backed account'}</div></div>
               </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-4">
-                <Metric label="Tokens" value={profile?.tokenCount} />
-                <Metric label="NFTs" value={profile?.nftCount} />
-                <Metric label="Reputation" value={profile?.reputationScore} />
-                <Metric label="Recent tx" value={profile?.recentTransactions?.length} />
+                <Metric label="Tokens" value={isUnfunded ? 0 : profile?.tokenCount} />
+                <Metric label="NFTs" value={isUnfunded ? 0 : profile?.nftCount} />
+                <Metric label="Reputation" value={isUnfunded ? 0 : profile?.reputationScore} />
+                <Metric label="Recent tx" value={isUnfunded ? 0 : profile?.recentTransactions?.length} />
               </div>
               <div className="mt-4 flex gap-2">
                 <input value={rename} onChange={(event) => setRename(event.target.value)} placeholder={`Rename ${wallet.name}`} className="h-9 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 text-xs outline-none focus:border-aeko-accent" />
                 <button type="button" onClick={renameWallet} disabled={!rename.trim()} className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs text-gray-300 disabled:opacity-40"><Pencil size={12} /> Rename</button>
               </div>
-              {profileError ? <div className="mt-3 text-xs text-amber-200">Explorer API: {profileError}</div> : null}
+              {isUnfunded ? <div className="mt-3 rounded-xl border border-aeko-accent/20 bg-aeko-accent/[0.06] p-3 text-xs leading-relaxed text-gray-300">This browser-local wallet does not exist on-chain yet. Request test AEKO below to fund it before trying send, staking, monetization, rewards, or NFT transactions.</div> : profileIssue ? <div className="mt-3 text-xs text-amber-200">Explorer API: {profileIssue.message}</div> : null}
             </section>
 
             <section className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-white"><ArrowDownToLine size={14} className="text-aeko-accent" /> Request test AEKO</div>
+                <p className="mt-1 text-[11px] leading-relaxed text-gray-600">Creates/funds this test wallet through the configured faucet. This remains available for a brand-new local wallet.</p>
                 <AmountInput value={amount} onChange={setAmount} />
-                <button type="button" onClick={runAirdrop} disabled={Boolean(busy)} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-aeko-accent px-4 text-xs font-semibold text-black disabled:opacity-40">{busy === 'airdrop' ? <Loader2 size={13} className="animate-spin" /> : null} Airdrop</button>
+                <button type="button" onClick={runAirdrop} disabled={Boolean(busy) || !rpcReady} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-aeko-accent px-4 text-xs font-semibold text-black disabled:opacity-40">{busy === 'airdrop' ? <Loader2 size={13} className="animate-spin" /> : null} Airdrop</button>
+                {!rpcReady ? <div className="mt-2 text-[10px] text-amber-200">Airdrop is paused because validator RPC is not ready.</div> : null}
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-white"><Send size={14} className="text-aeko-accent" /> Send AEKO</div>
                 <input value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="Recipient address" className="mt-3 h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 font-mono text-xs outline-none focus:border-aeko-accent" />
                 <AmountInput value={amount} onChange={setAmount} />
-                <button type="button" onClick={runTransfer} disabled={Boolean(busy)} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-aeko-accent px-4 text-xs font-semibold text-black disabled:opacity-40">{busy === 'send' ? <Loader2 size={13} className="animate-spin" /> : null} Sign & send</button>
+                <button type="button" onClick={runTransfer} disabled={Boolean(busy) || !hasSpendableBalance} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-aeko-accent px-4 text-xs font-semibold text-black disabled:opacity-40">{busy === 'send' ? <Loader2 size={13} className="animate-spin" /> : null} Sign & send</button>
+                {!hasSpendableBalance ? <div className="mt-2 text-[10px] text-gray-500">Fund this wallet before sending AEKO.</div> : null}
               </div>
             </section>
             <TxResult result={result} explorerUrl={explorerUrl} />
@@ -424,7 +439,7 @@ export default function NetworkConsoleModalV2({ open, onClose, tab, onTabChange,
     } catch (error) {
       setWalletProfiles((current) => ({ ...current, [address]: null }));
       setBalances((current) => ({ ...current, [address]: null }));
-      setWalletErrors((current) => ({ ...current, [address]: error.message || String(error) }));
+      setWalletErrors((current) => ({ ...current, [address]: { message: error.message || String(error), status: error?.status ?? null } }));
       return null;
     }
   }, [explorerApiUrl]);
@@ -503,7 +518,7 @@ export default function NetworkConsoleModalV2({ open, onClose, tab, onTabChange,
         <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-white/10 bg-black/20 px-3 py-2 sm:px-5">{TABS.map((item) => { const Icon = item.icon; const active = tab === item.key; return <button key={item.key} type="button" onClick={() => onTabChange(item.key)} className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-4 text-sm ${active ? 'bg-white/10 text-white' : 'text-gray-500 hover:bg-white/5 hover:text-white'}`}><Icon size={14} /> {item.label}</button>; })}</nav>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
           {rpcState.error ? <div className="mb-4 rounded-xl border border-red-400/20 bg-red-500/10 p-3 text-xs text-red-100">Network/API: {rpcState.error}</div> : null}
-          {tab === 'accounts' ? <AccountsWorkspace rpcUrl={rpcUrl} explorerUrl={explorerUrl} wallets={wallets} setWallets={setWallets} balances={balances} walletProfiles={walletProfiles} walletErrors={walletErrors} refreshWallet={refreshWallet} /> : null}
+          {tab === 'accounts' ? <AccountsWorkspace rpcUrl={rpcUrl} explorerUrl={explorerUrl} wallets={wallets} setWallets={setWallets} balances={balances} walletProfiles={walletProfiles} walletErrors={walletErrors} refreshWallet={refreshWallet} rpcReady={rpcState.status === 'ready'} /> : null}
           {tab === 'programs' ? <ProgramsWorkspace rpcUrl={rpcUrl} websocketUrl={websocketUrl} explorerApiUrl={explorerApiUrl} rpcState={rpcState} wsState={wsState} overview={overview} socialStatus={socialStatus} refresh={refreshInfrastructure} /> : null}
           {tab === 'social' ? <SocialWorkspace rpcUrl={rpcUrl} explorerApiUrl={explorerApiUrl} explorerUrl={explorerUrl} wallets={wallets} balances={balances} socialPulse={socialPulse} socialStateAccount={socialStateAccount} /> : null}
         </div>
