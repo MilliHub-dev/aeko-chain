@@ -34,13 +34,22 @@ function dateLabel(unix) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(Number(unix) * 1000));
 }
 function content(post) { return post?.contentUri || ''; }
+function presentPost(post) {
+  const raw = content(post);
+  const lines = raw.split('\n');
+  const marker = lines.at(-1)?.trim() || '';
+  if (!marker.startsWith('AEKO_IMAGE:')) return { text: raw, imageUrl: '' };
+  const imageUrl = marker.slice('AEKO_IMAGE:'.length).trim();
+  if (!/^https?:\/\//i.test(imageUrl)) return { text: raw, imageUrl: '' };
+  return { text: lines.slice(0, -1).join('\n').trimEnd(), imageUrl };
+}
 function uniqueBy(items, key) {
   const seen = new Set();
   return items.filter((item) => { const value = item?.[key]; if (!value || seen.has(value)) return false; seen.add(value); return true; });
 }
 
 function IconButton({ title, children, onClick, active = false, disabled = false }) {
-  return <button type="button" title={title} onClick={onClick} disabled={disabled} className={`inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border transition ${active ? 'border-aeko-accent/40 bg-aeko-accent/10 text-aeko-accent' : 'border-transparent text-gray-500 hover:border-white/10 hover:bg-white/[0.05] hover:text-white'} disabled:opacity-40`}>{children}</button>;
+  return <button type="button" title={title} aria-label={title} onClick={onClick} disabled={disabled} className={`inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border transition ${active ? 'border-aeko-accent/40 bg-aeko-accent/10 text-aeko-accent' : 'border-transparent text-gray-500 hover:border-white/10 hover:bg-white/[0.05] hover:text-white'} disabled:opacity-40`}>{children}</button>;
 }
 function Pill({ children, tone = 'neutral' }) {
   const cls = tone === 'accent' ? 'border-aeko-accent/30 bg-aeko-accent/10 text-aeko-accent' : tone === 'warn' ? 'border-amber-400/20 bg-amber-500/10 text-amber-200' : 'border-white/10 bg-white/[0.035] text-gray-400';
@@ -106,11 +115,13 @@ function Composer({
 
 function PostCard({ post, persona, counts = {}, onProfile, onOpen, onAction, onDialog, owned }) {
   const [menu, setMenu] = useState(false);
+  const presented = presentPost(post);
   return <article className="relative border-b border-white/[0.07] px-4 py-5 transition hover:bg-white/[0.018]">
     <div className="flex gap-3"><button type="button" onClick={() => onProfile(post.creator)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-white/10 to-white/[0.02] text-xs font-bold text-gray-300">{post.creator.slice(0,2)}</button><div className="min-w-0 flex-1">
       <div className="flex items-start justify-between gap-2"><button type="button" onClick={() => onProfile(post.creator)} className="min-w-0 text-left"><div className="flex items-center gap-2"><span className="truncate text-sm font-semibold text-white">{owned ? persona?.name || 'Owned persona' : shortAddress(post.creator)}</span>{owned ? <Pill tone="accent">you</Pill> : null}{post.visibility !== 'public' ? <Pill tone="warn">{post.visibility}</Pill> : null}</div><div className="mt-0.5 font-mono text-[10px] text-gray-600">{shortAddress(post.creator)} · {dateLabel(post.createdAtUnix)}</div></button><div className="relative"><IconButton title="Post actions" onClick={() => setMenu((v) => !v)}><MoreHorizontal size={16}/></IconButton>{menu ? <div className="absolute right-0 top-10 z-20 w-44 rounded-xl border border-white/10 bg-[#15151d] p-1 shadow-2xl"><button onClick={() => {setMenu(false); onOpen(post);}} className="w-full rounded-lg px-3 py-2 text-left text-xs text-gray-300 hover:bg-white/5">Open thread</button><button onClick={() => {setMenu(false); onDialog('tip', post);}} className="w-full rounded-lg px-3 py-2 text-left text-xs text-gray-300 hover:bg-white/5">Tip creator</button><button onClick={() => {setMenu(false); onDialog('stake', post);}} className="w-full rounded-lg px-3 py-2 text-left text-xs text-gray-300 hover:bg-white/5">Stake on creator</button>{owned ? <><button onClick={() => {setMenu(false); onDialog('edit', post);}} className="w-full rounded-lg px-3 py-2 text-left text-xs text-gray-300 hover:bg-white/5">Edit post</button><button onClick={() => {setMenu(false); onDialog('mint', post);}} className="w-full rounded-lg px-3 py-2 text-left text-xs text-aeko-accent hover:bg-white/5">Mint as NFT</button></> : null}</div> : null}</div></div>
       {post.postKind !== 'original' ? <div className="mt-2 text-[10px] uppercase tracking-[0.14em] text-aeko-accent/80">{post.postKind}</div> : null}
-      <button type="button" onClick={() => onOpen(post)} className="mt-2 block w-full whitespace-pre-wrap break-words text-left text-[15px] leading-6 text-gray-200">{content(post)}</button>
+      <button type="button" onClick={() => onOpen(post)} className="mt-2 block w-full whitespace-pre-wrap break-words text-left text-[15px] leading-6 text-gray-200">{presented.text}</button>
+      {presented.imageUrl ? <a href={presented.imageUrl} target="_blank" rel="noreferrer" className="mt-3 block overflow-hidden rounded-2xl border border-white/10 bg-black/30"><img src={presented.imageUrl} alt="Post attachment" loading="lazy" className="max-h-[420px] w-full object-cover"/></a> : null}
       <div className="mt-4 flex max-w-xl items-center justify-between text-xs text-gray-500">
         <button onClick={() => onDialog('reply', post)} className="group inline-flex items-center gap-1.5 hover:text-sky-300"><MessageCircle size={16}/><span>{counts.comment || 0}</span></button>
         <button onClick={() => onAction('repost', post)} className="group inline-flex items-center gap-1.5 hover:text-emerald-300"><Repeat2 size={16}/><span>{counts.repost || 0}</span></button>
@@ -297,7 +308,7 @@ export default function NetworkSocialModal({ network = 'testnet', onClose }) {
     const parent = targetPost;
     const imageUrl = composerImageUrl.trim();
     if (imageUrl && !/^https?:\/\//i.test(imageUrl)) { setNotice({ tone:'error', message:'Image attachments must use an http:// or https:// URL.' }); return; }
-    const anchoredContent = imageUrl ? `${text}\n${imageUrl}` : text;
+    const anchoredContent = imageUrl ? `${text}\nAEKO_IMAGE:${imageUrl}` : text;
     if (anchoredContent.length > 512) { setNotice({ tone:'error', message:'Post text plus the image URL must fit within the 512-character on-chain content limit.' }); return; }
     try {
       await sendBuilt(async (blockhash) => buildSignedAnchorPostTx({
