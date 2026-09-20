@@ -661,7 +661,7 @@ export default function NftDemo() {
         </div>
 
         <NftLiveFlow
-          rpcUrl={liveReadForm.rpcEndpoint}
+          rpcUrl={networkConfig.rpcUrl}
           explorerApiUrl={networkConfig.explorerApiUrl}
           onUseAccounts={({ collectionAddress, tokenAddress }) => {
             setLiveReadForm((current) => ({ ...current, collectionAddress, tokenAddress }));
