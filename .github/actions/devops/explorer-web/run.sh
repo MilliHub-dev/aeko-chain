@@ -3,6 +3,7 @@ set -euo pipefail
 
 VALIDATE_SOURCE="${VALIDATE_SOURCE:-true}"
 BUILD_IMAGE="${BUILD_IMAGE:-false}"
+HOST_BUILD="${HOST_BUILD:-true}"
 PUBLISH="${PUBLISH:-false}"
 REGISTRY_USER="${REGISTRY_USER:-}"
 : "${SHA_TAG:?SHA_TAG is required}"
@@ -163,7 +164,7 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
     npm test
   )
 
-  if [ "${BUILD_IMAGE}" != "true" ]; then
+  if [ "${HOST_BUILD}" = "true" ] && [ "${BUILD_IMAGE}" != "true" ]; then
     (
       cd apps/explorer/web
       npm run build
@@ -186,6 +187,8 @@ if [ "${BUILD_IMAGE}" = "true" ]; then
   docker buildx build \
     --file docker/Dockerfile \
     --target explorer-ui \
+    --cache-from "type=gha,scope=aeko-explorer-ui" \
+    --cache-to "type=gha,scope=aeko-explorer-ui,mode=max,ignore-error=true" \
     "${tags[@]}" \
     "${output[@]}" \
     .
