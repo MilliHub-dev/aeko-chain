@@ -12,8 +12,9 @@ const ENGAGEMENT = { like: 0, comment: 1, repost: 2, quote: 3, share: 4, save: 5
 
 function decode58(value) {
   if (!value) throw new Error('Missing base58 value.');
-  const bytes = [0];
-  for (const char of String(value).trim()) {
+  const input = String(value).trim();
+  const bytes = [];
+  for (const char of input) {
     const index = ALPHABET.indexOf(char);
     if (index < 0) throw new Error(`Invalid base58 character ${char}.`);
     let carry = index;
@@ -27,7 +28,7 @@ function decode58(value) {
       carry >>= 8;
     }
   }
-  for (let index = 0; index < value.length && value[index] === '1'; index += 1) bytes.push(0);
+  for (let index = 0; index < input.length && input[index] === '1'; index += 1) bytes.push(0);
   const decoded = Uint8Array.from(bytes.reverse());
   if (decoded.length !== 32) throw new Error(`Expected a 32-byte key, got ${decoded.length}.`);
   return decoded;
