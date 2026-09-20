@@ -45,7 +45,7 @@ function readShortVec(bytes, start) {
 }
 
 function messageHeader(base64) {
-  const bytes = Uint8Array.from(Buffer.from(base64, 'base64'));
+  const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
   const signatures = readShortVec(bytes, 0);
   const messageOffset = signatures.offset + signatures.value * 64;
   return Array.from(bytes.slice(messageOffset, messageOffset + 3));
