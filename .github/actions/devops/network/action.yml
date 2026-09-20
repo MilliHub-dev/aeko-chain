@@ -72,7 +72,34 @@ runs:
         fi
 
         mapfile -t changed_rust < <(
-          git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | grep -E '\\.rs
+          git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | grep -E '\.rs$' || true
+        )
+
+        if [ "${#changed_rust[@]}" -eq 0 ]; then
+          echo "No changed Rust files to format-check."
+          exit 0
+        fi
+
+        cargo fmt --all
+
+        format_failures=()
+        for file in "${changed_rust[@]}"; do
+          if [ -f "${file}" ] && ! git diff --quiet -- "${file}"; then
+            format_failures+=("${file}")
+          fi
+        done
+
+        if [ "${#format_failures[@]}" -gt 0 ]; then
+          echo "rustfmt changed Rust files touched by this change set:" >&2
+          printf '  %s\n' "${format_failures[@]}" >&2
+          git diff -- "${format_failures[@]}" >&2
+          git restore --worktree -- .
+          exit 1
+        fi
+
+        git restore --worktree -- .
+        echo "Changed Rust files are rustfmt-clean; unrelated legacy formatting debt was ignored."
+
     - name: Network binary type and target check
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
