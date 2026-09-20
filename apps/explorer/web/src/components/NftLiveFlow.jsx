@@ -222,6 +222,26 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
       const existingCollection = await getAccountInfo(rpcUrl, collectionAddress);
       const existingToken = await getAccountInfo(rpcUrl, tokenAddress);
 
+      if (existingCollection) {
+        if (!validateProgramOwner(existingCollection.owner).matches) {
+          throw new Error('The derived collection address exists but is not owned by the AEKO-721 program.');
+        }
+        const decodedCollection = decodeCollectionAccount(existingCollection.data[0]);
+        if (!decodedCollection.isInitialized || decodedCollection.authority !== authority) {
+          throw new Error('The derived collection account is not an initialized collection controlled by the selected wallet.');
+        }
+      }
+
+      if (existingToken) {
+        if (!validateProgramOwner(existingToken.owner).matches) {
+          throw new Error('The derived token address exists but is not owned by the AEKO-721 program.');
+        }
+        const decodedToken = decodeTokenAccount(existingToken.data[0]);
+        if (!decodedToken.isInitialized || decodedToken.collection !== collectionAddress) {
+          throw new Error('The derived token account does not belong to the selected AEKO-721 collection.');
+        }
+      }
+
       const metadata = {
         name: metadataName.trim(),
         description: 'Minted from the live AEKO-721 explorer workflow.',
