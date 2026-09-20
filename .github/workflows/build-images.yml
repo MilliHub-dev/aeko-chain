@@ -103,12 +103,15 @@ jobs:
 
       - name: Set up shared Docker Buildx
         if: >-
-          steps.changes.outputs.core == 'true' ||
-          steps.changes.outputs.packaging == 'true' ||
-          steps.changes.outputs.admin == 'true' ||
-          steps.changes.outputs.cli == 'true' ||
-          steps.changes.outputs.explorer_backend == 'true' ||
-          steps.changes.outputs.explorer_web == 'true'
+          steps.release.outputs.publish == 'true' &&
+          (
+            steps.changes.outputs.core == 'true' ||
+            steps.changes.outputs.packaging == 'true' ||
+            steps.changes.outputs.admin == 'true' ||
+            steps.changes.outputs.cli == 'true' ||
+            steps.changes.outputs.explorer_backend == 'true' ||
+            steps.changes.outputs.explorer_web == 'true'
+          )
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub once
@@ -129,7 +132,7 @@ jobs:
         uses: ./.github/actions/devops/admin
         with:
           validate-source: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          build-image: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          build-image: ${{ steps.release.outputs.publish == 'true' && (steps.changes.outputs.admin == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
@@ -156,7 +159,7 @@ jobs:
         uses: ./.github/actions/devops/cli
         with:
           validate-source: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          build-image: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          build-image: ${{ steps.release.outputs.publish == 'true' && (steps.changes.outputs.cli == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
@@ -168,7 +171,7 @@ jobs:
         uses: ./.github/actions/devops/explorer-backend
         with:
           validate-source: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          build-image: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          build-image: ${{ steps.release.outputs.publish == 'true' && (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
@@ -180,14 +183,16 @@ jobs:
         uses: ./.github/actions/devops/explorer-web
         with:
           validate-source: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true') && 'true' || 'false' }}
-          build-image: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          build-image: ${{ steps.release.outputs.publish == 'true' && (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
       - name: Validate/build full blockchain network
         id: network
-        if: steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true'
+        if: >-
+          (steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') &&
+          (github.event_name != 'pull_request' || steps.changes.outputs.core == 'true')
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/network
         with:
@@ -270,7 +275,13 @@ jobs:
           set -euo pipefail
           : "${WEBHOOK_URL:?WEBHOOK_URL secret is required}"
           : "${WEBHOOK_API_KEY:?WEBHOOK_API_KEY secret is required}"
+          # GitHub secrets can accidentally include a trailing CR/LF when copied.
+          # Coolify's deploy endpoint is POST-only; normalize only line endings,
+          # never echo either secret.
+          WEBHOOK_URL="$(printf '%s' "$WEBHOOK_URL" | tr -d '\r\n')"
+          WEBHOOK_API_KEY="$(printf '%s' "$WEBHOOK_API_KEY" | tr -d '\r\n')"
+
           curl --fail-with-body --silent --show-error \
-            --request GET \
+            --request POST \
             --header "Authorization: Bearer ${WEBHOOK_API_KEY}" \
             "$WEBHOOK_URL"
