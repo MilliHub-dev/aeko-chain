@@ -161,6 +161,27 @@ runs:
                 sdk_rust=true
                 sdk_release_rust=true
                 ;;
+              .github/actions/devops/admin/*)
+                admin=true
+                ;;
+              .github/actions/devops/cli/*)
+                cli=true
+                ;;
+              .github/actions/devops/explorer-backend/*)
+                explorer_backend=true
+                ;;
+              .github/actions/devops/explorer-web/*)
+                explorer_web=true
+                ;;
+              .github/actions/devops/network/*)
+                core=true
+                ;;
+              .github/actions/devops/detect-changes/*|.github/workflows/build-images.yml)
+                # The orchestrator is exercised by this very run. Keep the
+                # network gate selected without treating CI-only edits as
+                # container-packaging changes that rebuild every application.
+                core=true
+                ;;
               .github/actions/devops/sdk/*|.github/actions/devops/sdk-publish/*)
                 # CI implementation changes exercise every SDK without causing a
                 # registry release when the workflow later lands on main.
@@ -185,11 +206,10 @@ runs:
                     ;;
                 esac
                 ;;
-              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/validate-deployment-contract.py|.github/actions/devops/*|.github/workflows/build-images.yml)
-                # Packaging/deployment changes must prove every container target
-                # still builds, but they must not inherit unrelated source lint
-                # debt from SDK/app domains that did not change. SDK actions are
-                # handled by the earlier specialized rule before this catch-all.
+              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/validate-deployment-contract.py|.github/actions/devops/*)
+                # Real packaging/deployment changes must prove every container
+                # target still builds. Domain-specific CI actions are handled by
+                # the rules above so editing CI does not rebuild unrelated images.
                 packaging=true
                 ;;
               apps/README.md)
