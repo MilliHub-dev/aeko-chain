@@ -70,7 +70,10 @@ if [ "${BUILD_IMAGE}" = "true" ]; then
   if [ "${PUBLISH}" = "true" ]; then
     echo "Published immutable network images for ${SHA_TAG}."
   else
-    echo "Built the network image set locally for validation only; nothing was pushed."
+    for image in aeko-validator aeko-node aeko-faucet aeko-social-bootstrap; do
+      docker image inspect "aeko-ci/${image}:${SHA_TAG}" >/dev/null
+    done
+    echo "Built and verified the network image set locally; nothing was pushed."
   fi
 
 fi
