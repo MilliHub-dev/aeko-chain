@@ -290,8 +290,8 @@ function buildLegacyMessage({ payer, recentBlockhash, instructions }) {
 
   const header = Uint8Array.from([
     ordered.filter((meta) => meta.isSigner).length,
-    ordered.filter((meta) => !meta.isSigner && !meta.isWritable).length,
     ordered.filter((meta) => meta.isSigner && !meta.isWritable).length,
+    ordered.filter((meta) => !meta.isSigner && !meta.isWritable).length,
   ]);
 
   const compiledInstructions = instructions.map((instruction) =>
