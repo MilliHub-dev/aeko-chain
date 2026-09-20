@@ -9,7 +9,7 @@ import {
   estimateTokenAccountSpace,
 } from './nftTransactionBuilder';
 import { fetchMinimumBalanceForRentExemption } from './nftAccountDecoder';
-import { fetchNftsForCreator } from './testConsoleApi';
+import { fetchConsoleApi } from './testConsoleApi';
 
 async function digestHex(value) {
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)));
@@ -80,10 +80,13 @@ export async function mintSocialPostAsNft({ rpcUrl, explorerApiUrl, wallet, post
 
   let indexed = null;
   for (let attempt = 0; attempt < 30; attempt += 1) {
-    // eslint-disable-next-line no-await-in-loop
-    const nfts = await fetchNftsForCreator(explorerApiUrl, wallet.address, 100).catch(() => []);
-    indexed = nfts.find((nft) => nft.tokenId === tokenAddress) || null;
-    if (indexed) break;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      indexed = await fetchConsoleApi(explorerApiUrl, `/nfts/${encodeURIComponent(tokenAddress)}`);
+      if (indexed) break;
+    } catch (indexError) {
+      if (indexError?.status !== 404) throw indexError;
+    }
     // eslint-disable-next-line no-await-in-loop
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
