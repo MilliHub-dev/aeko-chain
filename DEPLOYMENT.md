@@ -80,7 +80,7 @@ The optional portable/local RPC replica keeps its own identity and ledger when t
 
 ```text
 AEKO_PUBLIC_IP=<deployment host public IP>
-AEKO_KEYS_DIR=<absolute persistent host directory, e.g. /data/aeko/keys>
+AEKO_KEYS_DIR=<Dokploy/local persistent host directory; Coolify uses fixed /data/aeko/keys>
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
@@ -99,7 +99,7 @@ AEKO_PLATFORM_FEE_BPS=200
 
 ## Required key files
 
-The public deployment `AEKO_KEYS_DIR` must contain:
+The public key directory must contain the same four files on every platform. Dokploy/local select it with `AEKO_KEYS_DIR`; Coolify binds the fixed host path `/data/aeko/keys`:
 
 ```text
 validator-1-keypair.json
@@ -120,7 +120,7 @@ docker run --rm \
 
 Keep key files in persistent restricted storage. Do not rely on keys living inside an AutoDeploy Git checkout and never commit them.
 
-Public `key-preflight` uses exit `64` when one of these files is missing/empty/not a regular file and exit `65` when a file exists but is not a parseable AEKO keypair. On Coolify, an exit-64 path such as `/keys/faucet-keypair.json` means the Compose bind mount was accepted but the absolute host directory selected by `AEKO_KEYS_DIR` does not contain the required file.
+Public `key-preflight` uses exit `64` when one of these files is missing/empty/not a regular file and exit `65` when a file exists but is not a parseable AEKO keypair. On Coolify, an exit-64 path such as `/keys/faucet-keypair.json` means the literal `/data/aeko/keys` bind mount was accepted but that host directory does not contain the required file.
 
 ## SocialFi bootstrap lifecycle
 
@@ -224,19 +224,18 @@ Create a Git-based **Docker Compose** application pointed at this repository/bra
 Compose Path: ./docker/compose.coolify.yml
 ```
 
-The Coolify contract uses the same published AEKO images and public service topology as Dokploy. The difference is storage syntax: key directories use long-form bind mounts with the simple `${AEKO_KEYS_DIR}` source, and the validator ledger defaults to the Docker-managed `validator-ledger` volume. This avoids platform storage parsing failures caused by required/error or fallback interpolation inside a volume source.
+The Coolify contract uses the same published AEKO images and public service topology as Dokploy. The difference is storage syntax: key directories use long-form bind mounts with the literal host source `/data/aeko/keys`, and the validator ledger defaults to the Docker-managed `validator-ledger` volume. The Coolify deployment contract intentionally contains no `${...}` interpolation in volume sources.
 
 Set these Coolify variables without surrounding shell quotes:
 
 ```text
 AEKO_PUBLIC_IP=<Coolify host public IP>
-AEKO_KEYS_DIR=/data/aeko/keys
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
 ```
 
-Create the `AEKO_KEYS_DIR` directory on the deployment host before the first deploy and place the four required keypair files there. Coolify's Compose definition remains the source of truth for the `validator-ledger` and `social-state` named volumes. The full variable set is in `docker/env.public.example`.
+Create `/data/aeko/keys` on the deployment host before the first deploy and place the four required keypair files there. Coolify's Compose definition remains the source of truth for the `validator-ledger` and `social-state` named volumes. The full variable set is in `docker/env.public.example`.
 
 Configure domains to the same internal services:
 
