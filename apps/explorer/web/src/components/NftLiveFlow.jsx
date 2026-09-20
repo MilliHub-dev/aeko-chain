@@ -80,11 +80,10 @@ async function readLiveState(rpcUrl, collectionAddress, tokenAddress) {
   };
 }
 
-async function waitForIndexedNft(explorerApiUrl, tokenAddress, accept = () => true) {
+async function waitForIndexedNft(explorerApiUrl, tokenAddress, accept = (nft) => Boolean(nft)) {
   if (!explorerApiUrl || !tokenAddress) return null;
   for (let attempt = 0; attempt < INDEX_ATTEMPTS; attempt += 1) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       const nft = await fetchConsoleApi(explorerApiUrl, `/nfts/${encodeURIComponent(tokenAddress)}`);
       if (nft && accept(nft)) return nft;
     } catch (indexError) {
