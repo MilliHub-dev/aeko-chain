@@ -15,8 +15,8 @@ Coolify does not build the AEKO Rust or web applications from source. It pulls t
 The default public services are:
 
 ```text
-faucet -> validator -> social-bootstrap
-                 |-> explorer-api
+key-bootstrap (one shot) -> faucet -> validator -> social-bootstrap
+                                      |-> explorer-api
 explorer-ui (independent liveness)
 ```
 
@@ -39,7 +39,9 @@ Do not wrap Coolify environment values in shell quotes. The key directory is not
 
 ## Persistent keys
 
-The fixed Coolify host directory `/data/aeko/keys` must exist before deployment. It must contain:
+Coolify uses the fixed host directory `/data/aeko/keys`. The Compose stack now includes a one-shot `key-bootstrap` service that creates this directory through the bind mount and generates only keypairs that are missing. Existing non-empty keypair files are preserved and validated rather than replaced.
+
+After first successful deployment, the persistent directory contains:
 
 ```text
 validator-1-keypair.json
@@ -48,13 +50,7 @@ stake-keypair.json
 faucet-keypair.json
 ```
 
-For example:
-
-```bash
-sudo install -d -m 700 /data/aeko/keys
-```
-
-If this Coolify deployment is replacing an existing Dokploy/AEKO deployment, copy the **same four existing keypairs** into this directory. Replacing them changes validator/faucet identity and can make the persisted ledger unusable for the intended chain. Generate new keys only when intentionally creating a fresh chain identity.
+You do not need to set `AEKO_KEYS_DIR` in the Coolify dashboard and you do not need to generate these files manually for a fresh chain. If this Coolify deployment is replacing an existing Dokploy/AEKO deployment, copy the **same four existing keypairs** into this directory before deploying so the bootstrap preserves them. Replacing them changes validator/faucet identity and can make the persisted ledger unusable for the intended chain. Generate new keys only when intentionally creating a fresh chain identity.
 
 Before deploying, verify the directory on the **Coolify deployment server**:
 
