@@ -11,8 +11,10 @@
 # validator root disk. The validator ledger uses a Docker-managed named volume
 # by default. Coolify validates storage before containers start and rejects
 # interpolated bind-source paths in this deployment environment, so persistent
-# validator keys use the literal host path /data/aeko/keys. Environment
-# interpolation remains limited to non-volume configuration fields.
+# chain keys use a Docker-managed named volume initialized once by key-init.
+# This avoids host bind-path assumptions while preserving identities across
+# normal Coolify redeploys. Environment interpolation remains limited to
+# non-volume configuration fields.
 
 x-logging: &default-logging
   driver: json-file
@@ -21,18 +23,29 @@ x-logging: &default-logging
     max-file: ${AEKO_LOG_MAX_FILES:-3}
 
 services:
+  key-init:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: "no"
+    entrypoint: ["/usr/local/bin/aeko-key-init"]
+    volumes:
+      - aeko-keys:/keys
+      - validator-ledger:/ledger:ro
+    logging: *default-logging
+    networks: [aeko]
+
   faucet:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-faucet:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
     restart: unless-stopped
     volumes:
-      - type: bind
-        source: /data/aeko/keys
-        target: /keys
-        read_only: true
+      - aeko-keys:/keys:ro
     command:
       - --keypair
       - /keys/faucet-keypair.json
+    depends_on:
+      key-init:
+        condition: service_completed_successfully
     expose:
       - "9900"
     logging: *default-logging
@@ -79,11 +92,10 @@ services:
       - "8900"
     volumes:
       - validator-ledger:/ledger
-      - type: bind
-        source: /data/aeko/keys
-        target: /keys
-        read_only: true
+      - aeko-keys:/keys:ro
     depends_on:
+      key-init:
+        condition: service_completed_successfully
       faucet:
         condition: service_started
     healthcheck:
@@ -118,10 +130,7 @@ services:
       AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS: ${AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS:-0}
       AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-200}
     volumes:
-      - type: bind
-        source: /data/aeko/keys
-        target: /keys
-        read_only: true
+      - aeko-keys:/keys:ro
       - social-state:/state
     depends_on:
       validator:
@@ -205,9 +214,7 @@ services:
     pull_policy: always
     command: ["aeko", "--help"]
     volumes:
-      - type: bind
-        source: /data/aeko/keys
-        target: /keys
+      - aeko-keys:/keys
     logging: *default-logging
     networks: [aeko]
 
@@ -216,5 +223,6 @@ networks:
     driver: bridge
 
 volumes:
+  aeko-keys:
   validator-ledger:
   social-state:
