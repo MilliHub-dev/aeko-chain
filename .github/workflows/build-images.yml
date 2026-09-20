@@ -124,59 +124,45 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Explorer Web and the full network are independent workloads once shared
-      # runner setup is complete. Keep one job/VM/checkout/Docker daemon/cache,
-      # but execute these two expensive domains as concurrent child processes.
-      # Network preflight stays serial because its rustfmt compatibility gate
-      # temporarily edits/restores the worktree before parallel readers start.
-      - name: Run network preflight before concurrent workloads
-        id: network_preflight
+      # Phase 2: lightweight/independent validation. These processes share the
+      # same checkout and tool/cache environment but do not contend on a Cargo
+      # build graph. Network formatting uses a detached temporary worktree, so
+      # it never mutates the primary checkout while the other readers execute.
+      - name: Parallel independent validation
+        id: parallel_validation
         if: >-
-          steps.changes.outputs.core == 'true' ||
-          steps.changes.outputs.packaging == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
-        shell: bash
-        env:
-          VALIDATE_SOURCE: ${{ steps.changes.outputs.core }}
-          PUBLISH: ${{ steps.release.outputs.publish }}
-        run: bash .github/actions/devops/network/preflight.sh
-
-      - name: Validate/build Explorer frontend and blockchain network concurrently
-        id: parallel_domains
-        if: >-
+          steps.changes.outputs.admin == 'true' ||
           steps.changes.outputs.explorer_web == 'true' ||
+          steps.changes.outputs.sdk_js == 'true' ||
+          steps.changes.outputs.sdk_node == 'true' ||
+          steps.changes.outputs.sdk_python == 'true' ||
           steps.changes.outputs.core == 'true' ||
           steps.changes.outputs.packaging == 'true'
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         shell: bash
         env:
-          RUN_EXPLORER_WEB: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
-          RUN_NETWORK: ${{ (steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
-          EXPLORER_VALIDATE_SOURCE: ${{ steps.changes.outputs.explorer_web }}
-          EXPLORER_BUILD_IMAGE: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
+          RUN_ADMIN: ${{ steps.changes.outputs.admin }}
+          RUN_EXPLORER_WEB: ${{ steps.changes.outputs.explorer_web }}
+          SDK_JS: ${{ steps.changes.outputs.sdk_js }}
+          SDK_NODE: ${{ steps.changes.outputs.sdk_node }}
+          SDK_PYTHON: ${{ steps.changes.outputs.sdk_python }}
+          RELEASE_JS: ${{ steps.changes.outputs.sdk_release_js }}
+          RELEASE_NODE: ${{ steps.changes.outputs.sdk_release_node }}
+          RELEASE_PYTHON: ${{ steps.changes.outputs.sdk_release_python }}
+          RUN_NETWORK_PREFLIGHT: ${{ (steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
           NETWORK_VALIDATE_SOURCE: ${{ steps.changes.outputs.core }}
-          NETWORK_PREFLIGHT_OUTCOME: ${{ steps.network_preflight.outcome }}
-          PUBLISH: ${{ steps.release.outputs.publish }}
-          REGISTRY_USER: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           SHA_TAG: ${{ steps.release.outputs.sha_tag }}
         run: |
           set -uo pipefail
 
-          explorer_pid=""
-          network_pid=""
-          explorer_outcome="skipped"
-          network_outcome="skipped"
-
-          cleanup() {
-            if [ -n "$explorer_pid" ]; then
-              kill "$explorer_pid" 2>/dev/null || true
-            fi
-            if [ -n "$network_pid" ]; then
-              kill "$network_pid" 2>/dev/null || true
-            fi
-          }
-          trap 'cleanup; exit 130' INT
-          trap 'cleanup; exit 143' TERM
+          admin_outcome="skipped"
+          explorer_web_outcome="skipped"
+          sdk_js_outcome="skipped"
+          sdk_node_outcome="skipped"
+          sdk_python_outcome="skipped"
+          network_preflight_outcome="skipped"
+          sdk_non_rust_outcome="skipped"
+          declare -A pids=()
 
           status_to_outcome() {
             case "$1" in
@@ -186,156 +172,298 @@ jobs:
             esac
           }
 
-          if [ "$RUN_EXPLORER_WEB" = "true" ]; then
-            echo "Launching Explorer Web on the shared runner."
+          launch() {
+            local key="$1"
+            shift
+            echo "Launching ${key} validation on the shared runner."
             (
-              export VALIDATE_SOURCE="$EXPLORER_VALIDATE_SOURCE"
-              export BUILD_IMAGE="$EXPLORER_BUILD_IMAGE"
-              export PUBLISH REGISTRY_USER SHA_TAG
-              bash .github/actions/devops/explorer-web/run.sh
-            ) > >(sed -u 's/^/[explorer-web] /') 2> >(sed -u 's/^/[explorer-web] /' >&2) &
-            explorer_pid=$!
+              "$@"
+            ) > >(sed -u "s/^/[${key}] /") 2> >(sed -u "s/^/[${key}] /" >&2) &
+            pids["$key"]=$!
+          }
+
+          cleanup() {
+            local pid
+            for pid in "${pids[@]:-}"; do
+              kill "$pid" 2>/dev/null || true
+            done
+          }
+          trap 'cleanup; exit 130' INT
+          trap 'cleanup; exit 143' TERM
+
+          sdk_result="${RUNNER_TEMP}/aeko-sdk-non-rust-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.out"
+          rm -f "$sdk_result"
+
+          if [ "$RUN_ADMIN" = "true" ]; then
+            launch admin env HOST_BUILD=false bash .github/actions/devops/admin/validate.sh
           fi
 
-          if [ "$RUN_NETWORK" = "true" ]; then
-            if [ "$NETWORK_PREFLIGHT_OUTCOME" = "success" ]; then
-              echo "Launching blockchain network validation/build on the shared runner."
-              (
-                export VALIDATE_SOURCE="$NETWORK_VALIDATE_SOURCE"
-                export PUBLISH REGISTRY_USER SHA_TAG
-                bash .github/actions/devops/network/run.sh
-              ) > >(sed -u 's/^/[network] /') 2> >(sed -u 's/^/[network] /' >&2) &
-              network_pid=$!
-            else
-              case "$NETWORK_PREFLIGHT_OUTCOME" in
-                cancelled) network_outcome="cancelled" ;;
-                *) network_outcome="failure" ;;
-              esac
-              echo "[network] workload not launched because preflight outcome was $NETWORK_PREFLIGHT_OUTCOME." >&2
+          if [ "$RUN_EXPLORER_WEB" = "true" ]; then
+            launch explorer-web env               VALIDATE_SOURCE=true               HOST_BUILD=false               BUILD_IMAGE=false               PUBLISH=false               SHA_TAG="$SHA_TAG"               bash .github/actions/devops/explorer-web/run.sh
+          fi
+
+          if [ "$SDK_JS" = "true" ] || [ "$SDK_NODE" = "true" ] || [ "$SDK_PYTHON" = "true" ]; then
+            launch sdk-non-rust env               SDK_JS="$SDK_JS"               SDK_NODE="$SDK_NODE"               SDK_PYTHON="$SDK_PYTHON"               RELEASE_JS="$RELEASE_JS"               RELEASE_NODE="$RELEASE_NODE"               RELEASE_PYTHON="$RELEASE_PYTHON"               RESULT_FILE="$sdk_result"               bash .github/actions/devops/sdk/validate-non-rust.sh
+          fi
+
+          if [ "$RUN_NETWORK_PREFLIGHT" = "true" ]; then
+            launch network-preflight env               VALIDATE_SOURCE="$NETWORK_VALIDATE_SOURCE"               PUBLISH=false               bash .github/actions/devops/network/preflight.sh
+          fi
+
+          wait_child() {
+            local key="$1"
+            local variable="$2"
+            local status outcome
+            if [ -z "${pids[$key]+x}" ]; then
+              return 0
             fi
+            wait "${pids[$key]}"
+            status=$?
+            outcome="$(status_to_outcome "$status")"
+            printf -v "$variable" '%s' "$outcome"
+          }
+
+          wait_child admin admin_outcome
+          wait_child explorer-web explorer_web_outcome
+          wait_child sdk-non-rust sdk_non_rust_outcome
+          wait_child network-preflight network_preflight_outcome
+
+          if [ -f "$sdk_result" ]; then
+            # The SDK runner writes only fixed outcome keys.
+            # shellcheck disable=SC1090
+            source "$sdk_result"
+          elif [ "$sdk_non_rust_outcome" != "skipped" ]; then
+            [ "$SDK_JS" = "true" ] && sdk_js_outcome="$sdk_non_rust_outcome"
+            [ "$SDK_NODE" = "true" ] && sdk_node_outcome="$sdk_non_rust_outcome"
+            [ "$SDK_PYTHON" = "true" ] && sdk_python_outcome="$sdk_non_rust_outcome"
           fi
+          rm -f "$sdk_result"
 
-          if [ -n "$explorer_pid" ]; then
-            wait "$explorer_pid"
-            explorer_status=$?
-            explorer_outcome="$(status_to_outcome "$explorer_status")"
-          fi
+          {
+            echo "admin_outcome=$admin_outcome"
+            echo "explorer_web_outcome=$explorer_web_outcome"
+            echo "sdk_js_outcome=$sdk_js_outcome"
+            echo "sdk_node_outcome=$sdk_node_outcome"
+            echo "sdk_python_outcome=$sdk_python_outcome"
+            echo "network_preflight_outcome=$network_preflight_outcome"
+          } >> "$GITHUB_OUTPUT"
 
-          if [ -n "$network_pid" ]; then
-            wait "$network_pid"
-            network_status=$?
-            network_outcome="$(status_to_outcome "$network_status")"
-          fi
+          printf 'Parallel validation outcomes: admin=%s web=%s sdk-js=%s sdk-node=%s sdk-python=%s network-preflight=%s\n'             "$admin_outcome" "$explorer_web_outcome" "$sdk_js_outcome"             "$sdk_node_outcome" "$sdk_python_outcome" "$network_preflight_outcome"
 
-          echo "explorer_web_outcome=$explorer_outcome" >> "$GITHUB_OUTPUT"
-          echo "network_outcome=$network_outcome" >> "$GITHUB_OUTPUT"
-          printf 'Concurrent domain outcomes: explorer-web=%s network=%s\n' "$explorer_outcome" "$network_outcome"
-
-          case "$explorer_outcome:$network_outcome" in
+          case "$admin_outcome:$explorer_web_outcome:$sdk_js_outcome:$sdk_node_outcome:$sdk_python_outcome:$network_preflight_outcome" in
             *failure*|*cancelled*) exit 1 ;;
           esac
 
-      # Other selected domains remain ordinary composite actions on this same
-      # runner and execute after the concurrent web/network pair completes.
-      - name: Validate/build admin application
-        id: admin
-        if: steps.changes.outputs.admin == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
-        uses: ./.github/actions/devops/admin
-        with:
-          validate-source: ${{ steps.changes.outputs.admin == 'true' && 'true' || 'false' }}
-          build-image: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
-          publish: ${{ steps.release.outputs.publish }}
-          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
-          sha-tag: ${{ steps.release.outputs.sha_tag }}
-
-      - name: Validate selected external SDKs
-        id: sdk
-        if: steps.changes.outputs.sdk_any == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
-        uses: ./.github/actions/devops/sdk
-        with:
-          js: ${{ steps.changes.outputs.sdk_js == 'true' && 'true' || 'false' }}
-          node: ${{ steps.changes.outputs.sdk_node == 'true' && 'true' || 'false' }}
-          python: ${{ steps.changes.outputs.sdk_python == 'true' && 'true' || 'false' }}
-          rust: ${{ steps.changes.outputs.sdk_rust == 'true' && 'true' || 'false' }}
-          release-js: ${{ steps.changes.outputs.sdk_release_js }}
-          release-node: ${{ steps.changes.outputs.sdk_release_node }}
-          release-python: ${{ steps.changes.outputs.sdk_release_python }}
-          release-rust: ${{ steps.changes.outputs.sdk_release_rust }}
-
-      - name: Validate/build CLI and tools
-        id: cli
-        if: steps.changes.outputs.cli == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')
+      # Phase 3: Rust-heavy validation. GitHub steps inside one job are
+      # sequential, intentionally enforcing a concurrency limit of one large
+      # Cargo graph at a time while preserving the shared sccache/target state.
+      - name: Validate CLI Rust workload
+        id: cli_validation
+        if: steps.changes.outputs.cli == 'true'
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/cli
         with:
-          validate-source: ${{ steps.changes.outputs.cli == 'true' && 'true' || 'false' }}
-          build-image: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
-          publish: ${{ steps.release.outputs.publish }}
-          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          validate-source: "true"
+          host-build: "false"
+          build-image: "false"
+          publish: "false"
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
-      - name: Validate/build Explorer backend
-        id: explorer_backend
-        if: steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')
+      - name: Validate Explorer backend Rust workload
+        id: explorer_backend_validation
+        if: steps.changes.outputs.explorer_backend == 'true'
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/devops/explorer-backend
         with:
-          validate-source: ${{ steps.changes.outputs.explorer_backend == 'true' && 'true' || 'false' }}
-          build-image: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
+          validate-source: "true"
+          host-build: "false"
+          build-image: "false"
+          publish: "false"
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Validate Rust SDK workload
+        id: sdk_rust_validation
+        if: steps.changes.outputs.sdk_rust == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/sdk
+        with:
+          js: "false"
+          node: "false"
+          python: "false"
+          rust: "true"
+          release-js: "false"
+          release-node: "false"
+          release-python: "false"
+          release-rust: ${{ steps.changes.outputs.sdk_release_rust }}
+
+      - name: Validate blockchain network Rust workload
+        id: network_validation
+        if: steps.changes.outputs.core == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/network
+        with:
+          run-preflight: "false"
+          validate-source: "true"
+          build-image: "false"
+          publish: "false"
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      # Phase 4: image builds are isolated from source validation and run only
+      # for selected deployable domains. Each image has a stable GHA BuildKit
+      # cache scope, so fresh hosted runners can import/export compiler/layer
+      # cache rather than relying only on ephemeral local BuildKit mounts.
+      - name: Build selected network images
+        id: network_image
+        if: >-
+          (github.event_name == 'pull_request' || success()) &&
+          (steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') &&
+          steps.parallel_validation.outputs.network_preflight_outcome == 'success' &&
+          (steps.changes.outputs.core != 'true' || steps.network_validation.outcome == 'success')
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/network
+        with:
+          run-preflight: "false"
+          validate-source: "false"
+          build-image: "true"
           publish: ${{ steps.release.outputs.publish }}
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
+      - name: Build selected CLI image
+        id: cli_image
+        if: >-
+          (github.event_name == 'pull_request' || success()) &&
+          (steps.changes.outputs.cli == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) &&
+          (steps.changes.outputs.cli != 'true' || steps.cli_validation.outcome == 'success')
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/cli
+        with:
+          validate-source: "false"
+          host-build: "false"
+          build-image: "true"
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Build selected Explorer backend image
+        id: explorer_backend_image
+        if: >-
+          (github.event_name == 'pull_request' || success()) &&
+          (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) &&
+          (steps.changes.outputs.explorer_backend != 'true' || steps.explorer_backend_validation.outcome == 'success')
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/explorer-backend
+        with:
+          validate-source: "false"
+          host-build: "false"
+          build-image: "true"
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Build selected Explorer frontend image
+        id: explorer_web_image
+        if: >-
+          (github.event_name == 'pull_request' || success()) &&
+          (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) &&
+          (steps.changes.outputs.explorer_web != 'true' || steps.parallel_validation.outputs.explorer_web_outcome == 'success')
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/explorer-web
+        with:
+          validate-source: "false"
+          build-image: "true"
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Build selected admin image
+        id: admin_image
+        if: >-
+          (github.event_name == 'pull_request' || success()) &&
+          (steps.changes.outputs.admin == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) &&
+          (steps.changes.outputs.admin != 'true' || steps.parallel_validation.outputs.admin_outcome == 'success')
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/admin
+        with:
+          validate-source: "false"
+          build-image: "true"
+          publish: ${{ steps.release.outputs.publish }}
+          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      # Phase 5: report the actual domain and phase that failed. PR domain
+      # steps use continue-on-error so independent selected domains still run.
       - name: Aggregate pull-request validation results
         if: ${{ always() && github.event_name == 'pull_request' }}
         shell: bash
         env:
-          ADMIN_OUTCOME: ${{ steps.admin.outcome }}
-          SDK_OUTCOME: ${{ steps.sdk.outcome }}
-          CLI_OUTCOME: ${{ steps.cli.outcome }}
-          EXPLORER_BACKEND_OUTCOME: ${{ steps.explorer_backend.outcome }}
-          EXPLORER_WEB_OUTCOME: ${{ steps.parallel_domains.outputs.explorer_web_outcome }}
-          NETWORK_OUTCOME: ${{ steps.parallel_domains.outputs.network_outcome }}
-          PARALLEL_OUTCOME: ${{ steps.parallel_domains.outcome }}
+          PARALLEL_OUTCOME: ${{ steps.parallel_validation.outcome }}
+          ADMIN_VALIDATION: ${{ steps.parallel_validation.outputs.admin_outcome }}
+          EXPLORER_WEB_VALIDATION: ${{ steps.parallel_validation.outputs.explorer_web_outcome }}
+          SDK_JS_VALIDATION: ${{ steps.parallel_validation.outputs.sdk_js_outcome }}
+          SDK_NODE_VALIDATION: ${{ steps.parallel_validation.outputs.sdk_node_outcome }}
+          SDK_PYTHON_VALIDATION: ${{ steps.parallel_validation.outputs.sdk_python_outcome }}
+          NETWORK_PREFLIGHT: ${{ steps.parallel_validation.outputs.network_preflight_outcome }}
+          CLI_VALIDATION: ${{ steps.cli_validation.outcome }}
+          EXPLORER_BACKEND_VALIDATION: ${{ steps.explorer_backend_validation.outcome }}
+          SDK_RUST_VALIDATION: ${{ steps.sdk_rust_validation.outcome }}
+          NETWORK_VALIDATION: ${{ steps.network_validation.outcome }}
+          NETWORK_IMAGE: ${{ steps.network_image.outcome }}
+          CLI_IMAGE: ${{ steps.cli_image.outcome }}
+          EXPLORER_BACKEND_IMAGE: ${{ steps.explorer_backend_image.outcome }}
+          EXPLORER_WEB_IMAGE: ${{ steps.explorer_web_image.outcome }}
+          ADMIN_IMAGE: ${{ steps.admin_image.outcome }}
         run: |
           set -euo pipefail
           failures=()
+
           record_failure() {
-            local domain="$1"
+            local label="$1"
             local outcome="$2"
             case "$outcome" in
               failure|cancelled)
-                failures+=("${domain}:${outcome}")
+                failures+=("${label}:${outcome}")
                 ;;
             esac
           }
 
-          record_failure admin "$ADMIN_OUTCOME"
-          record_failure sdk "$SDK_OUTCOME"
-          record_failure cli "$CLI_OUTCOME"
-          record_failure explorer-backend "$EXPLORER_BACKEND_OUTCOME"
-          record_failure explorer-web "$EXPLORER_WEB_OUTCOME"
-          record_failure network "$NETWORK_OUTCOME"
+          record_failure "admin:validation" "$ADMIN_VALIDATION"
+          record_failure "explorer-web:validation" "$EXPLORER_WEB_VALIDATION"
+          record_failure "sdk-js:validation" "$SDK_JS_VALIDATION"
+          record_failure "sdk-node:validation" "$SDK_NODE_VALIDATION"
+          record_failure "sdk-python:validation" "$SDK_PYTHON_VALIDATION"
+          record_failure "network:preflight" "$NETWORK_PREFLIGHT"
+          record_failure "cli:rust-validation" "$CLI_VALIDATION"
+          record_failure "explorer-backend:rust-validation" "$EXPLORER_BACKEND_VALIDATION"
+          record_failure "sdk-rust:validation" "$SDK_RUST_VALIDATION"
+          record_failure "network:rust-validation" "$NETWORK_VALIDATION"
+          record_failure "network:image" "$NETWORK_IMAGE"
+          record_failure "cli:image" "$CLI_IMAGE"
+          record_failure "explorer-backend:image" "$EXPLORER_BACKEND_IMAGE"
+          record_failure "explorer-web:image" "$EXPLORER_WEB_IMAGE"
+          record_failure "admin:image" "$ADMIN_IMAGE"
 
-          # A selected child normally records its own failure. If the parent
-          # orchestration step itself failed before producing a child outcome,
-          # fail closed rather than allowing an empty output to mask the error.
+          # Fail closed if the parallel orchestrator itself died before it could
+          # emit a concrete child result.
           if [ "$PARALLEL_OUTCOME" = "failure" ] || [ "$PARALLEL_OUTCOME" = "cancelled" ]; then
-            if [ "$EXPLORER_WEB_OUTCOME" != "failure" ] && [ "$EXPLORER_WEB_OUTCOME" != "cancelled" ] &&
-               [ "$NETWORK_OUTCOME" != "failure" ] && [ "$NETWORK_OUTCOME" != "cancelled" ]; then
-              failures+=("parallel-domains:${PARALLEL_OUTCOME}")
+            concrete_failure=false
+            for outcome in               "$ADMIN_VALIDATION" "$EXPLORER_WEB_VALIDATION" "$SDK_JS_VALIDATION"               "$SDK_NODE_VALIDATION" "$SDK_PYTHON_VALIDATION" "$NETWORK_PREFLIGHT"; do
+              case "$outcome" in
+                failure|cancelled) concrete_failure=true ;;
+              esac
+            done
+            if [ "$concrete_failure" != "true" ]; then
+              failures+=("parallel-validation:${PARALLEL_OUTCOME}")
             fi
           fi
 
           if [ "${#failures[@]}" -gt 0 ]; then
-            printf 'One or more PR domains failed after all selected domains were exercised:\n' >&2
+            printf 'One or more selected PR domains failed:\n' >&2
             printf '  %s\n' "${failures[@]}" >&2
             exit 1
           fi
 
-          echo "All selected PR domains passed."
+          echo "All selected PR domains and image gates passed."
 
       # Package registries are irreversible release channels, so publish SDKs
       # only after every selected validation/build succeeds.
