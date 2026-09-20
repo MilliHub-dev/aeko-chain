@@ -71,9 +71,6 @@ outputs:
   ci_pipeline:
     description: DevOps workflow/action implementation changed without implying product source changed.
     value: ${{ steps.classify.outputs.ci_pipeline }}
-  full_validation:
-    description: Full validation-only execution was explicitly requested; publishing and deployment must stay disabled.
-    value: ${{ steps.classify.outputs.full_validation }}
 
 runs:
   using: composite
@@ -99,7 +96,6 @@ runs:
         sdk_release_rust=false
         unmapped_app=false
         ci_pipeline=false
-        full_validation=false
 
         mark_all_apps() {
           admin=true
@@ -113,9 +109,8 @@ runs:
         }
 
         if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
-          # Manual runs are exhaustive validation-only executions. They exercise
-          # every source/image domain but never publish or deploy.
-          full_validation=true
+          # Manual main runs validate the complete release surface, but do not
+          # republish SDK package versions that did not change.
           core=true
           mark_all_apps
         else
@@ -140,7 +135,7 @@ runs:
               apps/admin/*)
                 admin=true
                 ;;
-              apps/cli/*|keygen/*|install/aeko-cli-install.sh)
+              apps/cli/*)
                 cli=true
                 ;;
               apps/explorer/backend/*)
@@ -213,20 +208,6 @@ runs:
                 ;;
             esac
           done
-
-          # A [full-ci] marker on a non-PR commit provides a connector/CLI-friendly
-          # way to exercise the complete one-runner pipeline without publishing.
-          # This is intentionally validation-only; release mode consumes the
-          # full_validation output below and keeps registries/deployment disabled.
-          if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
-            head_message=$(git log -1 --format=%B "${HEAD_SHA}")
-            if grep -Fq '[full-ci]' <<<"${head_message}"; then
-              full_validation=true
-              core=true
-              mark_all_apps
-              echo "Full validation requested by [full-ci] commit marker."
-            fi
-          fi
         fi
 
         sdk_any=false
@@ -288,10 +269,9 @@ runs:
           echo "deployable=$deployable"
           echo "unmapped_app=$unmapped_app"
           echo "ci_pipeline=$ci_pipeline"
-          echo "full_validation=$full_validation"
         } >> "$GITHUB_OUTPUT"
 
-        printf 'Selection: core=%s packaging=%s admin=%s cli=%s backend=%s web=%s sdk(js=%s,node=%s,python=%s,rust=%s) sdk-release(js=%s,node=%s,python=%s,rust=%s) ci-pipeline=%s full-validation=%s unmapped=%s\n' \
+        printf 'Selection: core=%s packaging=%s admin=%s cli=%s backend=%s web=%s sdk(js=%s,node=%s,python=%s,rust=%s) sdk-release(js=%s,node=%s,python=%s,rust=%s) ci-pipeline=%s unmapped=%s\n' \
           "$core" "$packaging" "$admin" "$cli" "$explorer_backend" "$explorer_web" \
           "$sdk_js" "$sdk_node" "$sdk_python" "$sdk_rust" \
-          "$sdk_release_js" "$sdk_release_node" "$sdk_release_python" "$sdk_release_rust" "$ci_pipeline" "$full_validation" "$unmapped_app"
+          "$sdk_release_js" "$sdk_release_node" "$sdk_release_python" "$sdk_release_rust" "$ci_pipeline" "$unmapped_app"
