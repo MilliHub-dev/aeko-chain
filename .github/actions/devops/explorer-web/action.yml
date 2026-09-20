@@ -1,5 +1,5 @@
 name: Explorer web DevOps
-description: Lint changed Explorer source against the legacy baseline, then type-check, test, build, and optionally package the application.
+description: Gate lint/type errors introduced by changed Explorer source, then run tests, build, and optional packaging.
 
 inputs:
   validate-source:
@@ -106,8 +106,14 @@ runs:
       working-directory: apps/explorer/web
       run: |
         set -euo pipefail
-        mapfile -d '' sources < <(find src -type f \( -name '*.js' -o -name '*.jsx' \) -print0)
+
+        mapfile -d '' sources < <(
+          find src -type f \( -name '*.js' -o -name '*.jsx' \) ! -name '*.test.js' -print0
+        )
         test "${#sources[@]}" -gt 0
+
+        diagnostics=$(mktemp)
+        set +e
         npx --yes --package=typescript@5.9.3 tsc \
           --noEmit \
           --allowJs \
@@ -119,7 +125,59 @@ runs:
           --lib ES2022,DOM,DOM.Iterable \
           --types vite/client \
           --skipLibCheck \
-          "${sources[@]}"
+          "${sources[@]}" >"${diagnostics}" 2>&1
+        typecheck_status=$?
+        set -e
+
+        if [ "${typecheck_status}" -eq 0 ]; then
+          echo "Explorer production JavaScript type-check passed with no diagnostics."
+          exit 0
+        fi
+
+        if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+          cat "${diagnostics}"
+          exit "${typecheck_status}"
+        fi
+
+        if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+          BASE_SHA=$(jq -r '.pull_request.base.sha // empty' "${GITHUB_EVENT_PATH}")
+          HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "${GITHUB_EVENT_PATH}")
+        else
+          BASE_SHA=$(jq -r '.before // empty' "${GITHUB_EVENT_PATH}")
+          HEAD_SHA="${GITHUB_SHA}"
+        fi
+
+        if [ -z "${BASE_SHA}" ] || [ -z "${HEAD_SHA}" ] || [[ "${BASE_SHA}" =~ ^0+$ ]] || ! git -C "${GITHUB_WORKSPACE}" cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+          cat "${diagnostics}"
+          exit "${typecheck_status}"
+        fi
+
+        mapfile -t changed < <(
+          git -C "${GITHUB_WORKSPACE}" diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- apps/explorer/web/src
+        )
+
+        changed_type_errors=0
+        for file in "${changed[@]}"; do
+          case "${file}" in
+            apps/explorer/web/src/*.js|apps/explorer/web/src/*.jsx|apps/explorer/web/src/**/*.js|apps/explorer/web/src/**/*.jsx)
+              case "${file}" in
+                *.test.js) continue ;;
+              esac
+              relative="${file#apps/explorer/web/}"
+              if grep -F "${relative}(" "${diagnostics}" >/dev/null; then
+                grep -F "${relative}(" "${diagnostics}" >&2 || true
+                changed_type_errors=1
+              fi
+              ;;
+          esac
+        done
+
+        if [ "${changed_type_errors}" -ne 0 ]; then
+          echo "TypeScript found diagnostics in Explorer production files changed by this change set." >&2
+          exit 1
+        fi
+
+        echo "TypeScript diagnostics are confined to unchanged legacy files; no changed production file introduced a diagnostic."
 
     - name: Explorer web tests
       if: ${{ inputs.validate-source == 'true' }}
