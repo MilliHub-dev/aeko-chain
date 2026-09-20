@@ -50,12 +50,11 @@ runs:
     - name: Network Rust format
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
-      run: |
-        set -euo pipefail
-        cargo fmt --manifest-path validator/Cargo.toml -- --check
-        cargo fmt --manifest-path genesis/Cargo.toml -- --check
-        cargo fmt --manifest-path faucet/Cargo.toml -- --check
-        cargo fmt --manifest-path social-bootstrap/Cargo.toml -- --check
+      run: >-
+        cargo fmt
+        -p aeko-social-staking-program
+        -p aeko-social-monetization-program
+        -- --check
 
     - name: Network binary type and target check
       if: ${{ inputs.validate-source == 'true' }}
@@ -66,6 +65,8 @@ runs:
         -p aeko-genesis
         -p aeko-faucet
         -p aeko-social-bootstrap
+        -p aeko-social-staking-program
+        -p aeko-social-monetization-program
 
     - name: Network binary lint
       if: ${{ inputs.validate-source == 'true' }}
