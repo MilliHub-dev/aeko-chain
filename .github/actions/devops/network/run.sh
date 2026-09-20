@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VALIDATE_SOURCE="${VALIDATE_SOURCE:-true}"
+PUBLISH="${PUBLISH:-false}"
+REGISTRY_USER="${REGISTRY_USER:-}"
+: "${SHA_TAG:?SHA_TAG is required}"
+
+REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+cd "${REPO_ROOT}"
+
+if [ "${PUBLISH}" = "true" ]; then
+  if [ "${GITHUB_REF}" != "refs/heads/main" ] || [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+    echo "Network publication is permitted only from the main branch." >&2
+    exit 1
+  fi
+fi
+
+if [ "${VALIDATE_SOURCE}" = "true" ]; then
+  cargo clippy --locked --all-targets --no-deps \
+    -p aeko-social-staking-program \
+    -p aeko-social-monetization-program \
+    -- -D warnings
+
+  cargo test --locked \
+    -p aeko-validator \
+    -p aeko-genesis \
+    -p aeko-faucet \
+    -p aeko-social-bootstrap \
+    -p aeko-social-staking-program \
+    -p aeko-social-monetization-program
+fi
+
+output=(--load)
+prefix="aeko-ci"
+
+if [ "${PUBLISH}" = "true" ]; then
+  : "${REGISTRY_USER:?REGISTRY_USER is required when publishing}"
+  prefix="${REGISTRY_USER}"
+  output=(--push)
+fi
+
+build_target() {
+  local target="$1"
+  shift
+  local tags=()
+  local image
+  for image in "$@"; do
+    tags+=(--tag "${prefix}/${image}:${SHA_TAG}")
+  done
+  docker buildx build \
+    --file docker/Dockerfile \
+    --target "${target}" \
+    "${tags[@]}" \
+    "${output[@]}" \
+    .
+}
+
+# network-rust-builder compiles validator, genesis, faucet and social-bootstrap
+# once. BuildKit reuses that stage for these targets.
+build_target validator aeko-validator aeko-node
+build_target faucet aeko-faucet
+build_target social-bootstrap aeko-social-bootstrap
+
+if [ "${PUBLISH}" = "true" ]; then
+  echo "Published immutable network images for ${SHA_TAG}."
+else
+  echo "Built the network image set locally for validation only; nothing was pushed."
+fi
