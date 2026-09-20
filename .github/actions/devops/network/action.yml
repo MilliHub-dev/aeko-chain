@@ -104,7 +104,7 @@ runs:
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       run: >-
-        cargo clippy --locked --all-targets
+        cargo clippy --locked --all-targets --no-deps
         -p aeko-social-staking-program
         -p aeko-social-monetization-program
         -- -D warnings
