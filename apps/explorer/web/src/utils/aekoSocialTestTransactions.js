@@ -11,6 +11,7 @@ import {
 } from './aekoSocial';
 
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const SYSTEM_PROGRAM_ID = '11111111111111111111111111111111';
 
 function decodeBase58(value) {
   if (!value || typeof value !== 'string') throw new Error('Missing base58 public key.');
@@ -322,6 +323,7 @@ export function buildSocialStakeTestTx({
         { address: stakingState, isSigner: false, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
         { address: stakeVault, isSigner: false, isWritable: true },
+        { address: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       data,
     }),
@@ -356,6 +358,7 @@ export function buildSocialTipTestTx({
         { address: monetizationState, isSigner: false, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
         { address: treasury, isSigner: false, isWritable: true },
+        { address: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       data,
     }),
