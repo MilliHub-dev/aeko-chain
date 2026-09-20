@@ -87,8 +87,9 @@ async function waitForIndexedNft(explorerApiUrl, tokenAddress, accept = () => tr
       // eslint-disable-next-line no-await-in-loop
       const nft = await fetchConsoleApi(explorerApiUrl, `/nfts/${encodeURIComponent(tokenAddress)}`);
       if (nft && accept(nft)) return nft;
-    } catch {
-      // The indexer can legitimately trail the confirmed transaction.
+    } catch (indexError) {
+      if (indexError?.status !== 404) throw indexError;
+      // A 404 can legitimately mean the asset projection trails the confirmed transaction.
     }
     // eslint-disable-next-line no-await-in-loop
     await sleep(INDEX_INTERVAL_MS);
