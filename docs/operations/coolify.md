@@ -166,7 +166,7 @@ Do not replace the Coolify bind mounts with any `${...}` volume-source form, inc
 - **Exit 64**: a required file is missing, empty, or not a regular file. If the log names `/keys/faucet-keypair.json`, the bind mount parsed successfully but `/data/aeko/keys` on the Coolify host does not contain that file.
 - **Exit 65**: the file exists but `aeko-keygen pubkey` cannot parse it as a valid AEKO keypair.
 
-For exit 64, verify the exact Coolify variable value and inspect the same absolute path on the deployment server:
+For exit 64, inspect the fixed host directory on the Coolify deployment server:
 
 ```bash
 # Coolify compose binds this exact host directory; it is not parameterized.
