@@ -97,3 +97,14 @@ test('network social composes original posts inline with functional attachment a
   assert.match(social, /visibility: composerVisibility/);
   assert.doesNotMatch(social, /dialog==='compose'/);
 });
+
+
+test('social payout actions preflight live program-owned vault liquidity', async () => {
+  const social = await source('components/social/NetworkSocialModal.jsx');
+
+  assert.match(social, /ensureVaultLiquidity/);
+  assert.match(social, /Creator reward vault/);
+  assert.match(social, /Stake reward vault/);
+  assert.match(social, /Monetization treasury/);
+  assert.match(social, /testnet operator must seed the payout vault/i);
+});
