@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   GalleryVerticalEnd,
@@ -639,22 +639,22 @@ export default function NftDemo() {
     <div className="pt-24 pb-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-20">
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-aeko-accent/10 text-aeko-accent border border-aeko-accent/20 text-sm font-medium mb-6"
           >
             <GalleryVerticalEnd size={14} />
             <span>AEKO-721 Demo Flow</span>
-          </motion.div>
+          </Motion.div>
 
-          <motion.h1
+          <Motion.h1
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl md:text-6xl font-bold mb-6"
           >
             NFT Lifecycle <span className="text-gradient">In Public</span>
-          </motion.h1>
+          </Motion.h1>
           <p className="text-xl text-gray-400 max-w-3xl mx-auto">
             Create, mint, freeze, thaw, update, and transfer real AEKO-721 testnet assets, then verify the resulting state through RPC and the Explorer indexer.
           </p>
