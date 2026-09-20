@@ -33,7 +33,7 @@ services:
     command:
       - --keypair
       - /keys/faucet-keypair.json
-     expose:
+    expose:
       - "9900"
     logging: *default-logging
     networks: [aeko]
@@ -84,6 +84,8 @@ services:
         target: /keys
         read_only: true
     depends_on:
+      key-preflight:
+        condition: service_completed_successfully
       faucet:
         condition: service_started
     healthcheck:
