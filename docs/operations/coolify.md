@@ -52,17 +52,7 @@ faucet-keypair.json
 
 You do not need to set `AEKO_KEYS_DIR` in the Coolify dashboard and you do not need to generate these files manually for a fresh chain. If this Coolify deployment is replacing an existing Dokploy/AEKO deployment, copy the **same four existing keypairs** into this directory before deploying so the bootstrap preserves them. Replacing them changes validator/faucet identity and can make the persisted ledger unusable for the intended chain. Generate new keys only when intentionally creating a fresh chain identity.
 
-Before deploying, verify the directory on the **Coolify deployment server**:
-
-```bash
-sudo test -d /data/aeko/keys
-for key in faucet-keypair.json stake-keypair.json validator-1-keypair.json vote-1-keypair.json; do
-  sudo test -s "/data/aeko/keys/$key" || { echo "missing: $key"; exit 1; }
-done
-sudo ls -la /data/aeko/keys
-```
-
-Never commit keypairs or place them in a disposable Git checkout.
+For a fresh chain, no host-side key command is required. After the first successful deployment, you may inspect `/data/aeko/keys` on the Coolify host if you want to back up the generated identities. Never commit keypairs or place them in a disposable Git checkout.
 
 The Coolify Compose mounts this directory with long-form bind syntax and the literal source `/data/aeko/keys`. Runtime services mount it read-only; the optional `wallet-tools` profile can mount it read-write for explicit operator work. This is intentional: the current Coolify volume validator rejects `${...}` interpolation in a bind source.
 
@@ -103,13 +93,12 @@ Keep faucet `9900` and PostgreSQL `5432` private.
 
 1. Create a Git-based Docker Compose application in Coolify and select this repository/branch.
 2. Set the Compose path to `./docker/compose.coolify.yml`.
-3. Add the required environment variables above, without shell quotes.
-4. Create/populate `/data/aeko/keys` on the host.
-5. Configure the four HTTP/WebSocket domains.
-6. Open TCP+UDP `8000-8050` for validator transport.
-7. Deploy.
+3. Add the required environment variables above, without shell quotes. Do not add `AEKO_KEYS_DIR`.
+4. Configure the four HTTP/WebSocket domains.
+5. Open TCP+UDP `8000-8050` for validator transport.
+6. Deploy.
 
-The Coolify stack does not use a one-shot preflight container as a global startup gate. The faucet and validator validate the key files they actually consume and fail themselves if required key material is unavailable. `social-bootstrap` remains a one-shot initializer; successful completion is `Exited (0)`, which is an expected completed state rather than an unhealthy long-running service. `wallet-tools` is an opt-in `ops` profile and is not part of the default deployment.
+The Coolify stack uses `key-bootstrap` as a one-shot initializer, not the old fail-only preflight. It creates missing persistent keypairs and exits successfully; the faucet then starts, followed by the validator. Existing key files are never overwritten. `social-bootstrap` remains a one-shot initializer; successful completion is `Exited (0)`, which is an expected completed state rather than an unhealthy long-running service. `wallet-tools` is an opt-in `ops` profile and is not part of the default deployment.
 
 ## Acceptance
 
@@ -148,9 +137,7 @@ If Coolify reports an error such as `Invalid Docker volume definition` or `Inval
 
 1. Confirm the application uses `./docker/compose.coolify.yml`, not the Dokploy or old legacy Compose path.
 2. Confirm every key bind source in the selected Compose is the literal `/data/aeko/keys` path with no `${...}` interpolation.
-3. Confirm `/data/aeko/keys` exists on the deployment host.
-4. Confirm the four required keypair files are present and non-empty.
-5. Reload the Compose definition in Coolify and redeploy.
+3. Reload the Compose definition in Coolify and redeploy. The `key-bootstrap` service owns first-boot creation of the persistent key directory and missing keypairs.
 
 Do not replace the Coolify bind mounts with any `${...}` volume-source form, including the Dokploy `${VAR:?message}` pattern. The separate Coolify contract uses a literal host path specifically to satisfy Coolify's storage parser.
 
