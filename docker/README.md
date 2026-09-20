@@ -29,4 +29,4 @@ python3 scripts/validate-deployment-contract.py
 
 The two public Compose files intentionally share service names, images, ports, health checks and dependency ordering. Platform-specific differences should stay limited to deployment concerns such as storage parsing and platform routing.
 
-Dokploy keeps `AEKO_KEYS_DIR` configurable as an absolute host path. Coolify deliberately does not parameterize key bind sources: `compose.coolify.yml` binds the literal host path `/data/aeko/keys` and uses a Docker-managed `validator-ledger` volume so its storage validator never sees `${...}` in a volume source.
+Dokploy keeps `AEKO_KEYS_DIR` configurable as an absolute host path. Coolify deliberately does not parameterize key bind sources: `compose.coolify.yml` binds the literal host path `/data/aeko/keys`, initializes missing persistent keypairs with its one-shot `key-bootstrap` service, and uses a Docker-managed `validator-ledger` volume so its storage validator never sees `${...}` in a volume source.

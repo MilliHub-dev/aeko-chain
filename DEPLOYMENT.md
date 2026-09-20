@@ -99,7 +99,7 @@ AEKO_PLATFORM_FEE_BPS=200
 
 ## Required key files
 
-The public key directory must contain the same four files on every platform. Dokploy/local select it with `AEKO_KEYS_DIR`; Coolify binds the fixed host path `/data/aeko/keys`:
+The public key directory uses the same four files on every platform. Dokploy/local select it with `AEKO_KEYS_DIR`; Coolify binds the fixed host path `/data/aeko/keys` and its one-shot `key-bootstrap` service creates any missing files on a fresh deployment:
 
 ```text
 validator-1-keypair.json
@@ -120,7 +120,7 @@ docker run --rm \
 
 Keep key files in persistent restricted storage. Do not rely on keys living inside an AutoDeploy Git checkout and never commit them.
 
-Public `key-preflight` uses exit `64` when one of these files is missing/empty/not a regular file and exit `65` when a file exists but is not a parseable AEKO keypair. On Coolify, an exit-64 path such as `/keys/faucet-keypair.json` means the literal `/data/aeko/keys` bind mount was accepted but that host directory does not contain the required file.
+On Coolify, `AEKO_KEYS_DIR` is not a dashboard variable. The literal `/data/aeko/keys` mount is intentional because this deployment environment rejects interpolated volume sources. `key-bootstrap` preserves existing non-empty keys, generates only missing ones, validates each resulting keypair, and exits successfully before faucet startup.
 
 ## SocialFi bootstrap lifecycle
 
@@ -131,7 +131,7 @@ Public `key-preflight` uses exit `64` when one of these files is missing/empty/n
 The public startup graph is intentionally failure-isolated:
 
 ```text
-key-preflight exits 0
+key-bootstrap creates/validates persistent keys and exits 0
   -> faucet
   -> validator healthy
        |-> social-bootstrap (one shot: exit 0 or visible terminal failure)
