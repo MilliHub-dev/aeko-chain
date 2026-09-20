@@ -84,8 +84,6 @@ services:
         target: /keys
         read_only: true
     depends_on:
-      key-preflight:
-        condition: service_completed_successfully
       faucet:
         condition: service_started
     healthcheck:
