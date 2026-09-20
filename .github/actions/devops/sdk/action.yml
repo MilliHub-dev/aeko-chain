@@ -38,129 +38,17 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: JavaScript SDK install
-      if: ${{ inputs.js == 'true' }}
+    - name: Validate selected non-Rust SDKs
+      if: ${{ inputs.js == 'true' || inputs.node == 'true' || inputs.python == 'true' }}
       shell: bash
-      working-directory: apps/sdk/js
-      run: npm ci
-
-    - name: JavaScript SDK type-check and build
-      if: ${{ inputs.js == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/js
-      run: npm run release:check
-
-    - name: JavaScript SDK tests
-      if: ${{ inputs.js == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/js
-      run: npm test --if-present
-
-    - name: JavaScript SDK package validation
-      if: ${{ inputs.js == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/js
-      run: npm pack --dry-run
-
-    - name: Require a new JavaScript SDK version
-      if: ${{ inputs.release-js == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/js
-      run: |
-        set -euo pipefail
-        package=$(node -p "require('./package.json').name")
-        version=$(node -p "require('./package.json').version")
-        err=$(mktemp)
-        if npm view "${package}@${version}" version --registry=https://registry.npmjs.org/ >/dev/null 2>"$err"; then
-          echo "${package}@${version} already exists on npm. Bump the package version before release." >&2
-          exit 1
-        fi
-        if ! grep -Eq 'E404|404 Not Found|is not in this registry' "$err"; then
-          cat "$err" >&2
-          echo "Unable to prove npm version availability for ${package}@${version}." >&2
-          exit 1
-        fi
-
-    - name: Node SDK install
-      if: ${{ inputs.node == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/node
-      run: npm ci
-
-    - name: Node SDK type-check, build, and tests
-      if: ${{ inputs.node == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/node
-      run: npm run release:check
-
-    - name: Node SDK package validation
-      if: ${{ inputs.node == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/node
-      run: npm pack --dry-run
-
-    - name: Require a new Node SDK version
-      if: ${{ inputs.release-node == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/node
-      run: |
-        set -euo pipefail
-        package=$(node -p "require('./package.json').name")
-        version=$(node -p "require('./package.json').version")
-        err=$(mktemp)
-        if npm view "${package}@${version}" version --registry=https://registry.npmjs.org/ >/dev/null 2>"$err"; then
-          echo "${package}@${version} already exists on npm. Bump the package version before release." >&2
-          exit 1
-        fi
-        if ! grep -Eq 'E404|404 Not Found|is not in this registry' "$err"; then
-          cat "$err" >&2
-          echo "Unable to prove npm version availability for ${package}@${version}." >&2
-          exit 1
-        fi
-
-    - name: Python SDK syntax validation
-      if: ${{ inputs.python == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/python
-      run: python3 -m compileall -q src
-
-    - name: Python SDK build and import validation
-      if: ${{ inputs.python == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/python
-      run: |
-        set -euo pipefail
-        wheel_dir=$(mktemp -d)
-        install_dir=$(mktemp -d)
-        python3 -m pip wheel --disable-pip-version-check --no-deps . --wheel-dir "$wheel_dir"
-        wheel=$(find "$wheel_dir" -maxdepth 1 -name '*.whl' -print -quit)
-        test -n "$wheel"
-        python3 -m pip install --disable-pip-version-check --no-deps --target "$install_dir" "$wheel"
-        PYTHONPATH="$install_dir" python3 -c 'import aeko_sdk; print(aeko_sdk.__name__)'
-
-    - name: Require a new Python SDK version
-      if: ${{ inputs.release-python == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/python
-      run: |
-        set -euo pipefail
-        version=$(python3 - <<'PY'
-        import pathlib, tomllib
-        print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])
-        PY
-        )
-        status=$(curl -sS -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/aeko-sdk/${version}/json")
-        case "$status" in
-          404) ;;
-          200)
-            echo "aeko-sdk==${version} already exists on PyPI. Bump the package version before release." >&2
-            exit 1
-            ;;
-          *)
-            echo "Unable to prove PyPI version availability for aeko-sdk==${version}; HTTP ${status}." >&2
-            exit 1
-            ;;
-        esac
+      env:
+        SDK_JS: ${{ inputs.js }}
+        SDK_NODE: ${{ inputs.node }}
+        SDK_PYTHON: ${{ inputs.python }}
+        RELEASE_JS: ${{ inputs.release-js }}
+        RELEASE_NODE: ${{ inputs.release-node }}
+        RELEASE_PYTHON: ${{ inputs.release-python }}
+      run: bash "$GITHUB_ACTION_PATH/validate-non-rust.sh"
 
     # Existing formatting debt in an unchanged SDK must not make a core CI
     # refactor look like an SDK release. When Rust SDK source changes, however,
@@ -175,10 +63,25 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+
+        set +e
         cargo check -p aeko-rust-sdk --all-targets
-        echo '=== Cargo.lock diff after Cargo resolution ==='
-        git diff -- Cargo.lock
+        check_status=$?
+        set -e
+
+        lock_changed=false
         if ! git diff --quiet -- Cargo.lock; then
+          lock_changed=true
+          echo '=== Cargo.lock diff after Cargo resolution ==='
+          git diff -- Cargo.lock
+          git restore --worktree -- Cargo.lock
+        fi
+
+        if [ "$check_status" -ne 0 ]; then
+          exit "$check_status"
+        fi
+
+        if [ "$lock_changed" = "true" ]; then
           echo 'Cargo.lock is stale; the diff above is the exact resolver update required.' >&2
           exit 2
         fi

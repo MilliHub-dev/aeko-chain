@@ -68,6 +68,9 @@ outputs:
   unmapped_app:
     description: A new/unmapped apps/ path changed and requires explicit CI ownership.
     value: ${{ steps.classify.outputs.unmapped_app }}
+  ci_pipeline:
+    description: DevOps workflow/action implementation changed without implying product source changed.
+    value: ${{ steps.classify.outputs.ci_pipeline }}
 
 runs:
   using: composite
@@ -92,6 +95,7 @@ runs:
         sdk_release_python=false
         sdk_release_rust=false
         unmapped_app=false
+        ci_pipeline=false
 
         mark_all_apps() {
           admin=true
@@ -161,34 +165,12 @@ runs:
                 sdk_rust=true
                 sdk_release_rust=true
                 ;;
-              .github/actions/devops/admin/*)
-                admin=true
-                ;;
-              .github/actions/devops/cli/*)
-                cli=true
-                ;;
-              .github/actions/devops/explorer-backend/*)
-                explorer_backend=true
-                ;;
-              .github/actions/devops/explorer-web/*)
-                explorer_web=true
-                ;;
-              .github/actions/devops/network/*)
-                core=true
-                ;;
-              .github/actions/devops/detect-changes/*|.github/workflows/build-images.yml)
-                # The orchestrator is exercised by this very run. Keep the
-                # network gate selected without treating CI-only edits as
-                # container-packaging changes that rebuild every application.
-                core=true
-                ;;
-              .github/actions/devops/sdk/*|.github/actions/devops/sdk-publish/*)
-                # CI implementation changes exercise every SDK without causing a
-                # registry release when the workflow later lands on main.
-                sdk_js=true
-                sdk_node=true
-                sdk_python=true
-                sdk_rust=true
+              .github/actions/devops/*|.github/workflows/build-images.yml)
+                # CI implementation is its own domain. Editing orchestration or
+                # a composite action must validate the CI implementation, but it
+                # must not masquerade as product/source changes and trigger
+                # unrelated Rust graphs or container rebuilds.
+                ci_pipeline=true
                 ;;
               apps/sdk/*)
                 # A future non-document shared SDK contract may affect every SDK.
@@ -206,10 +188,10 @@ runs:
                     ;;
                 esac
                 ;;
-              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/validate-deployment-contract.py|.github/actions/devops/*)
-                # Real packaging/deployment changes must prove every container
-                # target still builds. Domain-specific CI actions are handled by
-                # the rules above so editing CI does not rebuild unrelated images.
+              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/validate-deployment-contract.py)
+                # Real packaging/deployment changes must prove the selected
+                # container targets still build. CI implementation paths are
+                # classified separately above and do not rebuild product images.
                 packaging=true
                 ;;
               apps/README.md)
@@ -286,9 +268,10 @@ runs:
           echo "dockerized=$dockerized"
           echo "deployable=$deployable"
           echo "unmapped_app=$unmapped_app"
+          echo "ci_pipeline=$ci_pipeline"
         } >> "$GITHUB_OUTPUT"
 
-        printf 'Selection: core=%s packaging=%s admin=%s cli=%s backend=%s web=%s sdk(js=%s,node=%s,python=%s,rust=%s) sdk-release(js=%s,node=%s,python=%s,rust=%s) unmapped=%s\n' \
+        printf 'Selection: core=%s packaging=%s admin=%s cli=%s backend=%s web=%s sdk(js=%s,node=%s,python=%s,rust=%s) sdk-release(js=%s,node=%s,python=%s,rust=%s) ci-pipeline=%s unmapped=%s\n' \
           "$core" "$packaging" "$admin" "$cli" "$explorer_backend" "$explorer_web" \
           "$sdk_js" "$sdk_node" "$sdk_python" "$sdk_rust" \
-          "$sdk_release_js" "$sdk_release_node" "$sdk_release_python" "$sdk_release_rust" "$unmapped_app"
+          "$sdk_release_js" "$sdk_release_node" "$sdk_release_python" "$sdk_release_rust" "$ci_pipeline" "$unmapped_app"
