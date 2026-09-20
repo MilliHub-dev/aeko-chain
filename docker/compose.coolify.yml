@@ -2,7 +2,6 @@
 # Images are pulled from Docker Hub; no service builds locally.
 # Required Coolify values:
 #   AEKO_PUBLIC_IP=<public address advertised by validator>
-#   AEKO_KEYS_DIR=/data/aeko/keys
 #   EXPLORER_DATABASE_URL=postgres://...
 #
 # Low-resource public defaults target small test servers. The validator keeps
@@ -10,10 +9,10 @@
 # durable historical query store. On a ~45GB host, EXPLORER_DATABASE_URL should
 # point to managed/external PostgreSQL or storage that is not competing with the
 # validator root disk. The validator ledger uses a Docker-managed named volume
-# by default. Use an absolute AEKO_KEYS_DIR and enter Coolify environment values
-# without shell quotes. Coolify validates storage before containers start, so
-# this contract intentionally keeps volume sources to simple ${VAR} references
-# and Docker-managed named volumes.
+# by default. Coolify validates storage before containers start and rejects
+# interpolated bind-source paths in this deployment environment, so persistent
+# validator keys use the literal host path /data/aeko/keys. Environment
+# interpolation remains limited to non-volume configuration fields.
 
 x-logging: &default-logging
   driver: json-file
@@ -27,12 +26,12 @@ services:
     pull_policy: always
     restart: "no"
     environment:
-      AEKO_KEYS_SOURCE: ${AEKO_KEYS_DIR}
+      AEKO_KEYS_SOURCE: /data/aeko/keys
     entrypoint: ["/usr/local/bin/aeko-key-preflight"]
     command: []
     volumes:
       - type: bind
-        source: ${AEKO_KEYS_DIR}
+        source: /data/aeko/keys
         target: /keys
         read_only: true
     logging: *default-logging
@@ -44,7 +43,7 @@ services:
     restart: unless-stopped
     volumes:
       - type: bind
-        source: ${AEKO_KEYS_DIR}
+        source: /data/aeko/keys
         target: /keys
         read_only: true
     command:
@@ -100,7 +99,7 @@ services:
     volumes:
       - validator-ledger:/ledger
       - type: bind
-        source: ${AEKO_KEYS_DIR}
+        source: /data/aeko/keys
         target: /keys
         read_only: true
     depends_on:
@@ -141,7 +140,7 @@ services:
       AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-200}
     volumes:
       - type: bind
-        source: ${AEKO_KEYS_DIR}
+        source: /data/aeko/keys
         target: /keys
         read_only: true
       - social-state:/state
@@ -230,7 +229,7 @@ services:
     command: ["aeko", "--help"]
     volumes:
       - type: bind
-        source: ${AEKO_KEYS_DIR}
+        source: /data/aeko/keys
         target: /keys
     logging: *default-logging
     networks: [aeko]

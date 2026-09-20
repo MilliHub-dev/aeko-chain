@@ -28,7 +28,6 @@ Add these values in the application's **Environment Variables** section:
 
 ```text
 AEKO_PUBLIC_IP=<public IP of the Coolify host>
-AEKO_KEYS_DIR=/data/aeko/keys
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended immutable 12-character main SHA>
@@ -36,11 +35,11 @@ AEKO_IMAGE_TAG=<recommended immutable 12-character main SHA>
 
 Use the full template in [`docker/env.public.example`](../../docker/env.public.example) for optional storage, Explorer, SocialFi and logging settings.
 
-Do not wrap Coolify values in shell quotes. In particular, use `/data/aeko/keys`, not `"/data/aeko/keys"` or `'/data/aeko/keys'`.
+Do not wrap Coolify environment values in shell quotes. The key directory is not an environment variable in the Coolify contract; it is deliberately fixed to the literal host path `/data/aeko/keys` so Coolify never parses `${...}` inside a volume source.
 
 ## Persistent keys
 
-`AEKO_KEYS_DIR` must be an absolute host directory that exists before deployment. It must contain:
+The fixed Coolify host directory `/data/aeko/keys` must exist before deployment. It must contain:
 
 ```text
 validator-1-keypair.json
@@ -69,7 +68,7 @@ sudo ls -la /data/aeko/keys
 
 Never commit keypairs or place them in a disposable Git checkout.
 
-The Coolify Compose mounts this directory with long-form bind syntax and a simple `${AEKO_KEYS_DIR}` source. Runtime services mount it read-only; the optional `wallet-tools` profile can mount it read-write for explicit operator work.
+The Coolify Compose mounts this directory with long-form bind syntax and the literal source `/data/aeko/keys`. Runtime services mount it read-only; the optional `wallet-tools` profile can mount it read-write for explicit operator work. This is intentional: the current Coolify volume validator rejects `${...}` interpolation in a bind source.
 
 ## Persistent chain state
 
@@ -109,7 +108,7 @@ Keep faucet `9900` and PostgreSQL `5432` private.
 1. Create a Git-based Docker Compose application in Coolify and select this repository/branch.
 2. Set the Compose path to `./docker/compose.coolify.yml`.
 3. Add the required environment variables above, without shell quotes.
-4. Create/populate `AEKO_KEYS_DIR` on the host.
+4. Create/populate `/data/aeko/keys` on the host.
 5. Configure the four HTTP/WebSocket domains.
 6. Open TCP+UDP `8000-8050` for validator transport.
 7. Deploy.
@@ -152,25 +151,25 @@ The signed browser write path in the Explorer test console remains the final end
 If Coolify reports an error such as `Invalid Docker volume definition` or `Invalid volume source` before containers start:
 
 1. Confirm the application uses `./docker/compose.coolify.yml`, not the Dokploy or old legacy Compose path.
-2. Confirm `AEKO_KEYS_DIR` is an absolute path such as `/data/aeko/keys`.
-3. Remove surrounding single or double quotes from the Coolify variable value.
-4. Confirm the directory exists on the deployment host.
-5. Redeploy after saving the environment value.
+2. Confirm every key bind source in the selected Compose is the literal `/data/aeko/keys` path with no `${...}` interpolation.
+3. Confirm `/data/aeko/keys` exists on the deployment host.
+4. Confirm the four required keypair files are present and non-empty.
+5. Reload the Compose definition in Coolify and redeploy.
 
-Do not replace the Coolify bind mounts with the Dokploy `${VAR:?message}` volume-source form. The separate Coolify contract exists specifically to keep storage parsing portable.
+Do not replace the Coolify bind mounts with any `${...}` volume-source form, including the Dokploy `${VAR:?message}` pattern. The separate Coolify contract uses a literal host path specifically to satisfy Coolify's storage parser.
 
 
 ## Key preflight exit codes
 
 `key-preflight` deliberately fails before faucet/validator startup when persistent identity material is not usable.
 
-- **Exit 64**: a required file is missing, empty, or not a regular file. If the log names `/keys/faucet-keypair.json`, the bind mount parsed successfully but the host directory selected by `AEKO_KEYS_DIR` does not contain that file.
+- **Exit 64**: a required file is missing, empty, or not a regular file. If the log names `/keys/faucet-keypair.json`, the bind mount parsed successfully but `/data/aeko/keys` on the Coolify host does not contain that file.
 - **Exit 65**: the file exists but `aeko-keygen pubkey` cannot parse it as a valid AEKO keypair.
 
-For exit 64, verify the exact Coolify variable value and inspect the same absolute path on the deployment server:
+For exit 64, inspect the fixed host directory on the Coolify deployment server:
 
 ```bash
-# AEKO_KEYS_DIR must be exactly /data/aeko/keys in this example, with no quotes.
+# Coolify compose binds this exact host directory; it is not parameterized.
 sudo ls -la /data/aeko/keys
 sudo test -s /data/aeko/keys/faucet-keypair.json
 sudo test -s /data/aeko/keys/stake-keypair.json
@@ -178,4 +177,4 @@ sudo test -s /data/aeko/keys/validator-1-keypair.json
 sudo test -s /data/aeko/keys/vote-1-keypair.json
 ```
 
-If the old deployment stores the keys elsewhere, copy those existing files into `AEKO_KEYS_DIR` and preserve them outside the Coolify resource lifecycle. Do not solve exit 64 by generating replacement identities unless a fresh genesis is intentional.
+If the old deployment stores the keys elsewhere, copy those existing files into `/data/aeko/keys` and preserve them outside the Coolify resource lifecycle. Do not solve exit 64 by generating replacement identities unless a fresh genesis is intentional.
