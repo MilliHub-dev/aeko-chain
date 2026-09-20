@@ -59,22 +59,35 @@ if [ "${#changed_rust[@]}" -eq 0 ]; then
   exit 0
 fi
 
-cargo fmt --all
+# cargo fmt --all is retained to respect each crate's manifest/edition, but it
+# runs in a detached temporary worktree so this check is safe beside parallel
+# validation readers on the primary checkout.
+format_worktree=$(mktemp -d)
+rmdir "$format_worktree"
+cleanup_worktree() {
+  git worktree remove --force "$format_worktree" >/dev/null 2>&1 || true
+  rm -rf "$format_worktree"
+}
+trap cleanup_worktree EXIT
+
+git worktree add --detach "$format_worktree" HEAD >/dev/null
+(
+  cd "$format_worktree"
+  cargo fmt --all
+)
 
 format_failures=()
 for file in "${changed_rust[@]}"; do
-  if [ -f "${file}" ] && ! git diff --quiet -- "${file}"; then
-    format_failures+=("${file}")
+  if [ -f "${format_worktree}/${file}" ] && ! git -C "$format_worktree" diff --quiet -- "$file"; then
+    format_failures+=("$file")
   fi
 done
 
 if [ "${#format_failures[@]}" -gt 0 ]; then
   echo "rustfmt changed Rust files touched by this change set:" >&2
   printf '  %s\n' "${format_failures[@]}" >&2
-  git diff -- "${format_failures[@]}" >&2
-  git restore --worktree -- .
+  git -C "$format_worktree" diff -- "${format_failures[@]}" >&2
   exit 1
 fi
 
-git restore --worktree -- .
 echo "Changed Rust files are rustfmt-clean; unrelated legacy formatting debt was ignored."
