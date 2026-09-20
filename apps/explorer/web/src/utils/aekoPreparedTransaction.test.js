@@ -30,9 +30,10 @@ test('browser test-wallet signer replaces the prepared zero signature without ch
     },
   });
 
-  const preparedBytes = Uint8Array.from(Buffer.from(prepared, 'base64'));
+  const fromBase64 = (value) => Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+  const preparedBytes = fromBase64(prepared);
   const signed = signPreparedTransactionWithTestWallet(wallet, prepared);
-  const signedBytes = Uint8Array.from(Buffer.from(signed, 'base64'));
+  const signedBytes = fromBase64(signed);
 
   assert.equal(preparedBytes[0], 1);
   assert.equal(signedBytes[0], 1);
