@@ -29,7 +29,6 @@ services:
     command:
       - |
         umask 077
-        mkdir -p /keys
         for key in faucet-keypair stake-keypair validator-1-keypair vote-1-keypair; do
           path="/keys/${key}.json"
           if [ ! -s "$path" ]; then
