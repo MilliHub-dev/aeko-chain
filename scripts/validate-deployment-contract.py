@@ -245,9 +245,14 @@ def main() -> int:
     require(coolify.count("read_only: true") >= 3, "Coolify long-running runtime key mounts must remain read-only")
     require(re.search(r"^  key-preflight:\\s*$", coolify, re.MULTILINE) is None, "Coolify must not use the diagnostic preflight as a global startup gate")
     require('entrypoint: ["/bin/sh", "-ec"]' in coolify_key_bootstrap, "Coolify key bootstrap must run an explicit one-shot shell")
-    require("aeko-keygen new --no-bip39-passphrase --silent --outfile" in coolify_key_bootstrap, "Coolify key bootstrap must create missing persistent keypairs")
-    require('if [ ! -s "$path" ]; then' in coolify_key_bootstrap, "Coolify key bootstrap must preserve existing non-empty keypairs")
-    require('aeko-keygen pubkey "$path" >/dev/null' in coolify_key_bootstrap, "Coolify key bootstrap must validate every resulting keypair")
+    require('aeko-keygen new --no-bip39-passphrase --silent --outfile "$$path"' in coolify_key_bootstrap, "Coolify key bootstrap must create missing persistent keypairs")
+    require('path="/keys/$${key}.json"' in coolify_key_bootstrap, "Coolify key bootstrap path must survive Compose interpolation")
+    require('if [ ! -s "$$path" ]; then' in coolify_key_bootstrap, "Coolify key bootstrap must preserve existing non-empty keypairs")
+    require('aeko-keygen pubkey "$$path" >/dev/null' in coolify_key_bootstrap, "Coolify key bootstrap must validate every resulting keypair")
+    require(
+        re.search(r'(?<!\$)\$(?:\{(?:key|path)\}|(?:key|path)\b)', coolify_key_bootstrap) is None,
+        "Coolify key bootstrap shell variables must be escaped from Compose interpolation",
+    )
     require('restart: "no"' in coolify_key_bootstrap, "Coolify key bootstrap must be a one-shot initializer")
     require("key-bootstrap:" in coolify_faucet and "condition: service_completed_successfully" in coolify_faucet, "Coolify faucet must wait for persistent key initialization")
     require('restart: "no"' in coolify_bootstrap, "Coolify SocialFi bootstrap must remain a one-shot initializer")
