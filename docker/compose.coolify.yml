@@ -21,6 +21,31 @@ x-logging: &default-logging
     max-file: ${AEKO_LOG_MAX_FILES:-3}
 
 services:
+  key-bootstrap:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: "no"
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        umask 077
+        mkdir -p /keys
+        for key in faucet-keypair stake-keypair validator-1-keypair vote-1-keypair; do
+          path="/keys/${key}.json"
+          if [ ! -s "$path" ]; then
+            echo "==> Initializing missing persistent AEKO key: ${key}.json"
+            aeko-keygen new --no-bip39-passphrase --silent --outfile "$path"
+          fi
+          aeko-keygen pubkey "$path" >/dev/null
+        done
+        echo "AEKO persistent key bootstrap complete"
+    volumes:
+      - type: bind
+        source: /data/aeko/keys
+        target: /keys
+    logging: *default-logging
+    networks: [aeko]
+
   faucet:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-faucet:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
@@ -33,6 +58,9 @@ services:
     command:
       - --keypair
       - /keys/faucet-keypair.json
+    depends_on:
+      key-bootstrap:
+        condition: service_completed_successfully
     expose:
       - "9900"
     logging: *default-logging
