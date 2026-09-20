@@ -44,12 +44,14 @@ test('console reads are API-first and direct RPC is limited to unsupported write
   }
 });
 
-test('nested social modal keeps normal balance reads behind the Explorer API', async () => {
+test('nested social modal keeps normal balance reads behind the Explorer API and gates writes for unfunded personas', async () => {
   const social = await source('components/social/NetworkSocialModal.jsx');
 
   assert.doesNotMatch(social, /\bgetBalance\b/);
   assert.match(social, /fetchWalletProfile\(explorerApiUrl, persona\.address\)/);
-  assert.match(social, /setBalance\(walletProfile\?\.nativeBalance \?\? null\)/);
+  assert.match(social, /Promise\.allSettled/);
+  assert.match(social, /setPersonaAccountState\('unfunded'\)/);
+  assert.match(social, /not funded on-chain yet/i);
   assert.match(social, /getEpochInfo\(rpcUrl\)/);
 });
 
@@ -82,4 +84,16 @@ test('wallet and social interactions remain wired while source ownership changes
   assert.match(implementation, /setFeedCreator/);
   assert.match(implementation, /projection\?\.posts\?\.data/);
   assert.match(implementation, /projection\?\.engagement\?\.data/);
+});
+
+
+test('network social composes original posts inline with functional attachment and visibility controls', async () => {
+  const social = await source('components/social/NetworkSocialModal.jsx');
+
+  assert.match(social, /Share an update on AEKO Social/);
+  assert.match(social, /Attach image URL/);
+  assert.match(social, /Followers-only visibility/);
+  assert.match(social, /Permissioned visibility/);
+  assert.match(social, /visibility: composerVisibility/);
+  assert.doesNotMatch(social, /dialog==='compose'/);
 });
