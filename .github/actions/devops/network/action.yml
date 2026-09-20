@@ -2,8 +2,16 @@ name: AEKO network DevOps
 description: Fully validate core changes, build network images locally on PRs, and publish them only from main.
 
 inputs:
+  run-preflight:
+    description: Run deployment-contract and changed-Rust formatting checks.
+    required: false
+    default: "true"
   validate-source:
-    description: Run network Rust format, strict changed-program lint, and full selected network tests.
+    description: Run strict changed-program lint and full selected network tests.
+    required: false
+    default: "true"
+  build-image:
+    description: Build the validator, faucet, and Social bootstrap network image set.
     required: false
     default: "true"
   publish:
@@ -22,6 +30,7 @@ runs:
   using: composite
   steps:
     - name: Run network preflight
+      if: ${{ inputs.run-preflight == 'true' }}
       shell: bash
       env:
         VALIDATE_SOURCE: ${{ inputs.validate-source }}
@@ -29,9 +38,11 @@ runs:
       run: bash "$GITHUB_ACTION_PATH/preflight.sh"
 
     - name: Run network validation and image build
+      if: ${{ inputs.validate-source == 'true' || inputs.build-image == 'true' }}
       shell: bash
       env:
         VALIDATE_SOURCE: ${{ inputs.validate-source }}
+        BUILD_IMAGE: ${{ inputs.build-image }}
         PUBLISH: ${{ inputs.publish }}
         REGISTRY_USER: ${{ inputs.registry-user }}
         SHA_TAG: ${{ inputs.sha-tag }}
