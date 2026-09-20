@@ -77,6 +77,8 @@ runs:
         -p aeko-genesis
         -p aeko-faucet
         -p aeko-social-bootstrap
+        -p aeko-social-staking-program
+        -p aeko-social-monetization-program
         -- -D warnings
 
     - name: Network binary tests
@@ -88,6 +90,8 @@ runs:
         -p aeko-genesis
         -p aeko-faucet
         -p aeko-social-bootstrap
+        -p aeko-social-staking-program
+        -p aeko-social-monetization-program
 
     - name: Build network image set
       shell: bash
