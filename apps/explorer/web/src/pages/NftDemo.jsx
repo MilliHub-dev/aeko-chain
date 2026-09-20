@@ -41,7 +41,7 @@ import {
 import NftLiveFlow from '../components/NftLiveFlow';
 import { getNetworkConfig } from '../utils/networkConfig';
 
-const StatRow = ({ label, value, subtle }) => (
+const StatRow = ({ label, value, subtle = false }) => (
   <div className="flex justify-between gap-4 py-3 border-b border-white/5 last:border-b-0">
     <span className="text-sm text-gray-400">{label}</span>
     <span className={`text-sm text-right break-all ${subtle ? 'text-gray-300' : 'text-white font-medium'}`}>{value}</span>
