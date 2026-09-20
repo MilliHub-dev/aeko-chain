@@ -59,15 +59,20 @@ jobs:
       - name: Resolve release mode
         id: release
         shell: bash
+        env:
+          FULL_VALIDATION: ${{ steps.changes.outputs.full_validation }}
         run: |
           set -euo pipefail
           publish=false
-          if [ "$GITHUB_REF" = "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+          if [ "$GITHUB_REF" = "refs/heads/main" ] &&
+             [ "$GITHUB_EVENT_NAME" != "pull_request" ] &&
+             [ "$FULL_VALIDATION" != "true" ]; then
             publish=true
           fi
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
           echo "sha_tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
-          printf 'Release mode: publish=%s sha=%s\n' "$publish" "${GITHUB_SHA::12}"
+          printf 'Release mode: publish=%s full-validation=%s sha=%s\n' \
+            "$publish" "$FULL_VALIDATION" "${GITHUB_SHA::12}"
 
       # CI implementation changes are validated as CI, not impersonated as
       # product source changes. This keeps workflow/action refactors from
