@@ -124,12 +124,119 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # On pull requests, independent domains are allowed to finish even if an
-      # earlier domain fails. The aggregate gate below still fails the PR.
-      # Pull requests validate/build only the domains they actually touch plus
-      # the full network for core changes. A core change on main still rebuilds
-      # every deployable image before release. This keeps PR feedback fast while
-      # preserving the complete release gate.
+      # Explorer Web and the full network are independent workloads once shared
+      # runner setup is complete. Keep one job/VM/checkout/Docker daemon/cache,
+      # but execute these two expensive domains as concurrent child processes.
+      # Network preflight stays serial because its rustfmt compatibility gate
+      # temporarily edits/restores the worktree before parallel readers start.
+      - name: Run network preflight before concurrent workloads
+        id: network_preflight
+        if: >-
+          steps.changes.outputs.core == 'true' ||
+          steps.changes.outputs.packaging == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          VALIDATE_SOURCE: ${{ steps.changes.outputs.core }}
+          PUBLISH: ${{ steps.release.outputs.publish }}
+        run: bash .github/actions/devops/network/preflight.sh
+
+      - name: Validate/build Explorer frontend and blockchain network concurrently
+        id: parallel_domains
+        if: >-
+          steps.changes.outputs.explorer_web == 'true' ||
+          steps.changes.outputs.core == 'true' ||
+          steps.changes.outputs.packaging == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          RUN_EXPLORER_WEB: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
+          RUN_NETWORK: ${{ (steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          EXPLORER_VALIDATE_SOURCE: ${{ steps.changes.outputs.explorer_web }}
+          EXPLORER_BUILD_IMAGE: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
+          NETWORK_VALIDATE_SOURCE: ${{ steps.changes.outputs.core }}
+          NETWORK_PREFLIGHT_OUTCOME: ${{ steps.network_preflight.outcome }}
+          PUBLISH: ${{ steps.release.outputs.publish }}
+          REGISTRY_USER: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          SHA_TAG: ${{ steps.release.outputs.sha_tag }}
+        run: |
+          set -uo pipefail
+
+          explorer_pid=""
+          network_pid=""
+          explorer_outcome="skipped"
+          network_outcome="skipped"
+
+          cleanup() {
+            if [ -n "$explorer_pid" ]; then
+              kill "$explorer_pid" 2>/dev/null || true
+            fi
+            if [ -n "$network_pid" ]; then
+              kill "$network_pid" 2>/dev/null || true
+            fi
+          }
+          trap 'cleanup; exit 130' INT
+          trap 'cleanup; exit 143' TERM
+
+          status_to_outcome() {
+            case "$1" in
+              0) printf 'success' ;;
+              130|143) printf 'cancelled' ;;
+              *) printf 'failure' ;;
+            esac
+          }
+
+          if [ "$RUN_EXPLORER_WEB" = "true" ]; then
+            echo "Launching Explorer Web on the shared runner."
+            (
+              export VALIDATE_SOURCE="$EXPLORER_VALIDATE_SOURCE"
+              export BUILD_IMAGE="$EXPLORER_BUILD_IMAGE"
+              export PUBLISH REGISTRY_USER SHA_TAG
+              bash .github/actions/devops/explorer-web/run.sh
+            ) > >(sed -u 's/^/[explorer-web] /') 2> >(sed -u 's/^/[explorer-web] /' >&2) &
+            explorer_pid=$!
+          fi
+
+          if [ "$RUN_NETWORK" = "true" ]; then
+            if [ "$NETWORK_PREFLIGHT_OUTCOME" = "success" ]; then
+              echo "Launching blockchain network validation/build on the shared runner."
+              (
+                export VALIDATE_SOURCE="$NETWORK_VALIDATE_SOURCE"
+                export PUBLISH REGISTRY_USER SHA_TAG
+                bash .github/actions/devops/network/run.sh
+              ) > >(sed -u 's/^/[network] /') 2> >(sed -u 's/^/[network] /' >&2) &
+              network_pid=$!
+            else
+              case "$NETWORK_PREFLIGHT_OUTCOME" in
+                cancelled) network_outcome="cancelled" ;;
+                *) network_outcome="failure" ;;
+              esac
+              echo "[network] workload not launched because preflight outcome was $NETWORK_PREFLIGHT_OUTCOME." >&2
+            fi
+          fi
+
+          if [ -n "$explorer_pid" ]; then
+            wait "$explorer_pid"
+            explorer_status=$?
+            explorer_outcome="$(status_to_outcome "$explorer_status")"
+          fi
+
+          if [ -n "$network_pid" ]; then
+            wait "$network_pid"
+            network_status=$?
+            network_outcome="$(status_to_outcome "$network_status")"
+          fi
+
+          echo "explorer_web_outcome=$explorer_outcome" >> "$GITHUB_OUTPUT"
+          echo "network_outcome=$network_outcome" >> "$GITHUB_OUTPUT"
+          printf 'Concurrent domain outcomes: explorer-web=%s network=%s\n' "$explorer_outcome" "$network_outcome"
+
+          case "$explorer_outcome:$network_outcome" in
+            *failure*|*cancelled*) exit 1 ;;
+          esac
+
+      # Other selected domains remain ordinary composite actions on this same
+      # runner and execute after the concurrent web/network pair completes.
       - name: Validate/build admin application
         id: admin
         if: steps.changes.outputs.admin == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')
@@ -181,31 +288,6 @@ jobs:
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
-      - name: Validate/build Explorer frontend
-        id: explorer_web
-        if: steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
-        uses: ./.github/actions/devops/explorer-web
-        with:
-          validate-source: ${{ steps.changes.outputs.explorer_web == 'true' && 'true' || 'false' }}
-          build-image: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
-          publish: ${{ steps.release.outputs.publish }}
-          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
-          sha-tag: ${{ steps.release.outputs.sha_tag }}
-
-      - name: Validate/build full blockchain network
-        id: network
-        if: >-
-          steps.changes.outputs.core == 'true' ||
-          steps.changes.outputs.packaging == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
-        uses: ./.github/actions/devops/network
-        with:
-          validate-source: ${{ steps.changes.outputs.core }}
-          publish: ${{ steps.release.outputs.publish }}
-          registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
-          sha-tag: ${{ steps.release.outputs.sha_tag }}
-
       - name: Aggregate pull-request validation results
         if: ${{ always() && github.event_name == 'pull_request' }}
         shell: bash
@@ -214,8 +296,8 @@ jobs:
           SDK_OUTCOME: ${{ steps.sdk.outcome }}
           CLI_OUTCOME: ${{ steps.cli.outcome }}
           EXPLORER_BACKEND_OUTCOME: ${{ steps.explorer_backend.outcome }}
-          EXPLORER_WEB_OUTCOME: ${{ steps.explorer_web.outcome }}
-          NETWORK_OUTCOME: ${{ steps.network.outcome }}
+          EXPLORER_WEB_OUTCOME: ${{ steps.parallel_domains.outputs.explorer_web_outcome }}
+          NETWORK_OUTCOME: ${{ steps.parallel_domains.outputs.network_outcome }}
         run: |
           set -euo pipefail
           failures=()
