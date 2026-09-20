@@ -15,9 +15,9 @@ Coolify does not build the AEKO Rust or web applications from source. It pulls t
 The default public services are:
 
 ```text
-key-preflight -> faucet -> validator
-                         |-> social-bootstrap
-                         |-> explorer-api -> explorer-ui
+faucet -> validator -> social-bootstrap
+                 |-> explorer-api
+explorer-ui (independent liveness)
 ```
 
 The validator owns public JSON-RPC/PubSub in this single-validator topology. The non-voting `rpc-node` remains an optional local/portable profile and is not part of the Coolify deployment.
@@ -113,7 +113,7 @@ Keep faucet `9900` and PostgreSQL `5432` private.
 6. Open TCP+UDP `8000-8050` for validator transport.
 7. Deploy.
 
-`key-preflight` must exit successfully before faucet/validator startup. `social-bootstrap` is a one-shot initializer; successful completion is `Exited (0)`, not a long-running healthy container.
+The Coolify stack does not use a one-shot preflight container as a global startup gate. The faucet and validator validate the key files they actually consume and fail themselves if required key material is unavailable. `social-bootstrap` remains a one-shot initializer; successful completion is `Exited (0)`, which is an expected completed state rather than an unhealthy long-running service. `wallet-tools` is an opt-in `ops` profile and is not part of the default deployment.
 
 ## Acceptance
 
@@ -159,17 +159,13 @@ If Coolify reports an error such as `Invalid Docker volume definition` or `Inval
 Do not replace the Coolify bind mounts with any `${...}` volume-source form, including the Dokploy `${VAR:?message}` pattern. The separate Coolify contract uses a literal host path specifically to satisfy Coolify's storage parser.
 
 
-## Key preflight exit codes
+## Key troubleshooting
 
-`key-preflight` deliberately fails before faucet/validator startup when persistent identity material is not usable.
+The reusable `docker/key-preflight.sh` helper still uses exit 64 for missing/empty key files and exit 65 for invalid keypair content, but Coolify no longer runs that helper as a Compose startup dependency. This prevents a helper-container failure from leaving unrelated services permanently waiting.
 
-- **Exit 64**: a required file is missing, empty, or not a regular file. If the log names `/keys/faucet-keypair.json`, the bind mount parsed successfully but `/data/aeko/keys` on the Coolify host does not contain that file.
-- **Exit 65**: the file exists but `aeko-keygen pubkey` cannot parse it as a valid AEKO keypair.
-
-For exit 64, inspect the fixed host directory on the Coolify deployment server:
+If the faucet or validator fails because a key is unavailable, inspect the fixed host directory directly:
 
 ```bash
-# Coolify compose binds this exact host directory; it is not parameterized.
 sudo ls -la /data/aeko/keys
 sudo test -s /data/aeko/keys/faucet-keypair.json
 sudo test -s /data/aeko/keys/stake-keypair.json
@@ -177,4 +173,4 @@ sudo test -s /data/aeko/keys/validator-1-keypair.json
 sudo test -s /data/aeko/keys/vote-1-keypair.json
 ```
 
-If the old deployment stores the keys elsewhere, copy those existing files into `/data/aeko/keys` and preserve them outside the Coolify resource lifecycle. Do not solve exit 64 by generating replacement identities unless a fresh genesis is intentional.
+Preserve the existing identities when continuing an existing chain; do not regenerate keys merely to make container status green.
