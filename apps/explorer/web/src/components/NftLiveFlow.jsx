@@ -221,6 +221,7 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
 
       const existingCollection = await getAccountInfo(rpcUrl, collectionAddress);
       const existingToken = await getAccountInfo(rpcUrl, tokenAddress);
+      const createdToken = !existingToken;
 
       if (existingCollection) {
         if (!validateProgramOwner(existingCollection.owner).matches) {
@@ -323,7 +324,7 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
 
       const indexed = await waitForIndexedNft(explorerApiUrl, tokenAddress);
       setIndexRecord(indexed);
-      setLastAction('mint');
+      setLastAction(createdToken ? 'mint' : 'load');
       appendLog(indexed
         ? 'Explorer PostgreSQL projection observed the NFT.'
         : 'NFT is confirmed on-chain. Explorer indexing is still catching up.');
