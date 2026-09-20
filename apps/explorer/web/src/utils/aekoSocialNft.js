@@ -81,13 +81,11 @@ export async function mintSocialPostAsNft({ rpcUrl, explorerApiUrl, wallet, post
   let indexed = null;
   for (let attempt = 0; attempt < 30; attempt += 1) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       indexed = await fetchConsoleApi(explorerApiUrl, `/nfts/${encodeURIComponent(tokenAddress)}`);
       if (indexed) break;
     } catch (indexError) {
       if (indexError?.status !== 404) throw indexError;
     }
-    // eslint-disable-next-line no-await-in-loop
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   if (!indexed) throw new Error('NFT mint confirmed but Explorer did not index the token within 30 seconds.');
