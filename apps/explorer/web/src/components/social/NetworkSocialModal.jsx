@@ -67,11 +67,40 @@ function ActionDialog({ title, description, children, onClose, onSubmit, submitL
   </div>;
 }
 
-function Composer({ wallet, mode, parent, initial = '', value, setValue, onOpen }) {
-  const label = mode === 'reply' ? `Replying to ${shortAddress(parent?.creator || '')}` : mode === 'quote' ? `Quoting ${shortAddress(parent?.creator || '')}` : `Posting as ${wallet?.name || 'wallet'}`;
-  return <button type="button" onClick={onOpen} className="group w-full rounded-2xl border border-white/10 bg-white/[0.025] p-4 text-left hover:border-aeko-accent/25 hover:bg-white/[0.04]">
-    <div className="flex gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-aeko-accent/20 bg-aeko-accent/10 text-xs font-bold text-aeko-accent">{wallet?.name?.slice(0,2).toUpperCase() || 'AE'}</div><div className="min-w-0 flex-1"><div className="text-[11px] text-gray-500">{label}</div><div className="mt-1 min-h-8 text-sm text-gray-400 group-hover:text-gray-300">{initial || value || 'Share an update on AEKO Social…'}</div><div className="mt-3 flex items-center justify-between"><div className="flex gap-2 text-aeko-accent"><Image size={15}/><Bell size={15}/><LockKeyhole size={15}/></div><span className="rounded-full bg-aeko-accent px-4 py-1.5 text-xs font-semibold text-black">Compose</span></div></div></div>
-  </button>;
+function Composer({
+  wallet,
+  value,
+  setValue,
+  imageUrl,
+  setImageUrl,
+  visibility,
+  setVisibility,
+  onSubmit,
+  busy,
+  textareaRef,
+}) {
+  const [showImageField, setShowImageField] = useState(false);
+  const followerOnly = visibility === 'followersOnly';
+  const permissioned = visibility === 'permissioned';
+  return <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+    <div className="flex gap-3">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-aeko-accent/20 bg-aeko-accent/10 text-xs font-bold text-aeko-accent">{wallet?.name?.slice(0,2).toUpperCase() || 'AE'}</div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] text-gray-500">Posting as {wallet?.name || 'wallet'}</div>
+        <textarea ref={textareaRef} value={value} onChange={(event)=>setValue(event.target.value.slice(0,512))} rows={3} placeholder="Share an update on AEKO Social…" className="mt-2 w-full resize-none bg-transparent text-[15px] leading-6 text-white outline-none placeholder:text-gray-600"/>
+        {showImageField || imageUrl ? <div className="mt-2 rounded-xl border border-white/10 bg-black/20 p-2"><input type="url" value={imageUrl} onChange={(event)=>setImageUrl(event.target.value.slice(0,320))} placeholder="https://… image URL" className="h-9 w-full bg-transparent px-2 text-xs text-gray-200 outline-none placeholder:text-gray-700"/>{imageUrl ? <div className="mt-1 truncate px-2 text-[10px] text-aeko-accent">Image attachment will be anchored with this post.</div> : null}</div> : null}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1">
+            <IconButton title="Attach image URL" active={Boolean(imageUrl)} onClick={()=>setShowImageField((current)=>!current)}><Image size={15}/></IconButton>
+            <IconButton title="Followers-only visibility" active={followerOnly} onClick={()=>setVisibility(followerOnly ? 'public' : 'followersOnly')}><Bell size={15}/></IconButton>
+            <IconButton title="Permissioned visibility" active={permissioned} onClick={()=>setVisibility(permissioned ? 'public' : 'permissioned')}><LockKeyhole size={15}/></IconButton>
+            <span className="ml-1 text-[10px] uppercase tracking-[0.12em] text-gray-600">{visibility}</span>
+          </div>
+          <div className="flex items-center gap-3"><span className="text-[10px] text-gray-600">{value.length}/512</span><button type="button" onClick={onSubmit} disabled={!wallet || !value.trim() || Boolean(busy)} className="inline-flex h-9 items-center gap-2 rounded-full bg-aeko-accent px-4 text-xs font-semibold text-black disabled:opacity-40">{busy ? <Loader2 size={12} className="animate-spin"/> : <Send size={13}/>} Post</button></div>
+        </div>
+      </div>
+    </div>
+  </div>;
 }
 
 function PostCard({ post, persona, counts = {}, onProfile, onOpen, onAction, onDialog, owned }) {
@@ -120,6 +149,9 @@ export default function NetworkSocialModal({ network = 'testnet', onClose }) {
   const [balance, setBalance] = useState(null);
   const [epoch, setEpoch] = useState(0);
   const [composerText, setComposerText] = useState('');
+  const [composerImageUrl, setComposerImageUrl] = useState('');
+  const [composerVisibility, setComposerVisibility] = useState('public');
+  const composerRef = useRef(null);
   const [amount, setAmount] = useState('0.01');
   const [periodDays, setPeriodDays] = useState('30');
   const [busy, setBusy] = useState('');
@@ -224,14 +256,18 @@ export default function NetworkSocialModal({ network = 'testnet', onClose }) {
     const text = composerText.trim(); if (!text) return;
     const mode = dialog === 'reply' ? 'reply' : dialog === 'quote' ? 'quote' : 'original';
     const parent = targetPost;
+    const imageUrl = composerImageUrl.trim();
+    if (imageUrl && !/^https?:\/\//i.test(imageUrl)) { setNotice({ tone:'error', message:'Image attachments must use an http:// or https:// URL.' }); return; }
+    const anchoredContent = imageUrl ? `${text}\n${imageUrl}` : text;
+    if (anchoredContent.length > 512) { setNotice({ tone:'error', message:'Post text plus the image URL must fit within the 512-character on-chain content limit.' }); return; }
     try {
       await sendBuilt(async (blockhash) => buildSignedAnchorPostTx({
         creatorWallet: persona, stateAccount: registry.posts, antiSpamStateAccount: registry.antiSpam,
-        recentBlockhash: blockhash, postId: randomBytes32(), contentHash: await sha256(text), metadataHash: await sha256(JSON.stringify({ surface: 'network-social', mode })),
-        contentUri: text, parentPostId: parent?.postId || null, postKind: mode, createdAtUnix: Math.floor(Date.now()/1000), visibility: 'public',
+        recentBlockhash: blockhash, postId: randomBytes32(), contentHash: await sha256(anchoredContent), metadataHash: await sha256(JSON.stringify({ surface: 'network-social', mode, imageUrl: imageUrl || null, visibility: composerVisibility })),
+        contentUri: anchoredContent, parentPostId: parent?.postId || null, postKind: mode, createdAtUnix: Math.floor(Date.now()/1000), visibility: composerVisibility,
       }), mode === 'original' ? 'Post' : mode === 'reply' ? 'Reply' : 'Quote');
       if (mode === 'reply' && parent) await sendBuilt((blockhash) => buildEngagementTx({ wallet: persona, postsState: registry.posts, antiSpamState: registry.antiSpam, recentBlockhash: blockhash, post: parent, action: 'comment' }), 'Comment proof');
-      setComposerText(''); patchParams({}, ['dialog','target']);
+      setComposerText(''); setComposerImageUrl(''); setComposerVisibility('public'); patchParams({}, ['dialog','target']);
       if (page === 'post' && postId) { setThread(await fetchSocialThread(explorerApiUrl, postId)); } else { await resetFeed(); }
     } catch (error) { setNotice({ tone: 'error', message: error.message || String(error) }); }
   };
@@ -241,7 +277,7 @@ export default function NetworkSocialModal({ network = 'testnet', onClose }) {
     catch (error) { setNotice({ tone:'error', message:error.message }); }
   };
 
-  const openDialog = (name, post = null) => { setAmount('0.01'); setComposerText(name === 'edit' ? content(post) : ''); patchParams({ dialog: name, target: post?.postId || '' }); };
+  const openDialog = (name, post = null) => { setAmount('0.01'); setComposerText(name === 'edit' ? content(post) : ''); setComposerImageUrl(''); setComposerVisibility('public'); patchParams({ dialog: name, target: post?.postId || '' }); };
   const closeDialog = useCallback(() => { if (!busy) patchParams({}, ['dialog','target']); }, [busy, patchParams]);
 
   const submitEconomic = async () => {
@@ -275,7 +311,7 @@ export default function NetworkSocialModal({ network = 'testnet', onClose }) {
   const subscriptions = creatorData?.walletSubscriptions?.data || [];
 
   const renderFeed = () => <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0d0d13]">
-    <div className="border-b border-white/10 p-4"><Composer wallet={persona} value={composerText} setValue={setComposerText} onOpen={() => openDialog('compose')}/></div>
+    <div className="border-b border-white/10 p-4"><Composer wallet={persona} value={composerText} setValue={setComposerText} imageUrl={composerImageUrl} setImageUrl={setComposerImageUrl} visibility={composerVisibility} setVisibility={setComposerVisibility} onSubmit={submitPost} busy={busy === 'Post'} textareaRef={composerRef}/></div>
     {loadingFeed && feed.length === 0 ? <div className="flex justify-center p-12"><Loader2 className="animate-spin text-aeko-accent"/></div> : profilePosts.length ? profilePosts.map((post) => <PostCard key={post.postId} post={post} persona={persona} counts={countsByPost[post.postId]} owned={post.creator === persona?.address} onProfile={(address)=>patchParams({social:'profile',profile:address},['post'])} onOpen={(p)=>patchParams({social:'post',post:p.postId},['profile'])} onAction={runEngagement} onDialog={openDialog}/>) : <Empty title="No posts yet" body="This timeline has no indexed AEKO Social posts."/>}
     <div ref={sentinel} className="flex h-16 items-center justify-center text-xs text-gray-600">{loadingFeed ? <Loader2 className="animate-spin" size={16}/> : hasMore ? 'Scroll for more' : feed.length ? 'You reached the end' : ''}</div>
   </div>;
@@ -308,7 +344,7 @@ export default function NetworkSocialModal({ network = 'testnet', onClose }) {
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-4 sm:px-5"><div className="flex min-w-0 items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-aeko-accent text-black"><Users size={17}/></div><div className="min-w-0"><div className="text-sm font-semibold text-white">AEKO Network Social</div><div className="truncate text-[10px] uppercase tracking-[0.14em] text-gray-600">RPC → Social programs → indexer → PostgreSQL → UI</div></div></div><div className="flex items-center gap-2"><button onClick={()=>{patchParams({tab:'accounts'},['social','profile','post','dialog','target']);}} className="hidden h-9 rounded-xl border border-white/10 px-3 text-xs text-gray-400 hover:text-white sm:block">Accounts</button><button onClick={()=>{patchParams({tab:'programs'},['social','profile','post','dialog','target']);}} className="hidden h-9 rounded-xl border border-white/10 px-3 text-xs text-gray-400 hover:text-white sm:block">Programs</button><button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 text-gray-400 hover:text-white"><X size={17}/></button></div></header>
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-60 shrink-0 flex-col border-r border-white/10 bg-black/20 lg:flex"><nav className="space-y-1 p-3">{NAV.map(([id,label,Icon])=><button key={id} onClick={()=>patchParams({social:id},['profile','post','dialog','target'])} className={`flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm ${page===id?'bg-white/[0.07] text-white':'text-gray-500 hover:bg-white/[0.04] hover:text-gray-300'}`}><Icon size={16}/>{label}</button>)}</nav><div className="mt-auto border-t border-white/10 p-3"><div className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Active persona</div>{persona?<select value={persona.address} onChange={(e)=>patchParams({persona:e.target.value,social:'me'},['profile','post'])} className="mt-2 h-10 w-full rounded-xl border border-white/10 bg-[#111118] px-2 text-xs text-white">{wallets.map((wallet)=><option key={wallet.id} value={wallet.address}>{wallet.name} · {shortAddress(wallet.address)}</option>)}</select>:<button onClick={()=>patchParams({tab:'accounts'})} className="mt-2 w-full rounded-xl border border-aeko-accent/20 p-3 text-left text-xs text-aeko-accent">Create a test wallet in Accounts</button>}{persona?<div className="mt-3 flex items-center justify-between text-[11px] text-gray-500"><span>{shortAddress(persona.address)}</span><span>{balance==null?'—':formatAeko(balance)}</span></div>:null}</div></aside>
-        <main className="min-w-0 flex-1 overflow-y-auto overscroll-contain"><div className="sticky top-0 z-10 flex h-12 items-center justify-between border-b border-white/10 bg-[#09090e]/90 px-4 backdrop-blur-xl"><div className="flex items-center gap-2">{['profile','post'].includes(page)?<IconButton title="Back" onClick={()=>patchParams({social:'feed'},['profile','post'])}><ArrowLeft size={15}/></IconButton>:null}<span className="text-sm font-semibold capitalize text-white">{page === 'me' ? 'My timeline' : page}</span></div><div className="flex items-center gap-2"><button onClick={()=>void Promise.all([refreshProtocol(),refreshPersona(),['feed','me','profile'].includes(page)?resetFeed():Promise.resolve()])} className="flex h-9 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs text-gray-400"><RefreshCw size={13}/> Refresh</button><button onClick={()=>openDialog('compose')} className="h-9 rounded-xl bg-aeko-accent px-4 text-xs font-semibold text-black">Post</button></div></div>
+        <main className="min-w-0 flex-1 overflow-y-auto overscroll-contain"><div className="sticky top-0 z-10 flex h-12 items-center justify-between border-b border-white/10 bg-[#09090e]/90 px-4 backdrop-blur-xl"><div className="flex items-center gap-2">{['profile','post'].includes(page)?<IconButton title="Back" onClick={()=>patchParams({social:'feed'},['profile','post'])}><ArrowLeft size={15}/></IconButton>:null}<span className="text-sm font-semibold capitalize text-white">{page === 'me' ? 'My timeline' : page}</span></div><div className="flex items-center gap-2"><button onClick={()=>void Promise.all([refreshProtocol(),refreshPersona(),['feed','me','profile'].includes(page)?resetFeed():Promise.resolve()])} className="flex h-9 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs text-gray-400"><RefreshCw size={13}/> Refresh</button><button onClick={()=>{patchParams({social:'feed'},['profile','post','dialog','target']); window.requestAnimationFrame(()=>composerRef.current?.focus());}} className="h-9 rounded-xl bg-aeko-accent px-4 text-xs font-semibold text-black">Post</button></div></div>
           {notice?<div className={`m-4 rounded-xl border p-3 text-xs ${notice.tone==='error'?'border-red-400/20 bg-red-500/10 text-red-200':'border-emerald-400/20 bg-emerald-500/10 text-emerald-200'}`}><div className="flex items-start justify-between gap-3"><span>{notice.message}</span><button onClick={()=>setNotice(null)}><X size={13}/></button></div>{notice.signature?<div className="mt-2 font-mono text-[10px] opacity-70">tx {shortAddress(notice.signature)}</div>:null}</div>:null}
           <div className="mx-auto w-full max-w-4xl p-4 sm:p-5">{body}</div>
         </main>
@@ -316,7 +352,7 @@ export default function NetworkSocialModal({ network = 'testnet', onClose }) {
       </div>
       <nav className="flex shrink-0 overflow-x-auto border-t border-white/10 bg-[#0b0b11] p-2 lg:hidden">{NAV.slice(0,6).map(([id,label,Icon])=><button key={id} onClick={()=>patchParams({social:id},['profile','post'])} className={`flex min-w-[76px] flex-1 flex-col items-center gap-1 rounded-xl p-2 text-[10px] ${page===id?'bg-white/[0.07] text-aeko-accent':'text-gray-500'}`}><Icon size={15}/>{label}</button>)}</nav>
 
-      {['compose','reply','quote'].includes(dialog)?<ActionDialog title={dialog==='compose'?'Create post':dialog==='reply'?'Reply to post':'Quote post'} description="Signed by the selected owned persona and anchored directly in AEKO Social Posts." onClose={closeDialog} onSubmit={submitPost} submitLabel={dialog==='reply'?'Reply':dialog==='quote'?'Quote':'Post'} busy={Boolean(busy)}><textarea autoFocus value={composerText} onChange={(e)=>setComposerText(e.target.value.slice(0,512))} placeholder="What is happening on AEKO?" className="min-h-40 w-full resize-none rounded-2xl border border-white/10 bg-black/30 p-4 text-[15px] leading-6 text-white outline-none focus:border-aeko-accent/50"/><div className="mt-2 flex justify-between text-[11px] text-gray-600"><span>{persona?.name} · {shortAddress(persona?.address||'')}</span><span>{composerText.length}/512</span></div></ActionDialog>:null}
+      {['reply','quote'].includes(dialog)?<ActionDialog title={dialog==='reply'?'Reply to post':'Quote post'} description="Signed by the selected owned persona and anchored directly in AEKO Social Posts." onClose={closeDialog} onSubmit={submitPost} submitLabel={dialog==='reply'?'Reply':'Quote'} busy={Boolean(busy)}><textarea autoFocus value={composerText} onChange={(e)=>setComposerText(e.target.value.slice(0,512))} placeholder="What is happening on AEKO?" className="min-h-40 w-full resize-none rounded-2xl border border-white/10 bg-black/30 p-4 text-[15px] leading-6 text-white outline-none focus:border-aeko-accent/50"/><div className="mt-2 flex justify-between text-[11px] text-gray-600"><span>{persona?.name} · {shortAddress(persona?.address||'')}</span><span>{composerText.length}/512</span></div></ActionDialog>:null}
       {dialog==='edit'?<ActionDialog title="Edit post" description="Only the original creator can sign this edit." onClose={closeDialog} onSubmit={submitEdit} submitLabel="Save edit" busy={Boolean(busy)}><textarea autoFocus value={composerText} onChange={(e)=>setComposerText(e.target.value.slice(0,512))} className="min-h-36 w-full resize-none rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white outline-none focus:border-aeko-accent/50"/></ActionDialog>:null}
       {['tip','stake','subscribe','unlock'].includes(dialog)?<ActionDialog title={dialog==='tip'?'Tip creator':dialog==='stake'?'Stake on creator':dialog==='subscribe'?'Subscribe to creator':'Unlock paid post'} description="This action moves testnet AEKO through the canonical program-owned Social vault." onClose={closeDialog} onSubmit={submitEconomic} submitLabel={dialog==='stake'?'Open stake':'Confirm'} busy={Boolean(busy)}><div className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-gray-400">Signer <span className="font-mono text-white">{shortAddress(persona?.address||'')}</span></div><label className="mt-4 block text-xs text-gray-500">AEKO amount<input type="number" min="0.000000001" step="0.000000001" value={amount} onChange={(e)=>setAmount(e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-aeko-accent/50"/></label>{dialog==='subscribe'?<label className="mt-4 block text-xs text-gray-500">Period (days)<input type="number" min="1" value={periodDays} onChange={(e)=>setPeriodDays(e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white"/></label>:null}</ActionDialog>:null}
       {dialog==='mint'?<ActionDialog title="Mint post as AEKO-721" description="Creates or reuses your deterministic AEKO Social collection, mints this post, confirms it on RPC, then waits for the Explorer asset indexer." onClose={closeDialog} onSubmit={submitMint} submitLabel="Mint NFT" busy={Boolean(busy)}><div className="rounded-2xl border border-aeko-accent/20 bg-aeko-accent/[0.05] p-4"><div className="text-xs text-aeko-accent">Creator ownership check</div><div className="mt-2 font-mono text-[11px] text-gray-400">{dialogPost?.creator}</div><div className="mt-3 text-sm leading-6 text-gray-200">{content(dialogPost)}</div></div></ActionDialog>:null}
