@@ -2,6 +2,7 @@
 set -euo pipefail
 
 VALIDATE_SOURCE="${VALIDATE_SOURCE:-true}"
+BUILD_IMAGE="${BUILD_IMAGE:-true}"
 PUBLISH="${PUBLISH:-false}"
 REGISTRY_USER="${REGISTRY_USER:-}"
 : "${SHA_TAG:?SHA_TAG is required}"
@@ -31,39 +32,45 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
     -p aeko-social-monetization-program
 fi
 
-output=(--load)
-prefix="aeko-ci"
+if [ "${BUILD_IMAGE}" = "true" ]; then
+  output=(--load)
+  prefix="aeko-ci"
 
-if [ "${PUBLISH}" = "true" ]; then
-  : "${REGISTRY_USER:?REGISTRY_USER is required when publishing}"
-  prefix="${REGISTRY_USER}"
-  output=(--push)
-fi
+  if [ "${PUBLISH}" = "true" ]; then
+    : "${REGISTRY_USER:?REGISTRY_USER is required when publishing}"
+    prefix="${REGISTRY_USER}"
+    output=(--push)
+  fi
 
-build_target() {
-  local target="$1"
-  shift
-  local tags=()
-  local image
-  for image in "$@"; do
-    tags+=(--tag "${prefix}/${image}:${SHA_TAG}")
-  done
-  docker buildx build \
-    --file docker/Dockerfile \
-    --target "${target}" \
-    "${tags[@]}" \
-    "${output[@]}" \
-    .
-}
+  build_target() {
+    local target="$1"
+    shift
+    local tags=()
+    local image
+    for image in "$@"; do
+      tags+=(--tag "${prefix}/${image}:${SHA_TAG}")
+    done
+    local cache_scope="aeko-network-${target}"
+    docker buildx build \
+      --file docker/Dockerfile \
+      --target "${target}" \
+      --cache-from "type=gha,scope=${cache_scope}" \
+      --cache-to "type=gha,scope=${cache_scope},mode=max,ignore-error=true" \
+      "${tags[@]}" \
+      "${output[@]}" \
+      .
+  }
 
-# network-rust-builder compiles validator, genesis, faucet and social-bootstrap
-# once. BuildKit reuses that stage for these targets.
-build_target validator aeko-validator aeko-node
-build_target faucet aeko-faucet
-build_target social-bootstrap aeko-social-bootstrap
+  # network-rust-builder compiles validator, genesis, faucet and social-bootstrap
+  # once. BuildKit reuses that stage for these targets.
+  build_target validator aeko-validator aeko-node
+  build_target faucet aeko-faucet
+  build_target social-bootstrap aeko-social-bootstrap
 
-if [ "${PUBLISH}" = "true" ]; then
-  echo "Published immutable network images for ${SHA_TAG}."
-else
-  echo "Built the network image set locally for validation only; nothing was pushed."
+  if [ "${PUBLISH}" = "true" ]; then
+    echo "Published immutable network images for ${SHA_TAG}."
+  else
+    echo "Built the network image set locally for validation only; nothing was pushed."
+  fi
+
 fi
