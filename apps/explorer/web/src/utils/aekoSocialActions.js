@@ -7,6 +7,7 @@ import {
 } from './aekoSocialProgramIds.js';
 
 const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const SYSTEM_PROGRAM_ID = '11111111111111111111111111111111';
 const ENGAGEMENT = { like: 0, comment: 1, repost: 2, quote: 3, share: 4, save: 5 };
 
 function decode58(value) {
@@ -256,6 +257,7 @@ export function buildOpenStakeTx({ wallet, stakingState, stakeVault, recentBlock
         { address: stakingState, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
         { address: stakeVault, isWritable: true },
+        { address: SYSTEM_PROGRAM_ID },
       ],
       data,
     }),
@@ -315,6 +317,7 @@ export function buildTipTx({ wallet, monetizationState, treasury, recentBlockhas
         { address: monetizationState, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
         { address: treasury, isWritable: true },
+        { address: SYSTEM_PROGRAM_ID },
       ],
       data: concat(
         Uint8Array.from([1]), tipId, decode58(creator), decode58(wallet.address),
@@ -339,6 +342,7 @@ export function buildCreateSubscriptionTx({ wallet, monetizationState, treasury,
         { address: monetizationState, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
         { address: treasury, isWritable: true },
+        { address: SYSTEM_PROGRAM_ID },
       ],
       data: concat(
         Uint8Array.from([2]), subscriptionId, decode58(creator), decode58(wallet.address),
@@ -357,6 +361,7 @@ export function buildRenewSubscriptionTx({ wallet, monetizationState, treasury, 
       { address: monetizationState, isWritable: true },
       { address: wallet.address, isSigner: true, isWritable: true },
       { address: treasury, isWritable: true },
+      { address: SYSTEM_PROGRAM_ID },
     ],
     data: concat(Uint8Array.from([3]), decode58(subscriptionId), i64(validUntil)),
   });
@@ -387,6 +392,7 @@ export function buildUnlockPaidContentTx({ wallet, monetizationState, treasury, 
         { address: monetizationState, isWritable: true },
         { address: wallet.address, isSigner: true, isWritable: true },
         { address: treasury, isWritable: true },
+        { address: SYSTEM_PROGRAM_ID },
       ],
       data: concat(
         Uint8Array.from([5]), unlockId, decode58(post.postId), decode58(post.creator),
