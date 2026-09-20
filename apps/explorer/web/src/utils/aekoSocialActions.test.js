@@ -49,7 +49,7 @@ function decodeBase58(value) {
 }
 
 function inspectTransaction(base64) {
-  const bytes = Uint8Array.from(Buffer.from(base64, 'base64'));
+  const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
   const signatures = shortVec(bytes, 0);
   let offset = signatures.offset + signatures.value * 64;
   const requiredSignatures = bytes[offset];
@@ -76,8 +76,10 @@ function inspectTransaction(base64) {
 }
 
 function accountIndex(message, address) {
-  const expected = Buffer.from(decodeBase58(address));
-  return message.accounts.findIndex((account) => Buffer.from(account).equals(expected));
+  const expected = decodeBase58(address);
+  return message.accounts.findIndex((account) =>
+    account.length === expected.length && account.every((byte, index) => byte === expected[index]),
+  );
 }
 
 test('open stake signs with owned wallet and makes state and principal vault writable', () => {
