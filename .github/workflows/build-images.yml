@@ -69,6 +69,91 @@ jobs:
           echo "sha_tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
           printf 'Release mode: publish=%s sha=%s\n' "$publish" "${GITHUB_SHA::12}"
 
+      # CI implementation changes are validated as CI, not impersonated as
+      # product source changes. This keeps workflow/action refactors from
+      # compiling unrelated Rust crates or rebuilding deployable images.
+      - name: Validate DevOps shell implementation
+        id: ci_shell_validation
+        if: steps.changes.outputs.ci_pipeline == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' scripts < <(find .github/actions/devops -type f -name '*.sh' -print0)
+          for script in "${scripts[@]}"; do
+            bash -n "$script"
+          done
+          printf 'Validated shell syntax for %d DevOps scripts.\n' "${#scripts[@]}"
+
+      - name: Smoke admin action definition
+        id: ci_admin_action
+        if: steps.changes.outputs.ci_pipeline == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/admin
+        with:
+          validate-source: "false"
+          build-image: "false"
+          publish: "false"
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Smoke SDK action definition
+        id: ci_sdk_action
+        if: steps.changes.outputs.ci_pipeline == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/sdk
+        with:
+          js: "false"
+          node: "false"
+          python: "false"
+          rust: "false"
+
+      - name: Smoke CLI action definition
+        id: ci_cli_action
+        if: steps.changes.outputs.ci_pipeline == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/cli
+        with:
+          validate-source: "false"
+          host-build: "false"
+          build-image: "false"
+          publish: "false"
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Smoke Explorer backend action definition
+        id: ci_explorer_backend_action
+        if: steps.changes.outputs.ci_pipeline == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/explorer-backend
+        with:
+          validate-source: "false"
+          host-build: "false"
+          build-image: "false"
+          publish: "false"
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Smoke Explorer frontend action definition
+        id: ci_explorer_web_action
+        if: steps.changes.outputs.ci_pipeline == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/explorer-web
+        with:
+          validate-source: "false"
+          build-image: "false"
+          publish: "false"
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
+      - name: Smoke network action definition
+        id: ci_network_action
+        if: steps.changes.outputs.ci_pipeline == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/devops/network
+        with:
+          run-preflight: "false"
+          validate-source: "false"
+          build-image: "false"
+          publish: "false"
+          sha-tag: ${{ steps.release.outputs.sha_tag }}
+
       - name: Install pinned Rust toolchain and native prerequisites
         if: steps.changes.outputs.rust_needed == 'true'
         shell: bash
@@ -413,6 +498,14 @@ jobs:
           EXPLORER_BACKEND_IMAGE: ${{ steps.explorer_backend_image.outcome }}
           EXPLORER_WEB_IMAGE: ${{ steps.explorer_web_image.outcome }}
           ADMIN_IMAGE: ${{ steps.admin_image.outcome }}
+          CI_SHELL_VALIDATION: ${{ steps.ci_shell_validation.outcome }}
+          CI_ADMIN_ACTION: ${{ steps.ci_admin_action.outcome }}
+          CI_SDK_ACTION: ${{ steps.ci_sdk_action.outcome }}
+          CI_CLI_ACTION: ${{ steps.ci_cli_action.outcome }}
+          CI_EXPLORER_BACKEND_ACTION: ${{ steps.ci_explorer_backend_action.outcome }}
+          CI_EXPLORER_WEB_ACTION: ${{ steps.ci_explorer_web_action.outcome }}
+          CI_NETWORK_ACTION: ${{ steps.ci_network_action.outcome }}
+          EXPECT_CI_PIPELINE: ${{ steps.changes.outputs.ci_pipeline }}
           EXPECT_ADMIN_VALIDATION: ${{ steps.changes.outputs.admin }}
           EXPECT_EXPLORER_WEB_VALIDATION: ${{ steps.changes.outputs.explorer_web }}
           EXPECT_SDK_JS_VALIDATION: ${{ steps.changes.outputs.sdk_js }}
@@ -457,6 +550,13 @@ jobs:
           record_failure "explorer-backend:image" "$EXPLORER_BACKEND_IMAGE"
           record_failure "explorer-web:image" "$EXPLORER_WEB_IMAGE"
           record_failure "admin:image" "$ADMIN_IMAGE"
+          record_failure "ci-pipeline:shell" "$CI_SHELL_VALIDATION"
+          record_failure "ci-pipeline:admin-action" "$CI_ADMIN_ACTION"
+          record_failure "ci-pipeline:sdk-action" "$CI_SDK_ACTION"
+          record_failure "ci-pipeline:cli-action" "$CI_CLI_ACTION"
+          record_failure "ci-pipeline:explorer-backend-action" "$CI_EXPLORER_BACKEND_ACTION"
+          record_failure "ci-pipeline:explorer-web-action" "$CI_EXPLORER_WEB_ACTION"
+          record_failure "ci-pipeline:network-action" "$CI_NETWORK_ACTION"
 
           require_selected_result() {
             local expected="$1"
@@ -472,6 +572,16 @@ jobs:
                 ;;
             esac
           }
+
+          if [ "$EXPECT_CI_PIPELINE" = "true" ]; then
+            require_selected_result true "ci-pipeline:shell" "$CI_SHELL_VALIDATION"
+            require_selected_result true "ci-pipeline:admin-action" "$CI_ADMIN_ACTION"
+            require_selected_result true "ci-pipeline:sdk-action" "$CI_SDK_ACTION"
+            require_selected_result true "ci-pipeline:cli-action" "$CI_CLI_ACTION"
+            require_selected_result true "ci-pipeline:explorer-backend-action" "$CI_EXPLORER_BACKEND_ACTION"
+            require_selected_result true "ci-pipeline:explorer-web-action" "$CI_EXPLORER_WEB_ACTION"
+            require_selected_result true "ci-pipeline:network-action" "$CI_NETWORK_ACTION"
+          fi
 
           require_selected_result "$EXPECT_ADMIN_VALIDATION" "admin:validation" "$ADMIN_VALIDATION"
           require_selected_result "$EXPECT_EXPLORER_WEB_VALIDATION" "explorer-web:validation" "$EXPLORER_WEB_VALIDATION"
