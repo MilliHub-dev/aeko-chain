@@ -35,35 +35,12 @@ runs:
           exit 1
         fi
 
-    - name: Install admin dependencies
+    - name: Validate admin source
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
-      working-directory: apps/admin
-      run: npm ci
-
-    - name: Admin lint
-      if: ${{ inputs.validate-source == 'true' }}
-      shell: bash
-      working-directory: apps/admin
-      run: npm run lint --if-present
-
-    - name: Admin type-check
-      if: ${{ inputs.validate-source == 'true' }}
-      shell: bash
-      working-directory: apps/admin
-      run: npx tsc --noEmit
-
-    - name: Admin tests
-      if: ${{ inputs.validate-source == 'true' }}
-      shell: bash
-      working-directory: apps/admin
-      run: npm test --if-present
-
-    - name: Admin production build
-      if: ${{ inputs.validate-source == 'true' && inputs.build-image != 'true' }}
-      shell: bash
-      working-directory: apps/admin
-      run: npm run build
+      env:
+        HOST_BUILD: ${{ inputs.build-image != 'true' && 'true' || 'false' }}
+      run: bash "$GITHUB_ACTION_PATH/validate.sh"
 
     - name: Build admin image
       if: ${{ inputs.build-image == 'true' }}
@@ -85,11 +62,11 @@ runs:
           tags+=(--tag "aeko-ci/aeko-admin:${SHA_TAG}")
         fi
 
-        # The admin Docker target performs npm ci + next build, so packaging is
-        # also the production build gate and we avoid compiling Next.js twice.
         docker buildx build \
           --file docker/Dockerfile \
           --target admin \
+          --cache-from "type=gha,scope=aeko-admin" \
+          --cache-to "type=gha,scope=aeko-admin,mode=max,ignore-error=true" \
           "${tags[@]}" \
           "${output[@]}" \
           .
