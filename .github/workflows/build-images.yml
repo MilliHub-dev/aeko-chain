@@ -80,7 +80,7 @@ jobs:
       - name: Validate DevOps shell implementation
         id: ci_shell_validation
         if: steps.changes.outputs.ci_pipeline == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -93,7 +93,7 @@ jobs:
       - name: Smoke admin action definition
         id: ci_admin_action
         if: steps.changes.outputs.ci_pipeline == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/admin
         with:
           validate-source: "false"
@@ -104,7 +104,7 @@ jobs:
       - name: Smoke SDK action definition
         id: ci_sdk_action
         if: steps.changes.outputs.ci_pipeline == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/sdk
         with:
           js: "false"
@@ -115,7 +115,7 @@ jobs:
       - name: Smoke CLI action definition
         id: ci_cli_action
         if: steps.changes.outputs.ci_pipeline == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/cli
         with:
           validate-source: "false"
@@ -127,7 +127,7 @@ jobs:
       - name: Smoke Explorer backend action definition
         id: ci_explorer_backend_action
         if: steps.changes.outputs.ci_pipeline == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/explorer-backend
         with:
           validate-source: "false"
@@ -139,7 +139,7 @@ jobs:
       - name: Smoke Explorer frontend action definition
         id: ci_explorer_web_action
         if: steps.changes.outputs.ci_pipeline == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/explorer-web
         with:
           validate-source: "false"
@@ -150,7 +150,7 @@ jobs:
       - name: Smoke network action definition
         id: ci_network_action
         if: steps.changes.outputs.ci_pipeline == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/network
         with:
           run-preflight: "false"
@@ -228,7 +228,7 @@ jobs:
           steps.changes.outputs.sdk_python == 'true' ||
           steps.changes.outputs.core == 'true' ||
           steps.changes.outputs.packaging == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         shell: bash
         env:
           RUN_ADMIN: ${{ steps.changes.outputs.admin }}
@@ -350,7 +350,7 @@ jobs:
       - name: Validate CLI Rust workload
         id: cli_validation
         if: steps.changes.outputs.cli == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/cli
         with:
           validate-source: "true"
@@ -362,7 +362,7 @@ jobs:
       - name: Validate Explorer backend Rust workload
         id: explorer_backend_validation
         if: steps.changes.outputs.explorer_backend == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/explorer-backend
         with:
           validate-source: "true"
@@ -374,7 +374,7 @@ jobs:
       - name: Validate Rust SDK workload
         id: sdk_rust_validation
         if: steps.changes.outputs.sdk_rust == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/sdk
         with:
           js: "false"
@@ -389,7 +389,7 @@ jobs:
       - name: Validate blockchain network Rust workload
         id: network_validation
         if: steps.changes.outputs.core == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/network
         with:
           run-preflight: "false"
@@ -409,7 +409,7 @@ jobs:
           (steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') &&
           steps.parallel_validation.outputs.network_preflight_outcome == 'success' &&
           (steps.changes.outputs.core != 'true' || steps.network_validation.outcome == 'success')
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/network
         with:
           run-preflight: "false"
@@ -425,7 +425,7 @@ jobs:
           !cancelled() && (github.event_name == 'pull_request' || success()) &&
           (steps.changes.outputs.cli == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) &&
           (steps.changes.outputs.cli != 'true' || steps.cli_validation.outcome == 'success')
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/cli
         with:
           validate-source: "false"
@@ -441,7 +441,7 @@ jobs:
           !cancelled() && (github.event_name == 'pull_request' || success()) &&
           (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) &&
           (steps.changes.outputs.explorer_backend != 'true' || steps.explorer_backend_validation.outcome == 'success')
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/explorer-backend
         with:
           validate-source: "false"
@@ -457,7 +457,7 @@ jobs:
           !cancelled() && (github.event_name == 'pull_request' || success()) &&
           (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) &&
           (steps.changes.outputs.explorer_web != 'true' || steps.parallel_validation.outputs.explorer_web_outcome == 'success')
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/explorer-web
         with:
           validate-source: "false"
@@ -472,7 +472,7 @@ jobs:
           !cancelled() && (github.event_name == 'pull_request' || success()) &&
           (steps.changes.outputs.admin == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) &&
           (steps.changes.outputs.admin != 'true' || steps.parallel_validation.outputs.admin_outcome == 'success')
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: ${{ github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true' }}
         uses: ./.github/actions/devops/admin
         with:
           validate-source: "false"
@@ -484,7 +484,7 @@ jobs:
       # Phase 5: report the actual domain and phase that failed. PR domain
       # steps use continue-on-error so independent selected domains still run.
       - name: Aggregate pull-request validation results
-        if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
+        if: ${{ always() && !cancelled() && (github.event_name == 'pull_request' || steps.changes.outputs.full_validation == 'true') }}
         shell: bash
         env:
           PARALLEL_OUTCOME: ${{ steps.parallel_validation.outcome }}

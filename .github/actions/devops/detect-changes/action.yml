@@ -140,7 +140,7 @@ runs:
               apps/admin/*)
                 admin=true
                 ;;
-              apps/cli/*)
+              apps/cli/*|keygen/*|install/aeko-cli-install.sh)
                 cli=true
                 ;;
               apps/explorer/backend/*)
