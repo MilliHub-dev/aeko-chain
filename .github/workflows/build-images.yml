@@ -413,6 +413,21 @@ jobs:
           EXPLORER_BACKEND_IMAGE: ${{ steps.explorer_backend_image.outcome }}
           EXPLORER_WEB_IMAGE: ${{ steps.explorer_web_image.outcome }}
           ADMIN_IMAGE: ${{ steps.admin_image.outcome }}
+          EXPECT_ADMIN_VALIDATION: ${{ steps.changes.outputs.admin }}
+          EXPECT_EXPLORER_WEB_VALIDATION: ${{ steps.changes.outputs.explorer_web }}
+          EXPECT_SDK_JS_VALIDATION: ${{ steps.changes.outputs.sdk_js }}
+          EXPECT_SDK_NODE_VALIDATION: ${{ steps.changes.outputs.sdk_node }}
+          EXPECT_SDK_PYTHON_VALIDATION: ${{ steps.changes.outputs.sdk_python }}
+          EXPECT_NETWORK_PREFLIGHT: ${{ (steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          EXPECT_CLI_VALIDATION: ${{ steps.changes.outputs.cli }}
+          EXPECT_EXPLORER_BACKEND_VALIDATION: ${{ steps.changes.outputs.explorer_backend }}
+          EXPECT_SDK_RUST_VALIDATION: ${{ steps.changes.outputs.sdk_rust }}
+          EXPECT_NETWORK_VALIDATION: ${{ steps.changes.outputs.core }}
+          EXPECT_NETWORK_IMAGE: ${{ (steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') && 'true' || 'false' }}
+          EXPECT_CLI_IMAGE: ${{ (steps.changes.outputs.cli == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
+          EXPECT_EXPLORER_BACKEND_IMAGE: ${{ (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
+          EXPECT_EXPLORER_WEB_IMAGE: ${{ (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
+          EXPECT_ADMIN_IMAGE: ${{ (steps.changes.outputs.admin == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) && 'true' || 'false' }}
         run: |
           set -euo pipefail
           failures=()
@@ -442,6 +457,58 @@ jobs:
           record_failure "explorer-backend:image" "$EXPLORER_BACKEND_IMAGE"
           record_failure "explorer-web:image" "$EXPLORER_WEB_IMAGE"
           record_failure "admin:image" "$ADMIN_IMAGE"
+
+          require_selected_result() {
+            local expected="$1"
+            local label="$2"
+            local outcome="$3"
+            if [ "$expected" != "true" ]; then
+              return 0
+            fi
+            case "$outcome" in
+              success|failure|cancelled) ;;
+              *)
+                failures+=("${label}:${outcome:-missing}")
+                ;;
+            esac
+          }
+
+          require_selected_result "$EXPECT_ADMIN_VALIDATION" "admin:validation" "$ADMIN_VALIDATION"
+          require_selected_result "$EXPECT_EXPLORER_WEB_VALIDATION" "explorer-web:validation" "$EXPLORER_WEB_VALIDATION"
+          require_selected_result "$EXPECT_SDK_JS_VALIDATION" "sdk-js:validation" "$SDK_JS_VALIDATION"
+          require_selected_result "$EXPECT_SDK_NODE_VALIDATION" "sdk-node:validation" "$SDK_NODE_VALIDATION"
+          require_selected_result "$EXPECT_SDK_PYTHON_VALIDATION" "sdk-python:validation" "$SDK_PYTHON_VALIDATION"
+          require_selected_result "$EXPECT_NETWORK_PREFLIGHT" "network:preflight" "$NETWORK_PREFLIGHT"
+          require_selected_result "$EXPECT_CLI_VALIDATION" "cli:rust-validation" "$CLI_VALIDATION"
+          require_selected_result "$EXPECT_EXPLORER_BACKEND_VALIDATION" "explorer-backend:rust-validation" "$EXPLORER_BACKEND_VALIDATION"
+          require_selected_result "$EXPECT_SDK_RUST_VALIDATION" "sdk-rust:validation" "$SDK_RUST_VALIDATION"
+          require_selected_result "$EXPECT_NETWORK_VALIDATION" "network:rust-validation" "$NETWORK_VALIDATION"
+
+          # A selected image is required only when its own prerequisite
+          # validation succeeded (or no source validation was required, as for
+          # packaging-only builds). Upstream validation failures are already
+          # reported above and intentionally suppress the corresponding image.
+          if [ "$EXPECT_NETWORK_IMAGE" = "true" ] &&
+             [ "$NETWORK_PREFLIGHT" = "success" ] &&
+             { [ "$EXPECT_NETWORK_VALIDATION" != "true" ] || [ "$NETWORK_VALIDATION" = "success" ]; }; then
+            require_selected_result true "network:image" "$NETWORK_IMAGE"
+          fi
+          if [ "$EXPECT_CLI_IMAGE" = "true" ] &&
+             { [ "$EXPECT_CLI_VALIDATION" != "true" ] || [ "$CLI_VALIDATION" = "success" ]; }; then
+            require_selected_result true "cli:image" "$CLI_IMAGE"
+          fi
+          if [ "$EXPECT_EXPLORER_BACKEND_IMAGE" = "true" ] &&
+             { [ "$EXPECT_EXPLORER_BACKEND_VALIDATION" != "true" ] || [ "$EXPLORER_BACKEND_VALIDATION" = "success" ]; }; then
+            require_selected_result true "explorer-backend:image" "$EXPLORER_BACKEND_IMAGE"
+          fi
+          if [ "$EXPECT_EXPLORER_WEB_IMAGE" = "true" ] &&
+             { [ "$EXPECT_EXPLORER_WEB_VALIDATION" != "true" ] || [ "$EXPLORER_WEB_VALIDATION" = "success" ]; }; then
+            require_selected_result true "explorer-web:image" "$EXPLORER_WEB_IMAGE"
+          fi
+          if [ "$EXPECT_ADMIN_IMAGE" = "true" ] &&
+             { [ "$EXPECT_ADMIN_VALIDATION" != "true" ] || [ "$ADMIN_VALIDATION" = "success" ]; }; then
+            require_selected_result true "admin:image" "$ADMIN_IMAGE"
+          fi
 
           # Fail closed if the parallel orchestrator itself died before it could
           # emit a concrete child result.
