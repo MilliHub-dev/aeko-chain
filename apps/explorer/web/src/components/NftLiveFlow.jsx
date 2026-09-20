@@ -46,6 +46,27 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function validateSeed(seed, label) {
+  const bytes = new TextEncoder().encode(seed.trim());
+  if (bytes.length === 0) throw new Error(`${label} is required.`);
+  if (bytes.length > 32) throw new Error(`${label} must be 32 UTF-8 bytes or fewer for CreateAccountWithSeed.`);
+}
+
+function validateMetadata(name, uri) {
+  const normalizedName = name.trim();
+  const normalizedUri = uri.trim();
+  if (!normalizedName || normalizedName.length > 100) {
+    throw new Error('NFT name must contain 1 to 100 characters.');
+  }
+  if (
+    !normalizedUri
+    || normalizedUri.length > 256
+    || !/^(https?:\/\/|ipfs:\/\/|ar:\/\/)/i.test(normalizedUri)
+  ) {
+    throw new Error('Metadata URI must be a valid http(s), ipfs://, or ar:// URI up to 256 characters.');
+  }
+}
+
 async function readLiveState(rpcUrl, collectionAddress, tokenAddress) {
   const [collectionInfo, tokenInfo] = await Promise.all([
     collectionAddress ? getAccountInfo(rpcUrl, collectionAddress) : null,
@@ -188,6 +209,9 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
     setIndexRecord(null);
     try {
       const currentBalance = await ensureFunded();
+      validateSeed(collectionSeed, 'Collection seed');
+      validateSeed(tokenSeed, 'Token seed');
+      validateMetadata(metadataName, metadataUri);
       const authority = wallet.address;
       const collectionAddress = await deriveToken721AddressWithSeed(authority, collectionSeed.trim());
       const tokenAddress = await deriveToken721AddressWithSeed(authority, tokenSeed.trim());
@@ -295,6 +319,7 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
     setError('');
     try {
       await ensureFunded();
+      if (action === 'update') validateMetadata(metadataName, metadataUri);
       const current = await refreshLive();
       const token = current?.token;
       if (!token) throw new Error('Load or mint a live NFT before running lifecycle actions.');
