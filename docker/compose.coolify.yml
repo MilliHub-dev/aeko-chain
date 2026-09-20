@@ -83,7 +83,8 @@ services:
         source: /data/aeko/keys
         target: /keys
         read_only: true
-       faucet:
+    depends_on:
+      faucet:
         condition: service_started
     healthcheck:
       test:
