@@ -278,14 +278,8 @@ jobs:
           # GitHub secrets can accidentally include a trailing CR/LF when copied.
           # Coolify's deploy endpoint is POST-only; normalize only line endings,
           # never echo either secret.
-          WEBHOOK_URL="${WEBHOOK_URL//
-\r'/}"
-          WEBHOOK_URL="${WEBHOOK_URL//
-\n'/}"
-          WEBHOOK_API_KEY="${WEBHOOK_API_KEY//
-\r'/}"
-          WEBHOOK_API_KEY="${WEBHOOK_API_KEY//
-\n'/}"
+          WEBHOOK_URL="$(printf '%s' "$WEBHOOK_URL" | tr -d '\\r\\n')"
+          WEBHOOK_API_KEY="$(printf '%s' "$WEBHOOK_API_KEY" | tr -d '\\r\\n')"
 
           curl --fail-with-body --silent --show-error \
             --request POST \
