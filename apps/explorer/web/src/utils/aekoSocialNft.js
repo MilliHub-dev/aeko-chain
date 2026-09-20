@@ -1,6 +1,6 @@
 import { confirmSignature, getAccountInfo, getLatestBlockhash, sendTransaction } from './aekoRpcClient';
 import { assertRpcExplorerAlignment } from './networkIdentity';
-import { signMessage } from './aekoTestKeypair';
+import { signPreparedTransactionWithTestWallet } from './aekoPreparedTransaction';
 import {
   buildPreparedCollectionSetupTransaction,
   buildPreparedMintWithAccountSetupTransaction,
@@ -11,32 +11,13 @@ import {
 import { fetchMinimumBalanceForRentExemption } from './nftAccountDecoder';
 import { fetchNftsForCreator } from './testConsoleApi';
 
-function fromBase64(value) {
-  const raw = atob(value);
-  return Uint8Array.from(raw, (char) => char.charCodeAt(0));
-}
-function toBase64(bytes) {
-  let raw = '';
-  bytes.forEach((byte) => { raw += String.fromCharCode(byte); });
-  return btoa(raw);
-}
-
-function signSingleSignerPreparedTransaction(wallet, preparedBase64) {
-  const bytes = fromBase64(preparedBase64);
-  if (bytes[0] !== 1) throw new Error('Social NFT flow requires a single-signature prepared transaction.');
-  const message = bytes.slice(65);
-  const signature = signMessage(wallet, message);
-  bytes.set(signature, 1);
-  return toBase64(bytes);
-}
-
 async function digestHex(value) {
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)));
   return Array.from(digest).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 async function confirmPrepared(rpcUrl, wallet, prepared) {
-  const signed = signSingleSignerPreparedTransaction(wallet, prepared);
+  const signed = signPreparedTransactionWithTestWallet(wallet, prepared);
   const signature = await sendTransaction(rpcUrl, signed);
   await confirmSignature(rpcUrl, signature);
   return signature;
