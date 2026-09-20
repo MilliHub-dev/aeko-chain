@@ -315,7 +315,7 @@ jobs:
       - name: Build selected network images
         id: network_image
         if: >-
-          (github.event_name == 'pull_request' || success()) &&
+          !cancelled() && (github.event_name == 'pull_request' || success()) &&
           (steps.changes.outputs.core == 'true' || steps.changes.outputs.packaging == 'true') &&
           steps.parallel_validation.outputs.network_preflight_outcome == 'success' &&
           (steps.changes.outputs.core != 'true' || steps.network_validation.outcome == 'success')
@@ -332,7 +332,7 @@ jobs:
       - name: Build selected CLI image
         id: cli_image
         if: >-
-          (github.event_name == 'pull_request' || success()) &&
+          !cancelled() && (github.event_name == 'pull_request' || success()) &&
           (steps.changes.outputs.cli == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) &&
           (steps.changes.outputs.cli != 'true' || steps.cli_validation.outcome == 'success')
         continue-on-error: ${{ github.event_name == 'pull_request' }}
@@ -348,7 +348,7 @@ jobs:
       - name: Build selected Explorer backend image
         id: explorer_backend_image
         if: >-
-          (github.event_name == 'pull_request' || success()) &&
+          !cancelled() && (github.event_name == 'pull_request' || success()) &&
           (steps.changes.outputs.explorer_backend == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) &&
           (steps.changes.outputs.explorer_backend != 'true' || steps.explorer_backend_validation.outcome == 'success')
         continue-on-error: ${{ github.event_name == 'pull_request' }}
@@ -364,7 +364,7 @@ jobs:
       - name: Build selected Explorer frontend image
         id: explorer_web_image
         if: >-
-          (github.event_name == 'pull_request' || success()) &&
+          !cancelled() && (github.event_name == 'pull_request' || success()) &&
           (steps.changes.outputs.explorer_web == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) &&
           (steps.changes.outputs.explorer_web != 'true' || steps.parallel_validation.outputs.explorer_web_outcome == 'success')
         continue-on-error: ${{ github.event_name == 'pull_request' }}
@@ -379,7 +379,7 @@ jobs:
       - name: Build selected admin image
         id: admin_image
         if: >-
-          (github.event_name == 'pull_request' || success()) &&
+          !cancelled() && (github.event_name == 'pull_request' || success()) &&
           (steps.changes.outputs.admin == 'true' || steps.changes.outputs.packaging == 'true' || (github.event_name != 'pull_request' && steps.changes.outputs.core == 'true')) &&
           (steps.changes.outputs.admin != 'true' || steps.parallel_validation.outputs.admin_outcome == 'success')
         continue-on-error: ${{ github.event_name == 'pull_request' }}
@@ -394,7 +394,7 @@ jobs:
       # Phase 5: report the actual domain and phase that failed. PR domain
       # steps use continue-on-error so independent selected domains still run.
       - name: Aggregate pull-request validation results
-        if: ${{ always() && github.event_name == 'pull_request' }}
+        if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
         shell: bash
         env:
           PARALLEL_OUTCOME: ${{ steps.parallel_validation.outcome }}
