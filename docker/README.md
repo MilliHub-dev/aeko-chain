@@ -10,7 +10,7 @@ All first-party AEKO container and Compose definitions live in this directory. T
 | `compose.coolify.yml` | Image-only public topology with Coolify-safe persistent-storage syntax |
 | `env.public.example` | Public-deployment environment template shared by Dokploy and Coolify |
 | `validator-entrypoint.sh` | Shared validator/RPC role entrypoint |
-| `key-preflight.sh` | Fail-closed public keypair validation used by Coolify's one-shot preflight service |
+| `key-preflight.sh` | Reusable fail-closed keypair diagnostic helper; Coolify does not use it as a global startup gate |
 
 Build from the repository root so `COPY` paths use the root workspace as their context:
 
