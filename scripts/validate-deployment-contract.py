@@ -246,6 +246,8 @@ def main() -> int:
     require(re.search(r"^  key-preflight:\\s*$", coolify, re.MULTILINE) is None, "Coolify must not use the diagnostic preflight as a global startup gate")
     require('entrypoint: ["/bin/sh", "-ec"]' in coolify_key_bootstrap, "Coolify key bootstrap must run an explicit one-shot shell")
     require("aeko-keygen new --no-bip39-passphrase --silent --outfile" in coolify_key_bootstrap, "Coolify key bootstrap must create missing persistent keypairs")
+    require('if [ ! -s "$path" ]; then' in coolify_key_bootstrap, "Coolify key bootstrap must preserve existing non-empty keypairs")
+    require('aeko-keygen pubkey "$path" >/dev/null' in coolify_key_bootstrap, "Coolify key bootstrap must validate every resulting keypair")
     require('restart: "no"' in coolify_key_bootstrap, "Coolify key bootstrap must be a one-shot initializer")
     require("key-bootstrap:" in coolify_faucet and "condition: service_completed_successfully" in coolify_faucet, "Coolify faucet must wait for persistent key initialization")
     require('restart: "no"' in coolify_bootstrap, "Coolify SocialFi bootstrap must remain a one-shot initializer")
