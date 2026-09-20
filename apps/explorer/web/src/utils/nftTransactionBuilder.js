@@ -155,7 +155,17 @@ function encodeInstructionData(action, args) {
   }
 }
 
-function compileInstruction({ action, collection, token, authority, owner, recipient, tokenId, royaltyBps, metadata }) {
+function compileInstruction({
+  action,
+  collection,
+  token = '',
+  authority,
+  owner = '',
+  recipient = '',
+  tokenId = 0,
+  royaltyBps = 0,
+  metadata,
+}) {
   if (action === 'initializeCollection') {
     return {
       programId: TOKEN_721_PROGRAM_ID_BYTES,
