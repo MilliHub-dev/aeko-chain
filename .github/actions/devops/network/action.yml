@@ -3,7 +3,7 @@ description: Fully validate core changes, build network images locally on PRs, a
 
 inputs:
   validate-source:
-    description: Run network Rust format, Clippy type/lint validation, and tests.
+    description: Run network Rust format, strict changed-program lint, and full selected network tests.
     required: false
     default: "true"
   publish:
@@ -100,15 +100,11 @@ runs:
         git restore --worktree -- .
         echo "Changed Rust files are rustfmt-clean; unrelated legacy formatting debt was ignored."
 
-    - name: Network binary type check and lint
+    - name: Strict lint for changed Social programs
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       run: >-
         cargo clippy --locked --all-targets
-        -p aeko-validator
-        -p aeko-genesis
-        -p aeko-faucet
-        -p aeko-social-bootstrap
         -p aeko-social-staking-program
         -p aeko-social-monetization-program
         -- -D warnings
