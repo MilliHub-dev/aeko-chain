@@ -48,7 +48,7 @@ Consumers, wallets and dApps use **RPC/WS**, never gossip. Index-heavy reads can
 | --- | --- | --- |
 | Validator | `surdma/aeko-validator` | voting block producer, ledger, consensus, validator transport, and public RPC/PubSub for the current single-validator public testnet |
 | RPC node | `surdma/aeko-validator` | optional portable/local profile using `AEKO_NODE_ROLE=rpc`; not required by the default public deployment |
-| Faucet | `surdma/aeko-faucet` | internal testnet airdrop service consumed by RPC |
+| Faucet Daemon | `surdma/aeko-faucet` | private TCP signer used only by the validator funding path |
 | SocialFi bootstrap | `surdma/aeko-social-bootstrap` | verifies/initializes the five SocialFi state accounts and writes the registry |
 | Explorer API | `surdma/aeko-explorer-api` | chain indexer, REST API and SocialFi registry/read endpoints |
 | Explorer UI | `surdma/aeko-explorer-ui` | browser block/social explorer and test console |
@@ -76,7 +76,7 @@ The public validator publishes the public TCP+UDP transport range `8000-8050`; g
 | `8001` | TCP + UDP | gossip entrypoint inside the range | direct node-to-node |
 | `8899` | HTTP JSON-RPC | wallet/dApp/CLI RPC | `rpc.aeko.online` via validator |
 | `8900` | WebSocket | RPC PubSub | `ws.aeko.online` via validator |
-| `9900` | TCP | testnet faucet | internal only |
+| `9900` | TCP | Faucet Daemon | internal only |
 | `8088` | HTTP | Explorer/indexer REST API | `api.aeko.online` |
 | `4000` | HTTP | Explorer UI | `scan.aeko.online` |
 | `4101` | HTTP/Socket.IO | separate Aeko application backend | separate deployment |
@@ -371,11 +371,15 @@ curl -s https://rpc.aeko.online \
   }'
 ```
 
-Testnet airdrop is requested through RPC; faucet `:9900` remains private:
+Public testnet funding is policy-controlled through the Funding Portal/Gateway; the Faucet Daemon on TCP `:9900` remains private and the deployed public RPC protects `requestAirdrop`:
 
 ```bash
-aeko airdrop 1 <WALLET_ADDRESS> --url https://rpc.aeko.online
+curl -X POST https://fund.aeko.online/api/funding/request \
+  -H 'Content-Type: application/json' \
+  -d '{"address":"<WALLET_ADDRESS>"}'
 ```
+
+Local/custom test validators may still expose the low-level `aeko airdrop` flow when no Funding Gateway key is configured.
 
 ## WebSocket / PubSub
 
@@ -423,7 +427,7 @@ For public deployment, `data.complete == true` is a hard acceptance criterion, b
 
 ## Aeko Social end-to-end acceptance
 
-The Explorer site's Faucet/Test Console has a real browser path for signed social transactions. It creates test Ed25519 wallets, requests an airdrop, transfers AEKO, discovers SocialFi state, builds/signs an `AnchorPost`, submits it through RPC, creates a signed Like engagement transaction and reads state back from-chain.
+The Explorer site's Network Tools/Test Console has a real browser path for signed social transactions. It creates test Ed25519 wallets, requests a policy-controlled funding grant, transfers AEKO, discovers SocialFi state, builds/signs an `AnchorPost`, submits it through RPC, creates a signed Like engagement transaction and reads state back from-chain.
 
 Use this sequence before certifying a deployment:
 
@@ -433,7 +437,7 @@ Use this sequence before certifying a deployment:
 4. All five SocialFi state addresses are non-null.
 5. Each state account exists, is initialized and has the expected SocialFi program owner.
 6. Create a test wallet.
-7. Request an airdrop and verify balance.
+7. Request a funding grant and verify balance.
 8. Submit a signed `AnchorPost`.
 9. Confirm the transaction.
 10. Read the post back from Social Posts state.

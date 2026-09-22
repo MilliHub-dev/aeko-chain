@@ -97,10 +97,10 @@ Optional funding policy (initial values; editable in the admin console afterward
 
 ```text
 AEKO_FAUCET_PER_REQUEST_CAP=100        # hard ceiling enforced by the faucet binary, in AEKO
-FAUCET_DEFAULT_AMOUNT_AEKO=5
-FAUCET_DEFAULT_COOLDOWN_HOURS=24
-FAUCET_DEFAULT_DAILY_BUDGET_AEKO=5000
-FAUCET_MAX_MANUAL_GRANT_AEKO=100
+FUNDING_DEFAULT_AMOUNT_AEKO=5
+FUNDING_DEFAULT_COOLDOWN_HOURS=24
+FUNDING_DEFAULT_DAILY_BUDGET_AEKO=5000
+FUNDING_MAX_MANUAL_GRANT_AEKO=100
 ```
 
 Optional SocialFi configuration:
@@ -357,10 +357,10 @@ That verifies RPC health, slot advancement, registry completeness, state-account
 
 ### Signed write path
 
-Use `https://scan.aeko.online/faucet` and open the Test Console:
+Use `https://scan.aeko.online/network-tools` and open the Test Console:
 
 1. create a test wallet;
-2. request an airdrop;
+2. request a policy-controlled funding grant;
 3. verify balance;
 4. submit a signed `AnchorPost`;
 5. confirm the transaction;
@@ -372,7 +372,7 @@ Use `https://scan.aeko.online/faucet` and open the Test Console:
 
 ## Security/exposure rules
 
-- Never expose faucet `9900` publicly.
+- Never expose the Faucet Daemon on TCP `9900` publicly.
 - Never expose PostgreSQL `5432` publicly.
 - Public dApps never connect to gossip.
 - Route public RPC/WS through the selected deployment platform's HTTP/WebSocket proxy to the validator's exposed `8899`/`8900` ports for the current single-validator topology.
