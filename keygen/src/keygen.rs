@@ -1,8 +1,6 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![allow(deprecated)]
 use {
-    bip39::{Mnemonic, MnemonicType, Seed},
-    clap::{crate_description, crate_name, value_parser, Arg, ArgMatches, Command},
     aeko_clap_v3_utils::{
         input_parsers::STDOUT_OUTFILE_TOKEN,
         input_validators::is_prompt_signer_source,
@@ -32,6 +30,8 @@ use {
             write_keypair_file, Keypair, Signer,
         },
     },
+    bip39::{Mnemonic, MnemonicType, Seed},
+    clap::{crate_description, crate_name, value_parser, Arg, ArgMatches, Command},
     std::{
         collections::HashSet,
         error,
