@@ -7586,6 +7586,40 @@ pub mod tests {
     }
 
     #[test]
+    fn test_rpc_request_airdrop_requires_funding_gateway_authorization() {
+        let RpcHandler { meta, io, .. } = RpcHandler::start_with_config(JsonRpcConfig {
+            faucet_addr: Some("127.0.0.1:1".parse().unwrap()),
+            funding_gateway_key: Some("test-funding-gateway-key".to_string()),
+            ..JsonRpcConfig::default()
+        });
+        let bob_pubkey = aeko_sdk::pubkey::new_rand();
+
+        let unauthorized = format!(
+            r#"{{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["{bob_pubkey}",50]}}"#
+        );
+        let unauthorized_response = io
+            .handle_request_sync(&unauthorized, meta.clone())
+            .expect("unauthorized response");
+        let unauthorized: Response =
+            serde_json::from_str(&unauthorized_response).expect("unauthorized JSON response");
+        assert_eq!(
+            parse_failure_response(unauthorized),
+            (-32600, "Invalid request".to_string())
+        );
+
+        let authorized = format!(
+            r#"{{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["{bob_pubkey}",50,{{"fundingAuthorization":"test-funding-gateway-key"}}]}}"#
+        );
+        let authorized_response = io
+            .handle_request_sync(&authorized, meta)
+            .expect("authorized response");
+        let authorized: Response =
+            serde_json::from_str(&authorized_response).expect("authorized JSON response");
+        let (code, _) = parse_failure_response(authorized);
+        assert_eq!(code, -32603, "authorized call should reach the configured faucet");
+    }
+
+    #[test]
     fn test_rpc_fail_request_airdrop() {
         let RpcHandler { meta, io, .. } = RpcHandler::start();
 
