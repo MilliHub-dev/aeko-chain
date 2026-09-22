@@ -1,4 +1,4 @@
-pub const JSON_RPC_URL: &str = "https://rpc.aeko.online";
+pub const JSON_RPC_URL: &str = "http://localhost:8899";
 
 lazy_static! {
     pub static ref CONFIG_FILE: Option<String> = {

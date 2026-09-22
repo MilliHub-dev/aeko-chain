@@ -1,7 +1,7 @@
 // Wallet settings that can be configured for long-term use
 use {
     serde_derive::{Deserialize, Serialize},
-    std::{collections::HashMap, io, path::Path},
+    std::{collections::HashMap, env, io, path::Path},
     url::Url,
 };
 
@@ -29,8 +29,8 @@ lazy_static! {
 pub struct Config {
     /// The RPC address of an AEKO validator node.
     ///
-    /// The canonical public testnet and any explicitly provisioned networks are [described in the
-    /// AEKO documentation][rpcdocs].
+    /// Remote network URLs are deployment configuration. Use an explicit URL or
+    /// the AEKO_RPC_URL / AEKO_TESTNET_RPC_URL environment variables.
     ///
     /// For local testing, the typical value is `http://localhost:8899`.
     ///
@@ -73,11 +73,27 @@ impl Default for Config {
             keypair_path.extend([".config", "aeko", "id.json"]);
             keypair_path.to_str().unwrap().to_string()
         };
-        let json_rpc_url = "https://rpc.aeko.online".to_string();
+        let json_rpc_url = env::var("AEKO_RPC_URL")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .or_else(|| {
+                env::var("AEKO_TESTNET_RPC_URL")
+                    .ok()
+                    .filter(|value| !value.trim().is_empty())
+            })
+            .unwrap_or_else(|| "http://localhost:8899".to_string());
 
-        // Empty websocket_url string indicates the client should
-        // `Config::compute_websocket_url(&json_rpc_url)`
-        let websocket_url = "".to_string();
+        // An explicit websocket endpoint is required when PubSub is hosted on
+        // a different origin than JSON-RPC. Empty means derive from json_rpc_url.
+        let websocket_url = env::var("AEKO_WEBSOCKET_URL")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .or_else(|| {
+                env::var("AEKO_TESTNET_WS_URL")
+                    .ok()
+                    .filter(|value| !value.trim().is_empty())
+            })
+            .unwrap_or_default();
 
         let mut address_labels = HashMap::new();
         address_labels.insert(
@@ -135,12 +151,6 @@ impl Config {
             return "".to_string();
         }
         let json_rpc_url = json_rpc_url.unwrap();
-        if json_rpc_url.scheme().eq_ignore_ascii_case("https")
-            && json_rpc_url.host_str() == Some("rpc.aeko.online")
-        {
-            return "wss://ws.aeko.online/".to_string();
-        }
-
         let is_secure = json_rpc_url.scheme().to_ascii_lowercase() == "https";
         let mut ws_url = json_rpc_url.clone();
         ws_url
@@ -182,11 +192,6 @@ mod test {
 
     #[test]
     fn compute_websocket_url() {
-        assert_eq!(
-            Config::compute_websocket_url("https://rpc.aeko.online"),
-            "wss://ws.aeko.online/".to_string()
-        );
-
         assert_eq!(
             Config::compute_websocket_url("http://example.com"),
             "ws://example.com/".to_string()

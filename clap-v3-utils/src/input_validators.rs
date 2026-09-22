@@ -244,7 +244,10 @@ where
             return Err("AEKO mainnet is not configured by this build; provide an explicit RPC URL when a mainnet endpoint is provisioned".to_string())
         }
         "d" | "devnet" => {
-            return Err("AEKO devnet is not configured by this build; use testnet, localhost, or provide an explicit RPC URL".to_string())
+            return Err("AEKO devnet is not configured by this build; provide an explicit RPC URL when a devnet endpoint is provisioned".to_string())
+        }
+        "t" | "testnet" if std::env::var("AEKO_TESTNET_RPC_URL").ok().filter(|value| !value.trim().is_empty()).is_none() => {
+            return Err("AEKO testnet URL is deployment configuration; set AEKO_TESTNET_RPC_URL or provide an explicit RPC URL".to_string())
         }
         _ => {}
     }
@@ -262,11 +265,13 @@ where
 
 pub fn normalize_to_url_if_moniker<T: AsRef<str>>(url_or_moniker: T) -> String {
     match url_or_moniker.as_ref() {
-        "t" | "testnet" => "https://rpc.aeko.online",
-        "l" | "localhost" => "http://localhost:8899",
-        url => url,
+        "t" | "testnet" => std::env::var("AEKO_TESTNET_RPC_URL")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| "testnet".to_string()),
+        "l" | "localhost" => "http://localhost:8899".to_string(),
+        url => url.to_string(),
     }
-    .to_string()
 }
 
 #[deprecated(
