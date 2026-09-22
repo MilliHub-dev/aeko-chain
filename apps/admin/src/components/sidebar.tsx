@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
 const NAV = [
   { href: '/',              label: 'Dashboard',     icon: '⬡' },
@@ -10,11 +10,18 @@ const NAV = [
   { href: '/nfts',          label: 'NFTs',          icon: '◉' },
   { href: '/social',        label: 'Social',        icon: '◎' },
   { href: '/marketplace',   label: 'Marketplace',   icon: '◆' },
-  { href: '/faucet',        label: 'Faucet',        icon: '◇' },
+  { href: '/airdrops',      label: 'Airdrops',      icon: '◇' },
 ]
 
 export default function Sidebar() {
   const path = usePathname()
+  const router = useRouter()
+
+  async function logout() {
+    await fetch('/api/logout', { method: 'POST' })
+    router.replace('/login')
+    router.refresh()
+  }
 
   return (
     <aside className="w-52 shrink-0 flex flex-col border-r border-[#1e2135] bg-[#0a0b12] min-h-screen">
@@ -43,8 +50,10 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="px-4 py-4 border-t border-[#1e2135] text-xs text-gray-600">
-        AEKO Chain v2.0
+      <div className="px-4 py-4 border-t border-[#1e2135] space-y-2 text-xs">
+        <Link href="/faucet" className="block text-gray-500 hover:text-gray-200">Public faucet ↗</Link>
+        <button onClick={logout} className="text-gray-500 hover:text-red-300">Sign out</button>
+        <div className="text-gray-700 pt-1">AEKO Chain v2.0</div>
       </div>
     </aside>
   )

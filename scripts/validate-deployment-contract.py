@@ -139,7 +139,7 @@ def main() -> int:
         re.search(r"^  rpc-node:\s*$", dokploy, re.MULTILINE) is None,
         "Dokploy must not make the non-voting RPC replica a mandatory/default service",
     )
-    ordered = ["faucet", "validator", "social-bootstrap", "explorer-api", "explorer-ui", "wallet-tools"]
+    ordered = ["faucet", "validator", "social-bootstrap", "explorer-api", "explorer-ui", "admin", "wallet-tools"]
     for index, service in enumerate(ordered):
         next_service = ordered[index + 1] if index + 1 < len(ordered) else None
         block = service_block(dokploy, service, next_service)
@@ -149,7 +149,7 @@ def main() -> int:
     validator = service_block(dokploy, "validator", "social-bootstrap")
     bootstrap = service_block(dokploy, "social-bootstrap", "explorer-api")
     explorer = service_block(dokploy, "explorer-api", "explorer-ui")
-    explorer_ui = service_block(dokploy, "explorer-ui", "wallet-tools")
+    explorer_ui = service_block(dokploy, "explorer-ui", "admin")
     wallet_tools = service_block(dokploy, "wallet-tools")
 
     require("AEKO_NODE_ROLE: validator" in validator, "validator role must be explicit")
@@ -225,8 +225,8 @@ def main() -> int:
     # Coolify mirrors the image-only public topology. Keep storage syntax
     # deliberately conservative because Coolify validates volume sources before
     # the containers are created.
-    require(re.search(r"^\\s+build:\\s*$", coolify, re.MULTILINE) is None, "Coolify compose must pull prebuilt images, not build source")
-    require(re.search(r"^  rpc-node:\\s*$", coolify, re.MULTILINE) is None, "Coolify must not make the optional RPC replica a default service")
+    require(re.search(r"^\s+build:\s*$", coolify, re.MULTILINE) is None, "Coolify compose must pull prebuilt images, not build source")
+    require(re.search(r"^  rpc-node:\s*$", coolify, re.MULTILINE) is None, "Coolify must not make the optional RPC replica a default service")
     for index, service in enumerate(ordered):
         next_service = ordered[index + 1] if index + 1 < len(ordered) else None
         block = service_block(coolify, service, next_service)
@@ -238,7 +238,16 @@ def main() -> int:
     coolify_validator = service_block(coolify, "validator", "social-bootstrap")
     coolify_bootstrap = service_block(coolify, "social-bootstrap", "explorer-api")
     coolify_explorer = service_block(coolify, "explorer-api", "explorer-ui")
+    coolify_admin = service_block(coolify, "admin", "wallet-tools")
     coolify_wallet_tools = service_block(coolify, "wallet-tools")
+    # The admin app is the airdrop policy owner (public faucet + operator
+    # console). It must be reachable with its own credentials and keep its
+    # grant ledger across redeploys.
+    require("ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}" in coolify_admin, "Coolify admin must require an operator password")
+    require("ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}" in coolify_admin, "Coolify admin must require a session secret")
+    require("- admin-state:/data" in coolify_admin, "Coolify admin must persist faucet policy/grants in the admin-state volume")
+    require("http://127.0.0.1:3001/api/faucet/policy" in coolify_admin, "Coolify admin healthcheck must probe the public faucet policy endpoint")
+    require("--per-request-cap" in coolify_faucet, "Coolify faucet must enforce a per-request airdrop ceiling")
     require("AEKO_KEYS_DIR" not in coolify, "Coolify compose must not depend on interpolated key-path variables")
     require("source: ${" not in coolify, "Coolify volume sources must not contain Compose interpolation")
     require(coolify.count("source: /data/aeko/keys") >= 5, "Coolify runtime and key bootstrap services must share the fixed host key bind source")

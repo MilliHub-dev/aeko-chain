@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import StatCard from '@/components/stat-card'
 import DataTable from '@/components/data-table'
 
-type Block = { slot: number; blockhash: string; parentSlot: number; transactionCount: number; blockTime?: number; leader?: string }
+type Block = { slot: number; blockhash: string; parentSlot: number; transactionCount: number; unixTimestamp?: number; producer?: string }
 
 function shortHash(h: string) { return h.slice(0, 8) + '…' + h.slice(-6) }
 function fmtTime(ts?: number) {
@@ -59,14 +59,14 @@ export default function BlocksPage() {
         <div className="text-gray-600 text-sm py-12 text-center">Loading blocks…</div>
       ) : (
         <DataTable
-          columns={['Slot', 'Blockhash', 'Parent', 'Txs', 'Leader', 'Time']}
+          columns={['Slot', 'Blockhash', 'Parent', 'Txs', 'Producer', 'Time']}
           rows={blocks.map(b => [
             <span key={b.slot} className="text-emerald-400 font-semibold">{b.slot.toLocaleString()}</span>,
             shortHash(b.blockhash),
             b.parentSlot.toLocaleString(),
             b.transactionCount,
-            b.leader ? shortHash(b.leader) : '—',
-            fmtTime(b.blockTime),
+            b.producer ? shortHash(b.producer) : '—',
+            fmtTime(b.unixTimestamp),
           ])}
           empty="No blocks indexed yet"
         />

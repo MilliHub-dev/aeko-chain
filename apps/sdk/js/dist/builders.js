@@ -1,4 +1,4 @@
-import { decodeBase58, encodeBase58 } from './base58';
+import { decodeBase58, encodeBase58 } from './base58.js';
 const SYSTEM_PROGRAM_ID_BYTES = new Uint8Array(32);
 const TOKEN_721_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(10));
 const WALLET_PERMISSIONS_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(10));
@@ -293,10 +293,16 @@ function buildLegacyMessage(input) {
         ...remaining.filter((meta) => !meta.isSigner && !meta.isWritable),
     ].filter(Boolean);
     const accountIndex = new Map(ordered.map((meta, index) => [Array.from(meta.pubkey).join(','), index]));
+    // Legacy message header, in the order the runtime reads it:
+    //   [numRequiredSignatures, numReadonlySignedAccounts, numReadonlyUnsignedAccounts]
+    // The unsigned and signed read-only counts used to be swapped, so any message
+    // with a read-only account (every program id is one) described its fee payer
+    // as read-only and the validator rejected it: "Transaction failed to sanitize
+    // accounts offsets correctly".
     const header = Uint8Array.from([
         ordered.filter((meta) => meta.isSigner).length,
-        ordered.filter((meta) => !meta.isSigner && !meta.isWritable).length,
         ordered.filter((meta) => meta.isSigner && !meta.isWritable).length,
+        ordered.filter((meta) => !meta.isSigner && !meta.isWritable).length,
     ]);
     const compiledInstructions = input.instructions.map((instruction) => concatBytes(Uint8Array.from([
         accountIndex.get(Array.from(instruction.programId).join(',')) ?? 0,

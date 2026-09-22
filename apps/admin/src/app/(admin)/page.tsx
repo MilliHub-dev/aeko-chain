@@ -15,7 +15,7 @@ type Stats = {
   delinquent: number
 }
 
-type Block = { slot: number; transactionCount: number; blockTime?: number }
+type Block = { slot: number; transactionCount: number; unixTimestamp?: number }
 type Tx = { signature: string; slot: number; success: boolean; primaryProgram?: string }
 
 function shortSig(sig: string) { return sig.slice(0, 12) + '…' + sig.slice(-6) }
@@ -73,7 +73,7 @@ export default function Dashboard() {
         supply: supply?.value?.total,
         circulating: supply?.value?.circulating,
         txCount,
-        version: version?.['solana-core'] ?? '—',
+        version: version?.['aeko-core'] ?? '—',
         validators: voteAccounts?.current?.length ?? 0,
         delinquent: voteAccounts?.delinquent?.length ?? 0,
       })
@@ -140,7 +140,7 @@ export default function Dashboard() {
             rows={blocks.map(b => [
               <span key={b.slot} className="text-emerald-400">{b.slot.toLocaleString()}</span>,
               b.transactionCount,
-              fmtTime(b.blockTime),
+              fmtTime(b.unixTimestamp),
             ])}
             empty="No blocks indexed yet"
           />

@@ -1,5 +1,5 @@
-import type { PublicKeyString } from './types';
-import type { DelegatePermission, PermissionRole, ProgramPolicyMode, SpendLimitPolicy } from './permissions';
+import type { PublicKeyString } from './types.js';
+import type { DelegatePermission, PermissionRole, ProgramPolicyMode, SpendLimitPolicy } from './permissions.js';
 export interface Token721Attribute {
     traitType: string;
     value: string;

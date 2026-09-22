@@ -54,6 +54,8 @@ export class SocialBackendError extends Error {
         this.name = 'SocialBackendError';
     }
 }
+const DEFAULT_CONFIRM_TIMEOUT_MS = 30_000;
+const DEFAULT_CONFIRM_POLL_MS = 750;
 export class SocialPostVerificationService {
     client;
     store;
@@ -152,44 +154,47 @@ export class SocialPostVerificationService {
             verificationMode: 'anchored-reference',
             updatedAtUnix: nowUnix(),
         });
+        let transactionSignature;
         try {
-            const transactionSignature = await this.client.sendTransaction(request.signedTransactionBase64, {
+            transactionSignature = await this.client.sendTransaction(request.signedTransactionBase64, {
                 encoding: 'base64',
             });
-            const verificationRecord = await this.store.upsert(request.anchor.postId, {
-                postId: request.anchor.postId,
-                creator: request.anchor.creator,
-                preparedTransactionBase64,
-                anchorTransactionSignature: transactionSignature,
-                anchorStatus: 'anchored',
-                verificationMode: 'anchored-reference',
-                lastErrorCode: undefined,
-                lastErrorMessage: undefined,
-                updatedAtUnix: nowUnix(),
-            });
-            return {
-                mode: 'submitted',
-                transactionSignature,
-                preparedTransactionBase64,
-                verificationRecord,
-            };
         }
         catch (error) {
-            const message = error instanceof Error ? error.message : 'unknown_error';
-            const verificationRecord = await this.store.upsert(request.anchor.postId, {
-                postId: request.anchor.postId,
-                creator: request.anchor.creator,
-                preparedTransactionBase64,
-                anchorStatus: 'anchor_failed',
-                verificationMode: 'anchored-reference',
-                lastErrorCode: 'rpc_submission_failed',
-                lastErrorMessage: message,
-                updatedAtUnix: nowUnix(),
-            });
-            throw new SocialBackendError('rpc_submission_failed', message, 502, {
-                verificationRecord,
-            });
+            await this.failAnchor(request, preparedTransactionBase64, undefined, 'rpc_submission_failed', errorMessage(error));
         }
+        try {
+            await waitForConfirmation(this.client, transactionSignature);
+        }
+        catch (error) {
+            await this.failAnchor(request, preparedTransactionBase64, transactionSignature, 'rpc_confirmation_failed', errorMessage(error));
+        }
+        let onchainPost;
+        try {
+            onchainPost = await waitForPostAnchor(this.client, request.anchor.postId);
+            assertAnchorMatchesRequest(onchainPost, request.anchor);
+        }
+        catch (error) {
+            await this.failAnchor(request, preparedTransactionBase64, transactionSignature, 'onchain_verification_failed', errorMessage(error));
+        }
+        const verificationRecord = await this.store.upsert(request.anchor.postId, {
+            postId: request.anchor.postId,
+            creator: request.anchor.creator,
+            preparedTransactionBase64,
+            anchorTransactionSignature: transactionSignature,
+            anchorStatus: 'onchain_verified',
+            verificationMode: 'onchain-verified',
+            lastErrorCode: undefined,
+            lastErrorMessage: undefined,
+            updatedAtUnix: nowUnix(),
+        });
+        return {
+            mode: 'onchain-verified',
+            transactionSignature: transactionSignature,
+            preparedTransactionBase64,
+            onchainPost: onchainPost,
+            verificationRecord,
+        };
     }
     async getVerification(postId) {
         const record = await this.store.get(postId);
@@ -197,6 +202,76 @@ export class SocialPostVerificationService {
             throw new SocialBackendError('not_found', 'No verification record exists for that post.', 404, { postId });
         }
         return record;
+    }
+    async failAnchor(request, preparedTransactionBase64, transactionSignature, code, message) {
+        const verificationRecord = await this.store.upsert(request.anchor.postId, {
+            postId: request.anchor.postId,
+            creator: request.anchor.creator,
+            preparedTransactionBase64,
+            anchorTransactionSignature: transactionSignature,
+            anchorStatus: 'anchor_failed',
+            verificationMode: transactionSignature ? 'anchored-reference' : 'backend-only',
+            lastErrorCode: code,
+            lastErrorMessage: message,
+            updatedAtUnix: nowUnix(),
+        });
+        const statusCode = code === 'rpc_submission_failed' ? 502 : 504;
+        throw new SocialBackendError(code, message, statusCode, {
+            transactionSignature,
+            verificationRecord,
+        });
+    }
+}
+async function waitForConfirmation(client, signature, timeoutMs = DEFAULT_CONFIRM_TIMEOUT_MS) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const [status] = (await client.getSignatureStatuses([signature]));
+        if (status) {
+            if (status.err !== null) {
+                throw new Error(`Anchor transaction ${signature} failed: ${JSON.stringify(status.err)}`);
+            }
+            if (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized') {
+                return status;
+            }
+        }
+        await sleep(DEFAULT_CONFIRM_POLL_MS);
+    }
+    throw new Error(`Timed out waiting for anchor transaction ${signature} to confirm.`);
+}
+async function waitForPostAnchor(client, postId, timeoutMs = DEFAULT_CONFIRM_TIMEOUT_MS) {
+    const deadline = Date.now() + timeoutMs;
+    let lastError;
+    while (Date.now() < deadline) {
+        try {
+            const response = await client.rpc('getPostAnchor', [
+                postId,
+                { commitment: 'confirmed' },
+            ]);
+            if (response.value)
+                return response.value;
+        }
+        catch (error) {
+            lastError = error;
+        }
+        await sleep(DEFAULT_CONFIRM_POLL_MS);
+    }
+    const suffix = lastError ? ` Last RPC error: ${errorMessage(lastError)}` : '';
+    throw new Error(`Confirmed anchor ${postId} was not readable from getPostAnchor.${suffix}`);
+}
+function assertAnchorMatchesRequest(post, expected) {
+    const mismatches = [];
+    if (post.postId !== expected.postId)
+        mismatches.push('postId');
+    if (post.creator !== expected.creator)
+        mismatches.push('creator');
+    if (post.contentHash !== expected.contentHash)
+        mismatches.push('contentHash');
+    if (post.metadataHash !== expected.metadataHash)
+        mismatches.push('metadataHash');
+    if (post.contentUri !== expected.contentUri)
+        mismatches.push('contentUri');
+    if (mismatches.length) {
+        throw new Error(`On-chain anchor does not match submitted payload: ${mismatches.join(', ')}`);
     }
 }
 function parsePayload(payload) {
@@ -206,6 +281,12 @@ function parsePayload(payload) {
     catch {
         return null;
     }
+}
+function errorMessage(error) {
+    return error instanceof Error ? error.message : String(error ?? 'unknown_error');
+}
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 function nowUnix() {
     return Math.floor(Date.now() / 1000);

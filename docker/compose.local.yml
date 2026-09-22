@@ -15,6 +15,8 @@ services:
     command:
       - --keypair
       - /keys/faucet.json
+      - --per-request-cap
+      - ${AEKO_FAUCET_PER_REQUEST_CAP:-100}
     networks: [aeko]
 
   validator:
@@ -184,11 +186,33 @@ services:
       start_period: 30s
     networks: [aeko]
 
+  admin:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-admin:${AEKO_IMAGE_TAG:-latest}
+    container_name: aeko-admin
+    restart: unless-stopped
+    environment:
+      AEKO_RPC_URL: http://validator:8899
+      AEKO_EXPLORER_URL: http://explorer-api:8088
+      PUBLIC_EXPLORER_URL: ${AEKO_PUBLIC_EXPLORER_URL:-http://localhost:4000}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-local-dev-session-secret}
+      FAUCET_API_KEY: ${FAUCET_API_KEY:-}
+      FAUCET_STATE_DIR: /data
+    ports:
+      - "${AEKO_ADMIN_HOST_PORT:-3001}:3001"
+    volumes:
+      - admin-state:/data
+    depends_on:
+      validator:
+        condition: service_healthy
+    networks: [aeko]
+
 networks:
   aeko:
     driver: bridge
 
 volumes:
+  admin-state:
   validator-ledger:
   rpc-ledger:
   social-state:

@@ -31,6 +31,9 @@ AEKO_PUBLIC_IP=<public IP of the Coolify host>
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended immutable 12-character main SHA>
+ADMIN_PASSWORD=<operator password for chain.aeko.online>
+ADMIN_SESSION_SECRET=<16+ random characters>
+FAUCET_API_KEY=<shared secret; set the same value as AEKO_FAUCET_API_KEY on the Aeko backend>
 ```
 
 Use the full template in [`docker/env.public.example`](../../docker/env.public.example) for optional storage, Explorer, SocialFi and logging settings.
@@ -58,12 +61,13 @@ The Coolify Compose mounts this directory with long-form bind syntax and the lit
 
 ## Persistent chain state
 
-The Coolify contract declares two Docker-managed named volumes:
+The Coolify contract declares three Docker-managed named volumes:
 
 - `validator-ledger` for validator ledger/accounts/snapshots.
 - `social-state` for SocialFi state keypairs and `social-registry.env`.
+- `admin-state` for the faucet policy and grant ledger of the admin app (chain.aeko.online).
 
-Normal redeploys must preserve both volumes. Do not delete them unless intentionally resetting chain state.
+Normal redeploys must preserve all three volumes. Do not delete them unless intentionally resetting chain state.
 
 For a deliberate fresh-genesis recovery, set both:
 
@@ -84,6 +88,7 @@ Configure Coolify domains against these internal services:
 | `wss://ws.aeko.online` | `validator` | `8900` |
 | `https://api.aeko.online` | `explorer-api` | `8088` |
 | `https://scan.aeko.online` | `explorer-ui` | `4000` |
+| `https://chain.aeko.online` | `admin` | `3001` |
 
 Do not configure `gossip.aeko.online` as an HTTP route. Point that DNS record directly to `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050` at the host/cloud firewall. Gossip starts on `8001` inside that range.
 

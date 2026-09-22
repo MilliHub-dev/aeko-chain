@@ -18,7 +18,7 @@ export interface AnchorPostRequest {
     anchor: AnchorPostTransactionInput;
     signedTransactionBase64?: string;
 }
-export type ApiErrorCode = 'not_found' | 'bad_request' | 'invalid_signature' | 'invalid_payload' | 'rpc_submission_failed';
+export type ApiErrorCode = 'not_found' | 'bad_request' | 'invalid_signature' | 'invalid_payload' | 'rpc_submission_failed' | 'rpc_confirmation_failed' | 'onchain_verification_failed';
 export interface StoredVerificationRecord {
     postId: string;
     creator: PublicKeyString;
@@ -32,7 +32,7 @@ export interface StoredVerificationRecord {
     signatureValid?: boolean;
     signer?: PublicKeyString;
     verificationMode?: 'backend-only' | 'anchored-reference' | 'onchain-verified';
-    anchorStatus: 'draft' | 'hashed' | 'signed' | 'verified' | 'anchor_pending' | 'anchored' | 'anchor_failed';
+    anchorStatus: 'draft' | 'hashed' | 'signed' | 'verified' | 'anchor_pending' | 'anchored' | 'onchain_verified' | 'anchor_failed';
     preparedTransactionBase64?: string;
     anchorTransactionSignature?: string;
     lastErrorCode?: ApiErrorCode;
@@ -56,6 +56,13 @@ export declare class SocialBackendError extends Error {
     readonly statusCode: number;
     readonly extra?: Record<string, unknown> | undefined;
     constructor(code: ApiErrorCode, message: string, statusCode: number, extra?: Record<string, unknown> | undefined);
+}
+interface OnchainPostAnchor {
+    postId: string;
+    creator: string;
+    contentHash: string;
+    metadataHash: string;
+    contentUri: string;
 }
 export declare class SocialPostVerificationService {
     private readonly client;
@@ -82,11 +89,15 @@ export declare class SocialPostVerificationService {
         preparedTransactionBase64: string;
         verificationRecord: StoredVerificationRecord;
         transactionSignature?: undefined;
+        onchainPost?: undefined;
     } | {
-        mode: "submitted";
+        mode: "onchain-verified";
         transactionSignature: string;
         preparedTransactionBase64: string;
+        onchainPost: OnchainPostAnchor;
         verificationRecord: StoredVerificationRecord;
     }>;
     getVerification(postId: string): Promise<StoredVerificationRecord>;
+    private failAnchor;
 }
+export {};

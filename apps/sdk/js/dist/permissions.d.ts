@@ -1,4 +1,4 @@
-import type { PublicKeyString } from './types';
+import type { PublicKeyString } from './types.js';
 export type PermissionRole = 'owner' | 'spender' | 'viewer';
 export type PermissionStatus = 'active' | 'revoked' | 'expired' | 'frozen';
 export type ProgramPolicyMode = 'deny_by_default' | 'allow_by_default';

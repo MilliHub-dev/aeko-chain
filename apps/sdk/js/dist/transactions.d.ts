@@ -1,4 +1,4 @@
-import { AekoConnection } from './connection';
+import { AekoConnection } from './connection.js';
 export interface ConfirmTransactionOptions {
     pollIntervalMs?: number;
     timeoutMs?: number;
