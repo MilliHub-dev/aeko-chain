@@ -53,6 +53,7 @@ def main() -> int:
     clap_v3 = read("clap-v3-utils/src/input_validators.rs")
     cli_config = read("cli-config/src/config.rs")
     install_defaults = read("install/src/defaults.rs")
+    deploy_script = read("scripts/deploy-testnet.sh")
     docs_text = read("apps/explorer/web/src/data/docs.json")
     readme = read("README.md")
     backend_guide = read("BACKEND-DEV-GUIDE.md")
@@ -141,6 +142,7 @@ def main() -> int:
         "CLI v3 network normalization": clap_v3,
         "CLI config": cli_config,
         "installer defaults": install_defaults,
+        "deploy helper": deploy_script,
     }
     for where, text in runtime_surfaces.items():
         require(public_host_literal.search(text) is None, f"{where} hardcodes a public aeko.online deployment URL")
@@ -188,6 +190,17 @@ def main() -> int:
     require('env::var("AEKO_RPC_URL")' in cli_config, "CLI config must accept AEKO_RPC_URL")
     require('env::var("AEKO_TESTNET_RPC_URL")' in cli_config, "CLI config must accept AEKO_TESTNET_RPC_URL")
     require('"http://localhost:8899".to_string()' in cli_config, "CLI source fallback must remain local-only")
+    require("build_target operations-web" in deploy_script, "deploy helper must build Operations Web")
+    require("operations-web" in deploy_script and "docker compose" in deploy_script, "deploy helper must start Operations Web")
+    for name in (
+        "AEKO_PUBLIC_RPC_URL",
+        "AEKO_PUBLIC_WS_URL",
+        "AEKO_PUBLIC_EXPLORER_API_URL",
+        "AEKO_PUBLIC_EXPLORER_URL",
+        "AEKO_PUBLIC_FUNDING_URL",
+        "AEKO_PUBLIC_ADMIN_URL",
+    ):
+        require(name in deploy_script, f"deploy helper must expose {name} through environment configuration")
 
     for where, text in {
         "admin env": admin_env,

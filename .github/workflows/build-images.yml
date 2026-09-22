@@ -85,7 +85,7 @@ jobs:
           done
           printf 'Validated shell syntax for %d DevOps scripts.\n' "${#scripts[@]}"
 
-      - name: Smoke admin action definition
+      - name: Smoke Operations Web action definition
         id: ci_admin_action
         if: steps.changes.outputs.ci_pipeline == 'true'
         continue-on-error: ${{ github.event_name == 'pull_request' }}
@@ -468,7 +468,7 @@ jobs:
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
-      - name: Build selected admin image
+      - name: Build selected Operations Web image
         id: admin_image
         if: >-
           !cancelled() && (github.event_name == 'pull_request' || success()) &&
@@ -542,7 +542,7 @@ jobs:
             esac
           }
 
-          record_failure "admin:validation" "$ADMIN_VALIDATION"
+          record_failure "operations-web:validation" "$ADMIN_VALIDATION"
           record_failure "explorer-web:validation" "$EXPLORER_WEB_VALIDATION"
           record_failure "sdk-js:validation" "$SDK_JS_VALIDATION"
           record_failure "sdk-node:validation" "$SDK_NODE_VALIDATION"
@@ -556,9 +556,9 @@ jobs:
           record_failure "cli:image" "$CLI_IMAGE"
           record_failure "explorer-backend:image" "$EXPLORER_BACKEND_IMAGE"
           record_failure "explorer-web:image" "$EXPLORER_WEB_IMAGE"
-          record_failure "admin:image" "$ADMIN_IMAGE"
+          record_failure "operations-web:image" "$ADMIN_IMAGE"
           record_failure "ci-pipeline:shell" "$CI_SHELL_VALIDATION"
-          record_failure "ci-pipeline:admin-action" "$CI_ADMIN_ACTION"
+          record_failure "ci-pipeline:operations-web-action" "$CI_ADMIN_ACTION"
           record_failure "ci-pipeline:sdk-action" "$CI_SDK_ACTION"
           record_failure "ci-pipeline:cli-action" "$CI_CLI_ACTION"
           record_failure "ci-pipeline:explorer-backend-action" "$CI_EXPLORER_BACKEND_ACTION"
@@ -582,7 +582,7 @@ jobs:
 
           if [ "$EXPECT_CI_PIPELINE" = "true" ]; then
             require_selected_result true "ci-pipeline:shell" "$CI_SHELL_VALIDATION"
-            require_selected_result true "ci-pipeline:admin-action" "$CI_ADMIN_ACTION"
+            require_selected_result true "ci-pipeline:operations-web-action" "$CI_ADMIN_ACTION"
             require_selected_result true "ci-pipeline:sdk-action" "$CI_SDK_ACTION"
             require_selected_result true "ci-pipeline:cli-action" "$CI_CLI_ACTION"
             require_selected_result true "ci-pipeline:explorer-backend-action" "$CI_EXPLORER_BACKEND_ACTION"
@@ -590,7 +590,7 @@ jobs:
             require_selected_result true "ci-pipeline:network-action" "$CI_NETWORK_ACTION"
           fi
 
-          require_selected_result "$EXPECT_ADMIN_VALIDATION" "admin:validation" "$ADMIN_VALIDATION"
+          require_selected_result "$EXPECT_ADMIN_VALIDATION" "operations-web:validation" "$ADMIN_VALIDATION"
           require_selected_result "$EXPECT_EXPLORER_WEB_VALIDATION" "explorer-web:validation" "$EXPLORER_WEB_VALIDATION"
           require_selected_result "$EXPECT_SDK_JS_VALIDATION" "sdk-js:validation" "$SDK_JS_VALIDATION"
           require_selected_result "$EXPECT_SDK_NODE_VALIDATION" "sdk-node:validation" "$SDK_NODE_VALIDATION"
@@ -624,7 +624,7 @@ jobs:
           fi
           if [ "$EXPECT_ADMIN_IMAGE" = "true" ] &&
              { [ "$EXPECT_ADMIN_VALIDATION" != "true" ] || [ "$ADMIN_VALIDATION" = "success" ]; }; then
-            require_selected_result true "admin:image" "$ADMIN_IMAGE"
+            require_selected_result true "operations-web:image" "$ADMIN_IMAGE"
           fi
 
           # Fail closed if the parallel orchestrator itself died before it could

@@ -35,7 +35,7 @@ runs:
           exit 1
         fi
 
-    - name: Validate admin source
+    - name: Validate Operations Web source
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       env:
