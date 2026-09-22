@@ -1,3 +1,5 @@
+import { getNetworkConfig, isLocalNetworkConfig } from './networkConfig';
+
 // Thin JSON-RPC client for the AEKO testnet validator.
 //
 // Used by the network/test consoles for funding, transactions, explicit
@@ -65,23 +67,27 @@ export async function requestAirdrop(rpcUrl, address, lamports) {
   return rpc(rpcUrl, 'requestAirdrop', [address, lamports]);
 }
 
-const DEFAULT_TESTNET_FUNDING_URL =
-  import.meta.env.VITE_AEKO_TESTNET_FUNDING_URL || 'https://fund.aeko.online';
-
-export function isCanonicalPublicTestnetRpc(rpcUrl) {
+function normalizedUrl(value) {
   try {
-    return new URL(rpcUrl).hostname.toLowerCase() === 'rpc.aeko.online';
+    return new URL(value).toString().replace(/\/$/, '');
   } catch {
-    return false;
+    return '';
   }
 }
 
+export function isConfiguredPublicTestnetRpc(rpcUrl) {
+  const config = getNetworkConfig('testnet');
+  if (!config.available || isLocalNetworkConfig(config) || !config.fundingUrl) return false;
+  return normalizedUrl(rpcUrl) === normalizedUrl(config.rpcUrl);
+}
+
 export async function requestTestnetFunding(rpcUrl, address, lamports) {
-  if (!isCanonicalPublicTestnetRpc(rpcUrl)) {
+  const config = getNetworkConfig('testnet');
+  if (!isConfiguredPublicTestnetRpc(rpcUrl)) {
     return requestAirdrop(rpcUrl, address, lamports);
   }
 
-  const response = await fetch(`${DEFAULT_TESTNET_FUNDING_URL.replace(/\/$/, '')}/api/funding/request`, {
+  const response = await fetch(`${config.fundingUrl.replace(/\/$/, '')}/api/funding/request`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address }),

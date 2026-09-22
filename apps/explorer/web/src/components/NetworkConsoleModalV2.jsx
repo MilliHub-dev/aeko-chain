@@ -24,7 +24,7 @@ import {
   confirmSignature,
   formatAeko,
   getLatestBlockhash,
-  isCanonicalPublicTestnetRpc,
+  isConfiguredPublicTestnetRpc,
   requestTestnetFunding,
   sendTransaction,
 } from '../utils/aekoRpcClient';
@@ -125,7 +125,7 @@ function AccountsWorkspace({
   const isUnfunded = profileIssue?.status === 404;
   const liveBalance = wallet ? balances[wallet.address] : null;
   const hasSpendableBalance = Number(liveBalance) > 0;
-  const usesPolicyFunding = isCanonicalPublicTestnetRpc(rpcUrl);
+  const usesPolicyFunding = isConfiguredPublicTestnetRpc(rpcUrl);
 
   const persist = useCallback((next) => {
     setWallets(next);

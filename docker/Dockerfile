@@ -135,7 +135,10 @@ FROM node:22-alpine AS explorer-ui
 WORKDIR /app
 RUN npm install -g serve@14
 COPY --from=explorer-ui-builder /web/dist /app/dist
+COPY docker/explorer-ui-entrypoint.sh /usr/local/bin/explorer-ui-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/explorer-ui-entrypoint.sh
 EXPOSE 4000/tcp
+ENTRYPOINT ["/usr/local/bin/explorer-ui-entrypoint.sh"]
 CMD ["serve", "-s", "/app/dist", "-l", "4000"]
 
 # Admin is an independent off-chain application. Its target has no dependency
