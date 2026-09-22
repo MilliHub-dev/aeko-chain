@@ -51,6 +51,40 @@ fi
 printf 'Checking rustfmt on changed files:\n'
 printf '  %s\n' "${rust_files[@]}"
 
+# Running rustfmt directly on a crate root such as src/lib.rs follows child
+# modules and can fail on unchanged legacy files. Format in an isolated
+# worktree, then inspect only the files selected by the change detector.
+format_ref="$head_sha"
+if ! git cat-file -e "${format_ref}^{commit}" 2>/dev/null; then
+  format_ref=HEAD
+fi
+
+format_worktree=$(mktemp -d)
+rmdir "$format_worktree"
+cleanup_worktree() {
+  git worktree remove --force "$format_worktree" >/dev/null 2>&1 || true
+  rm -rf "$format_worktree"
+}
+trap cleanup_worktree EXIT
+
+git worktree add --detach "$format_worktree" "$format_ref" >/dev/null
+(
+  cd "$format_worktree"
+  cargo fmt --all
+)
+
+format_failures=()
 for file in "${rust_files[@]}"; do
-  rustfmt --edition 2021 --check "$file"
+  if [ -f "${format_worktree}/${file}" ] && ! git -C "$format_worktree" diff --quiet -- "$file"; then
+    format_failures+=("$file")
+  fi
 done
+
+if [ "${#format_failures[@]}" -gt 0 ]; then
+  echo "rustfmt changed Rust files touched by this change set:" >&2
+  printf '  %s\n' "${format_failures[@]}" >&2
+  git -C "$format_worktree" diff -- "${format_failures[@]}" >&2
+  exit 1
+fi
+
+echo "Changed Rust files are rustfmt-clean; unchanged module formatting debt was ignored."
