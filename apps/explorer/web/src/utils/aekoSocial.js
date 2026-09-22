@@ -75,12 +75,6 @@ function concat(...parts) {
   return out;
 }
 
-function u16LE(n) {
-  const b = new Uint8Array(2);
-  new DataView(b.buffer).setUint16(0, n, true);
-  return b;
-}
-
 function u32LE(n) {
   const b = new Uint8Array(4);
   new DataView(b.buffer).setUint32(0, n >>> 0, true);
@@ -333,7 +327,6 @@ export async function discoverProgramState({ rpcUrl, programId, decode, pickBest
       if (!decoded.isInitialized) continue;
       const candidate = { address: entry.pubkey, decoded, lamports: entry.account.lamports };
       if (!best || (pickBest ? pickBest(candidate, best) : false)) best = candidate;
-      else if (!best) best = candidate;
     } catch {
       // unreadable — skip
     }
@@ -381,7 +374,7 @@ export async function sha256(input) {
 
 // ---------- transaction builders ----------
 
-function buildLegacyMessage({ payerBytes, recentBlockhashBytes, accountKeys, instructions, header }) {
+function buildLegacyMessage({ recentBlockhashBytes, accountKeys, instructions, header }) {
   const compiled = instructions.map((ix) =>
     concat(
       Uint8Array.from([ix.programIdIndex]),

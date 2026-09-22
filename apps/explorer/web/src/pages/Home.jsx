@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion';
+import { createElement } from 'react';
 import { Shield, Zap, Users, Code, ArrowRight, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+const MotionDiv = motion.div;
 
 const Hero = () => {
   return (
@@ -10,7 +13,7 @@ const Hero = () => {
       <div className="absolute top-20 left-1/4 w-[500px] h-[500px] bg-aeko-accent/10 rounded-full blur-3xl opacity-30" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
@@ -41,14 +44,14 @@ const Hero = () => {
               Start Building
             </Link>
           </div>
-        </motion.div>
+        </MotionDiv>
       </div>
     </div>
   );
 };
 
-const FeatureCard = ({ icon: Icon, title, description, delay }) => (
-  <motion.div
+const FeatureCard = ({ icon, title, description, delay }) => (
+  <MotionDiv
     initial={{ opacity: 0, y: 20 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
@@ -56,11 +59,11 @@ const FeatureCard = ({ icon: Icon, title, description, delay }) => (
     className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-aeko-accent/50 transition-colors group"
   >
     <div className="w-12 h-12 rounded-lg bg-aeko-light flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-      <Icon className="text-aeko-accent" size={24} />
+      {createElement(icon, { className: 'text-aeko-accent', size: 24 })}
     </div>
     <h3 className="text-xl font-bold mb-2">{title}</h3>
     <p className="text-gray-400 leading-relaxed">{description}</p>
-  </motion.div>
+  </MotionDiv>
 );
 
 export default function Home() {

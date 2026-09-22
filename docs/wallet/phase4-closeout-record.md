@@ -33,7 +33,7 @@ Use this document as the single source of truth for the final Phase 4 release va
 ## JavaScript SDK
 
 - planned first public version: `0.1.0`
-- repository package version: `0.1.3`
+- repository package version: `0.1.4`
 - npm package URL: `https://www.npmjs.com/package/@aeko-chain/web3.js`
 - publish date: `2026-04-02`
 - release owner: `aeko_foundation`
@@ -50,7 +50,7 @@ Use this document as the single source of truth for the final Phase 4 release va
 
 - planned first public version: `2.0.0`
 - current publish status: published to crates.io
-- repository crate version: `2.0.2`
+- repository crate version: `2.0.3`
 - crates.io URL: `https://crates.io/crates/aeko-rust-sdk`
 - docs.rs URL: `https://docs.rs/aeko-rust-sdk`
 - publish date: `2026-04-02`
@@ -60,7 +60,7 @@ Use this document as the single source of truth for the final Phase 4 release va
 ## Python SDK
 
 - planned first public version: `0.1.0`
-- repository package version: `0.1.2`
+- repository package version: `0.1.3`
 - PyPI project URL: `https://pypi.org/project/aeko-sdk/`
 - publish date: `2026-04-02`
 - release owner: `aeko_foundation`

@@ -63,10 +63,8 @@ async function fetchExplorer(base, path) {
 async function pollUntil(read, accept, message) {
   let lastValue;
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
-    // eslint-disable-next-line no-await-in-loop
     lastValue = await read();
     if (accept(lastValue)) return lastValue;
-    // eslint-disable-next-line no-await-in-loop
     await sleep(POLL_INTERVAL_MS);
   }
   throw new Error(message);

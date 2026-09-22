@@ -124,7 +124,6 @@ export async function confirmSignature(rpcUrl, signature, { attempts = 20, inter
     if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') {
       return status;
     }
-    // eslint-disable-next-line no-await-in-loop
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   throw new Error('Transaction not confirmed within timeout window.');

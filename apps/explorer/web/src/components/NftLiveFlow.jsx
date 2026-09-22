@@ -90,7 +90,6 @@ async function waitForIndexedNft(explorerApiUrl, tokenAddress, accept = (nft) =>
       if (indexError?.status !== 404) throw indexError;
       // A 404 can legitimately mean the asset projection trails the confirmed transaction.
     }
-    // eslint-disable-next-line no-await-in-loop
     await sleep(INDEX_INTERVAL_MS);
   }
   return null;
