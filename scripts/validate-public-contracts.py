@@ -92,7 +92,7 @@ def main() -> int:
         "AEKO_PUBLIC_EXPLORER_API_URL",
         "AEKO_PUBLIC_FUNDING_URL",
     ):
-        require(f': "${{name}:?' in explorer_entrypoint, f"Explorer runtime entrypoint must require {name}")
+        require((': "${' + name + ':?') in explorer_entrypoint, f"Explorer runtime entrypoint must require {name}")
     require("window.__AEKO_RUNTIME_CONFIG__" in network_config, "Explorer must read runtime endpoint configuration")
     require("/app/dist/runtime-config.js" in explorer_entrypoint, "Explorer entrypoint must write runtime-config.js into the served bundle")
 
@@ -109,7 +109,7 @@ def main() -> int:
             "AEKO_PUBLIC_EXPLORER_URL",
             "AEKO_PUBLIC_FUNDING_URL",
         ):
-            require(f"{name}: ${{name}:?}}" in compose, f"{label} must receive {name} from deployment environment")
+            require((name + ": ${" + name + ":?}") in compose, f"{label} must receive {name} from deployment environment")
         require("AEKO_PUBLIC_ADMIN_URL: ${AEKO_PUBLIC_ADMIN_URL:?}" in compose, f"{label} operations web must receive AEKO_PUBLIC_ADMIN_URL")
         require("FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:?}" in compose, f"{label} must receive browser funding origins explicitly")
         reject(compose, "aeko-admin:", f"{label} compose")
