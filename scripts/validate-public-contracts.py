@@ -94,7 +94,7 @@ def main() -> int:
     ):
         require(f': "${{name}:?' in explorer_entrypoint, f"Explorer runtime entrypoint must require {name}")
     require("window.__AEKO_RUNTIME_CONFIG__" in network_config, "Explorer must read runtime endpoint configuration")
-    require("runtime-config.js" in network_config, "Explorer network config must document its runtime config source")
+    require("/app/dist/runtime-config.js" in explorer_entrypoint, "Explorer entrypoint must write runtime-config.js into the served bundle")
 
     for label, compose in (("Coolify", coolify), ("Dokploy", dokploy)):
         require(re.search(r"^  operations-web:\s*$", compose, re.MULTILINE) is not None, f"{label} must deploy operations-web")
