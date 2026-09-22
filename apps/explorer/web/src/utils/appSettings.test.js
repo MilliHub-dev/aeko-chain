@@ -38,6 +38,8 @@ test('settings are wired to route and component visibility instead of being disp
   const networkTools = await source('pages/NetworkTools.jsx');
   const nftDemo = await source('pages/NftDemo.jsx');
   const explorer = await source('pages/Explorer.jsx');
+  const token = await source('pages/Token.jsx');
+  const developers = await source('pages/Developers.jsx');
 
   assert.match(app, /settings\.networkConsoleEnabled/);
   assert.match(app, /settings\.nftDemoEnabled/);
@@ -46,4 +48,6 @@ test('settings are wired to route and component visibility instead of being disp
   assert.match(nftDemo, /settings\.nftLiveFlowEnabled/);
   assert.match(nftDemo, /settings\.nftAdvancedToolsEnabled/);
   assert.match(explorer, /settings\.explorerListSize/);
+  assert.match(token, /settings\.nftDemoEnabled/);
+  assert.match(developers, /settings\.nftDemoEnabled/);
 });

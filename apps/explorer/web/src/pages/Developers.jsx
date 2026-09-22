@@ -4,8 +4,10 @@ import { Link } from 'react-router-dom';
 import NetworkToggle from '../components/NetworkToggle';
 import NetworkToolsPanel from '../components/NetworkToolsPanel';
 import { getNetworkConfig } from '../utils/networkConfig';
+import { useAppSettings } from '../components/AppSettingsProvider';
 
 export default function Developers() {
+  const { settings } = useAppSettings();
   const [network, setNetwork] = useState('testnet');
   const activeNetwork = getNetworkConfig(network);
   const sdkCards = [
@@ -86,9 +88,11 @@ export default function Developers() {
             <Link to="/docs" className="inline-flex items-center gap-2 text-aeko-accent hover:text-white transition-colors">
               Open Wallet & SDK Docs <ArrowRight size={16} />
             </Link>
-            <Link to="/nft-demo" className="inline-flex items-center gap-2 text-aeko-accent hover:text-white transition-colors">
-              View Live AEKO-721 Demo <ArrowRight size={16} />
-            </Link>
+            {settings.nftDemoEnabled ? (
+              <Link to="/nft-demo" className="inline-flex items-center gap-2 text-aeko-accent hover:text-white transition-colors">
+                View Live AEKO-721 Demo <ArrowRight size={16} />
+              </Link>
+            ) : null}
           </div>
         </div>
 

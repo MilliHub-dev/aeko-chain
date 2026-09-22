@@ -87,7 +87,7 @@ impl SettingsPatch {
             || self.social_readiness_required.is_some();
         if !has_change {
             return Err(ApiError::BadRequest(
-                "at least one application setting must be supplied".to_string(),
+                "at least one setting must be supplied".to_string(),
             ));
         }
 

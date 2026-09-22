@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Coins, PieChart, TrendingUp, Lock, Zap, Gavel, Shield, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAppSettings } from '../components/AppSettingsProvider';
 
 const TokenMetric = ({ label, value, subtext, delay }) => (
   <motion.div
@@ -56,6 +57,7 @@ const StatRow = ({ label, value }) => (
 );
 
 export default function Token() {
+  const { settings } = useAppSettings();
   const allocations = [
     {
       label: 'Validator Rewards',
@@ -316,9 +318,11 @@ delegator_pool = gross_reward * (1 - commission_rate)`}
                 <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-aeko-accent"/> Creator royalties and SocialFi metadata extensions</li>
                 <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-aeko-accent"/> Freeze / thaw controls for moderation-aware NFT flows</li>
               </ul>
-              <Link to="/nft-demo" className="inline-flex items-center gap-2 mt-6 text-aeko-accent hover:text-white transition-colors text-sm font-medium">
-                Open AEKO-721 Demo <ArrowRight size={14} />
-              </Link>
+              {settings.nftDemoEnabled ? (
+                <Link to="/nft-demo" className="inline-flex items-center gap-2 mt-6 text-aeko-accent hover:text-white transition-colors text-sm font-medium">
+                  Open AEKO-721 Demo <ArrowRight size={14} />
+                </Link>
+              ) : null}
             </div>
           </div>
         </div>
