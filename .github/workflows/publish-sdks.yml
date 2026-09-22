@@ -1,0 +1,122 @@
+name: AEKO SDK Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      javascript:
+        description: Publish @aeko-chain/web3.js to npm
+        required: false
+        type: boolean
+        default: false
+      node:
+        description: Publish @aeko-chain/sdk to npm
+        required: false
+        type: boolean
+        default: false
+      python:
+        description: Publish aeko-sdk to PyPI
+        required: false
+        type: boolean
+        default: false
+      rust:
+        description: Publish aeko-rust-sdk to crates.io
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aeko-sdk-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Require at least one SDK selection
+        shell: bash
+        env:
+          PUBLISH_JS: ${{ inputs.javascript }}
+          PUBLISH_NODE: ${{ inputs.node }}
+          PUBLISH_PYTHON: ${{ inputs.python }}
+          PUBLISH_RUST: ${{ inputs.rust }}
+        run: |
+          set -euo pipefail
+          if [ "$PUBLISH_JS" != "true" ] &&
+             [ "$PUBLISH_NODE" != "true" ] &&
+             [ "$PUBLISH_PYTHON" != "true" ] &&
+             [ "$PUBLISH_RUST" != "true" ]; then
+            echo "Select at least one SDK package to publish." >&2
+            exit 1
+          fi
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node runtime
+        if: inputs.javascript || inputs.node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: |
+            apps/sdk/js/package-lock.json
+            apps/sdk/node/package-lock.json
+
+      - name: Set up Python runtime
+        if: inputs.python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned Rust toolchain and native prerequisites
+        if: inputs.rust
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.85.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.85.0
+          native_packages=()
+          if ! command -v protoc >/dev/null 2>&1; then
+            native_packages+=(protobuf-compiler)
+          fi
+          if ! command -v pkg-config >/dev/null 2>&1 || ! pkg-config --exists libudev; then
+            native_packages+=(pkg-config libudev-dev)
+          fi
+          if [ "${#native_packages[@]}" -gt 0 ]; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends "${native_packages[@]}"
+          fi
+          rustc --version
+          cargo --version
+          protoc --version
+          pkg-config --modversion libudev
+
+      - name: Validate selected SDK releases
+        uses: ./.github/actions/devops/sdk
+        with:
+          js: ${{ inputs.javascript }}
+          node: ${{ inputs.node }}
+          python: ${{ inputs.python }}
+          rust: ${{ inputs.rust }}
+          release-js: ${{ inputs.javascript }}
+          release-node: ${{ inputs.node }}
+          release-python: ${{ inputs.python }}
+          release-rust: ${{ inputs.rust }}
+
+      - name: Publish selected SDK packages
+        uses: ./.github/actions/devops/sdk-publish
+        with:
+          js: ${{ inputs.javascript }}
+          node: ${{ inputs.node }}
+          python: ${{ inputs.python }}
+          rust: ${{ inputs.rust }}
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          pypi-token: ${{ secrets.PYPI_API_TOKEN }}
+          crates-token: ${{ secrets.CRATES_IO_TOKEN }}
