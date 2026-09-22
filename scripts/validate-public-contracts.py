@@ -49,6 +49,8 @@ def main() -> int:
     funding_request = read("apps/admin/src/app/api/funding/request/route.ts")
     middleware = read("apps/admin/src/middleware.ts")
     funding_cors = read("apps/admin/src/lib/funding-cors.ts")
+    settings_page = read("apps/admin/src/app/(admin)/settings/page.tsx")
+    settings_route = read("apps/admin/src/app/api/settings/route.ts")
     clap_v2 = read("clap-utils/src/input_validators.rs")
     clap_v3 = read("clap-v3-utils/src/input_validators.rs")
     cli_config = read("cli-config/src/config.rs")
@@ -123,6 +125,26 @@ def main() -> int:
     require("AEKO_PUBLIC_ADMIN_URL" in funding_policy, "Funding policy must use AEKO_PUBLIC_ADMIN_URL")
     require("AEKO_PUBLIC_EXPLORER_URL" in funding_request, "Funding request response must use AEKO_PUBLIC_EXPLORER_URL")
     require("FUNDING_ALLOWED_ORIGINS" in funding_cors, "Funding CORS must be deployment-configured")
+    require(
+        "fetch('/api/settings'" in settings_page,
+        "Admin Settings UI must call the authenticated Next.js /api/settings control plane",
+    )
+    require(
+        "${EXPLORER_URL}/settings" in settings_route,
+        "Next.js settings route must proxy Explorer backend /settings",
+    )
+    require(
+        "x-aeko-settings-token" in settings_route,
+        "Next.js settings mutation must authenticate to Explorer backend",
+    )
+    require(
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" not in settings_page,
+        "private Explorer settings token must never appear in Admin client code",
+    )
+    require(
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" in settings_route,
+        "private Explorer settings token must remain server-side in the Next.js route",
+    )
     reject(middleware, "FAUCET_PUBLIC_HOST", "operations middleware")
     reject(middleware, "ADMIN_PUBLIC_HOST", "operations middleware")
     reject(middleware, "/api/faucet", "operations middleware")
