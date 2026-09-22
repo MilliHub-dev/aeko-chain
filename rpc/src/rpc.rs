@@ -144,7 +144,7 @@ fn is_finalized(
         && (blockstore.is_root(slot) || bank.status_cache_ancestors().contains(&slot))
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct JsonRpcConfig {
     pub enable_rpc_transaction_history: bool,
     pub enable_extended_tx_metadata_storage: bool,
@@ -163,6 +163,37 @@ pub struct JsonRpcConfig {
     pub max_request_body_size: Option<usize>,
     /// Disable the health check, used for tests and TestValidator
     pub disable_health_check: bool,
+}
+
+impl std::fmt::Debug for JsonRpcConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("JsonRpcConfig")
+            .field(
+                "enable_rpc_transaction_history",
+                &self.enable_rpc_transaction_history,
+            )
+            .field(
+                "enable_extended_tx_metadata_storage",
+                &self.enable_extended_tx_metadata_storage,
+            )
+            .field("faucet_addr", &self.faucet_addr)
+            .field(
+                "funding_gateway_authorization_required",
+                &self.funding_gateway_key.is_some(),
+            )
+            .field("health_check_slot_distance", &self.health_check_slot_distance)
+            .field("rpc_bigtable_config", &self.rpc_bigtable_config)
+            .field("max_multiple_accounts", &self.max_multiple_accounts)
+            .field("account_indexes", &self.account_indexes)
+            .field("rpc_threads", &self.rpc_threads)
+            .field("rpc_niceness_adj", &self.rpc_niceness_adj)
+            .field("full_api", &self.full_api)
+            .field("obsolete_v1_7_api", &self.obsolete_v1_7_api)
+            .field("rpc_scan_and_fix_roots", &self.rpc_scan_and_fix_roots)
+            .field("max_request_body_size", &self.max_request_body_size)
+            .field("disable_health_check", &self.disable_health_check)
+            .finish()
+    }
 }
 
 impl JsonRpcConfig {
@@ -7541,6 +7572,17 @@ pub mod tests {
         let result: Response = serde_json::from_str(&res.expect("actual response"))
             .expect("actual response deserialization");
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_json_rpc_config_debug_redacts_funding_gateway_key() {
+        let config = JsonRpcConfig {
+            funding_gateway_key: Some("do-not-log-this-funding-secret".to_string()),
+            ..JsonRpcConfig::default_for_test()
+        };
+        let rendered = format!("{config:?}");
+        assert!(!rendered.contains("do-not-log-this-funding-secret"));
+        assert!(rendered.contains("funding_gateway_authorization_required: true"));
     }
 
     #[test]
