@@ -9,7 +9,7 @@
 #   tools            aeko CLI + aeko-keygen operator utilities
 #   explorer-api     Rust explorer indexer / REST API
 #   explorer-ui      Vite explorer frontend
-#   admin            Next.js administrative application
+#   operations-web   Next.js Funding Gateway + operator Admin Console
 
 FROM rust:1.75 AS rust-build-base
 
@@ -141,24 +141,24 @@ EXPOSE 4000/tcp
 ENTRYPOINT ["/usr/local/bin/explorer-ui-entrypoint.sh"]
 CMD ["serve", "-s", "/app/dist", "-l", "4000"]
 
-# Admin is an independent off-chain application. Its target has no dependency
-# on any Rust/network builder, so an admin-only change cannot compile the chain.
-FROM node:22-alpine AS admin-builder
-WORKDIR /admin
+# Operations Web is an independent off-chain application. Its target has no dependency
+# on any Rust/network builder, so an operations-web-only change cannot compile the chain.
+FROM node:22-alpine AS operations-web-builder
+WORKDIR /operations-web
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY apps/admin/package*.json ./
 RUN npm ci
 COPY apps/admin/ ./
 RUN npm run build
 
-FROM node:22-alpine AS admin
+FROM node:22-alpine AS operations-web
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1
 COPY apps/admin/package*.json ./
 RUN npm ci --omit=dev
-COPY --from=admin-builder /admin/.next ./.next
-COPY --from=admin-builder /admin/next.config.js ./next.config.js
+COPY --from=operations-web-builder /operations-web/.next ./.next
+COPY --from=operations-web-builder /operations-web/next.config.js ./next.config.js
 EXPOSE 3001/tcp
 CMD ["npm", "run", "start"]
 

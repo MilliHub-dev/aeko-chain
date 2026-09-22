@@ -13,7 +13,7 @@ inputs:
     required: false
     default: "false"
   admin:
-    description: Promote the admin application image.
+    description: Promote the Operations Web image.
     required: false
     default: "false"
   cli:
@@ -67,7 +67,7 @@ runs:
           promote aeko-social-bootstrap
         fi
         if [ "$PROMOTE_ADMIN" = "true" ]; then
-          promote aeko-admin
+          promote aeko-operations-web
         fi
         if [ "$PROMOTE_CLI" = "true" ]; then
           promote aeko-tools

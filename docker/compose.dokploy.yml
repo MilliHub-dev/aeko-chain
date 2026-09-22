@@ -64,7 +64,7 @@ services:
       - --keypair
       - /keys/faucet-keypair.json
       # Hard ceiling per airdrop request, enforced by the faucet itself. Per-wallet
-      # cooldown and the daily budget live in the Funding Gateway (fund.aeko.online).
+      # cooldown and the daily budget live in the Operations Web Funding Gateway.
       - --per-request-cap
       - ${AEKO_FAUCET_PER_REQUEST_CAP:-100}
     depends_on:
@@ -87,7 +87,7 @@ services:
       AEKO_STAKE_FILE: /keys/stake-keypair.json
       AEKO_FAUCET_FILE: /keys/faucet-keypair.json
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
-      AEKO_FAUCET_ADDRESS: faucet:9900
+      AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-faucet:9900}
       AEKO_FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}
       AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?Set AEKO_PUBLIC_IP to the public address of this Dokploy server}
       AEKO_GOSSIP_PORT: "8001"
@@ -144,7 +144,7 @@ services:
     pull_policy: always
     restart: "no"
     environment:
-      AEKO_RPC_URL: http://validator:8899
+      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_BOOTSTRAP_OUT_DIR: /state
       AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}
@@ -170,7 +170,7 @@ services:
     pull_policy: always
     restart: unless-stopped
     environment:
-      AEKO_EXPLORER_RPC: http://validator:8899
+      AEKO_EXPLORER_RPC: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
       AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-testnet}
       AEKO_EXPLORER_BIND: 0.0.0.0:8088
       AEKO_EXPLORER_START_SLOT: ${AEKO_EXPLORER_START_SLOT:-0}
@@ -221,6 +221,16 @@ services:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-explorer-ui:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
     restart: unless-stopped
+    environment:
+      AEKO_PUBLIC_RPC_URL: ${AEKO_PUBLIC_RPC_URL:?}
+      AEKO_PUBLIC_WS_URL: ${AEKO_PUBLIC_WS_URL:?}
+      AEKO_PUBLIC_EXPLORER_API_URL: ${AEKO_PUBLIC_EXPLORER_API_URL:?}
+      AEKO_PUBLIC_EXPLORER_URL: ${AEKO_PUBLIC_EXPLORER_URL:?}
+      AEKO_PUBLIC_FUNDING_URL: ${AEKO_PUBLIC_FUNDING_URL:?}
+      AEKO_MAINNET_RPC_URL: ${AEKO_MAINNET_RPC_URL:-}
+      AEKO_MAINNET_WS_URL: ${AEKO_MAINNET_WS_URL:-}
+      AEKO_MAINNET_EXPLORER_API_URL: ${AEKO_MAINNET_EXPLORER_API_URL:-}
+      AEKO_MAINNET_EXPLORER_URL: ${AEKO_MAINNET_EXPLORER_URL:-}
     expose:
       - "4000"
     # UI lifecycle is intentionally independent of Explorer API readiness.
@@ -235,21 +245,21 @@ services:
     logging: *default-logging
     networks: [aeko]
 
-  admin:
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-admin:${AEKO_IMAGE_TAG:-latest}
+  operations-web:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-operations-web:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
     restart: unless-stopped
     environment:
-      AEKO_RPC_URL: http://validator:8899
-      AEKO_EXPLORER_URL: http://explorer-api:8088
-      PUBLIC_EXPLORER_URL: ${AEKO_PUBLIC_EXPLORER_URL:-https://scan.aeko.online}
-      FUNDING_PUBLIC_HOST: ${FUNDING_PUBLIC_HOST:-fund.aeko.online}
-      ADMIN_PUBLIC_HOST: ${ADMIN_PUBLIC_HOST:-admin.aeko.online}
+      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
+      AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}
+      AEKO_PUBLIC_EXPLORER_URL: ${AEKO_PUBLIC_EXPLORER_URL:?}
+      AEKO_PUBLIC_FUNDING_URL: ${AEKO_PUBLIC_FUNDING_URL:?}
+      AEKO_PUBLIC_ADMIN_URL: ${AEKO_PUBLIC_ADMIN_URL:?}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}
       FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}
       FUNDING_CLIENT_API_KEY: ${FUNDING_CLIENT_API_KEY:-}
-      FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:-https://scan.aeko.online}
+      FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:?}
       FUNDING_STATE_DIR: /data
       FUNDING_DEFAULT_AMOUNT_AEKO: ${FUNDING_DEFAULT_AMOUNT_AEKO:-5}
       FUNDING_DEFAULT_COOLDOWN_HOURS: ${FUNDING_DEFAULT_COOLDOWN_HOURS:-24}
