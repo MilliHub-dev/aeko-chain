@@ -122,3 +122,17 @@ test('accounts workspace distinguishes a browser-local unfunded wallet from an A
   assert.match(implementation, /hasSpendableBalance/);
   assert.match(implementation, /rpcReady/);
 });
+
+
+test('production Explorer endpoint configuration is runtime-injected rather than domain-hardcoded', async () => {
+  const networkConfig = await source('utils/networkConfig.js');
+  const rpcClient = await source('utils/aekoRpcClient.js');
+  const productionEnv = await source('../.env.production');
+  const html = await source('../index.html');
+
+  assert.match(html, /runtime-config\.js/);
+  assert.match(networkConfig, /__AEKO_RUNTIME_CONFIG__/);
+  assert.doesNotMatch(networkConfig, /aeko\.online/);
+  assert.doesNotMatch(rpcClient, /aeko\.online/);
+  assert.doesNotMatch(productionEnv, /https?:\/\//);
+});

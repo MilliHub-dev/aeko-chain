@@ -52,7 +52,7 @@ test('write guard refuses split-brain RPC and Explorer endpoints', async () => {
       () =>
         assertRpcExplorerAlignment({
           rpcUrl: 'http://127.0.0.1:8899',
-          explorerApiUrl: 'https://api.aeko.online',
+          explorerApiUrl: 'https://api.example.invalid',
         }),
       /Refusing to sign or submit a transaction across different AEKO networks/,
     );

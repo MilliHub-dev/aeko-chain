@@ -119,7 +119,7 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
   const [collectionName, setCollectionName] = useState('AEKO Live Collection');
   const [collectionSymbol, setCollectionSymbol] = useState('ALIVE');
   const [metadataName, setMetadataName] = useState('AEKO Live NFT');
-  const [metadataUri, setMetadataUri] = useState('https://aeko.online/nft-demo');
+  const [metadataUri, setMetadataUri] = useState('ar://aeko-live-nft');
   const [recipient, setRecipient] = useState('');
   const [addresses, setAddresses] = useState({ collection: '', token: '' });
   const [live, setLive] = useState({ collection: null, token: null, collectionOwner: null, tokenOwner: null });
@@ -260,7 +260,7 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
         collectionSpace = estimateCollectionAccountSpace({
           name: collectionName.trim(),
           symbol: collectionSymbol.trim(),
-          baseUri: 'https://aeko.online/nft-demo',
+          baseUri: 'ar://aeko-live-collection',
         });
         collectionLamports = await fetchMinimumBalanceForRentExemption(rpcUrl, collectionSpace);
         requiredLamports += collectionLamports;
@@ -289,7 +289,7 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
           authority,
           name: collectionName.trim(),
           symbol: collectionSymbol.trim(),
-          baseUri: 'https://aeko.online/nft-demo',
+          baseUri: 'ar://aeko-live-collection',
         });
         await submitPrepared(prepared, 'Collection initialization');
       } else {
