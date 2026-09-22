@@ -6,12 +6,7 @@ use {
         state::SharedState,
     },
     anyhow::anyhow,
-    axum::{
-        extract::State,
-        http::HeaderMap,
-        routing::get,
-        Json, Router,
-    },
+    axum::{extract::State, http::HeaderMap, routing::get, Json, Router},
     serde::{Deserialize, Serialize},
 };
 
@@ -185,16 +180,17 @@ fn build_snapshot(
         .map_err(|_| ApiError::Internal(anyhow!("persisted settings revision is negative")))?;
     let explorer_list_size = u16::try_from(persisted.explorer_list_size)
         .map_err(|_| ApiError::Internal(anyhow!("persisted Explorer list size is invalid")))?;
-    let settings_refresh_seconds = u64::try_from(persisted.settings_refresh_seconds)
-        .map_err(|_| ApiError::Internal(anyhow!("persisted settings refresh interval is invalid")))?;
+    let settings_refresh_seconds =
+        u64::try_from(persisted.settings_refresh_seconds).map_err(|_| {
+            ApiError::Internal(anyhow!("persisted settings refresh interval is invalid"))
+        })?;
 
     let max_ready_lag_slots_override = persisted
         .max_ready_lag_slots_override
         .map(u64::try_from)
         .transpose()
         .map_err(|_| ApiError::Internal(anyhow!("persisted readiness lag override is invalid")))?;
-    let max_ready_lag_slots =
-        max_ready_lag_slots_override.unwrap_or(state.max_ready_lag_slots);
+    let max_ready_lag_slots = max_ready_lag_slots_override.unwrap_or(state.max_ready_lag_slots);
     let social_readiness_required = persisted
         .social_readiness_required_override
         .unwrap_or(state.social_enabled);

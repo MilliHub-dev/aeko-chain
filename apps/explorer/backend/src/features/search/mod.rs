@@ -6,8 +6,8 @@ use {
         response::{self, DataEnvelope},
         state::SharedState,
     },
-    anyhow::Context,
     aeko_sdk::pubkey::Pubkey,
+    anyhow::Context,
     axum::{
         extract::{Query, State},
         routing::get,
@@ -52,5 +52,10 @@ async fn search(
         }
     }
     items.truncate(limit);
-    Ok(response::data_from_source(&state.network, items, "rpc+indexer"))
+    Ok(response::data_from_source(
+        &state.network,
+        items,
+        "rpc+indexer",
+    ))
 }
+

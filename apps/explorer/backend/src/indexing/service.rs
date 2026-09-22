@@ -6,8 +6,7 @@ use {
         models::CoreSlotRecord,
     },
     aeko_rpc_client_api::custom_error::{
-        JSON_RPC_SERVER_ERROR_LONG_TERM_STORAGE_SLOT_SKIPPED,
-        JSON_RPC_SERVER_ERROR_SLOT_SKIPPED,
+        JSON_RPC_SERVER_ERROR_LONG_TERM_STORAGE_SLOT_SKIPPED, JSON_RPC_SERVER_ERROR_SLOT_SKIPPED,
     },
     anyhow::{bail, Context, Result},
     std::{sync::Arc, time::Duration},
@@ -68,7 +67,12 @@ impl IndexerService {
         let batch_span = u64::try_from(self.config.max_batch_size.saturating_sub(1))
             .context("max batch size does not fit u64")?;
         let end_slot = next_slot.saturating_add(batch_span).min(latest_slot);
-        tracing::info!(next_slot, end_slot, latest_slot, "starting Explorer index batch");
+        tracing::info!(
+            next_slot,
+            end_slot,
+            latest_slot,
+            "starting Explorer index batch"
+        );
 
         for slot in next_slot..=end_slot {
             let source = Arc::clone(&self.source);
@@ -89,7 +93,9 @@ impl IndexerService {
                         ..CoreSlotRecord::default()
                     }
                 }
-                Err(error) => return Err(error).with_context(|| format!("fetching core slot {slot}")),
+                Err(error) => {
+                    return Err(error).with_context(|| format!("fetching core slot {slot}"))
+                }
             };
             self.repository
                 .persist_core_slot(core)
@@ -170,7 +176,9 @@ impl IndexerService {
                 error = ?error,
                 "asset snapshot RPC refresh failed; core cursor remains valid"
             ),
-            Err(error) => tracing::error!(trigger_slot, error = %error, "asset snapshot worker panicked"),
+            Err(error) => {
+                tracing::error!(trigger_slot, error = %error, "asset snapshot worker panicked")
+            }
         }
     }
 
@@ -210,7 +218,9 @@ impl IndexerService {
                 error = ?error,
                 "canonical Social snapshot RPC refresh failed; core cursor remains valid"
             ),
-            Err(error) => tracing::error!(trigger_slot, error = %error, "Social snapshot worker panicked"),
+            Err(error) => {
+                tracing::error!(trigger_slot, error = %error, "Social snapshot worker panicked")
+            }
         }
     }
 }

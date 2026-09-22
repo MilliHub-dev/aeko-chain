@@ -205,8 +205,16 @@ async fn readiness(State(state): State<SharedState>) -> Response {
         && (!social_readiness_required || social.ready);
     let status = ReadinessStatus {
         ok: ready,
-        database: if database_result.is_ok() { "ready" } else { "unavailable" },
-        rpc: if latest_chain_slot.is_some() { "ready" } else { "unavailable" },
+        database: if database_result.is_ok() {
+            "ready"
+        } else {
+            "unavailable"
+        },
+        rpc: if latest_chain_slot.is_some() {
+            "ready"
+        } else {
+            "unavailable"
+        },
         latest_chain_slot,
         latest_indexed_slot,
         index_lag_slots: core.lag,
@@ -222,16 +230,17 @@ async fn readiness(State(state): State<SharedState>) -> Response {
     };
     let body = response::data_from_source(&state.network, status, "readiness");
     (
-        if ready { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE },
+        if ready {
+            StatusCode::OK
+        } else {
+            StatusCode::SERVICE_UNAVAILABLE
+        },
         body,
     )
         .into_response()
 }
 
-fn effective_readiness_policy(
-    state: &SharedState,
-    settings: &PersistedAppSettings,
-) -> (u64, bool) {
+fn effective_readiness_policy(state: &SharedState, settings: &PersistedAppSettings) -> (u64, bool) {
     let max_ready_lag_slots = settings
         .max_ready_lag_slots_override
         .and_then(|value| u64::try_from(value).ok())

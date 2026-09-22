@@ -18,10 +18,9 @@ use {
 
 pub async fn run() -> Result<()> {
     observability::init();
-    let backend = ExplorerBackendConfig::from_env()
-        .context("loading Explorer backend environment")?;
-    let server = ServerConfig::from_env()
-        .context("loading Explorer server environment")?;
+    let backend =
+        ExplorerBackendConfig::from_env().context("loading Explorer backend environment")?;
+    let server = ServerConfig::from_env().context("loading Explorer server environment")?;
     let settings_control = SettingsControlConfig::from_env()
         .context("loading Explorer settings control environment")?;
 
@@ -46,7 +45,9 @@ pub async fn run() -> Result<()> {
     // the configured validator. This prevents an accidentally configured local
     // validator from claiming a production database (or vice versa).
     if repository.chain_identity().await?.is_none() {
-        if let Some((slot, persisted_blockhash)) = repository.latest_persisted_block_identity().await? {
+        if let Some((slot, persisted_blockhash)) =
+            repository.latest_persisted_block_identity().await?
+        {
             let history_config = backend.clone();
             let live_blockhash = tokio::task::spawn_blocking(move || {
                 fetch_finalized_blockhash(&history_config, slot)
