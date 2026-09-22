@@ -27,7 +27,7 @@ social-bootstrap -> aeko-social-bootstrap
 tools            -> aeko-tools
 explorer-api     -> aeko-explorer-api
 explorer-ui      -> aeko-explorer-ui
-admin            -> aeko-admin
+operations-web   -> aeko-operations-web
 ```
 
 On `main`, CI publishes both `latest` and a 12-character commit-SHA tag. Both public Compose contracts contain only `image:` references plus `pull_policy: always`; neither compiles the Rust/React repository on the deployment host. Prefer the immutable SHA tag for a controlled public release and rollback.
@@ -50,8 +50,8 @@ Internet wallets / dApps / SDKs
                   native SocialFi       PostgreSQL + registry
 
 scan.aeko.online -> explorer-ui :4000 -> explorer-api :8088
-fund.aeko.online -> admin :3001 (Testnet Funding Portal)      -> validator RPC
-admin.aeko.online -> admin :3001 (operator console, sign-in) -> validator RPC / explorer-api
+fund.aeko.online -> operations-web :3001 (Testnet Funding Portal)      -> validator RPC
+admin.aeko.online -> operations-web :3001 (operator console, sign-in) -> validator RPC / explorer-api
 
 gossip.aeko.online:8001 -> validator gossip entrypoint
 validator host TCP+UDP 8000-8050 -> public validator transport range
@@ -88,8 +88,16 @@ AEKO_KEYS_DIR=<Dokploy/local persistent host directory; Coolify uses fixed /data
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
-ADMIN_PASSWORD=<operator password for admin.aeko.online>
+AEKO_PUBLIC_RPC_URL=<public JSON-RPC URL>
+AEKO_PUBLIC_WS_URL=<public PubSub WebSocket URL>
+AEKO_PUBLIC_EXPLORER_API_URL=<public Explorer REST API URL>
+AEKO_PUBLIC_EXPLORER_URL=<public Explorer UI URL>
+AEKO_PUBLIC_FUNDING_URL=<public Testnet Funding Portal URL>
+AEKO_PUBLIC_ADMIN_URL=<public operator-console URL>
+FUNDING_ALLOWED_ORIGINS=<comma-separated browser origins allowed to call funding>
+ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
+FUNDING_GATEWAY_KEY=<server secret shared with validator requestAirdrop authorization>
 FUNDING_CLIENT_API_KEY=<optional trusted backend secret sent as x-funding-key>
 ```
 
@@ -227,12 +235,12 @@ Dokploy's native Domains feature is preferred. Route:
 | `ws.aeko.online` | `validator` | `8900` |
 | `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
-| `fund.aeko.online` | `admin` | `3001` |
-| `admin.aeko.online` | `admin` | `3001` |
+| `fund.aeko.online` | `operations-web` | `3001` |
+| `admin.aeko.online` | `operations-web` | `3001` |
 
 Do not route `gossip.aeko.online` through Traefik. DNS should point it directly at `AEKO_PUBLIC_IP`. Gossip starts on `8001`, and the Compose publishes the full validator TCP+UDP `8000-8050` transport range with same-port host mappings so advertised peer addresses stay reachable.
 
-The services share the private `aeko` Docker network for validator/faucet/bootstrap/Explorer communication. The optional `wallet-tools` service is an `ops` profile for CLI/key generation and is not a public daemon. If Dokploy Isolated Deployments is enabled, Dokploy can add its routing network to domain-selected services while the private AEKO network remains intact.
+The services share the private `aeko` Docker network. Internal RPC, Explorer and Faucet traffic uses Docker service DNS and container ports; public URLs are only ingress/client configuration. The optional `wallet-tools` service is an `ops` profile for CLI/key generation and is not a public daemon. If Dokploy Isolated Deployments is enabled, Dokploy can add its routing network to domain-selected services while the private AEKO network remains intact.
 
 
 ## Coolify setup
@@ -264,8 +272,8 @@ Configure domains to the same internal services:
 | `ws.aeko.online` | `validator` | `8900` |
 | `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
-| `fund.aeko.online` | `admin` | `3001` |
-| `admin.aeko.online` | `admin` | `3001` |
+| `fund.aeko.online` | `operations-web` | `3001` |
+| `admin.aeko.online` | `operations-web` | `3001` |
 
 Keep `gossip.aeko.online` outside the HTTP proxy. Point its DNS directly to `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050`.
 

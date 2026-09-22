@@ -12,7 +12,7 @@ Use the repository's image-only Coolify Compose file:
 
 Coolify does not build the AEKO Rust or web applications from source. It pulls the published images selected by `AEKO_IMAGE_REPOSITORY` and `AEKO_IMAGE_TAG`.
 
-The default public services are:
+The default public services are below. `operations-web` serves both the public Funding Portal and authenticated Admin Console; `faucet` is the private Rust signer daemon:
 
 ```text
 key-bootstrap (one shot) -> faucet -> validator -> social-bootstrap
@@ -31,8 +31,16 @@ AEKO_PUBLIC_IP=<public IP of the Coolify host>
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended immutable 12-character main SHA>
-ADMIN_PASSWORD=<operator password for admin.aeko.online>
+AEKO_PUBLIC_RPC_URL=<public JSON-RPC URL>
+AEKO_PUBLIC_WS_URL=<public PubSub WebSocket URL>
+AEKO_PUBLIC_EXPLORER_API_URL=<public Explorer REST API URL>
+AEKO_PUBLIC_EXPLORER_URL=<public Explorer UI URL>
+AEKO_PUBLIC_FUNDING_URL=<public Testnet Funding Portal URL>
+AEKO_PUBLIC_ADMIN_URL=<public operator-console URL>
+FUNDING_ALLOWED_ORIGINS=<comma-separated browser origins allowed to call funding>
+ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
+FUNDING_GATEWAY_KEY=<server secret shared with validator>
 FUNDING_CLIENT_API_KEY=<optional trusted app-backend key sent as x-funding-key>
 ```
 
@@ -88,8 +96,8 @@ Configure Coolify domains against these internal services:
 | `wss://ws.aeko.online` | `validator` | `8900` |
 | `https://api.aeko.online` | `explorer-api` | `8088` |
 | `https://scan.aeko.online` | `explorer-ui` | `4000` |
-| `https://fund.aeko.online` | `admin` | `3001` (Testnet Funding Portal) |
-| `https://admin.aeko.online` | `admin` | `3001` (operator console) |
+| `https://fund.aeko.online` | `operations-web` | `3001` (Testnet Funding Portal) |
+| `https://admin.aeko.online` | `operations-web` | `3001` (operator console) |
 
 Do not configure `gossip.aeko.online` as an HTTP route. Point that DNS record directly to `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050` at the host/cloud firewall. Gossip starts on `8001` inside that range.
 

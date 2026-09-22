@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guard AEKO's public network vocabulary and endpoint contract against drift."""
+"""Guard AEKO deployment URL ownership, funding vocabulary and public contracts."""
 
 from __future__ import annotations
 
@@ -29,6 +29,13 @@ def reject(text: str, needle: str, where: str) -> None:
     require(needle not in text, f"{where} still contains retired/ambiguous value: {needle}")
 
 
+def require_empty_assignment(text: str, name: str, where: str) -> None:
+    require(
+        re.search(rf"^{re.escape(name)}=$", text, re.MULTILINE) is not None,
+        f"{where} must leave {name} deployment-configurable",
+    )
+
+
 def main() -> int:
     admin_env = read("apps/admin/.env.local.example")
     public_env = read("docker/env.public.example")
@@ -36,41 +43,121 @@ def main() -> int:
     coolify = read("docker/compose.coolify.yml")
     dokploy = read("docker/compose.dokploy.yml")
     explorer_env = read("apps/explorer/web/.env.production")
+    explorer_entrypoint = read("docker/explorer-ui-entrypoint.sh")
     network_config = read("apps/explorer/web/src/utils/networkConfig.js")
-    docs_text = read("apps/explorer/web/src/data/docs.json")
-    readme = read("README.md")
-    deployment = read("DEPLOYMENT.md")
-    backend_guide = read("BACKEND-DEV-GUIDE.md")
-    runbook = read("docs/operations/testnet-runbook.md")
+    funding_policy = read("apps/admin/src/app/api/funding/policy/route.ts")
+    funding_request = read("apps/admin/src/app/api/funding/request/route.ts")
+    middleware = read("apps/admin/src/middleware.ts")
+    funding_cors = read("apps/admin/src/lib/funding-cors.ts")
     clap_v2 = read("clap-utils/src/input_validators.rs")
     clap_v3 = read("clap-v3-utils/src/input_validators.rs")
     cli_config = read("cli-config/src/config.rs")
     install_defaults = read("install/src/defaults.rs")
-    network_environments = read("docs/aeko-chain/testnet-mainnet.md")
-    validator_guide = read("docs/aeko-chain/validator-guide.md")
-    install_command = read("install/src/command.rs")
-    install_deploy = read("scripts/aeko-install-deploy.sh")
+    docs_text = read("apps/explorer/web/src/data/docs.json")
+    readme = read("README.md")
+    backend_guide = read("BACKEND-DEV-GUIDE.md")
+    runbook = read("docs/operations/testnet-runbook.md")
 
     docs = json.loads(docs_text)
     require(isinstance(docs.get("content"), dict), "Explorer docs.json must contain a content object")
 
-    canonical = {
-        "rpc": "https://rpc.aeko.online",
-        "ws": "wss://ws.aeko.online",
-        "explorer_api": "https://api.aeko.online",
-        "explorer_ui": "https://scan.aeko.online",
-        "funding": "https://fund.aeko.online",
-    }
-    for name, endpoint in canonical.items():
-        require(endpoint in explorer_env, f"Explorer production env missing canonical {name}: {endpoint}")
+    public_vars = (
+        "AEKO_PUBLIC_RPC_URL",
+        "AEKO_PUBLIC_WS_URL",
+        "AEKO_PUBLIC_EXPLORER_API_URL",
+        "AEKO_PUBLIC_EXPLORER_URL",
+        "AEKO_PUBLIC_FUNDING_URL",
+        "AEKO_PUBLIC_ADMIN_URL",
+        "FUNDING_ALLOWED_ORIGINS",
+    )
+    for name in public_vars:
+        require_empty_assignment(public_env, name, "docker/env.public.example")
 
-    require("FUNDING_PUBLIC_HOST=fund.aeko.online" in admin_env, "admin env must name the public Funding Portal explicitly")
-    require("FUNDING_CLIENT_API_KEY=" in admin_env, "admin env must use FUNDING_CLIENT_API_KEY")
-    require("FUNDING_ALLOWED_ORIGINS=https://scan.aeko.online" in admin_env, "admin env must document browser funding origins")
-    require("FUNDING_STATE_DIR=" in admin_env, "admin env must use FUNDING_STATE_DIR")
-    require("FUNDING_GATEWAY_KEY=" in admin_env, "admin env must document Funding Gateway authorization")
-    require("FUNDING_PUBLIC_HOST=fund.aeko.online" in public_env, "public deployment env must use fund.aeko.online")
-    require("FUNDING_ALLOWED_ORIGINS=https://scan.aeko.online" in public_env, "public deployment env must define browser funding origins")
+    for name in (
+        "VITE_AEKO_TESTNET_RPC",
+        "VITE_AEKO_TESTNET_WS",
+        "VITE_AEKO_TESTNET_EXPLORER_API",
+        "VITE_AEKO_TESTNET_EXPLORER",
+        "VITE_AEKO_TESTNET_FUNDING_URL",
+        "VITE_AEKO_MAINNET_RPC",
+        "VITE_AEKO_MAINNET_WS",
+        "VITE_AEKO_MAINNET_EXPLORER_API",
+        "VITE_AEKO_MAINNET_EXPLORER",
+    ):
+        require_empty_assignment(explorer_env, name, "Explorer production env")
+
+    for name in (
+        "AEKO_PUBLIC_RPC_URL",
+        "AEKO_PUBLIC_WS_URL",
+        "AEKO_PUBLIC_EXPLORER_API_URL",
+        "AEKO_PUBLIC_FUNDING_URL",
+    ):
+        require(f': "${{name}:?' in explorer_entrypoint, f"Explorer runtime entrypoint must require {name}")
+    require("window.__AEKO_RUNTIME_CONFIG__" in network_config, "Explorer must read runtime endpoint configuration")
+    require("runtime-config.js" in network_config, "Explorer network config must document its runtime config source")
+
+    for label, compose in (("Coolify", coolify), ("Dokploy", dokploy)):
+        require(re.search(r"^  operations-web:\s*$", compose, re.MULTILINE) is not None, f"{label} must deploy operations-web")
+        require("aeko-operations-web:" in compose, f"{label} must pull the operations-web image")
+        require("AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in compose, f"{label} must use internal validator DNS")
+        require("AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in compose, f"{label} operations web must use internal Explorer DNS")
+        require("AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-faucet:9900}" in compose, f"{label} validator must reach the private Faucet Daemon by Docker DNS")
+        for name in (
+            "AEKO_PUBLIC_RPC_URL",
+            "AEKO_PUBLIC_WS_URL",
+            "AEKO_PUBLIC_EXPLORER_API_URL",
+            "AEKO_PUBLIC_EXPLORER_URL",
+            "AEKO_PUBLIC_FUNDING_URL",
+        ):
+            require(f"{name}: ${{name}:?}}" in compose, f"{label} must receive {name} from deployment environment")
+        require("AEKO_PUBLIC_ADMIN_URL: ${AEKO_PUBLIC_ADMIN_URL:?}" in compose, f"{label} operations web must receive AEKO_PUBLIC_ADMIN_URL")
+        require("FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:?}" in compose, f"{label} must receive browser funding origins explicitly")
+        reject(compose, "aeko-admin:", f"{label} compose")
+        reject(compose, "FUNDING_PUBLIC_HOST", f"{label} compose")
+        reject(compose, "ADMIN_PUBLIC_HOST", f"{label} compose")
+
+    require("AEKO_PUBLIC_FUNDING_URL" in middleware, "Operations middleware must use AEKO_PUBLIC_FUNDING_URL")
+    require("AEKO_PUBLIC_ADMIN_URL" in middleware, "Operations middleware must use AEKO_PUBLIC_ADMIN_URL")
+    require("AEKO_PUBLIC_EXPLORER_URL" in funding_policy, "Funding policy must use AEKO_PUBLIC_EXPLORER_URL")
+    require("AEKO_PUBLIC_ADMIN_URL" in funding_policy, "Funding policy must use AEKO_PUBLIC_ADMIN_URL")
+    require("AEKO_PUBLIC_EXPLORER_URL" in funding_request, "Funding request response must use AEKO_PUBLIC_EXPLORER_URL")
+    require("FUNDING_ALLOWED_ORIGINS" in funding_cors, "Funding CORS must be deployment-configured")
+    reject(middleware, "FAUCET_PUBLIC_HOST", "operations middleware")
+    reject(middleware, "ADMIN_PUBLIC_HOST", "operations middleware")
+    reject(middleware, "/api/faucet", "operations middleware")
+    reject(middleware, "'/faucet'", "operations middleware")
+
+    public_host_literal = re.compile(
+        r"(?:https?|wss?)://(?:rpc|ws|api|scan|fund|admin|chain)\.aeko\.online\b",
+        re.IGNORECASE,
+    )
+    runtime_surfaces = {
+        "funding policy": funding_policy,
+        "funding request": funding_request,
+        "operations middleware": middleware,
+        "funding CORS": funding_cors,
+        "Explorer network config": network_config,
+        "CLI v2 network normalization": clap_v2,
+        "CLI v3 network normalization": clap_v3,
+        "CLI config": cli_config,
+        "installer defaults": install_defaults,
+    }
+    for where, text in runtime_surfaces.items():
+        require(public_host_literal.search(text) is None, f"{where} hardcodes a public aeko.online deployment URL")
+
+    for label, text in (("CLI v2", clap_v2), ("CLI v3", clap_v3)):
+        require("AEKO_TESTNET_RPC_URL" in text, f"{label} testnet moniker must read AEKO_TESTNET_RPC_URL")
+        require("AEKO testnet URL is deployment configuration" in text, f"{label} must fail clearly when testnet URL is unset")
+    require('env::var("AEKO_RPC_URL")' in cli_config, "CLI config must accept AEKO_RPC_URL")
+    require('env::var("AEKO_TESTNET_RPC_URL")' in cli_config, "CLI config must accept AEKO_TESTNET_RPC_URL")
+    require('"http://localhost:8899".to_string()' in cli_config, "CLI source fallback must remain local-only")
+
+    for where, text in {
+        "admin env": admin_env,
+        "public env": public_env,
+        "Explorer production env": explorer_env,
+    }.items():
+        require(r"\n" not in text, f"{where} contains a literal escaped newline instead of a real line break")
 
     for where, text in {
         "admin env": admin_env,
@@ -90,23 +177,8 @@ def main() -> int:
         ):
             reject(text, legacy, where)
 
-    # AEKO_FAUCET_* is intentionally different: it configures the private
-    # Faucet Daemon. Public Funding Gateway policy uses FUNDING_*.
-    require("AEKO_FAUCET_PER_REQUEST_CAP" in public_env, "public env must retain the private Faucet Daemon hard cap")
-    require("FUNDING_DEFAULT_AMOUNT_AEKO" in public_env, "public env must expose Funding Gateway policy separately")
-    for where, text in {
-        "portable compose": portable,
-        "Coolify compose": coolify,
-        "Dokploy compose": dokploy,
-    }.items():
-        require("FUNDING_ALLOWED_ORIGINS:" in text, f"{where} must pass browser funding origins into the operations web container")
-
-    for where, text in {
-        "admin env": admin_env,
-        "public env": public_env,
-        "Explorer production env": explorer_env,
-    }.items():
-        require(r"\n" not in text, f"{where} contains a literal escaped newline instead of a real line break")
+    require("AEKO_FAUCET_PER_REQUEST_CAP" in public_env, "public env must keep the private Faucet Daemon hard cap")
+    require("FUNDING_DEFAULT_AMOUNT_AEKO" in public_env, "public env must keep Funding Gateway policy separate")
 
     retired_hosts = (
         "chain.aeko.online",
@@ -120,34 +192,9 @@ def main() -> int:
         "github.com/aeko-labs/aeko",
         "github.com/aeko-chain/aeko",
     )
-    active_public_surfaces = {
-        "Explorer network config": network_config,
-        "Explorer docs": docs_text,
-        "Explorer production env": explorer_env,
-        "README": readme,
-        "deployment guide": deployment,
-        "backend guide": backend_guide,
-        "operations runbook": runbook,
-        "CLI v2 network normalization": clap_v2,
-        "CLI v3 network normalization": clap_v3,
-        "CLI config": cli_config,
-        "installer defaults": install_defaults,
-        "network environments doc": network_environments,
-        "validator guide": validator_guide,
-        "legacy updater implementation": install_command,
-        "install deploy helper": install_deploy,
-    }
-    for where, text in active_public_surfaces.items():
+    for where, text in runtime_surfaces.items():
         for legacy in retired_hosts:
             reject(text, legacy, where)
-
-    require('"t" | "testnet" => "https://rpc.aeko.online"' in clap_v2, "CLI v2 testnet moniker must resolve to canonical RPC")
-    require('"t" | "testnet" => "https://rpc.aeko.online"' in clap_v3, "CLI v3 testnet moniker must resolve to canonical RPC")
-    require('"m" | "mainnet-beta"' in clap_v2 and "mainnet is not configured" in clap_v2, "CLI v2 must reject unsupported mainnet moniker clearly")
-    require('"d" | "devnet"' in clap_v2 and "devnet is not configured" in clap_v2, "CLI v2 must reject unsupported devnet moniker clearly")
-    require('"https://rpc.aeko.online".to_string()' in cli_config, "fresh CLI config must default to the deployed public testnet")
-    require('"wss://ws.aeko.online/".to_string()' in cli_config, "CLI websocket derivation must special-case the canonical PubSub host")
-    require('JSON_RPC_URL: &str = "https://rpc.aeko.online"' in install_defaults, "installer must default to the canonical public testnet")
 
     for unsupported_claim in (
         "Mainnet Beta is Live",
@@ -159,18 +206,17 @@ def main() -> int:
     ):
         reject(docs_text, unsupported_claim, "Explorer docs")
 
-    require("/faucet</a>" not in docs_text, "Explorer docs must not display the legacy /faucet route as the test console")
+    require("/faucet</a>" not in docs_text, "Explorer docs must not advertise the removed /faucet route")
     require("Open Faucet &amp; Access Page" not in docs_text, "Explorer docs must use Funding/Network Tools terminology")
-
     require(
-        re.search(r"https://gossip\.aeko\.online|gossip\.aeko\.online.*(?:alias|Explorer)|(?:alias|Explorer).*gossip\.aeko\.online", runbook, re.IGNORECASE) is None,
+        re.search(r"https://gossip\.aeko\.online|temporary\s+alias|Host\([^\n]*gossip\.aeko\.online", runbook, re.IGNORECASE) is None,
         "operations runbook must never present gossip.aeko.online as an HTTP/Explorer alias",
     )
     require("gossip.aeko.online" in readme and "not an Explorer website" in readme, "README must preserve the gossip-vs-Explorer distinction")
     require("Faucet Daemon" in readme and "Funding Portal" in readme, "README must distinguish private Faucet Daemon from public Funding Portal")
     require("Faucet Daemon" in backend_guide and "Testnet Funding API" in backend_guide, "backend guide must distinguish private daemon from public funding")
 
-    print("[PASS] AEKO public endpoints, funding terminology, and network claims are internally consistent")
+    print("[PASS] public endpoints are deployment-configured and funding/network roles are distinct")
     return 0
 
 

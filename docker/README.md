@@ -4,7 +4,7 @@ All first-party AEKO container and Compose definitions live in this directory. T
 
 | File | Purpose |
 | --- | --- |
-| `Dockerfile` | Single multi-target image definition for validator, faucet, SocialFi bootstrap, tools, Explorer API/UI and Operations web (Testnet Funding Portal at `fund.aeko.online` + Admin Console at `admin.aeko.online`) |
+| `Dockerfile` | Single multi-target image definition for validator, faucet, SocialFi bootstrap, tools, Explorer API/UI and Operations Web. Public hostnames are supplied at deployment time. |
 | `compose.local.yml` | Portable local/testnet topology, including the optional `rpc-node` profile |
 | `compose.dokploy.yml` | Image-only public topology for Dokploy |
 | `compose.coolify.yml` | Image-only public topology with Coolify-safe persistent-storage syntax |

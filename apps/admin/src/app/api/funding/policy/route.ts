@@ -6,8 +6,8 @@ export const dynamic = 'force-dynamic'
 
 export const OPTIONS = fundingPreflight
 
-const EXPLORER_URL = (process.env.PUBLIC_EXPLORER_URL ?? 'https://scan.aeko.online').replace(/\/+$/, '')
-const ADMIN_URL = process.env.ADMIN_PUBLIC_HOST ? `https://${process.env.ADMIN_PUBLIC_HOST}` : ''
+const EXPLORER_URL = (process.env.AEKO_PUBLIC_EXPLORER_URL ?? '').replace(/\/+$/, '')
+const ADMIN_URL = (process.env.AEKO_PUBLIC_ADMIN_URL ?? '').replace(/\/+$/, '')
 
 export async function GET(req: NextRequest) {
   const policy = await getPolicy()
