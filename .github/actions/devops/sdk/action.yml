@@ -89,7 +89,7 @@ runs:
     - name: Rust SDK lint
       if: ${{ inputs.rust == 'true' }}
       shell: bash
-      run: cargo clippy --locked -p aeko-rust-sdk --all-targets -- -D warnings
+      run: cargo clippy --locked -p aeko-rust-sdk --all-targets --no-deps -- -D warnings
 
     - name: Rust SDK tests
       if: ${{ inputs.rust == 'true' }}

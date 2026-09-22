@@ -702,7 +702,7 @@ mod tests {
         });
 
         assert_eq!(instruction.accounts.len(), 2);
-        assert_eq!(instruction.accounts[0].is_writable, true);
+        assert!(instruction.accounts[0].is_writable);
         assert!(!instruction.data.is_empty());
     }
 

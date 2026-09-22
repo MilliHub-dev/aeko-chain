@@ -52,7 +52,7 @@ runs:
     - name: CLI and keygen lint
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
-      run: cargo clippy --locked -p aeko-cli -p aeko-keygen --all-targets -- -D warnings
+      run: cargo clippy --locked -p aeko-cli -p aeko-keygen --all-targets --no-deps -- -D warnings
 
     - name: CLI and keygen tests
       if: ${{ inputs.validate-source == 'true' }}
