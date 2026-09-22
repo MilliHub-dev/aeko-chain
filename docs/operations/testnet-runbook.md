@@ -66,9 +66,9 @@ The compose file spins up four containers on a private docker network, fronted b
 |---|---|---|---|---|
 | `aeko-validator-1` | `aeko-validator:latest` | Produces blocks, serves RPC + pubsub + gossip | `rpc.aeko.online`, `ws.aeko.online` | `8899`, `8900`, `8001` |
 | `aeko-validator-2/3` | same image | **Disabled by default** (multi-validator profile) | — | `8899` each |
-| `aeko-faucet` | same image, different entrypoint | Holds the genesis faucet keypair, hands out free AEKO via the validator's `requestAirdrop` RPC | (no route — internal-only) | `9900` (TCP, on docker bridge) |
+| `aeko-faucet` | same image, different entrypoint | **Faucet Daemon**: private signer for policy-approved testnet funding | no public route | `9900` (TCP, Docker network only) |
 | `aeko-explorer-backend` | `aeko-explorer-backend:latest` | Indexes blocks from RPC, exposes REST API | `api.aeko.online` | `8088` |
-| `aeko-explorer-ui` | `aeko-explorer-ui:latest` | Vite SPA, served by `serve` (no nginx) | `scan.aeko.online` (and `gossip.aeko.online` as a temporary alias) | `3000` |
+| `aeko-explorer-ui` | `aeko-explorer-ui:latest` | Vite SPA, served by `serve` (no nginx) | `scan.aeko.online` | `3000` |
 
 The bootstrap flow on first boot:
 
@@ -76,7 +76,7 @@ The bootstrap flow on first boot:
 2. `aeko-validator` starts, loads from genesis, immediately begins producing slots because `--no-wait-for-vote-to-start-leader` is set.
 3. The PoH thread ticks ~3 slots per second. The banking stage processes any transactions in the mempool. The blockstore records the resulting shreds. With one validator, that's the entire pipeline — no network broadcast needed.
 4. `aeko-faucet` is independently listening on container port 9900 with the faucet keypair loaded. It is NOT exposed to the public internet — the validator reaches it on the docker bridge at `faucet:9900`.
-5. When a developer hits `requestAirdrop` on the RPC, the validator's RPC server opens a TCP connection to `faucet:9900`, sends a request, gets back a signed transfer transaction, submits it through its own banking pipeline, and returns the signature.
+5. On the public testnet, the Funding Gateway first applies policy and calls the validator's protected `requestAirdrop` method with server authorization. The validator then opens a TCP connection to the private Faucet Daemon at `faucet:9900`, receives a signed transfer transaction, submits it through its banking pipeline, and returns the signature.
 6. `aeko-explorer-backend` hits the RPC every block, pulls `getBlock` data, persists into its in-memory store, and serves the REST API on `:8088`. The HTTP server binds immediately on startup so `api.aeko.online` answers right away — historical catch-up runs in a background task, so the API responds with growing data over the first few minutes rather than 502-ing.
 7. `aeko-explorer-ui` serves the built Vite SPA from `/app/dist` via `serve -s`. All API calls go directly to `https://api.aeko.online` (set at build time in `web/.env.production`).
 
@@ -97,14 +97,15 @@ If it says `Node is unhealthy`, the chain isn't advancing — see Part 6 diagnos
 
 **Chain is advancing.** Same URL, replace method with `getSlot`. Run it twice ten seconds apart; the second number should be ~30 higher. If both numbers are `0`, the leader-stall bug came back (check the `--no-wait-for-vote-to-start-leader` flag is still on the command line in compose).
 
-**Airdrop works end-to-end.**
+**Testnet funding works end-to-end.**
 ```bash
-aeko config set --url https://rpc.aeko.online
-aeko airdrop 1 <some-pubkey>
-aeko balance <some-pubkey>   # → 1 AEKO
+curl -X POST https://fund.aeko.online/api/funding/request \
+  -H 'Content-Type: application/json' \
+  -d '{"address":"<some-pubkey>"}'
+aeko balance <some-pubkey> --url https://rpc.aeko.online
 ```
 
-**Explorer is indexing.** `curl -s https://api.aeko.online/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `https://scan.aeko.online` (or `https://gossip.aeko.online` until the scan DNS record is registered) should show a list of recent blocks and a slot counter that ticks up.
+**Explorer is indexing.** `curl -s https://api.aeko.online/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `https://scan.aeko.online` should show a list of recent blocks and a slot counter that ticks up.
 
 **WebSocket reachable.** `wscat -c wss://ws.aeko.online` should connect.
 
@@ -128,7 +129,7 @@ From this point every CLI command (`aeko balance`, `aeko transfer`, `aeko progra
 
 `aeko-keygen new --outfile ~/my-dev-wallet.json` generates a fresh keypair and writes it to disk. `aeko address --keypair ~/my-dev-wallet.json` prints the public key. The same JSON file works for any Solana-compatible tooling (Phantom, Solflare, Anchor, Web3.js) that supports importing a keypair file.
 
-### 4.3 Receiving the airdrop
+### 4.3 Receiving testnet funding
 
 **From the CLI.**
 ```bash
@@ -159,7 +160,7 @@ conn.onSignature(sig, (notif) => { /* notif.err === null means success */ });
 
 ### 4.5 Browsing transactions
 
-Send users to `https://scan.aeko.online` for the web UI (or `https://gossip.aeko.online` for now, until the scan DNS record is registered). For programmatic access, the explorer's REST API at `https://api.aeko.online` exposes `/blocks`, `/transactions`, `/tokens/transfers`, `/nfts`, `/posts`, `/engagement`, `/stakes`, `/search?q=<sig-or-address>`, and `/health`.
+Send users to `https://scan.aeko.online` for the web UI. For programmatic access, the explorer's REST API at `https://api.aeko.online` exposes `/blocks`, `/transactions`, `/tokens/transfers`, `/nfts`, `/posts`, `/engagement`, `/stakes`, `/search?q=<sig-or-address>`, and `/health`.
 
 ### 4.6 Joining as an external validator (advanced)
 
@@ -189,10 +190,10 @@ Coolify-proxy (Traefik) handles all TLS termination and HTTP routing. You do not
 | `ws.aeko.online` | validator-1:8900 | `wss://` | Pubsub WebSocket |
 | `api.aeko.online` | explorer-backend:8088 | `https://` | Explorer REST API |
 | `scan.aeko.online` | explorer-ui:3000 | `https://` | Explorer web UI (primary) |
-| `gossip.aeko.online` | (a) raw UDP+TCP 8001 on host for external validators; (b) **temporary alias** for explorer-ui until `scan` DNS is registered | `https://` (UI alias) + L4 (gossip) | Gossip protocol entrypoint |
+| `gossip.aeko.online` | validator gossip | raw TCP+UDP | validator discovery/peer entrypoint only |
 | `cloud.aeko.online` | Coolify dashboard (port 8000, managed by Coolify) | `http://`/`https://` | Operator UI |
 
-The faucet (port 9900) deliberately does **not** get a subdomain and is no longer mapped to the host. It speaks a custom binary TCP protocol that's not HTTP-compatible, and dApps reach it indirectly via the validator's `requestAirdrop` method, which then talks to the internal `faucet:9900` Docker hostname.
+The Faucet Daemon on TCP `9900` deliberately has **no public hostname**. User applications use the Testnet Funding Portal/Gateway; only the server-side Funding Gateway is authorized to invoke the deployed validator's low-level `requestAirdrop` path.
 
 ### 5.2 Namecheap DNS records
 
@@ -225,15 +226,9 @@ With Coolify+Traefik in front, only HTTP/HTTPS and gossip need public ingress:
 
 **Close from the public**: `8899, 8900, 8088, 3000, 9900`. The docker-proxy binds them to `0.0.0.0` so the SSH-deploy path can still use them, but Traefik reaches them on the docker bridge — the security group is what makes them publicly reachable. Closing them in the SG tightens the attack surface without changing any compose config.
 
-### 5.4 Migrating the UI from `gossip.aeko.online` to `scan.aeko.online`
+### 5.4 Gossip is not a website
 
-Today the explorer UI answers on **both** hostnames because the Traefik rule is `Host(\`scan.aeko.online\`) || Host(\`gossip.aeko.online\`)`. Once you've:
-
-1. Added the `scan.aeko.online` A record in Namecheap.
-2. Verified `https://scan.aeko.online` loads (Coolify-proxy will request the cert on first request).
-3. Flipped `web/.env.production`'s `VITE_AEKO_TESTNET_EXPLORER` from `https://gossip.aeko.online` to `https://scan.aeko.online` and redeployed.
-
-…then drop the `Host(\`gossip.aeko.online\`)` part of the rule in `docker-compose-testnet.yml` so the `gossip` name reverts to being only the gossip-protocol entrypoint. That avoids the long-term confusion of having the same hostname mean both "block explorer UI" and "validator gossip entrypoint".
+`gossip.aeko.online` is reserved for validator peer discovery on the published TCP/UDP transport range. The Explorer UI is only `https://scan.aeko.online`. Do not configure an HTTP route or Explorer fallback on the gossip hostname.
 
 ---
 

@@ -1,19 +1,21 @@
 # Backend Developer Guide
 
-Everything the backend team needs to integrate with AEKO Chain. Chain team has shipped all blockers.
+Backend integration guide for the currently deployed AEKO public testnet. Verify live program availability against the testnet rather than inferring it from source files alone.
 
 ---
 
 ## Chain Endpoints
 
-| Service  | Default Port | Notes                         |
-|----------|-------------|-------------------------------|
-| RPC      | 8899        | JSON-RPC 2.0, HTTP + WebSocket |
-| Explorer | 8088        | REST API, block indexer        |
-| Faucet   | 9900        | TCP (use via `requestAirdrop` RPC call) |
+| Surface | Public endpoint | Purpose |
+|---|---|---|
+| JSON-RPC | `https://rpc.aeko.online` | Direct chain reads, transactions, program deployment |
+| WebSocket PubSub | `wss://ws.aeko.online` | Live subscriptions |
+| Explorer REST API | `https://api.aeko.online` | Indexed Explorer data |
+| Explorer UI | `https://scan.aeko.online` | Human-readable chain explorer |
+| Testnet Funding API | `https://fund.aeko.online/api/funding` | Policy-controlled test AEKO grants |
+| Faucet Daemon | **private only**, TCP `faucet:9900` | Signs low-level funding transfers for the validator |
 
-RPC base: `http://<node>:8899`  
-Explorer base: `http://<node>:8088`
+Application backends must not connect directly to TCP `9900`.
 
 ---
 
@@ -197,16 +199,17 @@ All SDK builder functions return a **base64-encoded unsigned transaction**. The 
 
 ---
 
-## Airdrop / Faucet (testnet only)
+## Testnet Funding
 
-Use the `requestAirdrop` RPC method. Max 10 AEKO per request.
+Public applications use the Funding Gateway, not the private Faucet Daemon and not unauthenticated public `requestAirdrop`:
 
 ```bash
-curl -X POST http://localhost:8899 \
+curl -X POST https://fund.aeko.online/api/funding/request \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["<pubkey>", 5000000000]}'
-# 5000000000 lamports = 5 AEKO
+  -d '{"address":"<pubkey>"}'
 ```
+
+The deployed validator requires server-side Funding Gateway authorization for `requestAirdrop`. Local/custom test validators may leave that protection unset for developer-only airdrop flows.
 
 ---
 
@@ -218,8 +221,6 @@ Always work in lamports on-chain. Convert for display only.
 
 ---
 
-## What's Still Pending (chain team side)
+## Runtime verification
 
-- SBF compilation of `nft-marketplace` program (network issue during build, will resolve)
-- Deployment of `nft-marketplace` program to testnet (after SBF build passes)
-- Explorer indexing for marketplace listings (currently no `/marketplace/listings` endpoint — query listing accounts directly via RPC `getAccountInfo` for now)
+Source-code presence is not proof that a capability is live on the deployed network. Before enabling an application feature, verify its program ID/account on `https://rpc.aeko.online` and exercise the intended transaction flow on the public testnet.
