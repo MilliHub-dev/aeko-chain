@@ -116,7 +116,7 @@ export default function SocialTestV2() {
   const [registry, setRegistry] = useState(null);
   const [liveStatus, setLiveStatus] = useState(null);
   const [lastPost, setLastPost] = useState(null);
-  const [steps, setSteps] = useState({});
+  const [steps, setSteps] = useState(/** @type {Record<string, { status: string, message?: string, detail?: string }>} */ ({}));
   const [busy, setBusy] = useState(false);
 
   const wallet = useMemo(() => wallets.find((entry) => entry.id === walletId) || wallets[0] || null, [wallets, walletId]);

@@ -2,6 +2,7 @@ import { Droplets, FlaskConical, Network, Terminal, WalletCards } from 'lucide-r
 import { Link, useSearchParams } from 'react-router-dom';
 import NetworkToggle from '../components/NetworkToggle';
 import NetworkToolsPanel from '../components/NetworkToolsPanel';
+import TestnetFundingRequest from '../components/TestnetFundingRequest';
 import NetworkConsoleModal from '../components/NetworkConsoleModal';
 import NetworkSocialModal from '../components/social/NetworkSocialModal';
 import { getNetworkConfig } from '../utils/networkConfig';
@@ -64,7 +65,7 @@ export default function NetworkTools() {
           <div className="text-sm font-medium text-aeko-accent mb-2">Developer Network Workspace</div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Network Tools</h1>
           <p className="text-xl text-gray-400 max-w-3xl">
-            Inspect AEKO endpoints, manage testnet wallets, fund accounts, send transactions,
+            Inspect AEKO endpoints, request testnet funding, manage test wallets, send transactions,
             verify native SocialFi state, and exercise the on-chain social timeline from one place.
           </p>
         </div>
@@ -74,6 +75,10 @@ export default function NetworkTools() {
       <div className="mb-10">
         <NetworkToolsPanel network={network} />
       </div>
+
+      {network === 'testnet' ? (
+        <TestnetFundingRequest fundingUrl={config.fundingUrl} />
+      ) : null}
 
       {network === 'testnet' && (
         <div className="mb-10 rounded-2xl border border-aeko-accent/40 bg-gradient-to-br from-aeko-accent/10 via-white/[0.02] to-transparent p-6">
@@ -85,7 +90,7 @@ export default function NetworkTools() {
               <div>
                 <h2 className="text-xl font-semibold mb-1">AEKO Network Console</h2>
                 <p className="text-sm text-gray-400 max-w-2xl">
-                  A URL-addressable testnet workspace for account funding, transfers, live
+                  A URL-addressable testnet workspace for wallet management, transfers, live
                   SocialFi bootstrap verification, real signed Social actions, and end-to-end acceptance checks.
                 </p>
               </div>
@@ -103,7 +108,7 @@ export default function NetworkTools() {
           <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <button type="button" onClick={() => openConsole('accounts')} className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-left hover:bg-white/5 transition">
               <div className="text-sm font-medium text-white">Accounts</div>
-              <div className="mt-1 text-xs text-gray-500">Wallets, balances, funding, transfers</div>
+              <div className="mt-1 text-xs text-gray-500">Wallets, balances, transfers</div>
             </button>
             <button type="button" onClick={() => openConsole('programs')} className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-left hover:bg-white/5 transition">
               <div className="text-sm font-medium text-white">Programs</div>
@@ -149,7 +154,7 @@ export default function NetworkTools() {
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-white/15 bg-black/20 p-5 text-sm text-gray-400">
-              {config.faucetLabel}
+              {config.fundingLabel}
             </div>
           )}
         </div>

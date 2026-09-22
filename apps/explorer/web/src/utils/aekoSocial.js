@@ -453,7 +453,6 @@ export function buildSignedAnchorPostTx({
   };
 
   const messageBytes = buildLegacyMessage({
-    payerBytes: creatorBytes,
     recentBlockhashBytes: recentBytes,
     accountKeys,
     instructions: [ix],
@@ -503,7 +502,6 @@ export function buildSignedLikeTx({
   };
 
   const messageBytes = buildLegacyMessage({
-    payerBytes: actorBytes,
     recentBlockhashBytes: recentBytes,
     accountKeys,
     instructions: [ix],

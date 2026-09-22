@@ -1,7 +1,7 @@
 import { getNetworkConfig } from '../utils/networkConfig';
 
 const runtime = globalThis.__AEKO_RUNTIME_CONFIG__ || {};
-const vite = import.meta.env || {};
+const vite = import.meta.env;
 const testnet = getNetworkConfig('testnet');
 
 const demoCollection = String(runtime.demoCollection || vite.VITE_AEKO_DEMO_COLLECTION || '').trim();

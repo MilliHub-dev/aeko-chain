@@ -81,13 +81,23 @@ export function isConfiguredPublicTestnetRpc(rpcUrl) {
   return normalizedUrl(rpcUrl) === normalizedUrl(config.rpcUrl);
 }
 
-export async function requestTestnetFunding(rpcUrl, address, lamports) {
-  const config = getNetworkConfig('testnet');
-  if (!isConfiguredPublicTestnetRpc(rpcUrl)) {
-    return requestAirdrop(rpcUrl, address, lamports);
-  }
+function fundingEndpoint(fundingUrl, path) {
+  const base = String(fundingUrl || '').trim().replace(/\/$/, '');
+  if (!base) throw new Error('Testnet Funding URL is not configured.');
+  return `${base}${path}`;
+}
 
-  const response = await fetch(`${config.fundingUrl.replace(/\/$/, '')}/api/funding/request`, {
+export async function getFundingPolicy(fundingUrl) {
+  const response = await fetch(fundingEndpoint(fundingUrl, '/api/funding/policy'));
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body?.data) {
+    throw new Error(body?.error?.message || `Funding policy request failed with HTTP ${response.status}`);
+  }
+  return body.data;
+}
+
+export async function requestFundingGrant(fundingUrl, address) {
+  const response = await fetch(fundingEndpoint(fundingUrl, '/api/funding/request'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address }),
@@ -96,7 +106,17 @@ export async function requestTestnetFunding(rpcUrl, address, lamports) {
   if (!response.ok || !body?.data?.signature) {
     throw new Error(body?.error?.message || `Funding request failed with HTTP ${response.status}`);
   }
-  return body.data.signature;
+  return body.data;
+}
+
+export async function requestTestnetFunding(rpcUrl, address, lamports) {
+  const config = getNetworkConfig('testnet');
+  if (!isConfiguredPublicTestnetRpc(rpcUrl)) {
+    return requestAirdrop(rpcUrl, address, lamports);
+  }
+
+  const grant = await requestFundingGrant(config.fundingUrl, address);
+  return grant.signature;
 }
 
 export async function getAccountInfo(rpcUrl, address) {
