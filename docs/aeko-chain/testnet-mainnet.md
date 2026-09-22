@@ -17,7 +17,7 @@ Testnet AEKO has no asserted monetary value. Public funding is policy-controlled
 
 ## Mainnet
 
-This repository does **not** currently define a canonical public AEKO mainnet endpoint or claim a live mainnet deployment. Applications must not default to the legacy `api.mainnet-beta.aeko.chain` placeholder.
+This repository does **not** currently define a canonical public AEKO mainnet endpoint or claim a live mainnet deployment. Applications must not invent or reuse an undeclared mainnet endpoint.
 
 When a mainnet is deployed, configure its RPC, WebSocket, Explorer API and Explorer UI explicitly.
 

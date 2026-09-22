@@ -46,6 +46,10 @@ def main() -> int:
     clap_v3 = read("clap-v3-utils/src/input_validators.rs")
     cli_config = read("cli-config/src/config.rs")
     install_defaults = read("install/src/defaults.rs")
+    network_environments = read("docs/aeko-chain/testnet-mainnet.md")
+    validator_guide = read("docs/aeko-chain/validator-guide.md")
+    install_command = read("install/src/command.rs")
+    install_deploy = read("scripts/aeko-install-deploy.sh")
 
     docs = json.loads(docs_text)
     require(isinstance(docs.get("content"), dict), "Explorer docs.json must contain a content object")
@@ -112,6 +116,9 @@ def main() -> int:
         "api.devnet.aeko.chain",
         "explorer.aeko.chain",
         "release.aeko.chain",
+        "api.devnet.aeko.com",
+        "github.com/aeko-labs/aeko",
+        "github.com/aeko-chain/aeko",
     )
     active_public_surfaces = {
         "Explorer network config": network_config,
@@ -125,6 +132,10 @@ def main() -> int:
         "CLI v3 network normalization": clap_v3,
         "CLI config": cli_config,
         "installer defaults": install_defaults,
+        "network environments doc": network_environments,
+        "validator guide": validator_guide,
+        "legacy updater implementation": install_command,
+        "install deploy helper": install_deploy,
     }
     for where, text in active_public_surfaces.items():
         for legacy in retired_hosts:
