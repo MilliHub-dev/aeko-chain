@@ -1,6 +1,6 @@
 use {
     crate::{
-        config::{ExplorerBackendConfig, ServerConfig},
+        config::{ExplorerBackendConfig, ServerConfig, SettingsControlConfig},
         http::{self, state::AppState},
         indexing::service::IndexerService,
         infrastructure::{
@@ -22,6 +22,8 @@ pub async fn run() -> Result<()> {
         .context("loading Explorer backend environment")?;
     let server = ServerConfig::from_env()
         .context("loading Explorer server environment")?;
+    let settings_control = SettingsControlConfig::from_env()
+        .context("loading Explorer settings control environment")?;
 
     let rpc = RpcChainClient::new(backend.clone()).context("initializing validator RPC client")?;
     let startup_rpc = rpc.clone();
@@ -95,7 +97,7 @@ pub async fn run() -> Result<()> {
         genesis_hash,
         backend.max_ready_lag_slots,
         backend.persist_socialfi_views,
-        backend.settings_admin_token.clone(),
+        settings_control.admin_token,
     )
     .shared();
     let router = http::build_router(state, &server);

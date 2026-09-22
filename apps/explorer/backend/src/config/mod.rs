@@ -25,7 +25,6 @@ pub struct ExplorerBackendConfig {
     pub asset_refresh_slots: u64,
     pub social_refresh_slots: u64,
     pub max_ready_lag_slots: u64,
-    pub settings_admin_token: String,
 }
 
 impl ExplorerBackendConfig {
@@ -49,14 +48,26 @@ impl ExplorerBackendConfig {
         let asset_refresh_slots = required_nonzero::<u64>("AEKO_EXPLORER_ASSET_REFRESH_SLOTS")?;
         let social_refresh_slots = required_nonzero::<u64>("AEKO_EXPLORER_SOCIAL_REFRESH_SLOTS")?;
         let max_ready_lag_slots = required_parse_env::<u64>("AEKO_EXPLORER_MAX_READY_LAG_SLOTS")?;
-        let settings_admin_token = required_env("AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN")?;
-        if settings_admin_token.len() < 32 {
-            return Err(anyhow!("AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN must be at least 32 characters"));
-        }
 
         Ok(Self { rpc_url, websocket_url, network, start_slot, max_batch_size, persist_socialfi_views,
             database_url, db_max_connections, db_min_connections, db_acquire_timeout, rpc_timeout,
-            asset_refresh_slots, social_refresh_slots, max_ready_lag_slots, settings_admin_token })
+            asset_refresh_slots, social_refresh_slots, max_ready_lag_slots })
+    }
+}
+
+pub struct SettingsControlConfig {
+    pub admin_token: String,
+}
+
+impl SettingsControlConfig {
+    pub fn from_env() -> Result<Self> {
+        let admin_token = required_env("AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN")?;
+        if admin_token.len() < 32 {
+            return Err(anyhow!(
+                "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN must be at least 32 characters"
+            ));
+        }
+        Ok(Self { admin_token })
     }
 }
 
@@ -113,7 +124,6 @@ impl Default for ExplorerBackendConfig {
             db_max_connections: 4, db_min_connections: 1, db_acquire_timeout: Duration::from_secs(5),
             rpc_timeout: Duration::from_secs(5), asset_refresh_slots: 64, social_refresh_slots: 16,
             max_ready_lag_slots: 128,
-            settings_admin_token: "test-settings-admin-token-at-least-32-chars".to_string(),
         }
     }
 }
