@@ -74,7 +74,7 @@ export default function LoginPage() {
           </Suspense>
         </div>
         <div className="text-xs text-gray-600">
-          Looking for test AEKO? Use the <Link href="/faucet" className="text-emerald-400 hover:underline">public faucet</Link>.
+          Looking for test AEKO? Use the <Link href="/funding" className="text-emerald-400 hover:underline">public funding portal</Link>.
         </div>
       </div>
     </div>
