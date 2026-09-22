@@ -113,15 +113,29 @@ runs:
         set -euo pipefail
         version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "aeko-rust-sdk") | .version')
         test -n "$version"
-        status=$(curl -sS -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/aeko-rust-sdk/${version}")
+        response=$(curl --silent --show-error --retry 3 --retry-all-errors \
+          --connect-timeout 10 --max-time 30 \
+          --write-out 
+\\n%{http_code}' \
+          "https://index.crates.io/ae/ko/aeko-rust-sdk")
+        status="${response##*
+\\n'}"
+        body="${response%
+\\n'*}"
+
         case "$status" in
-          404) ;;
+          404)
+            # The crate name itself has never been published, so this version is available.
+            ;;
           200)
-            echo "aeko-rust-sdk@${version} already exists on crates.io. Bump the package version before release." >&2
-            exit 1
+            if printf '%s' "$body" | jq -s -e --arg version "$version" \
+              'any(.[]; .vers == $version)' >/dev/null; then
+              echo "aeko-rust-sdk@${version} already exists on crates.io. Bump the package version before release." >&2
+              exit 1
+            fi
             ;;
           *)
-            echo "Unable to prove crates.io version availability for aeko-rust-sdk@${version}; HTTP ${status}." >&2
+            echo "Unable to prove crates.io version availability for aeko-rust-sdk@${version}; sparse-index HTTP ${status}." >&2
             exit 1
             ;;
         esac

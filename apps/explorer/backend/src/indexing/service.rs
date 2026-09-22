@@ -131,7 +131,7 @@ impl IndexerService {
             .latest_projection_slot(stream)
             .await
             .with_context(|| format!("reading {stream} projection freshness"))?;
-        Ok(last.map_or(true, |last| trigger_slot.saturating_sub(last) >= cadence))
+        Ok(last.is_none_or(|last| trigger_slot.saturating_sub(last) >= cadence))
     }
 
     async fn refresh_assets(&self, trigger_slot: u64) {
