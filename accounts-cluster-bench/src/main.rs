@@ -1,9 +1,5 @@
 #![allow(clippy::arithmetic_side_effects)]
 use {
-    clap::{crate_description, crate_name, value_t, values_t, values_t_or_exit, App, Arg},
-    log::*,
-    rand::{thread_rng, Rng},
-    rayon::prelude::*,
     aeko_accounts_db::inline_spl_token,
     aeko_clap_utils::{
         hidden_unless_forced, input_parsers::pubkey_of, input_validators::is_url_or_moniker,
@@ -24,6 +20,10 @@ use {
         transaction::Transaction,
     },
     aeko_streamer::socket::SocketAddrSpace,
+    clap::{crate_description, crate_name, value_t, values_t, values_t_or_exit, App, Arg},
+    log::*,
+    rand::{thread_rng, Rng},
+    rayon::prelude::*,
     std::{
         cmp::min,
         process::exit,
@@ -47,9 +47,7 @@ fn spl_to_aeko_pubkey(pubkey: spl_token::aeko_program::pubkey::Pubkey) -> Pubkey
     Pubkey::new_from_array(pubkey.to_bytes())
 }
 
-fn spl_to_aeko_instruction(
-    ix: spl_token::aeko_program::instruction::Instruction,
-) -> Instruction {
+fn spl_to_aeko_instruction(ix: spl_token::aeko_program::instruction::Instruction) -> Instruction {
     Instruction {
         program_id: spl_to_aeko_pubkey(ix.program_id),
         accounts: ix

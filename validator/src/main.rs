@@ -2,11 +2,6 @@
 #[cfg(not(target_env = "msvc"))]
 use jemallocator::Jemalloc;
 use {
-    clap::{crate_name, value_t, value_t_or_exit, values_t, values_t_or_exit, ArgMatches},
-    console::style,
-    crossbeam_channel::unbounded,
-    log::*,
-    rand::{seq::SliceRandom, thread_rng},
     aeko_accounts_db::{
         accounts_db::{AccountShrinkThreshold, AccountsDb, AccountsDbConfig, CreateAncientStorage},
         accounts_index::{
@@ -69,6 +64,11 @@ use {
         ledger_lockfile, lock_ledger, new_spinner_progress_bar, println_name_value,
         redirect_stderr_to_file,
     },
+    clap::{crate_name, value_t, value_t_or_exit, values_t, values_t_or_exit, ArgMatches},
+    console::style,
+    crossbeam_channel::unbounded,
+    log::*,
+    rand::{seq::SliceRandom, thread_rng},
     std::{
         collections::{HashSet, VecDeque},
         env,

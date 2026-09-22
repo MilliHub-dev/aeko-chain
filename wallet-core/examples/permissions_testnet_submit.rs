@@ -6,14 +6,12 @@ use {
         system_instruction,
         transaction::Transaction,
     },
-    aeko_wallet_core::{
-        did_from_pubkey, import_from_keystore, EncryptedKeystore,
-    },
+    aeko_wallet_core::{did_from_pubkey, import_from_keystore, EncryptedKeystore},
     aeko_wallet_permissions_program::{
         instruction as wallet_permissions_instruction,
         state::{
-            DelegatePermission, PermissionRole, PermissionStatus, ProgramPolicyMode, SpendLimitPolicy,
-            WalletPermissionAccount, WalletPermissionAuditLogAccount,
+            DelegatePermission, PermissionRole, PermissionStatus, ProgramPolicyMode,
+            SpendLimitPolicy, WalletPermissionAccount, WalletPermissionAuditLogAccount,
         },
     },
     std::{env, error::Error, fs, str::FromStr},
@@ -72,7 +70,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         &[&owner, &permission_state, &audit_log],
         recent_blockhash,
     );
-    let create_accounts_signature = rpc_client.send_and_confirm_transaction(&create_permission_accounts)?;
+    let create_accounts_signature =
+        rpc_client.send_and_confirm_transaction(&create_permission_accounts)?;
 
     let initialize_signature = send_owner_instruction(
         &rpc_client,

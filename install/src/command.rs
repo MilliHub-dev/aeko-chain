@@ -4,11 +4,6 @@ use {
         stop_process::stop_process,
         update_manifest::{SignedUpdateManifest, UpdateManifest},
     },
-    chrono::{Local, TimeZone},
-    console::{style, Emoji},
-    crossbeam_channel::unbounded,
-    indicatif::{ProgressBar, ProgressStyle},
-    serde::{Deserialize, Serialize},
     aeko_config_program::{config_instruction, get_config_data, ConfigState},
     aeko_rpc_client::rpc_client::RpcClient,
     aeko_sdk::{
@@ -18,6 +13,11 @@ use {
         signature::{read_keypair_file, Keypair, Signable, Signer},
         transaction::Transaction,
     },
+    chrono::{Local, TimeZone},
+    console::{style, Emoji},
+    crossbeam_channel::unbounded,
+    indicatif::{ProgressBar, ProgressStyle},
+    serde::{Deserialize, Serialize},
     std::{
         fs::{self, File},
         io::{self, BufReader, Read},

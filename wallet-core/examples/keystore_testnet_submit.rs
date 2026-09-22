@@ -1,11 +1,6 @@
 use {
     aeko_rpc_client::rpc_client::RpcClient,
-    aeko_sdk::{
-        message::Message,
-        pubkey::Pubkey,
-        signature::Signer,
-        system_instruction,
-    },
+    aeko_sdk::{message::Message, pubkey::Pubkey, signature::Signer, system_instruction},
     aeko_wallet_core::{
         did_from_pubkey, import_from_keystore, sign_message_bytes, sign_stateless_payload,
         sign_transaction, sign_transaction_batch, EncryptedKeystore,
@@ -29,8 +24,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let rpc_client = RpcClient::new(rpc_url.clone());
     let recent_blockhash = rpc_client.get_latest_blockhash()?;
 
-    let signed_message = sign_message_bytes(&keystore, &password, b"phase4-wallet-core-testnet-submit")?;
-    let stateless = sign_stateless_payload(&keystore, &password, b"phase4-wallet-core-testnet-submit")?;
+    let signed_message =
+        sign_message_bytes(&keystore, &password, b"phase4-wallet-core-testnet-submit")?;
+    let stateless =
+        sign_stateless_payload(&keystore, &password, b"phase4-wallet-core-testnet-submit")?;
 
     let transfer_instruction = system_instruction::transfer(&signer.pubkey(), &recipient, lamports);
     let transfer_message = Message::new(&[transfer_instruction.clone()], Some(&signer.pubkey()));
@@ -41,8 +38,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         &keystore,
         &password,
         vec![
-            (Message::new(&[transfer_instruction.clone()], Some(&signer.pubkey())), recent_blockhash),
-            (Message::new(&[transfer_instruction], Some(&signer.pubkey())), recent_blockhash),
+            (
+                Message::new(&[transfer_instruction.clone()], Some(&signer.pubkey())),
+                recent_blockhash,
+            ),
+            (
+                Message::new(&[transfer_instruction], Some(&signer.pubkey())),
+                recent_blockhash,
+            ),
         ],
     )?;
 

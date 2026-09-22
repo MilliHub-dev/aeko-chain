@@ -4,12 +4,6 @@ use {
         max_slots::MaxSlots, optimistically_confirmed_bank_tracker::OptimisticallyConfirmedBank,
         parsed_token_accounts::*, rpc_cache::LargestAccountsCache, rpc_health::*,
     },
-    base64::{prelude::BASE64_STANDARD, Engine},
-    bincode::{config::Options, serialize},
-    borsh::BorshDeserialize,
-    crossbeam_channel::{unbounded, Receiver, Sender},
-    jsonrpc_core::{futures::future, types::error, BoxFuture, Error, Metadata, Result},
-    jsonrpc_derive::rpc,
     aeko_account_decoder::{
         parse_token::{is_known_spl_token_id, token_amount_to_ui_amount, UiTokenAmount},
         UiAccount, UiAccountEncoding, UiDataSliceConfig, MAX_BASE58_BYTES,
@@ -84,12 +78,10 @@ use {
         send_transaction_service::{SendTransactionService, TransactionInfo},
         tpu_info::NullTpuInfo,
     },
-    aeko_social_anti_spam_program,
+    aeko_social_anti_spam_program, aeko_social_posts_program,
     aeko_social_posts_program::instruction::SocialPostsInstruction,
-    aeko_social_posts_program,
-    aeko_social_rewards_program,
+    aeko_social_rewards_program, aeko_social_staking_program,
     aeko_social_staking_program::instruction::SocialStakingInstruction,
-    aeko_social_staking_program,
     aeko_stake_program,
     aeko_storage_bigtable::Error as StorageError,
     aeko_streamer::socket::SocketAddrSpace,
@@ -100,6 +92,12 @@ use {
         TransactionConfirmationStatus, TransactionStatus, UiConfirmedBlock, UiTransactionEncoding,
     },
     aeko_vote_program::vote_state::{VoteState, MAX_LOCKOUT_HISTORY},
+    base64::{prelude::BASE64_STANDARD, Engine},
+    bincode::{config::Options, serialize},
+    borsh::BorshDeserialize,
+    crossbeam_channel::{unbounded, Receiver, Sender},
+    jsonrpc_core::{futures::future, types::error, BoxFuture, Error, Metadata, Result},
+    jsonrpc_derive::rpc,
     spl_token_2022::{
         aeko_program::program_pack::Pack,
         extension::StateWithExtensions,
@@ -181,7 +179,10 @@ impl std::fmt::Debug for JsonRpcConfig {
                 "funding_gateway_authorization_required",
                 &self.funding_gateway_key.is_some(),
             )
-            .field("health_check_slot_distance", &self.health_check_slot_distance)
+            .field(
+                "health_check_slot_distance",
+                &self.health_check_slot_distance,
+            )
             .field("rpc_bigtable_config", &self.rpc_bigtable_config)
             .field("max_multiple_accounts", &self.max_multiple_accounts)
             .field("account_indexes", &self.account_indexes)
@@ -2119,8 +2120,10 @@ impl JsonRpcRequestProcessor {
     fn get_social_rewards_state(
         &self,
         bank: &Bank,
-    ) -> RpcCustomResult<Option<aeko_social_rewards_program::state::SocialRewardsStateAccount>> {
-        let accounts = self.get_filtered_program_accounts(bank, &aeko_social_rewards_program::id(), vec![])?;
+    ) -> RpcCustomResult<Option<aeko_social_rewards_program::state::SocialRewardsStateAccount>>
+    {
+        let accounts =
+            self.get_filtered_program_accounts(bank, &aeko_social_rewards_program::id(), vec![])?;
         Ok(account_resolver::find_social_rewards_state(accounts))
     }
 
@@ -2128,14 +2131,16 @@ impl JsonRpcRequestProcessor {
         &self,
         bank: &Bank,
     ) -> RpcCustomResult<Option<aeko_social_posts_program::state::SocialPostsStateAccount>> {
-        let accounts = self.get_filtered_program_accounts(bank, &aeko_social_posts_program::id(), vec![])?;
+        let accounts =
+            self.get_filtered_program_accounts(bank, &aeko_social_posts_program::id(), vec![])?;
         Ok(account_resolver::find_social_posts_state(accounts))
     }
 
     fn get_social_anti_spam_state(
         &self,
         bank: &Bank,
-    ) -> RpcCustomResult<Option<aeko_social_anti_spam_program::state::SocialAntiSpamStateAccount>> {
+    ) -> RpcCustomResult<Option<aeko_social_anti_spam_program::state::SocialAntiSpamStateAccount>>
+    {
         let accounts =
             self.get_filtered_program_accounts(bank, &aeko_social_anti_spam_program::id(), vec![])?;
         Ok(account_resolver::find_social_anti_spam_state(accounts))
@@ -2144,8 +2149,10 @@ impl JsonRpcRequestProcessor {
     fn get_social_staking_state(
         &self,
         bank: &Bank,
-    ) -> RpcCustomResult<Option<aeko_social_staking_program::state::SocialStakingStateAccount>> {
-        let accounts = self.get_filtered_program_accounts(bank, &aeko_social_staking_program::id(), vec![])?;
+    ) -> RpcCustomResult<Option<aeko_social_staking_program::state::SocialStakingStateAccount>>
+    {
+        let accounts =
+            self.get_filtered_program_accounts(bank, &aeko_social_staking_program::id(), vec![])?;
         Ok(account_resolver::find_social_staking_state(accounts))
     }
 
@@ -4410,9 +4417,12 @@ pub mod rpc_socialfi {
             })?;
 
             let transaction = sanitize_transaction(unsanitized_tx, preflight_bank)?;
-            let proof_id = extract_social_posts_engagement_proof_id(&transaction).ok_or_else(
-                || Error::invalid_params("Transaction does not contain a social-posts engagement proof"),
-            )?;
+            let proof_id =
+                extract_social_posts_engagement_proof_id(&transaction).ok_or_else(|| {
+                    Error::invalid_params(
+                        "Transaction does not contain a social-posts engagement proof",
+                    )
+                })?;
             let signature = *transaction.signature();
 
             let mut last_valid_block_height = preflight_bank
@@ -4570,7 +4580,9 @@ pub mod rpc_socialfi {
             let events = meta
                 .get_social_posts_state(&bank)
                 .map_err(Error::from)?
-                .map(|state| account_resolver::engagement_events_from_state(&state, config.as_ref()))
+                .map(|state| {
+                    account_resolver::engagement_events_from_state(&state, config.as_ref())
+                })
                 .unwrap_or_default();
             Ok(new_response(&bank, events))
         }
@@ -4608,7 +4620,10 @@ pub mod rpc_socialfi {
             wallet: String,
             config: Option<RpcSocialStakePositionsConfig>,
         ) -> Result<RpcResponse<Vec<RpcSocialStakePosition>>> {
-            debug!("get_social_stake_positions rpc request received: {:?}", wallet);
+            debug!(
+                "get_social_stake_positions rpc request received: {:?}",
+                wallet
+            );
             let wallet = verify_pubkey(&wallet)?;
             let bank = meta.bank(config.as_ref().and_then(|cfg| cfg.commitment));
             let positions = meta
@@ -5427,10 +5442,6 @@ pub mod tests {
             },
             rpc_subscriptions::RpcSubscriptions,
         },
-        bincode::deserialize,
-        jsonrpc_core::{futures, ErrorCode, MetaIoHandler, Output, Response, Value},
-        jsonrpc_core_client::transports::local,
-        serde::de::DeserializeOwned,
         aeko_accounts_db::{inline_spl_token, inline_spl_token_2022},
         aeko_entry::entry::next_versioned_entry,
         aeko_gossip::socketaddr,
@@ -5484,13 +5495,17 @@ pub mod tests {
             vote_instruction,
             vote_state::{self, Vote, VoteInit, VoteStateVersions, MAX_LOCKOUT_HISTORY},
         },
+        bincode::deserialize,
+        jsonrpc_core::{futures, ErrorCode, MetaIoHandler, Output, Response, Value},
+        jsonrpc_core_client::transports::local,
+        serde::de::DeserializeOwned,
         spl_pod::optional_keys::OptionalNonZeroPubkey,
         spl_token_2022::{
+            aeko_program::{program_option::COption, pubkey::Pubkey as SplTokenPubkey},
             extension::{
                 immutable_owner::ImmutableOwner, memo_transfer::MemoTransfer,
                 mint_close_authority::MintCloseAuthority, ExtensionType, StateWithExtensionsMut,
             },
-            aeko_program::{program_option::COption, pubkey::Pubkey as SplTokenPubkey},
             state::{AccountState as TokenAccountState, Mint},
         },
         std::{borrow::Cow, collections::HashMap, net::Ipv4Addr},
@@ -5824,8 +5839,7 @@ pub mod tests {
             let versioned = VoteStateVersions::new_current(vote_state);
             let space = VoteState::size_of();
             let balance = bank.get_minimum_balance_for_rent_exemption(space);
-            let mut vote_account =
-                AccountSharedData::new(balance, space, &aeko_vote_program::id());
+            let mut vote_account = AccountSharedData::new(balance, space, &aeko_vote_program::id());
             vote_state::to(&versioned, &mut vote_account).unwrap();
             bank.store_account(vote_pubkey, &vote_account);
         }
@@ -7616,7 +7630,10 @@ pub mod tests {
         let authorized: Response =
             serde_json::from_str(&authorized_response).expect("authorized JSON response");
         let (code, _) = parse_failure_response(authorized);
-        assert_eq!(code, -32603, "authorized call should reach the configured faucet");
+        assert_eq!(
+            code, -32603,
+            "authorized call should reach the configured faucet"
+        );
     }
 
     #[test]
@@ -8549,8 +8566,7 @@ pub mod tests {
         assert_ne!(leader_info.activated_stake, 0);
         // Subtract one because the last vote always carries over to the next epoch
         // Each slot earned maximum credits
-        let credits_per_slot =
-            aeko_vote_program::vote_state::VOTE_CREDITS_MAXIMUM_PER_SLOT as u64;
+        let credits_per_slot = aeko_vote_program::vote_state::VOTE_CREDITS_MAXIMUM_PER_SLOT as u64;
         let expected_credits =
             (TEST_SLOTS_PER_EPOCH - MAX_LOCKOUT_HISTORY as u64 - 1) * credits_per_slot;
         assert_eq!(

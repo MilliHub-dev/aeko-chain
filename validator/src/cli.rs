@@ -1,8 +1,4 @@
 use {
-    clap::{
-        crate_description, crate_name, App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand,
-    },
-    log::warn,
     aeko_accounts_db::{
         accounts_db::{
             DEFAULT_ACCOUNTS_SHRINK_OPTIMIZE_TOTAL_SPACE, DEFAULT_ACCOUNTS_SHRINK_RATIO,
@@ -49,6 +45,10 @@ use {
     },
     aeko_tpu_client::tpu_client::DEFAULT_TPU_CONNECTION_POOL_SIZE,
     aeko_unified_scheduler_pool::DefaultSchedulerPool,
+    clap::{
+        crate_description, crate_name, App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand,
+    },
+    log::warn,
     std::{path::PathBuf, str::FromStr},
 };
 
@@ -2243,8 +2243,7 @@ impl DefaultArgs {
             rpc_niceness_adjustment: "0".to_string(),
             rpc_bigtable_timeout: "30".to_string(),
             rpc_bigtable_instance_name: aeko_storage_bigtable::DEFAULT_INSTANCE_NAME.to_string(),
-            rpc_bigtable_app_profile_id: aeko_storage_bigtable::DEFAULT_APP_PROFILE_ID
-                .to_string(),
+            rpc_bigtable_app_profile_id: aeko_storage_bigtable::DEFAULT_APP_PROFILE_ID.to_string(),
             rpc_bigtable_max_message_size: aeko_storage_bigtable::DEFAULT_MAX_MESSAGE_SIZE
                 .to_string(),
             rpc_pubsub_worker_threads: "4".to_string(),
