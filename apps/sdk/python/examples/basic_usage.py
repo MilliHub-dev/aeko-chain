@@ -2,7 +2,7 @@ from aeko_sdk import AekoClient
 
 
 def main() -> None:
-    client = AekoClient("https://api.testnet.aeko.chain")
+    client = AekoClient("https://rpc.aeko.online")
     blockhash = client.get_latest_blockhash()
     print("latest blockhash:", blockhash)
 

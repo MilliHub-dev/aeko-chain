@@ -10,7 +10,7 @@ import {
   type VerifyPostRequest,
 } from '../src/index.js';
 
-const rpcUrl = process.env.AEKO_SOCIAL_RPC_URL ?? 'https://api.testnet.aeko.chain';
+const rpcUrl = process.env.AEKO_SOCIAL_RPC_URL ?? 'https://rpc.aeko.online';
 const bindHost = process.env.AEKO_SOCIAL_BIND_HOST ?? '127.0.0.1';
 const bindPort = Number.parseInt(process.env.AEKO_SOCIAL_BIND_PORT ?? '8787', 10);
 const persistencePath =

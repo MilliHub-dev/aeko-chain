@@ -15,7 +15,7 @@ use {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let rpc_url =
-        env::var("AEKO_TESTNET_RPC").unwrap_or_else(|_| "https://api.testnet.aeko.chain".to_string());
+        env::var("AEKO_TESTNET_RPC").unwrap_or_else(|_| "https://rpc.aeko.online".to_string());
     let keystore_path = required_env("AEKO_WALLET_KEYSTORE_PATH")?;
     let password = required_env("AEKO_WALLET_PASSWORD")?;
     let recipient = Pubkey::from_str(&required_env("AEKO_RECIPIENT_PUBKEY")?)?;

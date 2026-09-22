@@ -14,7 +14,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let client = AekoDeveloperClient::new("https://api.testnet.aeko.chain".to_string());
+//!     let client = AekoDeveloperClient::new("https://rpc.aeko.online".to_string());
 //!     let balance = client
 //!         .get_balance("11111111111111111111111111111111")
 //!         .await?;

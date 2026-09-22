@@ -11,7 +11,7 @@ class ExampleSigner implements ServerSideSigner {
 }
 
 async function main() {
-  const client = new AekoNodeClient('https://api.testnet.aeko.chain', {
+  const client = new AekoNodeClient('https://rpc.aeko.online', {
     appName: 'aeko-backend',
   });
 

@@ -6,7 +6,7 @@ use {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rpc_url = env::var("AEKO_RPC_URL")
-        .unwrap_or_else(|_| "https://api.testnet.aeko.chain".to_string());
+        .unwrap_or_else(|_| "https://rpc.aeko.online".to_string());
     let address = env::args()
         .nth(1)
         .unwrap_or_else(|| "11111111111111111111111111111111".to_string());

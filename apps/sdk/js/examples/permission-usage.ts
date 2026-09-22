@@ -6,7 +6,7 @@ import {
 } from '../src/index';
 
 async function main() {
-  const connection = new AekoConnection('https://api.testnet.aeko.chain');
+  const connection = new AekoConnection('https://rpc.aeko.online');
   const recentBlockhash = await connection.getLatestBlockhash();
 
   const prepared = buildPreparedGrantDelegateTransaction({

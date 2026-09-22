@@ -1,7 +1,7 @@
 import { AekoConnection } from '../src/index';
 
 async function main() {
-  const connection = new AekoConnection('https://api.testnet.aeko.chain', {
+  const connection = new AekoConnection('https://rpc.aeko.online', {
     websocketFactory: (url) => new WebSocket(url),
   });
 
