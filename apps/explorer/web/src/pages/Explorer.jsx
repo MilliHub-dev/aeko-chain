@@ -526,7 +526,7 @@ export default function Explorer() {
           ))}
         </Panel>
 
-        <Panel title="Recent Stakes">
+        <Panel title="Recent Stakes" controls={null}>
           {homeState.stakes.map((stake) => (
             <Link
               key={stake.positionId}
@@ -542,7 +542,7 @@ export default function Explorer() {
           ))}
         </Panel>
 
-        <Panel title="Recent NFTs">
+        <Panel title="Recent NFTs" controls={null}>
           {homeState.nfts.map((nft) => (
             <Link
               key={nft.tokenId}

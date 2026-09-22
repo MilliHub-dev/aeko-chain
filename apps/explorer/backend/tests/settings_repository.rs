@@ -1,10 +1,7 @@
 use {
     aeko_explorer_backend::{
         config::ExplorerBackendConfig,
-        infrastructure::persistence::{
-            settings::AppSettingsUpdate,
-            PostgresRepository,
-        },
+        infrastructure::persistence::{settings::AppSettingsUpdate, PostgresRepository},
     },
     anyhow::{Context, Result},
     std::{env, time::Duration},

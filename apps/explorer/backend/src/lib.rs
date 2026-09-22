@@ -25,8 +25,7 @@ pub use {
     config::{ExplorerBackendConfig, ServerConfig},
     indexing::{service::IndexerService, ChainDataSource},
     infrastructure::{
-        chain::RpcChainClient,
-        persistence::PostgresRepository,
-        social::CanonicalChainDataSource,
+        chain::RpcChainClient, persistence::PostgresRepository, social::CanonicalChainDataSource,
     },
 };
+

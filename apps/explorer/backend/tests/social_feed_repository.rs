@@ -1,10 +1,7 @@
 use {
     aeko_explorer_backend::{
         config::ExplorerBackendConfig,
-        infrastructure::persistence::{
-            social_feed::SocialFeedCursor,
-            PostgresRepository,
-        },
+        infrastructure::persistence::{social_feed::SocialFeedCursor, PostgresRepository},
         models::{SocialPostRecord, SocialSnapshot},
     },
     anyhow::{Context, Result},
@@ -71,8 +68,20 @@ async fn social_feed_cursor_preserves_equal_timestamp_posts_and_thread_root_orde
                 post("post-b", creator, timestamp, None, "original"),
                 post("post-c", creator, timestamp, None, "original"),
                 post("thread-root", creator, timestamp - 10, None, "original"),
-                post("thread-reply-b", creator, timestamp - 8, Some("thread-root"), "reply"),
-                post("thread-reply-a", creator, timestamp - 9, Some("thread-root"), "reply"),
+                post(
+                    "thread-reply-b",
+                    creator,
+                    timestamp - 8,
+                    Some("thread-root"),
+                    "reply",
+                ),
+                post(
+                    "thread-reply-a",
+                    creator,
+                    timestamp - 9,
+                    Some("thread-root"),
+                    "reply",
+                ),
             ],
             engagement: Vec::new(),
             reward_accounts: Vec::new(),
@@ -91,7 +100,13 @@ async fn social_feed_cursor_preserves_equal_timestamp_posts_and_thread_root_orde
     let first = repository
         .list_social_feed_page(Some(creator), None, 2)
         .await?;
-    assert_eq!(first.iter().map(|item| item.post_id.as_str()).collect::<Vec<_>>(), vec!["post-a", "post-b"]);
+    assert_eq!(
+        first
+            .iter()
+            .map(|item| item.post_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["post-a", "post-b"]
+    );
 
     let cursor = SocialFeedCursor {
         created_at_unix: first[1].created_at_unix,
@@ -100,14 +115,20 @@ async fn social_feed_cursor_preserves_equal_timestamp_posts_and_thread_root_orde
     let second = repository
         .list_social_feed_page(Some(creator), Some(&cursor), 4)
         .await?;
-    let second_ids = second.iter().map(|item| item.post_id.as_str()).collect::<Vec<_>>();
+    let second_ids = second
+        .iter()
+        .map(|item| item.post_id.as_str())
+        .collect::<Vec<_>>();
     assert_eq!(second_ids[0], "post-c");
     assert!(!second_ids.contains(&"post-a"));
     assert!(!second_ids.contains(&"post-b"));
 
     let thread = repository.get_social_thread("thread-root", 10).await?;
     assert_eq!(
-        thread.iter().map(|item| item.post_id.as_str()).collect::<Vec<_>>(),
+        thread
+            .iter()
+            .map(|item| item.post_id.as_str())
+            .collect::<Vec<_>>(),
         vec!["thread-root", "thread-reply-a", "thread-reply-b"],
     );
 

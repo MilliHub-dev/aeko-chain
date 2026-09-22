@@ -161,13 +161,21 @@ jobs:
           set -euo pipefail
           rustup toolchain install 1.85.0 --profile minimal --component rustfmt --component clippy
           rustup default 1.85.0
+          native_packages=()
           if ! command -v protoc >/dev/null 2>&1; then
+            native_packages+=(protobuf-compiler)
+          fi
+          if ! command -v pkg-config >/dev/null 2>&1 || ! pkg-config --exists libudev; then
+            native_packages+=(pkg-config libudev-dev)
+          fi
+          if [ "${#native_packages[@]}" -gt 0 ]; then
             sudo apt-get update
-            sudo apt-get install -y --no-install-recommends protobuf-compiler
+            sudo apt-get install -y --no-install-recommends "${native_packages[@]}"
           fi
           rustc --version
           cargo --version
           protoc --version
+          pkg-config --modversion libudev
 
       - name: Set up shared Rust compilation cache
         if: steps.changes.outputs.rust_needed == 'true'
