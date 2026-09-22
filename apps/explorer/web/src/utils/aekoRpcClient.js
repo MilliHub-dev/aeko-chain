@@ -1,6 +1,6 @@
 // Thin JSON-RPC client for the AEKO testnet validator.
 //
-// Used by the network/test consoles to drive airdrops, transactions, explicit
+// Used by the network/test consoles for funding, transactions, explicit
 // live-chain reads, and the Explorer's narrowly scoped compatibility fallback.
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -68,7 +68,7 @@ export async function requestAirdrop(rpcUrl, address, lamports) {
 const DEFAULT_TESTNET_FUNDING_URL =
   import.meta.env.VITE_AEKO_TESTNET_FUNDING_URL || 'https://fund.aeko.online';
 
-function isCanonicalPublicTestnetRpc(rpcUrl) {
+export function isCanonicalPublicTestnetRpc(rpcUrl) {
   try {
     return new URL(rpcUrl).hostname.toLowerCase() === 'rpc.aeko.online';
   } catch {

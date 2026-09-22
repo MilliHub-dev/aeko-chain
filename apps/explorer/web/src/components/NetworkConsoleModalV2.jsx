@@ -24,6 +24,7 @@ import {
   confirmSignature,
   formatAeko,
   getLatestBlockhash,
+  isCanonicalPublicTestnetRpc,
   requestTestnetFunding,
   sendTransaction,
 } from '../utils/aekoRpcClient';
@@ -124,6 +125,7 @@ function AccountsWorkspace({
   const isUnfunded = profileIssue?.status === 404;
   const liveBalance = wallet ? balances[wallet.address] : null;
   const hasSpendableBalance = Number(liveBalance) > 0;
+  const usesPolicyFunding = isCanonicalPublicTestnetRpc(rpcUrl);
 
   const persist = useCallback((next) => {
     setWallets(next);
@@ -149,8 +151,8 @@ function AccountsWorkspace({
   const runFunding = async () => {
     if (!wallet) return;
     const value = Number(amount);
-    if (!Number.isFinite(value) || value <= 0) {
-      setResult({ kind: 'error', message: 'Enter a positive AEKO amount.' });
+    if (!usesPolicyFunding && (!Number.isFinite(value) || value <= 0)) {
+      setResult({ kind: 'error', message: 'Enter a positive AEKO amount for the local requestAirdrop flow.' });
       return;
     }
     setBusy('funding');
@@ -249,9 +251,17 @@ function AccountsWorkspace({
             <section className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-white"><ArrowDownToLine size={14} className="text-aeko-accent" /> Request test AEKO</div>
-                <p className="mt-1 text-[11px] leading-relaxed text-gray-600">On public testnet this uses the policy-controlled Funding Gateway; local/custom networks fall back to requestAirdrop.</p>
-                <AmountInput value={amount} onChange={setAmount} />
-                <button type="button" onClick={runFunding} disabled={Boolean(busy) || !rpcReady} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-aeko-accent px-4 text-xs font-semibold text-black disabled:opacity-40">{busy === 'funding' ? <Loader2 size={13} className="animate-spin" /> : null} Airdrop</button>
+                <p className="mt-1 text-[11px] leading-relaxed text-gray-600">
+                  {usesPolicyFunding
+                    ? 'Public testnet uses the policy-controlled Funding Gateway. The grant amount is set by the public funding policy.'
+                    : 'Local/custom test validators can use the low-level requestAirdrop RPC with a developer-selected amount.'}
+                </p>
+                {usesPolicyFunding ? (
+                  <div className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-[11px] text-gray-400">Amount: set by Funding Gateway policy</div>
+                ) : (
+                  <AmountInput value={amount} onChange={setAmount} />
+                )}
+                <button type="button" onClick={runFunding} disabled={Boolean(busy) || !rpcReady} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-aeko-accent px-4 text-xs font-semibold text-black disabled:opacity-40">{busy === 'funding' ? <Loader2 size={13} className="animate-spin" /> : null} Request funding</button>
                 {!rpcReady ? <div className="mt-2 text-[10px] text-amber-200">Funding is unavailable because validator RPC is not ready.</div> : null}
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
