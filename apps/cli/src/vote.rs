@@ -11,7 +11,6 @@ use {
         spend_utils::{resolve_spend_tx_and_check_account_balances, SpendAmount},
         stake::check_current_authority,
     },
-    clap::{value_t_or_exit, App, Arg, ArgMatches, SubCommand},
     aeko_clap_utils::{
         compute_unit_price::{compute_unit_price_arg, COMPUTE_UNIT_PRICE_ARG},
         fee_payer::{fee_payer_arg, FEE_PAYER_ARG},
@@ -40,6 +39,7 @@ use {
         vote_instruction::{self, withdraw, CreateVoteAccountConfig},
         vote_state::{VoteAuthorize, VoteInit, VoteState, VoteStateVersions},
     },
+    clap::{value_t_or_exit, App, Arg, ArgMatches, SubCommand},
     std::rc::Rc,
 };
 

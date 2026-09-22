@@ -162,12 +162,12 @@ pub fn check_unique_pubkeys(
 mod tests {
     use {
         super::*,
-        serde_json::json,
         aeko_rpc_client_api::{
             request::RpcRequest,
             response::{Response, RpcResponseContext},
         },
         aeko_sdk::system_instruction,
+        serde_json::json,
         std::collections::HashMap,
     };
 
