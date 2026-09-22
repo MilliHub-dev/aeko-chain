@@ -114,12 +114,28 @@ runs:
           core=true
           mark_all_apps
         else
+          HEAD_SHA="${GITHUB_SHA}"
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
             BASE_SHA=$(jq -r '.pull_request.base.sha // empty' "$GITHUB_EVENT_PATH")
+            PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "$GITHUB_EVENT_PATH")
+            if [ -n "$PR_HEAD_SHA" ]; then
+              HEAD_SHA="$PR_HEAD_SHA"
+            fi
+
+            # Classify the same change set GitHub shows in a pull request:
+            # merge-base...head. Comparing the two branch tips directly can
+            # hide replayed/diverged branch work that still belongs to the PR.
+            if [ -n "$BASE_SHA" ] && [ -n "$HEAD_SHA" ] \
+              && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null \
+              && git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null; then
+              MERGE_BASE=$(git merge-base "$BASE_SHA" "$HEAD_SHA" || true)
+              if [ -n "$MERGE_BASE" ]; then
+                BASE_SHA="$MERGE_BASE"
+              fi
+            fi
           else
             BASE_SHA=$(jq -r '.before // empty' "$GITHUB_EVENT_PATH")
           fi
-          HEAD_SHA="${GITHUB_SHA}"
 
           if [ -z "$BASE_SHA" ] || [[ "$BASE_SHA" =~ ^0+$ ]] || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
             mapfile -t changed_files < <(git diff-tree --root --no-commit-id --name-only -r "$HEAD_SHA")
