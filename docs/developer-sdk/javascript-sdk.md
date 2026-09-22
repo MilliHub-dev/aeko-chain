@@ -4,14 +4,14 @@ The `@aeko-chain/web3.js` library is the primary tool for interacting with the A
 
 Current repo status:
 
-- the first in-repo JS SDK scaffold now lives in [`sdk/js`](/Users/ok/Documents/projects/aeko-chain/sdk/js)
+- the first in-repo JS SDK scaffold now lives in [`apps/sdk/js`](../../apps/sdk/js)
 - it currently covers RPC helpers, injected wallet adapter helpers, and wallet-permission request planning
 - it now also includes account/program-account helpers and AEKO-721 decoding helpers
 - it now includes send / confirm transaction helpers and a websocket subscription example
 - it now includes AEKO-721 prepared transaction builders used by the demo flow
 - it now includes wallet-permissions prepared transaction builders for Phase 4.2 flows
 - local `typecheck` and `build` now pass in `sdk/js`
-- it is now published to npm as `@aeko-chain/web3.js@0.1.0`
+- the repository package version is currently `@aeko-chain/web3.js@0.1.3`; verify registry publication separately when preparing a release
 
 ## Installation
 
@@ -39,7 +39,7 @@ import {
 } from '@aeko-chain/web3.js';
 
 // 1. Connect
-const connection = new Connection("https://api.devnet.aeko.chain");
+const connection = new Connection("https://rpc.aeko.online");
 
 // 2. Define Wallets
 const fromWallet = Keypair.generate(); // In reality, load from file
@@ -79,11 +79,11 @@ The current scaffold exports:
 
 See:
 
-- [`sdk/js/src/index.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/index.ts)
-- [`sdk/js/src/connection.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/connection.ts)
-- [`sdk/js/src/accounts.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/accounts.ts)
-- [`sdk/js/src/base58.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/base58.ts)
-- [`sdk/js/src/builders.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/builders.ts)
-- [`sdk/js/src/transactions.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/transactions.ts)
-- [`sdk/js/src/wallet.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/wallet.ts)
-- [`sdk/js/src/permissions.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/js/src/permissions.ts)
+- [`apps/sdk/js/src/index.ts`](../../apps/sdk/js/src/index.ts)
+- [`apps/sdk/js/src/connection.ts`](../../apps/sdk/js/src/connection.ts)
+- [`apps/sdk/js/src/accounts.ts`](../../apps/sdk/js/src/accounts.ts)
+- [`apps/sdk/js/src/base58.ts`](../../apps/sdk/js/src/base58.ts)
+- [`apps/sdk/js/src/builders.ts`](../../apps/sdk/js/src/builders.ts)
+- [`apps/sdk/js/src/transactions.ts`](../../apps/sdk/js/src/transactions.ts)
+- [`apps/sdk/js/src/wallet.ts`](../../apps/sdk/js/src/wallet.ts)
+- [`apps/sdk/js/src/permissions.ts`](../../apps/sdk/js/src/permissions.ts)

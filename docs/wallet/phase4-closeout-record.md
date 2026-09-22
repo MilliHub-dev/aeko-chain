@@ -9,7 +9,7 @@ Use this document as the single source of truth for the final Phase 4 release va
 - closeout date: `2026-04-02`
 - operator: `aeko_foundation`
 - release tag or commit:
-- testnet RPC: `https://api.testnet.aeko.chain`
+- testnet RPC: `https://rpc.aeko.online`
 
 ## Wallet Core
 
@@ -33,7 +33,7 @@ Use this document as the single source of truth for the final Phase 4 release va
 ## JavaScript SDK
 
 - planned first public version: `0.1.0`
-- package version: `0.1.0`
+- repository package version: `0.1.3`
 - npm package URL: `https://www.npmjs.com/package/@aeko-chain/web3.js`
 - publish date: `2026-04-02`
 - release owner: `aeko_foundation`
@@ -41,7 +41,7 @@ Use this document as the single source of truth for the final Phase 4 release va
 ## Node.js SDK
 
 - planned first public version: `0.1.0`
-- package version: `0.1.0`
+- repository package version: `0.1.4`
 - npm package URL: `https://www.npmjs.com/package/@aeko-chain/sdk`
 - publish date: `2026-04-02`
 - release owner: `aeko_foundation`
@@ -50,18 +50,18 @@ Use this document as the single source of truth for the final Phase 4 release va
 
 - planned first public version: `2.0.0`
 - current publish status: published to crates.io
-- crate version: `2.0.0`
+- repository crate version: `2.0.2`
 - crates.io URL: `https://crates.io/crates/aeko-rust-sdk`
 - docs.rs URL: `https://docs.rs/aeko-rust-sdk`
 - publish date: `2026-04-02`
 - release owner: `aeko_foundation`
-- next patch release prepared in repo: `2.0.2` to refresh docs.rs with crate-level documentation and docs.rs metadata
+- repository version is `2.0.2`; verify the registry version independently before release closeout
 
 ## Python SDK
 
 - planned first public version: `0.1.0`
-- package version: `0.1.0`
-- PyPI URL: `https://pypi.org/project/aeko-sdk/0.1.0/`
+- repository package version: `0.1.2`
+- PyPI project URL: `https://pypi.org/project/aeko-sdk/`
 - publish date: `2026-04-02`
 - release owner: `aeko_foundation`
 
@@ -71,8 +71,8 @@ Use this document as the single source of truth for the final Phase 4 release va
 - Node.js SDK example verification: `npm --prefix sdk/node run typecheck && npm --prefix sdk/node run build passed before npm publication`
 - Rust SDK example verification: `cargo check -p aeko-rust-sdk --examples passed; cargo publish -p aeko-rust-sdk --dry-run passed before crates.io publication`
 - Python SDK example verification: `python3 -m compileall sdk/python/src sdk/python/examples passed before PyPI publication`
-- wallet-core validation runbook used: [`docs/wallet/wallet-core-testnet-validation.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/wallet-core-testnet-validation.md)
-- wallet-permissions validation runbook used: [`docs/wallet/wallet-permissions-testnet-validation.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/wallet-permissions-testnet-validation.md)
+- wallet-core validation runbook used: [`docs/wallet/wallet-core-testnet-validation.md`](./wallet-core-testnet-validation.md)
+- wallet-permissions validation runbook used: [`docs/wallet/wallet-permissions-testnet-validation.md`](./wallet-permissions-testnet-validation.md)
 - wallet docs compatibility check: `updated on 2026-04-02 to reflect published SDKs and local validation-helper execution status`
 
 ## Final Closeout
