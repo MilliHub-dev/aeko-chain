@@ -15,8 +15,15 @@ type BlockchainSettings = {
   network: string
   genesisHash: string
   socialIndexingEnabled: boolean
+  socialReadinessRequired: boolean
   maxReadyLagSlots: number
+  readinessPolicySource: string
   configurationSource: string
+}
+
+type SettingsDraft = ApplicationSettings & {
+  socialReadinessRequired: boolean
+  maxReadyLagSlots: number
 }
 
 type SettingsSnapshot = {
@@ -24,6 +31,14 @@ type SettingsSnapshot = {
   updatedAt: string
   application: ApplicationSettings
   blockchain: BlockchainSettings
+}
+
+function toDraft(snapshot: SettingsSnapshot): SettingsDraft {
+  return {
+    ...snapshot.application,
+    socialReadinessRequired: snapshot.blockchain.socialReadinessRequired,
+    maxReadyLagSlots: snapshot.blockchain.maxReadyLagSlots,
+  }
 }
 
 async function readResponse(response: Response): Promise<SettingsSnapshot> {
@@ -39,7 +54,7 @@ async function readResponse(response: Response): Promise<SettingsSnapshot> {
 
 export default function SettingsPage() {
   const [snapshot, setSnapshot] = useState<SettingsSnapshot | null>(null)
-  const [draft, setDraft] = useState<ApplicationSettings | null>(null)
+  const [draft, setDraft] = useState<SettingsDraft | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -51,7 +66,7 @@ export default function SettingsPage() {
     try {
       const next = await readResponse(await fetch('/api/settings', { cache: 'no-store' }))
       setSnapshot(next)
-      setDraft(next.application)
+      setDraft(toDraft(next))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load settings')
     } finally {
@@ -64,11 +79,11 @@ export default function SettingsPage() {
   }, [load])
 
   const dirty = useMemo(
-    () => Boolean(snapshot && draft && JSON.stringify(snapshot.application) !== JSON.stringify(draft)),
+    () => Boolean(snapshot && draft && JSON.stringify(toDraft(snapshot)) !== JSON.stringify(draft)),
     [snapshot, draft],
   )
 
-  const update = <K extends keyof ApplicationSettings>(key: K, value: ApplicationSettings[K]) => {
+  const update = <K extends keyof SettingsDraft>(key: K, value: SettingsDraft[K]) => {
     setDraft((current) => (current ? { ...current, [key]: value } : current))
     setNotice('')
   }
@@ -89,7 +104,7 @@ export default function SettingsPage() {
       })
       const next = await readResponse(response)
       setSnapshot(next)
-      setDraft(next.application)
+      setDraft(toDraft(next))
       setNotice('Settings saved. Explorer clients will pick up the new configuration automatically.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save settings')
@@ -128,7 +143,7 @@ export default function SettingsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button type="button" onClick={() => setDraft(snapshot.application)} disabled={!dirty || saving} className="min-h-[44px] rounded-lg border border-[#2b3048] px-4 text-sm font-medium text-gray-300 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40">
+          <button type="button" onClick={() => setDraft(toDraft(snapshot))} disabled={!dirty || saving} className="min-h-[44px] rounded-lg border border-[#2b3048] px-4 text-sm font-medium text-gray-300 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40">
             Discard changes
           </button>
           <button type="button" onClick={save} disabled={!dirty || saving} className="min-h-[44px] rounded-lg bg-emerald-400 px-5 text-sm font-semibold text-black hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40">
@@ -166,6 +181,35 @@ export default function SettingsPage() {
 
       <section className="rounded-2xl border border-[#1e2135] bg-[#12141f]">
         <div className="border-b border-[#1e2135] px-5 py-4">
+          <h2 className="font-semibold text-white">Blockchain readiness policy</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            These controls are enforced by Explorer backend health/readiness logic and persist with the chain-bound Explorer database.
+          </p>
+        </div>
+        <div className="divide-y divide-[#1e2135]">
+          <ToggleRow
+            label="Require Social projection for readiness"
+            description="When enabled, Explorer reports not ready if the Social projection is missing or beyond the configured lag tolerance."
+            checked={draft.socialReadinessRequired}
+            onChange={(value) => update('socialReadinessRequired', value)}
+          />
+          <div className="p-5">
+            <RangeSetting
+              label="Maximum ready index lag"
+              description="Maximum slot distance tolerated between the validator and indexed projections before Explorer readiness fails."
+              value={draft.maxReadyLagSlots}
+              min={16}
+              max={4096}
+              step={16}
+              suffix=" slots"
+              onChange={(value) => update('maxReadyLagSlots', value)}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-[#1e2135] bg-[#12141f]">
+        <div className="border-b border-[#1e2135] px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="font-semibold text-white">Blockchain binding</h2>
@@ -178,8 +222,8 @@ export default function SettingsPage() {
           <ReadOnlyValue label="Network" value={snapshot.blockchain.network} />
           <ReadOnlyValue label="Genesis hash" value={snapshot.blockchain.genesisHash} mono />
           <ReadOnlyValue label="Social indexing" value={snapshot.blockchain.socialIndexingEnabled ? 'Enabled' : 'Disabled'} />
-          <ReadOnlyValue label="Readiness lag threshold" value={`${snapshot.blockchain.maxReadyLagSlots.toLocaleString()} slots`} />
-          <ReadOnlyValue label="Configuration source" value={snapshot.blockchain.configurationSource} />
+          <ReadOnlyValue label="Readiness policy source" value={snapshot.blockchain.readinessPolicySource} />
+          <ReadOnlyValue label="Runtime configuration source" value={snapshot.blockchain.configurationSource} />
           <ReadOnlyValue label="Settings revision" value={String(snapshot.revision)} />
         </div>
         <div className="border-t border-[#1e2135] px-5 py-3 text-xs text-gray-600">Last settings update: {new Date(snapshot.updatedAt).toLocaleString()}</div>

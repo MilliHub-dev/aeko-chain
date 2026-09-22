@@ -34,7 +34,9 @@ export function normalizeAppSettingsPayload(data) {
       network: typeof data?.blockchain?.network === 'string' ? data.blockchain.network : '',
       genesisHash: typeof data?.blockchain?.genesisHash === 'string' ? data.blockchain.genesisHash : '',
       socialIndexingEnabled: Boolean(data?.blockchain?.socialIndexingEnabled),
+      socialReadinessRequired: Boolean(data?.blockchain?.socialReadinessRequired),
       maxReadyLagSlots: Number.isInteger(data?.blockchain?.maxReadyLagSlots) ? data.blockchain.maxReadyLagSlots : null,
+      readinessPolicySource: typeof data?.blockchain?.readinessPolicySource === 'string' ? data.blockchain.readinessPolicySource : '',
       configurationSource: typeof data?.blockchain?.configurationSource === 'string' ? data.blockchain.configurationSource : '',
     },
   };
