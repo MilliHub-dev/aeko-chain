@@ -1,6 +1,6 @@
 // Browser-side System Program transfer instruction builder + legacy
 // transaction signer. Mirrors what `aeko transfer <recipient> <amount>`
-// produces, but skips the CLI roundtrip so the /faucet test console can
+// produces, but skips the CLI roundtrip so the /network-tools test console can
 // move lamports between two in-browser test wallets directly.
 //
 // Wire format we target:

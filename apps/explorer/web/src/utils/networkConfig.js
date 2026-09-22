@@ -1,15 +1,14 @@
-// Canonical public AEKO testnet endpoints. Production builds use these unless
-// an explicit complete local endpoint set is supplied (for example CI dogfood).
+// Canonical network endpoints used by the Explorer and developer tools.
+// Only the deployed public testnet has built-in defaults. Other networks must
+// be configured explicitly instead of being advertised with placeholder URLs.
 const TESTNET_DEFAULTS = {
   rpc: 'https://rpc.aeko.online',
   ws: 'wss://ws.aeko.online',
   explorer: 'https://scan.aeko.online',
   explorerApi: 'https://api.aeko.online',
+  funding: 'https://fund.aeko.online',
 };
 
-// Local development is intentionally isolated from the public testnet. A
-// developer must explicitly opt in before a dev build is allowed to use remote
-// testnet endpoints; otherwise localhost always talks to the localhost chain.
 const LOCAL_DEFAULTS = {
   rpc: 'http://127.0.0.1:8899',
   ws: 'ws://127.0.0.1:8900',
@@ -40,7 +39,7 @@ function isLoopbackEndpoint(value) {
 
 if (hasCompleteLocalOverride && !localOverrideValues.every(isLoopbackEndpoint)) {
   throw new Error(
-    'VITE_AEKO_LOCAL_* endpoints are loopback-only. Do not hide remote RPC/API hosts behind local variables; use the explicit testnet configuration and VITE_AEKO_ALLOW_REMOTE_IN_DEV=true when remote development is intentional.',
+    'VITE_AEKO_LOCAL_* endpoints are loopback-only. Use the explicit testnet configuration when remote development is intentional.',
   );
 }
 
@@ -54,6 +53,7 @@ const TESTNET_RUNTIME = useLocalEndpoints
       ws: LOCAL_OVERRIDE.ws || LOCAL_DEFAULTS.ws,
       explorer: LOCAL_DEFAULTS.explorer,
       explorerApi: LOCAL_OVERRIDE.explorerApi || LOCAL_DEFAULTS.explorerApi,
+      funding: '',
     }
   : {
       rpc: import.meta.env.VITE_AEKO_TESTNET_RPC || TESTNET_DEFAULTS.rpc,
@@ -61,35 +61,47 @@ const TESTNET_RUNTIME = useLocalEndpoints
       explorer: import.meta.env.VITE_AEKO_TESTNET_EXPLORER || TESTNET_DEFAULTS.explorer,
       explorerApi:
         import.meta.env.VITE_AEKO_TESTNET_EXPLORER_API || TESTNET_DEFAULTS.explorerApi,
+      funding:
+        import.meta.env.VITE_AEKO_TESTNET_FUNDING_URL || TESTNET_DEFAULTS.funding,
     };
+
+const MAINNET_RUNTIME = {
+  rpc: import.meta.env.VITE_AEKO_MAINNET_RPC || '',
+  ws: import.meta.env.VITE_AEKO_MAINNET_WS || '',
+  explorer: import.meta.env.VITE_AEKO_MAINNET_EXPLORER || '',
+  explorerApi: import.meta.env.VITE_AEKO_MAINNET_EXPLORER_API || '',
+};
+const mainnetAvailable = Object.values(MAINNET_RUNTIME).every(Boolean);
 
 export const NETWORKS = {
   mainnet: {
     key: 'mainnet',
-    label: 'Mainnet Beta',
-    rpcUrl: import.meta.env.VITE_AEKO_MAINNET_RPC || 'https://api.mainnet.aeko.chain',
-    websocketUrl: import.meta.env.VITE_AEKO_MAINNET_WS || 'wss://api.mainnet.aeko.chain',
-    explorerUrl: import.meta.env.VITE_AEKO_MAINNET_EXPLORER || 'https://explorer.aeko.chain',
-    explorerApiUrl: import.meta.env.VITE_AEKO_MAINNET_EXPLORER_API || '',
-    explorerLabel: 'explorer.aeko.chain',
-    faucetUrl: import.meta.env.VITE_AEKO_MAINNET_FAUCET_URL || '',
-    faucetLabel: 'No public faucet on mainnet',
-    faucetEnabled: false,
-    cliCluster: 'mainnet',
+    label: mainnetAvailable ? 'Mainnet' : 'Mainnet (not configured)',
+    available: mainnetAvailable,
+    rpcUrl: MAINNET_RUNTIME.rpc,
+    websocketUrl: MAINNET_RUNTIME.ws,
+    explorerUrl: MAINNET_RUNTIME.explorer,
+    explorerApiUrl: MAINNET_RUNTIME.explorerApi,
+    explorerLabel: MAINNET_RUNTIME.explorer ? new URL(MAINNET_RUNTIME.explorer).host : 'Not configured',
+    fundingUrl: '',
+    fundingLabel: 'No test funding on mainnet',
+    fundingEnabled: false,
+    cliCluster: MAINNET_RUNTIME.rpc,
   },
   testnet: {
     key: useLocalEndpoints ? 'localnet' : 'testnet',
-    label: useLocalEndpoints ? 'Local AEKO Network' : 'Testnet',
+    label: useLocalEndpoints ? 'Local AEKO Network' : 'Public Testnet',
+    available: true,
     rpcUrl: TESTNET_RUNTIME.rpc,
     websocketUrl: TESTNET_RUNTIME.ws,
     explorerUrl: TESTNET_RUNTIME.explorer,
     explorerApiUrl: TESTNET_RUNTIME.explorerApi,
     explorerLabel: new URL(TESTNET_RUNTIME.explorer).host,
-    // The faucet is a TCP-only service; users airdrop through requestAirdrop
-    // on the selected RPC. There is intentionally no implicit remote fallback.
-    faucetUrl: import.meta.env.VITE_AEKO_TESTNET_FAUCET_URL || '',
-    faucetLabel: 'Airdrop via requestAirdrop on the selected RPC',
-    faucetEnabled: false,
+    fundingUrl: TESTNET_RUNTIME.funding,
+    fundingLabel: useLocalEndpoints
+      ? 'Local funding uses requestAirdrop on the local RPC'
+      : 'Policy-controlled Testnet Funding Portal',
+    fundingEnabled: Boolean(TESTNET_RUNTIME.funding),
     cliCluster: TESTNET_RUNTIME.rpc,
   },
 };

@@ -37,9 +37,9 @@ export async function mintSocialPostAsNft({ rpcUrl, explorerApiUrl, wallet, post
   const tokenSeed = `post-${postHash.slice(0, 24)}`;
   const collectionAddress = await deriveToken721AddressWithSeed(wallet.address, collectionSeed);
   const tokenAddress = await deriveToken721AddressWithSeed(wallet.address, tokenSeed);
-  const postUrl = `${explorerOrigin}/faucet?console=1&tab=social&social=post&post=${encodeURIComponent(post.postId)}&persona=${encodeURIComponent(wallet.address)}`;
+  const postUrl = `${explorerOrigin}/network-tools?console=1&tab=social&social=post&post=${encodeURIComponent(post.postId)}&persona=${encodeURIComponent(wallet.address)}`;
   const tokenId = BigInt(`0x${postHash.slice(0, 16)}`).toString();
-  const collectionMetadata = { name: 'AEKO Social Posts', symbol: 'ASOC', baseUri: `${explorerOrigin}/faucet?console=1&tab=social&social=assets` };
+  const collectionMetadata = { name: 'AEKO Social Posts', symbol: 'ASOC', baseUri: `${explorerOrigin}/network-tools?console=1&tab=social&social=assets` };
   const metadata = {
     name: `AEKO Social · ${post.postId.slice(0, 8)}`,
     description: `On-chain AEKO Social post by ${wallet.address}`,

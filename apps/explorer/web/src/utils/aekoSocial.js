@@ -1,6 +1,6 @@
 // Browser-side client for the AEKO `social-posts` native builtin.
 //
-// Lets the /faucet test console post directly on-chain and read back the
+// Lets the /network-tools test console post directly on-chain and read back the
 // resulting feed without touching the explorer-backend. State-account
 // discovery uses getProgramAccounts so the modal works on any chain where
 // `social-bootstrap` has run, without an env paste-in step.

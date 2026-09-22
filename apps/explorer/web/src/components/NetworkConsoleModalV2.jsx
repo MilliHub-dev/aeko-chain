@@ -146,14 +146,14 @@ function AccountsWorkspace({
     setRename('');
   };
 
-  const runAirdrop = async () => {
+  const runFunding = async () => {
     if (!wallet) return;
     const value = Number(amount);
     if (!Number.isFinite(value) || value <= 0) {
       setResult({ kind: 'error', message: 'Enter a positive AEKO amount.' });
       return;
     }
-    setBusy('airdrop');
+    setBusy('funding');
     setResult(null);
     try {
       const signature = await requestTestnetFunding(rpcUrl, wallet.address, aekoToLamports(value));
@@ -249,10 +249,10 @@ function AccountsWorkspace({
             <section className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-white"><ArrowDownToLine size={14} className="text-aeko-accent" /> Request test AEKO</div>
-                <p className="mt-1 text-[11px] leading-relaxed text-gray-600">Creates/funds this test wallet through the configured faucet. This remains available for a brand-new local wallet.</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-gray-600">On public testnet this uses the policy-controlled Funding Gateway; local/custom networks fall back to requestAirdrop.</p>
                 <AmountInput value={amount} onChange={setAmount} />
-                <button type="button" onClick={runAirdrop} disabled={Boolean(busy) || !rpcReady} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-aeko-accent px-4 text-xs font-semibold text-black disabled:opacity-40">{busy === 'airdrop' ? <Loader2 size={13} className="animate-spin" /> : null} Airdrop</button>
-                {!rpcReady ? <div className="mt-2 text-[10px] text-amber-200">Airdrop is paused because validator RPC is not ready.</div> : null}
+                <button type="button" onClick={runFunding} disabled={Boolean(busy) || !rpcReady} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-aeko-accent px-4 text-xs font-semibold text-black disabled:opacity-40">{busy === 'funding' ? <Loader2 size={13} className="animate-spin" /> : null} Airdrop</button>
+                {!rpcReady ? <div className="mt-2 text-[10px] text-amber-200">Funding is unavailable because validator RPC is not ready.</div> : null}
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-white"><Send size={14} className="text-aeko-accent" /> Send AEKO</div>

@@ -17,7 +17,7 @@ import ExplorerToken from './pages/ExplorerToken';
 import ExplorerCollection from './pages/ExplorerCollection';
 import Bridge from './pages/Bridge';
 import NftDemo from './pages/NftDemo';
-import Faucet from './pages/Faucet';
+import NetworkTools from './pages/NetworkTools';
 import SocialTest from './pages/SocialTestV2';
 import ScrollToTop from './components/ScrollToTop';
 
@@ -42,7 +42,7 @@ function App() {
           <Route path="/explorer/token/:mint" element={<ExplorerToken />} />
           <Route path="/explorer/collection/:collectionId" element={<ExplorerCollection />} />
           <Route path="/bridge" element={<Bridge />} />
-          <Route path="/network-tools" element={<Faucet />} />
+          <Route path="/network-tools" element={<NetworkTools />} />
           <Route path="/network-tools/social-e2e" element={<SocialTest />} />
           <Route path="/faucet" element={<Navigate to="/network-tools" replace />} />
           <Route path="/nft-demo" element={<NftDemo />} />

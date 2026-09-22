@@ -9,21 +9,17 @@ import { getNetworkConfig } from '../utils/networkConfig';
 const CONSOLE_TABS = new Set(['accounts', 'programs', 'social']);
 const SOCIAL_QUERY_KEYS = ['social', 'profile', 'post', 'dialog', 'target', 'persona'];
 
-export default function Faucet() {
+export default function NetworkTools() {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedNetwork = searchParams.get('network');
-  const network = requestedNetwork === 'mainnet' ? 'mainnet' : 'testnet';
+  const requestedConfig = getNetworkConfig(requestedNetwork);
+  const network = requestedNetwork === 'mainnet' && requestedConfig.available ? 'mainnet' : 'testnet';
   const config = getNetworkConfig(network);
   const consoleOpen = searchParams.get('console') === '1';
   const requestedTab = searchParams.get('tab');
   const consoleTab = CONSOLE_TABS.has(requestedTab) ? requestedTab : 'accounts';
 
-  // Local-dev override: setting VITE_AEKO_LOCAL_RPC in web/.env.local lets the
-  // console target a port-forwarded validator without changing public links.
-  const modalRpc =
-    network === 'testnet' && import.meta.env.VITE_AEKO_LOCAL_RPC
-      ? import.meta.env.VITE_AEKO_LOCAL_RPC
-      : config.rpcUrl;
+  const modalRpc = config.rpcUrl;
 
   const updateParams = (updates, { replace = false, remove = [] } = {}) => {
     const next = new URLSearchParams(searchParams);
@@ -107,7 +103,7 @@ export default function Faucet() {
           <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <button type="button" onClick={() => openConsole('accounts')} className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-left hover:bg-white/5 transition">
               <div className="text-sm font-medium text-white">Accounts</div>
-              <div className="mt-1 text-xs text-gray-500">Wallets, balances, airdrops, transfers</div>
+              <div className="mt-1 text-xs text-gray-500">Wallets, balances, funding, transfers</div>
             </button>
             <button type="button" onClick={() => openConsole('programs')} className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-left hover:bg-white/5 transition">
               <div className="text-sm font-medium text-white">Programs</div>
@@ -133,20 +129,22 @@ export default function Faucet() {
           </div>
           <p className="text-gray-400 mb-6">
             {network === 'testnet'
-              ? 'Use the validator RPC for wallet funding and test transactions. The internal faucet daemon remains a deployment service, not this public page.'
+              ? config.key === 'localnet'
+                ? 'Local development can use requestAirdrop directly on the local validator RPC.'
+                : 'Use the Testnet Funding Portal for test AEKO. The private Faucet Daemon is internal infrastructure, and the public RPC does not accept unauthenticated requestAirdrop calls.'
               : 'Mainnet does not expose test funding. Use your normal treasury, exchange, or operational distribution flow.'}
           </p>
 
           {network === 'testnet' ? (
             <div className="rounded-xl border border-white/15 bg-black/20 p-5">
-              <div className="text-sm font-medium text-white mb-1">Test funding path</div>
+              <div className="text-sm font-medium text-white mb-1">Public funding path</div>
               <div className="text-sm text-green-400 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                requestAirdrop through validator RPC
+                Policy-controlled Funding Gateway
               </div>
               <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-white/10">
-                The raw TCP faucet is internal infrastructure. Users and SDKs request funds through
-                the RPC, which keeps the public terminology distinct from the daemon itself.
+                The Faucet Daemon is a private TCP service. Public users request a funding grant through
+                the Funding Portal; only the server-side gateway is authorized to invoke requestAirdrop.
               </div>
             </div>
           ) : (
@@ -159,16 +157,18 @@ export default function Faucet() {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
           <div className="flex items-center gap-3 mb-4">
             <Terminal className="text-aeko-accent" />
-            <h2 className="text-2xl font-bold">CLI flow</h2>
+            <h2 className="text-2xl font-bold">Developer flow</h2>
           </div>
           <p className="text-gray-400 mb-4">
             Use the AEKO CLI for deterministic account funding, validator testing, and scripted SDK validation.
           </p>
           <pre className="bg-black/40 rounded-xl p-4 overflow-x-auto text-sm text-gray-300">
-            <code>{`aeko config set --url ${config.rpcUrl}\naeko airdrop 10 <recipient-address> --url ${config.cliCluster}`}</code>
+            <code>{config.key === 'localnet'
+              ? `aeko config set --url ${config.rpcUrl}\naeko airdrop 10 <recipient-address>`
+              : `aeko config set --url ${config.rpcUrl}\ncurl -X POST ${config.fundingUrl}/api/funding/request \\\n  -H "Content-Type: application/json" \\\n  -d '{"address":"<recipient-address>"}'`}</code>
           </pre>
           <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
-            <Droplets size={13} /> Airdrop transactions created in the console link directly to Aeko Scan.
+            <Droplets size={13} /> Funding grants and test transactions link directly to Aeko Scan.
           </div>
         </div>
       </div>
