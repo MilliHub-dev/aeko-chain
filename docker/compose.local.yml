@@ -198,6 +198,7 @@ services:
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-local-dev-session-secret}
       FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:-}
       FUNDING_CLIENT_API_KEY: ${FUNDING_CLIENT_API_KEY:-}
+      FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:-https://scan.aeko.online}
       FUNDING_STATE_DIR: /data
     ports:
       - "${AEKO_ADMIN_HOST_PORT:-3001}:3001"

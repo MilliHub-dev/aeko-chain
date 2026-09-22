@@ -62,9 +62,11 @@ def main() -> int:
 
     require("FUNDING_PUBLIC_HOST=fund.aeko.online" in admin_env, "admin env must name the public Funding Portal explicitly")
     require("FUNDING_CLIENT_API_KEY=" in admin_env, "admin env must use FUNDING_CLIENT_API_KEY")
+    require("FUNDING_ALLOWED_ORIGINS=https://scan.aeko.online" in admin_env, "admin env must document browser funding origins")
     require("FUNDING_STATE_DIR=" in admin_env, "admin env must use FUNDING_STATE_DIR")
     require("FUNDING_GATEWAY_KEY=" in admin_env, "admin env must document Funding Gateway authorization")
     require("FUNDING_PUBLIC_HOST=fund.aeko.online" in public_env, "public deployment env must use fund.aeko.online")
+    require("FUNDING_ALLOWED_ORIGINS=https://scan.aeko.online" in public_env, "public deployment env must define browser funding origins")
 
     for where, text in {
         "admin env": admin_env,
@@ -88,6 +90,12 @@ def main() -> int:
     # Faucet Daemon. Public Funding Gateway policy uses FUNDING_*.
     require("AEKO_FAUCET_PER_REQUEST_CAP" in public_env, "public env must retain the private Faucet Daemon hard cap")
     require("FUNDING_DEFAULT_AMOUNT_AEKO" in public_env, "public env must expose Funding Gateway policy separately")
+    for where, text in {
+        "portable compose": portable,
+        "Coolify compose": coolify,
+        "Dokploy compose": dokploy,
+    }.items():
+        require("FUNDING_ALLOWED_ORIGINS:" in text, f"{where} must pass browser funding origins into the operations web container")
 
     for where, text in {
         "admin env": admin_env,
