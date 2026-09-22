@@ -38,7 +38,7 @@ pub fn get_clap_app<'ab, 'v>(name: &str, about: &'ab str, version: &'v str) -> A
                 .validator(is_url_or_moniker)
                 .help(
                     "URL for AEKO Chain's JSON RPC or moniker (or their first letter): \
-                    [mainnet-beta, testnet, devnet, localhost]",
+                    [testnet, localhost]; use a full URL for any other provisioned network",
                 ),
         )
         .arg(

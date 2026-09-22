@@ -239,6 +239,15 @@ pub fn is_url_or_moniker<T>(string: T) -> Result<(), String>
 where
     T: AsRef<str> + Display,
 {
+    match string.as_ref() {
+        "m" | "mainnet-beta" => {
+            return Err("AEKO mainnet is not configured by this build; provide an explicit RPC URL when a mainnet endpoint is provisioned".to_string())
+        }
+        "d" | "devnet" => {
+            return Err("AEKO devnet is not configured by this build; use testnet, localhost, or provide an explicit RPC URL".to_string())
+        }
+        _ => {}
+    }
     match url::Url::parse(&normalize_to_url_if_moniker(string.as_ref())) {
         Ok(url) => {
             if url.has_host() {
@@ -253,9 +262,7 @@ where
 
 pub fn normalize_to_url_if_moniker<T: AsRef<str>>(url_or_moniker: T) -> String {
     match url_or_moniker.as_ref() {
-        "m" | "mainnet-beta" => "https://api.mainnet-beta.aeko.chain",
         "t" | "testnet" => "https://rpc.aeko.online",
-        "d" | "devnet" => "https://api.devnet.aeko.chain",
         "l" | "localhost" => "http://localhost:8899",
         url => url,
     }

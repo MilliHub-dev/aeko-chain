@@ -29,7 +29,7 @@ lazy_static! {
 pub struct Config {
     /// The RPC address of an AEKO validator node.
     ///
-    /// Typical values for mainnet, devnet, and testnet are [described in the
+    /// The canonical public testnet and any explicitly provisioned networks are [described in the
     /// AEKO documentation][rpcdocs].
     ///
     /// For local testing, the typical value is `http://localhost:8899`.
@@ -73,7 +73,7 @@ impl Default for Config {
             keypair_path.extend([".config", "aeko", "id.json"]);
             keypair_path.to_str().unwrap().to_string()
         };
-        let json_rpc_url = "https://api.mainnet-beta.aeko.chain".to_string();
+        let json_rpc_url = "https://rpc.aeko.online".to_string();
 
         // Empty websocket_url string indicates the client should
         // `Config::compute_websocket_url(&json_rpc_url)`
@@ -135,6 +135,12 @@ impl Config {
             return "".to_string();
         }
         let json_rpc_url = json_rpc_url.unwrap();
+        if json_rpc_url.scheme().eq_ignore_ascii_case("https")
+            && json_rpc_url.host_str() == Some("rpc.aeko.online")
+        {
+            return "wss://ws.aeko.online/".to_string();
+        }
+
         let is_secure = json_rpc_url.scheme().to_ascii_lowercase() == "https";
         let mut ws_url = json_rpc_url.clone();
         ws_url
@@ -177,13 +183,13 @@ mod test {
     #[test]
     fn compute_websocket_url() {
         assert_eq!(
-            Config::compute_websocket_url("http://api.devnet.aeko.chain"),
-            "ws://api.devnet.aeko.chain/".to_string()
+            Config::compute_websocket_url("https://rpc.aeko.online"),
+            "wss://ws.aeko.online/".to_string()
         );
 
         assert_eq!(
-            Config::compute_websocket_url("https://api.devnet.aeko.chain"),
-            "wss://api.devnet.aeko.chain/".to_string()
+            Config::compute_websocket_url("http://example.com"),
+            "ws://example.com/".to_string()
         );
 
         assert_eq!(

@@ -142,7 +142,7 @@ mod test {
     #[test]
     fn test_save() {
         let root_dir = env::var("CARGO_MANIFEST_DIR").expect("$CARGO_MANIFEST_DIR");
-        let json_rpc_url = "https://api.mainnet-beta.aeko.chain";
+        let json_rpc_url = "https://rpc.aeko.online";
         let pubkey = Pubkey::default();
         let config_name = "config.yaml";
         let config_path = format!("{root_dir}/{config_name}");
@@ -158,7 +158,7 @@ mod test {
             read_to_string(&config_path).unwrap(),
             format!(
                 "---
-json_rpc_url: https://api.mainnet-beta.aeko.chain
+json_rpc_url: https://rpc.aeko.online
 update_manifest_pubkey:
 - 0
 - 0
@@ -215,7 +215,7 @@ active_release_dir: {root_dir}/active_release
         writeln!(
             file,
             "---
-json_rpc_url: \"https://api.devnet.aeko.chain\"
+json_rpc_url: \"https://rpc.aeko.online\"
 update_manifest_pubkey:
   - 0
   - 0
@@ -262,7 +262,7 @@ active_release_dir: {root_dir}/active_release
         assert_eq!(
             config,
             Config {
-                json_rpc_url: String::from("https://api.devnet.aeko.chain"),
+                json_rpc_url: String::from("https://rpc.aeko.online"),
                 update_manifest_pubkey: Pubkey::default(),
                 current_update_manifest: None,
                 update_poll_secs: 3600,

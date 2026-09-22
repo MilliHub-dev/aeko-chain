@@ -853,7 +853,7 @@ fn main() {
                 .conflicts_with("entrypoint")
                 .help(
                     "URL for Aeko's JSON RPC or moniker (or their first letter): \
-                       [mainnet-beta, testnet, devnet, localhost]",
+                       [testnet, localhost]; use a full URL for any other provisioned network",
                 ),
         )
         .arg(

@@ -1,4 +1,4 @@
-pub const JSON_RPC_URL: &str = "https://api.devnet.aeko.chain";
+pub const JSON_RPC_URL: &str = "https://rpc.aeko.online";
 
 lazy_static! {
     pub static ref CONFIG_FILE: Option<String> = {
