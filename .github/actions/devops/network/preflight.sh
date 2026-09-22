@@ -18,6 +18,8 @@ AEKO_PUBLIC_IP=203.0.113.10 \
 AEKO_KEYS_DIR=/tmp/aeko-keys \
 EXPLORER_DATABASE_URL=postgres://aeko:aeko@postgres:5432/aeko_explorer \
 AEKO_IMAGE_TAG=ci \
+ADMIN_PASSWORD=ci-admin-password \
+ADMIN_SESSION_SECRET=ci-admin-session-secret \
 bash -c '
   set -euo pipefail
   bash -n docker/validator-entrypoint.sh
