@@ -245,8 +245,8 @@ def main() -> int:
     # grant ledger across redeploys.
     require("ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}" in coolify_admin, "Coolify admin must require an operator password")
     require("ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}" in coolify_admin, "Coolify admin must require a session secret")
-    require("- admin-state:/data" in coolify_admin, "Coolify admin must persist faucet policy/grants in the admin-state volume")
-    require("http://127.0.0.1:3001/api/faucet/policy" in coolify_admin, "Coolify admin healthcheck must probe the public faucet policy endpoint")
+    require("- admin-state:/data" in coolify_admin, "Coolify operations web must persist funding policy/grants in the admin-state volume")
+    require("http://127.0.0.1:3001/api/funding/policy" in coolify_admin, "Coolify operations web healthcheck must probe the public funding policy endpoint")
     require("--per-request-cap" in coolify_faucet, "Coolify faucet must enforce a per-request airdrop ceiling")
     require("AEKO_KEYS_DIR" not in coolify, "Coolify compose must not depend on interpolated key-path variables")
     require("source: ${" not in coolify, "Coolify volume sources must not contain Compose interpolation")

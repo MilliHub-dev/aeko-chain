@@ -58,7 +58,7 @@ services:
       - --keypair
       - /keys/faucet-keypair.json
       # Hard ceiling per airdrop request, enforced by the faucet itself. Per-wallet
-      # cooldown and the daily budget live in the admin app (chain.aeko.online).
+      # cooldown and the daily budget live in the Funding Gateway (fund.aeko.online).
       - --per-request-cap
       - ${AEKO_FAUCET_PER_REQUEST_CAP:-100}
     depends_on:
@@ -239,17 +239,17 @@ services:
       AEKO_RPC_URL: http://validator:8899
       AEKO_EXPLORER_URL: http://explorer-api:8088
       PUBLIC_EXPLORER_URL: ${AEKO_PUBLIC_EXPLORER_URL:-https://scan.aeko.online}
-      FAUCET_PUBLIC_HOST: ${FAUCET_PUBLIC_HOST:-chain.aeko.online}
+      FUNDING_PUBLIC_HOST: ${FUNDING_PUBLIC_HOST:-fund.aeko.online}
       ADMIN_PUBLIC_HOST: ${ADMIN_PUBLIC_HOST:-admin.aeko.online}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}
       FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}
-      FAUCET_API_KEY: ${FAUCET_API_KEY:-}
-      FAUCET_STATE_DIR: /data
-      FAUCET_DEFAULT_AMOUNT_AEKO: ${FAUCET_DEFAULT_AMOUNT_AEKO:-5}
-      FAUCET_DEFAULT_COOLDOWN_HOURS: ${FAUCET_DEFAULT_COOLDOWN_HOURS:-24}
-      FAUCET_DEFAULT_DAILY_BUDGET_AEKO: ${FAUCET_DEFAULT_DAILY_BUDGET_AEKO:-5000}
-      FAUCET_MAX_MANUAL_GRANT_AEKO: ${FAUCET_MAX_MANUAL_GRANT_AEKO:-100}
+      FUNDING_CLIENT_API_KEY: ${FUNDING_CLIENT_API_KEY:-}
+      FUNDING_STATE_DIR: /data
+      FUNDING_DEFAULT_AMOUNT_AEKO: ${FUNDING_DEFAULT_AMOUNT_AEKO:-5}
+      FUNDING_DEFAULT_COOLDOWN_HOURS: ${FUNDING_DEFAULT_COOLDOWN_HOURS:-24}
+      FUNDING_DEFAULT_DAILY_BUDGET_AEKO: ${FUNDING_DEFAULT_DAILY_BUDGET_AEKO:-5000}
+      FUNDING_MAX_MANUAL_GRANT_AEKO: ${FUNDING_MAX_MANUAL_GRANT_AEKO:-100}
     expose:
       - "3001"
     volumes:
@@ -257,10 +257,10 @@ services:
     depends_on:
       validator:
         condition: service_healthy
-    # Liveness only: the public faucet page must stay up to say "paused" or
+    # Liveness only: the public Funding Portal must stay up to say "paused" or
     # "chain unavailable" while the node or Explorer recover.
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/faucet/policy >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/funding/policy >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

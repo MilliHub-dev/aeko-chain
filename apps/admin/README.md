@@ -1,31 +1,39 @@
-# AEKO Admin
+# AEKO Operations Web
 
-Operator console for the AEKO chain plus the **public testnet faucet**. One image (`surdma/aeko-admin`) behind two hostnames: `chain.aeko.online` serves only the faucet (its `/` is the faucet page), `admin.aeko.online` serves the operator console (see `docker/compose.coolify.yml`; `FAUCET_PUBLIC_HOST` / `ADMIN_PUBLIC_HOST`).
+One Next.js image serves two distinct web roles:
 
-## What it serves
+- **Testnet Funding Portal** — `fund.aeko.online`, public, policy-controlled test AEKO grants.
+- **Admin Console** — `admin.aeko.online`, operator-only monitoring and funding controls.
 
-| Path | Who | Purpose |
+The **Faucet Daemon** is not this web app. It is the private Rust TCP service at `faucet:9900`. The Funding Portal calls the validator internally; the validator talks to the Faucet Daemon.
+
+## Canonical routes
+
+| Path | Audience | Purpose |
 | --- | --- | --- |
-| `/faucet` | anyone | Request test AEKO for a wallet address under the current policy |
-| `POST /api/faucet/request` | anyone / Aeko backend | `{ address }` → one grant. The backend sends `x-faucet-key: FAUCET_API_KEY` and skips the per-IP throttle |
-| `GET /api/faucet/policy` | anyone | Amount, cooldown, daily budget and remaining budget |
-| `/login` | operator | Password sign-in (`ADMIN_PASSWORD`), 12-hour signed cookie |
-| `/`, `/blocks`, `/transactions`, `/tokens`, `/nfts`, `/social`, `/marketplace`, `/accounts/:address` | operator | Chain monitoring through the read-only RPC/Explorer relays |
-| `/airdrops` | operator | Pause/resume the faucet, edit the policy, manual grants, grant history |
+| `/funding` | public | Request a policy-sized testnet funding grant |
+| `POST /api/funding/request` | public / trusted backend | Create one funding grant; trusted backends may use `x-funding-key` |
+| `GET /api/funding/policy` | public | Funding amount, cooldown, daily budget and remaining budget |
+| `/login` | operator | Admin sign-in |
+| `/funding-grants` | operator | Pause/resume funding, edit policy, manual grants, grant history |
+| `/`, `/blocks`, `/transactions`, `/tokens`, `/nfts`, `/social`, `/marketplace` | operator | Chain monitoring |
 
-## Faucet policy
+Legacy `/faucet`, `/airdrops` and `/api/faucet/*` routes exist only as compatibility shims.
 
-Per-wallet cooldown, daily budget and the public amount are enforced here and persisted in `FAUCET_STATE_DIR/faucet-state.json` (a volume in production). The chain faucet binary adds a hard per-request ceiling (`--per-request-cap`). The validator's public `requestAirdrop` RPC still exists for the Explorer test console, so the per-wallet rules apply to this faucet and to the Aeko app, not to someone calling the RPC directly — acceptable for a testnet, and the per-request cap bounds it.
+## Trust boundaries
 
-## Configuration
+- `FUNDING_PUBLIC_HOST`: public web hostname, normally `fund.aeko.online`.
+- `FUNDING_CLIENT_API_KEY`: optional trusted application-backend key. It only bypasses the HTTP per-IP throttle.
+- `FUNDING_GATEWAY_KEY`: required on the public deployment. It authorizes the server-side Funding Gateway to invoke the validator's low-level `requestAirdrop` method.
+- `AEKO_FAUCET_PER_REQUEST_CAP`: Faucet Daemon hard ceiling. This belongs to the private daemon, not the public web policy.
 
-See `.env.local.example`. `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET` are required in production; in development the password falls back to `admin`.
+Public users do **not** connect to TCP port 9900 and should not be given a Faucet Daemon URL.
 
-## Develop
+## Local development
 
 ```bash
 npm ci
-cp .env.local.example .env.local   # point AEKO_RPC_URL / AEKO_EXPLORER_URL at a node
-npm run dev                         # http://localhost:3001
+cp .env.local.example .env.local
+npm run dev
 npx tsc --noEmit && npm run build
 ```
