@@ -4,9 +4,9 @@ use {
         inflation::*, nonce::*, program::*, program_v4::ProgramV4SubCommands, stake::*,
         validator_info::*, vote::*, wallet::*,
     },
-    clap::{App, AppSettings, Arg, ArgGroup, SubCommand},
     aeko_clap_utils::{self, hidden_unless_forced, input_validators::*, keypair::*},
     aeko_cli_config::CONFIG_FILE,
+    clap::{App, AppSettings, Arg, ArgGroup, SubCommand},
 };
 
 pub fn get_clap_app<'ab, 'v>(name: &str, about: &'ab str, version: &'v str) -> App<'ab, 'v> {

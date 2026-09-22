@@ -32,7 +32,8 @@ test('live nft flow signs, submits, confirms, reads back and verifies explorer i
   assert.match(live, /buildPreparedCollectionSetupTransaction/);
   assert.match(live, /buildPreparedMintWithAccountSetupTransaction/);
   assert.match(live, /buildPreparedToken721Transaction/);
-  assert.match(live, /requestAirdrop/);
+  assert.match(live, /requestTestnetFunding/);
+  assert.doesNotMatch(live, /\brequestAirdrop\b/);
 });
 
 test('live nft lifecycle exposes real freeze thaw update and transfer actions', async () => {

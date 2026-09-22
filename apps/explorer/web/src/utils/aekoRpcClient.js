@@ -1,4 +1,4 @@
-import { getNetworkConfig, isLocalNetworkConfig } from './networkConfig';
+import { getNetworkConfig, isLocalNetworkConfig } from './networkConfig.js';
 
 // Thin JSON-RPC client for the AEKO testnet validator.
 //
