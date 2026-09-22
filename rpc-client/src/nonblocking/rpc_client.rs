@@ -5031,6 +5031,7 @@ impl RpcClient {
             RpcRequestAirdropConfig {
                 commitment: Some(self.commitment()),
                 recent_blockhash: Some(recent_blockhash.to_string()),
+                ..RpcRequestAirdropConfig::default()
             },
         )
         .await
