@@ -9,6 +9,7 @@ type Policy = {
   dailyBudgetAeko: number
   dailyRemainingAeko: number
   explorerUrl: string
+  adminUrl?: string
 }
 
 type Result =
@@ -70,9 +71,15 @@ export default function PublicFaucetPage() {
               Explorer
             </a>
           )}
-          <Link href="/login" className="text-gray-500 hover:text-white">
-            Operator sign-in
-          </Link>
+          {policy?.adminUrl ? (
+            <a href={`${policy.adminUrl}/login`} className="text-gray-500 hover:text-white">
+              Operator sign-in
+            </a>
+          ) : (
+            <Link href="/login" className="text-gray-500 hover:text-white">
+              Operator sign-in
+            </Link>
+          )}
         </nav>
       </header>
 

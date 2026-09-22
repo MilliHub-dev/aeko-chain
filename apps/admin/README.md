@@ -1,6 +1,6 @@
 # AEKO Admin
 
-Operator console for the AEKO chain plus the **public testnet faucet**. Deployed as `surdma/aeko-admin` at `chain.aeko.online` (see `docker/compose.coolify.yml`).
+Operator console for the AEKO chain plus the **public testnet faucet**. One image (`surdma/aeko-admin`) behind two hostnames: `chain.aeko.online` serves only the faucet (its `/` is the faucet page), `admin.aeko.online` serves the operator console (see `docker/compose.coolify.yml`; `FAUCET_PUBLIC_HOST` / `ADMIN_PUBLIC_HOST`).
 
 ## What it serves
 
