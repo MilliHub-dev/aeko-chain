@@ -9,7 +9,7 @@ import type {
   RpcAccountNotification,
   SignatureStatusesResponse,
   TokenAccountOwnerResult,
-} from './types';
+} from './types.js';
 
 export interface AekoConnectionOptions {
   fetchImpl?: typeof fetch;

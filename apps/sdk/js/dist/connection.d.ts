@@ -1,4 +1,4 @@
-import type { AccountInfoResponse, JsonRpcId, ProgramAccount, PublicKeyString, RpcAccountNotification, SignatureStatusesResponse, TokenAccountOwnerResult } from './types';
+import type { AccountInfoResponse, JsonRpcId, ProgramAccount, PublicKeyString, RpcAccountNotification, SignatureStatusesResponse, TokenAccountOwnerResult } from './types.js';
 export interface AekoConnectionOptions {
     fetchImpl?: typeof fetch;
     websocketFactory?: (url: string) => WebSocket;

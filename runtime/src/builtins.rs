@@ -154,4 +154,26 @@ pub static BUILTINS: &[BuiltinPrototype] = &[
         name: "aeko_social_monetization_program",
         entrypoint: aeko_social_monetization_program::Entrypoint::vm,
     },
+    // ---- AEKO token standards ----
+    // Registered without a feature gate, like the SocialFi programs: a bank
+    // adds every feature-less builtin in finish_init, so an existing ledger
+    // picks these up on the next validator restart with no genesis reset.
+    // Until this entry existed, the token-721 and marketplace program ids the
+    // SDKs and the Aeko backend target were not executable on the chain.
+    BuiltinPrototype {
+        feature_id: None,
+        program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
+            aeko_token_721_program::TOKEN_721_PROGRAM_ID_BYTES,
+        ),
+        name: "aeko_token_721_program",
+        entrypoint: aeko_token_721_program::Entrypoint::vm,
+    },
+    BuiltinPrototype {
+        feature_id: None,
+        program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
+            aeko_nft_marketplace_program::NFT_MARKETPLACE_PROGRAM_ID_BYTES,
+        ),
+        name: "aeko_nft_marketplace_program",
+        entrypoint: aeko_nft_marketplace_program::Entrypoint::vm,
+    },
 ];

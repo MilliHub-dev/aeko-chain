@@ -1,5 +1,5 @@
-import { AekoConnection } from './connection';
-import type { AccountInfoValue, ProgramAccount, PublicKeyString, TokenAccountOwnerResult } from './types';
+import { AekoConnection } from './connection.js';
+import type { AccountInfoValue, ProgramAccount, PublicKeyString, TokenAccountOwnerResult } from './types.js';
 export interface MetadataAttribute {
     traitType: string;
     value: string;

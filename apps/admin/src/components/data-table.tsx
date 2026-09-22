@@ -1,3 +1,5 @@
+import React from 'react'
+
 export default function DataTable({
   columns,
   rows,
@@ -42,6 +44,3 @@ export default function DataTable({
     </div>
   )
 }
-
-// Re-export React for use in component
-import React from 'react'

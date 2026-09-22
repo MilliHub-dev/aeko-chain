@@ -63,6 +63,10 @@ services:
     command:
       - --keypair
       - /keys/faucet-keypair.json
+      # Hard ceiling per airdrop request, enforced by the faucet itself. Per-wallet
+      # cooldown and the daily budget live in the admin app (chain.aeko.online).
+      - --per-request-cap
+      - ${AEKO_FAUCET_PER_REQUEST_CAP:-100}
     depends_on:
       key-preflight:
         condition: service_completed_successfully
@@ -230,6 +234,40 @@ services:
     logging: *default-logging
     networks: [aeko]
 
+  admin:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-admin:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      AEKO_RPC_URL: http://validator:8899
+      AEKO_EXPLORER_URL: http://explorer-api:8088
+      PUBLIC_EXPLORER_URL: ${AEKO_PUBLIC_EXPLORER_URL:-https://scan.aeko.online}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}
+      FAUCET_API_KEY: ${FAUCET_API_KEY:-}
+      FAUCET_STATE_DIR: /data
+      FAUCET_DEFAULT_AMOUNT_AEKO: ${FAUCET_DEFAULT_AMOUNT_AEKO:-5}
+      FAUCET_DEFAULT_COOLDOWN_HOURS: ${FAUCET_DEFAULT_COOLDOWN_HOURS:-24}
+      FAUCET_DEFAULT_DAILY_BUDGET_AEKO: ${FAUCET_DEFAULT_DAILY_BUDGET_AEKO:-5000}
+      FAUCET_MAX_MANUAL_GRANT_AEKO: ${FAUCET_MAX_MANUAL_GRANT_AEKO:-100}
+    expose:
+      - "3001"
+    volumes:
+      - admin-state:/data
+    depends_on:
+      validator:
+        condition: service_healthy
+    # Liveness only: the public faucet page must stay up to say "paused" or
+    # "chain unavailable" while the node or Explorer recover.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/faucet/policy >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    networks: [aeko]
+
   wallet-tools:
     profiles: ["ops"]
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
@@ -245,5 +283,6 @@ networks:
     driver: bridge
 
 volumes:
+  admin-state:
   validator-ledger:
   social-state:

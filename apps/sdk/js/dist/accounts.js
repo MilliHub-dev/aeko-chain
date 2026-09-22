@@ -1,4 +1,4 @@
-import { decodeBase58, encodeBase58, parseBase64 } from './base58';
+import { decodeBase58, encodeBase58, parseBase64 } from './base58.js';
 const TOKEN_721_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(10));
 function formatPubkey(bytes) {
     return encodeBase58(bytes);

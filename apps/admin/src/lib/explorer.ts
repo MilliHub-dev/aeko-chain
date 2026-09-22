@@ -11,13 +11,15 @@ async function get<T>(path: string, params?: Record<string, string | number>): P
   return json.data as T
 }
 
+// Field names follow the Explorer API as deployed (see apps/explorer/backend),
+// not the upstream Solana explorer: blocks carry `producer`/`unixTimestamp`.
 export type BlockRecord = {
   slot: number
   blockhash: string
   parentSlot: number
   transactionCount: number
-  blockTime?: number
-  leader?: string
+  unixTimestamp?: number
+  producer?: string
 }
 
 export type TransactionRecord = {
@@ -82,6 +84,20 @@ export type EngagementRecord = {
   slot: number
 }
 
+export type AccountRecord = {
+  account: { address: string; lamports: number; owner: string; executable: boolean; dataLen: number }
+  profile: {
+    address: string
+    reputationScore: number | null
+    nativeBalance: number
+    tokenCount: number
+    nftCount: number
+  }
+  tokenHoldings: unknown[]
+  nftHoldings: NftRecord[]
+  recentTransactions: TransactionRecord[]
+}
+
 export const explorerApi = {
   blocks: (limit = 25) => get<BlockRecord[]>('/blocks', { limit }),
   transactions: (limit = 25) => get<TransactionRecord[]>('/transactions', { limit }),
@@ -96,14 +112,5 @@ export const explorerApi = {
   rewards: (creator: string, limit = 25) =>
     get<CreatorRewardRecord[]>(`/creators/${creator}/rewards`, { limit }),
   engagement: (limit = 25) => get<EngagementRecord[]>('/engagement', { limit }),
-  account: (address: string) =>
-    get<{
-      profile: { address: string; balance: number }
-      recentTransactions: TransactionRecord[]
-      recentPosts: SocialPostRecord[]
-      socialStakes: SocialStakeRecord[]
-      creatorRewards: CreatorRewardRecord[]
-    }>(`/accounts/${address}`),
-  search: (q: string) =>
-    get<{ matches: { kind: string; id: string; label: string }[] }>(`/search`, { q, limit: 10 }),
+  account: (address: string) => get<AccountRecord>(`/accounts/${address}`),
 }

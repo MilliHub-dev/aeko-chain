@@ -1,11 +1,11 @@
-import { decodeBase58, encodeBase58, parseBase64 } from './base58';
-import { AekoConnection } from './connection';
+import { decodeBase58, encodeBase58, parseBase64 } from './base58.js';
+import { AekoConnection } from './connection.js';
 import type {
   AccountInfoValue,
   ProgramAccount,
   PublicKeyString,
   TokenAccountOwnerResult,
-} from './types';
+} from './types.js';
 
 const TOKEN_721_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(10));
 
