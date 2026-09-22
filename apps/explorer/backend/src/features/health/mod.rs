@@ -1,6 +1,7 @@
 use {
     crate::{
         error::ApiResult,
+        infrastructure::persistence::settings::PersistedAppSettings,
         response::{self, DataEnvelope},
         state::SharedState,
     },
@@ -52,6 +53,8 @@ struct ExplorerOverviewStatus {
     indexed_nfts: u64,
     indexed_posts: u64,
     indexed_stakes: u64,
+    social_readiness_required: bool,
+    max_ready_lag_slots: u64,
 }
 
 pub fn router() -> Router<SharedState> {
@@ -79,6 +82,9 @@ async fn overview(
     State(state): State<SharedState>,
 ) -> ApiResult<Json<DataEnvelope<ExplorerOverviewStatus>>> {
     let counts = state.repository.explorer_overview_counts().await?;
+    let settings = state.repository.app_settings().await?;
+    let (max_ready_lag_slots, social_readiness_required) =
+        effective_readiness_policy(&state, &settings);
     let latest_indexed_slot = state.repository.latest_indexed_slot().await?;
     let latest_asset_slot = state.repository.latest_projection_slot("assets").await?;
     let latest_social_slot = state.repository.latest_projection_slot("social").await?;
@@ -101,9 +107,9 @@ async fn overview(
         }
     };
 
-    let core = projection_readiness(latest_chain_slot, latest_indexed_slot, state.max_ready_lag_slots);
-    let assets = projection_readiness(latest_chain_slot, latest_asset_slot, state.max_ready_lag_slots);
-    let social = projection_readiness(latest_chain_slot, latest_social_slot, state.max_ready_lag_slots);
+    let core = projection_readiness(latest_chain_slot, latest_indexed_slot, max_ready_lag_slots);
+    let assets = projection_readiness(latest_chain_slot, latest_asset_slot, max_ready_lag_slots);
+    let social = projection_readiness(latest_chain_slot, latest_social_slot, max_ready_lag_slots);
     let source = if latest_chain_slot.is_some() {
         "rpc+indexer"
     } else {
@@ -127,6 +133,8 @@ async fn overview(
             indexed_nfts: counts.indexed_nfts,
             indexed_posts: counts.indexed_posts,
             indexed_stakes: counts.indexed_stakes,
+            social_readiness_required,
+            max_ready_lag_slots,
         },
         source,
     ))
@@ -137,6 +145,22 @@ async fn readiness(State(state): State<SharedState>) -> Response {
     if let Err(error) = &database_result {
         tracing::warn!(error = ?error, "readiness PostgreSQL check failed");
     }
+
+    let settings = if database_result.is_ok() {
+        match state.repository.app_settings().await {
+            Ok(settings) => Some(settings),
+            Err(error) => {
+                tracing::warn!(error = ?error, "readiness application settings check failed");
+                None
+            }
+        }
+    } else {
+        None
+    };
+    let (max_ready_lag_slots, social_readiness_required) = settings
+        .as_ref()
+        .map(|settings| effective_readiness_policy(&state, settings))
+        .unwrap_or((state.max_ready_lag_slots, state.social_enabled));
 
     let (latest_indexed_slot, latest_asset_slot, latest_social_slot) = if database_result.is_ok() {
         let core = state.repository.latest_indexed_slot().await;
@@ -169,15 +193,16 @@ async fn readiness(State(state): State<SharedState>) -> Response {
         }
     };
 
-    let core = projection_readiness(latest_chain_slot, latest_indexed_slot, state.max_ready_lag_slots);
-    let assets = projection_readiness(latest_chain_slot, latest_asset_slot, state.max_ready_lag_slots);
-    let social = projection_readiness(latest_chain_slot, latest_social_slot, state.max_ready_lag_slots);
+    let core = projection_readiness(latest_chain_slot, latest_indexed_slot, max_ready_lag_slots);
+    let assets = projection_readiness(latest_chain_slot, latest_asset_slot, max_ready_lag_slots);
+    let social = projection_readiness(latest_chain_slot, latest_social_slot, max_ready_lag_slots);
 
     let ready = database_result.is_ok()
+        && settings.is_some()
         && latest_chain_slot.is_some()
         && core.ready
         && assets.ready
-        && (!state.social_enabled || social.ready);
+        && (!social_readiness_required || social.ready);
     let status = ReadinessStatus {
         ok: ready,
         database: if database_result.is_ok() { "ready" } else { "unavailable" },
@@ -192,8 +217,8 @@ async fn readiness(State(state): State<SharedState>) -> Response {
         latest_social_slot,
         social_lag_slots: social.lag,
         chain_behind_social: social.chain_behind,
-        social_required: state.social_enabled,
-        max_ready_lag_slots: state.max_ready_lag_slots,
+        social_required: social_readiness_required,
+        max_ready_lag_slots,
     };
     let body = response::data_from_source(&state.network, status, "readiness");
     (
@@ -201,6 +226,20 @@ async fn readiness(State(state): State<SharedState>) -> Response {
         body,
     )
         .into_response()
+}
+
+fn effective_readiness_policy(
+    state: &SharedState,
+    settings: &PersistedAppSettings,
+) -> (u64, bool) {
+    let max_ready_lag_slots = settings
+        .max_ready_lag_slots_override
+        .and_then(|value| u64::try_from(value).ok())
+        .unwrap_or(state.max_ready_lag_slots);
+    let social_readiness_required = settings
+        .social_readiness_required_override
+        .unwrap_or(state.social_enabled);
+    (max_ready_lag_slots, social_readiness_required)
 }
 
 fn log_cursor_result(stream: &str, result: anyhow::Result<Option<u64>>) -> Option<u64> {
