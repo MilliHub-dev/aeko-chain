@@ -1,15 +1,22 @@
 # RPC Overview
 
-The **JSON-RPC 2.0 API** is the primary interface for interacting with the AEKO Chain.
+AEKO uses **JSON-RPC 2.0** for direct chain interaction and a separate WebSocket endpoint for PubSub subscriptions.
 
-## Endpoints
+## Canonical deployed public testnet
 
-| Cluster | HTTP Endpoint | WebSocket Endpoint |
-| :--- | :--- | :--- |
-| **Mainnet Beta** | `https://api.mainnet-beta.aeko.chain` | `wss://api.mainnet-beta.aeko.chain` |
-| **Testnet** | `https://api.testnet.aeko.chain` | `wss://api.testnet.aeko.chain` |
-| **Devnet** | `https://api.devnet.aeko.chain` | `wss://api.devnet.aeko.chain` |
+| Interface | Endpoint |
+| --- | --- |
+| JSON-RPC | `https://rpc.aeko.online` |
+| WebSocket PubSub | `wss://ws.aeko.online` |
 
-## Rate Limits
-*   **Public RPC**: 100 requests / 10 seconds per IP.
-*   **Private RPC**: Unlimited (Contact Validator partners for access).
+The Explorer REST API at `https://api.aeko.online` is **not** the JSON-RPC endpoint. It serves indexed Explorer data.
+
+The Testnet Funding API at `https://fund.aeko.online/api/funding` is also a separate HTTP service. It applies public funding policy and then uses a server-authorized low-level `requestAirdrop` call.
+
+## Other networks
+
+No mainnet or separate devnet public endpoint is defined by the current repository deployment contract. Configure non-testnet endpoints explicitly rather than relying on legacy placeholder domains.
+
+## Rate limits
+
+Rate limits are deployment policy, not a fixed protocol guarantee. Clients should handle HTTP 429 responses and retry conservatively rather than depending on an undocumented numeric quota.

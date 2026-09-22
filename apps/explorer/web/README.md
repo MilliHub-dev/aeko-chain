@@ -29,7 +29,7 @@ The additive `/overview` endpoint combines live validator position with real Pos
 Direct JSON-RPC from the browser is intentional only for consumer-style operations that cannot be delegated to the read-only Explorer backend, including:
 
 - wallet/network test tools;
-- airdrops on development/test networks;
+- policy-controlled funding on the public testnet, with raw `requestAirdrop` reserved for local/custom test networks;
 - signing/submitting transactions;
 - explicit Social/NFT end-to-end test consoles;
 - the temporary `/overview` compatibility fallback described above.
