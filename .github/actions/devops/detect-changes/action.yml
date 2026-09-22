@@ -108,6 +108,8 @@ runs:
           sdk_rust=true
         }
 
+        TARGET_BASE_SHA=""
+
         if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
           # Manual main runs validate the complete release surface, but do not
           # republish SDK package versions that did not change.
@@ -117,6 +119,7 @@ runs:
           HEAD_SHA="${GITHUB_SHA}"
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
             BASE_SHA=$(jq -r '.pull_request.base.sha // empty' "$GITHUB_EVENT_PATH")
+            TARGET_BASE_SHA="$BASE_SHA"
             PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "$GITHUB_EVENT_PATH")
             if [ -n "$PR_HEAD_SHA" ]; then
               HEAD_SHA="$PR_HEAD_SHA"
@@ -224,6 +227,41 @@ runs:
                 ;;
             esac
           done
+
+          # Validation follows the PR's merge-base change set so reviewers see
+          # and exercise replayed/diverged history. Release eligibility is
+          # different: only package changes that are still net-new versus the
+          # current target branch should require a new registry version.
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] \
+            && [ -n "$TARGET_BASE_SHA" ] \
+            && git cat-file -e "${TARGET_BASE_SHA}^{commit}" 2>/dev/null \
+            && git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null; then
+            sdk_release_js=false
+            sdk_release_node=false
+            sdk_release_python=false
+            sdk_release_rust=false
+
+            mapfile -t release_changed_files < <(git diff --name-only "$TARGET_BASE_SHA" "$HEAD_SHA")
+            for file in "${release_changed_files[@]}"; do
+              case "$file" in
+                apps/sdk/js/*) sdk_release_js=true ;;
+                apps/sdk/node/*) sdk_release_node=true ;;
+                apps/sdk/python/*) sdk_release_python=true ;;
+                apps/sdk/rust-client/*) sdk_release_rust=true ;;
+                apps/sdk/*)
+                  case "$file" in
+                    *.md) ;;
+                    *)
+                      sdk_release_js=true
+                      sdk_release_node=true
+                      sdk_release_python=true
+                      sdk_release_rust=true
+                      ;;
+                  esac
+                  ;;
+              esac
+            done
+          fi
         fi
 
         sdk_any=false
