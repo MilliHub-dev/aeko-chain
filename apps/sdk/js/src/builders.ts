@@ -10,7 +10,7 @@ import type {
 
 const SYSTEM_PROGRAM_ID_BYTES = new Uint8Array(32);
 const TOKEN_721_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(10));
-const WALLET_PERMISSIONS_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(10));
+const WALLET_PERMISSIONS_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(12));
 const NFT_MARKETPLACE_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(11));
 
 export interface Token721Attribute {

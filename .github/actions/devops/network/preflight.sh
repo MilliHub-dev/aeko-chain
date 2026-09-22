@@ -25,6 +25,7 @@ bash -c '
   bash -n docker/validator-entrypoint.sh
   bash -n scripts/deploy-testnet.sh
   python3 scripts/validate-deployment-contract.py
+  python3 scripts/validate-program-ids.py
   docker compose -f docker/compose.local.yml config >/dev/null
   docker compose -f docker/compose.dokploy.yml config >/dev/null
   docker compose -f docker/compose.coolify.yml config >/dev/null

@@ -9,7 +9,7 @@ from .borsh import BorshReader
 from .client import AekoClient
 
 TOKEN_721_PROGRAM_ID = b58encode(bytes([10] * 32))
-WALLET_PERMISSIONS_PROGRAM_ID = b58encode(bytes([10] * 32))
+WALLET_PERMISSIONS_PROGRAM_ID = b58encode(bytes([12] * 32))
 
 
 @dataclass(slots=True)

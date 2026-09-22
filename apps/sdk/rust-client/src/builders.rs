@@ -410,7 +410,7 @@ pub fn default_token_721_program_id() -> PubkeyString {
 }
 
 pub fn default_wallet_permissions_program_id() -> PubkeyString {
-    bs58::encode([10u8; 32]).into_string()
+    bs58::encode([12u8; 32]).into_string()
 }
 
 pub fn build_initialize_collection_instruction(input: &InitializeCollectionInput) -> InstructionPlan {
@@ -676,6 +676,14 @@ mod tests {
 
     fn fake_pubkey(seed: u8) -> String {
         bs58::encode([seed; 32]).into_string()
+    }
+
+    #[test]
+    fn canonical_program_ids_are_distinct() {
+        assert_ne!(
+            default_token_721_program_id(),
+            default_wallet_permissions_program_id()
+        );
     }
 
     #[test]
