@@ -19,6 +19,11 @@ SOCIAL_BOOTSTRAP = ROOT / "social-bootstrap" / "src" / "main.rs"
 EXPLORER_HEALTH = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "health" / "mod.rs"
 README = ROOT / "README.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
+ADMIN_ENV = ROOT / "apps" / "admin" / ".env.local.example"
+PUBLIC_ENV = DOCKER_DIR / "env.public.example"
+EXPLORER_BACKEND_ENV = ROOT / "apps" / "explorer" / "backend" / ".env.example"
+EXPLORER_ENTRYPOINT = DOCKER_DIR / "explorer-ui-entrypoint.sh"
+NETWORK_CONFIG = ROOT / "apps" / "explorer" / "web" / "src" / "utils" / "networkConfig.js"
 
 
 class ContractFailure(RuntimeError):
@@ -58,6 +63,37 @@ def main() -> int:
     explorer_health = read(EXPLORER_HEALTH)
     readme = read(README)
     deployment = read(DEPLOYMENT)
+    admin_env = read(ADMIN_ENV)
+    public_env = read(PUBLIC_ENV)
+    explorer_backend_env = read(EXPLORER_BACKEND_ENV)
+    explorer_entrypoint = read(EXPLORER_ENTRYPOINT)
+    network_config = read(NETWORK_CONFIG)
+
+    # The settings mutation credential is server-side control-plane state.
+    # Explorer API and Operations Web must share it, while the browser runtime
+    # must never receive it.
+    require(
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=" in admin_env,
+        "Operations Web env example must declare the Explorer settings admin token",
+    )
+    require(
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=" in public_env,
+        "deployment env example must declare the Explorer settings admin token",
+    )
+    require(
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=" in explorer_backend_env,
+        "Explorer backend env example must declare the settings admin token",
+    )
+    for label, compose in (("portable", portable), ("Dokploy", dokploy), ("Coolify", coolify)):
+        require(
+            compose.count("AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:") >= 2,
+            f"{label} must inject the settings token into Explorer API and Operations Web",
+        )
+    require(
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" not in network_config
+        and "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" not in explorer_entrypoint,
+        "Explorer browser runtime must never receive the settings admin token",
+    )
 
     # One canonical build recipe, with all role-specific images produced from it.
     for target in ("validator", "faucet", "social-bootstrap", "tools", "explorer-api", "explorer-ui"):
