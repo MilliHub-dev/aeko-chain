@@ -408,4 +408,3 @@ fn subscription_state_label(value: SubscriptionState) -> &'static str {
         SubscriptionState::Canceled => "canceled",
     }
 }
-

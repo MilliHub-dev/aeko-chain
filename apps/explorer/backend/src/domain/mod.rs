@@ -339,4 +339,3 @@ pub struct SocialSnapshot {
     pub unlocks: Vec<PaidContentUnlockRecord>,
     pub revenues: Vec<CreatorRevenueRecord>,
 }
-

@@ -507,4 +507,3 @@ fn summarize_monetization(
         json!({"tips": state.tips.len(), "subscriptions": state.subscriptions.len(), "unlocks": state.unlocks.len(), "revenues": state.revenues.len(), "subscriptionsEnabled": state.config.subscriptions_enabled, "paidContentEnabled": state.config.paid_content_enabled, "platformFeeBps": state.config.platform_fee_bps}),
     )
 }
-

@@ -58,4 +58,3 @@ async fn search(
         "rpc+indexer",
     ))
 }
-

@@ -72,4 +72,3 @@ fn post_from_row(row: sqlx::postgres::PgRow) -> Result<SocialPostRecord> {
         signature_ref: row.try_get("signature_ref")?,
     })
 }
-

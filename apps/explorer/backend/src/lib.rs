@@ -28,4 +28,3 @@ pub use {
         chain::RpcChainClient, persistence::PostgresRepository, social::CanonicalChainDataSource,
     },
 };
-

@@ -211,4 +211,3 @@ pub(crate) fn parse_u64_text(value: &str, column: &'static str) -> Result<u64> {
         .parse::<u64>()
         .with_context(|| format!("invalid u64 persisted in {column}: {value:?}"))
 }
-

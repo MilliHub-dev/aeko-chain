@@ -854,4 +854,3 @@ fn domain_from_row(row: sqlx::postgres::PgRow) -> Result<SocialDomainSnapshotRec
             .context("negative Social domain item count")?,
     })
 }
-
