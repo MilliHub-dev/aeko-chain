@@ -27,8 +27,13 @@ pub struct NftQuery {
 
 impl PostgresRepository {
     pub async fn persist_asset_snapshot(&self, snapshot: AssetSnapshot) -> Result<()> {
-        let snapshot_slot = i64::try_from(snapshot.slot).context("asset snapshot slot exceeds BIGINT")?;
-        let mut tx = self.pool.begin().await.context("begin asset snapshot transaction")?;
+        let snapshot_slot =
+            i64::try_from(snapshot.slot).context("asset snapshot slot exceeds BIGINT")?;
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .context("begin asset snapshot transaction")?;
 
         for mint in snapshot.token_mints {
             sqlx::query(
@@ -114,7 +119,10 @@ impl PostgresRepository {
             .bind(&collection.name)
             .bind(&collection.symbol)
             .bind(&collection.base_uri)
-            .bind(i64::try_from(collection.total_minted).context("NFT total_minted exceeds BIGINT")?)
+            .bind(
+                i64::try_from(collection.total_minted)
+                    .context("NFT total_minted exceeds BIGINT")?,
+            )
             .bind(snapshot_slot)
             .execute(&mut *tx)
             .await
@@ -161,15 +169,25 @@ impl PostgresRepository {
                 .with_context(|| format!("pruning stale {table} snapshot rows"))?;
         }
 
-        tx.commit().await.context("commit asset snapshot transaction")
+        tx.commit()
+            .await
+            .context("commit asset snapshot transaction")
     }
 
     pub async fn list_token_transfers(
         &self,
         query: &TokenTransferQuery,
     ) -> Result<Vec<TokenTransferRecord>> {
-        let before = query.before.map(i64::try_from).transpose().context("before slot exceeds BIGINT")?;
-        let after = query.after.map(i64::try_from).transpose().context("after slot exceeds BIGINT")?;
+        let before = query
+            .before
+            .map(i64::try_from)
+            .transpose()
+            .context("before slot exceeds BIGINT")?;
+        let after = query
+            .after
+            .map(i64::try_from)
+            .transpose()
+            .context("after slot exceeds BIGINT")?;
         let rows = sqlx::query(
             r#"
             SELECT mint, source, destination, amount, signature, event_index, slot

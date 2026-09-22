@@ -63,7 +63,11 @@ impl PostgresRepository {
         }
 
         let slot_i64 = i64::try_from(slot).context("core slot exceeds PostgreSQL BIGINT")?;
-        let mut tx = self.pool.begin().await.context("begin core-slot transaction")?;
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .context("begin core-slot transaction")?;
 
         // A finalized slot is an authoritative replacement, not an upsert onto
         // whatever was previously observed at confirmed commitment. Clearing
@@ -103,8 +107,14 @@ impl PostgresRepository {
             )
             .bind(i64::try_from(block.slot).context("block slot exceeds PostgreSQL BIGINT")?)
             .bind(&block.blockhash)
-            .bind(i64::try_from(block.parent_slot).context("parent slot exceeds PostgreSQL BIGINT")?)
-            .bind(i64::try_from(block.transaction_count).context("transaction count exceeds PostgreSQL BIGINT")?)
+            .bind(
+                i64::try_from(block.parent_slot)
+                    .context("parent slot exceeds PostgreSQL BIGINT")?,
+            )
+            .bind(
+                i64::try_from(block.transaction_count)
+                    .context("transaction count exceeds PostgreSQL BIGINT")?,
+            )
             .bind(&block.producer)
             .bind(block.unix_timestamp)
             .execute(&mut *tx)
@@ -128,9 +138,15 @@ impl PostgresRepository {
                 "#,
             )
             .bind(&transaction.signature)
-            .bind(i64::try_from(transaction.slot).context("transaction slot exceeds PostgreSQL BIGINT")?)
+            .bind(
+                i64::try_from(transaction.slot)
+                    .context("transaction slot exceeds PostgreSQL BIGINT")?,
+            )
             .bind(transaction.success)
-            .bind(i64::try_from(transaction.fee).context("transaction fee exceeds PostgreSQL BIGINT")?)
+            .bind(
+                i64::try_from(transaction.fee)
+                    .context("transaction fee exceeds PostgreSQL BIGINT")?,
+            )
             .bind(&transaction.primary_program)
             .bind(&transaction.signer)
             .execute(&mut *tx)
@@ -145,7 +161,10 @@ impl PostgresRepository {
                 .execute(&mut *tx)
                 .await
                 .with_context(|| {
-                    format!("clearing transaction accounts for {}", transaction.signature)
+                    format!(
+                        "clearing transaction accounts for {}",
+                        transaction.signature
+                    )
                 })?;
             sqlx::query("DELETE FROM token_transfers WHERE signature = $1")
                 .bind(&transaction.signature)
@@ -166,7 +185,10 @@ impl PostgresRepository {
                 "#,
             )
             .bind(&account.signature)
-            .bind(i32::try_from(account.account_index).context("transaction account index exceeds INTEGER")?)
+            .bind(
+                i32::try_from(account.account_index)
+                    .context("transaction account index exceeds INTEGER")?,
+            )
             .bind(&account.address)
             .execute(&mut *tx)
             .await
@@ -199,7 +221,10 @@ impl PostgresRepository {
             .bind(&transfer.amount)
             .bind(&transfer.signature)
             .bind(&transfer.event_index)
-            .bind(i64::try_from(transfer.slot).context("token transfer slot exceeds PostgreSQL BIGINT")?)
+            .bind(
+                i64::try_from(transfer.slot)
+                    .context("token transfer slot exceeds PostgreSQL BIGINT")?,
+            )
             .execute(&mut *tx)
             .await
             .with_context(|| {
@@ -229,8 +254,16 @@ impl PostgresRepository {
     }
 
     pub async fn list_blocks(&self, query: &BlockQuery) -> Result<Vec<BlockRecord>> {
-        let before = query.before.map(i64::try_from).transpose().context("before slot exceeds BIGINT")?;
-        let after = query.after.map(i64::try_from).transpose().context("after slot exceeds BIGINT")?;
+        let before = query
+            .before
+            .map(i64::try_from)
+            .transpose()
+            .context("before slot exceeds BIGINT")?;
+        let after = query
+            .after
+            .map(i64::try_from)
+            .transpose()
+            .context("after slot exceeds BIGINT")?;
         let rows = sqlx::query(
             r#"
             SELECT slot, blockhash, parent_slot, transaction_count, producer, unix_timestamp
@@ -262,9 +295,20 @@ impl PostgresRepository {
         row.map(block_from_row).transpose()
     }
 
-    pub async fn list_transactions(&self, query: &TransactionQuery) -> Result<Vec<TransactionRecord>> {
-        let before = query.before.map(i64::try_from).transpose().context("before slot exceeds BIGINT")?;
-        let after = query.after.map(i64::try_from).transpose().context("after slot exceeds BIGINT")?;
+    pub async fn list_transactions(
+        &self,
+        query: &TransactionQuery,
+    ) -> Result<Vec<TransactionRecord>> {
+        let before = query
+            .before
+            .map(i64::try_from)
+            .transpose()
+            .context("before slot exceeds BIGINT")?;
+        let after = query
+            .after
+            .map(i64::try_from)
+            .transpose()
+            .context("after slot exceeds BIGINT")?;
         let rows = sqlx::query(
             r#"
             SELECT t.signature, t.slot, t.success, t.fee, t.primary_program, t.signer
@@ -312,7 +356,8 @@ impl PostgresRepository {
 
 fn block_from_row(row: sqlx::postgres::PgRow) -> Result<BlockRecord> {
     Ok(BlockRecord {
-        slot: u64::try_from(row.get::<i64, _>("slot")).context("negative block slot in PostgreSQL")?,
+        slot: u64::try_from(row.get::<i64, _>("slot"))
+            .context("negative block slot in PostgreSQL")?,
         blockhash: row.get("blockhash"),
         parent_slot: u64::try_from(row.get::<i64, _>("parent_slot"))
             .context("negative parent slot in PostgreSQL")?,
@@ -326,9 +371,11 @@ fn block_from_row(row: sqlx::postgres::PgRow) -> Result<BlockRecord> {
 fn transaction_from_row(row: sqlx::postgres::PgRow) -> Result<TransactionRecord> {
     Ok(TransactionRecord {
         signature: row.get("signature"),
-        slot: u64::try_from(row.get::<i64, _>("slot")).context("negative transaction slot in PostgreSQL")?,
+        slot: u64::try_from(row.get::<i64, _>("slot"))
+            .context("negative transaction slot in PostgreSQL")?,
         success: row.get("success"),
-        fee: u64::try_from(row.get::<i64, _>("fee")).context("negative transaction fee in PostgreSQL")?,
+        fee: u64::try_from(row.get::<i64, _>("fee"))
+            .context("negative transaction fee in PostgreSQL")?,
         primary_program: row.get("primary_program"),
         signer: row.get("signer"),
     })
