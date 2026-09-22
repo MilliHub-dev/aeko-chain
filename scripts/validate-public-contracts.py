@@ -123,6 +123,24 @@ def main() -> int:
     require("AEKO_PUBLIC_ADMIN_URL" in funding_policy, "Funding policy must use AEKO_PUBLIC_ADMIN_URL")
     require("AEKO_PUBLIC_EXPLORER_URL" in funding_request, "Funding request response must use AEKO_PUBLIC_EXPLORER_URL")
     require("FUNDING_ALLOWED_ORIGINS" in funding_cors, "Funding CORS must be deployment-configured")
+    require(
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=" in admin_env,
+        "Operations Web env example must declare the Explorer settings admin token",
+    )
+    require(
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=" in public_env,
+        "deployment env example must declare the Explorer settings admin token",
+    )
+    for label, compose in (("Coolify", coolify), ("Dokploy", dokploy)):
+        require(
+            compose.count("AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?}") >= 2,
+            f"{label} must inject the same private settings token into Explorer API and Operations Web",
+        )
+    require(
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" not in network_config
+        and "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" not in explorer_entrypoint,
+        "Explorer browser runtime must never receive the settings admin token",
+    )
     reject(middleware, "FAUCET_PUBLIC_HOST", "operations middleware")
     reject(middleware, "ADMIN_PUBLIC_HOST", "operations middleware")
     reject(middleware, "/api/faucet", "operations middleware")
