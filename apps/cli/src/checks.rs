@@ -1,7 +1,7 @@
 use {
     crate::cli::CliError,
     aeko_rpc_client::rpc_client::RpcClient,
-    aeko_rpc_client_api::client_error::{Error as ClientError, Result as ClientResult},
+    aeko_rpc_client_api::client_error::Result as ClientResult,
     aeko_sdk::{
         commitment_config::CommitmentConfig, message::Message, native_token::lamports_to_aeko,
         pubkey::Pubkey,
@@ -87,9 +87,7 @@ pub fn check_account_for_spend_and_fee_with_commitment(
         account_pubkey,
         balance + fee,
         commitment,
-    )
-    .map_err(Into::<ClientError>::into)?
-    {
+    )? {
         if balance > 0 {
             return Err(CliError::InsufficientFundsForSpendAndFee(
                 lamports_to_aeko(balance),
@@ -164,12 +162,12 @@ pub fn check_unique_pubkeys(
 mod tests {
     use {
         super::*,
-        serde_json::json,
         aeko_rpc_client_api::{
             request::RpcRequest,
             response::{Response, RpcResponseContext},
         },
         aeko_sdk::system_instruction,
+        serde_json::json,
         std::collections::HashMap,
     };
 

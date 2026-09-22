@@ -24,7 +24,7 @@ Prove that the current `wallet-core` implementation works against AEKO testnet f
 
 Recommended baseline:
 
-- testnet RPC: `https://api.testnet.aeko.chain`
+- testnet RPC: `https://rpc.aeko.online`
 - funded testnet wallet for fee payment
 - AEKO CLI installed and configured
 - hardware device available if Ledger validation is in scope

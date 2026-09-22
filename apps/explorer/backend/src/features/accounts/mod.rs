@@ -3,12 +3,14 @@ use {
         error::{ApiError, ApiResult},
         features::clamp_limit,
         infrastructure::persistence::social::StakeQuery,
-        models::{AccountDetailRecord, CreatorProfileRecord, CreatorRewardRecord, SocialStakeRecord},
+        models::{
+            AccountDetailRecord, CreatorProfileRecord, CreatorRewardRecord, SocialStakeRecord,
+        },
         response::{self, DataEnvelope},
         state::SharedState,
     },
-    anyhow::Context,
     aeko_sdk::pubkey::Pubkey,
+    anyhow::Context,
     axum::{
         extract::{Path, Query, State},
         routing::get,
@@ -54,13 +56,18 @@ async fn get_account(
     Path(address): Path<String>,
     Query(params): Query<LimitParams>,
 ) -> ApiResult<Json<DataEnvelope<AccountDetailRecord>>> {
-    let account = fetch_live_account(&state, address).await?
+    let account = fetch_live_account(&state, address)
+        .await?
         .ok_or(ApiError::NotFound("account"))?;
     let detail = state
         .repository
         .get_account_detail_from_chain(account, clamp_limit(params.limit))
         .await?;
-    Ok(response::data_from_source(&state.network, detail, "rpc+indexer"))
+    Ok(response::data_from_source(
+        &state.network,
+        detail,
+        "rpc+indexer",
+    ))
 }
 
 async fn get_creator(
@@ -68,17 +75,18 @@ async fn get_creator(
     Path(address): Path<String>,
     Query(params): Query<LimitParams>,
 ) -> ApiResult<Json<DataEnvelope<CreatorProfileRecord>>> {
-    let account = fetch_live_account(&state, address.clone()).await?
+    let account = fetch_live_account(&state, address.clone())
+        .await?
         .ok_or(ApiError::NotFound("creator"))?;
     let profile = state
         .repository
-        .get_creator_profile_from_chain(
-            &address,
-            Some(account.lamports),
-            clamp_limit(params.limit),
-        )
+        .get_creator_profile_from_chain(&address, Some(account.lamports), clamp_limit(params.limit))
         .await?;
-    Ok(response::data_from_source(&state.network, profile, "rpc+indexer"))
+    Ok(response::data_from_source(
+        &state.network,
+        profile,
+        "rpc+indexer",
+    ))
 }
 
 async fn creator_rewards(

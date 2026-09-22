@@ -41,7 +41,7 @@ cargo run -p aeko-wallet-core --example keystore_validation
 Live testnet submission:
 
 ```bash
-AEKO_TESTNET_RPC=https://api.testnet.aeko.chain \
+AEKO_TESTNET_RPC=https://rpc.aeko.online \
 AEKO_WALLET_KEYSTORE_PATH=/path/to/keystore.json \
 AEKO_WALLET_PASSWORD=... \
 AEKO_RECIPIENT_PUBKEY=<recipient-pubkey> \
@@ -82,7 +82,7 @@ cargo run -p aeko-wallet-core --example permission_validation
 Live testnet submission:
 
 ```bash
-AEKO_TESTNET_RPC=https://api.testnet.aeko.chain \
+AEKO_TESTNET_RPC=https://rpc.aeko.online \
 AEKO_WALLET_KEYSTORE_PATH=/path/to/keystore.json \
 AEKO_WALLET_PASSWORD=... \
 AEKO_DELEGATE_PUBKEY=<delegate-pubkey> \

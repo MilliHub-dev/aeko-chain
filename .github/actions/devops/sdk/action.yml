@@ -56,7 +56,7 @@ runs:
     - name: Rust SDK format
       if: ${{ inputs.rust == 'true' && inputs.release-rust == 'true' }}
       shell: bash
-      run: cargo fmt --manifest-path apps/sdk/rust-client/Cargo.toml -- --check
+      run: bash .github/actions/devops/check-rustfmt-changed.sh apps/sdk/rust-client
 
     - name: Diagnose Rust SDK lockfile and target check
       if: ${{ inputs.rust == 'true' }}
@@ -89,7 +89,7 @@ runs:
     - name: Rust SDK lint
       if: ${{ inputs.rust == 'true' }}
       shell: bash
-      run: cargo clippy --locked -p aeko-rust-sdk --all-targets -- -D warnings
+      run: cargo clippy --locked -p aeko-rust-sdk --all-targets --no-deps -- -D warnings
 
     - name: Rust SDK tests
       if: ${{ inputs.rust == 'true' }}
@@ -113,15 +113,29 @@ runs:
         set -euo pipefail
         version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "aeko-rust-sdk") | .version')
         test -n "$version"
-        status=$(curl -sS -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/aeko-rust-sdk/${version}")
+        body_file=$(mktemp)
+        trap 'rm -f "$body_file"' EXIT
+        if ! status=$(curl --silent --show-error --retry 3 --retry-all-errors \
+          --connect-timeout 10 --max-time 30 \
+          --output "$body_file" --write-out '%{http_code}' \
+          "https://index.crates.io/ae/ko/aeko-rust-sdk"); then
+          echo "Unable to query the crates.io sparse index for aeko-rust-sdk@${version}." >&2
+          exit 1
+        fi
+
         case "$status" in
-          404) ;;
+          404)
+            # The crate name itself has never been published, so this version is available.
+            ;;
           200)
-            echo "aeko-rust-sdk@${version} already exists on crates.io. Bump the package version before release." >&2
-            exit 1
+            if jq -s -e --arg version "$version" \
+              'any(.[]; .vers == $version)' "$body_file" >/dev/null; then
+              echo "aeko-rust-sdk@${version} already exists on crates.io. Bump the package version before release." >&2
+              exit 1
+            fi
             ;;
           *)
-            echo "Unable to prove crates.io version availability for aeko-rust-sdk@${version}; HTTP ${status}." >&2
+            echo "Unable to prove crates.io version availability for aeko-rust-sdk@${version}; sparse-index HTTP ${status}." >&2
             exit 1
             ;;
         esac

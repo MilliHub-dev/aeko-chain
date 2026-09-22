@@ -2,11 +2,6 @@
 #[cfg(not(target_env = "msvc"))]
 use jemallocator::Jemalloc;
 use {
-    clap::{crate_name, value_t, value_t_or_exit, values_t, values_t_or_exit, ArgMatches},
-    console::style,
-    crossbeam_channel::unbounded,
-    log::*,
-    rand::{seq::SliceRandom, thread_rng},
     aeko_accounts_db::{
         accounts_db::{AccountShrinkThreshold, AccountsDb, AccountsDbConfig, CreateAncientStorage},
         accounts_index::{
@@ -69,6 +64,11 @@ use {
         ledger_lockfile, lock_ledger, new_spinner_progress_bar, println_name_value,
         redirect_stderr_to_file,
     },
+    clap::{crate_name, value_t, value_t_or_exit, values_t, values_t_or_exit, ArgMatches},
+    console::style,
+    crossbeam_channel::unbounded,
+    log::*,
+    rand::{seq::SliceRandom, thread_rng},
     std::{
         collections::{HashSet, VecDeque},
         env,
@@ -1351,6 +1351,10 @@ pub fn main() {
             faucet_addr: matches.value_of("rpc_faucet_addr").map(|address| {
                 aeko_net_utils::parse_host_port(address).expect("failed to parse faucet address")
             }),
+            funding_gateway_key: std::env::var("AEKO_FUNDING_GATEWAY_KEY")
+                .ok()
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty()),
             full_api,
             obsolete_v1_7_api: matches.is_present("obsolete_v1_7_rpc_api"),
             max_multiple_accounts: Some(value_t_or_exit!(

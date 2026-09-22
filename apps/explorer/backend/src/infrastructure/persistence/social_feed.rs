@@ -12,7 +12,12 @@ pub struct SocialFeedCursor {
 }
 
 impl PostgresRepository {
-    pub async fn list_social_feed_page(&self, creator: Option<&str>, cursor: Option<&SocialFeedCursor>, limit: usize) -> Result<Vec<SocialPostRecord>> {
+    pub async fn list_social_feed_page(
+        &self,
+        creator: Option<&str>,
+        cursor: Option<&SocialFeedCursor>,
+        limit: usize,
+    ) -> Result<Vec<SocialPostRecord>> {
         let rows = sqlx::query(r#"
             SELECT post_id, creator, content_hash, metadata_hash, content_uri, parent_post_id,
                    post_kind, created_at_unix, edited_at_unix, visibility, moderation_state, signature_ref
@@ -30,7 +35,11 @@ impl PostgresRepository {
         rows.into_iter().map(post_from_row).collect()
     }
 
-    pub async fn get_social_thread(&self, post_id: &str, limit: usize) -> Result<Vec<SocialPostRecord>> {
+    pub async fn get_social_thread(
+        &self,
+        post_id: &str,
+        limit: usize,
+    ) -> Result<Vec<SocialPostRecord>> {
         let rows = sqlx::query(r#"
             SELECT post_id, creator, content_hash, metadata_hash, content_uri, parent_post_id,
                    post_kind, created_at_unix, edited_at_unix, visibility, moderation_state, signature_ref
@@ -49,8 +58,17 @@ impl PostgresRepository {
 
 fn post_from_row(row: sqlx::postgres::PgRow) -> Result<SocialPostRecord> {
     Ok(SocialPostRecord {
-        post_id: row.try_get("post_id")?, creator: row.try_get("creator")?, content_hash: row.try_get("content_hash")?, metadata_hash: row.try_get("metadata_hash")?,
-        content_uri: row.try_get("content_uri")?, parent_post_id: row.try_get("parent_post_id")?, post_kind: row.try_get("post_kind")?, created_at_unix: row.try_get("created_at_unix")?,
-        edited_at_unix: row.try_get("edited_at_unix")?, visibility: row.try_get("visibility")?, moderation_state: row.try_get("moderation_state")?, signature_ref: row.try_get("signature_ref")?,
+        post_id: row.try_get("post_id")?,
+        creator: row.try_get("creator")?,
+        content_hash: row.try_get("content_hash")?,
+        metadata_hash: row.try_get("metadata_hash")?,
+        content_uri: row.try_get("content_uri")?,
+        parent_post_id: row.try_get("parent_post_id")?,
+        post_kind: row.try_get("post_kind")?,
+        created_at_unix: row.try_get("created_at_unix")?,
+        edited_at_unix: row.try_get("edited_at_unix")?,
+        visibility: row.try_get("visibility")?,
+        moderation_state: row.try_get("moderation_state")?,
+        signature_ref: row.try_get("signature_ref")?,
     })
 }

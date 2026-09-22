@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion';
+import { createElement } from 'react';
 import { Shield, Zap, Users, Code, ArrowRight, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+const MotionDiv = motion.div;
 
 const Hero = () => {
   return (
@@ -10,13 +13,13 @@ const Hero = () => {
       <div className="absolute top-20 left-1/4 w-[500px] h-[500px] bg-aeko-accent/10 rounded-full blur-3xl opacity-30" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
           <span className="inline-block py-1 px-3 rounded-full bg-white/5 border border-white/10 text-aeko-accent text-sm font-medium mb-6">
-            🚀 Mainnet Beta is Live
+            Public Testnet Deployed
           </span>
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8">
             The First <span className="text-gradient">Permissioned Layer-1</span><br />
@@ -41,14 +44,14 @@ const Hero = () => {
               Start Building
             </Link>
           </div>
-        </motion.div>
+        </MotionDiv>
       </div>
     </div>
   );
 };
 
-const FeatureCard = ({ icon: Icon, title, description, delay }) => (
-  <motion.div
+const FeatureCard = ({ icon, title, description, delay }) => (
+  <MotionDiv
     initial={{ opacity: 0, y: 20 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
@@ -56,11 +59,11 @@ const FeatureCard = ({ icon: Icon, title, description, delay }) => (
     className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-aeko-accent/50 transition-colors group"
   >
     <div className="w-12 h-12 rounded-lg bg-aeko-light flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-      <Icon className="text-aeko-accent" size={24} />
+      {createElement(icon, { className: 'text-aeko-accent', size: 24 })}
     </div>
     <h3 className="text-xl font-bold mb-2">{title}</h3>
     <p className="text-gray-400 leading-relaxed">{description}</p>
-  </motion.div>
+  </MotionDiv>
 );
 
 export default function Home() {
@@ -72,28 +75,28 @@ export default function Home() {
     },
     {
       icon: Users,
-      title: "SocialFi Native",
-      description: "Built-in Proof of Engagement (PoE) and Reputation Protocol. Mint millions of Compressed NFTs (cNFTs) for social content at minimal cost."
+      title: "Native SocialFi Programs",
+      description: "Posts, rewards, staking, anti-spam and monetization are registered as native runtime programs."
     },
     {
       icon: Zap,
-      title: "SVM Performance",
-      description: "Powered by the Sealevel runtime. Parallel transaction processing delivering 100k+ TPS with sub-second finality."
+      title: "SVM Runtime",
+      description: "SVM-compatible execution with SBF program loaders. Performance is validated separately rather than advertised with an unverified fixed TPS or finality number."
     },
     {
       icon: Lock,
-      title: "Content Signatures",
-      description: "Immutable content verification. Combat deepfakes and misinformation with cryptographic content signatures at the protocol level."
+      title: "AEKO Token Programs",
+      description: "AEKO-20, public-mint, tokenomics, AEKO-721 and NFT marketplace programs are represented in the runtime program set."
     },
     {
       icon: Code,
-      title: "Developer Friendly",
-      description: "Write smart contracts in Rust. Full compatibility with existing SVM tooling while adding powerful identity hooks."
+      title: "Developer Programs",
+      description: "Write Rust on-chain programs (smart contracts), compile them to SBF and deploy them through the AEKO program loader."
     },
     {
       icon: Users,
-      title: "Two-House Governance",
-      description: "Balanced governance system. Token House manages economics, while the Citizen House (One Person, One Vote) oversees social integrity."
+      title: "Public Testnet Interfaces",
+      description: "JSON-RPC, WebSocket, Explorer and policy-controlled Testnet Funding endpoints are separated by role and documented explicitly."
     }
   ];
 
@@ -140,8 +143,8 @@ export default function Home() {
                 </li>
               ))}
             </ul>
-            <Link to="/token" className="text-aeko-accent font-medium hover:underline">
-              Learn about Identity Tokens &rarr;
+            <Link to="/network-tools" className="text-aeko-accent font-medium hover:underline">
+              Open Network Tools &rarr;
             </Link>
           </div>
           <div className="flex-1 relative">

@@ -11,7 +11,6 @@ use {
         nonce::check_nonce_account,
         spend_utils::{resolve_spend_tx_and_check_account_balances, SpendAmount},
     },
-    clap::{value_t, App, Arg, ArgGroup, ArgMatches, SubCommand},
     aeko_clap_utils::{
         compute_unit_price::{compute_unit_price_arg, COMPUTE_UNIT_PRICE_ARG},
         fee_payer::{fee_payer_arg, FEE_PAYER_ARG},
@@ -60,6 +59,7 @@ use {
         sysvar::{clock, stake_history},
         transaction::Transaction,
     },
+    clap::{value_t, App, Arg, ArgGroup, ArgMatches, SubCommand},
     std::{ops::Deref, rc::Rc},
 };
 
@@ -2352,12 +2352,12 @@ pub fn build_stake_state(
                 } else {
                     None
                 },
-                activation_epoch: Some(if stake.delegation.activation_epoch < std::u64::MAX {
+                activation_epoch: Some(if stake.delegation.activation_epoch < u64::MAX {
                     stake.delegation.activation_epoch
                 } else {
                     0
                 }),
-                deactivation_epoch: if stake.delegation.deactivation_epoch < std::u64::MAX {
+                deactivation_epoch: if stake.delegation.deactivation_epoch < u64::MAX {
                     Some(stake.delegation.deactivation_epoch)
                 } else {
                     None
@@ -2606,10 +2606,10 @@ pub fn process_show_stake_history(
         })?;
 
     let limit_results = match config.output_format {
-        OutputFormat::Json | OutputFormat::JsonCompact => std::usize::MAX,
+        OutputFormat::Json | OutputFormat::JsonCompact => usize::MAX,
         _ => {
             if limit_results == 0 {
-                std::usize::MAX
+                usize::MAX
             } else {
                 limit_results
             }

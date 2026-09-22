@@ -1954,6 +1954,8 @@ dependencies = [
  "aeko-compute-budget-program",
  "aeko-config-program",
  "aeko-cost-model",
+ "aeko-emergency-multisig-program",
+ "aeko-finality-oracle-program",
  "aeko-frozen-abi",
  "aeko-frozen-abi-macro",
  "aeko-loader-v4-program",
@@ -1962,8 +1964,11 @@ dependencies = [
  "aeko-metrics",
  "aeko-nft-marketplace-program",
  "aeko-perf",
+ "aeko-permission-registry-program",
  "aeko-program-runtime",
+ "aeko-public-mint-program",
  "aeko-rayon-threadlimit",
+ "aeko-revocation-registry-program",
  "aeko-runtime",
  "aeko-sdk",
  "aeko-social-anti-spam-program",
@@ -1972,12 +1977,16 @@ dependencies = [
  "aeko-social-rewards-program",
  "aeko-social-staking-program",
  "aeko-stake-program",
+ "aeko-subnet-registry-program",
  "aeko-svm",
  "aeko-system-program",
+ "aeko-token-20-program",
  "aeko-token-721-program",
+ "aeko-tokenomics-program",
  "aeko-version",
  "aeko-vote",
  "aeko-vote-program",
+ "aeko-wallet-permissions-program",
  "aeko-zk-token-proof-program",
  "aeko-zk-token-sdk",
  "aquamarine",
@@ -2049,7 +2058,7 @@ dependencies = [
 
 [[package]]
 name = "aeko-rust-sdk"
-version = "2.0.2"
+version = "2.0.3"
 dependencies = [
  "base64 0.22.0",
  "borsh 1.2.1",

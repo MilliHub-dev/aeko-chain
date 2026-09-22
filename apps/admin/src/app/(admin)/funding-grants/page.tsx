@@ -15,7 +15,7 @@ type Grant = { address: string; amountAeko: number; signature: string; at: strin
 const inputClass =
   'w-full bg-[#0d0e16] border border-[#1e2135] rounded-lg px-3 py-2 text-sm mono text-gray-100 focus:outline-none focus:border-emerald-500 transition-colors'
 
-export default function AirdropsPage() {
+export default function FundingGrantsPage() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [draft, setDraft] = useState<Settings | null>(null)
   const [remaining, setRemaining] = useState<number | null>(null)
@@ -27,8 +27,8 @@ export default function AirdropsPage() {
 
   const refresh = useCallback(async () => {
     const [s, g] = await Promise.all([
-      fetch('/api/admin/faucet/settings').then((r) => r.json()),
-      fetch('/api/admin/faucet/grants?limit=100').then((r) => r.json()),
+      fetch('/api/admin/funding/settings').then((r) => r.json()),
+      fetch('/api/admin/funding/grants?limit=100').then((r) => r.json()),
     ])
     if (s.data) {
       setSettings(s.data.settings)
@@ -47,7 +47,7 @@ export default function AirdropsPage() {
     if (!draft) return
     setBusy(true)
     setNotice(null)
-    const res = await fetch('/api/admin/faucet/settings', {
+    const res = await fetch('/api/admin/funding/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(draft),
@@ -61,7 +61,7 @@ export default function AirdropsPage() {
 
   async function toggleEnabled() {
     if (!settings) return
-    const res = await fetch('/api/admin/faucet/settings', {
+    const res = await fetch('/api/admin/funding/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled: !settings.enabled }),
@@ -73,7 +73,7 @@ export default function AirdropsPage() {
     e.preventDefault()
     setBusy(true)
     setNotice(null)
-    const res = await fetch('/api/admin/faucet/grant', {
+    const res = await fetch('/api/admin/funding/grant', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ address: address.trim(), amountAeko: Number(amount) }),
@@ -105,9 +105,9 @@ export default function AirdropsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Airdrops</h1>
+          <h1 className="text-2xl font-bold text-white">Funding grants</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            Public faucet policy and manual grants. Users request at <span className="mono">/faucet</span>; the Aeko app calls the same API.
+            Policy-controlled testnet funding and operator grants. Public users request at <span className="mono">/funding</span>; approved grants become low-level <span className="mono">requestAirdrop</span> calls.
           </p>
         </div>
         {settings && (
@@ -117,7 +117,7 @@ export default function AirdropsPage() {
               settings.enabled ? 'bg-red-500/15 text-red-300 hover:bg-red-500/25' : 'bg-emerald-500 text-black hover:bg-emerald-400'
             }`}
           >
-            {settings.enabled ? 'Pause faucet' : 'Resume faucet'}
+            {settings.enabled ? 'Pause funding' : 'Resume funding'}
           </button>
         )}
       </div>
@@ -151,7 +151,7 @@ export default function AirdropsPage() {
 
         <form onSubmit={manualGrant} className="bg-[#12141f] border border-[#1e2135] rounded-xl p-6 space-y-4">
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Manual grant</h2>
-          <p className="text-xs text-gray-600">Skips cooldown and budget. Capped by “max manual grant” and by the chain faucet&apos;s own per-request cap.</p>
+          <p className="text-xs text-gray-600">Skips cooldown and budget. Capped by “max manual grant” and by the private Faucet Daemon&apos;s per-request cap.</p>
           <div>
             <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1">Recipient address</label>
             <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Base58 wallet address…" required className={inputClass} />

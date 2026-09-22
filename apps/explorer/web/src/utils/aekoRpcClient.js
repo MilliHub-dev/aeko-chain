@@ -1,6 +1,8 @@
+import { getNetworkConfig, isLocalNetworkConfig } from './networkConfig.js';
+
 // Thin JSON-RPC client for the AEKO testnet validator.
 //
-// Used by the network/test consoles to drive airdrops, transactions, explicit
+// Used by the network/test consoles for funding, transactions, explicit
 // live-chain reads, and the Explorer's narrowly scoped compatibility fallback.
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -65,6 +67,58 @@ export async function requestAirdrop(rpcUrl, address, lamports) {
   return rpc(rpcUrl, 'requestAirdrop', [address, lamports]);
 }
 
+function normalizedUrl(value) {
+  try {
+    return new URL(value).toString().replace(/\/$/, '');
+  } catch {
+    return '';
+  }
+}
+
+export function isConfiguredPublicTestnetRpc(rpcUrl) {
+  const config = getNetworkConfig('testnet');
+  if (!config.available || isLocalNetworkConfig(config) || !config.fundingUrl) return false;
+  return normalizedUrl(rpcUrl) === normalizedUrl(config.rpcUrl);
+}
+
+function fundingEndpoint(fundingUrl, path) {
+  const base = String(fundingUrl || '').trim().replace(/\/$/, '');
+  if (!base) throw new Error('Testnet Funding URL is not configured.');
+  return `${base}${path}`;
+}
+
+export async function getFundingPolicy(fundingUrl) {
+  const response = await fetch(fundingEndpoint(fundingUrl, '/api/funding/policy'));
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body?.data) {
+    throw new Error(body?.error?.message || `Funding policy request failed with HTTP ${response.status}`);
+  }
+  return body.data;
+}
+
+export async function requestFundingGrant(fundingUrl, address) {
+  const response = await fetch(fundingEndpoint(fundingUrl, '/api/funding/request'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body?.data?.signature) {
+    throw new Error(body?.error?.message || `Funding request failed with HTTP ${response.status}`);
+  }
+  return body.data;
+}
+
+export async function requestTestnetFunding(rpcUrl, address, lamports) {
+  const config = getNetworkConfig('testnet');
+  if (!isConfiguredPublicTestnetRpc(rpcUrl)) {
+    return requestAirdrop(rpcUrl, address, lamports);
+  }
+
+  const grant = await requestFundingGrant(config.fundingUrl, address);
+  return grant.signature;
+}
+
 export async function getAccountInfo(rpcUrl, address) {
   const r = await rpc(rpcUrl, 'getAccountInfo', [
     address,
@@ -90,7 +144,6 @@ export async function confirmSignature(rpcUrl, signature, { attempts = 20, inter
     if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') {
       return status;
     }
-    // eslint-disable-next-line no-await-in-loop
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   throw new Error('Transaction not confirmed within timeout window.');

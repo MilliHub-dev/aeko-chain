@@ -4,7 +4,7 @@ from aeko_sdk import AekoClient
 
 
 def main() -> None:
-    client = AekoClient("https://api.testnet.aeko.chain")
+    client = AekoClient("https://rpc.aeko.online")
     account = "11111111111111111111111111111111"
     previous_balance = None
 

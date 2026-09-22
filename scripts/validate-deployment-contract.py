@@ -19,6 +19,11 @@ SOCIAL_BOOTSTRAP = ROOT / "social-bootstrap" / "src" / "main.rs"
 EXPLORER_HEALTH = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "health" / "mod.rs"
 README = ROOT / "README.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
+ADMIN_ENV = ROOT / "apps" / "admin" / ".env.local.example"
+PUBLIC_ENV = DOCKER_DIR / "env.public.example"
+EXPLORER_BACKEND_ENV = ROOT / "apps" / "explorer" / "backend" / ".env.example"
+EXPLORER_ENTRYPOINT = DOCKER_DIR / "explorer-ui-entrypoint.sh"
+NETWORK_CONFIG = ROOT / "apps" / "explorer" / "web" / "src" / "utils" / "networkConfig.js"
 
 
 class ContractFailure(RuntimeError):
@@ -58,6 +63,37 @@ def main() -> int:
     explorer_health = read(EXPLORER_HEALTH)
     readme = read(README)
     deployment = read(DEPLOYMENT)
+    admin_env = read(ADMIN_ENV)
+    public_env = read(PUBLIC_ENV)
+    explorer_backend_env = read(EXPLORER_BACKEND_ENV)
+    explorer_entrypoint = read(EXPLORER_ENTRYPOINT)
+    network_config = read(NETWORK_CONFIG)
+
+    # The settings mutation credential is server-side control-plane state.
+    # Explorer API and Operations Web must share it, while the browser runtime
+    # must never receive it.
+    require(
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=" in admin_env,
+        "Operations Web env example must declare the Explorer settings admin token",
+    )
+    require(
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=" in public_env,
+        "deployment env example must declare the Explorer settings admin token",
+    )
+    require(
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=" in explorer_backend_env,
+        "Explorer backend env example must declare the settings admin token",
+    )
+    for label, compose in (("portable", portable), ("Dokploy", dokploy), ("Coolify", coolify)):
+        require(
+            compose.count("AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:") >= 2,
+            f"{label} must inject the settings token into Explorer API and Operations Web",
+        )
+    require(
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" not in network_config
+        and "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" not in explorer_entrypoint,
+        "Explorer browser runtime must never receive the settings admin token",
+    )
 
     # One canonical build recipe, with all role-specific images produced from it.
     for target in ("validator", "faucet", "social-bootstrap", "tools", "explorer-api", "explorer-ui"):
@@ -139,7 +175,7 @@ def main() -> int:
         re.search(r"^  rpc-node:\s*$", dokploy, re.MULTILINE) is None,
         "Dokploy must not make the non-voting RPC replica a mandatory/default service",
     )
-    ordered = ["faucet", "validator", "social-bootstrap", "explorer-api", "explorer-ui", "admin", "wallet-tools"]
+    ordered = ["faucet", "validator", "social-bootstrap", "explorer-api", "explorer-ui", "operations-web", "wallet-tools"]
     for index, service in enumerate(ordered):
         next_service = ordered[index + 1] if index + 1 < len(ordered) else None
         block = service_block(dokploy, service, next_service)
@@ -149,7 +185,8 @@ def main() -> int:
     validator = service_block(dokploy, "validator", "social-bootstrap")
     bootstrap = service_block(dokploy, "social-bootstrap", "explorer-api")
     explorer = service_block(dokploy, "explorer-api", "explorer-ui")
-    explorer_ui = service_block(dokploy, "explorer-ui", "admin")
+    explorer_ui = service_block(dokploy, "explorer-ui", "operations-web")
+    operations_web = service_block(dokploy, "operations-web", "wallet-tools")
     wallet_tools = service_block(dokploy, "wallet-tools")
 
     require("AEKO_NODE_ROLE: validator" in validator, "validator role must be explicit")
@@ -182,7 +219,10 @@ def main() -> int:
 
     require("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}" in bootstrap, "SocialFi reset recovery must be an explicit opt-in")
     require("social-state:/state" in bootstrap, "SocialFi state/registry must persist")
-    require("AEKO_RPC_URL: http://validator:8899" in bootstrap, "SocialFi bootstrap must use the healthy validator RPC")
+    require(
+        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in bootstrap,
+        "SocialFi bootstrap must use an env-overridable internal RPC with validator:8899 as the Docker-network default",
+    )
     require('restart: "no"' in bootstrap, "SocialFi bootstrap must fail once instead of entering an outer Docker restart storm")
     for seed_env in (
         "AEKO_REWARDS_TREASURY_SEED_LAMPORTS",
@@ -193,7 +233,18 @@ def main() -> int:
     for obsolete_override in ("AEKO_REWARD_VAULT:", "AEKO_STAKE_VAULT:"):
         require(obsolete_override not in bootstrap, f"Dokploy bootstrap must not configure obsolete operator-owned vault address {obsolete_override}")
 
-    require("AEKO_EXPLORER_RPC: http://validator:8899" in explorer, "public Explorer must index directly through the healthy validator RPC")
+    require(
+        "AEKO_EXPLORER_RPC: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in explorer,
+        "public Explorer must use the env-overridable internal validator RPC instead of a public hostname",
+    )
+    require(
+        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in operations_web,
+        "Dokploy operations web must talk to the validator through the internal Docker-network RPC",
+    )
+    require(
+        "AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in operations_web,
+        "Dokploy operations web must talk to Explorer through the internal Docker-network API",
+    )
     require("EXPLORER_DATABASE_URL:?" in explorer, "public Explorer must require durable PostgreSQL")
     require("AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env" in explorer, "Explorer must consume generated SocialFi registry")
     for registry_key in (
@@ -238,15 +289,14 @@ def main() -> int:
     coolify_validator = service_block(coolify, "validator", "social-bootstrap")
     coolify_bootstrap = service_block(coolify, "social-bootstrap", "explorer-api")
     coolify_explorer = service_block(coolify, "explorer-api", "explorer-ui")
-    coolify_admin = service_block(coolify, "admin", "wallet-tools")
+    coolify_operations_web = service_block(coolify, "operations-web", "wallet-tools")
     coolify_wallet_tools = service_block(coolify, "wallet-tools")
-    # The admin app is the airdrop policy owner (public faucet + operator
-    # console). It must be reachable with its own credentials and keep its
-    # grant ledger across redeploys.
-    require("ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}" in coolify_admin, "Coolify admin must require an operator password")
-    require("ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}" in coolify_admin, "Coolify admin must require a session secret")
-    require("- admin-state:/data" in coolify_admin, "Coolify admin must persist faucet policy/grants in the admin-state volume")
-    require("http://127.0.0.1:3001/api/faucet/policy" in coolify_admin, "Coolify admin healthcheck must probe the public faucet policy endpoint")
+    # The operations web app owns public Funding Gateway policy plus the operator
+    # console. The private Faucet Daemon is a separate TCP service.
+    require("ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}" in coolify_operations_web, "Coolify operations web must require an operator password")
+    require("ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}" in coolify_operations_web, "Coolify operations web must require a session secret")
+    require("- admin-state:/data" in coolify_operations_web, "Coolify operations web must persist funding policy/grants in the admin-state volume")
+    require("http://127.0.0.1:3001/api/funding/policy" in coolify_operations_web, "Coolify operations web healthcheck must probe the public funding policy endpoint")
     require("--per-request-cap" in coolify_faucet, "Coolify faucet must enforce a per-request airdrop ceiling")
     require("AEKO_KEYS_DIR" not in coolify, "Coolify compose must not depend on interpolated key-path variables")
     require("source: ${" not in coolify, "Coolify volume sources must not contain Compose interpolation")
@@ -270,10 +320,26 @@ def main() -> int:
     require("validator-ledger:/ledger" in coolify_validator, "Coolify validator must use a Docker-managed ledger volume by default")
     require("AEKO_VALIDATOR_LEDGER_VOLUME" not in coolify, "Coolify ledger source must not use interpolated volume-source syntax")
     require("AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?}" in coolify_validator, "Coolify must require the public validator address")
+    require("AEKO_FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_validator, "Coolify validator must protect requestAirdrop behind the Funding Gateway key")
+    require("FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_operations_web, "Coolify admin must receive the matching Funding Gateway key")
     require('"8000-8050:8000-8050/tcp"' in coolify_validator, "Coolify validator TCP transport range must be published")
     require('"8000-8050:8000-8050/udp"' in coolify_validator, "Coolify validator UDP transport range must be published")
-    require("AEKO_RPC_URL: http://validator:8899" in coolify_bootstrap, "Coolify bootstrap must use validator RPC")
-    require("AEKO_EXPLORER_RPC: http://validator:8899" in coolify_explorer, "Coolify Explorer must index validator RPC")
+    require(
+        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in coolify_bootstrap,
+        "Coolify bootstrap must use an env-overridable internal validator RPC",
+    )
+    require(
+        "AEKO_EXPLORER_RPC: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in coolify_explorer,
+        "Coolify Explorer must use the internal validator RPC instead of a public hostname",
+    )
+    require(
+        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in coolify_operations_web,
+        "Coolify operations web must use the internal validator RPC",
+    )
+    require(
+        "AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in coolify_operations_web,
+        "Coolify operations web must use the internal Explorer API",
+    )
     require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?}" in coolify_explorer, "Coolify Explorer must require durable PostgreSQL")
     require('profiles: ["ops"]' in coolify_wallet_tools, "Coolify wallet tools must remain operator-only")
     require(re.search(r"^  postgres(?:ql)?:", coolify, re.MULTILINE) is None, "Coolify compose must not embed PostgreSQL")
@@ -282,7 +348,24 @@ def main() -> int:
     # validation and Dokploy do not exercise different custody models.
     portable_bootstrap = service_block(portable, "social-bootstrap", "explorer-api")
     portable_explorer = service_block(portable, "explorer-api", "explorer-ui")
+    portable_operations_web = service_block(portable, "operations-web")
     require("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}" in portable_bootstrap, "portable bootstrap must expose explicit recovery")
+    require(
+        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in portable_bootstrap,
+        "portable bootstrap must use the internal validator RPC by default",
+    )
+    require(
+        "AEKO_EXPLORER_RPC: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in portable_explorer,
+        "portable Explorer must use the internal validator RPC by default",
+    )
+    require(
+        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in portable_operations_web,
+        "portable operations web must use the internal validator RPC",
+    )
+    require(
+        "AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in portable_operations_web,
+        "portable operations web must use the internal Explorer API",
+    )
     require("AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-localnet}" in portable_explorer, "portable Explorer must default to localnet identity rather than production testnet")
     require("http://127.0.0.1:8088/" in portable_explorer, "portable Explorer container health must use process liveness")
     require("http://127.0.0.1:8088/health" not in portable_explorer, "portable Explorer container health must not couple process liveness to readiness")

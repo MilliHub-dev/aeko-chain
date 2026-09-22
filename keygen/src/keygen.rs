@@ -1,8 +1,6 @@
 #![allow(clippy::arithmetic_side_effects)]
 #![allow(deprecated)]
 use {
-    bip39::{Mnemonic, MnemonicType, Seed},
-    clap::{crate_description, crate_name, value_parser, Arg, ArgMatches, Command},
     aeko_clap_v3_utils::{
         input_parsers::STDOUT_OUTFILE_TOKEN,
         input_validators::is_prompt_signer_source,
@@ -32,6 +30,8 @@ use {
             write_keypair_file, Keypair, Signer,
         },
     },
+    bip39::{Mnemonic, MnemonicType, Seed},
+    clap::{crate_description, crate_name, value_parser, Arg, ArgMatches, Command},
     std::{
         collections::HashSet,
         error,
@@ -687,12 +687,9 @@ fn do_main(matches: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
                                     .count
                                     .fetch_sub(1, Ordering::Relaxed);
                                 if !no_outfile {
-                                    write_keypair_file(&keypair, &format!("{}.json", keypair.pubkey()))
-                                    .unwrap();
-                                    println!(
-                                        "Wrote keypair to {}",
-                                        &format!("{}.json", keypair.pubkey())
-                                    );
+                                    let outfile = format!("{}.json", keypair.pubkey());
+                                    write_keypair_file(&keypair, outfile).unwrap();
+                                    println!("Wrote keypair to {}.json", keypair.pubkey());
                                 }
                                 if use_mnemonic {
                                     let divider = String::from_utf8(vec![b'='; phrase.len()]).unwrap();

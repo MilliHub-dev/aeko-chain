@@ -14,7 +14,7 @@ use {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let rpc_url =
-        env::var("AEKO_RPC_URL").unwrap_or_else(|_| "https://api.testnet.aeko.chain".to_string());
+        env::var("AEKO_RPC_URL").unwrap_or_else(|_| "https://rpc.aeko.online".to_string());
     let program_id = Pubkey::from_str(&required_env("AEKO_PROGRAM_ID")?)?;
     let keypair_path = env::var("AEKO_KEYPAIR_PATH")
         .unwrap_or_else(|_| format!("{}/.config/aeko/id.json", env::var("HOME").unwrap_or_default()));

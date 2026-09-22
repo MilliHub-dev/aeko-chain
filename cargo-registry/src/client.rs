@@ -1,5 +1,4 @@
 use {
-    clap::{crate_description, crate_name, value_t, value_t_or_exit, App, Arg, ArgMatches},
     aeko_clap_utils::{
         hidden_unless_forced,
         input_validators::is_url_or_moniker,
@@ -16,6 +15,7 @@ use {
         commitment_config,
         signature::{read_keypair_file, Keypair},
     },
+    clap::{crate_description, crate_name, value_t, value_t_or_exit, App, Arg, ArgMatches},
     std::{error, sync::Arc, time::Duration},
 };
 
@@ -83,7 +83,7 @@ impl Client {
                     .validator(is_url_or_moniker)
                     .help(
                         "URL for Aeko's JSON RPC or moniker (or their first letter): \
-                       [mainnet-beta, testnet, devnet, localhost]",
+                       [testnet, localhost]; use a full URL for any other provisioned network",
                     ),
             )
             .arg(

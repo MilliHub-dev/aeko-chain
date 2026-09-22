@@ -46,7 +46,7 @@ These should be derived from the chosen public base authority wallet so anyone c
 After publication, wire the canonical public addresses into the web app with these environment values:
 
 ```bash
-VITE_AEKO_DEMO_RPC=https://api.testnet.aeko.chain
+VITE_AEKO_DEMO_RPC=https://rpc.aeko.online
 VITE_AEKO_DEMO_COLLECTION=<published-collection-address>
 VITE_AEKO_DEMO_TOKEN=<published-token-address>
 VITE_AEKO_DEMO_COLLECTION_SEED=aeko-genesis-collection

@@ -1,5 +1,5 @@
-name: Admin application DevOps
-description: Fully validate, build, and optionally publish the AEKO admin application image.
+name: Operations Web DevOps
+description: Fully validate, build, and optionally publish the AEKO Operations Web image.
 
 inputs:
   validate-source:
@@ -7,11 +7,11 @@ inputs:
     required: false
     default: "true"
   build-image:
-    description: Build the admin container image.
+    description: Build the Operations Web container image.
     required: false
     default: "false"
   publish:
-    description: Push the immutable SHA-tagged admin image to Docker Hub.
+    description: Push the immutable SHA-tagged Operations Web image to Docker Hub.
     required: false
     default: "false"
   registry-user:
@@ -25,24 +25,24 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Guard admin image publication branch
+    - name: Guard Operations Web image publication branch
       if: ${{ inputs.publish == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
         if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-          echo "Admin image publication is permitted only from main." >&2
+          echo "Operations Web image publication is permitted only from main." >&2
           exit 1
         fi
 
-    - name: Validate admin source
+    - name: Validate Operations Web source
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
       env:
         HOST_BUILD: ${{ inputs.build-image != 'true' && 'true' || 'false' }}
       run: bash "$GITHUB_ACTION_PATH/validate.sh"
 
-    - name: Build admin image
+    - name: Build Operations Web image
       if: ${{ inputs.build-image == 'true' }}
       shell: bash
       env:
@@ -56,24 +56,24 @@ runs:
 
         if [ "$PUBLISH" = "true" ]; then
           : "${REGISTRY_USER:?registry-user is required when publishing}"
-          tags+=(--tag "${REGISTRY_USER}/aeko-admin:${SHA_TAG}")
+          tags+=(--tag "${REGISTRY_USER}/aeko-operations-web:${SHA_TAG}")
           output=(--push)
         else
-          tags+=(--tag "aeko-ci/aeko-admin:${SHA_TAG}")
+          tags+=(--tag "aeko-ci/aeko-operations-web:${SHA_TAG}")
         fi
 
         docker buildx build \
           --file docker/Dockerfile \
-          --target admin \
-          --cache-from "type=gha,scope=aeko-admin" \
-          --cache-to "type=gha,scope=aeko-admin,mode=max,ignore-error=true" \
+          --target operations-web \
+          --cache-from "type=gha,scope=aeko-operations-web" \
+          --cache-to "type=gha,scope=aeko-operations-web,mode=max,ignore-error=true" \
           "${tags[@]}" \
           "${output[@]}" \
           .
 
-    - name: Verify PR-built admin image exists
+    - name: Verify PR-built Operations Web image exists
       if: ${{ inputs.build-image == 'true' && inputs.publish != 'true' }}
       shell: bash
       env:
         SHA_TAG: ${{ inputs.sha-tag }}
-      run: docker image inspect "aeko-ci/aeko-admin:${SHA_TAG}" >/dev/null
+      run: docker image inspect "aeko-ci/aeko-operations-web:${SHA_TAG}" >/dev/null

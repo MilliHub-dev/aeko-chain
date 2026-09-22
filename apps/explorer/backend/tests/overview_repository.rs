@@ -1,7 +1,6 @@
 use {
     aeko_explorer_backend::{
-        config::ExplorerBackendConfig,
-        infrastructure::persistence::PostgresRepository,
+        config::ExplorerBackendConfig, infrastructure::persistence::PostgresRepository,
     },
     anyhow::{Context, Result},
     std::{env, time::Duration},

@@ -1,4 +1,4 @@
-// In-browser test keypair management for the /faucet test console.
+// In-browser test keypair management for the /network-tools test console.
 //
 // Keypairs are ed25519 (the same scheme aeko-validator accepts on the wire).
 // We use tweetnacl because it ships ed25519 sign + keyPair primitives in a

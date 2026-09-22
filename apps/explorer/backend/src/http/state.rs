@@ -12,6 +12,7 @@ pub struct AppState {
     pub genesis_hash: String,
     pub max_ready_lag_slots: u64,
     pub social_enabled: bool,
+    pub settings_admin_token: String,
 }
 
 impl AppState {
@@ -22,6 +23,7 @@ impl AppState {
         genesis_hash: impl Into<String>,
         max_ready_lag_slots: u64,
         social_enabled: bool,
+        settings_admin_token: impl Into<String>,
     ) -> Self {
         Self {
             repository,
@@ -30,6 +32,7 @@ impl AppState {
             genesis_hash: genesis_hash.into(),
             max_ready_lag_slots,
             social_enabled,
+            settings_admin_token: settings_admin_token.into(),
         }
     }
 

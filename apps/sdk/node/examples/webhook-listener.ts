@@ -1,7 +1,7 @@
 import { AekoNodeClient, watchAccountState, watchSignatureStatus } from '../src/index.js';
 
 async function main() {
-  const client = new AekoNodeClient('https://api.testnet.aeko.chain', {
+  const client = new AekoNodeClient('https://rpc.aeko.online', {
     appName: 'aeko-webhook-worker',
   });
 

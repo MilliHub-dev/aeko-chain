@@ -44,7 +44,7 @@ import {
   detectInjectedAekoWalletAdapter,
 } from '@aeko-chain/web3.js';
 
-const connection = new AekoConnection('https://api.testnet.aeko.chain');
+const connection = new AekoConnection('https://rpc.aeko.online');
 const wallet = detectInjectedAekoWalletAdapter();
 
 const latest = await connection.getLatestBlockhash();

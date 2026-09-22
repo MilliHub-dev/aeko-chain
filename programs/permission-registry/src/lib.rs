@@ -12,7 +12,7 @@ pub const DEFAULT_COMPUTE_UNITS: u64 = 400;
 
 /// Unique program ID for the permission-registry.
 /// Bytes chosen to be distinct from all other AEKO programs.
-pub const PERMISSION_REGISTRY_PROGRAM_ID_BYTES: [u8; 32] = [17u8; 32];
+pub const PERMISSION_REGISTRY_PROGRAM_ID_BYTES: [u8; 32] = [22u8; 32];
 
 pub fn id() -> Pubkey {
     Pubkey::new_from_array(PERMISSION_REGISTRY_PROGRAM_ID_BYTES)

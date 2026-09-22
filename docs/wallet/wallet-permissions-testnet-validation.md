@@ -26,7 +26,7 @@ Prove that the wallet-permissions implementation works end to end on AEKO testne
 
 Recommended baseline:
 
-- testnet RPC: `https://api.testnet.aeko.chain`
+- testnet RPC: `https://rpc.aeko.online`
 - funded owner wallet
 - delegate wallet or session key
 - known program id to use for allowlist checks

@@ -4,11 +4,6 @@ use {
         stop_process::stop_process,
         update_manifest::{SignedUpdateManifest, UpdateManifest},
     },
-    chrono::{Local, TimeZone},
-    console::{style, Emoji},
-    crossbeam_channel::unbounded,
-    indicatif::{ProgressBar, ProgressStyle},
-    serde::{Deserialize, Serialize},
     aeko_config_program::{config_instruction, get_config_data, ConfigState},
     aeko_rpc_client::rpc_client::RpcClient,
     aeko_sdk::{
@@ -18,6 +13,11 @@ use {
         signature::{read_keypair_file, Keypair, Signable, Signer},
         transaction::Transaction,
     },
+    chrono::{Local, TimeZone},
+    console::{style, Emoji},
+    crossbeam_channel::unbounded,
+    indicatif::{ProgressBar, ProgressStyle},
+    serde::{Deserialize, Serialize},
     std::{
         fs::{self, File},
         io::{self, BufReader, Read},
@@ -567,27 +567,47 @@ pub fn init(
 }
 
 fn github_release_download_url(release_semver: &str) -> String {
+    let base = std::env::var("AEKO_GITHUB_RELEASE_BASE_URL")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| {
+            "https://github.com/MilliHub-dev/aeko-chain/releases/download".to_string()
+        });
     format!(
-        "https://github.com/aeko-chain/aeko/releases/download/v{}/aeko-release-{}.tar.bz2",
+        "{}/v{}/aeko-release-{}.tar.bz2",
+        base.trim_end_matches('/'),
         release_semver,
         crate::build_env::TARGET
     )
 }
 
-fn release_channel_download_url(release_channel: &str) -> String {
-    format!(
-        "https://release.aeko.chain/{}/aeko-release-{}.tar.bz2",
-        release_channel,
-        crate::build_env::TARGET
-    )
+fn release_channel_base_url() -> Result<String, String> {
+    std::env::var("AEKO_RELEASE_CHANNEL_BASE_URL")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| value.trim_end_matches('/').to_string())
+        .ok_or_else(|| {
+            "release channels are not configured; set AEKO_RELEASE_CHANNEL_BASE_URL or use a tagged GitHub release"
+                .to_string()
+        })
 }
 
-fn release_channel_version_url(release_channel: &str) -> String {
-    format!(
-        "https://release.aeko.chain/{}/aeko-release-{}.yml",
+fn release_channel_download_url(release_channel: &str) -> Result<String, String> {
+    Ok(format!(
+        "{}/{}/aeko-release-{}.tar.bz2",
+        release_channel_base_url()?,
         release_channel,
         crate::build_env::TARGET
-    )
+    ))
+}
+
+fn release_channel_version_url(release_channel: &str) -> Result<String, String> {
+    Ok(format!(
+        "{}/{}/aeko-release-{}.yml",
+        release_channel_base_url()?,
+        release_channel,
+        crate::build_env::TARGET
+    ))
 }
 
 fn print_update_manifest(update_manifest: &UpdateManifest) {
@@ -652,7 +672,7 @@ pub fn info(config_file: &str, local_info_only: bool, eval: bool) -> Result<(), 
                 println_name_value(&format!("{BULLET}Release channel:"), release_channel);
                 println_name_value(
                     &format!("{BULLET}Release URL:"),
-                    &release_channel_download_url(release_channel),
+                    &release_channel_download_url(release_channel)?,
                 );
             }
         }
@@ -900,8 +920,14 @@ fn check_for_newer_github_release(
     let mut releases = vec![];
 
     while page == 1 || releases.len() == PER_PAGE {
+        let releases_api = std::env::var("AEKO_GITHUB_RELEASES_API_URL")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| {
+                "https://api.github.com/repos/MilliHub-dev/aeko-chain/releases".to_string()
+            });
         let url = reqwest::Url::parse_with_params(
-            "https://api.github.com/repos/aeko-chain/aeko/releases",
+            &releases_api,
             &[
                 ("per_page", &format!("{PER_PAGE}")),
                 ("page", &format!("{page}")),
@@ -1023,7 +1049,7 @@ pub fn init_or_update(config_file: &str, is_init: bool, check_only: bool) -> Res
                 }
             }
             ExplicitRelease::Channel(release_channel) => {
-                let version_url = release_channel_version_url(release_channel);
+                let version_url = release_channel_version_url(release_channel)?;
 
                 let (_temp_dir, temp_file, _temp_archive_sha256) =
                     download_to_temp(&version_url, None)
@@ -1036,7 +1062,7 @@ pub fn init_or_update(config_file: &str, is_init: bool, check_only: bool) -> Res
                 let current_release_version_yml =
                     release_dir.join("aeko-release").join("version.yml");
 
-                let download_url = release_channel_download_url(release_channel);
+                let download_url = release_channel_download_url(release_channel)?;
 
                 if !current_release_version_yml.exists() {
                     (

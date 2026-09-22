@@ -20,7 +20,7 @@ import {
   getBalance,
   getEpochInfo,
   getLatestBlockhash,
-  requestAirdrop,
+  requestTestnetFunding,
   sendTransaction,
 } from '../utils/aekoRpcClient';
 import { buildSignedAnchorPostTx, randomBytes32, sha256 } from '../utils/aekoSocial';
@@ -63,10 +63,8 @@ async function fetchExplorer(base, path) {
 async function pollUntil(read, accept, message) {
   let lastValue;
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
-    // eslint-disable-next-line no-await-in-loop
     lastValue = await read();
     if (accept(lastValue)) return lastValue;
-    // eslint-disable-next-line no-await-in-loop
     await sleep(POLL_INTERVAL_MS);
   }
   throw new Error(message);
@@ -118,7 +116,7 @@ export default function SocialTestV2() {
   const [registry, setRegistry] = useState(null);
   const [liveStatus, setLiveStatus] = useState(null);
   const [lastPost, setLastPost] = useState(null);
-  const [steps, setSteps] = useState({});
+  const [steps, setSteps] = useState(/** @type {Record<string, { status: string, message?: string, detail?: string }>} */ ({}));
   const [busy, setBusy] = useState(false);
 
   const wallet = useMemo(() => wallets.find((entry) => entry.id === walletId) || wallets[0] || null, [wallets, walletId]);
@@ -164,11 +162,11 @@ export default function SocialTestV2() {
   async function ensureFunded(target) {
     const current = await refreshBalance(target);
     if (current >= MIN_TEST_BALANCE) return current;
-    updateStep('fund', 'running', 'Requesting testnet AEKO for fees and economic custody checks.');
-    const signature = await requestAirdrop(rpcUrl, target.address, aekoToLamports(2));
+    updateStep('fund', 'running', 'Requesting a policy-controlled testnet funding grant for fees and economic custody checks.');
+    const signature = await requestTestnetFunding(rpcUrl, target.address, aekoToLamports(2));
     await confirmSignature(rpcUrl, signature);
     const funded = await refreshBalance(target);
-    if (funded <= current) throw new Error('Airdrop confirmed but wallet balance did not increase.');
+    if (funded <= current) throw new Error('Funding grant confirmed but wallet balance did not increase.');
     updateStep('fund', 'pass', `Wallet funded: ${formatAeko(funded)}`, signature);
     return funded;
   }

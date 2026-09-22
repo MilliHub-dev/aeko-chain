@@ -32,5 +32,5 @@ See [`../../install/README.md`](../../install/README.md) for version pinning, in
 *   `aeko config set --url mainnet-beta`: Switch to Mainnet.
 
 ### Program Deployment
-*   `aeko program deploy <PATH>`: Deploy a smart contract.
+*   `aeko program deploy <PATH>`: Deploy an on-chain program (smart contract).
 *   `aeko program close <PROGRAM_ID>`: Close a program and reclaim rent.

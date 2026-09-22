@@ -1,50 +1,42 @@
 # Validator Guide
 
-This guide covers setting up a Validator Node on the AEKO Chain Testnet/Mainnet.
+This guide describes the **AEKO Public Testnet** network boundary. The current repository does not define a canonical public mainnet.
 
-## Hardware Requirements
+## Public Testnet Network Surfaces
 
-| Component | Minimum Spec | Recommended Spec |
-| :--- | :--- | :--- |
-| **CPU** | 12 Cores / 24 Threads (2.8GHz+) | 16 Cores / 32 Threads (AMD Threadripper / EPYC) |
-| **RAM** | 128 GB | 256 GB ECC |
-| **Disk** | 2x 1TB NVMe SSD (PCIe Gen4) | 2x 2TB NVMe SSD (RAID 0) |
-| **Network** | 1 Gbps Symmetric | 10 Gbps Symmetric |
-| **GPU** | Optional (for PoH offloading) | CUDA-enabled (NVIDIA) |
+| Purpose | Endpoint |
+| --- | --- |
+| Validator gossip / peer discovery | `gossip.aeko.online:8001` |
+| Public JSON-RPC | `https://rpc.aeko.online` |
+| WebSocket PubSub | `wss://ws.aeko.online` |
+| Explorer | `https://scan.aeko.online` |
 
-## Software Prerequisites
-*   Ubuntu 20.04 / 22.04 LTS
-*   Rust (latest stable)
-*   AEKO CLI Tools
+`gossip.aeko.online` is raw validator networking, not an HTTP/Explorer hostname.
 
-## Installation Steps
+## Software
 
-### 1. Install AEKO CLI
+The lightweight public CLI installer installs **only** `aeko` and `aeko-keygen`:
+
 ```bash
-sh -c "$(curl -sSfL https://release.aeko.chain/install)"
+curl -fsSL https://raw.githubusercontent.com/MilliHub-dev/aeko-chain/main/install/aeko-cli-install.sh | sh
 ```
 
-### 2. Generate Identity
+It does **not** install `aeko-validator`, `aeko-gossip`, or `aeko-sys-tuner`.
+
+Validator operators should use a validated validator release/image produced from this repository or build the required validator binaries from the repository source. Do not assume the CLI-only installer provisions a validator node.
+
+## Identity
+
+Generate validator key material with the release-matched `aeko-keygen`:
+
 ```bash
 aeko-keygen new -o validator-keypair.json
 ```
 
-### 3. Tune System
-You must optimize your Linux kernel for high-throughput networking (UDP buffers, file descriptors).
-```bash
-sudo aeko-sys-tuner --user aeko
-```
+A voting validator also requires the chain-specific vote/stake provisioning expected by the active network. Creating a local keypair alone does not register a new voting validator on the public testnet.
 
-### 4. Start the Validator
-```bash
-aeko-validator \
-  --identity validator-keypair.json \
-  --vote-account vote-account-keypair.json \
-  --rpc-port 8899 \
-  --entrypoint entrypoint.testnet.aeko.chain:8001 \
-  --limit-ledger-size 50000000 \
-  --log -
-```
+## Network Reachability
 
-## Monitoring
-Monitor your node using `aeko-gossip` and `aeko-validators` commands to ensure you are catching up to the cluster and voting successfully.
+The current public deployment publishes validator TCP+UDP transport ports `8000-8050`; gossip begins on `8001`. External validator operation requires the advertised addresses, firewall rules, voting/stake state and release compatibility to be correct.
+
+For the deployed single-validator stack, see `DEPLOYMENT.md` and `docker/compose.coolify.yml`. Those files are the operational source of truth for the currently deployed node.

@@ -4,7 +4,7 @@
 
 ## Layout
 
-- `admin/` — administrative web application.
+- `admin/` — historical source directory for Operations Web (Funding Gateway + operator Admin Console).
 - `cli/` — the end-user/operator `aeko` command-line application.
 - `explorer/backend/` — off-chain Explorer indexer and REST API.
 - `explorer/web/` — Explorer and Network Tools web application.

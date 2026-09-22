@@ -9,7 +9,7 @@ use aeko_program_runtime::declare_process_instruction;
 use aeko_sdk::pubkey::Pubkey;
 
 pub const DEFAULT_COMPUTE_UNITS: u64 = 150;
-pub const WALLET_PERMISSIONS_PROGRAM_ID_BYTES: [u8; 32] = [10u8; 32];
+pub const WALLET_PERMISSIONS_PROGRAM_ID_BYTES: [u8; 32] = [12u8; 32];
 
 pub fn id() -> Pubkey {
     Pubkey::new_from_array(WALLET_PERMISSIONS_PROGRAM_ID_BYTES)

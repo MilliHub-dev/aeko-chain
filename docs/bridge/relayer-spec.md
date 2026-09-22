@@ -11,12 +11,15 @@ Relayers are the "couriers" of the bridge. They physically move the data packets
 *   **Relayer Fee**: Users pay a small fee (e.g., 0.1%) for the bridging service. This fee covers the gas costs on both chains + a profit margin for the Relayer.
 
 ## Running a Relayer
-Relayers do not need to be trusted (the Guardians provide the trust). Anyone can run a Relayer bot to earn fees.
+
+This document describes the bridge/relayer design. Do not infer that a public AEKO bridge or mainnet endpoint is deployed from this example.
 
 ```bash
-# Example command to start a relayer
+# Example against an explicitly chosen AEKO network.
 aeko-bridge-relayer start \
-  --eth-rpc https://mainnet.infura.io/v3/... \
-  --aeko-rpc https://api.mainnet-beta.aeko.chain \
+  --eth-rpc <ETHEREUM_RPC_URL> \
+  --aeko-rpc <AEKO_RPC_URL> \
   --keypair relayer-wallet.json
 ```
+
+For current public-testnet development, `<AEKO_RPC_URL>` is `https://rpc.aeko.online`.

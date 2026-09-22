@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { FaucetError, grant } from '@/lib/faucet-store'
+import { FundingError, grant } from '@/lib/funding-store'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     })
     return NextResponse.json({ data: record })
   } catch (err) {
-    if (err instanceof FaucetError) {
+    if (err instanceof FundingError) {
       return NextResponse.json({ error: { code: err.code, message: err.message } }, { status: err.status })
     }
     console.error('admin grant failed:', err)

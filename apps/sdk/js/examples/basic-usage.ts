@@ -5,7 +5,7 @@ import {
 } from '../src/index';
 
 async function main() {
-  const connection = new AekoConnection('https://api.testnet.aeko.chain');
+  const connection = new AekoConnection('https://rpc.aeko.online');
   const wallet = detectInjectedAekoWalletAdapter();
   const latestBlockhash = await connection.getLatestBlockhash();
 

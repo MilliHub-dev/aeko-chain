@@ -19,7 +19,7 @@ test('active test console delegates to the end-to-end implementation', async () 
   assert.match(implementation, /fetchWalletProfile/);
   assert.match(implementation, /fetchSocialStatus/);
   assert.match(implementation, /fetchSocialProjection/);
-  assert.match(implementation, /requestAirdrop/);
+  assert.doesNotMatch(implementation, /requestAirdrop|requestTestnetFunding|requestFundingGrant/);
   assert.match(implementation, /buildSignedTransfer/);
   assert.match(implementation, /buildSignedAnchorPostTx/);
   assert.match(implementation, /buildSignedLikeTx/);
@@ -39,7 +39,9 @@ test('console reads are API-first and direct RPC is limited to unsupported write
   assert.match(implementation, /fetchSocialStatus\(explorerApiUrl\)/);
   assert.match(implementation, /fetchSocialProjection\(explorerApiUrl/);
 
-  for (const rpcWritePrimitive of ['requestAirdrop', 'getLatestBlockhash', 'sendTransaction', 'confirmSignature']) {
+  assert.doesNotMatch(implementation, /\brequestAirdrop\b/);
+  assert.doesNotMatch(implementation, /\brequestTestnetFunding\b/);
+  for (const rpcWritePrimitive of ['getLatestBlockhash', 'sendTransaction', 'confirmSignature']) {
     assert.match(implementation, new RegExp(`\\b${rpcWritePrimitive}\\b`), rpcWritePrimitive);
   }
 });
@@ -112,13 +114,33 @@ test('social payout actions preflight live program-owned vault liquidity', async
 });
 
 
-test('accounts workspace distinguishes a browser-local unfunded wallet from an API outage', async () => {
+test('accounts workspace distinguishes a browser-local unfunded wallet from an API outage without owning funding', async () => {
   const implementation = await source('components/NetworkConsoleModalV2.jsx');
+  const funding = await source('components/TestnetFundingRequest.jsx');
+  const networkTools = await source('pages/NetworkTools.jsx');
 
   assert.match(implementation, /profileIssue\?\.status === 404/);
   assert.match(implementation, /Not funded yet/);
   assert.match(implementation, /Local wallet only/);
-  assert.match(implementation, /Request test AEKO/);
+  assert.match(implementation, /standalone Testnet Funding section/);
   assert.match(implementation, /hasSpendableBalance/);
-  assert.match(implementation, /rpcReady/);
+  assert.doesNotMatch(implementation, /Request test AEKO|requestAirdrop|requestTestnetFunding|requestFundingGrant/);
+
+  assert.match(networkTools, /<TestnetFundingRequest fundingUrl=\{config\.fundingUrl\} \/>/);
+  assert.match(funding, /Your AEKO wallet address/);
+  assert.match(funding, /requestFundingGrant\(fundingUrl, address\.trim\(\)\)/);
+});
+
+
+test('production Explorer endpoint configuration is runtime-injected rather than domain-hardcoded', async () => {
+  const networkConfig = await source('utils/networkConfig.js');
+  const rpcClient = await source('utils/aekoRpcClient.js');
+  const productionEnv = await source('../.env.production');
+  const html = await source('../index.html');
+
+  assert.match(html, /runtime-config\.js/);
+  assert.match(networkConfig, /__AEKO_RUNTIME_CONFIG__/);
+  assert.doesNotMatch(networkConfig, /aeko\.online/);
+  assert.doesNotMatch(rpcClient, /aeko\.online/);
+  assert.doesNotMatch(productionEnv, /https?:\/\//);
 });

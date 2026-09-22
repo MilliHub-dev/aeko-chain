@@ -58,22 +58,26 @@ cargo run --bin aeko-keygen -- new
 ## Step 2. Point The CLI At Testnet
 
 ```bash
-aeko config set --url https://api.testnet.aeko.chain
+aeko config set --url https://rpc.aeko.online
 ```
 
 Repo-binary alternative:
 
 ```bash
-cargo run --bin aeko -- config set --url https://api.testnet.aeko.chain
+cargo run --bin aeko -- config set --url https://rpc.aeko.online
 ```
 
 ## Step 3. Fund The Wallet
 
-Use the wallet public key from your keypair and request testnet funds:
+Use the wallet public key from your keypair and request a policy-controlled funding grant:
 
 ```bash
-aeko airdrop 10 <YOUR_WALLET_PUBKEY> --url testnet
+curl -X POST https://fund.aeko.online/api/funding/request \
+  -H 'Content-Type: application/json' \
+  -d '{"address":"<YOUR_WALLET_PUBKEY>"}'
 ```
+
+The public validator protects the low-level `requestAirdrop` RPC behind the Funding Gateway. The CLI `aeko airdrop` command remains appropriate for local/custom test validators that do not configure that protection.
 
 If the CLI is not global:
 
@@ -131,7 +135,7 @@ The starter includes a host-side Rust example that sends a bare instruction to t
 From the repo root:
 
 ```bash
-AEKO_RPC_URL=https://api.testnet.aeko.chain \
+AEKO_RPC_URL=https://rpc.aeko.online \
 AEKO_PROGRAM_ID=<DEPLOYED_PROGRAM_ID> \
 AEKO_KEYPAIR_PATH=$HOME/.config/aeko/id.json \
 cargo run --manifest-path contracts/hello-aeko-program/Cargo.toml --example invoke_hello -- "hello-from-testnet"
@@ -162,7 +166,7 @@ If you have an explorer backend live, search the signature there. Otherwise use 
 The invoke example should print something like:
 
 ```text
-rpc url: https://api.testnet.aeko.chain
+rpc url: https://rpc.aeko.online
 program id: <DEPLOYED_PROGRAM_ID>
 payer: <YOUR_WALLET_PUBKEY>
 instruction text: hello-from-testnet

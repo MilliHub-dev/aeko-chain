@@ -4,7 +4,7 @@ const RPC_URL = process.env.AEKO_RPC_URL ?? 'http://localhost:8899'
 
 /**
  * Read-only RPC relay for the admin pages (the middleware requires an operator
- * session). Airdrops go through /api/faucet/request, where the policy lives,
+ * session). Funding grants go through /api/funding/request, where the policy lives,
  * and nothing that submits or mutates is relayed at all.
  */
 const isReadOnly = (method: unknown) =>
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const b = body as { method?: string }
   if (!isReadOnly(b.method)) {
     return NextResponse.json(
-      { error: { message: `Method not relayed: ${String(b.method)}. Use the faucet API for airdrops.` } },
+      { error: { message: `Method not relayed: ${String(b.method)}. Use the Funding API for testnet grants.` } },
       { status: 403 },
     )
   }

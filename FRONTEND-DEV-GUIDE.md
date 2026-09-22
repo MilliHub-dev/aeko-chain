@@ -98,8 +98,8 @@ export const explorer   = new AekoExplorer(EXPLORER_URL);
 
 Add to `.env`:
 ```
-AEKO_RPC_URL=https://api.testnet.aeko.chain
-AEKO_EXPLORER_URL=https://explorer-api.testnet.aeko.chain
+AEKO_RPC_URL=https://rpc.aeko.online
+AEKO_EXPLORER_URL=https://api.aeko.online
 ```
 
 ---
@@ -1222,8 +1222,8 @@ export async function hasWallet(): Promise<boolean> {
 ### Express backend
 
 ```env
-AEKO_RPC_URL=https://api.testnet.aeko.chain
-AEKO_EXPLORER_URL=https://explorer-api.testnet.aeko.chain
+AEKO_RPC_URL=https://rpc.aeko.online
+AEKO_EXPLORER_URL=https://api.aeko.online
 AEKO_SERVICE_KEYPAIR=[1,2,3,...]    # byte array of service wallet secret key
 AEKO_TREASURY_ADDRESS=...           # platform fee destination
 AEKO_PLATFORM_FEE_BPS=200           # 2% platform fee on marketplace sales
@@ -1234,12 +1234,12 @@ SOCIAL_POSTS_STATE_ACCOUNT=...      # deployed social-posts state account addres
 
 ```env
 NEXT_PUBLIC_BACKEND_URL=https://api.aeko.social
-NEXT_PUBLIC_AEKO_RPC_URL=https://api.testnet.aeko.chain   # for direct tx submit only
+NEXT_PUBLIC_AEKO_RPC_URL=https://rpc.aeko.online   # for direct tx submit only
 ```
 
 ### React Native mobile app
 
 ```env
 EXPO_PUBLIC_BACKEND_URL=https://api.aeko.social
-EXPO_PUBLIC_AEKO_RPC_URL=https://api.testnet.aeko.chain
+EXPO_PUBLIC_AEKO_RPC_URL=https://rpc.aeko.online
 ```

@@ -85,7 +85,7 @@ jobs:
           done
           printf 'Validated shell syntax for %d DevOps scripts.\n' "${#scripts[@]}"
 
-      - name: Smoke admin action definition
+      - name: Smoke Operations Web action definition
         id: ci_admin_action
         if: steps.changes.outputs.ci_pipeline == 'true'
         continue-on-error: ${{ github.event_name == 'pull_request' }}
@@ -161,13 +161,21 @@ jobs:
           set -euo pipefail
           rustup toolchain install 1.85.0 --profile minimal --component rustfmt --component clippy
           rustup default 1.85.0
+          native_packages=()
           if ! command -v protoc >/dev/null 2>&1; then
+            native_packages+=(protobuf-compiler)
+          fi
+          if ! command -v pkg-config >/dev/null 2>&1 || ! pkg-config --exists libudev; then
+            native_packages+=(pkg-config libudev-dev)
+          fi
+          if [ "${#native_packages[@]}" -gt 0 ]; then
             sudo apt-get update
-            sudo apt-get install -y --no-install-recommends protobuf-compiler
+            sudo apt-get install -y --no-install-recommends "${native_packages[@]}"
           fi
           rustc --version
           cargo --version
           protoc --version
+          pkg-config --modversion libudev
 
       - name: Set up shared Rust compilation cache
         if: steps.changes.outputs.rust_needed == 'true'
@@ -302,8 +310,11 @@ jobs:
             if [ -z "${pids[$key]+x}" ]; then
               return 0
             fi
-            wait "${pids[$key]}"
-            status=$?
+            if wait "${pids[$key]}"; then
+              status=0
+            else
+              status=$?
+            fi
             outcome="$(status_to_outcome "$status")"
             printf -v "$variable" '%s' "$outcome"
           }
@@ -336,7 +347,14 @@ jobs:
           printf 'Parallel validation outcomes: admin=%s web=%s sdk-js=%s sdk-node=%s sdk-python=%s network-preflight=%s\n'             "$admin_outcome" "$explorer_web_outcome" "$sdk_js_outcome"             "$sdk_node_outcome" "$sdk_python_outcome" "$network_preflight_outcome"
 
           case "$admin_outcome:$explorer_web_outcome:$sdk_js_outcome:$sdk_node_outcome:$sdk_python_outcome:$network_preflight_outcome" in
-            *failure*|*cancelled*) exit 1 ;;
+            *failure*|*cancelled*)
+              # PRs aggregate child failures in the final gate below. Returning
+              # success here preserves outputs that GitHub drops from a failed
+              # continue-on-error step. Main pushes still fail immediately.
+              if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+                exit 1
+              fi
+              ;;
           esac
 
       # Phase 3: Rust-heavy validation. GitHub steps inside one job are
@@ -461,7 +479,7 @@ jobs:
           registry-user: ${{ steps.release.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ steps.release.outputs.sha_tag }}
 
-      - name: Build selected admin image
+      - name: Build selected Operations Web image
         id: admin_image
         if: >-
           !cancelled() && (github.event_name == 'pull_request' || success()) &&
@@ -535,7 +553,7 @@ jobs:
             esac
           }
 
-          record_failure "admin:validation" "$ADMIN_VALIDATION"
+          record_failure "operations-web:validation" "$ADMIN_VALIDATION"
           record_failure "explorer-web:validation" "$EXPLORER_WEB_VALIDATION"
           record_failure "sdk-js:validation" "$SDK_JS_VALIDATION"
           record_failure "sdk-node:validation" "$SDK_NODE_VALIDATION"
@@ -549,9 +567,9 @@ jobs:
           record_failure "cli:image" "$CLI_IMAGE"
           record_failure "explorer-backend:image" "$EXPLORER_BACKEND_IMAGE"
           record_failure "explorer-web:image" "$EXPLORER_WEB_IMAGE"
-          record_failure "admin:image" "$ADMIN_IMAGE"
+          record_failure "operations-web:image" "$ADMIN_IMAGE"
           record_failure "ci-pipeline:shell" "$CI_SHELL_VALIDATION"
-          record_failure "ci-pipeline:admin-action" "$CI_ADMIN_ACTION"
+          record_failure "ci-pipeline:operations-web-action" "$CI_ADMIN_ACTION"
           record_failure "ci-pipeline:sdk-action" "$CI_SDK_ACTION"
           record_failure "ci-pipeline:cli-action" "$CI_CLI_ACTION"
           record_failure "ci-pipeline:explorer-backend-action" "$CI_EXPLORER_BACKEND_ACTION"
@@ -575,7 +593,7 @@ jobs:
 
           if [ "$EXPECT_CI_PIPELINE" = "true" ]; then
             require_selected_result true "ci-pipeline:shell" "$CI_SHELL_VALIDATION"
-            require_selected_result true "ci-pipeline:admin-action" "$CI_ADMIN_ACTION"
+            require_selected_result true "ci-pipeline:operations-web-action" "$CI_ADMIN_ACTION"
             require_selected_result true "ci-pipeline:sdk-action" "$CI_SDK_ACTION"
             require_selected_result true "ci-pipeline:cli-action" "$CI_CLI_ACTION"
             require_selected_result true "ci-pipeline:explorer-backend-action" "$CI_EXPLORER_BACKEND_ACTION"
@@ -583,7 +601,7 @@ jobs:
             require_selected_result true "ci-pipeline:network-action" "$CI_NETWORK_ACTION"
           fi
 
-          require_selected_result "$EXPECT_ADMIN_VALIDATION" "admin:validation" "$ADMIN_VALIDATION"
+          require_selected_result "$EXPECT_ADMIN_VALIDATION" "operations-web:validation" "$ADMIN_VALIDATION"
           require_selected_result "$EXPECT_EXPLORER_WEB_VALIDATION" "explorer-web:validation" "$EXPLORER_WEB_VALIDATION"
           require_selected_result "$EXPECT_SDK_JS_VALIDATION" "sdk-js:validation" "$SDK_JS_VALIDATION"
           require_selected_result "$EXPECT_SDK_NODE_VALIDATION" "sdk-node:validation" "$SDK_NODE_VALIDATION"
@@ -617,7 +635,7 @@ jobs:
           fi
           if [ "$EXPECT_ADMIN_IMAGE" = "true" ] &&
              { [ "$EXPECT_ADMIN_VALIDATION" != "true" ] || [ "$ADMIN_VALIDATION" = "success" ]; }; then
-            require_selected_result true "admin:image" "$ADMIN_IMAGE"
+            require_selected_result true "operations-web:image" "$ADMIN_IMAGE"
           fi
 
           # Fail closed if the parallel orchestrator itself died before it could

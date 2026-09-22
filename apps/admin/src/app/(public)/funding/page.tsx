@@ -18,14 +18,14 @@ type Result =
 
 const ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
 
-export default function PublicFaucetPage() {
+export default function PublicFundingPage() {
   const [policy, setPolicy] = useState<Policy | null>(null)
   const [address, setAddress] = useState('')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
 
   useEffect(() => {
-    fetch('/api/faucet/policy')
+    fetch('/api/funding/policy')
       .then((r) => r.json())
       .then((j) => setPolicy(j.data ?? null))
       .catch(() => setPolicy(null))
@@ -39,7 +39,7 @@ export default function PublicFaucetPage() {
     setBusy(true)
     setResult(null)
     try {
-      const res = await fetch('/api/faucet/request', {
+      const res = await fetch('/api/funding/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address: address.trim() }),
@@ -52,7 +52,7 @@ export default function PublicFaucetPage() {
         setPolicy((p) => (p ? { ...p, dailyRemainingAeko: Math.max(0, p.dailyRemainingAeko - json.data.amountAeko) } : p))
       }
     } catch {
-      setResult({ kind: 'error', message: 'Could not reach the faucet. Try again in a moment.' })
+      setResult({ kind: 'error', message: 'Could not reach the funding service. Try again in a moment.' })
     } finally {
       setBusy(false)
     }
@@ -63,7 +63,7 @@ export default function PublicFaucetPage() {
       <header className="border-b border-[#1e2135] bg-[#0a0b12] px-6 py-4 flex items-center justify-between">
         <div>
           <div className="text-emerald-400 font-bold text-lg tracking-wide">AEKO Chain</div>
-          <div className="text-gray-500 text-xs">Testnet faucet</div>
+          <div className="text-gray-500 text-xs">Testnet funding</div>
         </div>
         <nav className="flex items-center gap-4 text-sm">
           {policy && (
@@ -95,7 +95,7 @@ export default function PublicFaucetPage() {
           <div className="bg-[#12141f] border border-[#1e2135] rounded-xl p-6 space-y-5">
             {policy && !policy.enabled && (
               <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 text-yellow-400 text-sm">
-                The faucet is paused right now. Check back later.
+                Testnet funding is paused right now. Check back later.
               </div>
             )}
 
@@ -157,7 +157,7 @@ export default function PublicFaucetPage() {
           )}
 
           <p className="text-xs text-gray-600">
-            In the Aeko app the same faucet is available from Wallet → “Get test AEKO”.
+            In the Aeko app, Wallet → “Get test AEKO” should link to this Funding Portal.
           </p>
         </div>
       </main>

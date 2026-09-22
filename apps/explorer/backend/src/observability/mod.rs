@@ -6,8 +6,8 @@ use {
 };
 
 pub fn init() {
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,hyper=warn,reqwest=warn"));
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info,hyper=warn,reqwest=warn"));
 
     let json_logs = env::var("AEKO_EXPLORER_LOG_FORMAT")
         .map(|value| value.eq_ignore_ascii_case("json"))

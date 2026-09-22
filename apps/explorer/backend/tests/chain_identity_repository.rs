@@ -1,5 +1,7 @@
 use {
-    aeko_explorer_backend::{config::ExplorerBackendConfig, infrastructure::persistence::PostgresRepository},
+    aeko_explorer_backend::{
+        config::ExplorerBackendConfig, infrastructure::persistence::PostgresRepository,
+    },
     anyhow::{Context, Result},
     std::{env, time::Duration},
 };
@@ -29,21 +31,29 @@ async fn postgres_is_permanently_bound_to_one_network_and_genesis() -> Result<()
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
     let repository = PostgresRepository::connect(&test_config(database_url)).await?;
 
-    repository.bind_chain_identity("test", "integration-genesis").await?;
-    repository.bind_chain_identity("test", "integration-genesis").await?;
+    repository
+        .bind_chain_identity("test", "integration-genesis")
+        .await?;
+    repository
+        .bind_chain_identity("test", "integration-genesis")
+        .await?;
     assert_eq!(
         repository.chain_identity().await?,
         Some(("test".to_string(), "integration-genesis".to_string()))
     );
 
-    let wrong_genesis = repository.bind_chain_identity("test", "different-genesis").await;
+    let wrong_genesis = repository
+        .bind_chain_identity("test", "different-genesis")
+        .await;
     assert!(wrong_genesis.is_err());
     assert!(wrong_genesis
         .unwrap_err()
         .to_string()
         .contains("Refusing to mix histories"));
 
-    let wrong_network = repository.bind_chain_identity("production", "integration-genesis").await;
+    let wrong_network = repository
+        .bind_chain_identity("production", "integration-genesis")
+        .await;
     assert!(wrong_network.is_err());
 
     Ok(())

@@ -14,25 +14,31 @@ import {
 } from '../components/ExplorerFilters';
 import { StatusBannerStack } from '../components/StatusBanner';
 import { useToaster } from '../components/Toaster';
+import { useAppSettings } from '../components/AppSettingsContext';
 
 // Wait this long after the last filter change before firing a new fetch.
 // Removing three chips in quick succession should be ONE backend call, not
 // three. 250ms is short enough that single removals still feel instant.
 const FILTER_FETCH_DEBOUNCE_MS = 250;
 
+const EMPTY_HOME_STATE = Object.freeze({
+  loading: false,
+  error: '',
+  overview: null,
+  blocks: [],
+  transactions: [],
+  posts: [],
+  stakes: [],
+  nfts: [],
+});
+
+const INITIAL_HOME_STATE = { ...EMPTY_HOME_STATE, loading: true };
+
 export default function Explorer() {
+  const { settings } = useAppSettings();
   const [network, setNetwork] = useState('testnet');
   const [searchParams, setSearchParams] = useSearchParams();
-  const [homeState, setHomeState] = useState({
-    loading: true,
-    error: '',
-    overview: null,
-    blocks: [],
-    transactions: [],
-    posts: [],
-    stakes: [],
-    nfts: [],
-  });
+  const [homeState, setHomeState] = useState(INITIAL_HOME_STATE);
   const [query, setQuery] = useState(searchParams.get('q') || '');
   const [searchState, setSearchState] = useState({ loading: false, error: '', matches: [] });
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -73,27 +79,19 @@ export default function Explorer() {
 
   useEffect(() => {
     if (unavailable) {
-      setHomeState({
-        loading: false,
-        error: '',
-        overview: null,
-        blocks: [],
-        transactions: [],
-        posts: [],
-        stakes: [],
-        nfts: [],
-      });
-      return undefined;
+      const resetTimer = setTimeout(() => setHomeState(EMPTY_HOME_STATE), 0);
+      return () => clearTimeout(resetTimer);
     }
 
     let cancelled = false;
-    setHomeState((current) => ({ ...current, loading: true, error: '' }));
 
     // Debounce so rapid filter changes coalesce into a single backend call.
     // The cleanup also cancels the in-flight fetch by flipping `cancelled`,
     // so its callback is a no-op even if it resolves after the next request.
     const timer = setTimeout(() => {
-      fetchExplorerHome(network, filters)
+      if (cancelled) return;
+      setHomeState((current) => ({ ...current, loading: true, error: '' }));
+      fetchExplorerHome(network, filters, settings.explorerListSize)
         .then((data) => {
           if (cancelled) return;
           setHomeState({
@@ -126,7 +124,7 @@ export default function Explorer() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [network, unavailable, filters]);
+  }, [network, unavailable, filters, settings.explorerListSize]);
 
   const lastSearchRef = useRef('');
 
@@ -528,7 +526,7 @@ export default function Explorer() {
           ))}
         </Panel>
 
-        <Panel title="Recent Stakes">
+        <Panel title="Recent Stakes" controls={null}>
           {homeState.stakes.map((stake) => (
             <Link
               key={stake.positionId}
@@ -544,7 +542,7 @@ export default function Explorer() {
           ))}
         </Panel>
 
-        <Panel title="Recent NFTs">
+        <Panel title="Recent NFTs" controls={null}>
           {homeState.nfts.map((nft) => (
             <Link
               key={nft.tokenId}
@@ -564,7 +562,8 @@ export default function Explorer() {
   );
 }
 
-function StatCard({ icon: Icon, label, value }) {
+function StatCard({ icon, label, value }) {
+  const Icon = icon;
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
       <div className="flex items-center gap-3 text-gray-400 mb-3">

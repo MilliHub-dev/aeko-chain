@@ -1,150 +1,75 @@
-# Aeko Release process
+# AEKO Release and Distribution
 
-## Branches and Tags
+AEKO uses different distribution channels for different artifact types. Do not
+treat Docker Hub, GitHub Releases, and language package registries as
+interchangeable.
 
-```
-========================= master branch (edge channel) =======================>
-         \                      \                     \
-          \___v0.7.0 tag         \                     \
-           \                      \         v0.9.0 tag__\
-            \          v0.8.0 tag__\                     \
- v0.7.1 tag__\                      \                 v0.9 branch (beta channel)
-              \___v0.7.2 tag         \___v0.8.1 tag
-               \                      \
-                \                      \
-           v0.7 branch         v0.8 branch (stable channel)
+## Authoritative channels
 
-```
+| Artifact | Canonical channel | Why |
+| --- | --- | --- |
+| Validator, Faucet Daemon, Social bootstrap, Explorer API/UI, Operations Web, tools images | Docker Hub | These are runnable container images used by deployment platforms such as Coolify/Dokploy. |
+| `aeko` CLI and `aeko-keygen` desktop/server binaries | GitHub Releases | Users download versioned executables and checksums directly. |
+| `@aeko-chain/web3.js` | npm | Native JavaScript package distribution. |
+| `@aeko-chain/sdk` | npm | Native Node.js package distribution. |
+| `aeko-sdk` | PyPI | Native Python package distribution. |
+| `aeko-rust-sdk` | crates.io | Native Rust package distribution. |
 
-### master branch
-All new development occurs on the `master` branch.
+SDKs are **not** published as Docker images. GitHub Releases may document an
+SDK release, but the installable SDK package remains the package-registry
+artifact.
 
-Bug fixes that affect a `vX.Y` branch are first made on `master`.  This is to
-allow a fix some soak time on `master` before it is applied to one or more
-stabilization branches.
+## Main branch release behavior
 
-Merging to `master` first also helps ensure that fixes applied to one release
-are present for future releases.  (Sometimes the joy of landing a critical
-release blocker in a branch causes you to forget to propagate back to
-`master`!)"
+`.github/workflows/build-images.yml` is the normal validated release path.
 
-Once the bug fix lands on `master` it is cherry-picked into the `vX.Y` branch
-and potentially the `vX.Y-1` branch.  The exception to this rule is when a bug
-fix for `vX.Y` doesn't apply to `master` or `vX.Y-1`.
+On a successful push to `main` it:
 
-Immediately after a new stabilization branch is forged, the `Cargo.toml` minor
-version (*Y*) in the `master` branch is incremented by the release engineer.
-Incrementing the major version of the `master` branch is outside the scope of
-this document.
+1. detects which domains actually changed;
+2. validates only the affected application/network/SDK surfaces;
+3. publishes changed SDK versions to npm, PyPI, or crates.io;
+4. publishes immutable Docker image tags for changed deployable surfaces;
+5. promotes only validated images to `latest`;
+6. triggers the configured deployment webhook after successful image promotion.
 
-### v*X.Y* stabilization branches
-These are stabilization branches for a given milestone.  They are created off
-the `master` branch as late as possible prior to the milestone release.
+Package publication requires the corresponding repository secrets and a new
+package version. Pull requests never publish packages or promote images.
 
-### v*X.Y.Z* release tag
-The release tags are created as desired by the owner of the given stabilization
-branch, and cause that *X.Y.Z* release to be shipped to https://crates.io
+## CLI binary releases
 
-Immediately after a new v*X.Y.Z* branch tag has been created, the `Cargo.toml`
-patch version number (*Z*) of the stabilization branch is incremented by the
-release engineer.
+`.github/workflows/cli-release.yml` owns cross-platform CLI binary releases.
+A `v*` tag must point to a commit already contained in `main`. The workflow
+builds `aeko` and `aeko-keygen`, verifies them, creates checksums, and uploads
+the resulting archives to the GitHub Release for that tag.
 
-## Channels
-Channels are used by end-users (humans and bots) to consume the branches
-described in the previous section, so they may automatically update to the most
-recent version matching their desired stability.
+The lightweight installers in `install/aeko-cli-install.sh` and
+`install/aeko-cli-install.ps1` consume those GitHub Release assets. Their
+repository/asset base can be overridden with environment variables when a
+mirror is required.
 
-There are three release channels that map to branches as follows:
-* edge - tracks the `master` branch, least stable.
-* beta - tracks the largest (and latest) `vX.Y` stabilization branch, more stable.
-* stable - tracks the second largest `vX.Y` stabilization branch, most stable.
+## Docker deployment configuration
 
-## Steps to Create a Branch
+Container-to-container traffic must use the Docker network and internal service
+ports, for example:
 
-### Create the new branch
-1. Check out the latest commit on `master` branch:
-    ```
-    git fetch --all
-    git checkout upstream/master
-    ```
-1. Determine the new branch name.  The name should be "v" + the first 2 version fields
-   from Cargo.toml.  For example, a Cargo.toml with version = "0.9.0" implies
-   the next branch name is "v0.9".
-1. Create the new branch and push this branch to the `aeko` repository:
-    ```
-    git checkout -b <branchname>
-    git push -u origin <branchname>
-    ```
+- validator RPC: `http://validator:8899`
+- Explorer API: `http://explorer-api:8088`
+- Faucet Daemon: `faucet:9900`
 
-Alternatively use the Github UI.
+Public domains belong only at the ingress/browser boundary and are deployment
+configuration. Coolify/Dokploy receive them through environment variables such
+as `AEKO_PUBLIC_RPC_URL`, `AEKO_PUBLIC_WS_URL`,
+`AEKO_PUBLIC_EXPLORER_API_URL`, `AEKO_PUBLIC_EXPLORER_URL`,
+`AEKO_PUBLIC_FUNDING_URL`, and `AEKO_PUBLIC_ADMIN_URL`.
 
-### Update master branch to the next release minor version
+The Explorer UI is deployment-neutral at build time. Its container entrypoint
+writes runtime public endpoint configuration when the container starts.
 
-1. After the new branch has been created and pushed, update the Cargo.toml files on **master** to the next semantic version (e.g. 0.9.0 -> 0.10.0) with:
-     ```
-     $ scripts/increment-cargo-version.sh minor
-     ```
-1. Push all the changed Cargo.toml and Cargo.lock files to the `master` branch with something like:
-    ```
-    git co -b version_update
-    git ls-files -m | xargs git add
-    git commit -m 'Bump version to X.Y+1.0'
-    git push -u origin version_update
-    ```
-1. Confirm that your freshly cut release branch is shown as `BETA_CHANNEL` and the previous release branch as `STABLE_CHANNEL`:
-    ```
-    ci/channel-info.sh
-    ```
+## Historical release pipelines
 
-### Miscellaneous Clean up
+The old S3/channel GitHub release-artifact workflows are intentionally removed.
+They duplicated the current Docker Hub + GitHub Releases + native SDK registry
+model and referenced the pre-fork release infrastructure.
 
-1. Pin the spl-token-cli version in the newly promoted stable branch by setting `splTokenCliVersion` in scripts/spl-token-cli-version.sh to the latest release that depends on the stable branch (usually this will be the latest spl-token-cli release).
-1. Update [mergify.yml](https://github.com/aeko-labs/aeko/blob/master/.mergify.yml) to add backport actions for the new branch and remove actions for the obsolete branch.
-1. Adjust the [Github backport labels](https://github.com/aeko-labs/aeko/labels) to add the new branch label and remove the label for the obsolete branch.
-1. Announce on Discord #development that the release branch exists so people know to use the new backport labels.
-
-## Steps to Create a Release
-
-### Create the Release Tag on GitHub
-
-1. Go to [GitHub Releases](https://github.com/aeko-labs/aeko/releases) for tagging a release.
-1. Click "Draft new release".  The release tag must exactly match the `version`
-   field in `/Cargo.toml` prefixed by `v`.
-   1.  If the Cargo.toml version field is **0.12.3**, then the release tag must be **v0.12.3**
-1. Make sure the Target Branch field matches the branch you want to make a release on.
-   1.  If you want to release v0.12.0, the target branch must be v0.12
-1. Fill the release notes.
-   1.  If this is the first release on the branch (e.g. v0.13.**0**), paste in [this
-   template](https://raw.githubusercontent.com/aeko-labs/aeko/master/.github/RELEASE_TEMPLATE.md).  Engineering Lead can provide summary contents for release notes if needed.
-   1. If this is a patch release, review all the commits since the previous release on this branch and add details as needed.
-1. Click "Save Draft", then confirm the release notes look good and the tag name and branch are correct.
-1. Ensure all desired commits (usually backports) are landed on the branch by now.
-1. Ensure the release is marked **"This is a pre-release"**.  This flag will need to be removed manually after confirming the Linux binary artifacts appear at a later step.
-1. Go back into edit the release and click "Publish release" while being marked as a pre-release.
-1. Confirm there is new git tag with intended version number at the intended revision after running `git fetch` locally.
-
-
-### Update release branch with the next patch version
-
-[This action](https://github.com/aeko-labs/aeko/blob/master/.github/workflows/increment-cargo-version-on-release.yml) ensures that publishing a release will trigger the creation of a PR to update the Cargo.toml files on **release branch** to the next semantic version (e.g. 0.9.0 -> 0.9.1). Ensure that the created PR makes it through CI and gets submitted.
-
-### Prepare for the next release
-1.  Go to [GitHub Releases](https://github.com/aeko-labs/aeko/releases) and create a new draft release for `X.Y.Z+1` with empty release notes.  This allows people to incrementally add new release notes until it's time for the next release
-    1. Also, point the branch field to the same branch and mark the release as **"This is a pre-release"**.
-1.  Go to the [Github Milestones](https://github.com/aeko-labs/aeko/milestones).  Create a new milestone for the `X.Y.Z+1`, move over
-unresolved issues still in the `X.Y.Z` milestone, then close the `X.Y.Z` milestone.
-
-### Verify release automation success
-Go to [Aeko Releases](https://github.com/aeko-labs/aeko/releases) and click on the latest release that you just published.
-Verify that all of the build artifacts are present, then uncheck **"This is a pre-release"** for the release.
-
-Build artifacts can take up to 60 minutes after creating the tag before
-appearing.  To check for progress:
-* The `aeko-secondary` Buildkite pipeline handles creating the Linux and macOS release artifacts and updated crates.  Look for a job under the tag name of the release: https://buildkite.com/aeko-labs/aeko-secondary.
-* The Windows release artifacts are produced by GitHub Actions.  Look for a job under the tag name of the release: https://github.com/aeko-labs/aeko/actions.
-
-[Crates.io](https://crates.io/crates/aeko) should have an updated Aeko version.  This can take 2-3 hours, and sometimes fails in the `aeko-secondary` job.
-If this happens and the error is non-fatal, click "Retry" on the "publish crate" job
-
-### Update software on testnet.aeko.chain
-See the documentation at https://github.com/aeko-labs/cluster-ops/. devnet.aeko.chain and mainnet-beta.aeko.chain run stable releases that have been tested on testnet. Do not update devnet or mainnet-beta with a beta release.
+Legacy Buildkite scripts may remain for historical validation/build tooling, but
+they are not the authoritative AEKO publication path described above.

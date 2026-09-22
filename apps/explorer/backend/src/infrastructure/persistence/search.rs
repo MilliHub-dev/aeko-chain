@@ -14,7 +14,10 @@ impl PostgresRepository {
         if query.is_empty() || limit == 0 {
             return Ok(Vec::new());
         }
-        let escaped = query.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+        let escaped = query
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_");
         let pattern = format!("%{escaped}%");
         let limit_i = i64::try_from(limit).context("search limit exceeds BIGINT")?;
         let mut out = Vec::with_capacity(limit);
@@ -34,12 +37,16 @@ impl PostgresRepository {
         .await
         .context("searching blocks")?;
         for row in blocks {
-            if out.len() >= limit { break; }
+            if out.len() >= limit {
+                break;
+            }
             out.push(SearchResultRecord::Block(BlockRecord {
                 slot: u64::try_from(row.get::<i64, _>("slot")).context("negative block slot")?,
                 blockhash: row.get("blockhash"),
-                parent_slot: u64::try_from(row.get::<i64, _>("parent_slot")).context("negative parent slot")?,
-                transaction_count: u64::try_from(row.get::<i64, _>("transaction_count")).context("negative transaction count")?,
+                parent_slot: u64::try_from(row.get::<i64, _>("parent_slot"))
+                    .context("negative parent slot")?,
+                transaction_count: u64::try_from(row.get::<i64, _>("transaction_count"))
+                    .context("negative transaction count")?,
                 producer: row.get("producer"),
                 unix_timestamp: row.get("unix_timestamp"),
             }));
@@ -55,12 +62,16 @@ impl PostgresRepository {
             .await
             .context("searching transactions")?;
             for row in rows {
-                if out.len() >= limit { break; }
+                if out.len() >= limit {
+                    break;
+                }
                 out.push(SearchResultRecord::Transaction(TransactionRecord {
                     signature: row.get("signature"),
-                    slot: u64::try_from(row.get::<i64, _>("slot")).context("negative transaction slot")?,
+                    slot: u64::try_from(row.get::<i64, _>("slot"))
+                        .context("negative transaction slot")?,
                     success: row.get("success"),
-                    fee: u64::try_from(row.get::<i64, _>("fee")).context("negative transaction fee")?,
+                    fee: u64::try_from(row.get::<i64, _>("fee"))
+                        .context("negative transaction fee")?,
                     primary_program: row.get("primary_program"),
                     signer: row.get("signer"),
                 }));
@@ -77,17 +88,25 @@ impl PostgresRepository {
             .await
             .context("searching legacy wallet profiles")?;
             for row in rows {
-                if out.len() >= limit { break; }
-                let native_balance = row.get::<Option<String>, _>("native_balance")
+                if out.len() >= limit {
+                    break;
+                }
+                let native_balance = row
+                    .get::<Option<String>, _>("native_balance")
                     .map(|value| super::parse_u64_text(&value, "wallet_profiles.native_balance"))
                     .transpose()?;
                 out.push(SearchResultRecord::Wallet(WalletProfileRecord {
                     address: row.get("address"),
-                    reputation_score: row.get::<Option<i32>, _>("reputation_score")
-                        .map(u16::try_from).transpose().context("invalid reputation score")?,
+                    reputation_score: row
+                        .get::<Option<i32>, _>("reputation_score")
+                        .map(u16::try_from)
+                        .transpose()
+                        .context("invalid reputation score")?,
                     native_balance,
-                    token_count: usize::try_from(row.get::<i64, _>("token_count")).context("negative token count")?,
-                    nft_count: usize::try_from(row.get::<i64, _>("nft_count")).context("negative NFT count")?,
+                    token_count: usize::try_from(row.get::<i64, _>("token_count"))
+                        .context("negative token count")?,
+                    nft_count: usize::try_from(row.get::<i64, _>("nft_count"))
+                        .context("negative NFT count")?,
                 }));
             }
         }
@@ -110,11 +129,18 @@ impl PostgresRepository {
             .await
             .context("searching token transfers")?;
             for row in rows {
-                if out.len() >= limit { break; }
+                if out.len() >= limit {
+                    break;
+                }
                 out.push(SearchResultRecord::TokenTransfer(TokenTransferRecord {
-                    mint: row.get("mint"), source: row.get("source"), destination: row.get("destination"), amount: row.get("amount"),
-                    signature: row.get("signature"), event_index: row.get("event_index"),
-                    slot: u64::try_from(row.get::<i64, _>("slot")).context("negative transfer slot")?,
+                    mint: row.get("mint"),
+                    source: row.get("source"),
+                    destination: row.get("destination"),
+                    amount: row.get("amount"),
+                    signature: row.get("signature"),
+                    event_index: row.get("event_index"),
+                    slot: u64::try_from(row.get::<i64, _>("slot"))
+                        .context("negative transfer slot")?,
                 }));
             }
         }
@@ -131,13 +157,24 @@ impl PostgresRepository {
                 LIMIT $2
                 "#,
             )
-            .bind(&pattern).bind(limit_i).fetch_all(&self.pool).await.context("searching NFTs")?;
+            .bind(&pattern)
+            .bind(limit_i)
+            .fetch_all(&self.pool)
+            .await
+            .context("searching NFTs")?;
             for row in rows {
-                if out.len() >= limit { break; }
+                if out.len() >= limit {
+                    break;
+                }
                 out.push(SearchResultRecord::Nft(NftRecord {
-                    token_id: row.get("token_id"), collection_id: row.get("collection_id"), owner: row.get("owner"), creator: row.get("creator"),
-                    metadata_uri: row.get("metadata_uri"), frozen: row.get("frozen"),
-                    last_seen_slot: u64::try_from(row.get::<i64, _>("last_seen_slot")).context("negative NFT last_seen_slot")?,
+                    token_id: row.get("token_id"),
+                    collection_id: row.get("collection_id"),
+                    owner: row.get("owner"),
+                    creator: row.get("creator"),
+                    metadata_uri: row.get("metadata_uri"),
+                    frozen: row.get("frozen"),
+                    last_seen_slot: u64::try_from(row.get::<i64, _>("last_seen_slot"))
+                        .context("negative NFT last_seen_slot")?,
                 }));
             }
         }
@@ -154,12 +191,22 @@ impl PostgresRepository {
             )
             .bind(&pattern).bind(limit_i).fetch_all(&self.pool).await.context("searching social posts")?;
             for row in rows {
-                if out.len() >= limit { break; }
+                if out.len() >= limit {
+                    break;
+                }
                 out.push(SearchResultRecord::SocialPost(SocialPostRecord {
-                    post_id: row.get("post_id"), creator: row.get("creator"), content_hash: row.get("content_hash"), metadata_hash: row.get("metadata_hash"),
-                    content_uri: row.get("content_uri"), parent_post_id: row.get("parent_post_id"), post_kind: row.get("post_kind"),
-                    created_at_unix: row.get("created_at_unix"), edited_at_unix: row.get("edited_at_unix"), visibility: row.get("visibility"),
-                    moderation_state: row.get("moderation_state"), signature_ref: row.get("signature_ref"),
+                    post_id: row.get("post_id"),
+                    creator: row.get("creator"),
+                    content_hash: row.get("content_hash"),
+                    metadata_hash: row.get("metadata_hash"),
+                    content_uri: row.get("content_uri"),
+                    parent_post_id: row.get("parent_post_id"),
+                    post_kind: row.get("post_kind"),
+                    created_at_unix: row.get("created_at_unix"),
+                    edited_at_unix: row.get("edited_at_unix"),
+                    visibility: row.get("visibility"),
+                    moderation_state: row.get("moderation_state"),
+                    signature_ref: row.get("signature_ref"),
                 }));
             }
         }
@@ -177,13 +224,27 @@ impl PostgresRepository {
                 ORDER BY slot DESC LIMIT $2
                 "#,
             )
-            .bind(&pattern).bind(limit_i).fetch_all(&self.pool).await.context("searching engagement events")?;
+            .bind(&pattern)
+            .bind(limit_i)
+            .fetch_all(&self.pool)
+            .await
+            .context("searching engagement events")?;
             for row in rows {
-                if out.len() >= limit { break; }
+                if out.len() >= limit {
+                    break;
+                }
                 out.push(SearchResultRecord::Engagement(EngagementRecord {
-                    proof_id: row.get("proof_id"), actor: row.get("actor"), target_creator: row.get("target_creator"), target_post_id: row.get("target_post_id"),
-                    action_kind: row.get("action_kind"), action_weight: u32::try_from(row.get::<i64, _>("action_weight")).context("invalid action weight")?,
-                    slot: u64::try_from(row.get::<i64, _>("slot")).context("negative engagement slot")?, unix_timestamp: row.get("unix_timestamp"), replay_guard: row.get("replay_guard"),
+                    proof_id: row.get("proof_id"),
+                    actor: row.get("actor"),
+                    target_creator: row.get("target_creator"),
+                    target_post_id: row.get("target_post_id"),
+                    action_kind: row.get("action_kind"),
+                    action_weight: u32::try_from(row.get::<i64, _>("action_weight"))
+                        .context("invalid action weight")?,
+                    slot: u64::try_from(row.get::<i64, _>("slot"))
+                        .context("negative engagement slot")?,
+                    unix_timestamp: row.get("unix_timestamp"),
+                    replay_guard: row.get("replay_guard"),
                 }));
             }
         }

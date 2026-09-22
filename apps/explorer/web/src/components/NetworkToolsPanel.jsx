@@ -1,40 +1,53 @@
 import { ExternalLink } from 'lucide-react';
 import { getNetworkConfig } from '../utils/networkConfig';
 
+function EndpointValue({ value }) {
+  return <div className="font-mono text-sm break-all text-white">{value || 'Not configured'}</div>;
+}
+
 export default function NetworkToolsPanel({ network }) {
   const config = getNetworkConfig(network);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
       <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">RPC</div>
-        <div className="font-mono text-sm break-all text-white">{config.rpcUrl}</div>
+        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">JSON-RPC</div>
+        <EndpointValue value={config.rpcUrl} />
       </div>
       <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">WebSocket</div>
-        <div className="font-mono text-sm break-all text-white">{config.websocketUrl}</div>
+        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">WebSocket PubSub</div>
+        <EndpointValue value={config.websocketUrl} />
       </div>
       <div className="bg-white/5 border border-white/10 rounded-xl p-5">
         <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Block Explorer</div>
-        <a
-          href={config.explorerUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-2 text-aeko-accent hover:text-white transition-colors text-sm break-all"
-        >
-          {config.explorerLabel}
-          <ExternalLink size={14} />
-        </a>
+        {config.explorerUrl ? (
+          <a
+            href={config.explorerUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-aeko-accent hover:text-white transition-colors text-sm break-all"
+          >
+            {config.explorerLabel}
+            <ExternalLink size={14} />
+          </a>
+        ) : (
+          <div className="text-sm text-gray-400">Not configured</div>
+        )}
       </div>
       <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Faucet</div>
-        {config.faucetEnabled ? (
-          <div className="font-mono text-sm break-all text-white">
-            {config.faucetUrl}
-            <span className="ml-2 text-xs px-2 py-1 rounded bg-green-500/20 text-green-300">TCP</span>
-          </div>
+        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Testnet Funding</div>
+        {config.fundingEnabled ? (
+          <a
+            href={config.fundingUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-aeko-accent hover:text-white transition-colors text-sm break-all"
+          >
+            {new URL(config.fundingUrl).host}
+            <ExternalLink size={14} />
+          </a>
         ) : (
-          <div className="text-sm text-gray-400">{config.faucetLabel}</div>
+          <div className="text-sm text-gray-400">{config.fundingLabel}</div>
         )}
       </div>
     </div>

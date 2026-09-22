@@ -7,7 +7,7 @@
 #   1. Sanity-checks Docker, disk and ulimits.
 #   2. Generates missing keypairs with the `tools` Docker target.
 #   3. Builds the role-specific runtime images from docker/Dockerfile.
-#   4. Starts faucet + validator + SocialFi bootstrap + explorer API/UI.
+#   4. Starts faucet + validator + SocialFi bootstrap + Explorer + Operations Web.
 #   5. Verifies RPC health, slot advancement and a complete SocialFi registry.
 #
 # PostgreSQL is external and required. Set EXPLORER_DATABASE_URL to a database
@@ -24,6 +24,13 @@ AEKO_DOMAIN=${AEKO_DOMAIN:-localhost}
 AEKO_KEYDIR=${AEKO_KEYDIR:-local-testnet}
 AEKO_IMAGE_REPOSITORY=${AEKO_IMAGE_REPOSITORY:-surdma}
 AEKO_IMAGE_TAG=${AEKO_IMAGE_TAG:-latest}
+AEKO_PUBLIC_RPC_URL=${AEKO_PUBLIC_RPC_URL:-}
+AEKO_PUBLIC_WS_URL=${AEKO_PUBLIC_WS_URL:-}
+AEKO_PUBLIC_EXPLORER_API_URL=${AEKO_PUBLIC_EXPLORER_API_URL:-}
+AEKO_PUBLIC_EXPLORER_URL=${AEKO_PUBLIC_EXPLORER_URL:-}
+AEKO_PUBLIC_FUNDING_URL=${AEKO_PUBLIC_FUNDING_URL:-}
+AEKO_PUBLIC_ADMIN_URL=${AEKO_PUBLIC_ADMIN_URL:-}
+AEKO_PUBLIC_GOSSIP_ADDRESS=${AEKO_PUBLIC_GOSSIP_ADDRESS:-}
 FORCE_REBUILD=${FORCE_REBUILD:-0}
 RESET_CHAIN=0
 
@@ -110,6 +117,7 @@ build_target validator "${AEKO_IMAGE_REPOSITORY}/aeko-validator:${AEKO_IMAGE_TAG
 build_target faucet "${AEKO_IMAGE_REPOSITORY}/aeko-faucet:${AEKO_IMAGE_TAG}"
 build_target explorer-api "${AEKO_IMAGE_REPOSITORY}/aeko-explorer-api:${AEKO_IMAGE_TAG}"
 build_target explorer-ui "${AEKO_IMAGE_REPOSITORY}/aeko-explorer-ui:${AEKO_IMAGE_TAG}"
+build_target operations-web "${AEKO_IMAGE_REPOSITORY}/aeko-operations-web:${AEKO_IMAGE_TAG}"
 build_target social-bootstrap "${AEKO_IMAGE_REPOSITORY}/aeko-social-bootstrap:${AEKO_IMAGE_TAG}"
 
 if [ -z "${AEKO_EXPLORER_START_SLOT:-}" ]; then
@@ -122,8 +130,8 @@ if [ -z "${AEKO_EXPLORER_START_SLOT:-}" ]; then
   fi
 fi
 
-log "starting faucet, validator, SocialFi bootstrap, explorer-api and explorer-ui"
-docker compose -f "$COMPOSE_FILE" up -d faucet validator social-bootstrap explorer-api explorer-ui
+log "starting faucet, validator, SocialFi bootstrap, Explorer and Operations Web"
+docker compose -f "$COMPOSE_FILE" up -d faucet validator social-bootstrap explorer-api explorer-ui operations-web
 
 log "waiting for validator RPC (max 90s)"
 HEALTHY=0
@@ -200,12 +208,14 @@ cat <<EOF2
     Explorer API http://${AEKO_DOMAIN}:8088
     Explorer UI  http://${AEKO_DOMAIN}:4000
 
-  Canonical public endpoints behind your reverse proxy:
-    RPC          https://rpc.aeko.online
-    PubSub WS    wss://ws.aeko.online
-    Explorer API https://api.aeko.online
-    Explorer UI  https://scan.aeko.online
-    Gossip       gossip.aeko.online:8001 (raw TCP/UDP, not HTTP)
+  Configured public endpoints (set these through deployment environment):
+    RPC          ${AEKO_PUBLIC_RPC_URL:-<not configured>}
+    PubSub WS    ${AEKO_PUBLIC_WS_URL:-<not configured>}
+    Explorer API ${AEKO_PUBLIC_EXPLORER_API_URL:-<not configured>}
+    Explorer UI  ${AEKO_PUBLIC_EXPLORER_URL:-<not configured>}
+    Funding      ${AEKO_PUBLIC_FUNDING_URL:-<not configured>}
+    Admin        ${AEKO_PUBLIC_ADMIN_URL:-<not configured>}
+    Gossip       ${AEKO_PUBLIC_GOSSIP_ADDRESS:-<not configured>} (raw TCP/UDP, not HTTP)
 
   Complete deployment + SocialFi read-path smoke test:
     python3 scripts/smoke-aeko-social.py
@@ -221,6 +231,7 @@ cat <<EOF2
     docker logs -f aeko-social-bootstrap
     docker logs -f aeko-explorer-api
     docker logs -f aeko-explorer-ui
+    docker logs -f aeko-operations-web
 
   See README.md for the social-first developer mental model and
   DEPLOYMENT.md for the operator deployment contract.

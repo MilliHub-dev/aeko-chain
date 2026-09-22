@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { listGrants } from '@/lib/faucet-store'
+import { listGrants } from '@/lib/funding-store'
 
 export const dynamic = 'force-dynamic'
 

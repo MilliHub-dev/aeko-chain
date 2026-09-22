@@ -5,10 +5,6 @@ use {
         feature::get_feature_activation_epoch,
         spend_utils::{resolve_spend_tx_and_check_account_balance, SpendAmount},
     },
-    clap::{value_t, value_t_or_exit, App, AppSettings, Arg, ArgMatches, SubCommand},
-    console::style,
-    crossbeam_channel::unbounded,
-    serde::{Deserialize, Serialize},
     aeko_clap_utils::{
         compute_unit_price::{compute_unit_price_arg, COMPUTE_UNIT_PRICE_ARG},
         input_parsers::*,
@@ -67,6 +63,10 @@ use {
         EncodableWithMeta, EncodedConfirmedTransactionWithStatusMeta, UiTransactionEncoding,
     },
     aeko_vote_program::vote_state::VoteState,
+    clap::{value_t, value_t_or_exit, App, AppSettings, Arg, ArgMatches, SubCommand},
+    console::style,
+    crossbeam_channel::unbounded,
+    serde::{Deserialize, Serialize},
     std::{
         collections::{BTreeMap, HashMap, VecDeque},
         fmt,
@@ -838,7 +838,7 @@ pub fn process_catchup(
         );
     }
 
-    let mut previous_rpc_slot = std::u64::MAX;
+    let mut previous_rpc_slot = u64::MAX;
     let mut previous_slot_distance = 0;
     let mut retry_count = 0;
     let max_retry_count = 5;
@@ -870,7 +870,7 @@ pub fn process_catchup(
     let mut total_sleep_interval = 0;
     loop {
         // humbly retry; the reference node (rpc_client) could be spotty,
-        // especially if pointing to api.mainnet-beta.aeko.chain at times
+        // especially when pointing to a remote RPC endpoint
         let rpc_slot = get_slot_while_retrying(rpc_client)?;
         let node_slot = get_slot_while_retrying(&node_client)?;
         if !follow && node_slot > std::cmp::min(previous_rpc_slot, rpc_slot) {
@@ -923,7 +923,7 @@ pub fn process_catchup(
             },
             node_slot,
             rpc_slot,
-            if slot_distance == 0 || previous_rpc_slot == std::u64::MAX {
+            if slot_distance == 0 || previous_rpc_slot == u64::MAX {
                 "".to_string()
             } else {
                 format!(
@@ -1442,7 +1442,7 @@ pub fn process_ping(
         }
     }
 
-    'mainloop: for seq in 0..count.unwrap_or(std::u64::MAX) {
+    'mainloop: for seq in 0..count.unwrap_or(u64::MAX) {
         let now = Instant::now();
         if fixed_blockhash.is_none() && now.duration_since(blockhash_acquired).as_secs() > 60 {
             // Fetch a new blockhash every minute
@@ -1686,9 +1686,9 @@ pub fn process_live_slots(config: &CliConfig) -> ProcessResult {
     let spacer = "|";
     slot_progress.println(spacer);
 
-    let mut last_root = std::u64::MAX;
+    let mut last_root = u64::MAX;
     let mut last_root_update = Instant::now();
-    let mut slots_per_second = std::f64::NAN;
+    let mut slots_per_second = f64::NAN;
     loop {
         if exit.load(Ordering::Relaxed) {
             eprintln!("{message}");
@@ -1698,7 +1698,7 @@ pub fn process_live_slots(config: &CliConfig) -> ProcessResult {
 
         match receiver.recv() {
             Ok(new_info) => {
-                if last_root == std::u64::MAX {
+                if last_root == u64::MAX {
                     last_root = new_info.root;
                     last_root_update = Instant::now();
                 }

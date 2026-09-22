@@ -107,12 +107,12 @@ impl AekoDeveloperClient {
         &self,
         pubkey: &str,
     ) -> AekoRustSdkResult<WalletPermissionAccount> {
-        let account = self
-            .get_account_info(pubkey)
-            .await?
-            .ok_or(AekoRustSdkError::DecodeAccount {
-                label: "wallet permission state",
-            })?;
+        let account =
+            self.get_account_info(pubkey)
+                .await?
+                .ok_or(AekoRustSdkError::DecodeAccount {
+                    label: "wallet permission state",
+                })?;
         ensure_owner(
             &account,
             &default_wallet_permissions_program_id(),
@@ -125,12 +125,12 @@ impl AekoDeveloperClient {
         &self,
         pubkey: &str,
     ) -> AekoRustSdkResult<WalletPermissionAuditLogAccount> {
-        let account = self
-            .get_account_info(pubkey)
-            .await?
-            .ok_or(AekoRustSdkError::DecodeAccount {
-                label: "wallet permission audit log",
-            })?;
+        let account =
+            self.get_account_info(pubkey)
+                .await?
+                .ok_or(AekoRustSdkError::DecodeAccount {
+                    label: "wallet permission audit log",
+                })?;
         ensure_owner(
             &account,
             &default_wallet_permissions_program_id(),
@@ -143,26 +143,27 @@ impl AekoDeveloperClient {
         &self,
         pubkey: &str,
     ) -> AekoRustSdkResult<Aeko721Collection> {
-        let account = self
-            .get_account_info(pubkey)
-            .await?
-            .ok_or(AekoRustSdkError::DecodeAccount {
-                label: "AEKO-721 collection",
-            })?;
-        ensure_owner(&account, &default_token_721_program_id(), "AEKO-721 collection")?;
+        let account =
+            self.get_account_info(pubkey)
+                .await?
+                .ok_or(AekoRustSdkError::DecodeAccount {
+                    label: "AEKO-721 collection",
+                })?;
+        ensure_owner(
+            &account,
+            &default_token_721_program_id(),
+            "AEKO-721 collection",
+        )?;
         decode_account(&account, "AEKO-721 collection")
     }
 
-    pub async fn get_token_721_token(
-        &self,
-        pubkey: &str,
-    ) -> AekoRustSdkResult<Aeko721Token> {
-        let account = self
-            .get_account_info(pubkey)
-            .await?
-            .ok_or(AekoRustSdkError::DecodeAccount {
-                label: "AEKO-721 token",
-            })?;
+    pub async fn get_token_721_token(&self, pubkey: &str) -> AekoRustSdkResult<Aeko721Token> {
+        let account =
+            self.get_account_info(pubkey)
+                .await?
+                .ok_or(AekoRustSdkError::DecodeAccount {
+                    label: "AEKO-721 token",
+                })?;
         ensure_owner(&account, &default_token_721_program_id(), "AEKO-721 token")?;
         decode_account(&account, "AEKO-721 token")
     }

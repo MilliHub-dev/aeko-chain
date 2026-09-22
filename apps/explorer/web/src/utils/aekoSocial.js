@@ -1,6 +1,6 @@
 // Browser-side client for the AEKO `social-posts` native builtin.
 //
-// Lets the /faucet test console post directly on-chain and read back the
+// Lets the /network-tools test console post directly on-chain and read back the
 // resulting feed without touching the explorer-backend. State-account
 // discovery uses getProgramAccounts so the modal works on any chain where
 // `social-bootstrap` has run, without an env paste-in step.
@@ -73,12 +73,6 @@ function concat(...parts) {
     off += p.length;
   }
   return out;
-}
-
-function u16LE(n) {
-  const b = new Uint8Array(2);
-  new DataView(b.buffer).setUint16(0, n, true);
-  return b;
 }
 
 function u32LE(n) {
@@ -333,7 +327,6 @@ export async function discoverProgramState({ rpcUrl, programId, decode, pickBest
       if (!decoded.isInitialized) continue;
       const candidate = { address: entry.pubkey, decoded, lamports: entry.account.lamports };
       if (!best || (pickBest ? pickBest(candidate, best) : false)) best = candidate;
-      else if (!best) best = candidate;
     } catch {
       // unreadable — skip
     }
@@ -381,7 +374,7 @@ export async function sha256(input) {
 
 // ---------- transaction builders ----------
 
-function buildLegacyMessage({ payerBytes, recentBlockhashBytes, accountKeys, instructions, header }) {
+function buildLegacyMessage({ recentBlockhashBytes, accountKeys, instructions, header }) {
   const compiled = instructions.map((ix) =>
     concat(
       Uint8Array.from([ix.programIdIndex]),
@@ -460,7 +453,6 @@ export function buildSignedAnchorPostTx({
   };
 
   const messageBytes = buildLegacyMessage({
-    payerBytes: creatorBytes,
     recentBlockhashBytes: recentBytes,
     accountKeys,
     instructions: [ix],
@@ -510,7 +502,6 @@ export function buildSignedLikeTx({
   };
 
   const messageBytes = buildLegacyMessage({
-    payerBytes: actorBytes,
     recentBlockhashBytes: recentBytes,
     accountKeys,
     instructions: [ix],

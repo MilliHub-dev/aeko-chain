@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { FaucetError, getPolicy, getSettings, updateSettings } from '@/lib/faucet-store'
+import { FundingError, getPolicy, getSettings, updateSettings } from '@/lib/funding-store'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +19,7 @@ export async function PUT(req: NextRequest) {
     const settings = await updateSettings(patch)
     return NextResponse.json({ data: { settings } })
   } catch (err) {
-    if (err instanceof FaucetError) {
+    if (err instanceof FundingError) {
       return NextResponse.json({ error: { code: err.code, message: err.message } }, { status: err.status })
     }
     throw err

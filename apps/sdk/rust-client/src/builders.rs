@@ -410,10 +410,12 @@ pub fn default_token_721_program_id() -> PubkeyString {
 }
 
 pub fn default_wallet_permissions_program_id() -> PubkeyString {
-    bs58::encode([10u8; 32]).into_string()
+    bs58::encode([12u8; 32]).into_string()
 }
 
-pub fn build_initialize_collection_instruction(input: &InitializeCollectionInput) -> InstructionPlan {
+pub fn build_initialize_collection_instruction(
+    input: &InitializeCollectionInput,
+) -> InstructionPlan {
     instruction_plan(
         input.program_id.clone(),
         vec![
@@ -589,7 +591,9 @@ pub fn build_unfreeze_wallet_instruction(input: &UnfreezeWalletInput) -> Instruc
     )
 }
 
-pub fn build_record_delegate_usage_instruction(input: &RecordDelegateUsageInput) -> InstructionPlan {
+pub fn build_record_delegate_usage_instruction(
+    input: &RecordDelegateUsageInput,
+) -> InstructionPlan {
     instruction_plan(
         input.program_id.clone(),
         vec![
@@ -679,6 +683,14 @@ mod tests {
     }
 
     #[test]
+    fn canonical_program_ids_are_distinct() {
+        assert_ne!(
+            default_token_721_program_id(),
+            default_wallet_permissions_program_id()
+        );
+    }
+
+    #[test]
     fn builds_initialize_collection_instruction() {
         let instruction = build_initialize_collection_instruction(&InitializeCollectionInput {
             program_id: default_token_721_program_id(),
@@ -690,7 +702,7 @@ mod tests {
         });
 
         assert_eq!(instruction.accounts.len(), 2);
-        assert_eq!(instruction.accounts[0].is_writable, true);
+        assert!(instruction.accounts[0].is_writable);
         assert!(!instruction.data.is_empty());
     }
 

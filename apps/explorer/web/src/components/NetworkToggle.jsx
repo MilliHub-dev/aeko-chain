@@ -1,7 +1,7 @@
 import { getNetworkConfig } from '../utils/networkConfig';
 
 export default function NetworkToggle({ value, onChange }) {
-  const options = ['testnet', 'mainnet'];
+  const options = ['testnet', 'mainnet'].filter((option) => getNetworkConfig(option).available);
 
   return (
     <div className="inline-flex items-center rounded-full border border-white/10 bg-white/5 p-1">

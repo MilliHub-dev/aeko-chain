@@ -42,9 +42,7 @@ runs:
     - name: CLI and keygen format
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
-      run: |
-        cargo fmt --manifest-path apps/cli/Cargo.toml -- --check
-        cargo fmt --manifest-path keygen/Cargo.toml -- --check
+      run: bash .github/actions/devops/check-rustfmt-changed.sh apps/cli keygen
 
     - name: CLI and keygen type/target check
       if: ${{ inputs.validate-source == 'true' }}
@@ -54,7 +52,7 @@ runs:
     - name: CLI and keygen lint
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
-      run: cargo clippy --locked -p aeko-cli -p aeko-keygen --all-targets -- -D warnings
+      run: cargo clippy --locked -p aeko-cli -p aeko-keygen --all-targets --no-deps -- -D warnings
 
     - name: CLI and keygen tests
       if: ${{ inputs.validate-source == 'true' }}

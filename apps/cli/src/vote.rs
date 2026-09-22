@@ -11,7 +11,6 @@ use {
         spend_utils::{resolve_spend_tx_and_check_account_balances, SpendAmount},
         stake::check_current_authority,
     },
-    clap::{value_t_or_exit, App, Arg, ArgMatches, SubCommand},
     aeko_clap_utils::{
         compute_unit_price::{compute_unit_price_arg, COMPUTE_UNIT_PRICE_ARG},
         fee_payer::{fee_payer_arg, FEE_PAYER_ARG},
@@ -40,6 +39,7 @@ use {
         vote_instruction::{self, withdraw, CreateVoteAccountConfig},
         vote_state::{VoteAuthorize, VoteInit, VoteState, VoteStateVersions},
     },
+    clap::{value_t_or_exit, App, Arg, ArgMatches, SubCommand},
     std::rc::Rc,
 };
 
@@ -825,7 +825,7 @@ pub fn process_create_vote_account(
         .then(aeko_sdk::feature_set::vote_state_add_vote_latency::id)
         .and_then(|feature_address| rpc_client.get_account(&feature_address).ok())
         .and_then(|account| feature::from_account(&account))
-        .map_or(false, |feature| feature.activated_at.is_some());
+        .is_some_and(|feature| feature.activated_at.is_some());
     let space = VoteStateVersions::vote_state_size_of(is_feature_active) as u64;
 
     let build_message = |lamports| {

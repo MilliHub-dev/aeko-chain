@@ -4,9 +4,9 @@ import { isValidAddress } from './base58'
 import { requestAirdrop, getSignatureStatuses } from './rpc'
 
 /**
- * Testnet faucet policy and grant ledger.
+ * Testnet funding policy and grant ledger.
  *
- * The chain faucet itself only knows per-request and per-IP/time caps, and
+ * The private Faucet Daemon only knows per-request and per-IP/time caps, and
  * every RPC-forwarded request reaches it from the validator's address, so the
  * per-wallet rules the operator wants (one grant per cooldown window, a daily
  * budget) have to live here. State is a JSON file on a persistent volume:
@@ -14,13 +14,13 @@ import { requestAirdrop, getSignatureStatuses } from './rpc'
  * record — the chain is.
  */
 
-export type FaucetSettings = {
+export type FundingSettings = {
   enabled: boolean
   /** Amount handed to a public request. */
   amountAeko: number
   /** Minimum hours between grants to the same wallet. */
   cooldownHours: number
-  /** Total AEKO the public faucet may give out per UTC day. */
+  /** Total AEKO the public Funding Gateway may grant per UTC day. */
   dailyBudgetAeko: number
   /** Ceiling for an operator's manual grant. */
   maxManualGrantAeko: number
@@ -38,14 +38,14 @@ export type Grant = {
 }
 
 type State = {
-  settings: FaucetSettings
+  settings: FundingSettings
   grants: Grant[]
   lastGrantAt: Record<string, string>
   dayKey: string
   daySpentAeko: number
 }
 
-export class FaucetError extends Error {
+export class FundingError extends Error {
   constructor(
     public status: number,
     public code: string,
@@ -56,17 +56,18 @@ export class FaucetError extends Error {
   }
 }
 
-const DEFAULT_SETTINGS: FaucetSettings = {
+const DEFAULT_SETTINGS: FundingSettings = {
   enabled: true,
-  amountAeko: Number(process.env.FAUCET_DEFAULT_AMOUNT_AEKO ?? 5),
-  cooldownHours: Number(process.env.FAUCET_DEFAULT_COOLDOWN_HOURS ?? 24),
-  dailyBudgetAeko: Number(process.env.FAUCET_DEFAULT_DAILY_BUDGET_AEKO ?? 5000),
-  maxManualGrantAeko: Number(process.env.FAUCET_MAX_MANUAL_GRANT_AEKO ?? 100),
+  amountAeko: Number(process.env.FUNDING_DEFAULT_AMOUNT_AEKO ?? 5),
+  cooldownHours: Number(process.env.FUNDING_DEFAULT_COOLDOWN_HOURS ?? 24),
+  dailyBudgetAeko: Number(process.env.FUNDING_DEFAULT_DAILY_BUDGET_AEKO ?? 5000),
+  maxManualGrantAeko: Number(process.env.FUNDING_MAX_MANUAL_GRANT_AEKO ?? 100),
 }
 
 const MAX_GRANTS_KEPT = 500
-const STATE_DIR = process.env.FAUCET_STATE_DIR ?? path.join(process.cwd(), 'data')
-const STATE_FILE = path.join(STATE_DIR, 'faucet-state.json')
+const STATE_DIR = process.env.FUNDING_STATE_DIR ?? path.join(process.cwd(), 'data')
+const STATE_FILE = path.join(STATE_DIR, 'funding-state.json')
+const LEGACY_STATE_FILE = path.join(STATE_DIR, 'faucet-state.json')
 
 const todayKey = () => new Date().toISOString().slice(0, 10)
 
@@ -80,19 +81,33 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
   return run
 }
 
+async function readStateFile(): Promise<string | null> {
+  for (const file of [STATE_FILE, LEGACY_STATE_FILE]) {
+    try {
+      return await fs.readFile(file, 'utf8')
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+    }
+  }
+  return null
+}
+
 async function load(): Promise<State> {
   if (cached) return cached
-  try {
-    const raw = JSON.parse(await fs.readFile(STATE_FILE, 'utf8')) as Partial<State>
-    cached = {
-      settings: { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) },
-      grants: Array.isArray(raw.grants) ? raw.grants : [],
-      lastGrantAt: raw.lastGrantAt ?? {},
-      dayKey: raw.dayKey ?? todayKey(),
-      daySpentAeko: Number(raw.daySpentAeko ?? 0),
-    }
-  } catch {
+
+  const persisted = await readStateFile()
+  if (persisted === null) {
     cached = { settings: { ...DEFAULT_SETTINGS }, grants: [], lastGrantAt: {}, dayKey: todayKey(), daySpentAeko: 0 }
+    return cached
+  }
+
+  const raw = JSON.parse(persisted) as Partial<State>
+  cached = {
+    settings: { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) },
+    grants: Array.isArray(raw.grants) ? raw.grants : [],
+    lastGrantAt: raw.lastGrantAt ?? {},
+    dayKey: raw.dayKey ?? todayKey(),
+    daySpentAeko: Number(raw.daySpentAeko ?? 0),
   }
   return cached
 }
@@ -113,7 +128,7 @@ function rollDay(state: State) {
   }
 }
 
-export async function getSettings(): Promise<FaucetSettings> {
+export async function getSettings(): Promise<FundingSettings> {
   return { ...(await load()).settings }
 }
 
@@ -129,7 +144,7 @@ export async function getPolicy() {
   }
 }
 
-export async function updateSettings(patch: Partial<FaucetSettings>): Promise<FaucetSettings> {
+export async function updateSettings(patch: Partial<FundingSettings>): Promise<FundingSettings> {
   return withLock(async () => {
     const state = await load()
     const next = { ...state.settings }
@@ -138,11 +153,11 @@ export async function updateSettings(patch: Partial<FaucetSettings>): Promise<Fa
       const value = patch[key]
       if (value === undefined) continue
       if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-        throw new FaucetError(400, 'INVALID_SETTING', `${key} must be a non-negative number`)
+        throw new FundingError(400, 'INVALID_SETTING', `${key} must be a non-negative number`)
       }
       next[key] = value
     }
-    if (next.amountAeko <= 0) throw new FaucetError(400, 'INVALID_SETTING', 'amountAeko must be greater than 0')
+    if (next.amountAeko <= 0) throw new FundingError(400, 'INVALID_SETTING', 'amountAeko must be greater than 0')
     state.settings = next
     await save(state)
     return { ...next }
@@ -182,7 +197,7 @@ export async function grant(input: {
   amountAeko?: number
 }): Promise<Grant & { retryAfterSeconds?: undefined }> {
   if (!isValidAddress(input.address)) {
-    throw new FaucetError(400, 'INVALID_ADDRESS', 'Enter a valid AEKO wallet address')
+    throw new FundingError(400, 'INVALID_ADDRESS', 'Enter a valid AEKO wallet address')
   }
 
   const reserved = await withLock(async () => {
@@ -195,27 +210,27 @@ export async function grant(input: {
     if (isAdmin) {
       amountAeko = Number(input.amountAeko)
       if (!Number.isFinite(amountAeko) || amountAeko <= 0) {
-        throw new FaucetError(400, 'INVALID_AMOUNT', 'Amount must be greater than 0')
+        throw new FundingError(400, 'INVALID_AMOUNT', 'Amount must be greater than 0')
       }
       if (amountAeko > settings.maxManualGrantAeko) {
-        throw new FaucetError(400, 'AMOUNT_TOO_LARGE', `Manual grants are capped at ${settings.maxManualGrantAeko} AEKO`)
+        throw new FundingError(400, 'AMOUNT_TOO_LARGE', `Manual grants are capped at ${settings.maxManualGrantAeko} AEKO`)
       }
     } else {
       if (!settings.enabled) {
-        throw new FaucetError(503, 'FAUCET_DISABLED', 'The faucet is paused right now. Try again later.')
+        throw new FundingError(503, 'FUNDING_DISABLED', 'Testnet funding is paused right now. Try again later.')
       }
       const last = state.lastGrantAt[input.address]
       if (last) {
         const nextAt = new Date(last).getTime() + settings.cooldownHours * 3_600_000
         const wait = Math.ceil((nextAt - Date.now()) / 1000)
         if (wait > 0) {
-          throw new FaucetError(429, 'COOLDOWN', `This wallet already received test AEKO. Try again in ${formatWait(wait)}.`, {
+          throw new FundingError(429, 'COOLDOWN', `This wallet already received test AEKO. Try again in ${formatWait(wait)}.`, {
             retryAfterSeconds: wait,
           })
         }
       }
       if (state.daySpentAeko + amountAeko > settings.dailyBudgetAeko) {
-        throw new FaucetError(429, 'BUDGET_EXHAUSTED', "Today's faucet budget is used up. Try again tomorrow.")
+        throw new FundingError(429, 'BUDGET_EXHAUSTED', "Today's testnet funding budget is used up. Try again tomorrow.")
       }
       // Reserve the budget before the RPC call so concurrent requests can't
       // all pass the check; released below if the airdrop fails.
@@ -239,8 +254,8 @@ export async function grant(input: {
         await save(state)
       })
     }
-    const message = err instanceof Error ? err.message : 'airdrop failed'
-    throw new FaucetError(502, 'AIRDROP_FAILED', `The chain faucet rejected the request: ${message}`)
+    const message = err instanceof Error ? err.message : 'low-level funding transfer failed'
+    throw new FundingError(502, 'FUNDING_TRANSFER_FAILED', `The private Faucet Daemon rejected the low-level funding transfer: ${message}`)
   }
 
   const confirmed = await waitForConfirmation(signature)

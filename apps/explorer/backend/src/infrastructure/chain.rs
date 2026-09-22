@@ -8,13 +8,13 @@ use {
             TransactionAccountRecord, TransactionRecord,
         },
     },
-    anyhow::{anyhow, bail, Context, Result},
     aeko_sdk::pubkey::Pubkey,
     aeko_token_20_program::{
         instruction::Token20Instruction,
         state::{Aeko20Account, Aeko20Mint, MintPolicy},
     },
     aeko_token_721_program::state::{Aeko721Collection, Aeko721Token},
+    anyhow::{anyhow, bail, Context, Result},
     base64::{prelude::BASE64_STANDARD, Engine},
     borsh::BorshDeserialize,
     reqwest::blocking::Client,
@@ -87,10 +87,8 @@ impl RpcChainClient {
 
     /// Current finalized epoch used when projecting Social anti-spam reputation.
     pub fn current_epoch(&self) -> Result<u64> {
-        let value: Value = self.rpc_request(
-            "getEpochInfo",
-            json!([{ "commitment": "finalized" }]),
-        )?;
+        let value: Value =
+            self.rpc_request("getEpochInfo", json!([{ "commitment": "finalized" }]))?;
         required_u64(&value, "epoch", "getEpochInfo")
     }
 
@@ -157,15 +155,14 @@ impl RpcChainClient {
             .get("transactions")
             .and_then(Value::as_array)
             .ok_or_else(|| anyhow!("getBlock({slot}) result is missing transactions array"))?;
-        let unix_timestamp = match block.get("blockTime") {
-            Some(value) if value.is_null() => None,
-            Some(value) => Some(
-                value
-                    .as_i64()
-                    .ok_or_else(|| anyhow!("getBlock({slot}) blockTime is not an integer or null"))?,
-            ),
-            None => None,
-        };
+        let unix_timestamp =
+            match block.get("blockTime") {
+                Some(value) if value.is_null() => None,
+                Some(value) => Some(value.as_i64().ok_or_else(|| {
+                    anyhow!("getBlock({slot}) blockTime is not an integer or null")
+                })?),
+                None => None,
+            };
         let producer = self.slot_producer(slot)?;
 
         let block_record = BlockRecord {
@@ -318,9 +315,7 @@ impl RpcChainClient {
         };
         let owner = required_str(&value, "owner", "getAccountInfo")?;
         if owner != expected_owner.to_string() {
-            bail!(
-                "canonical {label} state owner mismatch: expected {expected_owner}, got {owner}"
-            );
+            bail!("canonical {label} state owner mismatch: expected {expected_owner}, got {owner}");
         }
         let raw = account_data_bytes(&value)
             .with_context(|| format!("decoding canonical {label} state {address}"))?;
@@ -335,9 +330,9 @@ impl RpcChainClient {
             .first()
             .filter(|value| !value.is_empty())
             .ok_or_else(|| anyhow!("getSlotLeaders({slot}, 1) returned no leader"))?;
-        let _: Pubkey = producer
-            .parse()
-            .with_context(|| format!("getSlotLeaders({slot}, 1) returned invalid pubkey {producer:?}"))?;
+        let _: Pubkey = producer.parse().with_context(|| {
+            format!("getSlotLeaders({slot}, 1) returned invalid pubkey {producer:?}")
+        })?;
         Ok(producer.clone())
     }
 
@@ -441,7 +436,11 @@ impl RpcChainClient {
         Ok(transfers)
     }
 
-    fn rpc_context_value_request<T: DeserializeOwned>(&self, method: &str, params: Value) -> Result<T> {
+    fn rpc_context_value_request<T: DeserializeOwned>(
+        &self,
+        method: &str,
+        params: Value,
+    ) -> Result<T> {
         let response: RpcContextResponse<T> = self.rpc_request(method, params)?;
         Ok(response.value)
     }
@@ -583,7 +582,9 @@ fn transaction_account_keys(message: &Value, meta: &Value, signature: &str) -> R
             if let Some(items) = loaded.get(field).and_then(Value::as_array) {
                 for value in items {
                     let key = value.as_str().ok_or_else(|| {
-                        anyhow!("transaction {signature} loadedAddresses.{field} contains a non-string")
+                        anyhow!(
+                            "transaction {signature} loadedAddresses.{field} contains a non-string"
+                        )
                     })?;
                     keys.push(key.to_string());
                 }
@@ -600,8 +601,9 @@ fn resolve_program_id(instruction: &Value, keys: &[String], signature: &str) -> 
     let index = instruction
         .get("programIdIndex")
         .and_then(Value::as_u64)
-        .ok_or_else(|| anyhow!("transaction {signature} instruction has no programId/programIdIndex"))?
-        as usize;
+        .ok_or_else(|| {
+            anyhow!("transaction {signature} instruction has no programId/programIdIndex")
+        })? as usize;
     keys.get(index)
         .cloned()
         .ok_or_else(|| anyhow!("transaction {signature} programIdIndex {index} is out of bounds"))
@@ -614,7 +616,8 @@ fn parse_token_transfer(
     event_index: String,
     slot: u64,
 ) -> Result<Option<TransferDraft>> {
-    if resolve_program_id(instruction, keys, &signature)? != aeko_token_20_program::id().to_string() {
+    if resolve_program_id(instruction, keys, &signature)? != aeko_token_20_program::id().to_string()
+    {
         return Ok(None);
     }
     let encoded = instruction
@@ -636,7 +639,9 @@ fn parse_token_transfer(
             .get(position)
             .and_then(Value::as_u64)
             .ok_or_else(|| {
-                anyhow!("token-20 instruction {signature}:{event_index} account {position} is missing")
+                anyhow!(
+                    "token-20 instruction {signature}:{event_index} account {position} is missing"
+                )
             })? as usize;
         keys.get(index).cloned().ok_or_else(|| {
             anyhow!("token-20 instruction {signature}:{event_index} account index {index} is out of bounds")
@@ -667,10 +672,7 @@ fn account_data_bytes(account: &Value) -> Result<Vec<u8>> {
         .first()
         .and_then(Value::as_str)
         .ok_or_else(|| anyhow!("account response data tuple has no base64 payload"))?;
-    let encoding = data
-        .get(1)
-        .and_then(Value::as_str)
-        .unwrap_or("base64");
+    let encoding = data.get(1).and_then(Value::as_str).unwrap_or("base64");
     if encoding != "base64" {
         bail!("account response used unsupported encoding {encoding:?}");
     }
@@ -731,7 +733,10 @@ mod tests {
         assert!(data.ends_with(&[0, 0, 0, 0]));
         data.resize(64, 0);
 
-        assert_eq!(deserialize_exact_padded::<EndsWithEmptyVec>(&data), Some(value));
+        assert_eq!(
+            deserialize_exact_padded::<EndsWithEmptyVec>(&data),
+            Some(value)
+        );
     }
 
     #[test]
@@ -760,7 +765,11 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(
-            account.value.as_ref().and_then(|value| value.get("owner")).and_then(Value::as_str),
+            account
+                .value
+                .as_ref()
+                .and_then(|value| value.get("owner"))
+                .and_then(Value::as_str),
             Some("owner")
         );
 

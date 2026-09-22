@@ -25,13 +25,11 @@ impl PostgresRepository {
         .fetch_one(&self.pool)
         .await
         .context("counting account token holdings")?;
-        let nft_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM nfts WHERE owner = $1",
-        )
-        .bind(address)
-        .fetch_one(&self.pool)
-        .await
-        .context("counting account NFT holdings")?;
+        let nft_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM nfts WHERE owner = $1")
+            .bind(address)
+            .fetch_one(&self.pool)
+            .await
+            .context("counting account NFT holdings")?;
         let reputation_score = self.reputation_score(address).await?;
 
         Ok(WalletProfileRecord {
@@ -104,9 +102,7 @@ impl PostgresRepository {
         native_balance: Option<u64>,
         limit: usize,
     ) -> Result<CreatorProfileRecord> {
-        let profile = self
-            .build_wallet_profile(address, native_balance)
-            .await?;
+        let profile = self.build_wallet_profile(address, native_balance).await?;
         let post_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM posts WHERE creator = $1")
             .bind(address)
             .fetch_one(&self.pool)
@@ -137,13 +133,12 @@ impl PostgresRepository {
                 .checked_add(claimable)
                 .context("creator claimable rewards overflow")?;
         }
-        let stakes = sqlx::query(
-            "SELECT staked_amount, state FROM social_stakes WHERE creator = $1",
-        )
-        .bind(address)
-        .fetch_all(&self.pool)
-        .await
-        .context("aggregating creator stakes")?;
+        let stakes =
+            sqlx::query("SELECT staked_amount, state FROM social_stakes WHERE creator = $1")
+                .bind(address)
+                .fetch_all(&self.pool)
+                .await
+                .context("aggregating creator stakes")?;
         let mut active_stake_count = 0usize;
         let mut total_staked_amount = 0u64;
         for row in stakes {

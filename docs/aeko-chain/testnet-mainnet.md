@@ -1,23 +1,26 @@
-# Testnet vs. Mainnet
+# AEKO Network Environments
 
-## AEKO Mainnet Beta
-*   **Status**: Live (Genesis Block: Jan 2025)
-*   **Currency**: Real AEKO Tokens.
-*   **Purpose**: Production applications, real value transactions.
-*   **RPC Endpoint**: `https://api.mainnet-beta.aeko.chain`
+## Public Testnet
 
-## AEKO Testnet
-*   **Status**: Live
-*   **Currency**: Testnet AEKO (No value).
-*   **Purpose**: Stress testing, validator performance tuning, protocol upgrades.
-*   **Faucet**: `aeko airdrop 10`
-*   **RPC Endpoint**: `https://api.testnet.aeko.chain`
+The repository currently defines and deploys one canonical public network: **AEKO Public Testnet**.
 
-## AEKO Devnet
-*   **Status**: Live
-*   **Currency**: Devnet AEKO.
-*   **Purpose**: Application development, playground for builders. It is reset frequently.
-*   **RPC Endpoint**: `https://api.devnet.aeko.chain`
+| Surface | Endpoint |
+| --- | --- |
+| JSON-RPC | `https://rpc.aeko.online` |
+| WebSocket PubSub | `wss://ws.aeko.online` |
+| Explorer API | `https://api.aeko.online` |
+| Explorer UI | `https://scan.aeko.online` |
+| Testnet Funding Portal | `https://fund.aeko.online` |
+| Validator gossip | `gossip.aeko.online:8001` |
 
-## Cluster Explorer
-View block statistics and transaction history for all clusters at [explorer.aeko.chain](https://explorer.aeko.chain).
+Testnet AEKO has no asserted monetary value. Public funding is policy-controlled through the Funding Portal. The Faucet Daemon on TCP `9900` is private infrastructure.
+
+## Mainnet
+
+This repository does **not** currently define a canonical public AEKO mainnet endpoint or claim a live mainnet deployment. Applications must not invent or reuse an undeclared mainnet endpoint.
+
+When a mainnet is deployed, configure its RPC, WebSocket, Explorer API and Explorer UI explicitly.
+
+## Devnet
+
+This repository does **not** currently define a separate public devnet endpoint. Local development uses loopback endpoints; remote development should target the public testnet unless another network is explicitly provisioned.

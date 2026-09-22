@@ -164,7 +164,8 @@ export async function fetchExplorerOverview(network) {
   return value;
 }
 
-export async function fetchExplorerHome(network, filters = {}) {
+export async function fetchExplorerHome(network, filters = {}, listSize = 6) {
+  const limit = Number.isInteger(listSize) ? Math.min(12, Math.max(3, listSize)) : 6;
   // Overview is informative and additive. If it is unavailable, preserve the
   // primary indexed lists rather than turning a dashboard-summary failure into
   // a total Explorer outage. The short cache also keeps filter changes from
@@ -178,9 +179,9 @@ export async function fetchExplorerHome(network, filters = {}) {
 
   const [overview, blocks, transactions, posts, stakes, nfts] = await Promise.all([
     overviewPromise,
-    fetchJson(`/blocks${buildQuery({ limit: 6, before: filters.blockBefore, after: filters.blockAfter })}`, network),
+    fetchJson(`/blocks${buildQuery({ limit, before: filters.blockBefore, after: filters.blockAfter })}`, network),
     fetchJson(`/transactions${buildQuery({
-      limit: 6,
+      limit,
       before: filters.txBefore,
       after: filters.txAfter,
       address: filters.txAddress,
@@ -188,7 +189,7 @@ export async function fetchExplorerHome(network, filters = {}) {
       status: filters.txStatus,
     })}`, network),
     fetchJson(`/posts${buildQuery({
-      limit: 6,
+      limit,
       creator: filters.postCreator,
       postKind: filters.postKind,
       visibility: filters.postVisibility,
@@ -196,14 +197,14 @@ export async function fetchExplorerHome(network, filters = {}) {
       after: filters.postAfter,
     })}`, network),
     fetchJson(`/stakes${buildQuery({
-      limit: 6,
+      limit,
       wallet: filters.stakeWallet,
       creator: filters.stakeCreator,
       staker: filters.stakeStaker,
       state: filters.stakeState,
     })}`, network),
     fetchJson(`/nfts${buildQuery({
-      limit: 6,
+      limit,
       collection: filters.nftCollection,
       owner: filters.nftOwner,
       creator: filters.nftCreator,

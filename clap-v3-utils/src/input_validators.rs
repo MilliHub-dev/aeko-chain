@@ -3,13 +3,13 @@ use {
         input_parsers::signer::{SignerSource, SignerSourceKind},
         keypair::ASK_KEYWORD,
     },
-    chrono::DateTime,
     aeko_sdk::{
         clock::{Epoch, Slot},
         hash::Hash,
         pubkey::{Pubkey, MAX_SEED_LEN},
         signature::{read_keypair_file, Signature},
     },
+    chrono::DateTime,
     std::{fmt::Display, ops::RangeBounds, str::FromStr},
 };
 
@@ -239,6 +239,18 @@ pub fn is_url_or_moniker<T>(string: T) -> Result<(), String>
 where
     T: AsRef<str> + Display,
 {
+    match string.as_ref() {
+        "m" | "mainnet-beta" => {
+            return Err("AEKO mainnet is not configured by this build; provide an explicit RPC URL when a mainnet endpoint is provisioned".to_string())
+        }
+        "d" | "devnet" => {
+            return Err("AEKO devnet is not configured by this build; provide an explicit RPC URL when a devnet endpoint is provisioned".to_string())
+        }
+        "t" | "testnet" if std::env::var("AEKO_TESTNET_RPC_URL").ok().filter(|value| !value.trim().is_empty()).is_none() => {
+            return Err("AEKO testnet URL is deployment configuration; set AEKO_TESTNET_RPC_URL or provide an explicit RPC URL".to_string())
+        }
+        _ => {}
+    }
     match url::Url::parse(&normalize_to_url_if_moniker(string.as_ref())) {
         Ok(url) => {
             if url.has_host() {
@@ -253,13 +265,13 @@ where
 
 pub fn normalize_to_url_if_moniker<T: AsRef<str>>(url_or_moniker: T) -> String {
     match url_or_moniker.as_ref() {
-        "m" | "mainnet-beta" => "https://api.mainnet-beta.aeko.chain",
-        "t" | "testnet" => "https://api.testnet.aeko.chain",
-        "d" | "devnet" => "https://api.devnet.aeko.chain",
-        "l" | "localhost" => "http://localhost:8899",
-        url => url,
+        "t" | "testnet" => std::env::var("AEKO_TESTNET_RPC_URL")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| "testnet".to_string()),
+        "l" | "localhost" => "http://localhost:8899".to_string(),
+        url => url.to_string(),
     }
-    .to_string()
 }
 
 #[deprecated(

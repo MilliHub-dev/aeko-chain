@@ -108,18 +108,37 @@ runs:
           sdk_rust=true
         }
 
+        TARGET_BASE_SHA=""
+
         if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
           # Manual main runs validate the complete release surface, but do not
           # republish SDK package versions that did not change.
           core=true
           mark_all_apps
         else
+          HEAD_SHA="${GITHUB_SHA}"
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
             BASE_SHA=$(jq -r '.pull_request.base.sha // empty' "$GITHUB_EVENT_PATH")
+            TARGET_BASE_SHA="$BASE_SHA"
+            PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "$GITHUB_EVENT_PATH")
+            if [ -n "$PR_HEAD_SHA" ]; then
+              HEAD_SHA="$PR_HEAD_SHA"
+            fi
+
+            # Classify the same change set GitHub shows in a pull request:
+            # merge-base...head. Comparing the two branch tips directly can
+            # hide replayed/diverged branch work that still belongs to the PR.
+            if [ -n "$BASE_SHA" ] && [ -n "$HEAD_SHA" ] \
+              && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null \
+              && git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null; then
+              MERGE_BASE=$(git merge-base "$BASE_SHA" "$HEAD_SHA" || true)
+              if [ -n "$MERGE_BASE" ]; then
+                BASE_SHA="$MERGE_BASE"
+              fi
+            fi
           else
             BASE_SHA=$(jq -r '.before // empty' "$GITHUB_EVENT_PATH")
           fi
-          HEAD_SHA="${GITHUB_SHA}"
 
           if [ -z "$BASE_SHA" ] || [[ "$BASE_SHA" =~ ^0+$ ]] || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
             mapfile -t changed_files < <(git diff-tree --root --no-commit-id --name-only -r "$HEAD_SHA")
@@ -151,21 +170,30 @@ runs:
                 ;;
               apps/sdk/js/*)
                 sdk_js=true
-                sdk_release_js=true
+                case "$file" in
+                  apps/sdk/js/examples/*) ;;
+                  *) sdk_release_js=true ;;
+                esac
                 ;;
               apps/sdk/node/*)
                 sdk_node=true
-                sdk_release_node=true
+                case "$file" in
+                  apps/sdk/node/examples/*) ;;
+                  *) sdk_release_node=true ;;
+                esac
                 ;;
               apps/sdk/python/*)
                 sdk_python=true
-                sdk_release_python=true
+                case "$file" in
+                  apps/sdk/python/examples/*|apps/sdk/python/build/*) ;;
+                  *) sdk_release_python=true ;;
+                esac
                 ;;
               apps/sdk/rust-client/*)
                 sdk_rust=true
                 sdk_release_rust=true
                 ;;
-              .github/actions/devops/*|.github/workflows/build-images.yml)
+              .github/actions/devops/*|.github/workflows/*)
                 # CI implementation is its own domain. Editing orchestration or
                 # a composite action must validate the CI implementation, but it
                 # must not masquerade as product/source changes and trigger
@@ -208,6 +236,56 @@ runs:
                 ;;
             esac
           done
+
+          # Validation follows the PR's merge-base change set so reviewers see
+          # and exercise replayed/diverged history. Release eligibility is
+          # different: only package changes that are still net-new versus the
+          # current target branch should require a new registry version.
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] \
+            && [ -n "$TARGET_BASE_SHA" ] \
+            && git cat-file -e "${TARGET_BASE_SHA}^{commit}" 2>/dev/null \
+            && git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null; then
+            sdk_release_js=false
+            sdk_release_node=false
+            sdk_release_python=false
+            sdk_release_rust=false
+
+            mapfile -t release_changed_files < <(git diff --name-only "$TARGET_BASE_SHA" "$HEAD_SHA")
+            for file in "${release_changed_files[@]}"; do
+              case "$file" in
+                apps/sdk/js/*)
+                  case "$file" in
+                    apps/sdk/js/examples/*) ;;
+                    *) sdk_release_js=true ;;
+                  esac
+                  ;;
+                apps/sdk/node/*)
+                  case "$file" in
+                    apps/sdk/node/examples/*) ;;
+                    *) sdk_release_node=true ;;
+                  esac
+                  ;;
+                apps/sdk/python/*)
+                  case "$file" in
+                    apps/sdk/python/examples/*|apps/sdk/python/build/*) ;;
+                    *) sdk_release_python=true ;;
+                  esac
+                  ;;
+                apps/sdk/rust-client/*) sdk_release_rust=true ;;
+                apps/sdk/*)
+                  case "$file" in
+                    *.md) ;;
+                    *)
+                      sdk_release_js=true
+                      sdk_release_node=true
+                      sdk_release_python=true
+                      sdk_release_rust=true
+                      ;;
+                  esac
+                  ;;
+              esac
+            done
+          fi
         fi
 
         sdk_any=false

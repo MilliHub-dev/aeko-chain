@@ -1,19 +1,21 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Github, Twitter, Activity } from 'lucide-react';
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/icon.jpg';
+import { useAppSettings } from './AppSettingsContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { settings } = useAppSettings();
 
   const links = [
     { name: 'Home', path: '/' },
     { name: 'Docs', path: '/docs' },
     { name: 'Network Tools', path: '/network-tools' },
     { name: 'Token', path: '/token' },
-    { name: 'NFT Demo', path: '/nft-demo' },
+    ...(settings.nftDemoEnabled ? [{ name: 'NFT Demo', path: '/nft-demo' }] : []),
     { name: 'Developers', path: '/developers' },
     { name: 'Bridge', path: '/bridge' },
     { name: 'Contact', path: '/contact' },
@@ -47,7 +49,7 @@ const Navbar = () => {
                       }`}
                     >
                       {isActive && (
-                        <motion.div
+                        <Motion.div
                           layoutId="navbar-indicator"
                           className="absolute inset-0 bg-white/10 rounded-full"
                           transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
@@ -95,7 +97,7 @@ const Navbar = () => {
 
         <AnimatePresence>
           {isOpen && (
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
@@ -140,7 +142,7 @@ const Navbar = () => {
                   </a>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
           )}
         </AnimatePresence>
       </div>
@@ -149,6 +151,8 @@ const Navbar = () => {
 };
 
 const Footer = () => {
+  const { settings } = useAppSettings();
+
   return (
     <footer className="bg-aeko-light border-t border-white/10 py-12 mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -168,7 +172,9 @@ const Footer = () => {
             <ul className="space-y-2 text-gray-400">
               <li><Link to="/token" className="hover:text-aeko-accent">Tokenomics</Link></li>
               <li><Link to="/network-tools" className="hover:text-aeko-accent">Network Tools</Link></li>
-              <li><Link to="/nft-demo" className="hover:text-aeko-accent">AEKO-721 Demo</Link></li>
+              {settings.nftDemoEnabled ? (
+                <li><Link to="/nft-demo" className="hover:text-aeko-accent">AEKO-721 Demo</Link></li>
+              ) : null}
               <li><Link to="/developers" className="hover:text-aeko-accent">Build on Aeko</Link></li>
               <li><Link to="/explorer" className="hover:text-aeko-accent">Explorer/Aeko Scan</Link></li>
               <li><Link to="/bridge" className="hover:text-aeko-accent">Bridge</Link></li>

@@ -41,7 +41,7 @@ pip install -e sdk/python
 ```python
 from aeko_sdk import AekoClient
 
-client = AekoClient("https://api.testnet.aeko.chain")
+client = AekoClient("https://rpc.aeko.online")
 blockhash = client.get_latest_blockhash()
 print(blockhash)
 ```

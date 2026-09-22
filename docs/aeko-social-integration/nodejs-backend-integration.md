@@ -1,26 +1,23 @@
 # Backend Integration (Node.js)
 
-For developers building social bots or alternative frontends.
+For developers building social indexers, bots or alternative frontends against the **AEKO Public Testnet**.
 
-## Listening for New Posts
+## Listening for Social Posts
 
-To build a "Feed Service", you need to index posts as they happen.
+The Social Posts native program is registered with program ID
+`29d2S7vB453rNYFdR5Ycwt7y9haRT5fwVwL9zTmBhfV2` (the base58 form of the runtime's `[17u8; 32]` program ID).
+
+Use the canonical public testnet RPC/PubSub endpoints. The exact SDK subscription API must match the SDK version your application uses.
 
 ```javascript
-import { Connection, PublicKey } from '@aeko-chain/web3.js';
+const AEKO_RPC_URL = "https://rpc.aeko.online";
+const AEKO_WS_URL = "wss://ws.aeko.online";
+const SOCIAL_POSTS_PROGRAM_ID =
+  "29d2S7vB453rNYFdR5Ycwt7y9haRT5fwVwL9zTmBhfV2";
 
-const connection = new Connection("wss://api.mainnet-beta.aeko.chain");
-const PROGRAM_ID = new PublicKey("SocialProtocol11111111111111111111111111");
-
-// Subscribe to Logs
-connection.onLogs(PROGRAM_ID, (logs, context) => {
-    if (logs.err) return;
-    
-    // Parse log for "NewPost" event
-    const event = parseLog(logs.logs);
-    if (event.type === 'NewPost') {
-        console.log(`New Post by ${event.author}: ${event.contentHash}`);
-        // Fetch full content from IPFS and update local database
-    }
-});
+// Use AEKO_RPC_URL for JSON-RPC reads/transactions.
+// Use AEKO_WS_URL for PubSub subscriptions.
+// Subscribe to logs for SOCIAL_POSTS_PROGRAM_ID with your chosen client.
 ```
+
+Do not use the previous `SocialProtocol111...` placeholder: it is not the Social Posts program ID.

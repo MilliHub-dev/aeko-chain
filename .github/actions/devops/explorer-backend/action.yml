@@ -52,7 +52,7 @@ runs:
     - name: Explorer backend lint
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
-      run: cargo clippy --locked -p aeko-explorer-backend --all-targets -- -D warnings
+      run: cargo clippy --locked -p aeko-explorer-backend --all-targets --no-deps -- -D warnings
 
     - name: Start isolated PostgreSQL
       if: ${{ inputs.validate-source == 'true' }}

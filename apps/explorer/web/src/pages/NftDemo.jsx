@@ -40,6 +40,7 @@ import {
 } from '../utils/nftTransactionBuilder';
 import NftLiveFlow from '../components/NftLiveFlow';
 import { getNetworkConfig } from '../utils/networkConfig';
+import { useAppSettings } from '../components/AppSettingsContext';
 
 const StatRow = ({ label, value, subtle = false }) => (
   <div className="flex justify-between gap-4 py-3 border-b border-white/5 last:border-b-0">
@@ -72,6 +73,7 @@ const actionOptions = [
 ];
 
 export default function NftDemo() {
+  const { settings } = useAppSettings();
   const networkConfig = getNetworkConfig('testnet');
   const [liveReadForm, setLiveReadForm] = useState(() => ({
     ...defaultLiveRead,
@@ -660,15 +662,19 @@ export default function NftDemo() {
           </p>
         </div>
 
-        <NftLiveFlow
-          rpcUrl={networkConfig.rpcUrl}
-          explorerApiUrl={networkConfig.explorerApiUrl}
-          onUseAccounts={({ collectionAddress, tokenAddress }) => {
-            setLiveReadForm((current) => ({ ...current, collectionAddress, tokenAddress }));
-          }}
-        />
+        {settings.nftLiveFlowEnabled ? (
+          <NftLiveFlow
+            rpcUrl={networkConfig.rpcUrl}
+            explorerApiUrl={networkConfig.explorerApiUrl}
+            onUseAccounts={({ collectionAddress, tokenAddress }) => {
+              setLiveReadForm((current) => ({ ...current, collectionAddress, tokenAddress }));
+            }}
+          />
+        ) : null}
 
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-8 mb-20">
+        {settings.nftAdvancedToolsEnabled ? (
+          <>
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-8 mb-20">
           <div className="flex items-center gap-3 mb-6">
             <Radio className="text-aeko-accent" />
             <h2 className="text-2xl font-bold">Live Testnet Read Panel</h2>
@@ -1149,6 +1155,9 @@ export default function NftDemo() {
             </div>
           )}
         </div>
+
+          </>
+        ) : null}
 
         <div className="border-t border-white/10 pt-16 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>

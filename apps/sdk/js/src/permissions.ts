@@ -51,7 +51,7 @@ export interface PermissionActionRequest<TPayload> {
   payload: TPayload;
 }
 
-const DEFAULT_WALLET_PERMISSIONS_PROGRAM_ID = 'gBxS1f6uyyGPuW5MzGBukidSb71jdsCb5fZaoSzULE5';
+const DEFAULT_WALLET_PERMISSIONS_PROGRAM_ID = 'p2Yicb86aZig616Eav2VWG9vuXR5mEqhtzshZYBxzsV';
 
 export function walletPermissionsProgramId(): PublicKeyString {
   return DEFAULT_WALLET_PERMISSIONS_PROGRAM_ID;
