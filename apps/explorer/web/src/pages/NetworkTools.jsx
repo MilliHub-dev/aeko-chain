@@ -6,17 +6,19 @@ import TestnetFundingRequest from '../components/TestnetFundingRequest';
 import NetworkConsoleModal from '../components/NetworkConsoleModal';
 import NetworkSocialModal from '../components/social/NetworkSocialModal';
 import { getNetworkConfig } from '../utils/networkConfig';
+import { useAppSettings } from '../components/AppSettingsProvider';
 
 const CONSOLE_TABS = new Set(['accounts', 'programs', 'social']);
 const SOCIAL_QUERY_KEYS = ['social', 'profile', 'post', 'dialog', 'target', 'persona'];
 
 export default function NetworkTools() {
+  const { settings } = useAppSettings();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedNetwork = searchParams.get('network');
   const requestedConfig = getNetworkConfig(requestedNetwork);
   const network = requestedNetwork === 'mainnet' && requestedConfig.available ? 'mainnet' : 'testnet';
   const config = getNetworkConfig(network);
-  const consoleOpen = searchParams.get('console') === '1';
+  const consoleOpen = settings.networkConsoleEnabled && searchParams.get('console') === '1';
   const requestedTab = searchParams.get('tab');
   const consoleTab = CONSOLE_TABS.has(requestedTab) ? requestedTab : 'accounts';
 
@@ -40,6 +42,7 @@ export default function NetworkTools() {
   };
 
   const openConsole = (tab = 'accounts') => {
+    if (!settings.networkConsoleEnabled) return;
     const updates = { console: '1', tab };
     if (tab === 'social' && !searchParams.get('social')) updates.social = 'feed';
     updateParams(updates, { remove: tab === 'social' ? [] : SOCIAL_QUERY_KEYS });
@@ -80,7 +83,7 @@ export default function NetworkTools() {
         <TestnetFundingRequest fundingUrl={config.fundingUrl} />
       ) : null}
 
-      {network === 'testnet' && (
+      {network === 'testnet' && settings.networkConsoleEnabled && (
         <div className="mb-10 rounded-2xl border border-aeko-accent/40 bg-gradient-to-br from-aeko-accent/10 via-white/[0.02] to-transparent p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
@@ -178,11 +181,11 @@ export default function NetworkTools() {
         </div>
       </div>
 
-      {consoleOpen && consoleTab === 'social' ? (
+      {settings.networkConsoleEnabled && consoleOpen && consoleTab === 'social' ? (
         <NetworkSocialModal network={network} onClose={closeConsole} />
       ) : (
         <NetworkConsoleModal
-          open={consoleOpen}
+          open={settings.networkConsoleEnabled && consoleOpen}
           onClose={closeConsole}
           tab={consoleTab}
           onTabChange={switchConsoleTab}

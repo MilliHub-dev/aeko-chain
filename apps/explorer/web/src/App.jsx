@@ -20,10 +20,19 @@ import NftDemo from './pages/NftDemo';
 import NetworkTools from './pages/NetworkTools';
 import SocialTest from './pages/SocialTestV2';
 import ScrollToTop from './components/ScrollToTop';
+import { AppSettingsProvider, useAppSettings } from './components/AppSettingsProvider';
 
-function App() {
+function ConfiguredApp() {
+  const { settings, loading } = useAppSettings();
+
+  const optionalRoute = (enabled, element) => {
+    if (loading) {
+      return <div className="pt-32 text-center text-gray-400">Loading application settings…</div>;
+    }
+    return enabled ? element : <Navigate to="/explorer" replace />;
+  };
+
   return (
-    <ToasterProvider>
       <Layout>
         <ScrollToTop />
         <Routes>
@@ -43,11 +52,26 @@ function App() {
           <Route path="/explorer/collection/:collectionId" element={<ExplorerCollection />} />
           <Route path="/bridge" element={<Bridge />} />
           <Route path="/network-tools" element={<NetworkTools />} />
-          <Route path="/network-tools/social-e2e" element={<SocialTest />} />
+          <Route
+            path="/network-tools/social-e2e"
+            element={optionalRoute(settings.networkConsoleEnabled, <SocialTest />)}
+          />
           <Route path="/faucet" element={<Navigate to="/network-tools" replace />} />
-          <Route path="/nft-demo" element={<NftDemo />} />
+          <Route
+            path="/nft-demo"
+            element={optionalRoute(settings.nftDemoEnabled, <NftDemo />)}
+          />
         </Routes>
       </Layout>
+  );
+}
+
+function App() {
+  return (
+    <ToasterProvider>
+      <AppSettingsProvider>
+        <ConfiguredApp />
+      </AppSettingsProvider>
     </ToasterProvider>
   );
 }

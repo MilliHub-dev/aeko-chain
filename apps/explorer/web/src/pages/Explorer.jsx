@@ -14,6 +14,7 @@ import {
 } from '../components/ExplorerFilters';
 import { StatusBannerStack } from '../components/StatusBanner';
 import { useToaster } from '../components/Toaster';
+import { useAppSettings } from '../components/AppSettingsProvider';
 
 // Wait this long after the last filter change before firing a new fetch.
 // Removing three chips in quick succession should be ONE backend call, not
@@ -21,6 +22,7 @@ import { useToaster } from '../components/Toaster';
 const FILTER_FETCH_DEBOUNCE_MS = 250;
 
 export default function Explorer() {
+  const { settings } = useAppSettings();
   const [network, setNetwork] = useState('testnet');
   const [searchParams, setSearchParams] = useSearchParams();
   const [homeState, setHomeState] = useState({
@@ -93,7 +95,7 @@ export default function Explorer() {
     // The cleanup also cancels the in-flight fetch by flipping `cancelled`,
     // so its callback is a no-op even if it resolves after the next request.
     const timer = setTimeout(() => {
-      fetchExplorerHome(network, filters)
+      fetchExplorerHome(network, filters, settings.explorerListSize)
         .then((data) => {
           if (cancelled) return;
           setHomeState({
@@ -126,7 +128,7 @@ export default function Explorer() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [network, unavailable, filters]);
+  }, [network, unavailable, filters, settings.explorerListSize]);
 
   const lastSearchRef = useRef('');
 

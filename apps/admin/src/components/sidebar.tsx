@@ -11,6 +11,7 @@ const NAV = [
   { href: '/social',        label: 'Social',        icon: '◎' },
   { href: '/marketplace',   label: 'Marketplace',   icon: '◆' },
   { href: '/funding-grants', label: 'Funding Grants', icon: '◇' },
+  { href: '/settings',       label: 'Settings',      icon: '⌁' },
 ]
 
 export default function Sidebar() {
