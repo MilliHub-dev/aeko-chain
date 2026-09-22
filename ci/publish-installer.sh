@@ -26,14 +26,14 @@ fi
 # upload install script
 source ci/upload-ci-artifact.sh
 
-cat >release.aeko.chain-install <<EOF
+cat >aeko-release-install <<EOF
 AEKO_RELEASE=$CHANNEL_OR_TAG
 AEKO_INSTALL_INIT_ARGS=$CHANNEL_OR_TAG
 AEKO_DOWNLOAD_ROOT=https://release.aeko.com
 EOF
-cat install/aeko-install-init.sh >>release.aeko.chain-install
+cat install/aeko-install-init.sh >>aeko-release-install
 
 echo --- AWS S3 Store: "install"
-upload-s3-artifact "/aeko/release.aeko.chain-install" "s3://release.aeko.com/$CHANNEL_OR_TAG/install"
+upload-s3-artifact "/aeko/aeko-release-install" "s3://release.aeko.com/$CHANNEL_OR_TAG/install"
 echo Published to:
 ci/format-url.sh https://release.aeko.com/"$CHANNEL_OR_TAG"/install

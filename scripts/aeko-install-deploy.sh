@@ -21,7 +21,7 @@ TAG=$2
 OS=${3:-linux}
 
 if [[ -z $URL || -z $TAG ]]; then
-  echo "Usage: $0 [stable|localhost|RPC URL] [edge|beta|release tag] [linux|osx|windows]"
+  echo "Usage: $0 [testnet|localhost|RPC URL] [edge|beta|release tag] [linux|osx|windows]"
   exit 0
 fi
 
@@ -45,8 +45,8 @@ windows)
 esac
 
 case $URL in
-stable)
-  URL=http://api.devnet.aeko.com
+testnet)
+  URL=https://rpc.aeko.online
   ;;
 localhost)
   URL=http://localhost:8899
@@ -60,7 +60,7 @@ edge|beta)
   DOWNLOAD_URL=https://release.aeko.com/"$TAG"/aeko-release-$TARGET.tar.bz2
   ;;
 *)
-  DOWNLOAD_URL=https://github.com/aeko-labs/aeko/releases/download/"$TAG"/aeko-release-$TARGET.tar.bz2
+  DOWNLOAD_URL=https://github.com/MilliHub-dev/aeko-chain/releases/download/"$TAG"/aeko-release-$TARGET.tar.bz2
   ;;
 esac
 
@@ -71,8 +71,15 @@ set -x
 # shellcheck disable=SC2086 # Don't want to double quote $maybeKeypair
 balance=$(aeko $maybeKeypair --url "$URL" balance --lamports)
 if [[ $balance = "0 lamports" ]]; then
-  # shellcheck disable=SC2086 # Don't want to double quote $maybeKeypair
-  aeko $maybeKeypair --url "$URL" airdrop 0.000000042
+  if [[ $URL = http://localhost:8899 || $URL = http://127.0.0.1:8899 ]]; then
+    # Local/custom validators may expose the low-level requestAirdrop flow.
+    # shellcheck disable=SC2086 # Don't want to double quote $maybeKeypair
+    aeko $maybeKeypair --url "$URL" airdrop 0.000000042
+  else
+    echo "Payer account is empty. Fund it through the network's approved funding flow before deploying the update manifest." >&2
+    echo "AEKO public testnet funding: https://fund.aeko.online" >&2
+    exit 1
+  fi
 fi
 
 # shellcheck disable=SC2086 # Don't want to double quote $maybeKeypair
