@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS explorer_app_settings (
     nft_advanced_tools_enabled BOOLEAN     NOT NULL DEFAULT TRUE,
     explorer_list_size         INTEGER     NOT NULL DEFAULT 6 CHECK (explorer_list_size BETWEEN 3 AND 12),
     settings_refresh_seconds   INTEGER     NOT NULL DEFAULT 30 CHECK (settings_refresh_seconds BETWEEN 10 AND 300),
+    max_ready_lag_slots_override BIGINT     NULL CHECK (max_ready_lag_slots_override BETWEEN 16 AND 4096),
+    social_readiness_required_override BOOLEAN NULL,
     updated_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

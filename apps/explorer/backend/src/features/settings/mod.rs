@@ -20,6 +20,8 @@ const MIN_LIST_SIZE: u16 = 3;
 const MAX_LIST_SIZE: u16 = 12;
 const MIN_REFRESH_SECONDS: u64 = 10;
 const MAX_REFRESH_SECONDS: u64 = 300;
+const MIN_READY_LAG_SLOTS: u64 = 16;
+const MAX_READY_LAG_SLOTS: u64 = 4096;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,7 +40,9 @@ struct BlockchainSettingsView {
     network: String,
     genesis_hash: String,
     social_indexing_enabled: bool,
+    social_readiness_required: bool,
     max_ready_lag_slots: u64,
+    readiness_policy_source: &'static str,
     configuration_source: &'static str,
 }
 
@@ -61,6 +65,8 @@ struct SettingsPatch {
     nft_advanced_tools_enabled: Option<bool>,
     explorer_list_size: Option<u16>,
     settings_refresh_seconds: Option<u64>,
+    max_ready_lag_slots: Option<u64>,
+    social_readiness_required: Option<bool>,
 }
 
 impl SettingsPatch {
@@ -76,7 +82,9 @@ impl SettingsPatch {
             || self.nft_live_flow_enabled.is_some()
             || self.nft_advanced_tools_enabled.is_some()
             || self.explorer_list_size.is_some()
-            || self.settings_refresh_seconds.is_some();
+            || self.settings_refresh_seconds.is_some()
+            || self.max_ready_lag_slots.is_some()
+            || self.social_readiness_required.is_some();
         if !has_change {
             return Err(ApiError::BadRequest(
                 "at least one application setting must be supplied".to_string(),
@@ -99,6 +107,14 @@ impl SettingsPatch {
             }
         }
 
+        if let Some(value) = self.max_ready_lag_slots {
+            if !(MIN_READY_LAG_SLOTS..=MAX_READY_LAG_SLOTS).contains(&value) {
+                return Err(ApiError::BadRequest(format!(
+                    "maxReadyLagSlots must be between {MIN_READY_LAG_SLOTS} and {MAX_READY_LAG_SLOTS}"
+                )));
+            }
+        }
+
         Ok(())
     }
 
@@ -110,6 +126,8 @@ impl SettingsPatch {
             nft_advanced_tools_enabled: self.nft_advanced_tools_enabled,
             explorer_list_size: self.explorer_list_size.map(i32::from),
             settings_refresh_seconds: self.settings_refresh_seconds.map(|value| value as i32),
+            max_ready_lag_slots_override: self.max_ready_lag_slots.map(|value| value as i64),
+            social_readiness_required_override: self.social_readiness_required,
         }
     }
 }
@@ -170,6 +188,24 @@ fn build_snapshot(
     let settings_refresh_seconds = u64::try_from(persisted.settings_refresh_seconds)
         .map_err(|_| ApiError::Internal(anyhow!("persisted settings refresh interval is invalid")))?;
 
+    let max_ready_lag_slots_override = persisted
+        .max_ready_lag_slots_override
+        .map(u64::try_from)
+        .transpose()
+        .map_err(|_| ApiError::Internal(anyhow!("persisted readiness lag override is invalid")))?;
+    let max_ready_lag_slots =
+        max_ready_lag_slots_override.unwrap_or(state.max_ready_lag_slots);
+    let social_readiness_required = persisted
+        .social_readiness_required_override
+        .unwrap_or(state.social_enabled);
+    let readiness_policy_source = if max_ready_lag_slots_override.is_some()
+        || persisted.social_readiness_required_override.is_some()
+    {
+        "settings"
+    } else {
+        "process-environment"
+    };
+
     Ok(SettingsSnapshot {
         revision,
         updated_at: persisted.updated_at.to_rfc3339(),
@@ -185,7 +221,9 @@ fn build_snapshot(
             network: state.network.clone(),
             genesis_hash: state.genesis_hash.clone(),
             social_indexing_enabled: state.social_enabled,
-            max_ready_lag_slots: state.max_ready_lag_slots,
+            social_readiness_required,
+            max_ready_lag_slots,
+            readiness_policy_source,
             configuration_source: "process-environment",
         },
     })
@@ -226,6 +264,8 @@ mod tests {
             nft_advanced_tools_enabled: None,
             explorer_list_size: None,
             settings_refresh_seconds: None,
+            max_ready_lag_slots: None,
+            social_readiness_required: None,
         }
     }
 
@@ -245,6 +285,10 @@ mod tests {
         let mut bad_refresh = base_patch();
         bad_refresh.settings_refresh_seconds = Some(9);
         assert!(bad_refresh.validate().is_err());
+
+        let mut bad_lag = base_patch();
+        bad_lag.max_ready_lag_slots = Some(4);
+        assert!(bad_lag.validate().is_err());
     }
 
     #[test]

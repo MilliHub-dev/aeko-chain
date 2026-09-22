@@ -14,6 +14,8 @@ pub struct PersistedAppSettings {
     pub nft_advanced_tools_enabled: bool,
     pub explorer_list_size: i32,
     pub settings_refresh_seconds: i32,
+    pub max_ready_lag_slots_override: Option<i64>,
+    pub social_readiness_required_override: Option<bool>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -25,6 +27,8 @@ pub struct AppSettingsUpdate {
     pub nft_advanced_tools_enabled: Option<bool>,
     pub explorer_list_size: Option<i32>,
     pub settings_refresh_seconds: Option<i32>,
+    pub max_ready_lag_slots_override: Option<i64>,
+    pub social_readiness_required_override: Option<bool>,
 }
 
 impl PostgresRepository {
@@ -39,6 +43,8 @@ impl PostgresRepository {
                 nft_advanced_tools_enabled,
                 explorer_list_size,
                 settings_refresh_seconds,
+                max_ready_lag_slots_override,
+                social_readiness_required_override,
                 updated_at
             FROM explorer_app_settings
             WHERE singleton = TRUE
@@ -64,9 +70,11 @@ impl PostgresRepository {
                 nft_advanced_tools_enabled = COALESCE($4, nft_advanced_tools_enabled),
                 explorer_list_size = COALESCE($5, explorer_list_size),
                 settings_refresh_seconds = COALESCE($6, settings_refresh_seconds),
+                max_ready_lag_slots_override = COALESCE($7, max_ready_lag_slots_override),
+                social_readiness_required_override = COALESCE($8, social_readiness_required_override),
                 revision = revision + 1,
                 updated_at = NOW()
-            WHERE singleton = TRUE AND revision = $7
+            WHERE singleton = TRUE AND revision = $9
             RETURNING
                 revision,
                 network_console_enabled,
@@ -75,6 +83,8 @@ impl PostgresRepository {
                 nft_advanced_tools_enabled,
                 explorer_list_size,
                 settings_refresh_seconds,
+                max_ready_lag_slots_override,
+                social_readiness_required_override,
                 updated_at
             "#,
         )
@@ -84,6 +94,8 @@ impl PostgresRepository {
         .bind(update.nft_advanced_tools_enabled)
         .bind(update.explorer_list_size)
         .bind(update.settings_refresh_seconds)
+        .bind(update.max_ready_lag_slots_override)
+        .bind(update.social_readiness_required_override)
         .bind(expected_revision)
         .fetch_optional(&self.pool)
         .await
