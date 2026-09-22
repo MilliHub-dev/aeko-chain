@@ -145,6 +145,43 @@ def main() -> int:
     for where, text in runtime_surfaces.items():
         require(public_host_literal.search(text) is None, f"{where} hardcodes a public aeko.online deployment URL")
 
+    # Protect the full deployable application/source surface, not only the
+    # currently known endpoint modules. Documentation, tests and examples are
+    # intentionally outside this runtime scan.
+    source_roots = (
+        ROOT / "apps" / "admin" / "src",
+        ROOT / "apps" / "explorer" / "web" / "src",
+        ROOT / "apps" / "sdk" / "js" / "src",
+        ROOT / "apps" / "sdk" / "node" / "src",
+        ROOT / "apps" / "sdk" / "python" / "src",
+        ROOT / "apps" / "sdk" / "rust-client" / "src",
+        ROOT / "cli-config" / "src",
+        ROOT / "clap-utils" / "src",
+        ROOT / "clap-v3-utils" / "src",
+        ROOT / "install" / "src",
+    )
+    source_suffixes = {".js", ".jsx", ".ts", ".tsx", ".py", ".rs"}
+    runtime_files: list[Path] = []
+    for source_root in source_roots:
+        if not source_root.is_dir():
+            continue
+        runtime_files.extend(
+            path
+            for path in source_root.rglob("*")
+            if path.is_file()
+            and path.suffix in source_suffixes
+            and ".test." not in path.name
+            and ".spec." not in path.name
+        )
+
+    for source_file in runtime_files:
+        text = source_file.read_text(encoding="utf-8")
+        relative = source_file.relative_to(ROOT)
+        require(
+            public_host_literal.search(text) is None,
+            f"{relative} hardcodes a public aeko.online deployment URL",
+        )
+
     for label, text in (("CLI v2", clap_v2), ("CLI v3", clap_v3)):
         require("AEKO_TESTNET_RPC_URL" in text, f"{label} testnet moniker must read AEKO_TESTNET_RPC_URL")
         require("AEKO testnet URL is deployment configuration" in text, f"{label} must fail clearly when testnet URL is unset")
@@ -195,6 +232,11 @@ def main() -> int:
     for where, text in runtime_surfaces.items():
         for legacy in retired_hosts:
             reject(text, legacy, where)
+    for source_file in runtime_files:
+        text = source_file.read_text(encoding="utf-8")
+        relative = str(source_file.relative_to(ROOT))
+        for legacy in retired_hosts:
+            reject(text, legacy, relative)
 
     for unsupported_claim in (
         "Mainnet Beta is Live",
