@@ -13,6 +13,7 @@ pub mod assets;
 pub mod ledger;
 pub mod overview;
 pub mod search;
+pub mod settings;
 pub mod social;
 pub mod social_feed;
 

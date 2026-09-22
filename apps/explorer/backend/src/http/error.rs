@@ -13,6 +13,10 @@ pub enum ApiError {
     BadRequest(String),
     #[error("{0} not found")]
     NotFound(&'static str),
+    #[error("unauthorized")]
+    Unauthorized,
+    #[error("conflict: {0}")]
+    Conflict(String),
     #[error(transparent)]
     Internal(#[from] anyhow::Error),
 }
@@ -22,6 +26,8 @@ impl ApiError {
         match self {
             Self::BadRequest(_) => StatusCode::BAD_REQUEST,
             Self::NotFound(_) => StatusCode::NOT_FOUND,
+            Self::Unauthorized => StatusCode::UNAUTHORIZED,
+            Self::Conflict(_) => StatusCode::CONFLICT,
             Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -30,6 +36,8 @@ impl ApiError {
         match self {
             Self::BadRequest(_) => "bad_request",
             Self::NotFound(_) => "not_found",
+            Self::Unauthorized => "unauthorized",
+            Self::Conflict(_) => "conflict",
             Self::Internal(_) => "internal_error",
         }
     }

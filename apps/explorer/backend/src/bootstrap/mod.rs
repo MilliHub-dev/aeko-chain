@@ -95,6 +95,7 @@ pub async fn run() -> Result<()> {
         genesis_hash,
         backend.max_ready_lag_slots,
         backend.persist_socialfi_views,
+        backend.settings_admin_token.clone(),
     )
     .shared();
     let router = http::build_router(state, &server);
