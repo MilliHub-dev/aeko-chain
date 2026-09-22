@@ -87,9 +87,7 @@ pub fn check_account_for_spend_and_fee_with_commitment(
         account_pubkey,
         balance + fee,
         commitment,
-    )
-    ?
-    {
+    )? {
         if balance > 0 {
             return Err(CliError::InsufficientFundsForSpendAndFee(
                 lamports_to_aeko(balance),
