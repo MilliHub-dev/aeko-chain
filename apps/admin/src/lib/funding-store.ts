@@ -20,7 +20,7 @@ export type FundingSettings = {
   amountAeko: number
   /** Minimum hours between grants to the same wallet. */
   cooldownHours: number
-  /** Total AEKO the public faucet may give out per UTC day. */
+  /** Total AEKO the public Funding Gateway may grant per UTC day. */
   dailyBudgetAeko: number
   /** Ceiling for an operator's manual grant. */
   maxManualGrantAeko: number
@@ -58,15 +58,16 @@ export class FundingError extends Error {
 
 const DEFAULT_SETTINGS: FundingSettings = {
   enabled: true,
-  amountAeko: Number(process.env.FUNDING_DEFAULT_AMOUNT_AEKO ?? process.env.FAUCET_DEFAULT_AMOUNT_AEKO ?? 5),
-  cooldownHours: Number(process.env.FUNDING_DEFAULT_COOLDOWN_HOURS ?? process.env.FAUCET_DEFAULT_COOLDOWN_HOURS ?? 24),
-  dailyBudgetAeko: Number(process.env.FUNDING_DEFAULT_DAILY_BUDGET_AEKO ?? process.env.FAUCET_DEFAULT_DAILY_BUDGET_AEKO ?? 5000),
-  maxManualGrantAeko: Number(process.env.FUNDING_MAX_MANUAL_GRANT_AEKO ?? process.env.FAUCET_MAX_MANUAL_GRANT_AEKO ?? 100),
+  amountAeko: Number(process.env.FUNDING_DEFAULT_AMOUNT_AEKO ?? 5),
+  cooldownHours: Number(process.env.FUNDING_DEFAULT_COOLDOWN_HOURS ?? 24),
+  dailyBudgetAeko: Number(process.env.FUNDING_DEFAULT_DAILY_BUDGET_AEKO ?? 5000),
+  maxManualGrantAeko: Number(process.env.FUNDING_MAX_MANUAL_GRANT_AEKO ?? 100),
 }
 
 const MAX_GRANTS_KEPT = 500
-const STATE_DIR = process.env.FUNDING_STATE_DIR ?? process.env.FAUCET_STATE_DIR ?? path.join(process.cwd(), 'data')
-const STATE_FILE = path.join(STATE_DIR, 'faucet-state.json')
+const STATE_DIR = process.env.FUNDING_STATE_DIR ?? path.join(process.cwd(), 'data')
+const STATE_FILE = path.join(STATE_DIR, 'funding-state.json')
+const LEGACY_STATE_FILE = path.join(STATE_DIR, 'faucet-state.json')
 
 const todayKey = () => new Date().toISOString().slice(0, 10)
 
@@ -80,19 +81,33 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
   return run
 }
 
+async function readStateFile(): Promise<string | null> {
+  for (const file of [STATE_FILE, LEGACY_STATE_FILE]) {
+    try {
+      return await fs.readFile(file, 'utf8')
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+    }
+  }
+  return null
+}
+
 async function load(): Promise<State> {
   if (cached) return cached
-  try {
-    const raw = JSON.parse(await fs.readFile(STATE_FILE, 'utf8')) as Partial<State>
-    cached = {
-      settings: { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) },
-      grants: Array.isArray(raw.grants) ? raw.grants : [],
-      lastGrantAt: raw.lastGrantAt ?? {},
-      dayKey: raw.dayKey ?? todayKey(),
-      daySpentAeko: Number(raw.daySpentAeko ?? 0),
-    }
-  } catch {
+
+  const persisted = await readStateFile()
+  if (persisted === null) {
     cached = { settings: { ...DEFAULT_SETTINGS }, grants: [], lastGrantAt: {}, dayKey: todayKey(), daySpentAeko: 0 }
+    return cached
+  }
+
+  const raw = JSON.parse(persisted) as Partial<State>
+  cached = {
+    settings: { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) },
+    grants: Array.isArray(raw.grants) ? raw.grants : [],
+    lastGrantAt: raw.lastGrantAt ?? {},
+    dayKey: raw.dayKey ?? todayKey(),
+    daySpentAeko: Number(raw.daySpentAeko ?? 0),
   }
   return cached
 }
@@ -202,7 +217,7 @@ export async function grant(input: {
       }
     } else {
       if (!settings.enabled) {
-        throw new FundingError(503, 'FAUCET_DISABLED', 'The faucet is paused right now. Try again later.')
+        throw new FundingError(503, 'FUNDING_DISABLED', 'Testnet funding is paused right now. Try again later.')
       }
       const last = state.lastGrantAt[input.address]
       if (last) {
@@ -215,7 +230,7 @@ export async function grant(input: {
         }
       }
       if (state.daySpentAeko + amountAeko > settings.dailyBudgetAeko) {
-        throw new FundingError(429, 'BUDGET_EXHAUSTED', "Today's faucet budget is used up. Try again tomorrow.")
+        throw new FundingError(429, 'BUDGET_EXHAUSTED', "Today's testnet funding budget is used up. Try again tomorrow.")
       }
       // Reserve the budget before the RPC call so concurrent requests can't
       // all pass the check; released below if the airdrop fails.
@@ -239,8 +254,8 @@ export async function grant(input: {
         await save(state)
       })
     }
-    const message = err instanceof Error ? err.message : 'airdrop failed'
-    throw new FundingError(502, 'AIRDROP_FAILED', `The private Faucet Daemon rejected the funding request: ${message}`)
+    const message = err instanceof Error ? err.message : 'low-level funding transfer failed'
+    throw new FundingError(502, 'FUNDING_TRANSFER_FAILED', `The private Faucet Daemon rejected the low-level funding transfer: ${message}`)
   }
 
   const confirmed = await waitForConfirmation(signature)

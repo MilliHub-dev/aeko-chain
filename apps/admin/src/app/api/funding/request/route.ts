@@ -30,7 +30,9 @@ export async function POST(req: NextRequest) {
     return respond({ error: { code: 'INVALID_BODY', message: 'Send { address }' } }, { status: 400 })
   }
 
-  const apiKey = process.env.FUNDING_CLIENT_API_KEY ?? process.env.FAUCET_API_KEY
+  const apiKey = process.env.FUNDING_CLIENT_API_KEY
+  // x-faucet-key is accepted only as a temporary wire-compatibility alias.
+  // New clients must send x-funding-key; the public vocabulary is funding.
   const suppliedKey = req.headers.get('x-funding-key') ?? req.headers.get('x-faucet-key')
   const trusted = Boolean(apiKey) && suppliedKey === apiKey
 

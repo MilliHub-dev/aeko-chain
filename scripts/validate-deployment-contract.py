@@ -240,9 +240,8 @@ def main() -> int:
     coolify_explorer = service_block(coolify, "explorer-api", "explorer-ui")
     coolify_admin = service_block(coolify, "admin", "wallet-tools")
     coolify_wallet_tools = service_block(coolify, "wallet-tools")
-    # The admin app is the airdrop policy owner (public faucet + operator
-    # console). It must be reachable with its own credentials and keep its
-    # grant ledger across redeploys.
+    # The operations web app owns public Funding Gateway policy plus the operator
+    # console. The private Faucet Daemon is a separate TCP service.
     require("ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}" in coolify_admin, "Coolify admin must require an operator password")
     require("ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}" in coolify_admin, "Coolify admin must require a session secret")
     require("- admin-state:/data" in coolify_admin, "Coolify operations web must persist funding policy/grants in the admin-state volume")

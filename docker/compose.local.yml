@@ -196,8 +196,9 @@ services:
       PUBLIC_EXPLORER_URL: ${AEKO_PUBLIC_EXPLORER_URL:-http://localhost:4000}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-local-dev-session-secret}
-      FAUCET_API_KEY: ${FAUCET_API_KEY:-}
-      FAUCET_STATE_DIR: /data
+      FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:-}
+      FUNDING_CLIENT_API_KEY: ${FUNDING_CLIENT_API_KEY:-}
+      FUNDING_STATE_DIR: /data
     ports:
       - "${AEKO_ADMIN_HOST_PORT:-3001}:3001"
     volumes:
