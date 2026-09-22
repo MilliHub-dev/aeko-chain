@@ -302,8 +302,11 @@ jobs:
             if [ -z "${pids[$key]+x}" ]; then
               return 0
             fi
-            wait "${pids[$key]}"
-            status=$?
+            if wait "${pids[$key]}"; then
+              status=0
+            else
+              status=$?
+            fi
             outcome="$(status_to_outcome "$status")"
             printf -v "$variable" '%s' "$outcome"
           }

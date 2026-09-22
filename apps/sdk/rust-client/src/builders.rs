@@ -413,7 +413,9 @@ pub fn default_wallet_permissions_program_id() -> PubkeyString {
     bs58::encode([12u8; 32]).into_string()
 }
 
-pub fn build_initialize_collection_instruction(input: &InitializeCollectionInput) -> InstructionPlan {
+pub fn build_initialize_collection_instruction(
+    input: &InitializeCollectionInput,
+) -> InstructionPlan {
     instruction_plan(
         input.program_id.clone(),
         vec![
@@ -589,7 +591,9 @@ pub fn build_unfreeze_wallet_instruction(input: &UnfreezeWalletInput) -> Instruc
     )
 }
 
-pub fn build_record_delegate_usage_instruction(input: &RecordDelegateUsageInput) -> InstructionPlan {
+pub fn build_record_delegate_usage_instruction(
+    input: &RecordDelegateUsageInput,
+) -> InstructionPlan {
     instruction_plan(
         input.program_id.clone(),
         vec![

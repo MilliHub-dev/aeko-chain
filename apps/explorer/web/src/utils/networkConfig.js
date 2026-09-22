@@ -4,7 +4,7 @@
 // are retained only for local Vite development and CI preview builds.
 
 const runtime = globalThis.__AEKO_RUNTIME_CONFIG__ || {};
-const vite = import.meta.env;
+const vite = import.meta.env || {};
 
 const configured = (runtimeKey, viteKey) =>
   String(runtime[runtimeKey] || vite[viteKey] || '').trim();
