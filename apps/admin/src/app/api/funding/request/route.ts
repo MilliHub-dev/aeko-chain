@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { FundingError, grant } from '@/lib/funding-store'
-import { clientIp, throttle } from '@/lib/ip-throttle'\nimport { fundingCorsHeaders, fundingPreflight } from '@/lib/funding-cors'
+import { clientIp, throttle } from '@/lib/ip-throttle'
+import { fundingCorsHeaders, fundingPreflight } from '@/lib/funding-cors'
 
-export const dynamic = 'force-dynamic'\n\nexport const OPTIONS = fundingPreflight
+export const dynamic = 'force-dynamic'
+
+export const OPTIONS = fundingPreflight
 
 const EXPLORER_URL = (process.env.PUBLIC_EXPLORER_URL ?? 'https://scan.aeko.online').replace(/\/+$/, '')
 
@@ -43,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const record = await grant({ address, source: trusted ? 'backend' : 'public' })
-    return NextResponse.json({
+    return respond({
       data: {
         ...record,
         explorerUrl: `${EXPLORER_URL}/explorer/account/${record.address}`,
