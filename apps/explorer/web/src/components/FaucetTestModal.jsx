@@ -32,7 +32,7 @@ import {
   getBalance,
   getLatestBlockhash,
   getSlot,
-  requestAirdrop,
+  requestTestnetFunding,
   sendTransaction,
 } from '../utils/aekoRpcClient';
 import { buildSignedTransfer } from '../utils/aekoTransfer';
@@ -241,7 +241,7 @@ function WalletsTab({ wallets, setWallets, balances, refreshBalance, rpcUrl }) {
 
       {wallets.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center text-sm text-gray-400">
-          No test wallets yet. Generate one above to start requesting airdrops.
+          No test wallets yet. Generate one above to start requesting funding grants.
         </div>
       ) : (
         <ul className="space-y-3">
@@ -400,10 +400,10 @@ function AirdropTransferTab({ wallets, balances, refreshBalance, rpcUrl }) {
     }
     setAirdropBusy(true);
     try {
-      const sig = await requestAirdrop(rpcUrl, target.address, aekoToLamports(amount));
+      const sig = await requestTestnetFunding(rpcUrl, target.address, aekoToLamports(amount));
       await confirmSignature(rpcUrl, sig);
       await refreshBalance(target.address);
-      setAirdropResult({ kind: 'success', message: `Airdrop confirmed.`, signature: sig });
+      setAirdropResult({ kind: 'success', message: `Funding grant confirmed.`, signature: sig });
     } catch (e) {
       setAirdropResult({ kind: 'error', message: e.message || String(e) });
     } finally {
@@ -462,7 +462,7 @@ function AirdropTransferTab({ wallets, balances, refreshBalance, rpcUrl }) {
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <div className="flex items-center gap-2 mb-4">
           <Droplets className="text-aeko-accent" size={18} />
-          <h3 className="text-base font-semibold text-white">Request airdrop</h3>
+          <h3 className="text-base font-semibold text-white">Request funding</h3>
         </div>
 
         <div className="space-y-4">
@@ -493,7 +493,7 @@ function AirdropTransferTab({ wallets, balances, refreshBalance, rpcUrl }) {
           </Field>
           <PrimaryButton onClick={handleAirdrop} loading={airdropBusy}>
             <Droplets size={14} />
-            Request airdrop
+            Request funding
           </PrimaryButton>
         </div>
 

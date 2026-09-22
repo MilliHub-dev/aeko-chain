@@ -24,7 +24,7 @@ import {
   confirmSignature,
   formatAeko,
   getLatestBlockhash,
-  requestAirdrop,
+  requestTestnetFunding,
   sendTransaction,
 } from '../utils/aekoRpcClient';
 import { AekoWsClient } from '../utils/aekoWsClient';
@@ -156,10 +156,10 @@ function AccountsWorkspace({
     setBusy('airdrop');
     setResult(null);
     try {
-      const signature = await requestAirdrop(rpcUrl, wallet.address, aekoToLamports(value));
+      const signature = await requestTestnetFunding(rpcUrl, wallet.address, aekoToLamports(value));
       await confirmSignature(rpcUrl, signature);
       await refreshWallet(wallet.address);
-      setResult({ kind: 'success', message: `Airdrop confirmed for ${wallet.name}.`, signature });
+      setResult({ kind: 'success', message: `Funding grant confirmed for ${wallet.name}.`, signature });
     } catch (error) {
       setResult({ kind: 'error', message: error.message || String(error) });
     } finally {

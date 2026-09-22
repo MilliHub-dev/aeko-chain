@@ -18,7 +18,7 @@ import {
   getAccountInfo,
   getBalance,
   getLatestBlockhash,
-  requestAirdrop,
+  requestTestnetFunding,
   sendTransaction,
 } from '../utils/aekoRpcClient';
 import {
@@ -190,11 +190,11 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
     setBusy('fund');
     setError('');
     try {
-      const signature = await requestAirdrop(rpcUrl, wallet.address, aekoToLamports(2));
+      const signature = await requestTestnetFunding(rpcUrl, wallet.address, aekoToLamports(2));
       await confirmSignature(rpcUrl, signature);
       const next = await refreshBalance();
       setLastSignature(signature);
-      appendLog(`Airdrop confirmed. Wallet balance is now ${formatAeko(next)}.`);
+      appendLog(`Funding grant confirmed. Wallet balance is now ${formatAeko(next)}.`);
     } catch (fundError) {
       setError(fundError.message || String(fundError));
     } finally {

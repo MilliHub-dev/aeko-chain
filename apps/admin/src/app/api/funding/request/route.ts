@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { FundingError, grant } from '@/lib/funding-store'
-import { clientIp, throttle } from '@/lib/ip-throttle'
+import { clientIp, throttle } from '@/lib/ip-throttle'\nimport { fundingCorsHeaders, fundingPreflight } from '@/lib/funding-cors'
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic'\n\nexport const OPTIONS = fundingPreflight
 
 const EXPLORER_URL = (process.env.PUBLIC_EXPLORER_URL ?? 'https://scan.aeko.online').replace(/\/+$/, '')
 
@@ -14,11 +14,17 @@ const EXPLORER_URL = (process.env.PUBLIC_EXPLORER_URL ?? 'https://scan.aeko.onli
  * wallet cooldown and daily-budget policy still apply.
  */
 export async function POST(req: NextRequest) {
+  const cors = fundingCorsHeaders(req)
+  const respond = (body: unknown, init: { status?: number; headers?: Record<string, string> } = {}) =>
+    NextResponse.json(body, {
+      status: init.status,
+      headers: { ...cors, ...(init.headers ?? {}) },
+    })
   let address = ''
   try {
     address = String(((await req.json()) as { address?: unknown }).address ?? '').trim()
   } catch {
-    return NextResponse.json({ error: { code: 'INVALID_BODY', message: 'Send { address }' } }, { status: 400 })
+    return respond({ error: { code: 'INVALID_BODY', message: 'Send { address }' } }, { status: 400 })
   }
 
   const apiKey = process.env.FUNDING_CLIENT_API_KEY ?? process.env.FAUCET_API_KEY
@@ -28,7 +34,7 @@ export async function POST(req: NextRequest) {
   if (!trusted) {
     const wait = throttle(clientIp(req.headers))
     if (wait > 0) {
-      return NextResponse.json(
+      return respond(
         { error: { code: 'RATE_LIMITED', message: `Too many requests. Try again in ${wait}s.`, retryAfterSeconds: wait } },
         { status: 429, headers: { 'Retry-After': String(wait) } },
       )
@@ -47,9 +53,9 @@ export async function POST(req: NextRequest) {
     if (err instanceof FundingError) {
       const headers: Record<string, string> = {}
       if (typeof err.extra.retryAfterSeconds === 'number') headers['Retry-After'] = String(err.extra.retryAfterSeconds)
-      return NextResponse.json({ error: { code: err.code, message: err.message, ...err.extra } }, { status: err.status, headers })
+      return respond({ error: { code: err.code, message: err.message, ...err.extra } }, { status: err.status, headers })
     }
     console.error('funding request failed:', err)
-    return NextResponse.json({ error: { code: 'INTERNAL', message: 'Funding request failed' } }, { status: 500 })
+    return respond({ error: { code: 'INTERNAL', message: 'Funding request failed' } }, { status: 500 })
   }
 }

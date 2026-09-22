@@ -65,6 +65,34 @@ export async function requestAirdrop(rpcUrl, address, lamports) {
   return rpc(rpcUrl, 'requestAirdrop', [address, lamports]);
 }
 
+const DEFAULT_TESTNET_FUNDING_URL =
+  import.meta.env.VITE_AEKO_TESTNET_FUNDING_URL || 'https://fund.aeko.online';
+
+function isCanonicalPublicTestnetRpc(rpcUrl) {
+  try {
+    return new URL(rpcUrl).hostname.toLowerCase() === 'rpc.aeko.online';
+  } catch {
+    return false;
+  }
+}
+
+export async function requestTestnetFunding(rpcUrl, address, lamports) {
+  if (!isCanonicalPublicTestnetRpc(rpcUrl)) {
+    return requestAirdrop(rpcUrl, address, lamports);
+  }
+
+  const response = await fetch(`${DEFAULT_TESTNET_FUNDING_URL.replace(/\/$/, '')}/api/funding/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body?.data?.signature) {
+    throw new Error(body?.error?.message || `Funding request failed with HTTP ${response.status}`);
+  }
+  return body.data.signature;
+}
+
 export async function getAccountInfo(rpcUrl, address) {
   const r = await rpc(rpcUrl, 'getAccountInfo', [
     address,
