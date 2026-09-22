@@ -50,7 +50,8 @@ Internet wallets / dApps / SDKs
                   native SocialFi       PostgreSQL + registry
 
 scan.aeko.online -> explorer-ui :4000 -> explorer-api :8088
-chain.aeko.online -> admin :3001 (public faucet + operator console) -> validator RPC / explorer-api
+chain.aeko.online -> admin :3001 (public faucet only)      -> validator RPC
+admin.aeko.online -> admin :3001 (operator console, sign-in) -> validator RPC / explorer-api
 
 gossip.aeko.online:8001 -> validator gossip entrypoint
 validator host TCP+UDP 8000-8050 -> public validator transport range
@@ -87,7 +88,7 @@ AEKO_KEYS_DIR=<Dokploy/local persistent host directory; Coolify uses fixed /data
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
-ADMIN_PASSWORD=<operator password for chain.aeko.online>
+ADMIN_PASSWORD=<operator password for admin.aeko.online>
 ADMIN_SESSION_SECRET=<16+ random characters>
 FAUCET_API_KEY=<shared secret the Aeko backend sends as x-faucet-key>
 ```
@@ -227,6 +228,7 @@ Dokploy's native Domains feature is preferred. Route:
 | `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
 | `chain.aeko.online` | `admin` | `3001` |
+| `admin.aeko.online` | `admin` | `3001` |
 
 Do not route `gossip.aeko.online` through Traefik. DNS should point it directly at `AEKO_PUBLIC_IP`. Gossip starts on `8001`, and the Compose publishes the full validator TCP+UDP `8000-8050` transport range with same-port host mappings so advertised peer addresses stay reachable.
 
@@ -263,6 +265,7 @@ Configure domains to the same internal services:
 | `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
 | `chain.aeko.online` | `admin` | `3001` |
+| `admin.aeko.online` | `admin` | `3001` |
 
 Keep `gossip.aeko.online` outside the HTTP proxy. Point its DNS directly to `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050`.
 

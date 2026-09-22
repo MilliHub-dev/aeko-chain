@@ -242,6 +242,8 @@ services:
       AEKO_RPC_URL: http://validator:8899
       AEKO_EXPLORER_URL: http://explorer-api:8088
       PUBLIC_EXPLORER_URL: ${AEKO_PUBLIC_EXPLORER_URL:-https://scan.aeko.online}
+      FAUCET_PUBLIC_HOST: ${FAUCET_PUBLIC_HOST:-chain.aeko.online}
+      ADMIN_PUBLIC_HOST: ${ADMIN_PUBLIC_HOST:-admin.aeko.online}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}
       FAUCET_API_KEY: ${FAUCET_API_KEY:-}
