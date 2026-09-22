@@ -336,7 +336,14 @@ jobs:
           printf 'Parallel validation outcomes: admin=%s web=%s sdk-js=%s sdk-node=%s sdk-python=%s network-preflight=%s\n'             "$admin_outcome" "$explorer_web_outcome" "$sdk_js_outcome"             "$sdk_node_outcome" "$sdk_python_outcome" "$network_preflight_outcome"
 
           case "$admin_outcome:$explorer_web_outcome:$sdk_js_outcome:$sdk_node_outcome:$sdk_python_outcome:$network_preflight_outcome" in
-            *failure*|*cancelled*) exit 1 ;;
+            *failure*|*cancelled*)
+              # PRs aggregate child failures in the final gate below. Returning
+              # success here preserves outputs that GitHub drops from a failed
+              # continue-on-error step. Main pushes still fail immediately.
+              if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+                exit 1
+              fi
+              ;;
           esac
 
       # Phase 3: Rust-heavy validation. GitHub steps inside one job are

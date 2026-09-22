@@ -139,7 +139,7 @@ def main() -> int:
         re.search(r"^  rpc-node:\s*$", dokploy, re.MULTILINE) is None,
         "Dokploy must not make the non-voting RPC replica a mandatory/default service",
     )
-    ordered = ["faucet", "validator", "social-bootstrap", "explorer-api", "explorer-ui", "admin", "wallet-tools"]
+    ordered = ["faucet", "validator", "social-bootstrap", "explorer-api", "explorer-ui", "operations-web", "wallet-tools"]
     for index, service in enumerate(ordered):
         next_service = ordered[index + 1] if index + 1 < len(ordered) else None
         block = service_block(dokploy, service, next_service)
@@ -149,7 +149,7 @@ def main() -> int:
     validator = service_block(dokploy, "validator", "social-bootstrap")
     bootstrap = service_block(dokploy, "social-bootstrap", "explorer-api")
     explorer = service_block(dokploy, "explorer-api", "explorer-ui")
-    explorer_ui = service_block(dokploy, "explorer-ui", "admin")
+    explorer_ui = service_block(dokploy, "explorer-ui", "operations-web")
     wallet_tools = service_block(dokploy, "wallet-tools")
 
     require("AEKO_NODE_ROLE: validator" in validator, "validator role must be explicit")
@@ -238,14 +238,14 @@ def main() -> int:
     coolify_validator = service_block(coolify, "validator", "social-bootstrap")
     coolify_bootstrap = service_block(coolify, "social-bootstrap", "explorer-api")
     coolify_explorer = service_block(coolify, "explorer-api", "explorer-ui")
-    coolify_admin = service_block(coolify, "admin", "wallet-tools")
+    coolify_operations_web = service_block(coolify, "operations-web", "wallet-tools")
     coolify_wallet_tools = service_block(coolify, "wallet-tools")
     # The operations web app owns public Funding Gateway policy plus the operator
     # console. The private Faucet Daemon is a separate TCP service.
-    require("ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}" in coolify_admin, "Coolify admin must require an operator password")
-    require("ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}" in coolify_admin, "Coolify admin must require a session secret")
-    require("- admin-state:/data" in coolify_admin, "Coolify operations web must persist funding policy/grants in the admin-state volume")
-    require("http://127.0.0.1:3001/api/funding/policy" in coolify_admin, "Coolify operations web healthcheck must probe the public funding policy endpoint")
+    require("ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}" in coolify_operations_web, "Coolify operations web must require an operator password")
+    require("ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}" in coolify_operations_web, "Coolify operations web must require a session secret")
+    require("- admin-state:/data" in coolify_operations_web, "Coolify operations web must persist funding policy/grants in the admin-state volume")
+    require("http://127.0.0.1:3001/api/funding/policy" in coolify_operations_web, "Coolify operations web healthcheck must probe the public funding policy endpoint")
     require("--per-request-cap" in coolify_faucet, "Coolify faucet must enforce a per-request airdrop ceiling")
     require("AEKO_KEYS_DIR" not in coolify, "Coolify compose must not depend on interpolated key-path variables")
     require("source: ${" not in coolify, "Coolify volume sources must not contain Compose interpolation")
@@ -270,7 +270,7 @@ def main() -> int:
     require("AEKO_VALIDATOR_LEDGER_VOLUME" not in coolify, "Coolify ledger source must not use interpolated volume-source syntax")
     require("AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?}" in coolify_validator, "Coolify must require the public validator address")
     require("AEKO_FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_validator, "Coolify validator must protect requestAirdrop behind the Funding Gateway key")
-    require("FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_admin, "Coolify admin must receive the matching Funding Gateway key")
+    require("FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_operations_web, "Coolify admin must receive the matching Funding Gateway key")
     require('"8000-8050:8000-8050/tcp"' in coolify_validator, "Coolify validator TCP transport range must be published")
     require('"8000-8050:8000-8050/udp"' in coolify_validator, "Coolify validator UDP transport range must be published")
     require("AEKO_RPC_URL: http://validator:8899" in coolify_bootstrap, "Coolify bootstrap must use validator RPC")

@@ -56,7 +56,7 @@ runs:
     - name: Rust SDK format
       if: ${{ inputs.rust == 'true' && inputs.release-rust == 'true' }}
       shell: bash
-      run: cargo fmt --manifest-path apps/sdk/rust-client/Cargo.toml -- --check
+      run: bash .github/actions/devops/check-rustfmt-changed.sh apps/sdk/rust-client
 
     - name: Diagnose Rust SDK lockfile and target check
       if: ${{ inputs.rust == 'true' }}

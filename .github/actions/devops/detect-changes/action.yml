@@ -170,15 +170,24 @@ runs:
                 ;;
               apps/sdk/js/*)
                 sdk_js=true
-                sdk_release_js=true
+                case "$file" in
+                  apps/sdk/js/examples/*) ;;
+                  *) sdk_release_js=true ;;
+                esac
                 ;;
               apps/sdk/node/*)
                 sdk_node=true
-                sdk_release_node=true
+                case "$file" in
+                  apps/sdk/node/examples/*) ;;
+                  *) sdk_release_node=true ;;
+                esac
                 ;;
               apps/sdk/python/*)
                 sdk_python=true
-                sdk_release_python=true
+                case "$file" in
+                  apps/sdk/python/examples/*|apps/sdk/python/build/*) ;;
+                  *) sdk_release_python=true ;;
+                esac
                 ;;
               apps/sdk/rust-client/*)
                 sdk_rust=true
@@ -244,9 +253,24 @@ runs:
             mapfile -t release_changed_files < <(git diff --name-only "$TARGET_BASE_SHA" "$HEAD_SHA")
             for file in "${release_changed_files[@]}"; do
               case "$file" in
-                apps/sdk/js/*) sdk_release_js=true ;;
-                apps/sdk/node/*) sdk_release_node=true ;;
-                apps/sdk/python/*) sdk_release_python=true ;;
+                apps/sdk/js/*)
+                  case "$file" in
+                    apps/sdk/js/examples/*) ;;
+                    *) sdk_release_js=true ;;
+                  esac
+                  ;;
+                apps/sdk/node/*)
+                  case "$file" in
+                    apps/sdk/node/examples/*) ;;
+                    *) sdk_release_node=true ;;
+                  esac
+                  ;;
+                apps/sdk/python/*)
+                  case "$file" in
+                    apps/sdk/python/examples/*|apps/sdk/python/build/*) ;;
+                    *) sdk_release_python=true ;;
+                  esac
+                  ;;
                 apps/sdk/rust-client/*) sdk_release_rust=true ;;
                 apps/sdk/*)
                   case "$file" in

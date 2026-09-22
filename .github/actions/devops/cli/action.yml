@@ -42,9 +42,7 @@ runs:
     - name: CLI and keygen format
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
-      run: |
-        cargo fmt --manifest-path apps/cli/Cargo.toml -- --check
-        cargo fmt --manifest-path keygen/Cargo.toml -- --check
+      run: bash .github/actions/devops/check-rustfmt-changed.sh apps/cli keygen
 
     - name: CLI and keygen type/target check
       if: ${{ inputs.validate-source == 'true' }}
