@@ -1,5 +1,5 @@
 const TOKEN_721_PROGRAM_ID_BYTES = new Uint8Array(new Array(32).fill(10));
-const DEFAULT_RPC_ENDPOINT = import.meta.env.VITE_AEKO_TESTNET_RPC || 'https://api.testnet.aeko.chain';
+const DEFAULT_RPC_ENDPOINT = import.meta.env.VITE_AEKO_TESTNET_RPC || 'https://rpc.aeko.online';
 
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 

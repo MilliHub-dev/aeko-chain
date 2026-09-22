@@ -71,7 +71,7 @@ Reason:
 Use AEKO CLI program deployment flow:
 
 ```bash
-aeko config set --url https://api.testnet.aeko.chain
+aeko config set --url https://rpc.aeko.online
 aeko program deploy <PATH_TO_SO> --program-id <PROGRAM_KEYPAIR>
 ```
 

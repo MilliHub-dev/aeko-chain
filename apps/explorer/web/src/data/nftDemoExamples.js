@@ -9,7 +9,7 @@ const canonicalExample = {
   description:
     'Canonical AEKO-721 public example for docs, wallet testing, and explorer verification.',
   rpcEndpoint:
-    import.meta.env.VITE_AEKO_DEMO_RPC || import.meta.env.VITE_AEKO_TESTNET_RPC || 'https://api.testnet.aeko.chain',
+    import.meta.env.VITE_AEKO_DEMO_RPC || import.meta.env.VITE_AEKO_TESTNET_RPC || 'https://rpc.aeko.online',
   collectionAddress: import.meta.env.VITE_AEKO_DEMO_COLLECTION || '',
   tokenAddress: import.meta.env.VITE_AEKO_DEMO_TOKEN || '',
   collectionSeed: import.meta.env.VITE_AEKO_DEMO_COLLECTION_SEED || 'aeko-genesis-collection',

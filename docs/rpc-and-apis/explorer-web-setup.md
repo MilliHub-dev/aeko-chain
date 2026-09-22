@@ -35,7 +35,7 @@ The example values are also present in:
 From the repo root:
 
 ```bash
-AEKO_EXPLORER_RPC=https://api.testnet.aeko.chain \
+AEKO_EXPLORER_RPC=https://rpc.aeko.online \
 AEKO_EXPLORER_NETWORK=testnet \
 AEKO_EXPLORER_BIND=127.0.0.1:8088 \
 cargo run -p aeko-explorer-backend --example api_server

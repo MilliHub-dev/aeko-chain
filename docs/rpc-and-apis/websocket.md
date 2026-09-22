@@ -212,7 +212,7 @@ Public channels should never silently expose protected data.
 ## Example
 
 ```javascript
-const ws = new WebSocket('wss://api.testnet.aeko.chain');
+const ws = new WebSocket('wss://ws.aeko.online');
 
 ws.onopen = () => {
   ws.send(JSON.stringify({
