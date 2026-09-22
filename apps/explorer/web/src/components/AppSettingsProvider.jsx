@@ -1,15 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchPublicAppSettings, normalizeAppSettingsPayload, SAFE_APP_SETTINGS } from '../utils/appSettings';
+import { AppSettingsContext } from './AppSettingsContext';
 
 const SAFE_SNAPSHOT = normalizeAppSettingsPayload({ revision: 0, application: SAFE_APP_SETTINGS });
-
-const AppSettingsContext = createContext({
-  ...SAFE_SNAPSHOT,
-  settings: SAFE_SNAPSHOT.application,
-  loading: true,
-  error: '',
-  refresh: async () => {},
-});
 
 export function AppSettingsProvider({ children }) {
   const [snapshot, setSnapshot] = useState(SAFE_SNAPSHOT);
@@ -43,8 +36,4 @@ export function AppSettingsProvider({ children }) {
   );
 
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>;
-}
-
-export function useAppSettings() {
-  return useContext(AppSettingsContext);
 }

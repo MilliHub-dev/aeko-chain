@@ -1,9 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Github, Twitter, Activity } from 'lucide-react';
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/icon.jpg';
-import { useAppSettings } from './AppSettingsProvider';
+import { useAppSettings } from './AppSettingsContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,7 +49,7 @@ const Navbar = () => {
                       }`}
                     >
                       {isActive && (
-                        <motion.div
+                        <Motion.div
                           layoutId="navbar-indicator"
                           className="absolute inset-0 bg-white/10 rounded-full"
                           transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
@@ -97,7 +97,7 @@ const Navbar = () => {
 
         <AnimatePresence>
           {isOpen && (
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
@@ -142,7 +142,7 @@ const Navbar = () => {
                   </a>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
           )}
         </AnimatePresence>
       </div>

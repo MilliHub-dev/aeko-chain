@@ -20,7 +20,8 @@ import NftDemo from './pages/NftDemo';
 import NetworkTools from './pages/NetworkTools';
 import SocialTest from './pages/SocialTestV2';
 import ScrollToTop from './components/ScrollToTop';
-import { AppSettingsProvider, useAppSettings } from './components/AppSettingsProvider';
+import { AppSettingsProvider } from './components/AppSettingsProvider';
+import { useAppSettings } from './components/AppSettingsContext';
 
 function ConfiguredApp() {
   const { settings, loading } = useAppSettings();

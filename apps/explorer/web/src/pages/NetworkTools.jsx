@@ -6,7 +6,7 @@ import TestnetFundingRequest from '../components/TestnetFundingRequest';
 import NetworkConsoleModal from '../components/NetworkConsoleModal';
 import NetworkSocialModal from '../components/social/NetworkSocialModal';
 import { getNetworkConfig } from '../utils/networkConfig';
-import { useAppSettings } from '../components/AppSettingsProvider';
+import { useAppSettings } from '../components/AppSettingsContext';
 
 const CONSOLE_TABS = new Set(['accounts', 'programs', 'social']);
 const SOCIAL_QUERY_KEYS = ['social', 'profile', 'post', 'dialog', 'target', 'persona'];

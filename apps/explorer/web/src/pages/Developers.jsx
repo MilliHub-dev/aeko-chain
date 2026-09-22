@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import NetworkToggle from '../components/NetworkToggle';
 import NetworkToolsPanel from '../components/NetworkToolsPanel';
 import { getNetworkConfig } from '../utils/networkConfig';
-import { useAppSettings } from '../components/AppSettingsProvider';
+import { useAppSettings } from '../components/AppSettingsContext';
 
 export default function Developers() {
   const { settings } = useAppSettings();
@@ -98,7 +98,9 @@ export default function Developers() {
 
         {/* SDK Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 mb-20">
-          {sdkCards.map(({ title, icon: Icon, accent, install, href, description }) => (
+          {sdkCards.map(({ title, icon, accent, install, href, description }) => {
+            const Icon = icon;
+            return (
             <div key={title} className="bg-[#0f0f16] border border-white/10 rounded-xl p-8 hover:border-aeko-accent/50 transition-colors">
               <div className={`w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6 ${accent}`}>
                 <Icon size={32} />
@@ -117,7 +119,8 @@ export default function Developers() {
                 View Published Package <ArrowRight size={16} />
               </a>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-20">

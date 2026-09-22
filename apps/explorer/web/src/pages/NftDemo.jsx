@@ -40,7 +40,7 @@ import {
 } from '../utils/nftTransactionBuilder';
 import NftLiveFlow from '../components/NftLiveFlow';
 import { getNetworkConfig } from '../utils/networkConfig';
-import { useAppSettings } from '../components/AppSettingsProvider';
+import { useAppSettings } from '../components/AppSettingsContext';
 
 const StatRow = ({ label, value, subtle = false }) => (
   <div className="flex justify-between gap-4 py-3 border-b border-white/5 last:border-b-0">

@@ -1,10 +1,10 @@
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { Coins, PieChart, TrendingUp, Lock, Zap, Gavel, Shield, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useAppSettings } from '../components/AppSettingsProvider';
+import { useAppSettings } from '../components/AppSettingsContext';
 
 const TokenMetric = ({ label, value, subtext, delay }) => (
-  <motion.div
+  <Motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay }}
@@ -13,7 +13,7 @@ const TokenMetric = ({ label, value, subtext, delay }) => (
     <h3 className="text-gray-400 text-sm font-medium mb-2">{label}</h3>
     <p className="text-3xl font-bold text-white mb-1">{value}</p>
     {subtext && <p className="text-aeko-accent text-sm">{subtext}</p>}
-  </motion.div>
+  </Motion.div>
 );
 
 const DistributionItem = ({ label, percentage, amount, color, description }) => (
@@ -29,7 +29,7 @@ const DistributionItem = ({ label, percentage, amount, color, description }) => 
       </div>
     </div>
     <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden">
-      <motion.div
+      <Motion.div
         initial={{ width: 0 }}
         whileInView={{ width: `${percentage}%` }}
         transition={{ duration: 1, ease: "easeOut" }}
@@ -39,7 +39,9 @@ const DistributionItem = ({ label, percentage, amount, color, description }) => 
   </div>
 );
 
-const UtilityCard = ({ icon: Icon, title, description }) => (
+const UtilityCard = ({ icon, title, description }) => {
+  const Icon = icon;
+  return (
   <div className="bg-[#0f0f16] border border-white/10 rounded-xl p-6 hover:border-aeko-accent/50 transition-colors group">
     <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center mb-4 group-hover:bg-aeko-accent/10 transition-colors">
       <Icon className="text-aeko-accent" size={24} />
@@ -47,7 +49,8 @@ const UtilityCard = ({ icon: Icon, title, description }) => (
     <h3 className="text-xl font-bold mb-2">{title}</h3>
     <p className="text-gray-400 text-sm leading-relaxed">{description}</p>
   </div>
-);
+  );
+};
 
 const StatRow = ({ label, value }) => (
   <div className="flex items-start justify-between gap-4 py-3 border-b border-white/5 last:border-b-0">
@@ -109,22 +112,22 @@ export default function Token() {
         
         {/* Hero Section */}
         <div className="text-center mb-20">
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-aeko-accent/10 text-aeko-accent border border-aeko-accent/20 text-sm font-medium mb-6"
           >
             <Coins size={14} />
             <span>Ticker: AEKO</span>
-          </motion.div>
+          </Motion.div>
           
-          <motion.h1 
+          <Motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl md:text-6xl font-bold mb-6"
           >
             Transparent <span className="text-gradient">Tokenomics</span> for AEKO
-          </motion.h1>
+          </Motion.h1>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto">
             AEKO is the native gas, staking, governance, and SocialFi reward token of AEKO Chain. The numbers below reflect the current signed-off Phase 2 tokenomics baseline.
           </p>
@@ -140,7 +143,7 @@ export default function Token() {
 
         {/* Token Distribution */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 mb-24 items-center">
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -157,9 +160,9 @@ export default function Token() {
                 <DistributionItem key={item.label} {...item} />
               ))}
             </div>
-          </motion.div>
+          </Motion.div>
 
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -189,7 +192,7 @@ export default function Token() {
                 <p className="text-sm text-gray-400 mt-1">The network enters a perpetual 1% floor inflation regime at 5B AEKO per year, minted fresh after the validator rewards reserve is exhausted.</p>
               </div>
             </div>
-          </motion.div>
+          </Motion.div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-24">
