@@ -660,19 +660,10 @@ jobs:
 
           echo "All selected PR domains and image gates passed."
 
-      # Package registries are irreversible release channels, so publish SDKs
-      # only after every selected validation/build succeeds.
-      - name: Publish changed SDK packages
-        if: steps.release.outputs.publish == 'true' && steps.changes.outputs.sdk_release_any == 'true'
-        uses: ./.github/actions/devops/sdk-publish
-        with:
-          js: ${{ steps.changes.outputs.sdk_release_js }}
-          node: ${{ steps.changes.outputs.sdk_release_node }}
-          python: ${{ steps.changes.outputs.sdk_release_python }}
-          rust: ${{ steps.changes.outputs.sdk_release_rust }}
-          npm-token: ${{ secrets.NPM_TOKEN }}
-          pypi-token: ${{ secrets.PYPI_API_TOKEN }}
-          crates-token: ${{ secrets.CRATES_IO_TOKEN }}
+      # Native SDK package publication is intentionally isolated from this
+      # runtime-image pipeline. Changed SDKs are still validated above for
+      # release readiness; .github/workflows/publish-sdks.yml owns the
+      # irreversible npm/PyPI/crates.io publication step.
 
       - name: Promote only validated Docker images to latest
         if: steps.release.outputs.publish == 'true' && steps.changes.outputs.dockerized == 'true'

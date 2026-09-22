@@ -30,3 +30,11 @@ python3 scripts/validate-deployment-contract.py
 The two public Compose files intentionally share service names, images, ports, health checks and dependency ordering. Platform-specific differences should stay limited to deployment concerns such as storage parsing and platform routing.
 
 Dokploy keeps `AEKO_KEYS_DIR` configurable as an absolute host path. Coolify deliberately does not parameterize key bind sources: `compose.coolify.yml` binds the literal host path `/data/aeko/keys`, initializes missing persistent keypairs with its one-shot `key-bootstrap` service, and uses a Docker-managed `validator-ledger` volume so its storage validator never sees `${...}` in a volume source.
+
+## CI release boundary
+
+The `AEKO DevOps (single runner)` workflow owns validation, immutable Docker
+image publication, `latest` promotion, and the deployment webhook. Native SDK
+registry publication is intentionally separate in `AEKO SDK Release`, so
+missing npm, PyPI, or crates.io credentials cannot block a validated chain
+image from being promoted and deployed.

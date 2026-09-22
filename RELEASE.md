@@ -19,21 +19,38 @@ SDKs are **not** published as Docker images. GitHub Releases may document an
 SDK release, but the installable SDK package remains the package-registry
 artifact.
 
-## Main branch release behavior
+## Runtime image release behavior
 
-`.github/workflows/build-images.yml` is the normal validated release path.
-
-On a successful push to `main` it:
+`.github/workflows/build-images.yml` is the normal validated runtime release
+path. On a successful push to `main` it:
 
 1. detects which domains actually changed;
-2. validates only the affected application/network/SDK surfaces;
-3. publishes changed SDK versions to npm, PyPI, or crates.io;
-4. publishes immutable Docker image tags for changed deployable surfaces;
-5. promotes only validated images to `latest`;
-6. triggers the configured deployment webhook after successful image promotion.
+2. validates only the affected application/network/SDK surfaces, including
+   package-version release readiness when SDK source changed;
+3. publishes immutable Docker image tags for changed deployable surfaces;
+4. promotes only validated images to `latest`;
+5. triggers the configured deployment webhook after successful image promotion.
 
-Package publication requires the corresponding repository secrets and a new
-package version. Pull requests never publish packages or promote images.
+Native SDK package publication is deliberately not part of the runtime image
+pipeline. A package-registry credential outage must not strand already
+validated chain images before promotion or deployment.
+
+## SDK package release behavior
+
+`.github/workflows/publish-sdks.yml` owns irreversible npm, PyPI, and
+crates.io publication. It is explicitly dispatched by a release operator, who
+selects the exact SDK packages to release. The workflow reruns the selected
+SDK release-readiness checks before publication and then fails closed if a
+required registry credential is unavailable.
+
+The required repository secrets are:
+
+- `NPM_TOKEN` for `@aeko-chain/web3.js` and `@aeko-chain/sdk`;
+- `PYPI_API_TOKEN` for `aeko-sdk`;
+- `CRATES_IO_TOKEN` for `aeko-rust-sdk`.
+
+Package versions must be new in their native registry. Pull requests never
+publish packages or promote images.
 
 ## CLI binary releases
 
