@@ -1,4 +1,4 @@
-import { getNetworkConfig } from './networkConfig';
+import { getNetworkConfig } from './networkConfig.js';
 
 export const SAFE_APP_SETTINGS = Object.freeze({
   networkConsoleEnabled: false,
