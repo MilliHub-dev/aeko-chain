@@ -193,7 +193,7 @@ runs:
                 sdk_rust=true
                 sdk_release_rust=true
                 ;;
-              .github/actions/devops/*|.github/workflows/build-images.yml)
+              .github/actions/devops/*|.github/workflows/*)
                 # CI implementation is its own domain. Editing orchestration or
                 # a composite action must validate the CI implementation, but it
                 # must not masquerade as product/source changes and trigger
