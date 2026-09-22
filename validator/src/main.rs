@@ -1351,6 +1351,10 @@ pub fn main() {
             faucet_addr: matches.value_of("rpc_faucet_addr").map(|address| {
                 aeko_net_utils::parse_host_port(address).expect("failed to parse faucet address")
             }),
+            funding_gateway_key: std::env::var("AEKO_FUNDING_GATEWAY_KEY")
+                .ok()
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty()),
             full_api,
             obsolete_v1_7_api: matches.is_present("obsolete_v1_7_rpc_api"),
             max_multiple_accounts: Some(value_t_or_exit!(

@@ -20,6 +20,7 @@ EXPLORER_DATABASE_URL=postgres://aeko:aeko@postgres:5432/aeko_explorer \
 AEKO_IMAGE_TAG=ci \
 ADMIN_PASSWORD=ci-admin-password \
 ADMIN_SESSION_SECRET=ci-admin-session-secret \
+FUNDING_GATEWAY_KEY=ci-funding-gateway-key \
 bash -c '
   set -euo pipefail
   bash -n docker/validator-entrypoint.sh

@@ -67,7 +67,9 @@ export async function getAccountInfo(address: string) {
 }
 
 export async function requestAirdrop(address: string, lamports: number) {
-  return call<string>('requestAirdrop', [address, lamports])
+  const fundingAuthorization = process.env.FUNDING_GATEWAY_KEY?.trim()
+  const config = fundingAuthorization ? { fundingAuthorization } : {}
+  return call<string>('requestAirdrop', [address, lamports, config])
 }
 
 export async function getSignatureStatuses(signatures: string[]) {

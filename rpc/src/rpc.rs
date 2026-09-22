@@ -149,6 +149,8 @@ pub struct JsonRpcConfig {
     pub enable_rpc_transaction_history: bool,
     pub enable_extended_tx_metadata_storage: bool,
     pub faucet_addr: Option<SocketAddr>,
+    /// When set, requestAirdrop is reserved for the trusted Funding Gateway.
+    pub funding_gateway_key: Option<String>,
     pub health_check_slot_distance: u64,
     pub rpc_bigtable_config: Option<RpcBigtableConfig>,
     pub max_multiple_accounts: Option<usize>,
@@ -3611,17 +3613,24 @@ pub mod rpc_full {
             config: Option<RpcRequestAirdropConfig>,
         ) -> Result<String> {
             debug!("request_airdrop rpc request received");
+            let config = config.unwrap_or_default();
             trace!(
-                "request_airdrop id={} lamports={} config: {:?}",
+                "request_airdrop id={} lamports={} recent_blockhash_supplied={} commitment_supplied={}",
                 pubkey_str,
                 lamports,
-                &config
+                config.recent_blockhash.is_some(),
+                config.commitment.is_some()
             );
+
+            if let Some(expected_key) = meta.config.funding_gateway_key.as_deref() {
+                if config.funding_authorization.as_deref() != Some(expected_key) {
+                    info!("request_airdrop rejected: funding gateway authorization required");
+                    return Err(Error::invalid_request());
+                }
+            }
 
             let faucet_addr = meta.config.faucet_addr.ok_or_else(Error::invalid_request)?;
             let pubkey = verify_pubkey(&pubkey_str)?;
-
-            let config = config.unwrap_or_default();
             let bank = meta.bank(config.commitment);
 
             let blockhash = if let Some(blockhash) = config.recent_blockhash {
