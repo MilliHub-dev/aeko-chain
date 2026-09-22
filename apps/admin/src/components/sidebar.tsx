@@ -26,8 +26,8 @@ export default function Sidebar() {
   return (
     <aside className="w-52 shrink-0 flex flex-col border-r border-[#1e2135] bg-[#0a0b12] min-h-screen">
       <div className="px-5 py-6 border-b border-[#1e2135]">
-        <div className="text-emerald-400 font-bold text-lg tracking-wide">AEKO Admin</div>
-        <div className="text-gray-500 text-xs mt-0.5">Chain Monitor</div>
+        <div className="text-emerald-400 font-bold text-lg tracking-wide">AEKO Operations</div>
+        <div className="text-gray-500 text-xs mt-0.5">Admin Console</div>
       </div>
 
       <nav className="flex-1 py-4 space-y-0.5 px-2">

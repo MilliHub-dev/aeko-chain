@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 export const OPTIONS = fundingPreflight
 
-const EXPLORER_URL = (process.env.PUBLIC_EXPLORER_URL ?? 'https://scan.aeko.online').replace(/\/+$/, '')
+const EXPLORER_URL = (process.env.AEKO_PUBLIC_EXPLORER_URL ?? '').replace(/\/+$/, '')
 
 /**
  * Public: `{ address }` → one policy-sized grant.
@@ -31,9 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   const apiKey = process.env.FUNDING_CLIENT_API_KEY
-  // x-faucet-key is accepted only as a temporary wire-compatibility alias.
-  // New clients must send x-funding-key; the public vocabulary is funding.
-  const suppliedKey = req.headers.get('x-funding-key') ?? req.headers.get('x-faucet-key')
+  const suppliedKey = req.headers.get('x-funding-key')
   const trusted = Boolean(apiKey) && suppliedKey === apiKey
 
   if (!trusted) {
@@ -51,7 +49,7 @@ export async function POST(req: NextRequest) {
     return respond({
       data: {
         ...record,
-        explorerUrl: `${EXPLORER_URL}/explorer/account/${record.address}`,
+        explorerUrl: EXPLORER_URL ? `${EXPLORER_URL}/explorer/account/${record.address}` : null,
       },
     })
   } catch (err) {

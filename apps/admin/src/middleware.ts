@@ -2,49 +2,44 @@ import { NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth'
 
 /**
- * One deployment, two public web roles:
- *   FUNDING_PUBLIC_HOST (fund.aeko.online) -> public Testnet Funding Portal only.
- *   ADMIN_PUBLIC_HOST   (admin.aeko.online) -> operator console behind sign-in.
+ * One Operations Web deployment, two public roles:
+ *   AEKO_PUBLIC_FUNDING_URL -> public Testnet Funding Portal.
+ *   AEKO_PUBLIC_ADMIN_URL   -> operator Admin Console.
  *
- * The Rust Faucet Daemon is different: it is a private TCP service on the
- * deployment network and never receives a public hostname.
- *
- * Legacy /faucet and /api/faucet/* paths remain as compatibility shims only.
+ * The Rust Faucet Daemon is a separate private TCP service and has no public
+ * route in this application.
  */
 const PUBLIC_PREFIXES = [
   '/funding',
   '/api/funding/',
-  '/faucet',
-  '/api/faucet/',
   '/login',
   '/api/login',
   '/api/logout',
 ]
-const FUNDING_ONLY_PREFIXES = ['/funding', '/api/funding/', '/faucet', '/api/faucet/']
+const FUNDING_ONLY_PREFIXES = ['/funding', '/api/funding/']
 
-const hostOf = (req: NextRequest) =>
+const requestHost = (req: NextRequest) =>
   (req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '')
     .split(':')[0]
     .toLowerCase()
+
+function configuredHost(value: string | undefined): string {
+  if (!value) return ''
+  try {
+    return new URL(value).hostname.toLowerCase()
+  } catch {
+    return ''
+  }
+}
 
 const isPublic = (pathname: string, prefixes: string[]) =>
   prefixes.some((p) => pathname === p || pathname.startsWith(p))
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
-  const fundingHost = (
-    process.env.FUNDING_PUBLIC_HOST ??
-    process.env.FAUCET_PUBLIC_HOST ??
-    ''
-  ).toLowerCase()
-  const adminHost = (process.env.ADMIN_PUBLIC_HOST ?? '').toLowerCase()
-  const host = hostOf(req)
-
-  if (pathname === '/faucet') {
-    const url = req.nextUrl.clone()
-    url.pathname = '/funding'
-    return NextResponse.redirect(url, 308)
-  }
+  const fundingHost = configuredHost(process.env.AEKO_PUBLIC_FUNDING_URL)
+  const adminHost = configuredHost(process.env.AEKO_PUBLIC_ADMIN_URL)
+  const host = requestHost(req)
 
   if (fundingHost && host === fundingHost && host !== adminHost) {
     if (pathname === '/') {

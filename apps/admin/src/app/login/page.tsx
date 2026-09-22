@@ -65,8 +65,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-6">
         <div>
-          <div className="text-emerald-400 font-bold text-xl tracking-wide">AEKO Admin</div>
-          <div className="text-gray-500 text-sm mt-1">Chain monitoring and faucet administration</div>
+          <div className="text-emerald-400 font-bold text-xl tracking-wide">AEKO Operations</div>
+          <div className="text-gray-500 text-sm mt-1">Chain monitoring and funding administration</div>
         </div>
         <div className="bg-[#12141f] border border-[#1e2135] rounded-xl p-6">
           <Suspense>

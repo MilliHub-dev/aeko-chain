@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const DEFAULT_ALLOWED_ORIGINS = ['https://scan.aeko.online']
-
 function allowedOrigins() {
-  const configured = (process.env.FUNDING_ALLOWED_ORIGINS ?? '')
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean)
-
-  const origins = new Set(configured.length ? configured : DEFAULT_ALLOWED_ORIGINS)
+  const origins = new Set(
+    (process.env.FUNDING_ALLOWED_ORIGINS ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
+  )
   if (process.env.NODE_ENV !== 'production') {
     origins.add('http://localhost:4000')
     origins.add('http://localhost:5173')

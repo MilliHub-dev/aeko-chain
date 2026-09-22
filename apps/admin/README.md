@@ -1,33 +1,41 @@
 # AEKO Operations Web
 
-One Next.js image serves two distinct web roles:
+`apps/admin` is the historical source directory for one deployable **Operations Web** service. The same Next.js runtime serves:
 
-- **Testnet Funding Portal** — `fund.aeko.online`, public, policy-controlled test AEKO grants.
-- **Admin Console** — `admin.aeko.online`, operator-only monitoring and funding controls.
+- **Testnet Funding Portal**: public, policy-controlled test AEKO grants.
+- **Admin Console**: authenticated operator monitoring and funding controls.
 
-The **Faucet Daemon** is not this web app. It is the private Rust TCP service at `faucet:9900`. The Funding Portal calls the validator internally; the validator talks to the Faucet Daemon.
+The Rust **Faucet Daemon** is a separate private TCP signer, normally reachable as `faucet:9900` on the Compose network. It has no public web route.
 
-## Canonical routes
+## Runtime configuration
+
+Public ingress is deployment-owned:
+
+- `AEKO_PUBLIC_FUNDING_URL`
+- `AEKO_PUBLIC_ADMIN_URL`
+- `AEKO_PUBLIC_EXPLORER_URL`
+- `FUNDING_ALLOWED_ORIGINS`
+
+Internal dependencies use `AEKO_RPC_URL` and `AEKO_EXPLORER_URL`. Compose defaults those to same-network service names.
+
+## Routes
 
 | Path | Audience | Purpose |
 | --- | --- | --- |
 | `/funding` | public | Request a policy-sized testnet funding grant |
-| `POST /api/funding/request` | public / trusted backend | Create one funding grant; trusted backends may use `x-funding-key` |
-| `GET /api/funding/policy` | public | Funding amount, cooldown, daily budget and remaining budget |
+| `POST /api/funding/request` | public / trusted backend | Create one funding grant |
+| `GET /api/funding/policy` | public | Funding policy/status |
 | `/login` | operator | Admin sign-in |
-| `/funding-grants` | operator | Pause/resume funding, edit policy, manual grants, grant history |
+| `/funding-grants` | operator | Funding policy, manual grants and history |
 | `/`, `/blocks`, `/transactions`, `/tokens`, `/nfts`, `/social`, `/marketplace` | operator | Chain monitoring |
 
-Legacy `/faucet`, `/airdrops` and `/api/faucet/*` routes exist only as compatibility shims.
+There is no public `/faucet` route. “Faucet” refers only to the private signer daemon.
 
 ## Trust boundaries
 
-- `FUNDING_PUBLIC_HOST`: public web hostname, normally `fund.aeko.online`.
-- `FUNDING_CLIENT_API_KEY`: optional trusted application-backend key. It only bypasses the HTTP per-IP throttle.
-- `FUNDING_GATEWAY_KEY`: required on the public deployment. It authorizes the server-side Funding Gateway to invoke the validator's low-level `requestAirdrop` method.
-- `AEKO_FAUCET_PER_REQUEST_CAP`: Faucet Daemon hard ceiling. This belongs to the private daemon, not the public web policy.
-
-Public users do **not** connect to TCP port 9900 and should not be given a Faucet Daemon URL.
+- `FUNDING_CLIENT_API_KEY`: optional trusted backend key; bypasses only HTTP per-IP throttling.
+- `FUNDING_GATEWAY_KEY`: server secret authorizing protected low-level `requestAirdrop`.
+- `AEKO_FAUCET_PER_REQUEST_CAP`: private Faucet Daemon hard ceiling.
 
 ## Local development
 
