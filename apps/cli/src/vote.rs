@@ -825,7 +825,7 @@ pub fn process_create_vote_account(
         .then(aeko_sdk::feature_set::vote_state_add_vote_latency::id)
         .and_then(|feature_address| rpc_client.get_account(&feature_address).ok())
         .and_then(|account| feature::from_account(&account))
-        .map_or(false, |feature| feature.activated_at.is_some());
+        .is_some_and(|feature| feature.activated_at.is_some());
     let space = VoteStateVersions::vote_state_size_of(is_feature_active) as u64;
 
     let build_message = |lamports| {

@@ -1,7 +1,7 @@
 use {
     crate::cli::CliError,
     aeko_rpc_client::rpc_client::RpcClient,
-    aeko_rpc_client_api::client_error::{Error as ClientError, Result as ClientResult},
+    aeko_rpc_client_api::client_error::Result as ClientResult,
     aeko_sdk::{
         commitment_config::CommitmentConfig, message::Message, native_token::lamports_to_aeko,
         pubkey::Pubkey,
@@ -88,7 +88,7 @@ pub fn check_account_for_spend_and_fee_with_commitment(
         balance + fee,
         commitment,
     )
-    .map_err(Into::<ClientError>::into)?
+    ?
     {
         if balance > 0 {
             return Err(CliError::InsufficientFundsForSpendAndFee(
