@@ -150,16 +150,16 @@ fn main() -> Result<()> {
         require_executable_program(&client, &program_id, label)?;
     }
 
-    let treasury = ensure_keypair(&out_dir, "tokenomics-treasury.json")?;
-    let validator_rewards = ensure_keypair(&out_dir, "validator-rewards.json")?;
-    let community_rewards = ensure_keypair(&out_dir, "community-rewards.json")?;
+    let treasury = ensure_keypair(&continuity_dir, "tokenomics-treasury.json")?;
+    let validator_rewards = ensure_keypair(&continuity_dir, "validator-rewards.json")?;
+    let community_rewards = ensure_keypair(&continuity_dir, "community-rewards.json")?;
     ensure_system_vault(&client, &payer, &treasury, "tokenomics-treasury")?;
     ensure_system_vault(&client, &payer, &validator_rewards, "validator-rewards")?;
     ensure_system_vault(&client, &payer, &community_rewards, "community-rewards")?;
 
     let base_fee_atomic = parse_u64("AEKO_TOKENOMICS_BASE_FEE_ATOMIC", 250_000)?;
 
-    let tokenomics_state = ensure_keypair(&out_dir, "tokenomics-state.json")?;
+    let tokenomics_state = ensure_keypair(&continuity_dir, "tokenomics-state.json")?;
     let tokenomics_defaults = TokenomicsStateAccount::signed_off_defaults(
         authority.pubkey(),
         treasury.pubkey(),
@@ -202,7 +202,7 @@ fn main() -> Result<()> {
         },
     )?;
 
-    let reference_mint = ensure_keypair(&out_dir, "aeko20-reference-mint.json")?;
+    let reference_mint = ensure_keypair(&continuity_dir, "aeko20-reference-mint.json")?;
     let reference_name =
         env::var("AEKO_REFERENCE_MINT_NAME").unwrap_or_else(|_| "AEKO-20 Testnet Reference".into());
     let reference_symbol = env::var("AEKO_REFERENCE_MINT_SYMBOL").unwrap_or_else(|_| "A20T".into());
@@ -244,7 +244,7 @@ fn main() -> Result<()> {
         },
     )?;
 
-    let public_mint_state = ensure_keypair(&out_dir, "public-mint-state.json")?;
+    let public_mint_state = ensure_keypair(&continuity_dir, "public-mint-state.json")?;
     let per_wallet_limit = parse_u128("AEKO_PUBLIC_MINT_PER_WALLET_LIMIT", 1_000_000_000_000)?;
     let window_epochs = parse_u64("AEKO_PUBLIC_MINT_WINDOW_EPOCHS", 30)?;
     let cooldown_epochs = parse_u64("AEKO_PUBLIC_MINT_COOLDOWN_EPOCHS", 1)?;
@@ -297,7 +297,7 @@ fn main() -> Result<()> {
 
     let current_slot = with_retries("getSlot", || client.get_slot().map_err(anyhow::Error::from))?;
 
-    let permission_registry = ensure_keypair(&out_dir, "permission-registry-state.json")?;
+    let permission_registry = ensure_keypair(&continuity_dir, "permission-registry-state.json")?;
     let permission_authority = authority.pubkey();
     create_and_init(
         &client,
@@ -322,7 +322,7 @@ fn main() -> Result<()> {
         },
     )?;
 
-    let revocation_registry = ensure_keypair(&out_dir, "revocation-registry-state.json")?;
+    let revocation_registry = ensure_keypair(&continuity_dir, "revocation-registry-state.json")?;
     let revocation_authority = authority.pubkey();
     create_and_init(
         &client,
@@ -347,7 +347,7 @@ fn main() -> Result<()> {
         },
     )?;
 
-    let subnet_registry = ensure_keypair(&out_dir, "subnet-registry-state.json")?;
+    let subnet_registry = ensure_keypair(&continuity_dir, "subnet-registry-state.json")?;
     let subnet_authority = authority.pubkey();
     create_and_init(
         &client,
@@ -374,7 +374,7 @@ fn main() -> Result<()> {
 
     let (multisig_signers, freeze_quorum, revoke_quorum, policy_quorum) =
         parse_multisig_config(authority.pubkey())?;
-    let emergency_multisig = ensure_keypair(&out_dir, "emergency-multisig-state.json")?;
+    let emergency_multisig = ensure_keypair(&continuity_dir, "emergency-multisig-state.json")?;
     let multisig_authority = authority.pubkey();
     let expected_signers = multisig_signers.clone();
     create_and_init(
@@ -409,7 +409,7 @@ fn main() -> Result<()> {
         },
     )?;
 
-    let finality_oracle = ensure_keypair(&out_dir, "finality-oracle-state.json")?;
+    let finality_oracle = ensure_keypair(&continuity_dir, "finality-oracle-state.json")?;
     let finality_authority = authority.pubkey();
     create_and_init(
         &client,
@@ -1170,6 +1170,29 @@ mod tests {
             true,
         )
         .unwrap();
+    }
+
+    #[test]
+    fn canonical_keypairs_survive_protocol_state_volume_replacement() {
+        let state = TempDir::new().unwrap();
+        let continuity = TempDir::new().unwrap();
+        let first = ensure_keypair(continuity.path(), "tokenomics-state.json").unwrap();
+        fs::write(state.path().join(REGISTRY_FILE_NAME), "registry-v1").unwrap();
+        write_continuity_anchor(continuity.path(), "registry-v1").unwrap();
+
+        fs::remove_file(state.path().join(REGISTRY_FILE_NAME)).unwrap();
+        prepare_protocol_state_continuity(
+            state.path(),
+            continuity.path(),
+            true,
+            false,
+            false,
+            true,
+        )
+        .unwrap();
+
+        let recovered = ensure_keypair(continuity.path(), "tokenomics-state.json").unwrap();
+        assert_eq!(first.pubkey(), recovered.pubkey());
     }
 }
 

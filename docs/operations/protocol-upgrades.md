@@ -95,7 +95,7 @@ AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1
 AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1
 ```
 
-Redeploy the stack or run the one-shot `protocol-bootstrap` service. The service writes `protocol-registry.env` into `protocol-state` and an exact copy into the separately persisted `protocol-continuity` volume. This makes independent replacement of either volume detectable before replacement canonical addresses can be created.
+Redeploy the stack or run the one-shot `protocol-bootstrap` service. The service writes `protocol-registry.env` into `protocol-state`. The separately persisted `protocol-continuity` volume stores an exact registry anchor **and the canonical state/custody keypairs**. This keeps canonical addresses stable if the registry/state volume is replaced and makes independent replacement of either volume detectable before replacement canonical addresses can be created.
 
 After the first bootstrap succeeds, immediately return:
 
@@ -103,7 +103,7 @@ After the first bootstrap succeeds, immediately return:
 AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=0
 ```
 
-Normal public redeploys keep `AEKO_REQUIRE_EXISTING_PROTOCOL_STATE=1`. If the registry exists but its continuity anchor is missing, recovery requires `AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY=1` only after independently verifying the existing registry and on-chain accounts. If the continuity anchor exists but the registry/state volume is missing, bootstrap fails closed unless `AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1` is deliberately enabled for disaster recovery.
+Normal public redeploys keep `AEKO_REQUIRE_EXISTING_PROTOCOL_STATE=1`. If the registry exists but its continuity anchor is missing, recovery requires `AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY=1` only after independently verifying the existing registry and on-chain accounts. If the continuity anchor and canonical keypairs exist but the registry/state volume is missing, bootstrap fails closed unless `AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1` is deliberately enabled for disaster recovery. Recovery reuses the preserved canonical keypairs, verifies the existing on-chain accounts, and republishes the same registry addresses instead of generating a second canonical set.
 
 The bootstrap first verifies both active runtime features and all eleven executable program accounts, then creates or verifies:
 
