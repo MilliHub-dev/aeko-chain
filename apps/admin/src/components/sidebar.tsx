@@ -9,6 +9,7 @@ const NAV = [
   { href: '/tokens',        label: 'Tokens',        icon: '◈' },
   { href: '/nfts',          label: 'NFTs',          icon: '◉' },
   { href: '/social',        label: 'Social',        icon: '◎' },
+  { href: '/protocol',      label: 'Protocol',      icon: '◫' },
   { href: '/marketplace',   label: 'Marketplace',   icon: '◆' },
   { href: '/funding-grants', label: 'Funding Grants', icon: '◇' },
   { href: '/settings',       label: 'Settings',      icon: '⌁' },
