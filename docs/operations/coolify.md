@@ -200,3 +200,48 @@ AEKO_RPC_URL=https://rpc.aeko.online \
 AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-protocol.py
 ```
+
+## Established-chain continuity guard
+
+Public deployments now fail closed instead of silently creating a replacement chain when persistent storage is missing.
+
+For every normal redeploy of an established chain keep:
+
+```text
+AEKO_RESET_LEDGER=0
+AEKO_REQUIRE_EXISTING_LEDGER=1
+AEKO_ALLOW_CHAIN_KEY_GENERATION=0
+```
+
+With those settings:
+
+- if the mounted validator storage does not contain `/ledger/genesis.bin`, the validator exits before running `aeko-genesis`;
+- if any validator, vote, stake, or faucet key is missing from `/data/aeko/keys`, Coolify key bootstrap exits instead of creating a replacement identity;
+- if `protocol-registry.env` exists but the protocol-authority key is missing, bootstrap exits instead of replacing the established authority.
+
+For the **first-ever genesis only**, set `AEKO_REQUIRE_EXISTING_LEDGER=0`. If Coolify is also responsible for creating the four chain keys, temporarily set `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`. After the first healthy genesis is created, return them to `1` and `0` respectively.
+
+An intentional `AEKO_RESET_LEDGER=1` remains an explicit destructive action and bypasses the existing-ledger guard for that reset. Never use it to recover from an unknown or changed volume mount.
+
+### Verify the 300 GB storage before changing mounts
+
+A larger attached disk does not automatically move Docker named volumes onto it. On the host, first identify the exact live validator mount and Docker data root:
+
+```bash
+V=$(docker ps --filter name=validator --format '{{.Names}}' | head -1)
+
+docker inspect "$V" \
+  --format '{{range .Mounts}}{{if eq .Destination "/ledger"}}{{println .Type .Name .Source "->" .Destination}}{{end}}{{end}}'
+
+docker exec "$V" sh -lc 'test -s /ledger/genesis.bin && echo "genesis.bin: PRESENT"; df -h /ledger; du -sh /ledger 2>/dev/null || true'
+
+DOCKER_ROOT=$(docker info --format '{{.DockerRootDir}}')
+echo "Docker root: $DOCKER_ROOT"
+df -h "$DOCKER_ROOT"
+docker volume ls | grep validator-ledger || true
+```
+
+If the reported Docker root or the actual volume source already resides on the 300 GB filesystem, leave the ledger mount unchanged. If it does not, stop the chain and migrate the **existing** ledger volume or Docker data root using the host/provider storage procedure. Verify the copied `genesis.bin`, genesis hash, validator key identities, and ledger size before pointing Compose at the migrated storage.
+
+Do not create a new empty volume with the desired name and call that a migration. The continuity guard is intentionally designed to make that mistake fail instead of silently starting a new chain.
+

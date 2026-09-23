@@ -49,9 +49,14 @@ services:
           echo "validated $$key"
         done
         protocol_path="/keys/protocol-authority-keypair.json"
-        if [ ! -s "$$protocol_path" ]; then
+        if [ ! -s "$protocol_path" ]; then
+          if [ -s /protocol-state/protocol-registry.env ]; then
+            echo "error: protocol authority key is missing but protocol-registry.env already exists" >&2
+            echo "error: refusing to replace an established protocol authority" >&2
+            exit 64
+          fi
           echo "==> Initializing missing AEKO protocol authority key"
-          aeko-keygen new --no-bip39-passphrase --silent --outfile "$$protocol_path"
+          aeko-keygen new --no-bip39-passphrase --silent --outfile "$protocol_path"
         fi
         if ! aeko-keygen pubkey "$$protocol_path" >/dev/null 2>&1; then
           echo "error: invalid AEKO protocol authority keypair: $$protocol_path" >&2
@@ -61,6 +66,7 @@ services:
         echo "AEKO key preflight complete"
     volumes:
       - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys
+      - protocol-state:/protocol-state:ro
   faucet:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-faucet:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
@@ -94,6 +100,7 @@ services:
       AEKO_STAKE_FILE: /keys/stake-keypair.json
       AEKO_FAUCET_FILE: /keys/faucet-keypair.json
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
+      AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-1}
       AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-faucet:9900}
       AEKO_FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}
       AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?Set AEKO_PUBLIC_IP to the public address of this Dokploy server}

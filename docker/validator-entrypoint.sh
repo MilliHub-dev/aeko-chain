@@ -7,6 +7,8 @@ VOTE_FILE=${AEKO_VOTE_FILE:-/keys/vote.json}
 STAKE_FILE=${AEKO_STAKE_FILE:-/keys/stake.json}
 FAUCET_FILE=${AEKO_FAUCET_FILE:-/keys/faucet.json}
 NODE_ROLE=${AEKO_NODE_ROLE:-validator}
+RESET_LEDGER=${AEKO_RESET_LEDGER:-0}
+REQUIRE_EXISTING_LEDGER=${AEKO_REQUIRE_EXISTING_LEDGER:-0}
 
 require_file() {
   local path=$1
@@ -17,9 +19,20 @@ require_file() {
   fi
 }
 
+for flag_name in RESET_LEDGER REQUIRE_EXISTING_LEDGER; do
+  flag_value=${!flag_name}
+  case "$flag_value" in
+    0|1) ;;
+    *)
+      echo "error: ${flag_name} must be 0 or 1, got: ${flag_value}" >&2
+      exit 64
+      ;;
+  esac
+done
+
 mkdir -p "$LEDGER_PATH"
 
-if [ "${AEKO_RESET_LEDGER:-0}" = "1" ]; then
+if [ "$RESET_LEDGER" = "1" ]; then
   echo "==> AEKO_RESET_LEDGER=1: clearing ${LEDGER_PATH}"
   find "$LEDGER_PATH" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 fi
@@ -33,6 +46,12 @@ if [ "${AEKO_BOOTSTRAP:-0}" = "1" ]; then
   require_file "$FAUCET_FILE" "faucet"
 
   if [ ! -f "$LEDGER_PATH/genesis.bin" ]; then
+    if [ "$REQUIRE_EXISTING_LEDGER" = "1" ] && [ "$RESET_LEDGER" != "1" ]; then
+      echo "error: expected an existing AEKO ledger at ${LEDGER_PATH}, but genesis.bin is missing" >&2
+      echo "error: refusing to create a replacement genesis on a normal redeploy" >&2
+      echo "error: verify the Docker/Coolify volume identity and storage mount; use AEKO_REQUIRE_EXISTING_LEDGER=0 only for an intentional first genesis" >&2
+      exit 66
+    fi
     echo "==> Creating AEKO genesis in ${LEDGER_PATH}"
     aeko-genesis \
       --ledger "$LEDGER_PATH" \

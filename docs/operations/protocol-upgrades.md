@@ -30,9 +30,14 @@ Keep these values disabled:
 
 ```text
 AEKO_RESET_LEDGER=0
+AEKO_REQUIRE_EXISTING_LEDGER=1
 AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0
 AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=0
 ```
+
+On Coolify also keep `AEKO_ALLOW_CHAIN_KEY_GENERATION=0` so a missing key mount cannot silently replace the validator/vote/stake/faucet identities.
+
+Before deploying, inspect the live validator's `/ledger` mount and confirm `genesis.bin` is present. If a Coolify resource/project rename points Compose at a new empty named volume, the validator will now fail closed because `AEKO_REQUIRE_EXISTING_LEDGER=1`; fix the mount/volume identity instead of disabling the guard.
 
 Do not delete the ledger or clear Explorer PostgreSQL for this upgrade.
 

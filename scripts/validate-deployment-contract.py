@@ -120,6 +120,52 @@ def main() -> int:
     require("condition: service_completed_successfully" in portable, "portable Explorer must wait for SocialFi bootstrap")
     require("AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env" in portable, "portable Explorer must consume generated SocialFi registry")
 
+    # Validator image runtime must fail closed on key material and on a missing
+    # established ledger. This prevents a changed Compose project/volume mount
+    # from silently creating a replacement genesis.
+    require(
+        'REQUIRE_EXISTING_LEDGER=${AEKO_REQUIRE_EXISTING_LEDGER:-0}' in validator_entrypoint,
+        "validator entrypoint must expose the existing-ledger continuity guard",
+    )
+    require(
+        'expected an existing AEKO ledger' in validator_entrypoint
+        and 'refusing to create a replacement genesis' in validator_entrypoint,
+        "validator entrypoint must fail closed instead of recreating an established chain",
+    )
+    for label, compose in (("Dokploy", dokploy), ("Coolify", coolify)):
+        require(
+            "AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-1}" in compose,
+            f"{label} must require the established validator ledger by default",
+        )
+        require(
+            re.search(r"^  protocol-state:\s*$", compose, re.MULTILINE) is not None,
+            f"{label} must declare the protocol-state volume it mounts",
+        )
+    require(
+        "AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-0}" in portable,
+        "portable/local compose must keep intentional first genesis available by default",
+    )
+    require(
+        re.search(r"^  protocol-state:\s*$", portable, re.MULTILINE) is not None,
+        "portable/local compose must declare the protocol-state volume it mounts",
+    )
+
+    # Public key lifecycle must not silently replace established identities.
+    require(
+        "AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}" in coolify,
+        "Coolify must require explicit opt-in before generating chain identity keys",
+    )
+    require(
+        "refusing to generate a replacement chain identity" in coolify,
+        "Coolify key bootstrap must fail closed on missing established chain keys",
+    )
+    for label, compose in (("Dokploy", dokploy), ("Coolify", coolify)):
+        require(
+            "protocol-registry.env" in compose
+            and "refusing to replace an established protocol authority" in compose,
+            f"{label} must preserve protocol-authority identity once protocol state exists",
+        )
+
     # Validator image runtime must fail closed on key material and support the
     # same-host transaction peer used by the public Dokploy topology.
     require(

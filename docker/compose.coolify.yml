@@ -25,23 +25,53 @@ services:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
     restart: "no"
+    environment:
+      AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
         umask 077
-        for key in faucet-keypair stake-keypair validator-1-keypair vote-1-keypair protocol-authority-keypair; do
-          path="/keys/$${key}.json"
-          if [ ! -s "$$path" ]; then
-            echo "==> Initializing missing persistent AEKO key: $${key}.json"
-            aeko-keygen new --no-bip39-passphrase --silent --outfile "$$path"
+        allow_chain_key_generation="${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}"
+        case "$allow_chain_key_generation" in
+          0|1) ;;
+          *)
+            echo "error: AEKO_ALLOW_CHAIN_KEY_GENERATION must be 0 or 1" >&2
+            exit 64
+            ;;
+        esac
+
+        for key in faucet-keypair stake-keypair validator-1-keypair vote-1-keypair; do
+          path="/keys/${key}.json"
+          if [ ! -s "$path" ]; then
+            if [ "$allow_chain_key_generation" != "1" ]; then
+              echo "error: required persistent AEKO chain key is missing: $path" >&2
+              echo "error: refusing to generate a replacement chain identity during normal redeploy" >&2
+              echo "error: set AEKO_ALLOW_CHAIN_KEY_GENERATION=1 only for an intentional first boot" >&2
+              exit 64
+            fi
+            echo "==> Initializing first-boot AEKO chain key: ${key}.json"
+            aeko-keygen new --no-bip39-passphrase --silent --outfile "$path"
           fi
-          aeko-keygen pubkey "$$path" >/dev/null
+          aeko-keygen pubkey "$path" >/dev/null
         done
+
+        protocol_path="/keys/protocol-authority-keypair.json"
+        if [ ! -s "$protocol_path" ]; then
+          if [ -s /protocol-state/protocol-registry.env ]; then
+            echo "error: protocol authority key is missing but protocol-registry.env already exists" >&2
+            echo "error: refusing to replace an established protocol authority" >&2
+            exit 64
+          fi
+          echo "==> Initializing missing AEKO protocol authority key"
+          aeko-keygen new --no-bip39-passphrase --silent --outfile "$protocol_path"
+        fi
+        aeko-keygen pubkey "$protocol_path" >/dev/null
         echo "AEKO persistent key bootstrap complete"
     volumes:
       - type: bind
         source: /data/aeko/keys
         target: /keys
+      - protocol-state:/protocol-state:ro
     logging: *default-logging
     networks: [aeko]
 
@@ -81,6 +111,7 @@ services:
       AEKO_STAKE_FILE: /keys/stake-keypair.json
       AEKO_FAUCET_FILE: /keys/faucet-keypair.json
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
+      AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-1}
       AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-faucet:9900}
       AEKO_FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}
       AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?}

@@ -91,6 +91,8 @@ AEKO_KEYS_DIR=<Dokploy/local persistent host directory; Coolify uses fixed /data
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
+AEKO_REQUIRE_EXISTING_LEDGER=1
+AEKO_ALLOW_CHAIN_KEY_GENERATION=0   # Coolify; enable only for intentional first boot
 AEKO_PUBLIC_RPC_URL=<public JSON-RPC URL>
 AEKO_PUBLIC_WS_URL=<public PubSub WebSocket URL>
 AEKO_PUBLIC_EXPLORER_API_URL=<public Explorer REST API URL>
@@ -266,7 +268,7 @@ AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
 ```
 
-Create `/data/aeko/keys` on the deployment host before the first deploy and place the four required keypair files there. Coolify's Compose definition remains the source of truth for the `validator-ledger` and `social-state` named volumes. The full variable set is in `docker/env.public.example`.
+Create `/data/aeko/keys` on the deployment host before the first deploy and preserve the validator, vote, stake and faucet keypairs there. The protocol authority is generated only while no established protocol registry exists. On an established chain, missing chain keys or a missing established protocol authority are fatal instead of being silently replaced. Coolify's Compose definition remains the source of truth for the `validator-ledger` and `social-state` named volumes. The full variable set is in `docker/env.public.example`.
 
 Configure domains to the same internal services:
 
@@ -280,6 +282,22 @@ Configure domains to the same internal services:
 | `admin.aeko.online` | `operations-web` | `3001` |
 
 Keep `gossip.aeko.online` outside the HTTP proxy. Point its DNS directly to `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050`.
+
+### Established-chain storage identity
+
+For every normal public redeploy keep:
+
+```text
+AEKO_RESET_LEDGER=0
+AEKO_REQUIRE_EXISTING_LEDGER=1
+AEKO_ALLOW_CHAIN_KEY_GENERATION=0
+```
+
+The validator now refuses to create a replacement genesis when an established deployment unexpectedly sees an empty/wrong ledger mount. Coolify likewise refuses to manufacture replacement validator/vote/stake/faucet identities on a normal redeploy. This protects against Compose project/resource renames that would otherwise resolve `validator-ledger` to a new empty Docker volume.
+
+For an intentional first genesis only, set `AEKO_REQUIRE_EXISTING_LEDGER=0`; on Coolify, set `AEKO_ALLOW_CHAIN_KEY_GENERATION=1` only if the platform should create the four chain keys. Return the safe values above immediately after first boot.
+
+Before moving a live ledger to attached storage, inspect the current container mount and Docker root. If Docker already stores the named volume on the larger filesystem, no Compose change is required. Otherwise stop the chain, migrate the existing volume/data root, and verify `genesis.bin`, genesis hash, key identities and ledger size before switching storage. Never point the validator at a newly-created empty path as a migration.
 
 ## Deploy / update behavior
 
