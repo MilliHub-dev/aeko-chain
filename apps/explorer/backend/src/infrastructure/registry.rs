@@ -9,6 +9,7 @@ use {
     std::{
         collections::{BTreeMap, HashMap},
         env, fs,
+        io::ErrorKind,
     },
 };
 
@@ -184,6 +185,15 @@ fn load_registry_file(env_name: &str, label: &str) -> HashMap<String, String> {
     };
     match fs::read_to_string(&path) {
         Ok(content) => parse_registry_env(&content),
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            tracing::debug!(
+                path,
+                env_name,
+                label,
+                "bootstrap registry file is not present yet"
+            );
+            HashMap::new()
+        }
         Err(error) => {
             tracing::warn!(path, env_name, label, error = %error, "unable to read bootstrap registry file");
             HashMap::new()
