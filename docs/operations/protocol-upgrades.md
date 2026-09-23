@@ -67,6 +67,10 @@ At this point the binary contains the eleven program implementations, but their 
 
 Use the offline feature keypairs and a funded operator fee payer. The repository helper verifies that each private key derives the compile-time public feature ID before it will submit an activation transaction.
 
+This step must be run from a secured operator machine that has the AEKO CLI, `aeko-keygen`, `curl`, a checkout of this repository, and access to the offline feature-authority keypairs. Do not copy the feature-authority keys into `/data/aeko/keys` or a Coolify environment variable.
+
+**Hard stop:** if you do not possess the private keypairs whose public keys are exactly the two feature IDs listed above, do not generate replacement keypairs and continue. A new keypair has a different public key and cannot activate the compile-time feature account. Recover the original activation keys, or define a deliberate new feature-ID upgrade in code and review it as a separate protocol change.
+
 ```bash
 export AEKO_RPC_URL=https://rpc.aeko.online
 export AEKO_FEATURE_FEE_PAYER=/secure/operator-fee-payer.json
@@ -89,20 +93,26 @@ After submission, use `aeko feature status <FEATURE_ID> --display-all`. A submit
 
 ## Phase 3: initialize canonical protocol state
 
-Only after both feature accounts report an activation slot, perform the intentional first protocol bootstrap by setting:
+Only after both feature accounts report an activation slot, perform the intentional first protocol bootstrap. On the first-ever bootstrap, set all three one-time controls:
 
 ```text
 AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1
+AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1
 AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1
 ```
 
+`AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1` permits the shared key bootstrap to create `protocol-authority-keypair.json` exactly once. It does not create or replace either feature-authority keypair.
+
 Redeploy the stack or run the one-shot `protocol-bootstrap` service. The service writes `protocol-registry.env` into `protocol-state`. The separately persisted `protocol-continuity` volume stores an exact registry anchor **and the canonical state/custody keypairs**. This keeps canonical addresses stable if the registry/state volume is replaced and makes independent replacement of either volume detectable before replacement canonical addresses can be created.
 
-After the first bootstrap succeeds, immediately return:
+After the first bootstrap succeeds, back up `protocol-authority-keypair.json` and immediately return the one-time creation controls to their safe values:
 
 ```text
+AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0
 AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=0
 ```
+
+Keep `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1` on the protocol-enabled deployment so Explorer and operators treat a missing registry as a fault rather than as the pre-bootstrap compatibility state.
 
 Normal public redeploys keep `AEKO_REQUIRE_EXISTING_PROTOCOL_STATE=1`. If the registry exists but its continuity anchor is missing, recovery requires `AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY=1` only after independently verifying the existing registry and on-chain accounts. If the continuity anchor and canonical keypairs exist but the registry/state volume is missing, bootstrap fails closed unless `AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1` is deliberately enabled for disaster recovery. Recovery reuses the preserved canonical keypairs, verifies the existing on-chain accounts, and republishes the same registry addresses instead of generating a second canonical set.
 
