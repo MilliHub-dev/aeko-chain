@@ -20,6 +20,9 @@ aeko-sdk = { workspace = true }
 aeko-tokenomics-program = { workspace = true }
 aeko-token-20-program = { workspace = true }
 aeko-public-mint-program = { workspace = true }
+aeko-token-721-program = { workspace = true }
+aeko-nft-marketplace-program = { workspace = true }
+aeko-wallet-permissions-program = { workspace = true }
 aeko-permission-registry-program = { workspace = true }
 aeko-revocation-registry-program = { workspace = true }
 aeko-subnet-registry-program = { workspace = true }

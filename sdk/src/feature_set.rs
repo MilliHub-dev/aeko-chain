@@ -789,11 +789,11 @@ pub mod round_compute_unit_price {
 // were introduced after the original testnet genesis. Keeping them inactive on
 // historical banks allows old snapshots to restore without mutating frozen state.
 pub mod aeko_token_programs_v1 {
-    aeko_sdk::declare_id!("BYpU5n5XSY47DnMsff9PV7hE5H6MGo5b43cWCDcT7iQM");
+    aeko_sdk::declare_id!("Ca5Lhktqd4epk3DDqsp7azXAunK3KZ8ZxeykU81oUUHT");
 }
 
 pub mod aeko_permission_layer_v1 {
-    aeko_sdk::declare_id!("8ekuzcgLnu5tctJYCCSTnBNqLAoycRq2ApuRn64gjW4G");
+    aeko_sdk::declare_id!("KBq8JBrCEbWJ6S2NXpcBvQDvt7J6hUZW3i61zzzZWxF");
 }
 
 lazy_static! {
