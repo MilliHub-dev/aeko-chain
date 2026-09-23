@@ -118,14 +118,16 @@ FUNDING_DEFAULT_DAILY_BUDGET_AEKO=5000
 FUNDING_MAX_MANUAL_GRANT_AEKO=100
 ```
 
-Optional SocialFi configuration:
+Optional SocialFi bootstrap configuration:
 
 ```text
-AEKO_TREASURY_ADDRESS=<pubkey>
-AEKO_REWARD_VAULT_ACCOUNT=<pubkey>
-AEKO_STAKE_VAULT_ACCOUNT=<pubkey>
+AEKO_REWARDS_TREASURY_SEED_LAMPORTS=0
+AEKO_REWARD_VAULT_SEED_LAMPORTS=0
+AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS=0
 AEKO_PLATFORM_FEE_BPS=200
 ```
+
+Normal public deployments do not configure Social state or vault addresses by hand. `social-bootstrap` creates the canonical accounts and publishes them in `social-registry.env`; the Explorer's per-address environment variables are recovery overrides and should normally remain unset.
 
 `AEKO_PUBLIC_IP` must be the address external validators can reach. Allow inbound TCP+UDP `8000-8050` at the host/cloud firewall. `EXPLORER_DATABASE_URL` is intentionally required by both public Compose contracts. In-memory indexing is useful for disposable local runs but is not a public-network storage contract.
 
