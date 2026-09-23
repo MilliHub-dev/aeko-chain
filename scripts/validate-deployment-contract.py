@@ -398,6 +398,7 @@ def main() -> int:
     require("AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION: ${AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION:-0}" in protocol_bootstrap_service, "Dokploy first protocol-state initialization must be explicit")
     require('restart: "no"' in protocol_bootstrap_service, "Dokploy protocol bootstrap must be a one-shot service")
     require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in explorer, "Dokploy Explorer must consume protocol registry")
+    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in explorer, "Dokploy Explorer must receive the protocol bootstrap phase")
     require("protocol-state:/protocol-state:ro" in explorer, "Dokploy Explorer must mount protocol state read-only")
     require("depends_on:" not in operations_web, "Dokploy Operations Web lifecycle must be independent of validator health")
 
@@ -486,6 +487,7 @@ def main() -> int:
     require("AEKO_REQUIRE_EXISTING_PROTOCOL_STATE: ${AEKO_REQUIRE_EXISTING_PROTOCOL_STATE:-1}" in coolify_protocol_bootstrap, "Coolify protocol bootstrap must fail closed when established protocol state disappears")
     require("AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION: ${AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION:-0}" in coolify_protocol_bootstrap, "Coolify first protocol-state initialization must be explicit")
     require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in coolify_explorer, "Coolify Explorer must consume protocol registry")
+    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in coolify_explorer, "Coolify Explorer must receive the protocol bootstrap phase")
     require("protocol-state:/protocol-state:ro" in coolify_explorer, "Coolify Explorer must mount protocol state read-only")
     require("depends_on:" not in coolify_operations_web, "Coolify Operations Web lifecycle must be independent of validator health")
     require('profiles: ["ops"]' in coolify_wallet_tools, "Coolify wallet tools must remain operator-only and absent from default startup")
@@ -544,6 +546,7 @@ def main() -> int:
     require("protocol-authority-keypair.json" in portable_protocol_bootstrap, "portable protocol bootstrap must use dedicated authority")
     require("protocol-continuity:/continuity" in portable_protocol_bootstrap, "portable protocol continuity anchor must persist separately")
     require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in portable_explorer, "portable Explorer must consume protocol registry")
+    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in portable_explorer, "portable Explorer must receive the protocol bootstrap phase")
     require("protocol-state:/protocol-state:ro" in portable_explorer, "portable Explorer must mount protocol state read-only")
     require("depends_on:" not in portable_operations_web, "portable Operations Web lifecycle must be independent of validator health")
     require("AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-localnet}" in portable_explorer, "portable Explorer must default to localnet identity rather than production testnet")
