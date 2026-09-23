@@ -1,0 +1,75 @@
+name: AEKO DevOps runner setup
+description: Prepare only the toolchains required by one independently scheduled DevOps domain job.
+
+inputs:
+  rust:
+    description: Install the pinned Rust toolchain, native prerequisites, and sccache.
+    required: false
+    default: "false"
+  node:
+    description: Install the shared Node runtime and npm dependency cache.
+    required: false
+    default: "false"
+  python:
+    description: Install the shared Python runtime.
+    required: false
+    default: "false"
+  docker:
+    description: Configure Docker Buildx for image builds.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Install pinned Rust toolchain and native prerequisites
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        rustup toolchain install 1.85.0 --profile minimal --component rustfmt --component clippy
+        rustup default 1.85.0
+
+        native_packages=()
+        if ! command -v protoc >/dev/null 2>&1; then
+          native_packages+=(protobuf-compiler)
+        fi
+        if ! command -v pkg-config >/dev/null 2>&1 || ! pkg-config --exists libudev; then
+          native_packages+=(pkg-config libudev-dev)
+        fi
+        if [ "${#native_packages[@]}" -gt 0 ]; then
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends "${native_packages[@]}"
+        fi
+
+        rustc --version
+        cargo --version
+        protoc --version
+        pkg-config --modversion libudev
+
+    - name: Set up shared Rust compilation cache
+      if: ${{ inputs.rust == 'true' }}
+      uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
+
+    - name: Set up shared Node runtime and cache
+      if: ${{ inputs.node == 'true' }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+        registry-url: "https://registry.npmjs.org"
+        cache: npm
+        cache-dependency-path: |
+          apps/admin/package-lock.json
+          apps/explorer/web/package-lock.json
+          apps/sdk/js/package-lock.json
+          apps/sdk/node/package-lock.json
+
+    - name: Set up shared Python runtime
+      if: ${{ inputs.python == 'true' }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Set up Docker Buildx
+      if: ${{ inputs.docker == 'true' }}
+      uses: docker/setup-buildx-action@v3
