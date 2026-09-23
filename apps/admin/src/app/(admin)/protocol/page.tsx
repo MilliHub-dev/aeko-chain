@@ -88,6 +88,8 @@ export default function ProtocolPage() {
       setStatus(nextStatus)
       setLastUpdate(new Date().toLocaleTimeString())
     } catch (err) {
+      setRegistry(null)
+      setStatus(null)
       setError(err instanceof Error ? err.message : 'Unable to load protocol state')
     } finally {
       setLoading(false)
