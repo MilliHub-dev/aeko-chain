@@ -9,7 +9,7 @@ inputs:
     description: Immutable source tag.
     required: true
   network:
-    description: Promote validator, node alias, faucet, and social-bootstrap.
+    description: Promote validator, node alias, faucet, social-bootstrap, and protocol-bootstrap.
     required: false
     default: "false"
   admin:
@@ -65,6 +65,7 @@ runs:
           promote aeko-node
           promote aeko-faucet
           promote aeko-social-bootstrap
+          promote aeko-protocol-bootstrap
         fi
         if [ "$PROMOTE_ADMIN" = "true" ]; then
           promote aeko-operations-web

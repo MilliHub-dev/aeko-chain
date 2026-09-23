@@ -1,0 +1,30 @@
+[package]
+name = "aeko-protocol-bootstrap"
+version = "2.0.0"
+description = "Feature-aware, idempotent bootstrap for AEKO token and permission protocol state"
+documentation = "https://github.com/MilliHub-dev/aeko-chain/tree/main/protocol-bootstrap"
+authors = ["Aeko Labs Maintainers"]
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[[bin]]
+name = "aeko-protocol-bootstrap"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+bincode = { workspace = true }
+aeko-rpc-client = { workspace = true }
+aeko-sdk = { workspace = true }
+aeko-tokenomics-program = { workspace = true }
+aeko-token-20-program = { workspace = true }
+aeko-public-mint-program = { workspace = true }
+aeko-permission-registry-program = { workspace = true }
+aeko-revocation-registry-program = { workspace = true }
+aeko-subnet-registry-program = { workspace = true }
+aeko-emergency-multisig-program = { workspace = true }
+aeko-finality-oracle-program = { workspace = true }
+
+[lints]
+workspace = true

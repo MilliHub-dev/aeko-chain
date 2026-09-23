@@ -6,6 +6,7 @@
 #   validator        block producer / voting node (default target)
 #   faucet           testnet faucet service
 #   social-bootstrap one-shot SocialFi state initializer
+#   protocol-bootstrap one-shot feature-aware protocol state initializer
 #   tools            aeko CLI + aeko-keygen operator utilities
 #   explorer-api     Rust explorer indexer / REST API
 #   explorer-ui      Vite explorer frontend
@@ -42,12 +43,14 @@ RUN --mount=type=cache,id=aeko-sccache,target=/root/.cache/sccache \
       --bin aeko-validator \
       --bin aeko-genesis \
       --bin aeko-faucet \
-      --bin aeko-social-bootstrap && \
+      --bin aeko-social-bootstrap \
+      --bin aeko-protocol-bootstrap && \
     mkdir -p /binaries && \
     cp target/release/aeko-validator /binaries/ && \
     cp target/release/aeko-genesis /binaries/ && \
     cp target/release/aeko-faucet /binaries/ && \
-    cp target/release/aeko-social-bootstrap /binaries/
+    cp target/release/aeko-social-bootstrap /binaries/ && \
+    cp target/release/aeko-protocol-bootstrap /binaries/
 
 # The operator CLI is an app under apps/cli. Keep its Docker image isolated so
 # a CLI-only change does not build validator or other network executables.
@@ -99,6 +102,10 @@ ENTRYPOINT ["aeko-faucet"]
 FROM rust-runtime AS social-bootstrap
 COPY --from=network-rust-builder /binaries/aeko-social-bootstrap /usr/local/bin/aeko-social-bootstrap
 ENTRYPOINT ["aeko-social-bootstrap"]
+
+FROM rust-runtime AS protocol-bootstrap
+COPY --from=network-rust-builder /binaries/aeko-protocol-bootstrap /usr/local/bin/aeko-protocol-bootstrap
+ENTRYPOINT ["aeko-protocol-bootstrap"]
 
 FROM rust-runtime AS tools
 COPY --from=tools-builder /binaries/aeko /usr/local/bin/aeko
