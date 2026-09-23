@@ -37,24 +37,24 @@ services:
           validator-1-keypair.json \
           vote-1-keypair.json
         do
-          path="/keys/$key"
-          if [ ! -f "$path" ] || [ ! -s "$path" ]; then
-            echo "error: required AEKO keypair is missing, empty, or not a regular file: $path" >&2
+          path="/keys/$$key"
+          if [ ! -f "$$path" ] || [ ! -s "$$path" ]; then
+            echo "error: required AEKO keypair is missing, empty, or not a regular file: $$path" >&2
             exit 64
           fi
-          if ! aeko-keygen pubkey "$path" >/dev/null 2>&1; then
-            echo "error: invalid AEKO keypair: $path" >&2
+          if ! aeko-keygen pubkey "$$path" >/dev/null 2>&1; then
+            echo "error: invalid AEKO keypair: $$path" >&2
             exit 65
           fi
-          echo "validated $key"
+          echo "validated $$key"
         done
         protocol_path="/keys/protocol-authority-keypair.json"
-        if [ ! -s "$protocol_path" ]; then
+        if [ ! -s "$$protocol_path" ]; then
           echo "==> Initializing missing AEKO protocol authority key"
-          aeko-keygen new --no-bip39-passphrase --silent --outfile "$protocol_path"
+          aeko-keygen new --no-bip39-passphrase --silent --outfile "$$protocol_path"
         fi
-        if ! aeko-keygen pubkey "$protocol_path" >/dev/null 2>&1; then
-          echo "error: invalid AEKO protocol authority keypair: $protocol_path" >&2
+        if ! aeko-keygen pubkey "$$protocol_path" >/dev/null 2>&1; then
+          echo "error: invalid AEKO protocol authority keypair: $$protocol_path" >&2
           exit 65
         fi
         echo "validated protocol-authority-keypair.json"
@@ -108,244 +108,3 @@ services:
       # target at ~2KB/shred before RocksDB overhead. This is retention, not an
       # exact byte quota. The validator still preserves current AccountsDB and
       # snapshots required to continue the chain.
-      AEKO_LEDGER_LIMIT: ${AEKO_LEDGER_LIMIT:-8000000}
-      AEKO_MAX_FULL_SNAPSHOTS: ${AEKO_MAX_FULL_SNAPSHOTS:-1}
-      AEKO_MAX_INCREMENTAL_SNAPSHOTS: ${AEKO_MAX_INCREMENTAL_SNAPSHOTS:-1}
-      AEKO_ACCOUNTS_SHRINK_OPTIMIZE_TOTAL_SPACE: ${AEKO_ACCOUNTS_SHRINK_OPTIMIZE_TOTAL_SPACE:-true}
-      AEKO_ACCOUNTS_DB_CACHE_LIMIT_MB: ${AEKO_ACCOUNTS_DB_CACHE_LIMIT_MB:-512}
-      AEKO_ACCOUNTS_INDEX_MEMORY_LIMIT_MB: ${AEKO_ACCOUNTS_INDEX_MEMORY_LIMIT_MB:-512}
-      AEKO_MIN_FREE_DISK_KB: ${AEKO_MIN_FREE_DISK_KB:-2097152}
-    ulimits:
-      nofile:
-        soft: 1000000
-        hard: 1000000
-    ports:
-      - "8000-8050:8000-8050/tcp"
-      - "8000-8050:8000-8050/udp"
-    expose:
-      - "8899"
-      - "8900"
-    volumes:
-      - ${AEKO_VALIDATOR_LEDGER_VOLUME:-validator-ledger}:/ledger
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
-    depends_on:
-      key-preflight:
-        condition: service_completed_successfully
-      faucet:
-        condition: service_started
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          test "$$(df -Pk /ledger | awk 'NR==2 {print $$4}')" -ge "$${AEKO_MIN_FREE_DISK_KB:-2097152}" &&
-          curl -fsS -X POST -H 'Content-Type: application/json'
-          -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
-          http://127.0.0.1:8899 | grep -q '"result":"ok"'
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 120s
-    stop_grace_period: 2m
-    logging: *default-logging
-    networks: [aeko]
-
-  social-bootstrap:
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:-latest}
-    pull_policy: always
-    restart: "no"
-    environment:
-      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
-      AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
-      AEKO_BOOTSTRAP_OUT_DIR: /state
-      AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}
-      # Bootstrap creates persisted program-owned vault accounts. These optional
-      # amounts only seed payout liquidity; zero remains the safe default.
-      AEKO_REWARDS_TREASURY_SEED_LAMPORTS: ${AEKO_REWARDS_TREASURY_SEED_LAMPORTS:-0}
-      AEKO_REWARD_VAULT_SEED_LAMPORTS: ${AEKO_REWARD_VAULT_SEED_LAMPORTS:-0}
-      AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS: ${AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS:-0}
-      AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-200}
-    volumes:
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
-      - social-state:/state
-    depends_on:
-      validator:
-        condition: service_healthy
-      key-preflight:
-        condition: service_completed_successfully
-    logging: *default-logging
-    networks: [aeko]
-
-
-  protocol-bootstrap:
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-protocol-bootstrap:${AEKO_IMAGE_TAG:-latest}
-    pull_policy: always
-    restart: "no"
-    environment:
-      AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}
-      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
-      AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
-      AEKO_PROTOCOL_AUTHORITY_KEYPAIR: /keys/protocol-authority-keypair.json
-      AEKO_PROTOCOL_OUT_DIR: /state
-      AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE:-0}
-      AEKO_TOKENOMICS_BASE_FEE_ATOMIC: ${AEKO_TOKENOMICS_BASE_FEE_ATOMIC:-250000}
-      AEKO_REFERENCE_MINT_NAME: ${AEKO_REFERENCE_MINT_NAME:-AEKO-20 Testnet Reference}
-      AEKO_REFERENCE_MINT_SYMBOL: ${AEKO_REFERENCE_MINT_SYMBOL:-A20T}
-      AEKO_REFERENCE_MINT_DECIMALS: ${AEKO_REFERENCE_MINT_DECIMALS:-9}
-      AEKO_PUBLIC_MINT_ENABLED: ${AEKO_PUBLIC_MINT_ENABLED:-true}
-      AEKO_PUBLIC_MINT_PER_WALLET_LIMIT: ${AEKO_PUBLIC_MINT_PER_WALLET_LIMIT:-1000000000000}
-      AEKO_PUBLIC_MINT_WINDOW_EPOCHS: ${AEKO_PUBLIC_MINT_WINDOW_EPOCHS:-30}
-      AEKO_PUBLIC_MINT_COOLDOWN_EPOCHS: ${AEKO_PUBLIC_MINT_COOLDOWN_EPOCHS:-1}
-      AEKO_PUBLIC_MINT_REQUIRES_ALLOWLIST: ${AEKO_PUBLIC_MINT_REQUIRES_ALLOWLIST:-false}
-      AEKO_PUBLIC_MINT_ANOMALY_THRESHOLD: ${AEKO_PUBLIC_MINT_ANOMALY_THRESHOLD:-3}
-      AEKO_PROTOCOL_MULTISIG_SIGNERS: ${AEKO_PROTOCOL_MULTISIG_SIGNERS:-}
-      AEKO_PROTOCOL_MULTISIG_FREEZE_QUORUM: ${AEKO_PROTOCOL_MULTISIG_FREEZE_QUORUM:-1}
-      AEKO_PROTOCOL_MULTISIG_REVOKE_QUORUM: ${AEKO_PROTOCOL_MULTISIG_REVOKE_QUORUM:-1}
-      AEKO_PROTOCOL_MULTISIG_POLICY_QUORUM: ${AEKO_PROTOCOL_MULTISIG_POLICY_QUORUM:-1}
-    volumes:
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
-      - protocol-state:/state
-    depends_on:
-      validator:
-        condition: service_healthy
-      key-preflight:
-        condition: service_completed_successfully
-    logging: *default-logging
-    networks: [aeko]
-
-  explorer-api:
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-explorer-api:${AEKO_IMAGE_TAG:-latest}
-    pull_policy: always
-    restart: unless-stopped
-    environment:
-      AEKO_EXPLORER_RPC: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
-      AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-testnet}
-      AEKO_EXPLORER_BIND: 0.0.0.0:8088
-      AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?}
-      AEKO_EXPLORER_START_SLOT: ${AEKO_EXPLORER_START_SLOT:-0}
-      AEKO_EXPLORER_MAX_BATCH_SIZE: ${AEKO_EXPLORER_MAX_BATCH_SIZE:-256}
-      AEKO_EXPLORER_PERSIST_SOCIALFI_VIEWS: ${AEKO_EXPLORER_PERSIST_SOCIALFI_VIEWS:-true}
-      AEKO_EXPLORER_ASSET_REFRESH_SLOTS: ${AEKO_EXPLORER_ASSET_REFRESH_SLOTS:-64}
-      AEKO_EXPLORER_SOCIAL_REFRESH_SLOTS: ${AEKO_EXPLORER_SOCIAL_REFRESH_SLOTS:-16}
-      AEKO_EXPLORER_MAX_READY_LAG_SLOTS: ${AEKO_EXPLORER_MAX_READY_LAG_SLOTS:-128}
-      AEKO_EXPLORER_DB_MAX_CONNECTIONS: ${AEKO_EXPLORER_DB_MAX_CONNECTIONS:-16}
-      AEKO_EXPLORER_DB_MIN_CONNECTIONS: ${AEKO_EXPLORER_DB_MIN_CONNECTIONS:-1}
-      AEKO_EXPLORER_DB_ACQUIRE_TIMEOUT_SECS: ${AEKO_EXPLORER_DB_ACQUIRE_TIMEOUT_SECS:-10}
-      AEKO_EXPLORER_RPC_TIMEOUT_SECS: ${AEKO_EXPLORER_RPC_TIMEOUT_SECS:-15}
-      AEKO_EXPLORER_REQUEST_TIMEOUT_SECS: ${AEKO_EXPLORER_REQUEST_TIMEOUT_SECS:-30}
-      AEKO_EXPLORER_MAX_BODY_BYTES: ${AEKO_EXPLORER_MAX_BODY_BYTES:-1048576}
-      AEKO_EXPLORER_SYNC_INTERVAL_SECS: ${AEKO_EXPLORER_SYNC_INTERVAL_SECS:-2}
-      DATABASE_URL: ${EXPLORER_DATABASE_URL:?Set EXPLORER_DATABASE_URL to persistent PostgreSQL}
-      AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env
-      AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env
-      AEKO_SOCIAL_POSTS_STATE: ${AEKO_SOCIAL_POSTS_STATE:-}
-      AEKO_SOCIAL_REWARDS_STATE: ${AEKO_SOCIAL_REWARDS_STATE:-}
-      AEKO_SOCIAL_STAKING_STATE: ${AEKO_SOCIAL_STAKING_STATE:-}
-      AEKO_SOCIAL_ANTI_SPAM_STATE: ${AEKO_SOCIAL_ANTI_SPAM_STATE:-}
-      AEKO_SOCIAL_MONETIZATION_STATE: ${AEKO_SOCIAL_MONETIZATION_STATE:-}
-      AEKO_REWARDS_TREASURY_ACCOUNT: ${AEKO_REWARDS_TREASURY_ACCOUNT:-}
-      AEKO_REWARD_VAULT_ACCOUNT: ${AEKO_REWARD_VAULT_ACCOUNT:-}
-      AEKO_STAKE_VAULT_ACCOUNT: ${AEKO_STAKE_VAULT_ACCOUNT:-}
-      AEKO_STAKE_REWARD_VAULT_ACCOUNT: ${AEKO_STAKE_REWARD_VAULT_ACCOUNT:-}
-      AEKO_TREASURY_ADDRESS: ${AEKO_TREASURY_ADDRESS:-}
-      AEKO_PLATFORM_FEE_BPS: ${AEKO_PLATFORM_FEE_BPS:-}
-    expose:
-      - "8088"
-    volumes:
-      - social-state:/state:ro
-      - protocol-state:/protocol-state:ro
-    depends_on:
-      validator:
-        condition: service_healthy
-    # Keep the process routable while projections recover. `/health` remains
-    # the strict DB/RPC/indexer/Social readiness endpoint for monitoring/CI.
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/ >/dev/null || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 90s
-    logging: *default-logging
-    networks: [aeko]
-
-  explorer-ui:
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-explorer-ui:${AEKO_IMAGE_TAG:-latest}
-    pull_policy: always
-    restart: unless-stopped
-    environment:
-      AEKO_PUBLIC_RPC_URL: ${AEKO_PUBLIC_RPC_URL:?}
-      AEKO_PUBLIC_WS_URL: ${AEKO_PUBLIC_WS_URL:?}
-      AEKO_PUBLIC_EXPLORER_API_URL: ${AEKO_PUBLIC_EXPLORER_API_URL:?}
-      AEKO_PUBLIC_EXPLORER_URL: ${AEKO_PUBLIC_EXPLORER_URL:?}
-      AEKO_PUBLIC_FUNDING_URL: ${AEKO_PUBLIC_FUNDING_URL:?}
-      AEKO_MAINNET_RPC_URL: ${AEKO_MAINNET_RPC_URL:-}
-      AEKO_MAINNET_WS_URL: ${AEKO_MAINNET_WS_URL:-}
-      AEKO_MAINNET_EXPLORER_API_URL: ${AEKO_MAINNET_EXPLORER_API_URL:-}
-      AEKO_MAINNET_EXPLORER_URL: ${AEKO_MAINNET_EXPLORER_URL:-}
-    expose:
-      - "4000"
-    # UI lifecycle is intentionally independent of Explorer API readiness.
-    # The static app must still start and render degraded/error states while
-    # the API or its upstream dependencies recover.
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/ >/dev/null || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging: *default-logging
-    networks: [aeko]
-
-  operations-web:
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-operations-web:${AEKO_IMAGE_TAG:-latest}
-    pull_policy: always
-    restart: unless-stopped
-    environment:
-      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
-      AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}
-      AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?}
-      AEKO_PUBLIC_EXPLORER_URL: ${AEKO_PUBLIC_EXPLORER_URL:?}
-      AEKO_PUBLIC_FUNDING_URL: ${AEKO_PUBLIC_FUNDING_URL:?}
-      AEKO_PUBLIC_ADMIN_URL: ${AEKO_PUBLIC_ADMIN_URL:?}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}
-      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}
-      FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}
-      FUNDING_CLIENT_API_KEY: ${FUNDING_CLIENT_API_KEY:-}
-      FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:?}
-      FUNDING_STATE_DIR: /data
-      FUNDING_DEFAULT_AMOUNT_AEKO: ${FUNDING_DEFAULT_AMOUNT_AEKO:-5}
-      FUNDING_DEFAULT_COOLDOWN_HOURS: ${FUNDING_DEFAULT_COOLDOWN_HOURS:-24}
-      FUNDING_DEFAULT_DAILY_BUDGET_AEKO: ${FUNDING_DEFAULT_DAILY_BUDGET_AEKO:-5000}
-      FUNDING_MAX_MANUAL_GRANT_AEKO: ${FUNDING_MAX_MANUAL_GRANT_AEKO:-100}
-    expose:
-      - "3001"
-    volumes:
-      - admin-state:/data
-    # Liveness only: the public Funding Portal must stay up to say "paused" or
-    # "chain unavailable" while the node or Explorer recover.
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/funding/policy >/dev/null || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging: *default-logging
-    networks: [aeko]
-
-  wallet-tools:
-    profiles: ["ops"]
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
-    pull_policy: always
-    command: ["aeko", "--help"]
-    volumes:
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys
-    logging: *default-logging
-    networks: [aeko]
-
-networks:
-  aeko:
-    driver: bridge
-
-volumes:
-  admin-state:
-  validator-ledger:
-  social-state:
