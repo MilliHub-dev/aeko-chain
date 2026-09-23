@@ -239,14 +239,16 @@ faucet-keypair.json
 
 Never commit those keypairs. Keep them in persistent restricted storage/File Mounts; do not depend on files inside an AutoDeploy Git checkout.
 
-Optional SocialFi configuration:
+Optional SocialFi bootstrap configuration:
 
 ```text
-AEKO_TREASURY_ADDRESS=<pubkey>
-AEKO_REWARD_VAULT_ACCOUNT=<pubkey>
-AEKO_STAKE_VAULT_ACCOUNT=<pubkey>
+AEKO_REWARDS_TREASURY_SEED_LAMPORTS=0
+AEKO_REWARD_VAULT_SEED_LAMPORTS=0
+AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS=0
 AEKO_PLATFORM_FEE_BPS=200
 ```
+
+Normal public deployments do not configure Social state or vault addresses by hand. `social-bootstrap` creates the canonical accounts and publishes them in `social-registry.env`; the Explorer's per-address environment variables are recovery overrides and should normally remain unset.
 
 ### Dokploy network/routing
 
