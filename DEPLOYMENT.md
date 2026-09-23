@@ -84,6 +84,23 @@ The `social-state` volume contains the five SocialFi state keypairs plus `social
 
 The optional portable/local RPC replica keeps its own identity and ledger when that profile is explicitly enabled; those are not requirements of the default public topology.
 
+## Configuration ownership and source of truth
+
+Do not copy the same value into multiple configuration surfaces merely because similarly named variables exist.
+
+| Configuration | Canonical source | Normal operator action |
+| --- | --- | --- |
+| Validator/vote/stake/faucet identities | persistent key files | Preserve the existing files; generate only during an intentional first chain boot. |
+| Social state and vault addresses | generated `social-state/social-registry.env` | Leave Explorer per-address overrides unset. |
+| Protocol feature identities | compile-time feature IDs plus their matching offline private keypairs | Activate the two feature accounts once from a secured operator machine. |
+| Protocol authority and canonical state addresses | persistent protocol authority plus generated `protocol-registry.env` / continuity anchor | Create only during the intentional first protocol bootstrap, then preserve. |
+| Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads the same public API resource. |
+| Public browser endpoints | deployment environment (`AEKO_PUBLIC_*`) | Configure once per deployment environment. |
+| Internal container endpoints | Compose service DNS defaults | Normally leave the `AEKO_INTERNAL_*` overrides unset. |
+| Recovery address overrides | Explorer process environment | Use only for explicit recovery; never as a parallel normal source of truth. |
+
+Similar names are not automatically duplicates. For example, `AEKO_EXPLORER_URL` is the Operations Web server-to-server Explorer endpoint, while `AEKO_PUBLIC_EXPLORER_API_URL` is the browser-facing Explorer API endpoint. They may resolve to the same service through different network paths and must not be substituted blindly.
+
 ## Required production environment
 
 ```text
