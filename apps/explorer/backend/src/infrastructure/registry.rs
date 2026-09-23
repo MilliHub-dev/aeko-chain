@@ -185,12 +185,14 @@ fn load_registry_file(env_name: &str, label: &str) -> HashMap<String, String> {
     };
     match fs::read_to_string(&path) {
         Ok(content) => parse_registry_env(&content),
-        Err(error) if error.kind() == ErrorKind::NotFound => {
+        Err(error)
+            if error.kind() == ErrorKind::NotFound && env_name == PROTOCOL_REGISTRY_FILE_ENV =>
+        {
             tracing::debug!(
                 path,
                 env_name,
                 label,
-                "bootstrap registry file is not present yet"
+                "protocol registry file is not present yet"
             );
             HashMap::new()
         }
