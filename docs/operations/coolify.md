@@ -51,7 +51,7 @@ Do not wrap Coolify environment values in shell quotes. The key directory is not
 
 ## Persistent keys
 
-Coolify uses the fixed host directory `/data/aeko/keys`. The Compose stack now includes a one-shot `key-bootstrap` service that creates this directory through the bind mount and generates only keypairs that are missing. Existing non-empty keypair files are preserved and validated rather than replaced.
+Coolify uses the fixed host directory `/data/aeko/keys`. The Compose stack includes a one-shot `key-bootstrap` service that validates the persistent identities before faucet startup. On an intentional first boot it may generate missing chain keypairs only when `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`; normal established-chain redeploys keep that flag at `0`. Existing non-empty keypair files are preserved and validated rather than replaced.
 
 After the initial chain deployment, the persistent directory contains the four chain identities:
 
@@ -128,9 +128,10 @@ If the Explorer shows `Indexer returned non-JSON (200)` followed by the AEKO pag
 3. Add the required environment variables above, without shell quotes. Do not add `AEKO_KEYS_DIR`.
 4. Configure the four HTTP/WebSocket domains.
 5. Open TCP+UDP `8000-8050` for validator transport.
-6. Deploy.
+6. For a genuinely fresh chain only, temporarily set `AEKO_REQUIRE_EXISTING_LEDGER=0` and `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`. For an established chain, keep `AEKO_REQUIRE_EXISTING_LEDGER=1` and `AEKO_ALLOW_CHAIN_KEY_GENERATION=0`.
+7. Deploy. After a fresh-chain deployment has created the intended identities and genesis, return the one-time flags to their safe established-chain values.
 
-The Coolify stack uses `key-bootstrap` as a one-shot initializer, not the old fail-only preflight. It creates missing persistent keypairs and exits successfully; the faucet then starts, followed by the validator. Existing key files are never overwritten. `social-bootstrap` remains a one-shot initializer; successful completion is `Exited (0)`, which is an expected completed state rather than an unhealthy long-running service. `wallet-tools` is an opt-in `ops` profile and is not part of the default deployment.
+The Coolify stack uses `key-bootstrap` as a one-shot validator/initializer. It creates missing persistent chain keypairs only under the explicit first-boot flag and exits successfully; the faucet then starts, followed by the validator. Existing key files are never overwritten. `social-bootstrap` remains a one-shot initializer; successful completion is `Exited (0)`, which is an expected completed state rather than an unhealthy long-running service. `wallet-tools` is an opt-in `ops` profile and is not part of the default deployment.
 
 ## Acceptance
 
@@ -176,7 +177,7 @@ Do not replace the Coolify bind mounts with any `${...}` volume-source form, inc
 
 ## Key troubleshooting
 
-The reusable `docker/key-preflight.sh` helper still uses exit 64 for missing/empty key files and exit 65 for invalid keypair content, but Coolify no longer runs that helper as a Compose startup dependency. This prevents a helper-container failure from leaving unrelated services permanently waiting.
+The reusable `docker/key-preflight.sh` helper uses exit 64 for missing/empty required keys and exit 65 for invalid keypair content. Coolify runs the same implementation through the one-shot `key-bootstrap` service, and the faucet intentionally waits for that service to complete successfully. During the protocol-disabled compatibility phase, the successful message `protocol bootstrap disabled and no established protocol identity exists` means no protocol authority is required yet; it is not a key-preflight failure.
 
 If the faucet or validator fails because a key is unavailable, inspect the fixed host directory directly:
 
@@ -199,7 +200,7 @@ AEKO_RESET_LEDGER=0
 AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0
 ```
 
-This lets the validator restore the existing ledger without inserting the eleven newer builtin accounts into a historical frozen Bank. Prove the old genesis and slot history are continuing before feature activation.
+This lets the validator restore the existing ledger without inserting the eleven newer builtin accounts into a historical frozen Bank. Prove the old genesis and slot history are continuing before feature activation. In this phase, `/protocol-state/protocol-registry.env` is expected to be absent on a chain that has never completed protocol bootstrap, and Explorer must report protocol state as incomplete rather than treating that absence as initialized state. Do not create or copy a registry file by hand.
 
 Then activate the two runtime features with their offline keypairs and wait until both are active at the epoch boundary. For the first canonical-state bootstrap set:
 
