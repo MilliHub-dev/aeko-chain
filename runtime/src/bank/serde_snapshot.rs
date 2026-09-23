@@ -572,7 +572,9 @@ mod tests {
             );
         }
 
-        let bank0 = Arc::new(Bank::new_for_tests(&genesis_config));
+        // Transactions exercise the shared program cache, which requires a
+        // BankForks-backed fork graph even in tests.
+        let (bank0, _bank_forks) = Bank::new_with_bank_forks_for_tests(&genesis_config);
         let mut historical_bank = Bank::new_from_parent(bank0, &Pubkey::default(), 1);
         let historical_account = Keypair::new();
         let transfer = system_transaction::transfer(
