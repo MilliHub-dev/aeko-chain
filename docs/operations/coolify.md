@@ -53,15 +53,16 @@ Do not wrap Coolify environment values in shell quotes. The key directory is not
 
 Coolify uses the fixed host directory `/data/aeko/keys`. The Compose stack now includes a one-shot `key-bootstrap` service that creates this directory through the bind mount and generates only keypairs that are missing. Existing non-empty keypair files are preserved and validated rather than replaced.
 
-After first successful deployment, the persistent directory contains:
+After the initial chain deployment, the persistent directory contains the four chain identities:
 
 ```text
 validator-1-keypair.json
 vote-1-keypair.json
 stake-keypair.json
 faucet-keypair.json
-protocol-authority-keypair.json
 ```
+
+`protocol-authority-keypair.json` is created later only when the intentional first protocol bootstrap is enabled (or may already exist on an established protocol-enabled deployment). A compatibility redeploy with `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` does not require a brand-new protocol authority.
 
 You do not need to set `AEKO_KEYS_DIR` in the Coolify dashboard and you do not need to generate these files manually for a fresh chain. If this Coolify deployment is replacing an existing Dokploy/AEKO deployment, copy the **same existing validator/vote/stake/faucet keypairs** into this directory before deploying so the bootstrap preserves them. Replacing them changes validator/faucet identity and can make the persisted ledger unusable for the intended chain. Generate new keys only when intentionally creating a fresh chain identity.
 
@@ -204,8 +205,11 @@ Then activate the two runtime features with their offline keypairs and wait unti
 
 ```text
 AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1
+AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1
 AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1
 ```
+
+The shared key preflight creates `protocol-authority-keypair.json` only because protocol bootstrap is now explicitly enabled. After the first successful bootstrap, back up that key and return both one-time creation flags to `0`.
 
 Redeploy the one-shot `protocol-bootstrap` service, run the acceptance checks, and immediately return `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=0`. Established deployments keep `AEKO_REQUIRE_EXISTING_PROTOCOL_STATE=1`.
 

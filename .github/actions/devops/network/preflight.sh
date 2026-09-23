@@ -32,6 +32,9 @@ FUNDING_ALLOWED_ORIGINS=https://scan.ci.invalid \
 bash -c '
   set -euo pipefail
   bash -n docker/validator-entrypoint.sh
+  sh -n docker/key-preflight.sh
+  bash -n scripts/test-key-preflight.sh
+  bash scripts/test-key-preflight.sh
   bash -n scripts/deploy-testnet.sh
   bash -n scripts/audit-validator-storage.sh
   python3 scripts/validate-deployment-contract.py
