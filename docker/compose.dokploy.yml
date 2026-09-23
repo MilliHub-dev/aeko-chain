@@ -28,79 +28,16 @@ services:
     pull_policy: always
     restart: "no"
     environment:
+      AEKO_KEYS_SOURCE: ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}
+      AEKO_ALLOW_CHAIN_KEY_GENERATION: "0"
       AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION: ${AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION:-0}
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -eu
-        allow_protocol_authority_generation="$${AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION:-0}"
-        case "$$allow_protocol_authority_generation" in
-          0|1) ;;
-          *)
-            echo "error: AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION must be 0 or 1" >&2
-            exit 64
-            ;;
-        esac
-        for key in \
-          faucet-keypair.json \
-          stake-keypair.json \
-          validator-1-keypair.json \
-          vote-1-keypair.json
-        do
-          path="/keys/$$key"
-          if [ ! -f "$$path" ] || [ ! -s "$$path" ]; then
-            echo "error: required AEKO keypair is missing, empty, or not a regular file: $$path" >&2
-            exit 64
-          fi
-          if ! aeko-keygen pubkey "$$path" >/dev/null 2>&1; then
-            echo "error: invalid AEKO keypair: $$path" >&2
-            exit 65
-          fi
-          echo "validated $$key"
-        done
-        protocol_path="/keys/protocol-authority-keypair.json"
-        protocol_registry=""
-        if [ -s /protocol-state/protocol-registry.env ]; then
-          protocol_registry=/protocol-state/protocol-registry.env
-        elif [ -s /protocol-continuity/protocol-registry.anchor ]; then
-          protocol_registry=/protocol-continuity/protocol-registry.anchor
-        fi
-        if [ ! -s "$$protocol_path" ]; then
-          if [ -n "$$protocol_registry" ]; then
-            echo "error: protocol authority key is missing but established protocol identity exists in $$protocol_registry" >&2
-            echo "error: refusing to replace an established protocol authority" >&2
-            exit 64
-          fi
-          if [ "$$allow_protocol_authority_generation" != "1" ]; then
-            echo "error: protocol authority key is missing: $$protocol_path" >&2
-            echo "error: set AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1 only when intentionally creating the first protocol authority" >&2
-            exit 64
-          fi
-          echo "==> Initializing first AEKO protocol authority key"
-          aeko-keygen new --no-bip39-passphrase --silent --outfile "$$protocol_path"
-        fi
-        if ! actual_protocol_authority="$$(aeko-keygen pubkey "$$protocol_path" 2>/dev/null)"; then
-          echo "error: invalid AEKO protocol authority keypair: $$protocol_path" >&2
-          exit 65
-        fi
-        if [ -n "$$protocol_registry" ]; then
-          expected_protocol_authority="$$(sed -n 's/^AEKO_PROTOCOL_AUTHORITY=//p' "$$protocol_registry" | head -n 1)"
-          if [ -z "$$expected_protocol_authority" ]; then
-            echo "error: $$protocol_registry is missing AEKO_PROTOCOL_AUTHORITY" >&2
-            exit 65
-          fi
-          if [ "$$actual_protocol_authority" != "$$expected_protocol_authority" ]; then
-            echo "error: protocol authority key does not match established protocol identity" >&2
-            echo "error: expected $$expected_protocol_authority, got $$actual_protocol_authority" >&2
-            exit 65
-          fi
-        fi
-        echo "validated protocol-authority-keypair.json"
-        echo "AEKO key preflight complete"
+      AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}
+    entrypoint: ["/usr/local/bin/aeko-key-preflight"]
     volumes:
       - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys
       - protocol-state:/protocol-state:ro
       - protocol-continuity:/protocol-continuity:ro
+
   faucet:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-faucet:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always

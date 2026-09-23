@@ -167,35 +167,52 @@ def main() -> int:
     )
 
     # Public key lifecycle must not silently replace established identities.
+    # Both public platforms use the same tools-image preflight implementation so
+    # protocol authority migration cannot diverge between Coolify and Dokploy.
     require(
         "AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}" in coolify,
         "Coolify must require explicit opt-in before generating chain identity keys",
     )
-    require(
-        "refusing to generate a replacement chain identity" in coolify,
-        "Coolify key bootstrap must fail closed on missing established chain keys",
-    )
-    for label, compose in (("Dokploy", dokploy), ("Coolify", coolify)):
+    for label, compose, service in (
+        ("Dokploy", dokploy, "key-preflight"),
+        ("Coolify", coolify, "key-bootstrap"),
+    ):
+        block = service_block(compose, service, "faucet")
         require(
-            "AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION: ${AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION:-0}" in compose,
+            'entrypoint: ["/usr/local/bin/aeko-key-preflight"]' in block,
+            f"{label} must use the shared key preflight implementation from aeko-tools",
+        )
+        require(
+            "AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION: ${AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION:-0}" in block,
             f"{label} must require explicit opt-in before creating a protocol authority",
         )
         require(
-            "protocol-registry.env" in compose
-            and "refusing to replace an established protocol authority" in compose
-            and "AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1 only when intentionally creating the first protocol authority" in compose,
-            f"{label} must preserve protocol-authority identity once protocol state exists",
+            "AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in block,
+            f"{label} key lifecycle must know whether protocol bootstrap is intentionally enabled",
         )
         require(
-            "protocol-continuity:/protocol-continuity:ro" in compose
-            and "/protocol-continuity/protocol-registry.anchor" in compose,
-            f"{label} key bootstrap must consult the independent protocol continuity anchor",
+            "protocol-state:/protocol-state:ro" in block
+            and "protocol-continuity:/protocol-continuity:ro" in block,
+            f"{label} key lifecycle must inspect both protocol continuity volumes",
         )
-        require(
-            "AEKO_PROTOCOL_AUTHORITY" in compose
-            and "protocol authority key does not match established protocol identity" in compose,
-            f"{label} key bootstrap must verify the protocol-authority pubkey against established state",
-        )
+    require(
+        "refusing to generate a replacement chain identity" in key_preflight
+        and "AEKO_ALLOW_CHAIN_KEY_GENERATION=1 only for an intentional first boot" in key_preflight,
+        "shared key preflight must fail closed on missing established chain identities",
+    )
+    require(
+        "protocol bootstrap disabled and no established protocol identity exists" in key_preflight,
+        "compatibility deploy must not require a brand-new protocol authority while protocol bootstrap is disabled",
+    )
+    require(
+        "refusing to replace an established protocol authority" in key_preflight
+        and "protocol authority key does not match established protocol identity" in key_preflight,
+        "shared key preflight must preserve established protocol authority identity",
+    )
+    require(
+        "protocol registry and continuity anchor disagree" in key_preflight,
+        "shared key preflight must fail closed when protocol-state and continuity disagree",
+    )
 
     # Validator image runtime must fail closed on key material and support the
     # same-host transaction peer used by the public Dokploy topology.
@@ -454,16 +471,11 @@ def main() -> int:
     require("source: ${" not in coolify, "Coolify volume sources must not contain Compose interpolation")
     require(coolify.count("source: /data/aeko/keys") >= 5, "Coolify runtime and key bootstrap services must share the fixed host key bind source")
     require(coolify.count("read_only: true") >= 3, "Coolify long-running runtime key mounts must remain read-only")
-    require(re.search(r"^  key-preflight:\\s*$", coolify, re.MULTILINE) is None, "Coolify must not use the diagnostic preflight as a global startup gate")
-    require('entrypoint: ["/bin/sh", "-ec"]' in coolify_key_bootstrap, "Coolify key bootstrap must run an explicit one-shot shell")
-    require('aeko-keygen new --no-bip39-passphrase --silent --outfile "$$path"' in coolify_key_bootstrap, "Coolify key bootstrap must create missing persistent keypairs")
-    require('path="/keys/$${key}.json"' in coolify_key_bootstrap, "Coolify key bootstrap path must survive Compose interpolation")
-    require('if [ ! -s "$$path" ]; then' in coolify_key_bootstrap, "Coolify key bootstrap must preserve existing non-empty keypairs")
-    require('aeko-keygen pubkey "$$path" >/dev/null' in coolify_key_bootstrap, "Coolify key bootstrap must validate every resulting keypair")
-    require(
-        re.search(r'(?<!\$)\$(?:\{(?:key|path)\}|(?:key|path)\b)', coolify_key_bootstrap) is None,
-        "Coolify key bootstrap shell variables must be escaped from Compose interpolation",
-    )
+    require(re.search(r"^  key-preflight:\\s*$", coolify, re.MULTILINE) is None, "Coolify must retain the key-bootstrap service name used by its dependency graph")
+    require('entrypoint: ["/usr/local/bin/aeko-key-preflight"]' in coolify_key_bootstrap, "Coolify key bootstrap must use the shared tools-image preflight")
+    require("AEKO_KEYS_SOURCE: /data/aeko/keys" in coolify_key_bootstrap, "Coolify key bootstrap diagnostics must identify the fixed host key path")
+    require("AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}" in coolify_key_bootstrap, "Coolify key bootstrap must preserve explicit first-chain-key generation")
+    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in coolify_key_bootstrap, "Coolify key bootstrap must not require a new protocol authority during compatibility deployment")
     require('restart: "no"' in coolify_key_bootstrap, "Coolify key bootstrap must be a one-shot initializer")
     require("key-bootstrap:" in coolify_faucet and "condition: service_completed_successfully" in coolify_faucet, "Coolify faucet must wait for persistent key initialization")
     require('restart: "no"' in coolify_bootstrap, "Coolify SocialFi bootstrap must remain a one-shot initializer")
