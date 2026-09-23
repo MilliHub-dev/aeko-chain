@@ -4,17 +4,20 @@ set -euo pipefail
 : "${GITHUB_OUTPUT:?GITHUB_OUTPUT is required}"
 
 DOCKERIZED="${DOCKERIZED:-false}"
+CI_PIPELINE="${CI_PIPELINE:-false}"
 publish=false
 
-# Publishing is reserved for a real Docker-owning product/packaging change on
-# main. CI-only changes still rebuild every image, but must not publish,
-# promote, or deploy unchanged product outputs.
+# A main run publishes immutable Docker images whenever product packaging owns
+# images or the CI orchestrator itself changed. CI-only main runs deliberately
+# republish the verified current image set so promotion/deployment exercises the
+# exact post-merge release path rather than stopping after local builds.
 if [ "$GITHUB_REF" = "refs/heads/main" ] \
   && [ "$GITHUB_EVENT_NAME" != "pull_request" ] \
-  && [ "$DOCKERIZED" = "true" ]; then
+  && { [ "$DOCKERIZED" = "true" ] || [ "$CI_PIPELINE" = "true" ]; }; then
   publish=true
 fi
 
 echo "publish=$publish" >> "$GITHUB_OUTPUT"
 echo "sha_tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
-printf 'Release mode: publish=%s dockerized=%s sha=%s\n' "$publish" "$DOCKERIZED" "${GITHUB_SHA::12}"
+printf 'Release mode: publish=%s dockerized=%s ci-pipeline=%s sha=%s\n' \
+  "$publish" "$DOCKERIZED" "$CI_PIPELINE" "${GITHUB_SHA::12}"

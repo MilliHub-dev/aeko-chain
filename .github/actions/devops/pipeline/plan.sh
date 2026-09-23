@@ -24,21 +24,11 @@ run_sdk_non_rust=false
 run_sdk_rust=false
 run_ci_contract=false
 
-if [ "$ADMIN" = "true" ] || [ "$PACKAGING" = "true" ]; then
-  run_admin=true
-fi
-if [ "$CLI" = "true" ] || [ "$PACKAGING" = "true" ]; then
-  run_cli=true
-fi
-if [ "$EXPLORER_BACKEND" = "true" ] || [ "$PACKAGING" = "true" ]; then
-  run_explorer_backend=true
-fi
-if [ "$EXPLORER_WEB" = "true" ] || [ "$PACKAGING" = "true" ]; then
-  run_explorer_web=true
-fi
-if [ "$CORE" = "true" ] || [ "$PACKAGING" = "true" ]; then
-  run_network=true
-fi
+if [ "$ADMIN" = "true" ] || [ "$PACKAGING" = "true" ]; then run_admin=true; fi
+if [ "$CLI" = "true" ] || [ "$PACKAGING" = "true" ]; then run_cli=true; fi
+if [ "$EXPLORER_BACKEND" = "true" ] || [ "$PACKAGING" = "true" ]; then run_explorer_backend=true; fi
+if [ "$EXPLORER_WEB" = "true" ] || [ "$PACKAGING" = "true" ]; then run_explorer_web=true; fi
+if [ "$CORE" = "true" ] || [ "$PACKAGING" = "true" ]; then run_network=true; fi
 
 # Core releases rebuild every deployable application image on main, matching
 # the established release contract while keeping core-only pull requests scoped.
@@ -49,16 +39,16 @@ if [ "$GITHUB_EVENT_NAME" != "pull_request" ] && [ "$CORE" = "true" ]; then
   run_explorer_web=true
 fi
 
-# Any change to this CI implementation must prove the complete deployable image
-# DAG on both the pull request and the merged main push. Publication is resolved
-# separately, so a CI-only main push builds locally without publishing or
-# promoting unchanged product images.
+# CI orchestration changes prove every deployable image and every external SDK
+# validation lane on both the pull request and the merged main push.
 if [ "$CI_PIPELINE" = "true" ]; then
   run_admin=true
   run_cli=true
   run_explorer_backend=true
   run_explorer_web=true
   run_network=true
+  run_sdk_non_rust=true
+  run_sdk_rust=true
   run_ci_contract=true
 fi
 

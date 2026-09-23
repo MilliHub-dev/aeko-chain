@@ -30,6 +30,10 @@ inputs:
     description: crates.io API token.
     required: false
     default: ""
+  best-effort:
+    description: Log registry publication failures and return success so Docker release may continue.
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -43,7 +47,7 @@ runs:
           exit 1
         fi
 
-    - name: Preflight all selected SDK release credentials
+    - name: Publish selected SDK packages
       shell: bash
       env:
         PUBLISH_JS: ${{ inputs.js }}
@@ -53,60 +57,5 @@ runs:
         NPM_TOKEN: ${{ inputs.npm-token }}
         PYPI_API_TOKEN: ${{ inputs.pypi-token }}
         CRATES_IO_TOKEN: ${{ inputs.crates-token }}
-      run: |
-        set -euo pipefail
-        if { [ "$PUBLISH_JS" = "true" ] || [ "$PUBLISH_NODE" = "true" ]; } && [ -z "$NPM_TOKEN" ]; then
-          echo "NPM_TOKEN is required for the selected npm SDK release." >&2
-          exit 1
-        fi
-        if [ "$PUBLISH_PYTHON" = "true" ] && [ -z "$PYPI_API_TOKEN" ]; then
-          echo "PYPI_API_TOKEN is required for the selected Python SDK release." >&2
-          exit 1
-        fi
-        if [ "$PUBLISH_RUST" = "true" ] && [ -z "$CRATES_IO_TOKEN" ]; then
-          echo "CRATES_IO_TOKEN is required for the selected Rust SDK release." >&2
-          exit 1
-        fi
-
-    - name: Publish JavaScript SDK to npm
-      if: ${{ inputs.js == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/js
-      env:
-        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
-      run: |
-        set -euo pipefail
-        npm publish --access public --registry=https://registry.npmjs.org/
-
-    - name: Publish Node SDK to npm
-      if: ${{ inputs.node == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/node
-      env:
-        NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
-      run: |
-        set -euo pipefail
-        npm publish --access public --registry=https://registry.npmjs.org/
-
-    - name: Publish Python SDK to PyPI
-      if: ${{ inputs.python == 'true' }}
-      shell: bash
-      working-directory: apps/sdk/python
-      env:
-        TWINE_PASSWORD: ${{ inputs.pypi-token }}
-        TWINE_USERNAME: __token__
-      run: |
-        set -euo pipefail
-        release_dir=$(mktemp -d)
-        python3 -m pip install --disable-pip-version-check build twine
-        python3 -m build --outdir "$release_dir" .
-        python3 -m twine upload "$release_dir"/*
-
-    - name: Publish Rust SDK to crates.io
-      if: ${{ inputs.rust == 'true' }}
-      shell: bash
-      env:
-        CRATES_IO_TOKEN: ${{ inputs.crates-token }}
-      run: |
-        set -euo pipefail
-        cargo publish --locked -p aeko-rust-sdk --token "$CRATES_IO_TOKEN"
+        BEST_EFFORT: ${{ inputs.best-effort }}
+      run: bash "$GITHUB_ACTION_PATH/publish-selected.sh"

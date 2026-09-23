@@ -87,6 +87,7 @@ jobs:
         shell: bash
         env:
           DOCKERIZED: ${{ steps.changes.outputs.dockerized }}
+          CI_PIPELINE: ${{ steps.changes.outputs.ci_pipeline }}
         run: bash .github/actions/devops/pipeline/resolve-release.sh
 
       - name: Plan independent domain jobs
@@ -310,19 +311,19 @@ jobs:
       - name: Prepare non-Rust SDK runner
         uses: ./.github/actions/devops/pipeline/setup
         with:
-          node: ${{ (needs.classify.outputs.sdk_js == 'true' || needs.classify.outputs.sdk_node == 'true') && 'true' || 'false' }}
-          python: ${{ needs.classify.outputs.sdk_python }}
+          node: ${{ (needs.classify.outputs.sdk_js == 'true' || needs.classify.outputs.sdk_node == 'true' || needs.classify.outputs.ci_pipeline == 'true') && 'true' || 'false' }}
+          python: ${{ (needs.classify.outputs.sdk_python == 'true' || needs.classify.outputs.ci_pipeline == 'true') && 'true' || 'false' }}
 
       - name: Validate selected non-Rust SDKs
         uses: ./.github/actions/devops/sdk
         with:
-          js: ${{ needs.classify.outputs.sdk_js }}
-          node: ${{ needs.classify.outputs.sdk_node }}
-          python: ${{ needs.classify.outputs.sdk_python }}
+          js: ${{ (needs.classify.outputs.sdk_js == 'true' || needs.classify.outputs.ci_pipeline == 'true') && 'true' || 'false' }}
+          node: ${{ (needs.classify.outputs.sdk_node == 'true' || needs.classify.outputs.ci_pipeline == 'true') && 'true' || 'false' }}
+          python: ${{ (needs.classify.outputs.sdk_python == 'true' || needs.classify.outputs.ci_pipeline == 'true') && 'true' || 'false' }}
           rust: "false"
-          release-js: ${{ needs.classify.outputs.sdk_release_js }}
-          release-node: ${{ needs.classify.outputs.sdk_release_node }}
-          release-python: ${{ needs.classify.outputs.sdk_release_python }}
+          release-js: "false"
+          release-node: "false"
+          release-python: "false"
           release-rust: "false"
 
   sdk_rust:
@@ -352,7 +353,8 @@ jobs:
           release-js: "false"
           release-node: "false"
           release-python: "false"
-          release-rust: ${{ needs.classify.outputs.sdk_release_rust }}
+          release-rust: "false"
+          enforce-lockfile-clean: ${{ needs.classify.outputs.sdk_rust }}
 
   devops:
     name: devops
@@ -395,12 +397,59 @@ jobs:
           SDK_RUST_RESULT: ${{ needs.sdk_rust.result }}
         run: bash .github/actions/devops/pipeline/verify-results.sh
 
+  sdk_publish:
+    name: Publish SDKs (best effort)
+    needs:
+      - classify
+      - devops
+    if: ${{ needs.devops.result == 'success' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (needs.classify.outputs.sdk_release_js == 'true' || needs.classify.outputs.sdk_release_node == 'true' || needs.classify.outputs.sdk_release_python == 'true' || needs.classify.outputs.sdk_release_rust == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare SDK release runner
+        continue-on-error: true
+        uses: ./.github/actions/devops/pipeline/setup
+        with:
+          node: ${{ (needs.classify.outputs.sdk_release_js == 'true' || needs.classify.outputs.sdk_release_node == 'true') && 'true' || 'false' }}
+          python: ${{ needs.classify.outputs.sdk_release_python }}
+          rust: ${{ needs.classify.outputs.sdk_release_rust }}
+
+      - name: Publish selected SDK packages without blocking Docker release
+        id: sdk_release
+        continue-on-error: true
+        uses: ./.github/actions/devops/sdk-publish
+        with:
+          js: ${{ needs.classify.outputs.sdk_release_js }}
+          node: ${{ needs.classify.outputs.sdk_release_node }}
+          python: ${{ needs.classify.outputs.sdk_release_python }}
+          rust: ${{ needs.classify.outputs.sdk_release_rust }}
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          pypi-token: ${{ secrets.PYPI_API_TOKEN }}
+          crates-token: ${{ secrets.CRATES_IO_TOKEN }}
+          best-effort: "true"
+
+      - name: Record SDK release continuation
+        if: always()
+        shell: bash
+        env:
+          SDK_RELEASE_OUTCOME: ${{ steps.sdk_release.outcome }}
+        run: |
+          echo "SDK registry publication is best-effort in AEKO DevOps."
+          echo "Composite publication step outcome: ${SDK_RELEASE_OUTCOME:-unknown}"
+          echo "Docker image promotion and production deployment are independent of SDK registry availability."
+
   release:
     name: Promote and deploy
     needs:
       - classify
       - devops
-    if: needs.classify.outputs.publish == 'true' && needs.classify.outputs.dockerized == 'true'
+    if: needs.classify.outputs.publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -430,7 +479,7 @@ jobs:
           explorer-web: ${{ needs.classify.outputs.run_explorer_web }}
 
       - name: Trigger production deployment after successful promotion
-        if: needs.classify.outputs.deployable == 'true'
+        if: needs.classify.outputs.deployable == 'true' || needs.classify.outputs.ci_pipeline == 'true'
         shell: bash
         env:
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
