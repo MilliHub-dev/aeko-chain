@@ -445,7 +445,7 @@ jobs:
       - network
       - sdk_non_rust
       - sdk_rust
-    if: ${{ !cancelled() && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') }}
+    if: ${{ always() && !cancelled() && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
