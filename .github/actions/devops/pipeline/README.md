@@ -13,3 +13,9 @@ The top-level workflow is intentionally a multi-job DAG:
 - only successful `main` runs publish immutable SHA images, promote those remote images to `latest`, and trigger deployment.
 
 No Docker image tarballs or build artifacts are transferred between jobs. Existing GHA/sccache/BuildKit caches remain the acceleration mechanism.
+
+## CI-only change behavior
+
+Changes under `.github/actions/devops/**` or `.github/workflows/**` select the complete deployable image DAG on both pull requests and the merged `main` push. This proves that the orchestrator still builds every image after merge.
+
+A CI-only `main` push is deliberately **build-only**: it does not publish immutable product tags, promote `latest`, or trigger production deployment. Normal product or packaging changes on `main` retain the existing publish -> final gate -> promotion/deployment contract.
