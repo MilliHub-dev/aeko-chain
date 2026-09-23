@@ -555,6 +555,6 @@ MIT. See [`LICENSE`](./LICENSE).
 
 The eleven AEKO token and permission/security native programs added after the established testnet genesis are runtime-feature gated. Deploying a new validator binary no longer requires wiping historical chain state to introduce them.
 
-Keep `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` while the upgraded validator restores the existing ledger. Activate the two offline-authority feature accounts, wait for epoch activation, then enable the one-shot protocol bootstrap.
+Keep `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` while the upgraded validator restores the existing ledger. Activate the two offline-authority feature accounts and wait for epoch activation. The intentional first canonical-state bootstrap also requires `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1`; return that flag to `0` after acceptance. Preserve both `protocol-state` and the independent `protocol-continuity` volume on later redeploys.
 
 See [`docs/operations/protocol-upgrades.md`](./docs/operations/protocol-upgrades.md) for the ordered procedure, feature IDs, rollback boundary and acceptance checks. Explorer exposes `/registry/protocol` and `/protocol/status` after bootstrap.

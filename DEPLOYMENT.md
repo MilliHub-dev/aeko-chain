@@ -72,6 +72,7 @@ Persist:
 - `validator-ledger` named volume;
 - `social-state` named volume;
 - `protocol-state` named volume;
+- `protocol-continuity` named volume;
 - `admin-state` named volume (funding policy and grant ledger);
 - validator identity key;
 - vote-account key;
@@ -79,7 +80,7 @@ Persist:
 - faucet key;
 - protocol authority key.
 
-The `social-state` volume contains the five SocialFi state keypairs plus `social-registry.env`. The `protocol-state` volume contains canonical protocol state keypairs plus `protocol-registry.env`.
+The `social-state` volume contains the five SocialFi state keypairs plus `social-registry.env`. The `protocol-state` volume contains the published `protocol-registry.env`. The separate `protocol-continuity` volume contains the canonical protocol state/custody keypairs plus the registry continuity anchor. Preserve both protocol volumes together.
 
 The optional portable/local RPC replica keeps its own identity and ledger when that profile is explicitly enabled; those are not requirements of the default public topology.
 
@@ -343,7 +344,7 @@ For an existing chain, first deploy the compatible validator and prove unchanged
 - `aeko_token_programs_v1`: `Ca5Lhktqd4epk3DDqsp7azXAunK3KZ8ZxeykU81oUUHT`
 - `aeko_permission_layer_v1`: `KBq8JBrCEbWJ6S2NXpcBvQDvt7J6hUZW3i61zzzZWxF`
 
-with their matching offline feature keypairs. Wait for both features to become active at an epoch boundary, then set `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1` and run the one-shot protocol bootstrap.
+with their matching offline feature keypairs. Wait for both features to become active at an epoch boundary. For the intentional first canonical-state initialization, set `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1` and `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1`, run the one-shot protocol bootstrap, verify acceptance, then immediately return `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=0`.
 
 The complete backup, activation, rollback and validation procedure is in [`docs/operations/protocol-upgrades.md`](./docs/operations/protocol-upgrades.md).
 
@@ -430,8 +431,9 @@ Use `https://scan.aeko.online/network-tools` and open the Test Console:
 - Public dApps never connect to gossip.
 - Route public RPC/WS through the selected deployment platform's HTTP/WebSocket proxy to the validator's exposed `8899`/`8900` ports for the current single-validator topology.
 - Keep node, SocialFi, protocol-authority and feature-authority key material out of Git.
-- Preserve ledger, SocialFi and protocol-state volumes on normal redeploys.
-- Treat `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1` as a deliberate reset/recovery switch, not a normal setting.
+- Preserve ledger, SocialFi, protocol-state and protocol-continuity volumes on normal redeploys.
+- Treat `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1` and `AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1` as deliberate recovery switches, not normal settings.
+- Keep `AEKO_REQUIRE_EXISTING_PROTOCOL_STATE=1` and `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=0` after the first protocol bootstrap so missing/replaced protocol state fails closed.
 
 ## Protocol maturity boundary
 

@@ -71,14 +71,15 @@ The Coolify Compose mounts this directory with long-form bind syntax and the lit
 
 ## Persistent chain state
 
-The Coolify contract declares four Docker-managed named volumes:
+The Coolify contract declares five Docker-managed named volumes:
 
 - `validator-ledger` for validator ledger/accounts/snapshots.
 - `social-state` for SocialFi state keypairs and `social-registry.env`.
-- `protocol-state` for protocol state keypairs and `protocol-registry.env`.
+- `protocol-state` for the published `protocol-registry.env`.
+- `protocol-continuity` for canonical protocol state/custody keypairs and the independent registry continuity anchor.
 - `admin-state` for the funding policy and grant ledger of the operations web app (admin.aeko.online / fund.aeko.online).
 
-Normal redeploys must preserve all four volumes. Do not delete them unless intentionally resetting chain state.
+Normal redeploys must preserve all five volumes. The two protocol volumes form one continuity boundary: losing `protocol-state` while retaining `protocol-continuity` requires explicit recovery and reuses the same canonical addresses; losing `protocol-continuity` must not be treated as a fresh bootstrap. Do not delete them unless intentionally resetting chain state.
 
 For a deliberate fresh-genesis recovery, set both:
 
@@ -186,7 +187,14 @@ AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0
 
 This lets the validator restore the existing ledger without inserting the eleven newer builtin accounts into a historical frozen Bank. Prove the old genesis and slot history are continuing before feature activation.
 
-Then activate the two runtime features with their offline keypairs, wait until both are active at the epoch boundary, set `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1`, and redeploy the one-shot `protocol-bootstrap` service.
+Then activate the two runtime features with their offline keypairs and wait until both are active at the epoch boundary. For the first canonical-state bootstrap set:
+
+```text
+AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1
+AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1
+```
+
+Redeploy the one-shot `protocol-bootstrap` service, run the acceptance checks, and immediately return `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=0`. Established deployments keep `AEKO_REQUIRE_EXISTING_PROTOCOL_STATE=1`.
 
 Do not put the two feature-authority private keypairs in `/data/aeko/keys`. The runtime key directory contains the separate `protocol-authority-keypair.json`, which controls canonical protocol configuration after activation.
 
