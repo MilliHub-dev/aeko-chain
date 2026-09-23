@@ -235,8 +235,8 @@ export default function ProtocolPage() {
 function StatusRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-[#1e2135] pb-2 last:border-b-0">
-      <dt className="text-xs text-gray-600">{label}</dt>
-      <dd className={mono ? 'text-right font-mono text-xs text-gray-300' : 'text-right text-xs text-gray-300'}>{value}</dd>
+      <span className="text-xs text-gray-600">{label}</span>
+      <span className={mono ? 'text-right font-mono text-xs text-gray-300' : 'text-right text-xs text-gray-300'}>{value}</span>
     </div>
   )
 }
