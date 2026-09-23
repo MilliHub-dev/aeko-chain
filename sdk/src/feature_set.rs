@@ -784,6 +784,18 @@ pub mod round_compute_unit_price {
     aeko_sdk::declare_id!("sBAfS3QD4pNaFavLinmBQhFsNQsQ5HHAHyaJKEEudHK");
 }
 
+
+// AEKO protocol-native program bundles. These features gate native builtins that
+// were introduced after the original testnet genesis. Keeping them inactive on
+// historical banks allows old snapshots to restore without mutating frozen state.
+pub mod aeko_token_programs_v1 {
+    aeko_sdk::declare_id!("BYpU5n5XSY47DnMsff9PV7hE5H6MGo5b43cWCDcT7iQM");
+}
+
+pub mod aeko_permission_layer_v1 {
+    aeko_sdk::declare_id!("8ekuzcgLnu5tctJYCCSTnBNqLAoycRq2ApuRn64gjW4G");
+}
+
 lazy_static! {
     /// Map of feature identifiers to user-visible description
     pub static ref FEATURE_NAMES: HashMap<Pubkey, &'static str> = [
@@ -975,6 +987,8 @@ lazy_static! {
         (remove_rounding_in_fee_calculation::id(), "Removing unwanted rounding in fee calculation #34982"),
         (deprecate_unused_legacy_vote_plumbing::id(), "Deprecate unused legacy vote tx plumbing"),
         (round_compute_unit_price::id(), "round compute unit price up to nearest multiple when calculating fees"),
+        (aeko_token_programs_v1::id(), "activate AEKO tokenomics, AEKO-20, public mint, AEKO-721, and NFT marketplace native programs"),
+        (aeko_permission_layer_v1::id(), "activate AEKO wallet permissions, permission/revocation/subnet registries, emergency multisig, and finality oracle native programs"),
         /*************** ADD NEW FEATURES HERE ***************/
     ]
     .iter()
