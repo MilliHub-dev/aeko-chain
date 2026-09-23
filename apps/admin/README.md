@@ -16,7 +16,7 @@ Public ingress is deployment-owned:
 - `AEKO_PUBLIC_EXPLORER_URL`
 - `FUNDING_ALLOWED_ORIGINS`
 
-Internal dependencies use `AEKO_RPC_URL` and `AEKO_EXPLORER_URL`. Compose defaults those to same-network service names.
+Internal dependencies use `AEKO_RPC_URL` and `AEKO_EXPLORER_URL`. `AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN` is server-side only and authorizes settings mutations from Operations Web to Explorer. Compose defaults the internal service URLs to same-network service names.
 
 ## Routes
 
@@ -27,7 +27,9 @@ Internal dependencies use `AEKO_RPC_URL` and `AEKO_EXPLORER_URL`. Compose defaul
 | `GET /api/funding/policy` | public | Funding policy/status |
 | `/login` | operator | Admin sign-in |
 | `/funding-grants` | operator | Funding policy, manual grants and history |
-| `/`, `/blocks`, `/transactions`, `/tokens`, `/nfts`, `/social`, `/marketplace` | operator | Chain monitoring |
+| `/`, `/blocks`, `/transactions`, `/tokens`, `/nfts`, `/marketplace` | operator | Chain and asset monitoring |
+| `/social` | operator | Indexed AEKO Social activity plus canonical SocialFi registry/live domain status |
+| `/protocol` | operator | Protocol feature activation, native programs, canonical state accounts and registry identity |
 
 There is no public `/faucet` route. “Faucet” refers only to the private signer daemon.
 
