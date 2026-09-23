@@ -107,6 +107,19 @@ Do not configure `gossip.aeko.online` as an HTTP route. Point that DNS record di
 
 Keep the Faucet Daemon on TCP `9900` and PostgreSQL `5432` private.
 
+### Explorer API routing guard
+
+`AEKO_PUBLIC_EXPLORER_API_URL` must resolve to the public route for `explorer-api:8088`; it must not be the Explorer UI route. The UI and API are separate services even when Coolify or Dokploy manages both behind the same proxy.
+
+For the documented hostnames:
+
+```text
+AEKO_PUBLIC_EXPLORER_API_URL=https://api.aeko.online   -> explorer-api:8088
+AEKO_PUBLIC_EXPLORER_URL=https://scan.aeko.online      -> explorer-ui:4000
+```
+
+If the Explorer shows `Indexer returned non-JSON (200)` followed by the AEKO page title, the API hostname/path is serving the SPA HTML. Fix the Coolify/Dokploy domain target; do not add a JSON fallback in the frontend.
+
 ## First deployment
 
 1. Create a Git-based Docker Compose application in Coolify and select this repository/branch.
@@ -197,6 +210,8 @@ AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1
 Redeploy the one-shot `protocol-bootstrap` service, run the acceptance checks, and immediately return `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=0`. Established deployments keep `AEKO_REQUIRE_EXISTING_PROTOCOL_STATE=1`.
 
 Do not put the two feature-authority private keypairs in `/data/aeko/keys`. The runtime key directory contains the separate `protocol-authority-keypair.json`, which controls canonical protocol configuration after activation.
+
+Both `compose.coolify.yml` and `compose.dokploy.yml` already include the one-shot `protocol-bootstrap` service and its independent persistent state/continuity volumes. The service is disabled by default for history-preserving upgrades. The activation helper resolves the two canonical feature IDs from `sdk/src/feature_set.rs` and verifies the offline keypairs against that single source of truth; deployment environment variables must not redefine consensus feature IDs.
 
 Use [`protocol-upgrades.md`](./protocol-upgrades.md) for the full ordered procedure and rollback boundary. Acceptance requires:
 

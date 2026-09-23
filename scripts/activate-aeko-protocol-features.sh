@@ -1,8 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TOKEN_FEATURE_ID="Ca5Lhktqd4epk3DDqsp7azXAunK3KZ8ZxeykU81oUUHT"
-PERMISSION_FEATURE_ID="KBq8JBrCEbWJ6S2NXpcBvQDvt7J6hUZW3i61zzzZWxF"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+FEATURE_SET_SOURCE="$REPO_ROOT/sdk/src/feature_set.rs"
+
+feature_id_from_source() {
+  local module="$1"
+
+  [ -r "$FEATURE_SET_SOURCE" ] || {
+    echo "error: canonical AEKO feature-set source is not readable: $FEATURE_SET_SOURCE" >&2
+    exit 64
+  }
+
+  sed -n "/^pub mod ${module} {$/,/^}$/ s/.*declare_id!(\"\([^\"]*\)\").*/\1/p" "$FEATURE_SET_SOURCE" | head -n 1
+}
+
+TOKEN_FEATURE_ID="$(feature_id_from_source aeko_token_programs_v1)"
+PERMISSION_FEATURE_ID="$(feature_id_from_source aeko_permission_layer_v1)"
+
+[ -n "$TOKEN_FEATURE_ID" ] || {
+  echo "error: could not resolve aeko_token_programs_v1 from $FEATURE_SET_SOURCE" >&2
+  exit 64
+}
+[ -n "$PERMISSION_FEATURE_ID" ] || {
+  echo "error: could not resolve aeko_permission_layer_v1 from $FEATURE_SET_SOURCE" >&2
+  exit 64
+}
 
 : "${AEKO_RPC_URL:?Set AEKO_RPC_URL to the validator JSON-RPC URL}"
 : "${AEKO_FEATURE_FEE_PAYER:?Set AEKO_FEATURE_FEE_PAYER to a funded keypair path}"

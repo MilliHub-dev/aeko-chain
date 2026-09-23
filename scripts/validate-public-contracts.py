@@ -120,9 +120,16 @@ def main() -> int:
         "AEKO_PUBLIC_RPC_URL",
         "AEKO_PUBLIC_WS_URL",
         "AEKO_PUBLIC_EXPLORER_API_URL",
+        "AEKO_PUBLIC_EXPLORER_URL",
         "AEKO_PUBLIC_FUNDING_URL",
     ):
         require((': "${' + name + ':?') in explorer_entrypoint, f"Explorer runtime entrypoint must require {name}")
+    require(
+        "AEKO_PUBLIC_EXPLORER_API_URL resolves to the Explorer UI endpoint" in explorer_entrypoint
+        and "explorer-api:8088" in explorer_entrypoint
+        and "explorer-ui:4000" in explorer_entrypoint,
+        "Explorer runtime entrypoint must reject API/UI endpoint collisions with actionable routing guidance",
+    )
     require("window.__AEKO_RUNTIME_CONFIG__" in network_config, "Explorer must read runtime endpoint configuration")
     require("/app/dist/runtime-config.js" in explorer_entrypoint, "Explorer entrypoint must write runtime-config.js into the served bundle")
 
