@@ -16,6 +16,11 @@ VALIDATOR_ENTRYPOINT = DOCKER_DIR / "validator-entrypoint.sh"
 KEY_PREFLIGHT = DOCKER_DIR / "key-preflight.sh"
 BLOCKSTORE_CLEANUP = ROOT / "ledger" / "src" / "blockstore_cleanup_service.rs"
 SOCIAL_BOOTSTRAP = ROOT / "social-bootstrap" / "src" / "main.rs"
+PROTOCOL_BOOTSTRAP = ROOT / "protocol-bootstrap" / "src" / "main.rs"
+FEATURE_SET = ROOT / "sdk" / "src" / "feature_set.rs"
+BUILTINS = ROOT / "runtime" / "src" / "builtins.rs"
+PROTOCOL_SMOKE = ROOT / "scripts" / "smoke-aeko-protocol.py"
+PROTOCOL_ACTIVATE = ROOT / "scripts" / "activate-aeko-protocol-features.sh"
 EXPLORER_HEALTH = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "health" / "mod.rs"
 README = ROOT / "README.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
@@ -60,6 +65,11 @@ def main() -> int:
     key_preflight = read(KEY_PREFLIGHT)
     blockstore_cleanup = read(BLOCKSTORE_CLEANUP)
     social_bootstrap = read(SOCIAL_BOOTSTRAP)
+    protocol_bootstrap = read(PROTOCOL_BOOTSTRAP)
+    feature_set = read(FEATURE_SET)
+    builtins = read(BUILTINS)
+    protocol_smoke = read(PROTOCOL_SMOKE)
+    protocol_activate = read(PROTOCOL_ACTIVATE)
     explorer_health = read(EXPLORER_HEALTH)
     readme = read(README)
     deployment = read(DEPLOYMENT)
@@ -96,7 +106,7 @@ def main() -> int:
     )
 
     # One canonical build recipe, with all role-specific images produced from it.
-    for target in ("validator", "faucet", "social-bootstrap", "tools", "explorer-api", "explorer-ui"):
+    for target in ("validator", "faucet", "social-bootstrap", "protocol-bootstrap", "tools", "explorer-api", "explorer-ui"):
         require(
             re.search(rf"^FROM .* AS {re.escape(target)}$", dockerfile, re.MULTILINE) is not None,
             f"Dockerfile target missing: {target}",
@@ -104,7 +114,7 @@ def main() -> int:
 
     # Portable topology remains convenient for local use but still batteries-includes SocialFi.
     # The non-voting RPC replica stays an opt-in local experiment/profile, not a public startup gate.
-    for service in ("faucet", "validator", "rpc-node", "social-bootstrap", "explorer-api", "explorer-ui"):
+    for service in ("faucet", "validator", "rpc-node", "social-bootstrap", "protocol-bootstrap", "explorer-api", "explorer-ui"):
         require(re.search(rf"^  {re.escape(service)}:\s*$", portable, re.MULTILINE) is not None, f"portable compose missing {service}")
     require('profiles: ["rpc"]' in portable, "portable rpc-node must remain optional")
     require("condition: service_completed_successfully" in portable, "portable Explorer must wait for SocialFi bootstrap")
@@ -169,13 +179,54 @@ def main() -> int:
     ):
         require(seed_env in social_bootstrap, f"SocialFi bootstrap must expose payout-liquidity seed {seed_env}")
 
+    # Post-genesis native programs must be dormant on historical banks until
+    # their explicit feature accounts become active.
+    require(
+        'declare_id!("Ca5Lhktqd4epk3DDqsp7azXAunK3KZ8ZxeykU81oUUHT")' in feature_set,
+        "token-program feature id must match the offline activation authority",
+    )
+    require(
+        'declare_id!("KBq8JBrCEbWJ6S2NXpcBvQDvt7J6hUZW3i61zzzZWxF")' in feature_set,
+        "permission-layer feature id must match the offline activation authority",
+    )
+    require(
+        builtins.count("feature_id: Some(feature_set::aeko_token_programs_v1::id())") == 5,
+        "exactly five token native programs must share the token-program feature gate",
+    )
+    require(
+        builtins.count("feature_id: Some(feature_set::aeko_permission_layer_v1::id())") == 6,
+        "exactly six permission/security native programs must share the permission feature gate",
+    )
+
+    for required in (
+        'parse_bool_flag_with_default("AEKO_PROTOCOL_BOOTSTRAP_ENABLED", false)',
+        "require_feature_active",
+        "require_executable_program",
+        "registry_preexisted && !allow_missing_state",
+        "protocol-registry.env",
+        "AEKO_TOKENOMICS_PROGRAM_ID",
+        "AEKO_FINALITY_ORACLE_PROGRAM_ID",
+        "TokenomicsStateAccount::signed_off_defaults",
+        "MintPolicy::PublicMintControlled",
+        "initialize_multisig",
+        "initialize_oracle",
+    ):
+        require(required in protocol_bootstrap, f"protocol bootstrap missing required contract: {required}")
+
+    require("/registry/protocol" in protocol_smoke, "protocol smoke must verify Explorer protocol registry")
+    require("/protocol/status" in protocol_smoke, "protocol smoke must verify live protocol status")
+    require("getHealth" in protocol_smoke and "getSlot" in protocol_smoke, "protocol smoke must verify live chain health and advancement")
+    require("aeko-keygen pubkey" in protocol_activate, "feature activation helper must verify offline keypair identities")
+    require("Ca5Lhktqd4epk3DDqsp7azXAunK3KZ8ZxeykU81oUUHT" in protocol_activate, "activation helper must pin the token feature id")
+    require("KBq8JBrCEbWJ6S2NXpcBvQDvt7J6hUZW3i61zzzZWxF" in protocol_activate, "activation helper must pin the permission feature id")
+
     # Dokploy is an image-pull deployment contract, never a second build system.
     require(re.search(r"^\s+build:\s*$", dokploy, re.MULTILINE) is None, "Dokploy compose must pull prebuilt images, not build source")
     require(
         re.search(r"^  rpc-node:\s*$", dokploy, re.MULTILINE) is None,
         "Dokploy must not make the non-voting RPC replica a mandatory/default service",
     )
-    ordered = ["faucet", "validator", "social-bootstrap", "explorer-api", "explorer-ui", "operations-web", "wallet-tools"]
+    ordered = ["faucet", "validator", "social-bootstrap", "protocol-bootstrap", "explorer-api", "explorer-ui", "operations-web", "wallet-tools"]
     for index, service in enumerate(ordered):
         next_service = ordered[index + 1] if index + 1 < len(ordered) else None
         block = service_block(dokploy, service, next_service)
@@ -183,7 +234,8 @@ def main() -> int:
         require("pull_policy: always" in block, f"Dokploy {service} must pull the selected Docker Hub tag")
 
     validator = service_block(dokploy, "validator", "social-bootstrap")
-    bootstrap = service_block(dokploy, "social-bootstrap", "explorer-api")
+    bootstrap = service_block(dokploy, "social-bootstrap", "protocol-bootstrap")
+    protocol_bootstrap_service = service_block(dokploy, "protocol-bootstrap", "explorer-api")
     explorer = service_block(dokploy, "explorer-api", "explorer-ui")
     explorer_ui = service_block(dokploy, "explorer-ui", "operations-web")
     operations_web = service_block(dokploy, "operations-web", "wallet-tools")
@@ -232,6 +284,14 @@ def main() -> int:
         require(f"{seed_env}: ${{{seed_env}:-0}}" in bootstrap, f"Dokploy bootstrap must expose {seed_env} with a safe zero default")
     for obsolete_override in ("AEKO_REWARD_VAULT:", "AEKO_STAKE_VAULT:"):
         require(obsolete_override not in bootstrap, f"Dokploy bootstrap must not configure obsolete operator-owned vault address {obsolete_override}")
+
+    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in protocol_bootstrap_service, "Dokploy protocol bootstrap must default disabled during runtime upgrade")
+    require("protocol-authority-keypair.json" in protocol_bootstrap_service, "Dokploy protocol bootstrap must use a dedicated protocol authority")
+    require("protocol-state:/state" in protocol_bootstrap_service, "Dokploy protocol state must persist")
+    require('restart: "no"' in protocol_bootstrap_service, "Dokploy protocol bootstrap must be a one-shot service")
+    require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in explorer, "Dokploy Explorer must consume protocol registry")
+    require("protocol-state:/protocol-state:ro" in explorer, "Dokploy Explorer must mount protocol state read-only")
+    require("validator:" not in operations_web, "Dokploy Operations Web lifecycle must be independent of validator health")
 
     require(
         "AEKO_EXPLORER_RPC: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in explorer,
@@ -287,7 +347,8 @@ def main() -> int:
     coolify_key_bootstrap = service_block(coolify, "key-bootstrap", "faucet")
     coolify_faucet = service_block(coolify, "faucet", "validator")
     coolify_validator = service_block(coolify, "validator", "social-bootstrap")
-    coolify_bootstrap = service_block(coolify, "social-bootstrap", "explorer-api")
+    coolify_bootstrap = service_block(coolify, "social-bootstrap", "protocol-bootstrap")
+    coolify_protocol_bootstrap = service_block(coolify, "protocol-bootstrap", "explorer-api")
     coolify_explorer = service_block(coolify, "explorer-api", "explorer-ui")
     coolify_operations_web = service_block(coolify, "operations-web", "wallet-tools")
     coolify_wallet_tools = service_block(coolify, "wallet-tools")
@@ -315,6 +376,12 @@ def main() -> int:
     require('restart: "no"' in coolify_key_bootstrap, "Coolify key bootstrap must be a one-shot initializer")
     require("key-bootstrap:" in coolify_faucet and "condition: service_completed_successfully" in coolify_faucet, "Coolify faucet must wait for persistent key initialization")
     require('restart: "no"' in coolify_bootstrap, "Coolify SocialFi bootstrap must remain a one-shot initializer")
+    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in coolify_protocol_bootstrap, "Coolify protocol bootstrap must default disabled during runtime upgrade")
+    require("protocol-authority-keypair.json" in coolify_protocol_bootstrap, "Coolify protocol bootstrap must use dedicated authority")
+    require("protocol-state:/state" in coolify_protocol_bootstrap, "Coolify protocol state must persist")
+    require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in coolify_explorer, "Coolify Explorer must consume protocol registry")
+    require("protocol-state:/protocol-state:ro" in coolify_explorer, "Coolify Explorer must mount protocol state read-only")
+    require("validator:" not in coolify_operations_web, "Coolify Operations Web lifecycle must be independent of validator health")
     require('profiles: ["ops"]' in coolify_wallet_tools, "Coolify wallet tools must remain operator-only and absent from default startup")
     require("exit 64" in key_preflight and "exit 65" in key_preflight, "reusable key preflight helper must preserve distinct missing/invalid key exit codes")
     require("validator-ledger:/ledger" in coolify_validator, "Coolify validator must use a Docker-managed ledger volume by default")
@@ -346,7 +413,8 @@ def main() -> int:
 
     # Portable compose must expose the same Social vault lifecycle so local
     # validation and Dokploy do not exercise different custody models.
-    portable_bootstrap = service_block(portable, "social-bootstrap", "explorer-api")
+    portable_bootstrap = service_block(portable, "social-bootstrap", "protocol-bootstrap")
+    portable_protocol_bootstrap = service_block(portable, "protocol-bootstrap", "explorer-api")
     portable_explorer = service_block(portable, "explorer-api", "explorer-ui")
     portable_operations_web = service_block(portable, "operations-web")
     require("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}" in portable_bootstrap, "portable bootstrap must expose explicit recovery")
@@ -366,6 +434,11 @@ def main() -> int:
         "AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in portable_operations_web,
         "portable operations web must use the internal Explorer API",
     )
+    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in portable_protocol_bootstrap, "portable protocol bootstrap must default disabled")
+    require("protocol-authority-keypair.json" in portable_protocol_bootstrap, "portable protocol bootstrap must use dedicated authority")
+    require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in portable_explorer, "portable Explorer must consume protocol registry")
+    require("protocol-state:/protocol-state:ro" in portable_explorer, "portable Explorer must mount protocol state read-only")
+    require("validator:" not in portable_operations_web, "portable Operations Web lifecycle must be independent of validator health")
     require("AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-localnet}" in portable_explorer, "portable Explorer must default to localnet identity rather than production testnet")
     require("http://127.0.0.1:8088/" in portable_explorer, "portable Explorer container health must use process liveness")
     require("http://127.0.0.1:8088/health" not in portable_explorer, "portable Explorer container health must not couple process liveness to readiness")

@@ -9,6 +9,7 @@ use {
         state::SharedState,
     },
     aeko_sdk::feature,
+    anyhow::Context,
     axum::{extract::State, routing::get, Json, Router},
     serde::Serialize,
     std::collections::BTreeMap,
@@ -75,7 +76,7 @@ async fn get_status(
     let registry = resolve_protocol_registry();
     let status = tokio::task::spawn_blocking(move || inspect_protocol(&rpc, registry))
         .await
-        .map_err(anyhow::Error::from)?;
+        .context("protocol status worker panicked")?;
     Ok(response::data_from_source(
         &state.network,
         status,
