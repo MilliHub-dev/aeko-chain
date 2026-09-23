@@ -143,24 +143,52 @@ def rpc(method, params=None):
 
 
 genesis = rpc("getGenesisHash")
-slot = int(rpc("getSlot"))
 signature = rpc("requestAirdrop", [recipient, 1_000_000_000])
-for _ in range(60):
+
+# A confirmed transaction is not sufficient for a restart-continuity assertion:
+# TestValidator replays rooted ledger state on restart. Wait until the airdrop is
+# finalized/rooted before stopping the validator so the test does not mistake an
+# intentionally discarded unrooted fork for ledger corruption.
+for _ in range(180):
     status = rpc("getSignatureStatuses", [[signature], {"searchTransactionHistory": True}])
     value = status["value"][0]
-    if value is not None and value.get("err") is None:
+    if value is not None and value.get("err") is not None:
+        raise RuntimeError(f"airdrop transaction failed: {signature}: {value['err']}")
+    if value is not None:
+        confirmation_status = value.get("confirmationStatus")
+        confirmations = value.get("confirmations")
+        if confirmation_status == "finalized" or (
+            confirmation_status is None and confirmations is None
+        ):
+            break
+    time.sleep(0.5)
+else:
+    raise RuntimeError(f"airdrop transaction was not finalized: {signature}")
+
+transaction = None
+for _ in range(60):
+    transaction = rpc(
+        "getTransaction",
+        [signature, {"encoding": "json", "commitment": "finalized", "maxSupportedTransactionVersion": 0}],
+    )
+    if transaction is not None:
+        break
+    time.sleep(0.5)
+if transaction is None:
+    raise RuntimeError("finalized pre-restart historical transaction is not queryable")
+
+slot = int(transaction["slot"])
+for _ in range(60):
+    finalized_slot = int(rpc("getSlot", [{"commitment": "finalized"}]))
+    if finalized_slot >= slot:
         break
     time.sleep(0.5)
 else:
-    raise RuntimeError(f"airdrop transaction was not confirmed: {signature}")
+    raise RuntimeError(
+        f"validator finalized slot did not reach historical transaction slot: {finalized_slot} < {slot}"
+    )
 
-balance = int(rpc("getBalance", [recipient, {"commitment": "confirmed"}])["value"])
-transaction = rpc(
-    "getTransaction",
-    [signature, {"encoding": "json", "commitment": "confirmed", "maxSupportedTransactionVersion": 0}],
-)
-if transaction is None:
-    raise RuntimeError("pre-restart historical transaction is not queryable")
+balance = int(rpc("getBalance", [recipient, {"commitment": "finalized"}])["value"])
 
 with open(history_file, "w", encoding="utf-8") as handle:
     json.dump(
@@ -173,7 +201,7 @@ with open(history_file, "w", encoding="utf-8") as handle:
         },
         handle,
     )
-print(f"[ok] created historical transaction {signature} at slot >= {slot}")
+print(f"[ok] created finalized historical transaction {signature} at slot {slot}")
 PY
 
 stop_validator
@@ -183,6 +211,7 @@ wait_for_rpc
 RPC_URL="$RPC_URL" HISTORY_FILE="$HISTORY_FILE" python3 - <<'PY'
 import json
 import os
+import time
 import urllib.request
 
 rpc_url = os.environ["RPC_URL"]
@@ -205,18 +234,54 @@ with open(history_file, encoding="utf-8") as handle:
 actual_genesis = rpc("getGenesisHash")
 if actual_genesis != expected["genesis"]:
     raise RuntimeError(f"genesis changed across restart: {expected['genesis']} -> {actual_genesis}")
-actual_balance = int(rpc("getBalance", [expected["recipient"], {"commitment": "confirmed"}])["value"])
-if actual_balance != expected["balance"]:
-    raise RuntimeError(f"historical account balance changed: {expected['balance']} -> {actual_balance}")
-transaction = rpc(
-    "getTransaction",
-    [expected["signature"], {"encoding": "json", "commitment": "confirmed", "maxSupportedTransactionVersion": 0}],
-)
-if transaction is None:
-    raise RuntimeError("historical transaction disappeared after validator restart")
-if int(rpc("getSlot")) < int(expected["slot"]):
-    raise RuntimeError("validator slot regressed after ledger restart")
-print(f"[ok] ledger restart preserved genesis, account state and transaction {expected['signature']}")
+
+# RPC health can turn green while ledger replay is still advancing from genesis.
+# Poll the finalized view until the persisted transaction, account balance and
+# finalized slot all converge on the pre-restart state. A genuine continuity
+# failure still times out with the last observed replay state.
+last_balance = None
+last_transaction = None
+last_finalized_slot = None
+for _ in range(180):
+    last_balance = int(
+        rpc("getBalance", [expected["recipient"], {"commitment": "finalized"}])["value"]
+    )
+    last_transaction = rpc(
+        "getTransaction",
+        [
+            expected["signature"],
+            {
+                "encoding": "json",
+                "commitment": "finalized",
+                "maxSupportedTransactionVersion": 0,
+            },
+        ],
+    )
+    last_finalized_slot = int(rpc("getSlot", [{"commitment": "finalized"}]))
+
+    transaction_slot_matches = (
+        last_transaction is not None
+        and int(last_transaction["slot"]) == int(expected["slot"])
+    )
+    if (
+        last_balance == int(expected["balance"])
+        and transaction_slot_matches
+        and last_finalized_slot >= int(expected["slot"])
+    ):
+        break
+    time.sleep(0.5)
+else:
+    observed_transaction_slot = (
+        None if last_transaction is None else int(last_transaction["slot"])
+    )
+    raise RuntimeError(
+        "historical state did not recover after validator restart: "
+        f"balance {expected['balance']} -> {last_balance}, "
+        f"transaction slot {expected['slot']} -> {observed_transaction_slot}, "
+        f"finalized slot -> {last_finalized_slot}"
+    )
+
+print(f"[ok] ledger restart preserved finalized genesis, account state and transaction {expected['signature']}")
 PY
 
 run_bootstrap() {
