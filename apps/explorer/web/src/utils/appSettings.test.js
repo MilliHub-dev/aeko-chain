@@ -8,7 +8,7 @@ async function source(path) {
   return readFile(new URL(path, root), 'utf8');
 }
 
-test('application settings normalize valid values and fail closed for missing optional surfaces', () => {
+test('application settings keep the NFT demo discoverable while privileged surfaces fail closed', () => {
   const valid = normalizeAppSettingsPayload({
     revision: 7,
     application: {
@@ -30,6 +30,10 @@ test('application settings normalize valid values and fail closed for missing op
     application: { explorerListSize: 99, settingsRefreshSeconds: 1 },
   });
   assert.deepEqual(invalid.application, SAFE_APP_SETTINGS);
+  assert.equal(SAFE_APP_SETTINGS.nftDemoEnabled, true);
+  assert.equal(SAFE_APP_SETTINGS.networkConsoleEnabled, false);
+  assert.equal(SAFE_APP_SETTINGS.nftLiveFlowEnabled, false);
+  assert.equal(SAFE_APP_SETTINGS.nftAdvancedToolsEnabled, false);
 });
 
 test('settings are wired to route and component visibility instead of being display-only controls', async () => {
