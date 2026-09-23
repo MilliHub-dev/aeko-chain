@@ -33,11 +33,15 @@ mod tests {
         },
         aeko_program_runtime::runtime_config::RuntimeConfig,
         aeko_sdk::{
+            account::{ReadableAccount, WritableAccount},
             epoch_schedule::EpochSchedule,
+            feature::{self, Feature},
+            feature_set,
             genesis_config::create_genesis_config,
             hash::Hash,
             pubkey::Pubkey,
             signature::{Keypair, Signer},
+            system_transaction,
         },
         std::{
             io::{Cursor, Read, Write},
@@ -522,6 +526,233 @@ mod tests {
             } else {
                 assert_matches!(epoch_reward_status, EpochRewardStatus::Inactive);
             }
+        }
+    }
+
+    fn aeko_protocol_feature_ids() -> [Pubkey; 2] {
+        [
+            feature_set::aeko_token_programs_v1::id(),
+            feature_set::aeko_permission_layer_v1::id(),
+        ]
+    }
+
+    fn aeko_protocol_program_ids() -> [Pubkey; 11] {
+        [
+            aeko_tokenomics_program::id(),
+            aeko_token_20_program::id(),
+            aeko_public_mint_program::id(),
+            aeko_token_721_program::id(),
+            aeko_nft_marketplace_program::id(),
+            aeko_wallet_permissions_program::id(),
+            aeko_permission_registry_program::id(),
+            aeko_revocation_registry_program::id(),
+            aeko_subnet_registry_program::id(),
+            aeko_emergency_multisig_program::id(),
+            aeko_finality_oracle_program::id(),
+        ]
+    }
+
+    #[test]
+    fn test_aeko_protocol_builtins_snapshot_archive_upgrade_continuity() {
+        aeko_logger::setup();
+
+        let (mut genesis_config, mint_keypair) = create_genesis_config(10_000_000_000);
+        genesis_config.epoch_schedule = EpochSchedule::custom(2, 2, false);
+
+        let bank0 = Arc::new(Bank::new_for_tests(&genesis_config));
+        let mut historical_bank = Bank::new_from_parent(bank0, &Pubkey::default(), 1);
+        let historical_account = Keypair::new();
+        let transfer = system_transaction::transfer(
+            &mint_keypair,
+            &historical_account.pubkey(),
+            123,
+            historical_bank.last_blockhash(),
+        );
+        assert_eq!(historical_bank.process_transaction(&transfer), Ok(()));
+        while !historical_bank.is_complete() {
+            historical_bank.fill_bank_with_ticks_for_tests();
+        }
+
+        for feature_id in aeko_protocol_feature_ids() {
+            assert!(
+                historical_bank.get_account(&feature_id).is_none(),
+                "historical bank unexpectedly contains feature account {feature_id}"
+            );
+        }
+        for program_id in aeko_protocol_program_ids() {
+            assert!(
+                historical_bank.get_account(&program_id).is_none(),
+                "historical bank unexpectedly contains gated program {program_id}"
+            );
+        }
+
+        let historical_bank_snapshots_dir = TempDir::new().unwrap();
+        let historical_full_archives_dir = TempDir::new().unwrap();
+        let historical_incremental_archives_dir = TempDir::new().unwrap();
+        let historical_archive = snapshot_bank_utils::bank_to_full_snapshot_archive(
+            &historical_bank_snapshots_dir,
+            &historical_bank,
+            None,
+            historical_full_archives_dir.path(),
+            historical_incremental_archives_dir.path(),
+            ArchiveFormat::Tar,
+            NonZeroUsize::new(1).unwrap(),
+            NonZeroUsize::new(1).unwrap(),
+        )
+        .unwrap();
+
+        let (_historical_accounts_tmp, historical_accounts_dir) =
+            create_tmp_accounts_dir_for_tests();
+        let (restored_historical_bank, _) = snapshot_bank_utils::bank_from_snapshot_archives(
+            &[historical_accounts_dir],
+            historical_bank_snapshots_dir.path(),
+            &historical_archive,
+            None,
+            &genesis_config,
+            &RuntimeConfig::default(),
+            None,
+            None,
+            AccountSecondaryIndexes::default(),
+            None,
+            AccountShrinkThreshold::default(),
+            false,
+            false,
+            false,
+            false,
+            Some(aeko_accounts_db::accounts_db::ACCOUNTS_DB_CONFIG_FOR_TESTING),
+            None,
+            Arc::default(),
+        )
+        .unwrap();
+        restored_historical_bank
+            .wait_for_initial_accounts_hash_verification_completed_for_tests();
+
+        assert_eq!(restored_historical_bank.slot(), 1);
+        assert_eq!(
+            restored_historical_bank.get_balance(&historical_account.pubkey()),
+            123
+        );
+        for feature_id in aeko_protocol_feature_ids() {
+            assert!(!restored_historical_bank.feature_set.is_active(&feature_id));
+            assert!(restored_historical_bank.get_account(&feature_id).is_none());
+        }
+        for program_id in aeko_protocol_program_ids() {
+            assert!(restored_historical_bank.get_account(&program_id).is_none());
+        }
+
+        // Model the CLI's feature-activation transaction result by installing
+        // pending Feature accounts into a live Bank while preserving total
+        // capitalization. The next epoch must activate them through the normal
+        // Bank::new_from_parent() path and install all gated native builtins.
+        let activation_parent = Arc::new(restored_historical_bank);
+        let mut activation_request_bank =
+            Bank::new_from_parent(activation_parent, &Pubkey::default(), 2);
+        let feature_lamports = genesis_config.rent.minimum_balance(Feature::size_of());
+        let total_feature_lamports = feature_lamports.checked_mul(2).unwrap();
+        let mint_pubkey = mint_keypair.pubkey();
+        let mut mint_account = activation_request_bank.get_account(&mint_pubkey).unwrap();
+        mint_account
+            .checked_sub_lamports(total_feature_lamports)
+            .unwrap();
+        activation_request_bank.store_account(&mint_pubkey, &mint_account);
+        for feature_id in aeko_protocol_feature_ids() {
+            let feature_account = feature::create_account(&Feature::default(), feature_lamports);
+            activation_request_bank.store_account(&feature_id, &feature_account);
+        }
+        while !activation_request_bank.is_complete() {
+            activation_request_bank.fill_bank_with_ticks_for_tests();
+        }
+
+        let mut activated_bank =
+            Bank::new_from_parent(Arc::new(activation_request_bank), &Pubkey::default(), 4);
+        while !activated_bank.is_complete() {
+            activated_bank.fill_bank_with_ticks_for_tests();
+        }
+
+        assert_eq!(activated_bank.get_balance(&historical_account.pubkey()), 123);
+        for feature_id in aeko_protocol_feature_ids() {
+            assert!(activated_bank.feature_set.is_active(&feature_id));
+            let account = activated_bank.get_account(&feature_id).unwrap();
+            assert_eq!(
+                feature::from_account(&account).unwrap().activated_at,
+                Some(activated_bank.slot())
+            );
+        }
+        for program_id in aeko_protocol_program_ids() {
+            let account = activated_bank
+                .get_account(&program_id)
+                .unwrap_or_else(|| panic!("activated program {program_id} is missing"));
+            assert!(account.executable(), "activated program {program_id} is not executable");
+        }
+
+        let activated_bank_snapshots_dir = TempDir::new().unwrap();
+        let activated_full_archives_dir = TempDir::new().unwrap();
+        let activated_incremental_archives_dir = TempDir::new().unwrap();
+        let activated_archive = snapshot_bank_utils::bank_to_full_snapshot_archive(
+            &activated_bank_snapshots_dir,
+            &activated_bank,
+            None,
+            activated_full_archives_dir.path(),
+            activated_incremental_archives_dir.path(),
+            ArchiveFormat::Tar,
+            NonZeroUsize::new(1).unwrap(),
+            NonZeroUsize::new(1).unwrap(),
+        )
+        .unwrap();
+
+        let (_activated_accounts_tmp, activated_accounts_dir) =
+            create_tmp_accounts_dir_for_tests();
+        let (restored_activated_bank, _) = snapshot_bank_utils::bank_from_snapshot_archives(
+            &[activated_accounts_dir],
+            activated_bank_snapshots_dir.path(),
+            &activated_archive,
+            None,
+            &genesis_config,
+            &RuntimeConfig::default(),
+            None,
+            None,
+            AccountSecondaryIndexes::default(),
+            None,
+            AccountShrinkThreshold::default(),
+            false,
+            false,
+            false,
+            false,
+            Some(aeko_accounts_db::accounts_db::ACCOUNTS_DB_CONFIG_FOR_TESTING),
+            None,
+            Arc::default(),
+        )
+        .unwrap();
+        restored_activated_bank
+            .wait_for_initial_accounts_hash_verification_completed_for_tests();
+
+        assert_eq!(restored_activated_bank.slot(), 4);
+        assert_eq!(
+            restored_activated_bank.get_balance(&historical_account.pubkey()),
+            123
+        );
+        for feature_id in aeko_protocol_feature_ids() {
+            assert!(restored_activated_bank.feature_set.is_active(&feature_id));
+            let account = restored_activated_bank.get_account(&feature_id).unwrap();
+            assert_eq!(
+                feature::from_account(&account).unwrap().activated_at,
+                Some(4)
+            );
+        }
+        for program_id in aeko_protocol_program_ids() {
+            let account = restored_activated_bank
+                .get_account(&program_id)
+                .unwrap_or_else(|| panic!("restored program {program_id} is missing"));
+            assert!(account.executable(), "restored program {program_id} is not executable");
+        }
+
+        // A post-restart child Bank proves the chain can continue from the
+        // upgraded snapshot without losing either historical state or builtins.
+        let continued_bank =
+            Bank::new_from_parent(Arc::new(restored_activated_bank), &Pubkey::default(), 5);
+        assert_eq!(continued_bank.get_balance(&historical_account.pubkey()), 123);
+        for program_id in aeko_protocol_program_ids() {
+            assert!(continued_bank.get_account(&program_id).is_some());
         }
     }
 
