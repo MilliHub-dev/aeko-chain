@@ -345,4 +345,3 @@ mod tests {
         assert!(decode_feature_activation(b"not-a-feature").is_err());
     }
 }
-

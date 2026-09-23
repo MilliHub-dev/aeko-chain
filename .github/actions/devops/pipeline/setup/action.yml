@@ -53,7 +53,7 @@ runs:
 
     - name: Set up shared Node runtime and cache
       if: ${{ inputs.node == 'true' }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v5
       with:
         node-version: "22"
         registry-url: "https://registry.npmjs.org"
@@ -66,10 +66,10 @@ runs:
 
     - name: Set up shared Python runtime
       if: ${{ inputs.python == 'true' }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.12"
 
     - name: Set up Docker Buildx
       if: ${{ inputs.docker == 'true' }}
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v4

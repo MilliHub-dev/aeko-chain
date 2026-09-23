@@ -557,12 +557,14 @@ mod tests {
         aeko_logger::setup();
 
         let (mut genesis_config, mint_keypair) = create_genesis_config(10_000_000_000);
+        activate_all_features(&mut genesis_config);
         genesis_config.epoch_schedule = EpochSchedule::custom(32, 32, false);
         let activation_slot = genesis_config.epoch_schedule.get_first_slot_in_epoch(1);
 
-        // Development test genesis enables every currently-known feature. Model
-        // the established pre-upgrade chain by removing only the two AEKO
-        // feature accounts before constructing the historical Bank.
+        // The SDK test genesis is intentionally minimal. Explicitly activate all
+        // currently-known development features, then model the established
+        // pre-upgrade chain by removing only the two AEKO feature accounts
+        // before constructing the historical Bank.
         for feature_id in aeko_protocol_feature_ids() {
             assert!(
                 genesis_config.accounts.remove(&feature_id).is_some(),
@@ -570,13 +572,16 @@ mod tests {
             );
         }
 
-        let bank0 = Arc::new(Bank::new_for_tests(&genesis_config));
+        // Transactions exercise the shared program cache, which requires a
+        // BankForks-backed fork graph even in tests.
+        let (bank0, _bank_forks) = Bank::new_with_bank_forks_for_tests(&genesis_config);
         let mut historical_bank = Bank::new_from_parent(bank0, &Pubkey::default(), 1);
         let historical_account = Keypair::new();
+        let historical_lamports = genesis_config.rent.minimum_balance(0).max(1);
         let transfer = system_transaction::transfer(
             &mint_keypair,
             &historical_account.pubkey(),
-            123,
+            historical_lamports,
             historical_bank.last_blockhash(),
         );
         assert_eq!(historical_bank.process_transaction(&transfer), Ok(()));
@@ -640,7 +645,7 @@ mod tests {
         assert_eq!(restored_historical_bank.slot(), 1);
         assert_eq!(
             restored_historical_bank.get_balance(&historical_account.pubkey()),
-            123
+            historical_lamports
         );
         for feature_id in aeko_protocol_feature_ids() {
             assert!(!restored_historical_bank.feature_set.is_active(&feature_id));
@@ -684,7 +689,7 @@ mod tests {
 
         assert_eq!(
             activated_bank.get_balance(&historical_account.pubkey()),
-            123
+            historical_lamports
         );
         for feature_id in aeko_protocol_feature_ids() {
             assert!(activated_bank.feature_set.is_active(&feature_id));
@@ -746,7 +751,7 @@ mod tests {
         assert_eq!(restored_activated_bank.slot(), activation_slot);
         assert_eq!(
             restored_activated_bank.get_balance(&historical_account.pubkey()),
-            123
+            historical_lamports
         );
         for feature_id in aeko_protocol_feature_ids() {
             assert!(restored_activated_bank.feature_set.is_active(&feature_id));
@@ -775,7 +780,7 @@ mod tests {
         );
         assert_eq!(
             continued_bank.get_balance(&historical_account.pubkey()),
-            123
+            historical_lamports
         );
         for program_id in aeko_protocol_program_ids() {
             assert!(continued_bank.get_account(&program_id).is_some());
