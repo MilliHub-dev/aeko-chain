@@ -211,6 +211,7 @@ For every normal redeploy of an established chain keep:
 AEKO_RESET_LEDGER=0
 AEKO_REQUIRE_EXISTING_LEDGER=1
 AEKO_ALLOW_CHAIN_KEY_GENERATION=0
+AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0
 ```
 
 With those settings:
@@ -219,7 +220,7 @@ With those settings:
 - if any validator, vote, stake, or faucet key is missing from `/data/aeko/keys`, Coolify key bootstrap exits instead of creating a replacement identity;
 - if `protocol-registry.env` exists but the protocol-authority key is missing, bootstrap exits instead of replacing the established authority.
 
-For the **first-ever genesis only**, set `AEKO_REQUIRE_EXISTING_LEDGER=0`. If Coolify is also responsible for creating the four chain keys, temporarily set `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`. After the first healthy genesis is created, return them to `1` and `0` respectively.
+For the **first-ever genesis only**, set `AEKO_REQUIRE_EXISTING_LEDGER=0`. If Coolify is also responsible for creating the four chain keys, temporarily set `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`. When creating `protocol-authority-keypair.json` for the first time, temporarily set `AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1`. Return all three switches to their safe normal values immediately after the intended first-time creation.
 
 An intentional `AEKO_RESET_LEDGER=1` remains an explicit destructive action and bypasses the existing-ledger guard for that reset. Never use it to recover from an unknown or changed volume mount.
 
@@ -244,4 +245,3 @@ docker volume ls | grep validator-ledger || true
 If the reported Docker root or the actual volume source already resides on the 300 GB filesystem, leave the ledger mount unchanged. If it does not, stop the chain and migrate the **existing** ledger volume or Docker data root using the host/provider storage procedure. Verify the copied `genesis.bin`, genesis hash, validator key identities, and ledger size before pointing Compose at the migrated storage.
 
 Do not create a new empty volume with the desired name and call that a migration. The continuity guard is intentionally designed to make that mistake fail instead of silently starting a new chain.
-

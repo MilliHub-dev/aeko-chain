@@ -27,10 +27,20 @@ services:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
     restart: "no"
+    environment:
+      AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION: ${AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION:-0}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         set -eu
+        allow_protocol_authority_generation="${AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION:-0}"
+        case "$allow_protocol_authority_generation" in
+          0|1) ;;
+          *)
+            echo "error: AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION must be 0 or 1" >&2
+            exit 64
+            ;;
+        esac
         for key in \
           faucet-keypair.json \
           stake-keypair.json \

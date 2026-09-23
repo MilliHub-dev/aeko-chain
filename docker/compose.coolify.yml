@@ -27,6 +27,7 @@ services:
     restart: "no"
     environment:
       AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}
+      AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION: ${AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION:-0}
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
@@ -36,6 +37,13 @@ services:
           0|1) ;;
           *)
             echo "error: AEKO_ALLOW_CHAIN_KEY_GENERATION must be 0 or 1" >&2
+            exit 64
+            ;;
+        esac
+        case "$allow_protocol_authority_generation" in
+          0|1) ;;
+          *)
+            echo "error: AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION must be 0 or 1" >&2
             exit 64
             ;;
         esac

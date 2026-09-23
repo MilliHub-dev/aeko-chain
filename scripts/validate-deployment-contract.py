@@ -161,8 +161,13 @@ def main() -> int:
     )
     for label, compose in (("Dokploy", dokploy), ("Coolify", coolify)):
         require(
+            "AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION: ${AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION:-0}" in compose,
+            f"{label} must require explicit opt-in before creating a protocol authority",
+        )
+        require(
             "protocol-registry.env" in compose
-            and "refusing to replace an established protocol authority" in compose,
+            and "refusing to replace an established protocol authority" in compose
+            and "AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1 only when intentionally creating the first protocol authority" in compose,
             f"{label} must preserve protocol-authority identity once protocol state exists",
         )
 
