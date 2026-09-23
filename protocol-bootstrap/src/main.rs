@@ -413,6 +413,17 @@ AEKO_TOKEN_PROGRAMS_FEATURE={}\n\
 AEKO_TOKEN_PROGRAMS_FEATURE_ACTIVATED_AT={}\n\
 AEKO_PERMISSION_LAYER_FEATURE={}\n\
 AEKO_PERMISSION_LAYER_FEATURE_ACTIVATED_AT={}\n\
+AEKO_TOKENOMICS_PROGRAM_ID={}\n\
+AEKO_TOKEN_20_PROGRAM_ID={}\n\
+AEKO_PUBLIC_MINT_PROGRAM_ID={}\n\
+AEKO_TOKEN_721_PROGRAM_ID={}\n\
+AEKO_NFT_MARKETPLACE_PROGRAM_ID={}\n\
+AEKO_WALLET_PERMISSIONS_PROGRAM_ID={}\n\
+AEKO_PERMISSION_REGISTRY_PROGRAM_ID={}\n\
+AEKO_REVOCATION_REGISTRY_PROGRAM_ID={}\n\
+AEKO_SUBNET_REGISTRY_PROGRAM_ID={}\n\
+AEKO_EMERGENCY_MULTISIG_PROGRAM_ID={}\n\
+AEKO_FINALITY_ORACLE_PROGRAM_ID={}\n\
 AEKO_TOKENOMICS_STATE={}\n\
 AEKO_TOKENOMICS_TREASURY_ACCOUNT={}\n\
 AEKO_VALIDATOR_REWARDS_ACCOUNT={}\n\
@@ -429,6 +440,17 @@ AEKO_FINALITY_ORACLE_STATE={}\n",
         token_feature_slot,
         feature_set::aeko_permission_layer_v1::id(),
         permission_feature_slot,
+        aeko_tokenomics_program::id(),
+        aeko_token_20_program::id(),
+        aeko_public_mint_program::id(),
+        aeko_token_721_program::id(),
+        aeko_nft_marketplace_program::id(),
+        aeko_wallet_permissions_program::id(),
+        aeko_permission_registry_program::id(),
+        aeko_revocation_registry_program::id(),
+        aeko_subnet_registry_program::id(),
+        aeko_emergency_multisig_program::id(),
+        aeko_finality_oracle_program::id(),
         tokenomics_state.pubkey(),
         treasury.pubkey(),
         validator_rewards.pubkey(),
