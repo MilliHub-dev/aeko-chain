@@ -30,6 +30,7 @@ PUBLIC_ENV = DOCKER_DIR / "env.public.example"
 EXPLORER_BACKEND_ENV = ROOT / "apps" / "explorer" / "backend" / ".env.example"
 EXPLORER_ENTRYPOINT = DOCKER_DIR / "explorer-ui-entrypoint.sh"
 NETWORK_CONFIG = ROOT / "apps" / "explorer" / "web" / "src" / "utils" / "networkConfig.js"
+PROMOTE_IMAGES = ROOT / ".github" / "actions" / "devops" / "promote-images" / "action.yml"
 
 
 class ContractFailure(RuntimeError):
@@ -80,6 +81,7 @@ def main() -> int:
     explorer_backend_env = read(EXPLORER_BACKEND_ENV)
     explorer_entrypoint = read(EXPLORER_ENTRYPOINT)
     network_config = read(NETWORK_CONFIG)
+    promote_images = read(PROMOTE_IMAGES)
 
     # The settings mutation credential is server-side control-plane state.
     # Explorer API and Operations Web must share it, while the browser runtime
@@ -140,8 +142,20 @@ def main() -> int:
             f"{label} must require the established validator ledger by default",
         )
         require(
+            re.search(r"^  protocol-bootstrap:\s*$", compose, re.MULTILINE) is not None,
+            f"{label} must deploy the protocol-bootstrap one-shot service",
+        )
+        require(
+            "aeko-protocol-bootstrap:" in compose,
+            f"{label} must pull the published protocol-bootstrap image",
+        )
+        require(
             re.search(r"^  protocol-state:\s*$", compose, re.MULTILINE) is not None,
             f"{label} must declare the protocol-state volume it mounts",
+        )
+        require(
+            re.search(r"^  protocol-continuity:\s*$", compose, re.MULTILINE) is not None,
+            f"{label} must declare the independent protocol-continuity volume",
         )
     require(
         "AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-0}" in portable,
@@ -244,14 +258,17 @@ def main() -> int:
 
     # Post-genesis native programs must be dormant on historical banks until
     # their explicit feature accounts become active.
-    require(
-        'declare_id!("Ca5Lhktqd4epk3DDqsp7azXAunK3KZ8ZxeykU81oUUHT")' in feature_set,
-        "token-program feature id must match the offline activation authority",
-    )
-    require(
-        'declare_id!("KBq8JBrCEbWJ6S2NXpcBvQDvt7J6hUZW3i61zzzZWxF")' in feature_set,
-        "permission-layer feature id must match the offline activation authority",
-    )
+    def canonical_feature_id(module: str) -> str:
+        match = re.search(
+            rf'pub mod {re.escape(module)} \{{\s*aeko_sdk::declare_id!\("([^"]+)"\);',
+            feature_set,
+        )
+        require(match is not None, f"canonical feature module {module} must declare an id")
+        return match.group(1)
+
+    token_feature_id = canonical_feature_id("aeko_token_programs_v1")
+    permission_feature_id = canonical_feature_id("aeko_permission_layer_v1")
+    require(token_feature_id != permission_feature_id, "AEKO protocol feature ids must be distinct")
     require(
         builtins.count("feature_id: Some(feature_set::aeko_token_programs_v1::id())") == 5,
         "exactly five token native programs must share the token-program feature gate",
@@ -285,8 +302,11 @@ def main() -> int:
     require("getGenesisHash" in protocol_integration and "getTransaction" in protocol_integration, "protocol integration must prove ledger identity and historical transaction continuity across restart")
     require("unexpectedly accepted a missing established state volume" in protocol_integration, "protocol integration must prove missing protocol-state fails closed before recovery")
     require("aeko-keygen pubkey" in protocol_activate, "feature activation helper must verify offline keypair identities")
-    require("Ca5Lhktqd4epk3DDqsp7azXAunK3KZ8ZxeykU81oUUHT" in protocol_activate, "activation helper must pin the token feature id")
-    require("KBq8JBrCEbWJ6S2NXpcBvQDvt7J6hUZW3i61zzzZWxF" in protocol_activate, "activation helper must pin the permission feature id")
+    require('FEATURE_SET_SOURCE="$REPO_ROOT/sdk/src/feature_set.rs"' in protocol_activate, "activation helper must resolve feature identities only from the canonical runtime feature set")
+    require("aeko_token_programs_v1" in protocol_activate and "aeko_permission_layer_v1" in protocol_activate, "activation helper must resolve both AEKO protocol feature modules")
+    require(token_feature_id not in protocol_activate, "activation helper must not duplicate the token feature id literal")
+    require(permission_feature_id not in protocol_activate, "activation helper must not duplicate the permission feature id literal")
+    require("promote aeko-protocol-bootstrap" in promote_images, "main release promotion must include the protocol-bootstrap image")
 
     # Dokploy is an image-pull deployment contract, never a second build system.
     require(re.search(r"^\s+build:\s*$", dokploy, re.MULTILINE) is None, "Dokploy compose must pull prebuilt images, not build source")

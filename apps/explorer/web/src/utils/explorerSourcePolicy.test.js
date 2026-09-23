@@ -39,3 +39,13 @@ test('the production Explorer client is backend-first with a narrow RPC fallback
   assert.match(source, /\[404, 405, 501\]/);
   assert.doesNotMatch(source, /\[404, 405, 500, 501, 502, 503, 504\]/);
 });
+
+
+test('Explorer client diagnoses a public API route that serves the Explorer UI', async () => {
+  const source = await readFile(new URL('./explorerApi.js', import.meta.url), 'utf8');
+
+  assert.match(source, /Explorer API is misrouted/);
+  assert.match(source, /AEKO_PUBLIC_EXPLORER_API_URL/);
+  assert.match(source, /explorer-api:8088/);
+  assert.match(source, /explorer-ui:4000/);
+});

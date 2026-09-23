@@ -53,13 +53,23 @@ async function fetchEnvelope(path, network) {
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) {
     const text = await response.text().catch(() => '');
-    const snippet = text.replace(/<[^>]*>/g, ' ').trim().slice(0, 120);
-    throw new ExplorerApiError(
-      response.status === 502 || response.status === 503 || response.status === 504
-        ? `Indexer is unreachable (${response.status}). The explorer backend may be restarting or syncing — retry in a moment.`
-        : `Indexer returned non-JSON (${response.status}). ${snippet}`,
-      { status: response.status, path },
-    );
+    const snippet = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+    const looksLikeExplorerUi =
+      /<title>\s*AEKO Chain\s*\|\s*The Permissioned Social Layer\s*<\/title>/i.test(text)
+      || /id=["']root["']/i.test(text);
+
+    let message;
+    if (response.status === 502 || response.status === 503 || response.status === 504) {
+      message = `Indexer is unreachable (${response.status}). The explorer backend may be restarting or syncing — retry in a moment.`;
+    } else if (looksLikeExplorerUi) {
+      message =
+        `Explorer API is misrouted (${response.status}): the configured API endpoint returned the Explorer UI HTML. `
+        + 'Check AEKO_PUBLIC_EXPLORER_API_URL and route it to explorer-api:8088, not explorer-ui:4000.';
+    } else {
+      message = `Indexer returned non-JSON (${response.status}). ${snippet}`;
+    }
+
+    throw new ExplorerApiError(message, { status: response.status, path });
   }
 
   const payload = await response.json();
