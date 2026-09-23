@@ -128,6 +128,10 @@ services:
       AEKO_PAYER_KEYPAIR: /keys/faucet.json
       AEKO_PROTOCOL_AUTHORITY_KEYPAIR: /keys/protocol-authority.json
       AEKO_PROTOCOL_OUT_DIR: /state
+      AEKO_PROTOCOL_CONTINUITY_DIR: /continuity
+      AEKO_REQUIRE_EXISTING_PROTOCOL_STATE: ${AEKO_REQUIRE_EXISTING_PROTOCOL_STATE:-0}
+      AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION: ${AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION:-1}
+      AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY: ${AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY:-0}
       AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE:-0}
       AEKO_TOKENOMICS_BASE_FEE_ATOMIC: ${AEKO_TOKENOMICS_BASE_FEE_ATOMIC:-250000}
       AEKO_REFERENCE_MINT_NAME: ${AEKO_REFERENCE_MINT_NAME:-AEKO-20 Testnet Reference}
@@ -147,6 +151,7 @@ services:
       - ${AEKO_KEYS_DIR:-../local-testnet}/faucet-keypair.json:/keys/faucet.json:ro
       - ${AEKO_KEYS_DIR:-../local-testnet}/protocol-authority-keypair.json:/keys/protocol-authority.json:ro
       - protocol-state:/state
+      - protocol-continuity:/continuity
     depends_on:
       validator:
         condition: service_healthy
@@ -264,3 +269,4 @@ volumes:
   rpc-ledger:
   social-state:
   protocol-state:
+  protocol-continuity:

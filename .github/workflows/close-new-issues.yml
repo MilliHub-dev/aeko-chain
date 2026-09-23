@@ -6,6 +6,9 @@ on:
 
 jobs:
   comment-and-close:
+    # AEKO feature-gate trackers are live operational records and must remain
+    # open until cluster activation evidence is recorded.
+    if: ${{ !contains(github.event.issue.labels.*.name, 'feature-gate') }}
     runs-on: ubuntu-latest
     steps:
       - shell: bash

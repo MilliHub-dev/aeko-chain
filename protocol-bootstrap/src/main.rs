@@ -14,6 +14,7 @@ use {
     aeko_revocation_registry_program::state::RevRegistryConfig,
     aeko_rpc_client::rpc_client::RpcClient,
     aeko_sdk::{
+        account::ReadableAccount,
         commitment_config::CommitmentConfig,
         feature::{self, Feature},
         feature_set,
@@ -51,6 +52,7 @@ const REGISTRY_CONFIG_SPACE: u64 = 16 * 1024;
 const MULTISIG_CONFIG_SPACE: u64 = 16 * 1024;
 const ORACLE_CONFIG_SPACE: u64 = 16 * 1024;
 const REGISTRY_FILE_NAME: &str = "protocol-registry.env";
+const REGISTRY_ANCHOR_FILE_NAME: &str = "protocol-registry.anchor";
 
 fn main() -> Result<()> {
     if !parse_bool_flag_with_default("AEKO_PROTOCOL_BOOTSTRAP_ENABLED", false)? {
@@ -60,15 +62,15 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let rpc_url =
-        env::var("AEKO_RPC_URL").unwrap_or_else(|_| "http://localhost:8899".to_string());
+    let rpc_url = env::var("AEKO_RPC_URL").unwrap_or_else(|_| "http://localhost:8899".to_string());
     let payer_path = env::var("AEKO_PAYER_KEYPAIR")
         .context("AEKO_PAYER_KEYPAIR must point at a funded keypair file")?;
     let payer = read_keypair_file(&payer_path)
         .map_err(|error| anyhow!("failed to read payer keypair at {payer_path}: {error}"))?;
 
-    let authority_path = env::var("AEKO_PROTOCOL_AUTHORITY_KEYPAIR")
-        .context("AEKO_PROTOCOL_AUTHORITY_KEYPAIR must point at the dedicated protocol authority keypair")?;
+    let authority_path = env::var("AEKO_PROTOCOL_AUTHORITY_KEYPAIR").context(
+        "AEKO_PROTOCOL_AUTHORITY_KEYPAIR must point at the dedicated protocol authority keypair",
+    )?;
     let authority = read_keypair_file(&authority_path).map_err(|error| {
         anyhow!("failed to read protocol authority keypair at {authority_path}: {error}")
     })?;
@@ -78,8 +80,32 @@ fn main() -> Result<()> {
             .unwrap_or_else(|_| "./local-testnet/protocol-state".to_string()),
     );
     fs::create_dir_all(&out_dir).context("creating protocol bootstrap state directory")?;
+    let continuity_dir = PathBuf::from(
+        env::var("AEKO_PROTOCOL_CONTINUITY_DIR")
+            .unwrap_or_else(|_| "./local-testnet/protocol-continuity".to_string()),
+    );
+    fs::create_dir_all(&continuity_dir)
+        .context("creating protocol bootstrap continuity directory")?;
+
     let registry_preexisted = out_dir.join(REGISTRY_FILE_NAME).is_file();
     let allow_missing_state = parse_bool_flag("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE")?;
+    let require_existing_protocol_state =
+        parse_bool_flag_with_default("AEKO_REQUIRE_EXISTING_PROTOCOL_STATE", false)?;
+    let allow_protocol_state_initialization =
+        parse_bool_flag_with_default("AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION", false)?;
+    let allow_continuity_anchor_recovery = parse_bool_flag_with_default(
+        "AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY",
+        false,
+    )?;
+
+    prepare_protocol_state_continuity(
+        &out_dir,
+        &continuity_dir,
+        require_existing_protocol_state,
+        allow_protocol_state_initialization,
+        allow_continuity_anchor_recovery,
+        allow_missing_state,
+    )?;
 
     let client = RpcClient::new_with_commitment(rpc_url.clone(), CommitmentConfig::confirmed());
     eprintln!("==> aeko-protocol-bootstrap");
@@ -87,6 +113,7 @@ fn main() -> Result<()> {
     eprintln!("    payer:     {}", payer.pubkey());
     eprintln!("    authority: {}", authority.pubkey());
     eprintln!("    out-dir:   {}", out_dir.display());
+    eprintln!("    continuity: {}", continuity_dir.display());
 
     wait_for_rpc_ready(&client)?;
 
@@ -108,8 +135,14 @@ fn main() -> Result<()> {
         (aeko_token_721_program::id(), "token-721"),
         (aeko_nft_marketplace_program::id(), "nft-marketplace"),
         (aeko_wallet_permissions_program::id(), "wallet-permissions"),
-        (aeko_permission_registry_program::id(), "permission-registry"),
-        (aeko_revocation_registry_program::id(), "revocation-registry"),
+        (
+            aeko_permission_registry_program::id(),
+            "permission-registry",
+        ),
+        (
+            aeko_revocation_registry_program::id(),
+            "revocation-registry",
+        ),
         (aeko_subnet_registry_program::id(), "subnet-registry"),
         (aeko_emergency_multisig_program::id(), "emergency-multisig"),
         (aeko_finality_oracle_program::id(), "finality-oracle"),
@@ -172,8 +205,7 @@ fn main() -> Result<()> {
     let reference_mint = ensure_keypair(&out_dir, "aeko20-reference-mint.json")?;
     let reference_name =
         env::var("AEKO_REFERENCE_MINT_NAME").unwrap_or_else(|_| "AEKO-20 Testnet Reference".into());
-    let reference_symbol =
-        env::var("AEKO_REFERENCE_MINT_SYMBOL").unwrap_or_else(|_| "A20T".into());
+    let reference_symbol = env::var("AEKO_REFERENCE_MINT_SYMBOL").unwrap_or_else(|_| "A20T".into());
     let reference_decimals = parse_u8("AEKO_REFERENCE_MINT_DECIMALS", 9)?;
     let mint_authority = authority.pubkey();
     let expected_name = reference_name.clone();
@@ -213,15 +245,13 @@ fn main() -> Result<()> {
     )?;
 
     let public_mint_state = ensure_keypair(&out_dir, "public-mint-state.json")?;
-    let per_wallet_limit =
-        parse_u128("AEKO_PUBLIC_MINT_PER_WALLET_LIMIT", 1_000_000_000_000)?;
+    let per_wallet_limit = parse_u128("AEKO_PUBLIC_MINT_PER_WALLET_LIMIT", 1_000_000_000_000)?;
     let window_epochs = parse_u64("AEKO_PUBLIC_MINT_WINDOW_EPOCHS", 30)?;
     let cooldown_epochs = parse_u64("AEKO_PUBLIC_MINT_COOLDOWN_EPOCHS", 1)?;
     let anomaly_threshold = parse_u32("AEKO_PUBLIC_MINT_ANOMALY_THRESHOLD", 3)?;
     let requires_allowlist =
         parse_bool_flag_with_default("AEKO_PUBLIC_MINT_REQUIRES_ALLOWLIST", false)?;
-    let public_mint_enabled =
-        parse_bool_flag_with_default("AEKO_PUBLIC_MINT_ENABLED", true)?;
+    let public_mint_enabled = parse_bool_flag_with_default("AEKO_PUBLIC_MINT_ENABLED", true)?;
     let public_policy = PublicMintPolicy {
         mint: reference_mint.pubkey(),
         authority: authority.pubkey(),
@@ -265,9 +295,7 @@ fn main() -> Result<()> {
         },
     )?;
 
-    let current_slot = with_retries("getSlot", || {
-        client.get_slot().map_err(anyhow::Error::from)
-    })?;
+    let current_slot = with_retries("getSlot", || client.get_slot().map_err(anyhow::Error::from))?;
 
     let permission_registry = ensure_keypair(&out_dir, "permission-registry-state.json")?;
     let permission_authority = authority.pubkey();
@@ -464,6 +492,7 @@ AEKO_FINALITY_ORACLE_STATE={}\n",
         finality_oracle.pubkey(),
     );
     write_registry_file(&out_dir, &registry)?;
+    write_continuity_anchor(&continuity_dir, &registry)?;
     println!("# Canonical AEKO protocol registry:");
     print!("{registry}");
     Ok(())
@@ -481,22 +510,29 @@ fn require_feature_active(client: &RpcClient, feature_id: &Pubkey, label: &str) 
             "[{label}] feature account {feature_id} is missing; activate it with the corresponding offline feature authority"
         )
     })?;
-    if account.owner != feature::id() {
+    validate_feature_account(&account, feature_id, label)
+}
+
+fn validate_feature_account<T: ReadableAccount>(
+    account: &T,
+    feature_id: &Pubkey,
+    label: &str,
+) -> Result<u64> {
+    if account.owner() != &feature::id() {
         return Err(anyhow!(
             "[{label}] feature account {feature_id} owner {} does not match {}",
-            account.owner,
+            account.owner(),
             feature::id()
         ));
     }
     let feature: Feature =
-        bincode::deserialize(&account.data).context("deserializing runtime feature account")?;
+        bincode::deserialize(account.data()).context("deserializing runtime feature account")?;
     feature.activated_at.ok_or_else(|| {
         anyhow!(
             "[{label}] feature {feature_id} is pending; wait for the next epoch before bootstrapping protocol state"
         )
     })
 }
-
 fn require_executable_program(client: &RpcClient, program_id: &Pubkey, label: &str) -> Result<()> {
     let account = with_retries(&format!("{label}:getAccount"), || {
         client
@@ -607,13 +643,7 @@ where
             .map_err(anyhow::Error::from)
     })?;
     let instructions = vec![
-        system_instruction::create_account(
-            &payer.pubkey(),
-            &state_pubkey,
-            rent,
-            space,
-            program_id,
-        ),
+        system_instruction::create_account(&payer.pubkey(), &state_pubkey, rent, space, program_id),
         init_ix,
     ];
     let signers: Vec<&Keypair> = vec![payer, authority, state];
@@ -627,22 +657,20 @@ where
                 continue;
             }
         };
-        let tx =
-            Transaction::new_signed_with_payer(&instructions, Some(&payer.pubkey()), &signers, blockhash);
+        let tx = Transaction::new_signed_with_payer(
+            &instructions,
+            Some(&payer.pubkey()),
+            &signers,
+            blockhash,
+        );
         match client.send_and_confirm_transaction(&tx) {
             Ok(signature) => {
                 eprintln!("[{label}] init confirmed {signature}");
                 return Ok(());
             }
             Err(error) => {
-                if existing_state_is_valid(
-                    client,
-                    &state_pubkey,
-                    program_id,
-                    label,
-                    &verifier,
-                )
-                .unwrap_or(false)
+                if existing_state_is_valid(client, &state_pubkey, program_id, label, &verifier)
+                    .unwrap_or(false)
                 {
                     return Ok(());
                 }
@@ -669,19 +697,38 @@ where
             .get_account_with_commitment(state_pubkey, CommitmentConfig::confirmed())
             .map_err(anyhow::Error::from)
     })?;
-    match response.value {
+    validate_existing_state_account(
+        response.value.as_ref(),
+        state_pubkey,
+        program_id,
+        label,
+        verifier,
+    )
+}
+
+fn validate_existing_state_account<T, F>(
+    account: Option<&T>,
+    state_pubkey: &Pubkey,
+    program_id: &Pubkey,
+    label: &str,
+    verifier: &F,
+) -> Result<bool>
+where
+    T: ReadableAccount,
+    F: Fn(&[u8]) -> Result<bool>,
+{
+    match account {
         None => Ok(false),
-        Some(account) if account.owner != *program_id => Err(anyhow!(
+        Some(account) if account.owner() != program_id => Err(anyhow!(
             "[{label}] state {state_pubkey} owner {} does not match {program_id}",
-            account.owner
+            account.owner()
         )),
-        Some(account) if verifier(&account.data)? => Ok(true),
+        Some(account) if verifier(account.data())? => Ok(true),
         Some(_) => Err(anyhow!(
             "[{label}] state {state_pubkey} exists but does not match the canonical bootstrap configuration"
         )),
     }
 }
-
 fn submit_instruction(
     client: &RpcClient,
     payer: &Keypair,
@@ -763,11 +810,7 @@ fn parse_multisig_config(authority: Pubkey) -> Result<(Vec<Pubkey>, u8, u8, u8)>
     let revoke = parse_u8("AEKO_PROTOCOL_MULTISIG_REVOKE_QUORUM", 1)?;
     let policy = parse_u8("AEKO_PROTOCOL_MULTISIG_POLICY_QUORUM", 1)?;
     let max = unique.len() as u8;
-    for (label, value) in [
-        ("freeze", freeze),
-        ("revoke", revoke),
-        ("policy", policy),
-    ] {
+    for (label, value) in [("freeze", freeze), ("revoke", revoke), ("policy", policy)] {
         if value == 0 || value > max {
             return Err(anyhow!(
                 "{label} quorum {value} must be between 1 and signer count {max}"
@@ -822,14 +865,68 @@ fn parse_u128(name: &str, default: u128) -> Result<u128> {
         .with_context(|| format!("{name} must be a u128"))
 }
 
-fn write_registry_file(out_dir: &Path, contents: &str) -> Result<()> {
-    let target = out_dir.join(REGISTRY_FILE_NAME);
-    let temp = out_dir.join(format!("{REGISTRY_FILE_NAME}.tmp"));
-    fs::write(&temp, contents).with_context(|| format!("writing {}", temp.display()))?;
-    fs::rename(&temp, &target).with_context(|| format!("publishing {}", target.display()))?;
-    Ok(())
+fn read_optional_text(path: &Path) -> Result<Option<String>> {
+    match fs::read_to_string(path) {
+        Ok(contents) => Ok(Some(contents)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error).with_context(|| format!("reading {}", path.display())),
+    }
 }
 
+fn prepare_protocol_state_continuity(
+    out_dir: &Path,
+    continuity_dir: &Path,
+    require_existing: bool,
+    allow_initialization: bool,
+    allow_anchor_recovery: bool,
+    allow_missing_state: bool,
+) -> Result<()> {
+    let registry_path = out_dir.join(REGISTRY_FILE_NAME);
+    let anchor_path = continuity_dir.join(REGISTRY_ANCHOR_FILE_NAME);
+    let registry = read_optional_text(&registry_path)?;
+    let anchor = read_optional_text(&anchor_path)?;
+
+    match (registry, anchor) {
+        (Some(registry), Some(anchor)) if registry == anchor => Ok(()),
+        (Some(_), Some(_)) => Err(anyhow!(
+            "protocol registry and continuity anchor disagree; restore the correct persisted volumes before bootstrapping"
+        )),
+        (Some(registry), None) if allow_anchor_recovery => {
+            write_continuity_anchor(continuity_dir, &registry)?;
+            Ok(())
+        }
+        (Some(_), None) => Err(anyhow!(
+            "protocol registry exists but continuity anchor is missing; restore the continuity volume or set AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY=1 only after independently verifying the existing registry"
+        )),
+        (None, Some(_)) if allow_missing_state => Ok(()),
+        (None, Some(_)) => Err(anyhow!(
+            "protocol continuity anchor exists but protocol-registry.env is missing; refusing to create replacement canonical state unless AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1 is explicitly set for intentional recovery"
+        )),
+        (None, None) if require_existing && !allow_initialization => Err(anyhow!(
+            "no established protocol state was found; set AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1 only for the intentional first protocol bootstrap"
+        )),
+        (None, None) => Ok(()),
+    }
+}
+
+fn write_registry_file(out_dir: &Path, contents: &str) -> Result<()> {
+    write_atomic_text_file(&out_dir.join(REGISTRY_FILE_NAME), contents)
+}
+
+fn write_continuity_anchor(continuity_dir: &Path, contents: &str) -> Result<()> {
+    write_atomic_text_file(&continuity_dir.join(REGISTRY_ANCHOR_FILE_NAME), contents)
+}
+
+fn write_atomic_text_file(target: &Path, contents: &str) -> Result<()> {
+    let file_name = target
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| anyhow!("invalid output file path {}", target.display()))?;
+    let temp = target.with_file_name(format!("{file_name}.tmp"));
+    fs::write(&temp, contents).with_context(|| format!("writing {}", temp.display()))?;
+    fs::rename(&temp, target).with_context(|| format!("publishing {}", target.display()))?;
+    Ok(())
+}
 fn wait_for_rpc_ready(client: &RpcClient) -> Result<()> {
     let start = Instant::now();
     loop {
@@ -870,3 +967,209 @@ fn sleep_backoff(attempt: u32) {
         .min(SEND_MAX_BACKOFF);
     thread::sleep(backoff);
 }
+
+#[cfg(test)]
+mod tests {
+    use {
+        super::*,
+        aeko_sdk::account::AccountSharedData,
+        tempfile::TempDir,
+    };
+
+    fn test_account(owner: Pubkey, data: &[u8]) -> AccountSharedData {
+        let mut account = AccountSharedData::new(1, data.len(), &owner);
+        account.set_data_from_slice(data);
+        account
+    }
+
+    #[test]
+    fn feature_validation_accepts_active_feature() {
+        let feature_id = Pubkey::new_unique();
+        let account = feature::create_account(
+            &Feature {
+                activated_at: Some(42),
+            },
+            1,
+        );
+        assert_eq!(
+            validate_feature_account(&account, &feature_id, "test-feature").unwrap(),
+            42
+        );
+    }
+
+    #[test]
+    fn feature_validation_rejects_pending_and_wrong_owner() {
+        let feature_id = Pubkey::new_unique();
+        let pending = feature::create_account(&Feature::default(), 1);
+        assert!(validate_feature_account(&pending, &feature_id, "test-feature")
+            .unwrap_err()
+            .to_string()
+            .contains("pending"));
+
+        let wrong_owner = test_account(Pubkey::new_unique(), pending.data());
+        assert!(validate_feature_account(&wrong_owner, &feature_id, "test-feature")
+            .unwrap_err()
+            .to_string()
+            .contains("owner"));
+    }
+
+    #[test]
+    fn state_validation_is_idempotent_and_fails_closed_on_mismatch() {
+        let state_pubkey = Pubkey::new_unique();
+        let program_id = Pubkey::new_unique();
+        let valid = test_account(program_id, b"canonical");
+
+        assert!(validate_existing_state_account(
+            Some(&valid),
+            &state_pubkey,
+            &program_id,
+            "test-state",
+            &|data| Ok(data == b"canonical"),
+        )
+        .unwrap());
+        assert!(!validate_existing_state_account::<AccountSharedData, _>(
+            None,
+            &state_pubkey,
+            &program_id,
+            "test-state",
+            &|_| Ok(true),
+        )
+        .unwrap());
+
+        let wrong_owner = test_account(Pubkey::new_unique(), b"canonical");
+        assert!(validate_existing_state_account(
+            Some(&wrong_owner),
+            &state_pubkey,
+            &program_id,
+            "test-state",
+            &|_| Ok(true),
+        )
+        .is_err());
+
+        assert!(validate_existing_state_account(
+            Some(&valid),
+            &state_pubkey,
+            &program_id,
+            "test-state",
+            &|_| Ok(false),
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("canonical bootstrap configuration"));
+    }
+
+    #[test]
+    fn continuity_requires_explicit_first_bootstrap_when_configured() {
+        let state = TempDir::new().unwrap();
+        let continuity = TempDir::new().unwrap();
+
+        let error = prepare_protocol_state_continuity(
+            state.path(),
+            continuity.path(),
+            true,
+            false,
+            false,
+            false,
+        )
+        .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1"));
+
+        prepare_protocol_state_continuity(
+            state.path(),
+            continuity.path(),
+            true,
+            true,
+            false,
+            false,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn continuity_detects_lost_state_volume_and_registry_mismatch() {
+        let state = TempDir::new().unwrap();
+        let continuity = TempDir::new().unwrap();
+        write_continuity_anchor(continuity.path(), "registry-v1").unwrap();
+
+        assert!(prepare_protocol_state_continuity(
+            state.path(),
+            continuity.path(),
+            true,
+            false,
+            false,
+            false,
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("protocol-registry.env is missing"));
+
+        fs::write(state.path().join(REGISTRY_FILE_NAME), "registry-v2").unwrap();
+        assert!(prepare_protocol_state_continuity(
+            state.path(),
+            continuity.path(),
+            true,
+            false,
+            false,
+            false,
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("disagree"));
+    }
+
+    #[test]
+    fn continuity_reuses_matching_state_and_requires_explicit_anchor_recovery() {
+        let state = TempDir::new().unwrap();
+        let continuity = TempDir::new().unwrap();
+        fs::write(state.path().join(REGISTRY_FILE_NAME), "registry-v1").unwrap();
+
+        assert!(prepare_protocol_state_continuity(
+            state.path(),
+            continuity.path(),
+            true,
+            false,
+            false,
+            false,
+        )
+        .is_err());
+
+        prepare_protocol_state_continuity(
+            state.path(),
+            continuity.path(),
+            true,
+            false,
+            true,
+            false,
+        )
+        .unwrap();
+        prepare_protocol_state_continuity(
+            state.path(),
+            continuity.path(),
+            true,
+            false,
+            false,
+            false,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn continuity_allows_missing_state_only_for_explicit_recovery() {
+        let state = TempDir::new().unwrap();
+        let continuity = TempDir::new().unwrap();
+        write_continuity_anchor(continuity.path(), "registry-v1").unwrap();
+
+        prepare_protocol_state_continuity(
+            state.path(),
+            continuity.path(),
+            true,
+            false,
+            false,
+            true,
+        )
+        .unwrap();
+    }
+}
+

@@ -8,7 +8,7 @@ use {
         response::{self, DataEnvelope},
         state::SharedState,
     },
-    aeko_sdk::feature,
+    aeko_sdk::feature::{self, Feature},
     anyhow::Context,
     axum::{extract::State, routing::get, Json, Router},
     serde::Serialize,
@@ -42,6 +42,7 @@ struct ProtocolStatus {
 struct FeatureStatus {
     feature_id: Option<String>,
     activated_at: Option<u64>,
+    registry_activated_at: Option<u64>,
     present: bool,
     owner_matches: bool,
     data_len: usize,
@@ -146,30 +147,55 @@ fn inspect_protocol(rpc: &RpcChainClient, registry: ProtocolRegistry) -> Protoco
 fn inspect_feature(
     rpc: &RpcChainClient,
     feature_id: Option<String>,
-    activated_at: Option<u64>,
+    registry_activated_at: Option<u64>,
 ) -> FeatureStatus {
     let Some(feature_id) = feature_id else {
         return FeatureStatus {
             feature_id: None,
-            activated_at,
+            activated_at: None,
+            registry_activated_at,
             present: false,
             owner_matches: false,
             data_len: 0,
             error: Some("feature id is missing from the protocol registry".to_string()),
         };
     };
-    match rpc.fetch_account(&feature_id) {
-        Ok(Some(account)) => FeatureStatus {
-            feature_id: Some(feature_id),
-            activated_at,
-            present: true,
-            owner_matches: account.owner == feature::id().to_string(),
-            data_len: account.data_len,
-            error: None,
-        },
+
+    match rpc.fetch_account_with_data(&feature_id) {
+        Ok(Some((account, data))) => {
+            let owner_matches = account.owner == feature::id().to_string();
+            let (activated_at, error) = if owner_matches {
+                match decode_feature_activation(&data) {
+                    Ok(activated_at) => (
+                        activated_at,
+                        feature_activation_consistency_error(activated_at, registry_activated_at),
+                    ),
+                    Err(error) => (None, Some(error)),
+                }
+            } else {
+                (
+                    None,
+                    Some(format!(
+                        "feature account owner {} does not match {}",
+                        account.owner,
+                        feature::id()
+                    )),
+                )
+            };
+            FeatureStatus {
+                feature_id: Some(feature_id),
+                activated_at,
+                registry_activated_at,
+                present: true,
+                owner_matches,
+                data_len: account.data_len,
+                error,
+            }
+        }
         Ok(None) => FeatureStatus {
             feature_id: Some(feature_id),
-            activated_at,
+            activated_at: None,
+            registry_activated_at,
             present: false,
             owner_matches: false,
             data_len: 0,
@@ -177,7 +203,8 @@ fn inspect_feature(
         },
         Err(error) => FeatureStatus {
             feature_id: Some(feature_id),
-            activated_at,
+            activated_at: None,
+            registry_activated_at,
             present: false,
             owner_matches: false,
             data_len: 0,
@@ -186,6 +213,27 @@ fn inspect_feature(
     }
 }
 
+fn decode_feature_activation(data: &[u8]) -> Result<Option<u64>, String> {
+    bincode::deserialize::<Feature>(data)
+        .map(|feature| feature.activated_at)
+        .map_err(|error| format!("invalid feature account data: {error}"))
+}
+
+fn feature_activation_consistency_error(
+    activated_at: Option<u64>,
+    registry_activated_at: Option<u64>,
+) -> Option<String> {
+    match (activated_at, registry_activated_at) {
+        (None, _) => Some("feature is still pending activation".to_string()),
+        (Some(_), None) => {
+            Some("protocol registry is missing the feature activation slot".to_string())
+        }
+        (Some(actual), Some(recorded)) if actual != recorded => Some(format!(
+            "protocol registry activation slot {recorded} does not match on-chain slot {actual}"
+        )),
+        _ => None,
+    }
+}
 fn inspect_program(rpc: &RpcChainClient, program_id: &str) -> ProgramStatus {
     match rpc.fetch_account(program_id) {
         Ok(Some(account)) => ProgramStatus {
@@ -264,3 +312,37 @@ fn owner_label_for_state(state_label: &str) -> Option<&'static str> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn feature_activation_decode_reads_live_slot() {
+        let data = bincode::serialize(&Feature {
+            activated_at: Some(42),
+        })
+        .unwrap();
+        assert_eq!(decode_feature_activation(&data).unwrap(), Some(42));
+    }
+
+    #[test]
+    fn feature_activation_consistency_rejects_pending_missing_and_mismatch() {
+        assert!(feature_activation_consistency_error(None, Some(42))
+            .unwrap()
+            .contains("pending"));
+        assert!(feature_activation_consistency_error(Some(42), None)
+            .unwrap()
+            .contains("missing"));
+        assert!(feature_activation_consistency_error(Some(42), Some(43))
+            .unwrap()
+            .contains("does not match"));
+        assert!(feature_activation_consistency_error(Some(42), Some(42)).is_none());
+    }
+
+    #[test]
+    fn feature_activation_decode_rejects_invalid_account_data() {
+        assert!(decode_feature_activation(b"not-a-feature").is_err());
+    }
+}
+

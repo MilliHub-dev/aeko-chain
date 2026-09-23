@@ -29,5 +29,8 @@ aeko-subnet-registry-program = { workspace = true }
 aeko-emergency-multisig-program = { workspace = true }
 aeko-finality-oracle-program = { workspace = true }
 
+[dev-dependencies]
+tempfile = { workspace = true }
+
 [lints]
 workspace = true

@@ -18,7 +18,6 @@ mod tests {
             },
             status_cache::StatusCache,
         },
-        assert_matches::assert_matches,
         aeko_accounts_db::{
             account_storage::{AccountStorageMap, AccountStorageReference},
             accounts_db::{
@@ -43,6 +42,7 @@ mod tests {
             signature::{Keypair, Signer},
             system_transaction,
         },
+        assert_matches::assert_matches,
         std::{
             io::{Cursor, Read, Write},
             num::NonZeroUsize,
@@ -557,7 +557,8 @@ mod tests {
         aeko_logger::setup();
 
         let (mut genesis_config, mint_keypair) = create_genesis_config(10_000_000_000);
-        genesis_config.epoch_schedule = EpochSchedule::custom(2, 2, false);
+        genesis_config.epoch_schedule = EpochSchedule::custom(32, 32, false);
+        let activation_slot = genesis_config.epoch_schedule.get_first_slot_in_epoch(1);
 
         // Development test genesis enables every currently-known feature. Model
         // the established pre-upgrade chain by removing only the two AEKO
@@ -634,8 +635,7 @@ mod tests {
             Arc::default(),
         )
         .unwrap();
-        restored_historical_bank
-            .wait_for_initial_accounts_hash_verification_completed_for_tests();
+        restored_historical_bank.wait_for_initial_accounts_hash_verification_completed_for_tests();
 
         assert_eq!(restored_historical_bank.slot(), 1);
         assert_eq!(
@@ -673,13 +673,19 @@ mod tests {
             activation_request_bank.fill_bank_with_ticks_for_tests();
         }
 
-        let mut activated_bank =
-            Bank::new_from_parent(Arc::new(activation_request_bank), &Pubkey::default(), 4);
+        let mut activated_bank = Bank::new_from_parent(
+            Arc::new(activation_request_bank),
+            &Pubkey::default(),
+            activation_slot,
+        );
         while !activated_bank.is_complete() {
             activated_bank.fill_bank_with_ticks_for_tests();
         }
 
-        assert_eq!(activated_bank.get_balance(&historical_account.pubkey()), 123);
+        assert_eq!(
+            activated_bank.get_balance(&historical_account.pubkey()),
+            123
+        );
         for feature_id in aeko_protocol_feature_ids() {
             assert!(activated_bank.feature_set.is_active(&feature_id));
             let account = activated_bank.get_account(&feature_id).unwrap();
@@ -692,7 +698,10 @@ mod tests {
             let account = activated_bank
                 .get_account(&program_id)
                 .unwrap_or_else(|| panic!("activated program {program_id} is missing"));
-            assert!(account.executable(), "activated program {program_id} is not executable");
+            assert!(
+                account.executable(),
+                "activated program {program_id} is not executable"
+            );
         }
 
         let activated_bank_snapshots_dir = TempDir::new().unwrap();
@@ -710,8 +719,7 @@ mod tests {
         )
         .unwrap();
 
-        let (_activated_accounts_tmp, activated_accounts_dir) =
-            create_tmp_accounts_dir_for_tests();
+        let (_activated_accounts_tmp, activated_accounts_dir) = create_tmp_accounts_dir_for_tests();
         let (restored_activated_bank, _) = snapshot_bank_utils::bank_from_snapshot_archives(
             &[activated_accounts_dir],
             activated_bank_snapshots_dir.path(),
@@ -733,10 +741,9 @@ mod tests {
             Arc::default(),
         )
         .unwrap();
-        restored_activated_bank
-            .wait_for_initial_accounts_hash_verification_completed_for_tests();
+        restored_activated_bank.wait_for_initial_accounts_hash_verification_completed_for_tests();
 
-        assert_eq!(restored_activated_bank.slot(), 4);
+        assert_eq!(restored_activated_bank.slot(), activation_slot);
         assert_eq!(
             restored_activated_bank.get_balance(&historical_account.pubkey()),
             123
@@ -746,21 +753,30 @@ mod tests {
             let account = restored_activated_bank.get_account(&feature_id).unwrap();
             assert_eq!(
                 feature::from_account(&account).unwrap().activated_at,
-                Some(4)
+                Some(activation_slot)
             );
         }
         for program_id in aeko_protocol_program_ids() {
             let account = restored_activated_bank
                 .get_account(&program_id)
                 .unwrap_or_else(|| panic!("restored program {program_id} is missing"));
-            assert!(account.executable(), "restored program {program_id} is not executable");
+            assert!(
+                account.executable(),
+                "restored program {program_id} is not executable"
+            );
         }
 
         // A post-restart child Bank proves the chain can continue from the
         // upgraded snapshot without losing either historical state or builtins.
-        let continued_bank =
-            Bank::new_from_parent(Arc::new(restored_activated_bank), &Pubkey::default(), 5);
-        assert_eq!(continued_bank.get_balance(&historical_account.pubkey()), 123);
+        let continued_bank = Bank::new_from_parent(
+            Arc::new(restored_activated_bank),
+            &Pubkey::default(),
+            activation_slot + 1,
+        );
+        assert_eq!(
+            continued_bank.get_balance(&historical_account.pubkey()),
+            123
+        );
         for program_id in aeko_protocol_program_ids() {
             assert!(continued_bank.get_account(&program_id).is_some());
         }

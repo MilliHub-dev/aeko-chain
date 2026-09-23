@@ -95,6 +95,17 @@ impl RpcChainClient {
     /// Live account pages may use confirmed state because they are explicitly
     /// identified as RPC-backed live reads rather than durable history.
     pub fn fetch_account(&self, address: &str) -> Result<Option<ChainAccountRecord>> {
+        Ok(self
+            .fetch_account_with_data(address)?
+            .map(|(account, _)| account))
+    }
+
+    /// Protocol verification needs the account metadata plus raw account bytes
+    /// so activation is proven from live chain state rather than registry text.
+    pub fn fetch_account_with_data(
+        &self,
+        address: &str,
+    ) -> Result<Option<(ChainAccountRecord, Vec<u8>)>> {
         let _: Pubkey = address
             .parse()
             .with_context(|| format!("invalid AEKO account address {address:?}"))?;
@@ -113,15 +124,18 @@ impl RpcChainClient {
             .ok_or_else(|| anyhow!("getAccountInfo result is missing boolean executable"))?;
         let data = account_data_bytes(&value)
             .with_context(|| format!("decoding account data for {address}"))?;
-        Ok(Some(ChainAccountRecord {
-            address: address.to_string(),
-            lamports,
-            owner,
-            executable,
-            data_len: data.len(),
-        }))
+        let data_len = data.len();
+        Ok(Some((
+            ChainAccountRecord {
+                address: address.to_string(),
+                lamports,
+                owner,
+                executable,
+                data_len,
+            },
+            data,
+        )))
     }
-
     pub fn fetch_core_slot(&self, slot: u64) -> Result<CoreSlotRecord> {
         let block: Option<Value> = self.rpc_request(
             "getBlock",

@@ -19,13 +19,13 @@
 //! For more information on how features are picked up, see comments for `Feature`.
 
 use {
-    lazy_static::lazy_static,
     aeko_program::{epoch_schedule::EpochSchedule, stake_history::Epoch},
     aeko_sdk::{
         clock::Slot,
         hash::{Hash, Hasher},
         pubkey::Pubkey,
     },
+    lazy_static::lazy_static,
     std::collections::{HashMap, HashSet},
 };
 
@@ -783,7 +783,6 @@ pub mod deprecate_unused_legacy_vote_plumbing {
 pub mod round_compute_unit_price {
     aeko_sdk::declare_id!("sBAfS3QD4pNaFavLinmBQhFsNQsQ5HHAHyaJKEEudHK");
 }
-
 
 // AEKO protocol-native program bundles. These features gate native builtins that
 // were introduced after the original testnet genesis. Keeping them inactive on

@@ -134,8 +134,10 @@ mod tests {
             let account = bank
                 .get_account(&program_id)
                 .unwrap_or_else(|| panic!("activated builtin {program_id} was not installed"));
-            assert!(account.executable(), "builtin {program_id} is not executable");
+            assert!(
+                account.executable(),
+                "builtin {program_id} is not executable"
+            );
         }
     }
-
 }
