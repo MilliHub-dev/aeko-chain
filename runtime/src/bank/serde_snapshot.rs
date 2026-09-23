@@ -577,10 +577,11 @@ mod tests {
         let (bank0, _bank_forks) = Bank::new_with_bank_forks_for_tests(&genesis_config);
         let mut historical_bank = Bank::new_from_parent(bank0, &Pubkey::default(), 1);
         let historical_account = Keypair::new();
+        let historical_lamports = genesis_config.rent.minimum_balance(0).max(1);
         let transfer = system_transaction::transfer(
             &mint_keypair,
             &historical_account.pubkey(),
-            123,
+            historical_lamports,
             historical_bank.last_blockhash(),
         );
         assert_eq!(historical_bank.process_transaction(&transfer), Ok(()));
@@ -644,7 +645,7 @@ mod tests {
         assert_eq!(restored_historical_bank.slot(), 1);
         assert_eq!(
             restored_historical_bank.get_balance(&historical_account.pubkey()),
-            123
+            historical_lamports
         );
         for feature_id in aeko_protocol_feature_ids() {
             assert!(!restored_historical_bank.feature_set.is_active(&feature_id));
@@ -688,7 +689,7 @@ mod tests {
 
         assert_eq!(
             activated_bank.get_balance(&historical_account.pubkey()),
-            123
+            historical_lamports
         );
         for feature_id in aeko_protocol_feature_ids() {
             assert!(activated_bank.feature_set.is_active(&feature_id));
@@ -750,7 +751,7 @@ mod tests {
         assert_eq!(restored_activated_bank.slot(), activation_slot);
         assert_eq!(
             restored_activated_bank.get_balance(&historical_account.pubkey()),
-            123
+            historical_lamports
         );
         for feature_id in aeko_protocol_feature_ids() {
             assert!(restored_activated_bank.feature_set.is_active(&feature_id));
@@ -779,7 +780,7 @@ mod tests {
         );
         assert_eq!(
             continued_bank.get_balance(&historical_account.pubkey()),
-            123
+            historical_lamports
         );
         for program_id in aeko_protocol_program_ids() {
             assert!(continued_bank.get_account(&program_id).is_some());
