@@ -1,0 +1,71 @@
+name: AEKO DevOps CI contract smoke
+description: Validate DevOps shell syntax and prove every local composite action can be loaded without running product workloads.
+
+inputs:
+  sha-tag:
+    description: Immutable SHA tag used by image-owning action contracts.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Validate DevOps shell implementation
+      shell: bash
+      run: |
+        set -euo pipefail
+        mapfile -d '' scripts < <(find .github/actions/devops -type f -name '*.sh' -print0)
+        for script in "${scripts[@]}"; do
+          bash -n "$script"
+        done
+        printf 'Validated shell syntax for %d DevOps scripts.\n' "${#scripts[@]}"
+
+    - name: Smoke Operations Web action definition
+      uses: ./.github/actions/devops/admin
+      with:
+        validate-source: "false"
+        build-image: "false"
+        publish: "false"
+        sha-tag: ${{ inputs.sha-tag }}
+
+    - name: Smoke SDK action definition
+      uses: ./.github/actions/devops/sdk
+      with:
+        js: "false"
+        node: "false"
+        python: "false"
+        rust: "false"
+
+    - name: Smoke CLI action definition
+      uses: ./.github/actions/devops/cli
+      with:
+        validate-source: "false"
+        host-build: "false"
+        build-image: "false"
+        publish: "false"
+        sha-tag: ${{ inputs.sha-tag }}
+
+    - name: Smoke Explorer backend action definition
+      uses: ./.github/actions/devops/explorer-backend
+      with:
+        validate-source: "false"
+        host-build: "false"
+        build-image: "false"
+        publish: "false"
+        sha-tag: ${{ inputs.sha-tag }}
+
+    - name: Smoke Explorer frontend action definition
+      uses: ./.github/actions/devops/explorer-web
+      with:
+        validate-source: "false"
+        build-image: "false"
+        publish: "false"
+        sha-tag: ${{ inputs.sha-tag }}
+
+    - name: Smoke network action definition
+      uses: ./.github/actions/devops/network
+      with:
+        run-preflight: "false"
+        validate-source: "false"
+        build-image: "false"
+        publish: "false"
+        sha-tag: ${{ inputs.sha-tag }}
