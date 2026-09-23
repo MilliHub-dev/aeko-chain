@@ -53,7 +53,7 @@ mkdir -p "$LEDGER_DIR" "$STATE_DIR" "$CONTINUITY_DIR"
 
 # Build only the binaries exercised by this integration path. Previous source
 # validation on the shared runner makes these incremental in normal CI.
-cargo build --locked -p aeko-validator --bin aeko-test-validator
+cargo build --locked -p aeko-validator --bin aeko-test-validator --bin aeko-validator
 cargo build --locked -p aeko-keygen --bin aeko-keygen
 cargo build --locked -p aeko-protocol-bootstrap --bin aeko-protocol-bootstrap
 cargo build --locked -p aeko-explorer-backend --bin aeko-explorer-backend
@@ -77,9 +77,35 @@ start_validator() {
 
 stop_validator() {
   if [ -n "$VALIDATOR_PID" ]; then
-    kill "$VALIDATOR_PID" >/dev/null 2>&1 || true
-    wait "$VALIDATOR_PID" >/dev/null 2>&1 || true
+    # Do not SIGTERM the validator during the continuity assertion. The admin
+    # RPC exit path is the repository's supported shutdown contract and gives
+    # Blockstore/RPC transaction-status services time to flush before restart.
+    target/debug/aeko-validator --ledger "$LEDGER_DIR" exit --force
+
+    local stopped=0
+    for _ in $(seq 1 60); do
+      if ! kill -0 "$VALIDATOR_PID" >/dev/null 2>&1; then
+        stopped=1
+        break
+      fi
+      sleep 0.5
+    done
+    if [ "$stopped" -ne 1 ]; then
+      echo "test validator did not stop after admin RPC exit request" >&2
+      return 1
+    fi
+
+    local status=0
+    set +e
+    wait "$VALIDATOR_PID"
+    status=$?
+    set -e
     VALIDATOR_PID=""
+
+    if [ "$status" -ne 0 ]; then
+      echo "test validator exited unsuccessfully after admin RPC shutdown: $status" >&2
+      return "$status"
+    fi
   fi
 }
 
