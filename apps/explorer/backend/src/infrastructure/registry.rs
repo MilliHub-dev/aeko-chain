@@ -185,9 +185,7 @@ fn load_registry_file(env_name: &str, label: &str) -> HashMap<String, String> {
     };
     match fs::read_to_string(&path) {
         Ok(content) => parse_registry_env(&content),
-        Err(error)
-            if error.kind() == ErrorKind::NotFound && env_name == PROTOCOL_REGISTRY_FILE_ENV =>
-        {
+        Err(error) if expected_missing_registry(env_name, &error) => {
             tracing::debug!(
                 path,
                 env_name,
@@ -201,6 +199,10 @@ fn load_registry_file(env_name: &str, label: &str) -> HashMap<String, String> {
             HashMap::new()
         }
     }
+}
+
+fn expected_missing_registry(env_name: &str, error: &std::io::Error) -> bool {
+    env_name == PROTOCOL_REGISTRY_FILE_ENV && error.kind() == ErrorKind::NotFound
 }
 
 fn parse_registry_env(content: &str) -> HashMap<String, String> {
@@ -225,7 +227,29 @@ fn parse_registry_env(content: &str) -> HashMap<String, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_registry_env;
+    use {
+        super::{
+            expected_missing_registry, parse_registry_env, PROTOCOL_REGISTRY_FILE_ENV,
+            SOCIAL_REGISTRY_FILE_ENV,
+        },
+        std::io::{Error, ErrorKind},
+    };
+
+    #[test]
+    fn missing_protocol_registry_is_expected_only_for_not_found() {
+        let missing = Error::from(ErrorKind::NotFound);
+        assert!(expected_missing_registry(
+            PROTOCOL_REGISTRY_FILE_ENV,
+            &missing
+        ));
+        assert!(!expected_missing_registry(SOCIAL_REGISTRY_FILE_ENV, &missing));
+
+        let denied = Error::from(ErrorKind::PermissionDenied);
+        assert!(!expected_missing_registry(
+            PROTOCOL_REGISTRY_FILE_ENV,
+            &denied
+        ));
+    }
 
     #[test]
     fn registry_parser_accepts_both_bootstrap_formats_and_ignores_empty_values() {
