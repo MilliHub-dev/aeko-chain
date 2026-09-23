@@ -13,6 +13,32 @@ assert_output() {
   fi
 }
 
+
+assert_node24_action_majors() {
+  local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+  local setup_action="$PIPELINE_DIR/setup/action.yml"
+
+  for deprecated in \
+    "actions/checkout@v4" \
+    "actions/setup-node@v4" \
+    "actions/setup-python@v5" \
+    "docker/login-action@v3" \
+    "docker/setup-buildx-action@v3"; do
+    if grep -Fq "$deprecated" "$workflow" "$setup_action"; then
+      echo "Deprecated Node-20 action major remains in the active DevOps pipeline: $deprecated" >&2
+      exit 1
+    fi
+  done
+
+  grep -Fq "actions/checkout@v5" "$workflow"
+  grep -Fq "actions/setup-node@v5" "$setup_action"
+  grep -Fq "actions/setup-python@v6" "$setup_action"
+  grep -Fq "docker/login-action@v4" "$workflow"
+  grep -Fq "docker/setup-buildx-action@v4" "$setup_action"
+
+  echo "[ok] active DevOps third-party actions use Node-24-backed majors"
+}
+
 run_plan_case() {
   local label="$1" event_name="$2" ci_pipeline="$3" core="$4" expected_all="$5"
   local output
@@ -57,6 +83,8 @@ run_release_case() {
   rm -f "$output"
   echo "[ok] $label"
 }
+
+assert_node24_action_majors
 
 run_plan_case "CI-only pull request runs images and all external SDK validation" pull_request true false true
 run_plan_case "CI-only main push runs images and all external SDK validation" push true false true

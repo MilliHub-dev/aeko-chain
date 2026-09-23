@@ -557,12 +557,14 @@ mod tests {
         aeko_logger::setup();
 
         let (mut genesis_config, mint_keypair) = create_genesis_config(10_000_000_000);
+        activate_all_features(&mut genesis_config);
         genesis_config.epoch_schedule = EpochSchedule::custom(32, 32, false);
         let activation_slot = genesis_config.epoch_schedule.get_first_slot_in_epoch(1);
 
-        // Development test genesis enables every currently-known feature. Model
-        // the established pre-upgrade chain by removing only the two AEKO
-        // feature accounts before constructing the historical Bank.
+        // The SDK test genesis is intentionally minimal. Explicitly activate all
+        // currently-known development features, then model the established
+        // pre-upgrade chain by removing only the two AEKO feature accounts
+        // before constructing the historical Bank.
         for feature_id in aeko_protocol_feature_ids() {
             assert!(
                 genesis_config.accounts.remove(&feature_id).is_some(),
