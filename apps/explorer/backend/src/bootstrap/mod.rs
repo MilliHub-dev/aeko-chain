@@ -1,6 +1,6 @@
 use {
     crate::{
-        config::{ExplorerBackendConfig, ServerConfig, SettingsControlConfig},
+        config::{ServerConfig, SettingsControlConfig},
         http::{self, state::AppState},
         indexing::service::IndexerService,
         infrastructure::{
@@ -16,15 +16,13 @@ use {
     tokio::net::TcpListener,
 };
 
-pub async fn run() -> Result<()> {
+pub async fn run(rpc: RpcChainClient) -> Result<()> {
     observability::init();
-    let backend =
-        ExplorerBackendConfig::from_env().context("loading Explorer backend environment")?;
+    let backend = rpc.config.clone();
     let server = ServerConfig::from_env().context("loading Explorer server environment")?;
     let settings_control = SettingsControlConfig::from_env()
         .context("loading Explorer settings control environment")?;
 
-    let rpc = RpcChainClient::new(backend.clone()).context("initializing validator RPC client")?;
     let startup_rpc = rpc.clone();
     tokio::task::spawn_blocking(move || startup_rpc.health())
         .await
