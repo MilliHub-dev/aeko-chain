@@ -85,15 +85,9 @@ jobs:
       - name: Resolve release mode
         id: release
         shell: bash
-        run: |
-          set -euo pipefail
-          publish=false
-          if [ "$GITHUB_REF" = "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
-            publish=true
-          fi
-          echo "publish=$publish" >> "$GITHUB_OUTPUT"
-          echo "sha_tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
-          printf 'Release mode: publish=%s sha=%s\n' "$publish" "${GITHUB_SHA::12}"
+        env:
+          DOCKERIZED: ${{ steps.changes.outputs.dockerized }}
+        run: bash .github/actions/devops/pipeline/resolve-release.sh
 
       - name: Plan independent domain jobs
         id: plan
@@ -110,80 +104,7 @@ jobs:
           SDK_PYTHON: ${{ steps.changes.outputs.sdk_python }}
           SDK_RUST: ${{ steps.changes.outputs.sdk_rust }}
           CI_PIPELINE: ${{ steps.changes.outputs.ci_pipeline }}
-        run: |
-          set -euo pipefail
-
-          run_admin=false
-          run_cli=false
-          run_explorer_backend=false
-          run_explorer_web=false
-          run_network=false
-          run_sdk_non_rust=false
-          run_sdk_rust=false
-          run_ci_contract=false
-
-          if [ "$ADMIN" = "true" ] || [ "$PACKAGING" = "true" ]; then
-            run_admin=true
-          fi
-          if [ "$CLI" = "true" ] || [ "$PACKAGING" = "true" ]; then
-            run_cli=true
-          fi
-          if [ "$EXPLORER_BACKEND" = "true" ] || [ "$PACKAGING" = "true" ]; then
-            run_explorer_backend=true
-          fi
-          if [ "$EXPLORER_WEB" = "true" ] || [ "$PACKAGING" = "true" ]; then
-            run_explorer_web=true
-          fi
-          if [ "$CORE" = "true" ] || [ "$PACKAGING" = "true" ]; then
-            run_network=true
-          fi
-
-          # A core release rebuilds every deployable application image on main,
-          # matching the existing release contract without making core-only PRs
-          # compile unrelated application images.
-          if [ "$GITHUB_EVENT_NAME" != "pull_request" ] && [ "$CORE" = "true" ]; then
-            run_admin=true
-            run_cli=true
-            run_explorer_backend=true
-            run_explorer_web=true
-          fi
-
-          # CI implementation PRs are the proof run for this orchestrator. Build
-          # every deployable target on independent runners while leaving product
-          # source validation scoped to actual product changes. This measures the
-          # image DAG without turning a CI-only PR into unrelated product debt.
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] && [ "$CI_PIPELINE" = "true" ]; then
-            run_admin=true
-            run_cli=true
-            run_explorer_backend=true
-            run_explorer_web=true
-            run_network=true
-            run_ci_contract=true
-          elif [ "$CI_PIPELINE" = "true" ]; then
-            run_ci_contract=true
-          fi
-
-          if [ "$SDK_JS" = "true" ] || [ "$SDK_NODE" = "true" ] || [ "$SDK_PYTHON" = "true" ]; then
-            run_sdk_non_rust=true
-          fi
-          if [ "$SDK_RUST" = "true" ]; then
-            run_sdk_rust=true
-          fi
-
-          {
-            echo "run_admin=$run_admin"
-            echo "run_cli=$run_cli"
-            echo "run_explorer_backend=$run_explorer_backend"
-            echo "run_explorer_web=$run_explorer_web"
-            echo "run_network=$run_network"
-            echo "run_sdk_non_rust=$run_sdk_non_rust"
-            echo "run_sdk_rust=$run_sdk_rust"
-            echo "run_ci_contract=$run_ci_contract"
-          } >> "$GITHUB_OUTPUT"
-
-          printf 'DAG selection: admin=%s cli=%s backend=%s web=%s network=%s sdk-non-rust=%s sdk-rust=%s ci-contract=%s\n' \
-            "$run_admin" "$run_cli" "$run_explorer_backend" "$run_explorer_web" \
-            "$run_network" "$run_sdk_non_rust" "$run_sdk_rust" "$run_ci_contract"
+        run: bash .github/actions/devops/pipeline/plan.sh
 
   ci_contract:
     name: CI contract smoke

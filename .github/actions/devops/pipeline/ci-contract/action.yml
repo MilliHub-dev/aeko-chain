@@ -69,3 +69,7 @@ runs:
         build-image: "false"
         publish: "false"
         sha-tag: ${{ inputs.sha-tag }}
+
+    - name: Exercise pipeline selection and release contracts
+      shell: bash
+      run: bash .github/actions/devops/pipeline/test-selection.sh
