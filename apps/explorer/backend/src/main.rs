@@ -10,8 +10,7 @@ fn main() -> anyhow::Result<()> {
     // receives a clone and performs every blocking RPC call on spawn_blocking.
     let backend =
         ExplorerBackendConfig::from_env().context("loading Explorer backend environment")?;
-    let rpc_owner =
-        RpcChainClient::new(backend).context("initializing validator RPC client")?;
+    let rpc_owner = RpcChainClient::new(backend).context("initializing validator RPC client")?;
     let rpc = rpc_owner.clone();
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
