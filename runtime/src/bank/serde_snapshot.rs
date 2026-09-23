@@ -559,6 +559,16 @@ mod tests {
         let (mut genesis_config, mint_keypair) = create_genesis_config(10_000_000_000);
         genesis_config.epoch_schedule = EpochSchedule::custom(2, 2, false);
 
+        // Development test genesis enables every currently-known feature. Model
+        // the established pre-upgrade chain by removing only the two AEKO
+        // feature accounts before constructing the historical Bank.
+        for feature_id in aeko_protocol_feature_ids() {
+            assert!(
+                genesis_config.accounts.remove(&feature_id).is_some(),
+                "development genesis did not contain expected feature account {feature_id}"
+            );
+        }
+
         let bank0 = Arc::new(Bank::new_for_tests(&genesis_config));
         let mut historical_bank = Bank::new_from_parent(bank0, &Pubkey::default(), 1);
         let historical_account = Keypair::new();
