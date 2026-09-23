@@ -1,6 +1,6 @@
 # AEKO Chain
 
-AEKO Chain is a Solana-derived, SVM-compatible blockchain runtime extended with native SocialFi programs for Aeko Social. This repository contains the **chain and chain-facing infrastructure**: validator/RPC runtime, native programs, CLI/key tooling, SocialFi bootstrap, Explorer/indexer, SDKs, deployment definitions and integration documentation.
+AEKO Chain is a Solana-derived, SVM-compatible blockchain runtime extended with native SocialFi programs for Aeko Social. This repository contains the **chain and chain-facing infrastructure**: validator/RPC runtime, native programs, CLI/key tooling, SocialFi/protocol bootstraps, Explorer/indexer, SDKs, deployment definitions and integration documentation.
 
 The Aeko product backend is a separate service/repository (`MilliHub-dev/Aeko_backend`, currently `:4101`).
 
@@ -31,6 +31,7 @@ Explorer API :8088 <---- validator RPC
 Internal only:
   faucet :9900
   social-bootstrap (one-shot)
+  protocol-bootstrap (one-shot, feature-aware)
 
 Optional local profile:
   non-voting rpc-node
@@ -50,6 +51,7 @@ Consumers, wallets and dApps use **RPC/WS**, never gossip. Index-heavy reads can
 | RPC node | `surdma/aeko-validator` | optional portable/local profile using `AEKO_NODE_ROLE=rpc`; not required by the default public deployment |
 | Faucet Daemon | `surdma/aeko-faucet` | private TCP signer used only by the validator funding path |
 | SocialFi bootstrap | `surdma/aeko-social-bootstrap` | verifies/initializes the five SocialFi state accounts and writes the registry |
+| Protocol bootstrap | `surdma/aeko-protocol-bootstrap` | after feature activation, verifies/initializes canonical token/security protocol state and writes the protocol registry |
 | Explorer API | `surdma/aeko-explorer-api` | chain indexer, REST API and SocialFi registry/read endpoints |
 | Explorer UI | `surdma/aeko-explorer-ui` | browser block/social explorer and test console |
 | Wallet/operator tools | `surdma/aeko-tools` | `aeko` CLI and `aeko-keygen`; wallets are signers, not a network daemon |
@@ -153,6 +155,7 @@ There is one canonical [`docker/Dockerfile`](./docker/Dockerfile) with named run
 validator
 faucet
 social-bootstrap
+protocol-bootstrap
 tools
 explorer-api
 explorer-ui
@@ -164,6 +167,7 @@ Examples:
 docker build -f docker/Dockerfile --target validator -t surdma/aeko-validator:latest .
 docker build -f docker/Dockerfile --target faucet -t surdma/aeko-faucet:latest .
 docker build -f docker/Dockerfile --target social-bootstrap -t surdma/aeko-social-bootstrap:latest .
+docker build -f docker/Dockerfile --target protocol-bootstrap -t surdma/aeko-protocol-bootstrap:latest .
 docker build -f docker/Dockerfile --target tools -t surdma/aeko-tools:latest .
 docker build -f docker/Dockerfile --target explorer-api -t surdma/aeko-explorer-api:latest .
 docker build -f docker/Dockerfile --target explorer-ui -t surdma/aeko-explorer-ui:latest .
@@ -205,6 +209,7 @@ The always-running public topology is:
 faucet
 validator
 social-bootstrap
+protocol-bootstrap
 explorer-api
 explorer-ui
 ```
@@ -228,6 +233,7 @@ validator-1-keypair.json
 vote-1-keypair.json
 stake-keypair.json
 faucet-keypair.json
+protocol-authority-keypair.json
 ```
 
 Never commit those keypairs. Keep them in persistent restricted storage/File Mounts; do not depend on files inside an AutoDeploy Git checkout.
@@ -544,3 +550,11 @@ DEPLOYMENT.md                         operator deployment contract
 ## License
 
 MIT. See [`LICENSE`](./LICENSE).
+
+## Native protocol upgrades
+
+The eleven AEKO token and permission/security native programs added after the established testnet genesis are runtime-feature gated. Deploying a new validator binary no longer requires wiping historical chain state to introduce them.
+
+Keep `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` while the upgraded validator restores the existing ledger. Activate the two offline-authority feature accounts, wait for epoch activation, then enable the one-shot protocol bootstrap.
+
+See [`docs/operations/protocol-upgrades.md`](./docs/operations/protocol-upgrades.md) for the ordered procedure, feature IDs, rollback boundary and acceptance checks. Explorer exposes `/registry/protocol` and `/protocol/status` after bootstrap.

@@ -24,6 +24,7 @@ GitHub Actions builds these canonical Docker targets:
 validator        -> aeko-validator
 faucet           -> aeko-faucet
 social-bootstrap -> aeko-social-bootstrap
+protocol-bootstrap -> aeko-protocol-bootstrap
 tools            -> aeko-tools
 explorer-api     -> aeko-explorer-api
 explorer-ui      -> aeko-explorer-ui
@@ -70,13 +71,15 @@ Persist:
 
 - `validator-ledger` named volume;
 - `social-state` named volume;
+- `protocol-state` named volume;
 - `admin-state` named volume (funding policy and grant ledger);
 - validator identity key;
 - vote-account key;
 - stake key;
-- faucet key.
+- faucet key;
+- protocol authority key.
 
-The `social-state` volume contains the five SocialFi state keypairs plus `social-registry.env`.
+The `social-state` volume contains the five SocialFi state keypairs plus `social-registry.env`. The `protocol-state` volume contains canonical protocol state keypairs plus `protocol-registry.env`.
 
 The optional portable/local RPC replica keeps its own identity and ledger when that profile is explicitly enabled; those are not requirements of the default public topology.
 
@@ -131,6 +134,7 @@ validator-1-keypair.json
 vote-1-keypair.json
 stake-keypair.json
 faucet-keypair.json
+protocol-authority-keypair.json
 ```
 
 Generate missing keys with `aeko-tools`. Do not use the validator image just to create a wallet/keypair.
@@ -310,6 +314,19 @@ The webhook only triggers the preconfigured production resource. It does not rew
 
 The webhook also does not choose the Compose path. A Coolify resource must point to `docker/compose.coolify.yml`; a Dokploy resource must point to `docker/compose.dokploy.yml`.
 
+## Native-program upgrade procedure
+
+Post-genesis native builtins are introduced through explicit runtime feature activation rather than unconditional mutation of historical Banks. The public stack therefore keeps `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` by default.
+
+For an existing chain, first deploy the compatible validator and prove unchanged genesis/history/slot continuity. Then activate:
+
+- `aeko_token_programs_v1`: `Ca5Lhktqd4epk3DDqsp7azXAunK3KZ8ZxeykU81oUUHT`
+- `aeko_permission_layer_v1`: `KBq8JBrCEbWJ6S2NXpcBvQDvt7J6hUZW3i61zzzZWxF`
+
+with their matching offline feature keypairs. Wait for both features to become active at an epoch boundary, then set `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1` and run the one-shot protocol bootstrap.
+
+The complete backup, activation, rollback and validation procedure is in [`docs/operations/protocol-upgrades.md`](./docs/operations/protocol-upgrades.md).
+
 ## Deployment acceptance
 
 Do not certify the public network merely because containers are `running` or because Explorer is healthy.
@@ -361,6 +378,14 @@ AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-social.py
 ```
 
+After runtime feature activation and protocol bootstrap, also run:
+
+```bash
+AEKO_RPC_URL=https://rpc.aeko.online \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
+python3 scripts/smoke-aeko-protocol.py
+```
+
 That verifies RPC health, slot advancement, registry completeness, state-account ownership/initialization and Explorer SocialFi reads.
 
 ### Signed write path
@@ -384,8 +409,8 @@ Use `https://scan.aeko.online/network-tools` and open the Test Console:
 - Never expose PostgreSQL `5432` publicly.
 - Public dApps never connect to gossip.
 - Route public RPC/WS through the selected deployment platform's HTTP/WebSocket proxy to the validator's exposed `8899`/`8900` ports for the current single-validator topology.
-- Keep node and SocialFi key material out of Git.
-- Preserve ledger and SocialFi volumes on normal redeploys.
+- Keep node, SocialFi, protocol-authority and feature-authority key material out of Git.
+- Preserve ledger, SocialFi and protocol-state volumes on normal redeploys.
 - Treat `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1` as a deliberate reset/recovery switch, not a normal setting.
 
 ## Protocol maturity boundary
