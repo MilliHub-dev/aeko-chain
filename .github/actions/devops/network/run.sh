@@ -33,8 +33,8 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
     -p aeko-social-monetization-program
 
   # Consensus-upgrade regressions must execute, not merely compile through the
-  # validator dependency graph. Keep the filter narrow to the two AEKO protocol
-  # builtin tests rather than running the full runtime suite on every PR.
+  # validator dependency graph. Keep the filter narrow to the AEKO protocol
+  # builtin/snapshot upgrade tests rather than running the full runtime suite on every PR.
   cargo test --locked -p aeko-runtime --lib aeko_protocol_builtins
 fi
 
