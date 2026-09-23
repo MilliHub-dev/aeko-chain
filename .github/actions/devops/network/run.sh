@@ -36,6 +36,10 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
   # validator dependency graph. Keep the filter narrow to the AEKO protocol
   # builtin/snapshot upgrade tests rather than running the full runtime suite on every PR.
   cargo test --locked -p aeko-runtime --lib aeko_protocol_builtins
+
+  # Exercise the live protocol bootstrap/Explorer path against an actual local
+  # TestValidator and PostgreSQL after the snapshot/archive regression passes.
+  bash scripts/ci-protocol-stack-integration.sh
 fi
 
 if [ "${BUILD_IMAGE}" = "true" ]; then

@@ -21,6 +21,7 @@ FEATURE_SET = ROOT / "sdk" / "src" / "feature_set.rs"
 BUILTINS = ROOT / "runtime" / "src" / "builtins.rs"
 PROTOCOL_SMOKE = ROOT / "scripts" / "smoke-aeko-protocol.py"
 PROTOCOL_ACTIVATE = ROOT / "scripts" / "activate-aeko-protocol-features.sh"
+PROTOCOL_INTEGRATION = ROOT / "scripts" / "ci-protocol-stack-integration.sh"
 EXPLORER_HEALTH = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "health" / "mod.rs"
 README = ROOT / "README.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
@@ -70,6 +71,7 @@ def main() -> int:
     builtins = read(BUILTINS)
     protocol_smoke = read(PROTOCOL_SMOKE)
     protocol_activate = read(PROTOCOL_ACTIVATE)
+    protocol_integration = read(PROTOCOL_INTEGRATION)
     explorer_health = read(EXPLORER_HEALTH)
     readme = read(README)
     deployment = read(DEPLOYMENT)
@@ -267,6 +269,9 @@ def main() -> int:
     require("/registry/protocol" in protocol_smoke, "protocol smoke must verify Explorer protocol registry")
     require("/protocol/status" in protocol_smoke, "protocol smoke must verify live protocol status")
     require("getHealth" in protocol_smoke and "getSlot" in protocol_smoke, "protocol smoke must verify live chain health and advancement")
+    require("smoke-aeko-protocol.py" in protocol_integration, "protocol integration must execute the read-only protocol smoke")
+    require("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE" in protocol_integration, "protocol integration must exercise explicit state-volume recovery")
+    require("cmp" in protocol_integration and "protocol-registry.env" in protocol_integration, "protocol integration must prove idempotent canonical registry identity")
     require("aeko-keygen pubkey" in protocol_activate, "feature activation helper must verify offline keypair identities")
     require("Ca5Lhktqd4epk3DDqsp7azXAunK3KZ8ZxeykU81oUUHT" in protocol_activate, "activation helper must pin the token feature id")
     require("KBq8JBrCEbWJ6S2NXpcBvQDvt7J6hUZW3i61zzzZWxF" in protocol_activate, "activation helper must pin the permission feature id")
