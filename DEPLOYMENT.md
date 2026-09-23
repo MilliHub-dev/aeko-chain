@@ -78,7 +78,7 @@ Persist:
 - vote-account key;
 - stake key;
 - faucet key;
-- protocol authority key.
+- protocol authority key, once the protocol has been initialized.
 
 The `social-state` volume contains the five SocialFi state keypairs plus `social-registry.env`. The `protocol-state` volume contains the published `protocol-registry.env`. The separate `protocol-continuity` volume contains the canonical protocol state/custody keypairs plus the registry continuity anchor. Preserve both protocol volumes together.
 
@@ -122,8 +122,8 @@ Optional SocialFi configuration:
 
 ```text
 AEKO_TREASURY_ADDRESS=<pubkey>
-AEKO_REWARD_VAULT=<pubkey>
-AEKO_STAKE_VAULT=<pubkey>
+AEKO_REWARD_VAULT_ACCOUNT=<pubkey>
+AEKO_STAKE_VAULT_ACCOUNT=<pubkey>
 AEKO_PLATFORM_FEE_BPS=200
 ```
 
@@ -131,17 +131,18 @@ AEKO_PLATFORM_FEE_BPS=200
 
 ## Required key files
 
-The public key directory uses the same four files on every platform. Dokploy/local select it with `AEKO_KEYS_DIR`; Coolify binds the fixed host path `/data/aeko/keys` and its one-shot `key-bootstrap` service creates any missing files on a fresh deployment:
+The established chain identity uses the same four files on every platform. Dokploy/local select the directory with `AEKO_KEYS_DIR`; Coolify binds the fixed host path `/data/aeko/keys`:
 
 ```text
 validator-1-keypair.json
 vote-1-keypair.json
 stake-keypair.json
 faucet-keypair.json
-protocol-authority-keypair.json
 ```
 
-Generate missing keys with `aeko-tools`. Do not use the validator image just to create a wallet/keypair.
+`protocol-authority-keypair.json` is intentionally separate. It is absent during the protocol-disabled compatibility phase unless the deployment already completed protocol bootstrap. Create it only as part of the intentional first protocol bootstrap, after both runtime features have activated.
+
+Generate missing first-boot chain keys with `aeko-tools`, or on Coolify temporarily enable the explicit first-boot generation flag. Do not use the validator image just to create a wallet/keypair.
 
 ```bash
 docker run --rm \
