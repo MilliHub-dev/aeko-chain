@@ -65,7 +65,7 @@ if [ "$KERN_MAX" -lt 1000000 ]; then
 fi
 
 mkdir -p "$AEKO_KEYDIR"
-KEYS=(faucet-keypair stake-keypair validator-1-keypair vote-1-keypair rpc-node-keypair)
+KEYS=(faucet-keypair stake-keypair validator-1-keypair vote-1-keypair rpc-node-keypair protocol-authority-keypair)
 NEED_KEYS=0
 for key in "${KEYS[@]}"; do
   [ -f "$AEKO_KEYDIR/$key.json" ] || NEED_KEYS=1
@@ -119,6 +119,7 @@ build_target explorer-api "${AEKO_IMAGE_REPOSITORY}/aeko-explorer-api:${AEKO_IMA
 build_target explorer-ui "${AEKO_IMAGE_REPOSITORY}/aeko-explorer-ui:${AEKO_IMAGE_TAG}"
 build_target operations-web "${AEKO_IMAGE_REPOSITORY}/aeko-operations-web:${AEKO_IMAGE_TAG}"
 build_target social-bootstrap "${AEKO_IMAGE_REPOSITORY}/aeko-social-bootstrap:${AEKO_IMAGE_TAG}"
+build_target protocol-bootstrap "${AEKO_IMAGE_REPOSITORY}/aeko-protocol-bootstrap:${AEKO_IMAGE_TAG}"
 
 if [ -z "${AEKO_EXPLORER_START_SLOT:-}" ]; then
   SLOT=$(curl -s --max-time 2 -X POST -H "Content-Type: application/json" \
@@ -130,8 +131,8 @@ if [ -z "${AEKO_EXPLORER_START_SLOT:-}" ]; then
   fi
 fi
 
-log "starting faucet, validator, SocialFi bootstrap, Explorer and Operations Web"
-docker compose -f "$COMPOSE_FILE" up -d faucet validator social-bootstrap explorer-api explorer-ui operations-web
+log "starting faucet, validator, state bootstraps, Explorer and Operations Web"
+docker compose -f "$COMPOSE_FILE" up -d faucet validator social-bootstrap protocol-bootstrap explorer-api explorer-ui operations-web
 
 log "waiting for validator RPC (max 90s)"
 HEALTHY=0
@@ -229,6 +230,7 @@ cat <<EOF2
 
     docker logs -f aeko-validator
     docker logs -f aeko-social-bootstrap
+    docker logs -f aeko-protocol-bootstrap
     docker logs -f aeko-explorer-api
     docker logs -f aeko-explorer-ui
     docker logs -f aeko-operations-web

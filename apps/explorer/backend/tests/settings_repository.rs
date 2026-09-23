@@ -34,6 +34,10 @@ async fn app_settings_are_durable_and_revision_guarded() -> Result<()> {
 
     let initial = repository.app_settings().await?;
     assert!(initial.revision > 0);
+    assert!(!initial.network_console_enabled);
+    assert!(initial.nft_demo_enabled);
+    assert!(!initial.nft_live_flow_enabled);
+    assert!(!initial.nft_advanced_tools_enabled);
     assert!((3..=12).contains(&initial.explorer_list_size));
     assert!((10..=300).contains(&initial.settings_refresh_seconds));
 

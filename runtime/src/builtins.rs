@@ -156,9 +156,12 @@ pub static BUILTINS: &[BuiltinPrototype] = &[
     },
     // ---- AEKO canonical token programs ----
     // These crates use the native InvokeContext processor ABI and are linked
-    // into the validator. Third-party programs still use the SBF/BPF loaders.
+    // into the validator. They are feature-gated so validators can restore
+    // snapshots created before these program accounts existed, then activate
+    // the bundle at an epoch boundary without rewriting frozen history.
+    // Third-party programs still use the SBF/BPF loaders.
     BuiltinPrototype {
-        feature_id: None,
+        feature_id: Some(feature_set::aeko_token_programs_v1::id()),
         program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
             aeko_tokenomics_program::TOKENOMICS_PROGRAM_ID_BYTES,
         ),
@@ -166,7 +169,7 @@ pub static BUILTINS: &[BuiltinPrototype] = &[
         entrypoint: aeko_tokenomics_program::Entrypoint::vm,
     },
     BuiltinPrototype {
-        feature_id: None,
+        feature_id: Some(feature_set::aeko_token_programs_v1::id()),
         program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
             aeko_token_20_program::TOKEN_20_PROGRAM_ID_BYTES,
         ),
@@ -174,7 +177,7 @@ pub static BUILTINS: &[BuiltinPrototype] = &[
         entrypoint: aeko_token_20_program::Entrypoint::vm,
     },
     BuiltinPrototype {
-        feature_id: None,
+        feature_id: Some(feature_set::aeko_token_programs_v1::id()),
         program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
             aeko_public_mint_program::PUBLIC_MINT_PROGRAM_ID_BYTES,
         ),
@@ -182,13 +185,9 @@ pub static BUILTINS: &[BuiltinPrototype] = &[
         entrypoint: aeko_public_mint_program::Entrypoint::vm,
     },
     // ---- AEKO token standards ----
-    // Registered without a feature gate, like the SocialFi programs: a bank
-    // adds every feature-less builtin in finish_init, so an existing ledger
-    // picks these up on the next validator restart with no genesis reset.
-    // Until this entry existed, the token-721 and marketplace program ids the
-    // SDKs and the Aeko backend target were not executable on the chain.
+    // These share the token-program bundle activation boundary.
     BuiltinPrototype {
-        feature_id: None,
+        feature_id: Some(feature_set::aeko_token_programs_v1::id()),
         program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
             aeko_token_721_program::TOKEN_721_PROGRAM_ID_BYTES,
         ),
@@ -196,7 +195,7 @@ pub static BUILTINS: &[BuiltinPrototype] = &[
         entrypoint: aeko_token_721_program::Entrypoint::vm,
     },
     BuiltinPrototype {
-        feature_id: None,
+        feature_id: Some(feature_set::aeko_token_programs_v1::id()),
         program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
             aeko_nft_marketplace_program::NFT_MARKETPLACE_PROGRAM_ID_BYTES,
         ),
@@ -205,7 +204,7 @@ pub static BUILTINS: &[BuiltinPrototype] = &[
     },
     // ---- AEKO permission and restricted-zone programs ----
     BuiltinPrototype {
-        feature_id: None,
+        feature_id: Some(feature_set::aeko_permission_layer_v1::id()),
         program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
             aeko_wallet_permissions_program::WALLET_PERMISSIONS_PROGRAM_ID_BYTES,
         ),
@@ -213,7 +212,7 @@ pub static BUILTINS: &[BuiltinPrototype] = &[
         entrypoint: aeko_wallet_permissions_program::Entrypoint::vm,
     },
     BuiltinPrototype {
-        feature_id: None,
+        feature_id: Some(feature_set::aeko_permission_layer_v1::id()),
         program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
             aeko_permission_registry_program::PERMISSION_REGISTRY_PROGRAM_ID_BYTES,
         ),
@@ -221,7 +220,7 @@ pub static BUILTINS: &[BuiltinPrototype] = &[
         entrypoint: aeko_permission_registry_program::Entrypoint::vm,
     },
     BuiltinPrototype {
-        feature_id: None,
+        feature_id: Some(feature_set::aeko_permission_layer_v1::id()),
         program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
             aeko_revocation_registry_program::REVOCATION_REGISTRY_PROGRAM_ID_BYTES,
         ),
@@ -229,7 +228,7 @@ pub static BUILTINS: &[BuiltinPrototype] = &[
         entrypoint: aeko_revocation_registry_program::Entrypoint::vm,
     },
     BuiltinPrototype {
-        feature_id: None,
+        feature_id: Some(feature_set::aeko_permission_layer_v1::id()),
         program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
             aeko_subnet_registry_program::SUBNET_REGISTRY_PROGRAM_ID_BYTES,
         ),
@@ -237,7 +236,7 @@ pub static BUILTINS: &[BuiltinPrototype] = &[
         entrypoint: aeko_subnet_registry_program::Entrypoint::vm,
     },
     BuiltinPrototype {
-        feature_id: None,
+        feature_id: Some(feature_set::aeko_permission_layer_v1::id()),
         program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
             aeko_emergency_multisig_program::EMERGENCY_MULTISIG_PROGRAM_ID_BYTES,
         ),
@@ -245,7 +244,7 @@ pub static BUILTINS: &[BuiltinPrototype] = &[
         entrypoint: aeko_emergency_multisig_program::Entrypoint::vm,
     },
     BuiltinPrototype {
-        feature_id: None,
+        feature_id: Some(feature_set::aeko_permission_layer_v1::id()),
         program_id: aeko_sdk::pubkey::Pubkey::new_from_array(
             aeko_finality_oracle_program::FINALITY_ORACLE_PROGRAM_ID_BYTES,
         ),

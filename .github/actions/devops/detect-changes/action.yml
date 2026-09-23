@@ -157,6 +157,13 @@ runs:
               apps/cli/*)
                 cli=true
                 ;;
+              sdk/src/feature_set.rs)
+                # Runtime feature declarations are also part of the CLI's
+                # known-feature contract. PRs must validate the CLI whenever a
+                # feature ID/name changes, even though the file is core source.
+                core=true
+                cli=true
+                ;;
               apps/explorer/backend/*)
                 explorer_backend=true
                 ;;
@@ -216,7 +223,7 @@ runs:
                     ;;
                 esac
                 ;;
-              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/validate-deployment-contract.py)
+              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/audit-validator-storage.sh|scripts/validate-deployment-contract.py)
                 # Real packaging/deployment changes must prove the selected
                 # container targets still build. CI implementation paths are
                 # classified separately above and do not rebuild product images.

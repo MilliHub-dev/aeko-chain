@@ -27,10 +27,20 @@ services:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
     restart: "no"
+    environment:
+      AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION: ${AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION:-0}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         set -eu
+        allow_protocol_authority_generation="$${AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION:-0}"
+        case "$$allow_protocol_authority_generation" in
+          0|1) ;;
+          *)
+            echo "error: AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION must be 0 or 1" >&2
+            exit 64
+            ;;
+        esac
         for key in \
           faucet-keypair.json \
           stake-keypair.json \
@@ -48,12 +58,49 @@ services:
           fi
           echo "validated $$key"
         done
+        protocol_path="/keys/protocol-authority-keypair.json"
+        protocol_registry=""
+        if [ -s /protocol-state/protocol-registry.env ]; then
+          protocol_registry=/protocol-state/protocol-registry.env
+        elif [ -s /protocol-continuity/protocol-registry.anchor ]; then
+          protocol_registry=/protocol-continuity/protocol-registry.anchor
+        fi
+        if [ ! -s "$$protocol_path" ]; then
+          if [ -n "$$protocol_registry" ]; then
+            echo "error: protocol authority key is missing but established protocol identity exists in $$protocol_registry" >&2
+            echo "error: refusing to replace an established protocol authority" >&2
+            exit 64
+          fi
+          if [ "$$allow_protocol_authority_generation" != "1" ]; then
+            echo "error: protocol authority key is missing: $$protocol_path" >&2
+            echo "error: set AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1 only when intentionally creating the first protocol authority" >&2
+            exit 64
+          fi
+          echo "==> Initializing first AEKO protocol authority key"
+          aeko-keygen new --no-bip39-passphrase --silent --outfile "$$protocol_path"
+        fi
+        if ! actual_protocol_authority="$$(aeko-keygen pubkey "$$protocol_path" 2>/dev/null)"; then
+          echo "error: invalid AEKO protocol authority keypair: $$protocol_path" >&2
+          exit 65
+        fi
+        if [ -n "$$protocol_registry" ]; then
+          expected_protocol_authority="$$(sed -n 's/^AEKO_PROTOCOL_AUTHORITY=//p' "$$protocol_registry" | head -n 1)"
+          if [ -z "$$expected_protocol_authority" ]; then
+            echo "error: $$protocol_registry is missing AEKO_PROTOCOL_AUTHORITY" >&2
+            exit 65
+          fi
+          if [ "$$actual_protocol_authority" != "$$expected_protocol_authority" ]; then
+            echo "error: protocol authority key does not match established protocol identity" >&2
+            echo "error: expected $$expected_protocol_authority, got $$actual_protocol_authority" >&2
+            exit 65
+          fi
+        fi
+        echo "validated protocol-authority-keypair.json"
         echo "AEKO key preflight complete"
     volumes:
-      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
-    logging: *default-logging
-    networks: [aeko]
-
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys
+      - protocol-state:/protocol-state:ro
+      - protocol-continuity:/protocol-continuity:ro
   faucet:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-faucet:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
@@ -87,6 +134,7 @@ services:
       AEKO_STAKE_FILE: /keys/stake-keypair.json
       AEKO_FAUCET_FILE: /keys/faucet-keypair.json
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
+      AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-1}
       AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-faucet:9900}
       AEKO_FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}
       AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?Set AEKO_PUBLIC_IP to the public address of this Dokploy server}
@@ -165,6 +213,48 @@ services:
     logging: *default-logging
     networks: [aeko]
 
+
+  protocol-bootstrap:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-protocol-bootstrap:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: "no"
+    environment:
+      AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}
+      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
+      AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
+      AEKO_PROTOCOL_AUTHORITY_KEYPAIR: /keys/protocol-authority-keypair.json
+      AEKO_PROTOCOL_OUT_DIR: /state
+      AEKO_PROTOCOL_CONTINUITY_DIR: /continuity
+      AEKO_REQUIRE_EXISTING_PROTOCOL_STATE: ${AEKO_REQUIRE_EXISTING_PROTOCOL_STATE:-1}
+      AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION: ${AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION:-0}
+      AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY: ${AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY:-0}
+      AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE:-0}
+      AEKO_TOKENOMICS_BASE_FEE_ATOMIC: ${AEKO_TOKENOMICS_BASE_FEE_ATOMIC:-250000}
+      AEKO_REFERENCE_MINT_NAME: ${AEKO_REFERENCE_MINT_NAME:-AEKO-20 Testnet Reference}
+      AEKO_REFERENCE_MINT_SYMBOL: ${AEKO_REFERENCE_MINT_SYMBOL:-A20T}
+      AEKO_REFERENCE_MINT_DECIMALS: ${AEKO_REFERENCE_MINT_DECIMALS:-9}
+      AEKO_PUBLIC_MINT_ENABLED: ${AEKO_PUBLIC_MINT_ENABLED:-true}
+      AEKO_PUBLIC_MINT_PER_WALLET_LIMIT: ${AEKO_PUBLIC_MINT_PER_WALLET_LIMIT:-1000000000000}
+      AEKO_PUBLIC_MINT_WINDOW_EPOCHS: ${AEKO_PUBLIC_MINT_WINDOW_EPOCHS:-30}
+      AEKO_PUBLIC_MINT_COOLDOWN_EPOCHS: ${AEKO_PUBLIC_MINT_COOLDOWN_EPOCHS:-1}
+      AEKO_PUBLIC_MINT_REQUIRES_ALLOWLIST: ${AEKO_PUBLIC_MINT_REQUIRES_ALLOWLIST:-false}
+      AEKO_PUBLIC_MINT_ANOMALY_THRESHOLD: ${AEKO_PUBLIC_MINT_ANOMALY_THRESHOLD:-3}
+      AEKO_PROTOCOL_MULTISIG_SIGNERS: ${AEKO_PROTOCOL_MULTISIG_SIGNERS:-}
+      AEKO_PROTOCOL_MULTISIG_FREEZE_QUORUM: ${AEKO_PROTOCOL_MULTISIG_FREEZE_QUORUM:-1}
+      AEKO_PROTOCOL_MULTISIG_REVOKE_QUORUM: ${AEKO_PROTOCOL_MULTISIG_REVOKE_QUORUM:-1}
+      AEKO_PROTOCOL_MULTISIG_POLICY_QUORUM: ${AEKO_PROTOCOL_MULTISIG_POLICY_QUORUM:-1}
+    volumes:
+      - ${AEKO_KEYS_DIR:?Set AEKO_KEYS_DIR to a persistent Dokploy key directory}:/keys:ro
+      - protocol-state:/state
+      - protocol-continuity:/continuity
+    depends_on:
+      validator:
+        condition: service_healthy
+      key-preflight:
+        condition: service_completed_successfully
+    logging: *default-logging
+    networks: [aeko]
+
   explorer-api:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-explorer-api:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
@@ -189,6 +279,7 @@ services:
       AEKO_EXPLORER_SYNC_INTERVAL_SECS: ${AEKO_EXPLORER_SYNC_INTERVAL_SECS:-2}
       DATABASE_URL: ${EXPLORER_DATABASE_URL:?Set EXPLORER_DATABASE_URL to persistent PostgreSQL}
       AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env
+      AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env
       AEKO_SOCIAL_POSTS_STATE: ${AEKO_SOCIAL_POSTS_STATE:-}
       AEKO_SOCIAL_REWARDS_STATE: ${AEKO_SOCIAL_REWARDS_STATE:-}
       AEKO_SOCIAL_STAKING_STATE: ${AEKO_SOCIAL_STAKING_STATE:-}
@@ -204,6 +295,7 @@ services:
       - "8088"
     volumes:
       - social-state:/state:ro
+      - protocol-state:/protocol-state:ro
     depends_on:
       validator:
         condition: service_healthy
@@ -271,9 +363,6 @@ services:
       - "3001"
     volumes:
       - admin-state:/data
-    depends_on:
-      validator:
-        condition: service_healthy
     # Liveness only: the public Funding Portal must stay up to say "paused" or
     # "chain unavailable" while the node or Explorer recover.
     healthcheck:
@@ -303,3 +392,5 @@ volumes:
   admin-state:
   validator-ledger:
   social-state:
+  protocol-state:
+  protocol-continuity:

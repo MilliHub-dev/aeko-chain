@@ -16,8 +16,9 @@ The default public services are below. `operations-web` serves both the public F
 
 ```text
 key-bootstrap (one shot) -> faucet -> validator -> social-bootstrap
+                                      |-> protocol-bootstrap (disabled until feature activation)
                                       |-> explorer-api
-explorer-ui (independent liveness)
+explorer-ui + operations-web (independent liveness)
 ```
 
 The validator owns public JSON-RPC/PubSub in this single-validator topology. The non-voting `rpc-node` remains an optional local/portable profile and is not part of the Coolify deployment.
@@ -59,9 +60,10 @@ validator-1-keypair.json
 vote-1-keypair.json
 stake-keypair.json
 faucet-keypair.json
+protocol-authority-keypair.json
 ```
 
-You do not need to set `AEKO_KEYS_DIR` in the Coolify dashboard and you do not need to generate these files manually for a fresh chain. If this Coolify deployment is replacing an existing Dokploy/AEKO deployment, copy the **same four existing keypairs** into this directory before deploying so the bootstrap preserves them. Replacing them changes validator/faucet identity and can make the persisted ledger unusable for the intended chain. Generate new keys only when intentionally creating a fresh chain identity.
+You do not need to set `AEKO_KEYS_DIR` in the Coolify dashboard and you do not need to generate these files manually for a fresh chain. If this Coolify deployment is replacing an existing Dokploy/AEKO deployment, copy the **same existing validator/vote/stake/faucet keypairs** into this directory before deploying so the bootstrap preserves them. Replacing them changes validator/faucet identity and can make the persisted ledger unusable for the intended chain. Generate new keys only when intentionally creating a fresh chain identity.
 
 For a fresh chain, no host-side key command is required. After the first successful deployment, you may inspect `/data/aeko/keys` on the Coolify host if you want to back up the generated identities. Never commit keypairs or place them in a disposable Git checkout.
 
@@ -69,13 +71,15 @@ The Coolify Compose mounts this directory with long-form bind syntax and the lit
 
 ## Persistent chain state
 
-The Coolify contract declares three Docker-managed named volumes:
+The Coolify contract declares five Docker-managed named volumes:
 
 - `validator-ledger` for validator ledger/accounts/snapshots.
 - `social-state` for SocialFi state keypairs and `social-registry.env`.
+- `protocol-state` for the published `protocol-registry.env`.
+- `protocol-continuity` for canonical protocol state/custody keypairs and the independent registry continuity anchor.
 - `admin-state` for the funding policy and grant ledger of the operations web app (admin.aeko.online / fund.aeko.online).
 
-Normal redeploys must preserve all three volumes. Do not delete them unless intentionally resetting chain state.
+Normal redeploys must preserve all five volumes. The two protocol volumes form one continuity boundary: losing `protocol-state` while retaining `protocol-continuity` requires explicit recovery and reuses the same canonical addresses; losing `protocol-continuity` must not be treated as a fresh bootstrap. Do not delete them unless intentionally resetting chain state.
 
 For a deliberate fresh-genesis recovery, set both:
 
@@ -171,3 +175,81 @@ sudo test -s /data/aeko/keys/vote-1-keypair.json
 ```
 
 Preserve the existing identities when continuing an existing chain; do not regenerate keys merely to make container status green.
+
+## Existing-chain protocol upgrade
+
+For the first deployment of the feature-gated validator, keep:
+
+```text
+AEKO_RESET_LEDGER=0
+AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0
+```
+
+This lets the validator restore the existing ledger without inserting the eleven newer builtin accounts into a historical frozen Bank. Prove the old genesis and slot history are continuing before feature activation.
+
+Then activate the two runtime features with their offline keypairs and wait until both are active at the epoch boundary. For the first canonical-state bootstrap set:
+
+```text
+AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1
+AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1
+```
+
+Redeploy the one-shot `protocol-bootstrap` service, run the acceptance checks, and immediately return `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=0`. Established deployments keep `AEKO_REQUIRE_EXISTING_PROTOCOL_STATE=1`.
+
+Do not put the two feature-authority private keypairs in `/data/aeko/keys`. The runtime key directory contains the separate `protocol-authority-keypair.json`, which controls canonical protocol configuration after activation.
+
+Use [`protocol-upgrades.md`](./protocol-upgrades.md) for the full ordered procedure and rollback boundary. Acceptance requires:
+
+```bash
+curl -s https://api.aeko.online/registry/protocol
+curl -s https://api.aeko.online/protocol/status
+
+AEKO_RPC_URL=https://rpc.aeko.online \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
+python3 scripts/smoke-aeko-protocol.py
+```
+
+## Established-chain continuity guard
+
+Public deployments now fail closed instead of silently creating a replacement chain when persistent storage is missing.
+
+For every normal redeploy of an established chain keep:
+
+```text
+AEKO_RESET_LEDGER=0
+AEKO_REQUIRE_EXISTING_LEDGER=1
+AEKO_ALLOW_CHAIN_KEY_GENERATION=0
+AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0
+```
+
+With those settings:
+
+- if the mounted validator storage does not contain `/ledger/genesis.bin`, the validator exits before running `aeko-genesis`;
+- if any validator, vote, stake, or faucet key is missing from `/data/aeko/keys`, Coolify key bootstrap exits instead of creating a replacement identity;
+- if `protocol-registry.env` exists but the protocol-authority key is missing, bootstrap exits instead of replacing the established authority.
+
+For the **first-ever genesis only**, set `AEKO_REQUIRE_EXISTING_LEDGER=0`. If Coolify is also responsible for creating the four chain keys, temporarily set `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`. When creating `protocol-authority-keypair.json` for the first time, temporarily set `AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1`. Return all three switches to their safe normal values immediately after the intended first-time creation.
+
+An intentional `AEKO_RESET_LEDGER=1` remains an explicit destructive action and bypasses the existing-ledger guard for that reset. Never use it to recover from an unknown or changed volume mount.
+
+### Verify the 300 GB storage before changing mounts
+
+A larger attached disk does not automatically move Docker named volumes onto it. On the host, first identify the exact live validator mount and Docker data root:
+
+```bash
+V=$(docker ps --filter name=validator --format '{{.Names}}' | head -1)
+
+docker inspect "$V" \
+  --format '{{range .Mounts}}{{if eq .Destination "/ledger"}}{{println .Type .Name .Source "->" .Destination}}{{end}}{{end}}'
+
+docker exec "$V" sh -lc 'test -s /ledger/genesis.bin && echo "genesis.bin: PRESENT"; df -h /ledger; du -sh /ledger 2>/dev/null || true'
+
+DOCKER_ROOT=$(docker info --format '{{.DockerRootDir}}')
+echo "Docker root: $DOCKER_ROOT"
+df -h "$DOCKER_ROOT"
+docker volume ls | grep validator-ledger || true
+```
+
+If the reported Docker root or the actual volume source already resides on the 300 GB filesystem, leave the ledger mount unchanged. If it does not, stop the chain and migrate the **existing** ledger volume or Docker data root using the host/provider storage procedure. Verify the copied `genesis.bin`, genesis hash, validator key identities, and ledger size before pointing Compose at the migrated storage.
+
+Do not create a new empty volume with the desired name and call that a migration. The continuity guard is intentionally designed to make that mistake fail instead of silently starting a new chain.

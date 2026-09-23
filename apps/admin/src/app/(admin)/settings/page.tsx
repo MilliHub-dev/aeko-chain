@@ -35,7 +35,7 @@ type SettingsSnapshot = {
 
 const SAFE_DRAFT: SettingsDraft = {
   networkConsoleEnabled: false,
-  nftDemoEnabled: false,
+  nftDemoEnabled: true,
   nftLiveFlowEnabled: false,
   nftAdvancedToolsEnabled: false,
   explorerListSize: 6,

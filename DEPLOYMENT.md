@@ -24,6 +24,7 @@ GitHub Actions builds these canonical Docker targets:
 validator        -> aeko-validator
 faucet           -> aeko-faucet
 social-bootstrap -> aeko-social-bootstrap
+protocol-bootstrap -> aeko-protocol-bootstrap
 tools            -> aeko-tools
 explorer-api     -> aeko-explorer-api
 explorer-ui      -> aeko-explorer-ui
@@ -70,13 +71,16 @@ Persist:
 
 - `validator-ledger` named volume;
 - `social-state` named volume;
+- `protocol-state` named volume;
+- `protocol-continuity` named volume;
 - `admin-state` named volume (funding policy and grant ledger);
 - validator identity key;
 - vote-account key;
 - stake key;
-- faucet key.
+- faucet key;
+- protocol authority key.
 
-The `social-state` volume contains the five SocialFi state keypairs plus `social-registry.env`.
+The `social-state` volume contains the five SocialFi state keypairs plus `social-registry.env`. The `protocol-state` volume contains the published `protocol-registry.env`. The separate `protocol-continuity` volume contains the canonical protocol state/custody keypairs plus the registry continuity anchor. Preserve both protocol volumes together.
 
 The optional portable/local RPC replica keeps its own identity and ledger when that profile is explicitly enabled; those are not requirements of the default public topology.
 
@@ -88,6 +92,9 @@ AEKO_KEYS_DIR=<Dokploy/local persistent host directory; Coolify uses fixed /data
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
+AEKO_REQUIRE_EXISTING_LEDGER=1
+AEKO_ALLOW_CHAIN_KEY_GENERATION=0   # Coolify; enable only for intentional first boot
+AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0
 AEKO_PUBLIC_RPC_URL=<public JSON-RPC URL>
 AEKO_PUBLIC_WS_URL=<public PubSub WebSocket URL>
 AEKO_PUBLIC_EXPLORER_API_URL=<public Explorer REST API URL>
@@ -131,6 +138,7 @@ validator-1-keypair.json
 vote-1-keypair.json
 stake-keypair.json
 faucet-keypair.json
+protocol-authority-keypair.json
 ```
 
 Generate missing keys with `aeko-tools`. Do not use the validator image just to create a wallet/keypair.
@@ -262,7 +270,7 @@ AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
 ```
 
-Create `/data/aeko/keys` on the deployment host before the first deploy and place the four required keypair files there. Coolify's Compose definition remains the source of truth for the `validator-ledger` and `social-state` named volumes. The full variable set is in `docker/env.public.example`.
+Create `/data/aeko/keys` on the deployment host before the first deploy and preserve the validator, vote, stake and faucet keypairs there. The protocol authority is generated only while no established protocol registry exists. On an established chain, missing chain keys or a missing established protocol authority are fatal instead of being silently replaced. Coolify's Compose definition remains the source of truth for the `validator-ledger` and `social-state` named volumes. The full variable set is in `docker/env.public.example`.
 
 Configure domains to the same internal services:
 
@@ -276,6 +284,23 @@ Configure domains to the same internal services:
 | `admin.aeko.online` | `operations-web` | `3001` |
 
 Keep `gossip.aeko.online` outside the HTTP proxy. Point its DNS directly to `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050`.
+
+### Established-chain storage identity
+
+For every normal public redeploy keep:
+
+```text
+AEKO_RESET_LEDGER=0
+AEKO_REQUIRE_EXISTING_LEDGER=1
+AEKO_ALLOW_CHAIN_KEY_GENERATION=0
+AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0
+```
+
+The validator now refuses to create a replacement genesis when an established deployment unexpectedly sees an empty/wrong ledger mount. Coolify likewise refuses to manufacture replacement validator/vote/stake/faucet identities on a normal redeploy. This protects against Compose project/resource renames that would otherwise resolve `validator-ledger` to a new empty Docker volume.
+
+For an intentional first genesis only, set `AEKO_REQUIRE_EXISTING_LEDGER=0`; on Coolify, set `AEKO_ALLOW_CHAIN_KEY_GENERATION=1` only if the platform should create the four chain keys. On either public platform, set `AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1` only for the intentional first creation of the protocol authority. Return the safe values above immediately afterwards.
+
+Before moving a live ledger to attached storage, inspect the current container mount and Docker root. If Docker already stores the named volume on the larger filesystem, no Compose change is required. Otherwise stop the chain, migrate the existing volume/data root, and verify `genesis.bin`, genesis hash, key identities and ledger size before switching storage. Never point the validator at a newly-created empty path as a migration.
 
 ## Deploy / update behavior
 
@@ -309,6 +334,19 @@ For the current Coolify deployment, `WEBHOOK_URL` is the Coolify authenticated d
 The webhook only triggers the preconfigured production resource. It does not rewrite deployment-platform environment variables. In particular, if `AEKO_IMAGE_TAG` is pinned to an immutable SHA, update that environment value to the newly published 12-character main SHA before/with the deployment. Otherwise the platform can read the newest Compose while still pulling older runtime binaries. Use `latest` only when intentional automatic roll-forward is preferred over immutable releases.
 
 The webhook also does not choose the Compose path. A Coolify resource must point to `docker/compose.coolify.yml`; a Dokploy resource must point to `docker/compose.dokploy.yml`.
+
+## Native-program upgrade procedure
+
+Post-genesis native builtins are introduced through explicit runtime feature activation rather than unconditional mutation of historical Banks. The public stack therefore keeps `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` by default.
+
+For an existing chain, first deploy the compatible validator and prove unchanged genesis/history/slot continuity. Then activate:
+
+- `aeko_token_programs_v1`: `Ca5Lhktqd4epk3DDqsp7azXAunK3KZ8ZxeykU81oUUHT`
+- `aeko_permission_layer_v1`: `KBq8JBrCEbWJ6S2NXpcBvQDvt7J6hUZW3i61zzzZWxF`
+
+with their matching offline feature keypairs. Wait for both features to become active at an epoch boundary. For the intentional first canonical-state initialization, set `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1` and `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1`, run the one-shot protocol bootstrap, verify acceptance, then immediately return `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=0`.
+
+The complete backup, activation, rollback and validation procedure is in [`docs/operations/protocol-upgrades.md`](./docs/operations/protocol-upgrades.md).
 
 ## Deployment acceptance
 
@@ -361,6 +399,14 @@ AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-social.py
 ```
 
+After runtime feature activation and protocol bootstrap, also run:
+
+```bash
+AEKO_RPC_URL=https://rpc.aeko.online \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
+python3 scripts/smoke-aeko-protocol.py
+```
+
 That verifies RPC health, slot advancement, registry completeness, state-account ownership/initialization and Explorer SocialFi reads.
 
 ### Signed write path
@@ -384,9 +430,10 @@ Use `https://scan.aeko.online/network-tools` and open the Test Console:
 - Never expose PostgreSQL `5432` publicly.
 - Public dApps never connect to gossip.
 - Route public RPC/WS through the selected deployment platform's HTTP/WebSocket proxy to the validator's exposed `8899`/`8900` ports for the current single-validator topology.
-- Keep node and SocialFi key material out of Git.
-- Preserve ledger and SocialFi volumes on normal redeploys.
-- Treat `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1` as a deliberate reset/recovery switch, not a normal setting.
+- Keep node, SocialFi, protocol-authority and feature-authority key material out of Git.
+- Preserve ledger, SocialFi, protocol-state and protocol-continuity volumes on normal redeploys.
+- Treat `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1` and `AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1` as deliberate recovery switches, not normal settings.
+- Keep `AEKO_REQUIRE_EXISTING_PROTOCOL_STATE=1` and `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=0` after the first protocol bootstrap so missing/replaced protocol state fails closed.
 
 ## Protocol maturity boundary
 

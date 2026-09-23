@@ -49,8 +49,15 @@ def main() -> int:
     funding_request = read("apps/admin/src/app/api/funding/request/route.ts")
     middleware = read("apps/admin/src/middleware.ts")
     funding_cors = read("apps/admin/src/lib/funding-cors.ts")
+    ip_throttle = read("apps/admin/src/lib/ip-throttle.ts")
     settings_page = read("apps/admin/src/app/(admin)/settings/page.tsx")
     settings_route = read("apps/admin/src/app/api/settings/route.ts")
+    protocol_page = read("apps/admin/src/app/(admin)/protocol/page.tsx")
+    social_page = read("apps/admin/src/app/(admin)/social/page.tsx")
+    marketplace_page = read("apps/admin/src/app/(admin)/marketplace/page.tsx")
+    sidebar = read("apps/admin/src/components/sidebar.tsx")
+    app_settings = read("apps/explorer/web/src/utils/appSettings.js")
+    safe_defaults_migration = read("apps/explorer/backend/migrations/0008_safe_public_feature_defaults.sql")
     clap_v2 = read("clap-utils/src/input_validators.rs")
     clap_v3 = read("clap-v3-utils/src/input_validators.rs")
     cli_config = read("cli-config/src/config.rs")
@@ -75,6 +82,26 @@ def main() -> int:
     )
     for name in public_vars:
         require_empty_assignment(public_env, name, "docker/env.public.example")
+
+    for name in (
+        "AEKO_PUBLIC_RPC_URL",
+        "AEKO_PUBLIC_WS_URL",
+        "AEKO_PUBLIC_EXPLORER_API_URL",
+    ):
+        reject(admin_env, name, "Operations Web env example")
+    require(
+        "FUNDING_IP_REQUESTS_PER_10_MIN=" in admin_env,
+        "Operations Web env example must expose the funding request throttle",
+    )
+    require(
+        "FUNDING_IP_REQUESTS_PER_10_MIN" in ip_throttle,
+        "Funding throttle must read the documented funding request limit",
+    )
+    reject(
+        ip_throttle,
+        "FAUCET_IP_REQUESTS_PER_10_MIN",
+        "funding throttle",
+    )
 
     for name in (
         "VITE_AEKO_TESTNET_RPC",
@@ -144,6 +171,41 @@ def main() -> int:
     require(
         "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" in settings_route,
         "private Explorer settings token must remain server-side in the Next.js route",
+    )
+    require(
+        "registry/protocol" in protocol_page and "protocol/status" in protocol_page,
+        "Admin Protocol page must consume the Explorer protocol registry and live status",
+    )
+    require(
+        "registry/social" in social_page and "social/status" in social_page,
+        "Admin Social page must consume the canonical SocialFi registry and live status",
+    )
+    require(
+        "/api/explorer/protocol/status" in marketplace_page,
+        "Admin Marketplace must derive program readiness from Explorer protocol status",
+    )
+    require(
+        "'/protocol'" in sidebar,
+        "Admin navigation must expose the Protocol operations page",
+    )
+    for hardcoded_program_id in (
+        "gBxS1f6uyyGPuW5MzGBukidSb71jdsCb5fZaoSzULE5",
+        "k7FaK87WHGVXzkaoHb7CdVPgkKDQhZ29VLDeBVbDfYn",
+    ):
+        reject(marketplace_page, hardcoded_program_id, "Admin Marketplace")
+    require(
+        "nftDemoEnabled: true" in app_settings
+        and "networkConsoleEnabled: false" in app_settings
+        and "nftLiveFlowEnabled: false" in app_settings
+        and "nftAdvancedToolsEnabled: false" in app_settings,
+        "Explorer safe settings must expose the base NFT demo while privileged surfaces fail closed",
+    )
+    require(
+        "ALTER COLUMN nft_demo_enabled SET DEFAULT TRUE" in safe_defaults_migration
+        and "ALTER COLUMN nft_live_flow_enabled SET DEFAULT FALSE" in safe_defaults_migration
+        and "ALTER COLUMN nft_advanced_tools_enabled SET DEFAULT FALSE" in safe_defaults_migration
+        and "revision = 1" in safe_defaults_migration,
+        "safe feature-default migration must preserve existing operator-customized settings",
     )
     reject(middleware, "FAUCET_PUBLIC_HOST", "operations middleware")
     reject(middleware, "ADMIN_PUBLIC_HOST", "operations middleware")
@@ -246,6 +308,7 @@ def main() -> int:
             "FAUCET_DEFAULT_COOLDOWN_HOURS",
             "FAUCET_DEFAULT_DAILY_BUDGET_AEKO",
             "FAUCET_MAX_MANUAL_GRANT_AEKO",
+            "FAUCET_IP_REQUESTS_PER_10_MIN",
         ):
             reject(text, legacy, where)
 

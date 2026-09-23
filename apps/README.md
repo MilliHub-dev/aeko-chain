@@ -19,6 +19,6 @@ Blockchain-critical libraries and services stay at the repository root. In parti
 
 - `sdk/` is the core Rust protocol/runtime SDK used throughout the chain and is intentionally **not** the same thing as `apps/sdk/`.
 - `programs/`, `program-runtime/`, `runtime/`, `svm/`, `core/`, `ledger/`, `bank*`, `rpc/`, `validator/`, and related crates remain part of the blockchain implementation.
-- `social-bootstrap/`, `genesis/`, `faucet/`, and key/runtime tooling that directly participate in network initialization or chain operation remain with the blockchain core.
+- `social-bootstrap/`, `protocol-bootstrap/`, `genesis/`, `faucet/`, and key/runtime tooling that directly participate in network initialization or chain operation remain with the blockchain core.
 
 When adding a new component, put it in `apps/` when it is a deployable/user-facing product, external SDK, or off-chain service that talks to AEKO through public/internal chain interfaces. Keep it with the core when consensus, execution, ledger state, protocol rules, native programs, or low-level node operation depends on it.

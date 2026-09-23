@@ -1,15 +1,19 @@
-//! Canonical SocialFi state-account registry resolution.
+//! Canonical bootstrap registry resolution.
 //!
-//! Explicit operator environment variables take precedence over the registry
-//! file produced by `aeko-social-bootstrap`. This is configuration discovery,
-//! not application state; no in-memory persistence is involved.
+//! Explicit operator environment variables take precedence over registry files
+//! produced by the one-shot bootstrap services. These files describe canonical
+//! on-chain addresses; they are configuration discovery, not application state.
 
 use {
     serde::Serialize,
-    std::{collections::HashMap, env, fs},
+    std::{
+        collections::{BTreeMap, HashMap},
+        env, fs,
+    },
 };
 
-const REGISTRY_FILE_ENV: &str = "AEKO_SOCIAL_REGISTRY_FILE";
+const SOCIAL_REGISTRY_FILE_ENV: &str = "AEKO_SOCIAL_REGISTRY_FILE";
+const PROTOCOL_REGISTRY_FILE_ENV: &str = "AEKO_PROTOCOL_REGISTRY_FILE";
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,8 +32,22 @@ pub struct SocialRegistry {
     pub complete: bool,
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProtocolRegistry {
+    pub authority: Option<String>,
+    pub token_programs_feature: Option<String>,
+    pub token_programs_feature_activated_at: Option<u64>,
+    pub permission_layer_feature: Option<String>,
+    pub permission_layer_feature_activated_at: Option<u64>,
+    pub programs: BTreeMap<String, String>,
+    pub states: BTreeMap<String, String>,
+    pub accounts: BTreeMap<String, String>,
+    pub complete: bool,
+}
+
 pub fn resolve_social_registry() -> SocialRegistry {
-    let file_values = load_registry_file();
+    let file_values = load_registry_file(SOCIAL_REGISTRY_FILE_ENV, "SocialFi");
     let read = |key: &str| read_value(key, &file_values);
     let posts = read("AEKO_SOCIAL_POSTS_STATE");
     let rewards = read("AEKO_SOCIAL_REWARDS_STATE");
@@ -66,6 +84,88 @@ pub fn resolve_social_registry() -> SocialRegistry {
     }
 }
 
+pub fn resolve_protocol_registry() -> ProtocolRegistry {
+    let file_values = load_registry_file(PROTOCOL_REGISTRY_FILE_ENV, "protocol");
+    let read = |key: &str| read_value(key, &file_values);
+
+    let authority = read("AEKO_PROTOCOL_AUTHORITY");
+    let token_programs_feature = read("AEKO_TOKEN_PROGRAMS_FEATURE");
+    let token_programs_feature_activated_at = read("AEKO_TOKEN_PROGRAMS_FEATURE_ACTIVATED_AT")
+        .and_then(|value| value.parse::<u64>().ok());
+    let permission_layer_feature = read("AEKO_PERMISSION_LAYER_FEATURE");
+    let permission_layer_feature_activated_at = read("AEKO_PERMISSION_LAYER_FEATURE_ACTIVATED_AT")
+        .and_then(|value| value.parse::<u64>().ok());
+
+    let programs = collect_values(
+        &read,
+        &[
+            ("tokenomics", "AEKO_TOKENOMICS_PROGRAM_ID"),
+            ("token20", "AEKO_TOKEN_20_PROGRAM_ID"),
+            ("publicMint", "AEKO_PUBLIC_MINT_PROGRAM_ID"),
+            ("token721", "AEKO_TOKEN_721_PROGRAM_ID"),
+            ("nftMarketplace", "AEKO_NFT_MARKETPLACE_PROGRAM_ID"),
+            ("walletPermissions", "AEKO_WALLET_PERMISSIONS_PROGRAM_ID"),
+            ("permissionRegistry", "AEKO_PERMISSION_REGISTRY_PROGRAM_ID"),
+            ("revocationRegistry", "AEKO_REVOCATION_REGISTRY_PROGRAM_ID"),
+            ("subnetRegistry", "AEKO_SUBNET_REGISTRY_PROGRAM_ID"),
+            ("emergencyMultisig", "AEKO_EMERGENCY_MULTISIG_PROGRAM_ID"),
+            ("finalityOracle", "AEKO_FINALITY_ORACLE_PROGRAM_ID"),
+        ],
+    );
+    let states = collect_values(
+        &read,
+        &[
+            ("tokenomics", "AEKO_TOKENOMICS_STATE"),
+            ("referenceMint", "AEKO_AEKO20_REFERENCE_MINT"),
+            ("publicMint", "AEKO_PUBLIC_MINT_STATE"),
+            ("permissionRegistry", "AEKO_PERMISSION_REGISTRY_STATE"),
+            ("revocationRegistry", "AEKO_REVOCATION_REGISTRY_STATE"),
+            ("subnetRegistry", "AEKO_SUBNET_REGISTRY_STATE"),
+            ("emergencyMultisig", "AEKO_EMERGENCY_MULTISIG_STATE"),
+            ("finalityOracle", "AEKO_FINALITY_ORACLE_STATE"),
+        ],
+    );
+    let accounts = collect_values(
+        &read,
+        &[
+            ("tokenomicsTreasury", "AEKO_TOKENOMICS_TREASURY_ACCOUNT"),
+            ("validatorRewards", "AEKO_VALIDATOR_REWARDS_ACCOUNT"),
+            ("communityRewards", "AEKO_COMMUNITY_REWARDS_ACCOUNT"),
+        ],
+    );
+
+    let complete = authority.is_some()
+        && token_programs_feature.is_some()
+        && token_programs_feature_activated_at.is_some()
+        && permission_layer_feature.is_some()
+        && permission_layer_feature_activated_at.is_some()
+        && programs.len() == 11
+        && states.len() == 8
+        && accounts.len() == 3;
+
+    ProtocolRegistry {
+        authority,
+        token_programs_feature,
+        token_programs_feature_activated_at,
+        permission_layer_feature,
+        permission_layer_feature_activated_at,
+        programs,
+        states,
+        accounts,
+        complete,
+    }
+}
+
+fn collect_values<F>(read: &F, entries: &[(&str, &str)]) -> BTreeMap<String, String>
+where
+    F: Fn(&str) -> Option<String>,
+{
+    entries
+        .iter()
+        .filter_map(|(label, env_key)| read(env_key).map(|value| ((*label).to_string(), value)))
+        .collect()
+}
+
 fn read_value(key: &str, file_values: &HashMap<String, String>) -> Option<String> {
     env::var(key)
         .ok()
@@ -74,8 +174,8 @@ fn read_value(key: &str, file_values: &HashMap<String, String>) -> Option<String
         .or_else(|| file_values.get(key).cloned())
 }
 
-fn load_registry_file() -> HashMap<String, String> {
-    let Some(path) = env::var(REGISTRY_FILE_ENV)
+fn load_registry_file(env_name: &str, label: &str) -> HashMap<String, String> {
+    let Some(path) = env::var(env_name)
         .ok()
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
@@ -85,7 +185,7 @@ fn load_registry_file() -> HashMap<String, String> {
     match fs::read_to_string(&path) {
         Ok(content) => parse_registry_env(&content),
         Err(error) => {
-            tracing::warn!(path, error = %error, "unable to read SocialFi registry file");
+            tracing::warn!(path, env_name, label, error = %error, "unable to read bootstrap registry file");
             HashMap::new()
         }
     }
@@ -114,16 +214,19 @@ fn parse_registry_env(content: &str) -> HashMap<String, String> {
 #[cfg(test)]
 mod tests {
     use super::parse_registry_env;
+
     #[test]
-    fn registry_parser_accepts_bootstrap_format_and_ignores_empty_values() {
-        let values = parse_registry_env("# generated\nAEKO_SOCIAL_POSTS_STATE=posts111\nAEKO_STAKE_VAULT_ACCOUNT=stake333\nexport AEKO_SOCIAL_REWARDS_STATE=rewards222\nEMPTY=\n");
+    fn registry_parser_accepts_both_bootstrap_formats_and_ignores_empty_values() {
+        let values = parse_registry_env(
+            "# generated\nAEKO_SOCIAL_POSTS_STATE=posts111\nAEKO_TOKENOMICS_STATE=tokenomics111\nexport AEKO_SOCIAL_REWARDS_STATE=rewards222\nEMPTY=\n",
+        );
         assert_eq!(
             values.get("AEKO_SOCIAL_POSTS_STATE").map(String::as_str),
             Some("posts111")
         );
         assert_eq!(
-            values.get("AEKO_STAKE_VAULT_ACCOUNT").map(String::as_str),
-            Some("stake333")
+            values.get("AEKO_TOKENOMICS_STATE").map(String::as_str),
+            Some("tokenomics111")
         );
         assert!(!values.contains_key("EMPTY"));
     }

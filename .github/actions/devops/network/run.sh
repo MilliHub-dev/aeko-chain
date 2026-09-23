@@ -28,8 +28,18 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
     -p aeko-genesis \
     -p aeko-faucet \
     -p aeko-social-bootstrap \
+    -p aeko-protocol-bootstrap \
     -p aeko-social-staking-program \
     -p aeko-social-monetization-program
+
+  # Consensus-upgrade regressions must execute, not merely compile through the
+  # validator dependency graph. Keep the filter narrow to the AEKO protocol
+  # builtin/snapshot upgrade tests rather than running the full runtime suite on every PR.
+  cargo test --locked -p aeko-runtime --lib aeko_protocol_builtins
+
+  # Exercise the live protocol bootstrap/Explorer path against an actual local
+  # TestValidator and PostgreSQL after the snapshot/archive regression passes.
+  bash scripts/ci-protocol-stack-integration.sh
 fi
 
 if [ "${BUILD_IMAGE}" = "true" ]; then
@@ -61,16 +71,17 @@ if [ "${BUILD_IMAGE}" = "true" ]; then
       .
   }
 
-  # network-rust-builder compiles validator, genesis, faucet and social-bootstrap
+  # network-rust-builder compiles validator, genesis, faucet, social-bootstrap and protocol-bootstrap
   # once. BuildKit reuses that stage for these targets.
   build_target validator aeko-validator aeko-node
   build_target faucet aeko-faucet
   build_target social-bootstrap aeko-social-bootstrap
+  build_target protocol-bootstrap aeko-protocol-bootstrap
 
   if [ "${PUBLISH}" = "true" ]; then
     echo "Published immutable network images for ${SHA_TAG}."
   else
-    for image in aeko-validator aeko-node aeko-faucet aeko-social-bootstrap; do
+    for image in aeko-validator aeko-node aeko-faucet aeko-social-bootstrap aeko-protocol-bootstrap; do
       docker image inspect "aeko-ci/${image}:${SHA_TAG}" >/dev/null
     done
     echo "Built and verified the network image set locally; nothing was pushed."
