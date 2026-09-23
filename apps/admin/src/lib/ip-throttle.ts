@@ -1,11 +1,11 @@
 /**
- * Small per-IP throttle for the public faucet endpoint. The wallet cooldown is
+ * Small per-IP throttle for the public funding endpoint. The wallet cooldown is
  * the real limit; this only stops one client from hammering the endpoint with
  * fresh addresses. In-memory on purpose: it resets with the process, which is
  * fine for its job.
  */
 const WINDOW_MS = 10 * 60 * 1000
-const MAX_PER_WINDOW = Number(process.env.FAUCET_IP_REQUESTS_PER_10_MIN ?? 5)
+const MAX_PER_WINDOW = Number(process.env.FUNDING_IP_REQUESTS_PER_10_MIN ?? 5)
 
 const hits = new Map<string, number[]>()
 
