@@ -226,15 +226,16 @@ AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main SHA>
 ```
 
-Required persistent key files:
+Required persistent chain key files during the protocol-disabled compatibility phase:
 
 ```text
 validator-1-keypair.json
 vote-1-keypair.json
 stake-keypair.json
 faucet-keypair.json
-protocol-authority-keypair.json
 ```
+
+`protocol-authority-keypair.json` is a separate protocol identity. It is created only for the intentional first protocol bootstrap after both runtime features are active, and is not a prerequisite while `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` and no protocol registry exists.
 
 Never commit those keypairs. Keep them in persistent restricted storage/File Mounts; do not depend on files inside an AutoDeploy Git checkout.
 
@@ -242,8 +243,8 @@ Optional SocialFi configuration:
 
 ```text
 AEKO_TREASURY_ADDRESS=<pubkey>
-AEKO_REWARD_VAULT=<pubkey>
-AEKO_STAKE_VAULT=<pubkey>
+AEKO_REWARD_VAULT_ACCOUNT=<pubkey>
+AEKO_STAKE_VAULT_ACCOUNT=<pubkey>
 AEKO_PLATFORM_FEE_BPS=200
 ```
 
@@ -291,13 +292,12 @@ Required Coolify variables:
 
 ```text
 AEKO_PUBLIC_IP=<public IP of Coolify host>
-AEKO_KEYS_DIR=/data/aeko/keys
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main SHA>
 ```
 
-Enter Coolify values without surrounding shell quotes. `AEKO_KEYS_DIR` must be an existing absolute host directory containing the four validator/faucet key files. The Coolify contract uses Docker-managed `validator-ledger` and `social-state` volumes by default. See [`docker/env.public.example`](./docker/env.public.example) for the complete public environment template.
+Enter Coolify values without surrounding shell quotes. Coolify does not use an `AEKO_KEYS_DIR` dashboard variable; the deployment contract binds the literal host path `/data/aeko/keys`. Existing-chain redeploys must preserve the four established validator/faucet key files there. A deliberate first boot may temporarily set `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`, then return it to `0`. The Coolify contract uses Docker-managed `validator-ledger`, `social-state`, `protocol-state`, and `protocol-continuity` volumes. See [`docker/env.public.example`](./docker/env.public.example) for the complete public environment template.
 
 Configure Coolify domains against the internal service ports:
 
