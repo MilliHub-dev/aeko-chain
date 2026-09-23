@@ -106,12 +106,7 @@ fn inspect_protocol(rpc: &RpcChainClient, registry: ProtocolRegistry) -> Protoco
     let programs = registry
         .programs
         .iter()
-        .map(|(label, program_id)| {
-            (
-                label.clone(),
-                inspect_program(rpc, program_id),
-            )
-        })
+        .map(|(label, program_id)| (label.clone(), inspect_program(rpc, program_id)))
         .collect::<BTreeMap<_, _>>();
 
     let states = registry
@@ -121,10 +116,7 @@ fn inspect_protocol(rpc: &RpcChainClient, registry: ProtocolRegistry) -> Protoco
             let expected_owner = owner_label_for_state(label)
                 .and_then(|program_label| registry.programs.get(program_label))
                 .cloned();
-            (
-                label.clone(),
-                inspect_state(rpc, address, expected_owner),
-            )
+            (label.clone(), inspect_state(rpc, address, expected_owner))
         })
         .collect::<BTreeMap<_, _>>();
 
@@ -135,14 +127,11 @@ fn inspect_protocol(rpc: &RpcChainClient, registry: ProtocolRegistry) -> Protoco
                 && status.activated_at.is_some()
                 && status.error.is_none()
         })
-        && programs.values().all(|status| {
-            status.present && status.executable && status.error.is_none()
-        })
+        && programs
+            .values()
+            .all(|status| status.present && status.executable && status.error.is_none())
         && states.values().all(|status| {
-            status.present
-                && status.owner_matches
-                && status.data_len > 0
-                && status.error.is_none()
+            status.present && status.owner_matches && status.data_len > 0 && status.error.is_none()
         });
 
     ProtocolStatus {

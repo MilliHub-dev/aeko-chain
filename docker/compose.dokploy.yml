@@ -346,3 +346,4 @@ volumes:
   admin-state:
   validator-ledger:
   social-state:
+  protocol-state:

@@ -262,3 +262,4 @@ volumes:
   validator-ledger:
   rpc-ledger:
   social-state:
+  protocol-state:

@@ -93,9 +93,8 @@ pub fn resolve_protocol_registry() -> ProtocolRegistry {
     let token_programs_feature_activated_at = read("AEKO_TOKEN_PROGRAMS_FEATURE_ACTIVATED_AT")
         .and_then(|value| value.parse::<u64>().ok());
     let permission_layer_feature = read("AEKO_PERMISSION_LAYER_FEATURE");
-    let permission_layer_feature_activated_at =
-        read("AEKO_PERMISSION_LAYER_FEATURE_ACTIVATED_AT")
-            .and_then(|value| value.parse::<u64>().ok());
+    let permission_layer_feature_activated_at = read("AEKO_PERMISSION_LAYER_FEATURE_ACTIVATED_AT")
+        .and_then(|value| value.parse::<u64>().ok());
 
     let programs = collect_values(
         &read,
