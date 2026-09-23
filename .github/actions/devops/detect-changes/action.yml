@@ -157,6 +157,13 @@ runs:
               apps/cli/*)
                 cli=true
                 ;;
+              sdk/src/feature_set.rs)
+                # Runtime feature declarations are also part of the CLI's
+                # known-feature contract. PRs must validate the CLI whenever a
+                # feature ID/name changes, even though the file is core source.
+                core=true
+                cli=true
+                ;;
               apps/explorer/backend/*)
                 explorer_backend=true
                 ;;
