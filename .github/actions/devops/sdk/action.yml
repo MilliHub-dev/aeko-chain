@@ -34,6 +34,10 @@ inputs:
     description: Rust SDK package source changed and must use a new publishable version.
     required: false
     default: "false"
+  enforce-lockfile-clean:
+    description: Regenerate diagnostically and fail if Cargo.lock changes while validating the Rust SDK.
+    required: false
+    default: "true"
 
 runs:
   using: composite
@@ -58,8 +62,13 @@ runs:
       shell: bash
       run: bash .github/actions/devops/check-rustfmt-changed.sh apps/sdk/rust-client
 
+    - name: Rust SDK locked target check
+      if: ${{ inputs.rust == 'true' && inputs.enforce-lockfile-clean != 'true' }}
+      shell: bash
+      run: cargo check --locked -p aeko-rust-sdk --all-targets
+
     - name: Diagnose Rust SDK lockfile and target check
-      if: ${{ inputs.rust == 'true' }}
+      if: ${{ inputs.rust == 'true' && inputs.enforce-lockfile-clean == 'true' }}
       shell: bash
       run: |
         set -euo pipefail

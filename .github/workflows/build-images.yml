@@ -354,6 +354,7 @@ jobs:
           release-node: "false"
           release-python: "false"
           release-rust: "false"
+          enforce-lockfile-clean: ${{ needs.classify.outputs.sdk_rust }}
 
   devops:
     name: devops
