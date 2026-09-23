@@ -52,6 +52,7 @@ def main() -> int:
     ip_throttle = read("apps/admin/src/lib/ip-throttle.ts")
     settings_page = read("apps/admin/src/app/(admin)/settings/page.tsx")
     settings_route = read("apps/admin/src/app/api/settings/route.ts")
+    explorer_proxy = read("apps/admin/src/app/api/explorer/[...path]/route.ts")
     protocol_page = read("apps/admin/src/app/(admin)/protocol/page.tsx")
     social_page = read("apps/admin/src/app/(admin)/social/page.tsx")
     marketplace_page = read("apps/admin/src/app/(admin)/marketplace/page.tsx")
@@ -178,6 +179,10 @@ def main() -> int:
     require(
         "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" in settings_route,
         "private Explorer settings token must remain server-side in the Next.js route",
+    )
+    require(
+        "status: res.status" in explorer_proxy,
+        "Admin Explorer proxy must preserve upstream HTTP status codes",
     )
     require(
         "registry/protocol" in protocol_page and "protocol/status" in protocol_page,
@@ -362,6 +367,8 @@ def main() -> int:
     require("gossip.aeko.online" in readme and "not an Explorer website" in readme, "README must preserve the gossip-vs-Explorer distinction")
     require("Faucet Daemon" in readme and "Funding Portal" in readme, "README must distinguish private Faucet Daemon from public Funding Portal")
     require("Faucet Daemon" in backend_guide and "Testnet Funding API" in backend_guide, "backend guide must distinguish private daemon from public funding")
+    for obsolete_social_registry_name in ("AEKO_REWARD_VAULT=<", "AEKO_STAKE_VAULT=<"):
+        reject(readme, obsolete_social_registry_name, "README")
 
     print("[PASS] public endpoints are deployment-configured and funding/network roles are distinct")
     return 0
