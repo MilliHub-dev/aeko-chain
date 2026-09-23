@@ -631,11 +631,12 @@ where
         eprintln!("[{label}] existing initialized state verified");
         return Ok(());
     }
-    if registry_preexisted && !allow_missing_state {
-        return Err(anyhow!(
-            "[{label}] state {state_pubkey} is missing while {REGISTRY_FILE_NAME} exists; set AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1 only for intentional recovery"
-        ));
-    }
+    require_missing_state_recovery_authorized(
+        registry_preexisted,
+        allow_missing_state,
+        &state_pubkey,
+        label,
+    )?;
 
     let rent = with_retries(&format!("{label}:rent"), || {
         client
@@ -680,6 +681,20 @@ where
         }
     }
     Err(last_error.unwrap_or_else(|| anyhow!("[{label}] exhausted retries")))
+}
+
+fn require_missing_state_recovery_authorized(
+    registry_preexisted: bool,
+    allow_missing_state: bool,
+    state_pubkey: &Pubkey,
+    label: &str,
+) -> Result<()> {
+    if registry_preexisted && !allow_missing_state {
+        return Err(anyhow!(
+            "[{label}] state {state_pubkey} is missing while {REGISTRY_FILE_NAME} exists; set AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1 only for intentional recovery"
+        ));
+    }
+    Ok(())
 }
 
 fn existing_state_is_valid<F>(
@@ -1170,6 +1185,23 @@ mod tests {
             true,
         )
         .unwrap();
+    }
+
+    #[test]
+    fn missing_state_recovery_requires_explicit_override() {
+        let state_pubkey = Pubkey::new_unique();
+
+        require_missing_state_recovery_authorized(false, false, &state_pubkey, "test-state")
+            .unwrap();
+        require_missing_state_recovery_authorized(true, true, &state_pubkey, "test-state")
+            .unwrap();
+
+        let error =
+            require_missing_state_recovery_authorized(true, false, &state_pubkey, "test-state")
+                .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1"));
     }
 
     #[test]

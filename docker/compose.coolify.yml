@@ -65,9 +65,15 @@ services:
         done
 
         protocol_path="/keys/protocol-authority-keypair.json"
+        protocol_registry=""
+        if [ -s /protocol-state/protocol-registry.env ]; then
+          protocol_registry=/protocol-state/protocol-registry.env
+        elif [ -s /protocol-continuity/protocol-registry.anchor ]; then
+          protocol_registry=/protocol-continuity/protocol-registry.anchor
+        fi
         if [ ! -s "$$protocol_path" ]; then
-          if [ -s /protocol-state/protocol-registry.env ]; then
-            echo "error: protocol authority key is missing but protocol-registry.env already exists" >&2
+          if [ -n "$$protocol_registry" ]; then
+            echo "error: protocol authority key is missing but established protocol identity exists in $$protocol_registry" >&2
             echo "error: refusing to replace an established protocol authority" >&2
             exit 64
           fi
@@ -79,13 +85,29 @@ services:
           echo "==> Initializing first AEKO protocol authority key"
           aeko-keygen new --no-bip39-passphrase --silent --outfile "$$protocol_path"
         fi
-        aeko-keygen pubkey "$$protocol_path" >/dev/null
+        if ! actual_protocol_authority="$$(aeko-keygen pubkey "$$protocol_path" 2>/dev/null)"; then
+          echo "error: invalid AEKO protocol authority keypair: $$protocol_path" >&2
+          exit 65
+        fi
+        if [ -n "$$protocol_registry" ]; then
+          expected_protocol_authority="$$(sed -n 's/^AEKO_PROTOCOL_AUTHORITY=//p' "$$protocol_registry" | head -n 1)"
+          if [ -z "$$expected_protocol_authority" ]; then
+            echo "error: $$protocol_registry is missing AEKO_PROTOCOL_AUTHORITY" >&2
+            exit 65
+          fi
+          if [ "$$actual_protocol_authority" != "$$expected_protocol_authority" ]; then
+            echo "error: protocol authority key does not match established protocol identity" >&2
+            echo "error: expected $$expected_protocol_authority, got $$actual_protocol_authority" >&2
+            exit 65
+          fi
+        fi
         echo "AEKO persistent key bootstrap complete"
     volumes:
       - type: bind
         source: /data/aeko/keys
         target: /keys
       - protocol-state:/protocol-state:ro
+      - protocol-continuity:/protocol-continuity:ro
     logging: *default-logging
     networks: [aeko]
 

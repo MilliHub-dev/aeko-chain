@@ -172,6 +172,16 @@ def main() -> int:
             and "AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1 only when intentionally creating the first protocol authority" in compose,
             f"{label} must preserve protocol-authority identity once protocol state exists",
         )
+        require(
+            "protocol-continuity:/protocol-continuity:ro" in compose
+            and "/protocol-continuity/protocol-registry.anchor" in compose,
+            f"{label} key bootstrap must consult the independent protocol continuity anchor",
+        )
+        require(
+            "AEKO_PROTOCOL_AUTHORITY" in compose
+            and "protocol authority key does not match established protocol identity" in compose,
+            f"{label} key bootstrap must verify the protocol-authority pubkey against established state",
+        )
 
     # Validator image runtime must fail closed on key material and support the
     # same-host transaction peer used by the public Dokploy topology.
@@ -272,6 +282,8 @@ def main() -> int:
     require("smoke-aeko-protocol.py" in protocol_integration, "protocol integration must execute the read-only protocol smoke")
     require("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE" in protocol_integration, "protocol integration must exercise explicit state-volume recovery")
     require("cmp" in protocol_integration and "protocol-registry.env" in protocol_integration, "protocol integration must prove idempotent canonical registry identity")
+    require("getGenesisHash" in protocol_integration and "getTransaction" in protocol_integration, "protocol integration must prove ledger identity and historical transaction continuity across restart")
+    require("unexpectedly accepted a missing established state volume" in protocol_integration, "protocol integration must prove missing protocol-state fails closed before recovery")
     require("aeko-keygen pubkey" in protocol_activate, "feature activation helper must verify offline keypair identities")
     require("Ca5Lhktqd4epk3DDqsp7azXAunK3KZ8ZxeykU81oUUHT" in protocol_activate, "activation helper must pin the token feature id")
     require("KBq8JBrCEbWJ6S2NXpcBvQDvt7J6hUZW3i61zzzZWxF" in protocol_activate, "activation helper must pin the permission feature id")

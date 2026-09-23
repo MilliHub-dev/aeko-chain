@@ -24,6 +24,7 @@ Back up and identify all current state before touching the runtime:
 - Explorer PostgreSQL;
 - `social-state`;
 - `protocol-state`, if it already exists;
+- `protocol-continuity`, once created, including its canonical keypairs and registry anchor;
 - the current genesis hash and a recent finalized slot.
 
 Keep these values disabled:
@@ -41,7 +42,7 @@ AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=0
 
 On Coolify also keep `AEKO_ALLOW_CHAIN_KEY_GENERATION=0` so a missing key mount cannot silently replace the validator/vote/stake/faucet identities.
 
-If this upgrade is introducing `protocol-authority-keypair.json` for the first time, explicitly set `AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1` for the one deployment that creates it, back up the resulting key, and immediately return the flag to `0`. Once `protocol-registry.env` exists, replacement authority generation is refused even if the flag is set.
+If this upgrade is introducing `protocol-authority-keypair.json` for the first time, explicitly set `AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1` for the one deployment that creates it, back up the resulting key, and immediately return the flag to `0`. Once either `protocol-registry.env` or the independent `protocol-registry.anchor` exists, replacement authority generation is refused even if the flag is set, and the persisted authority key must derive the recorded `AEKO_PROTOCOL_AUTHORITY` public key.
 
 Before deploying, inspect the live validator's `/ledger` mount and confirm `genesis.bin` is present. If a Coolify resource/project rename points Compose at a new empty named volume, the validator will now fail closed because `AEKO_REQUIRE_EXISTING_LEDGER=1`; fix the mount/volume identity instead of disabling the guard.
 
