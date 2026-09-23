@@ -33,6 +33,7 @@ bash -c '
   set -euo pipefail
   bash -n docker/validator-entrypoint.sh
   bash -n scripts/deploy-testnet.sh
+  bash -n scripts/audit-validator-storage.sh
   python3 scripts/validate-deployment-contract.py
   python3 scripts/validate-public-contracts.py
   python3 scripts/validate-program-ids.py

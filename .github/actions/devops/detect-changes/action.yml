@@ -223,7 +223,7 @@ runs:
                     ;;
                 esac
                 ;;
-              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/validate-deployment-contract.py)
+              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/audit-validator-storage.sh|scripts/validate-deployment-contract.py)
                 # Real packaging/deployment changes must prove the selected
                 # container targets still build. CI implementation paths are
                 # classified separately above and do not rebuild product images.
