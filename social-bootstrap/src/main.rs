@@ -45,7 +45,6 @@ fn main() -> Result<()> {
     };
     let out_dir = PathBuf::from(env::var("AEKO_BOOTSTRAP_OUT_DIR").unwrap_or_else(|_| "./local-testnet/social-state".to_string()));
     fs::create_dir_all(&out_dir).context("creating Social bootstrap state directory")?;
-    let registry_preexisted = out_dir.join(REGISTRY_FILE_NAME).is_file();
     let allow_missing_state = parse_bool_flag("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE")?;
     let platform_fee_bps = parse_platform_fee_bps()?;
 
@@ -56,6 +55,14 @@ fn main() -> Result<()> {
     eprintln!("    authority: {}", authority.pubkey());
     eprintln!("    out-dir:   {}", out_dir.display());
     wait_for_rpc_ready(&client)?;
+    if parse_bool_flag_with_default("AEKO_RESET_LEDGER", false)? {
+        let genesis_hash = client
+            .get_genesis_hash()
+            .context("reading validator genesis hash for SocialFi reset")?
+            .to_string();
+        reset_state_dir_for_genesis(&out_dir, &genesis_hash)?;
+    }
+    let registry_preexisted = out_dir.join(REGISTRY_FILE_NAME).is_file();
 
     let state_rent = with_retries("state rent", || client.get_minimum_balance_for_rent_exemption(STATE_ACCOUNT_SPACE as usize).map_err(anyhow::Error::from))?;
     let vault_rent = with_retries("vault rent", || client.get_minimum_balance_for_rent_exemption(0).map_err(anyhow::Error::from))?;
@@ -255,6 +262,25 @@ fn ensure_keypair(out_dir: &Path, file_name: &str) -> Result<Keypair> {
 
 fn seed_lamports(name: &str) -> Result<u64> {
     env::var(name).unwrap_or_else(|_| "0".to_string()).parse::<u64>().with_context(|| format!("{name} must be a non-negative lamport amount"))
+}
+
+fn reset_state_dir_for_genesis(dir: &Path, genesis_hash: &str) -> Result<()> {
+    const RESET_MARKER: &str = ".aeko-reset-genesis";
+    let marker = dir.join(RESET_MARKER);
+    if fs::read_to_string(&marker).ok().is_some_and(|value| value.trim() == genesis_hash) {
+        return Ok(());
+    }
+    for entry in fs::read_dir(dir).with_context(|| format!("reading reset directory {}", dir.display()))? {
+        let path = entry?.path();
+        if path.is_dir() {
+            fs::remove_dir_all(&path).with_context(|| format!("removing stale reset directory {}", path.display()))?;
+        } else {
+            fs::remove_file(&path).with_context(|| format!("removing stale reset file {}", path.display()))?;
+        }
+    }
+    fs::write(&marker, format!("{genesis_hash}\n"))
+        .with_context(|| format!("writing reset marker {}", marker.display()))?;
+    Ok(())
 }
 
 fn parse_bool_flag(name: &str) -> Result<bool> {

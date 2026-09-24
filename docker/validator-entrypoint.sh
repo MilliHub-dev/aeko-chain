@@ -32,9 +32,18 @@ done
 
 mkdir -p "$LEDGER_PATH"
 
+RESET_MARKER="$LEDGER_PATH/.aeko-reset-applied"
+RESET_APPLIED_THIS_BOOT=0
 if [ "$RESET_LEDGER" = "1" ]; then
-  echo "==> AEKO_RESET_LEDGER=1: clearing ${LEDGER_PATH}"
-  find "$LEDGER_PATH" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+  if [ -f "$RESET_MARKER" ]; then
+    echo "==> AEKO_RESET_LEDGER=1 already applied to this ledger; preserving the current reset genesis"
+  else
+    echo "==> AEKO_RESET_LEDGER=1: clearing ${LEDGER_PATH} for an intentional new genesis"
+    find "$LEDGER_PATH" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+    RESET_APPLIED_THIS_BOOT=1
+  fi
+else
+  rm -f "$RESET_MARKER"
 fi
 
 # Only the bootstrap validator creates genesis. RPC replicas and joining
@@ -62,6 +71,14 @@ if [ "${AEKO_BOOTSTRAP:-0}" = "1" ]; then
       --cluster-type "${AEKO_CLUSTER_TYPE:-development}"
   else
     echo "==> Existing genesis found; preserving ledger"
+  fi
+
+  if [ "$RESET_APPLIED_THIS_BOOT" = "1" ]; then
+    test -s "$LEDGER_PATH/genesis.bin" || {
+      echo "error: reset requested but replacement genesis was not created" >&2
+      exit 66
+    }
+    printf '%s\n' "reset-applied" > "$RESET_MARKER"
   fi
 fi
 

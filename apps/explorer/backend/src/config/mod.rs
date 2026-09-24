@@ -25,6 +25,7 @@ pub struct ExplorerBackendConfig {
     pub asset_refresh_slots: u64,
     pub social_refresh_slots: u64,
     pub max_ready_lag_slots: u64,
+    pub reset_chain_on_start: bool,
 }
 
 impl ExplorerBackendConfig {
@@ -53,6 +54,7 @@ impl ExplorerBackendConfig {
         let asset_refresh_slots = required_nonzero::<u64>("AEKO_EXPLORER_ASSET_REFRESH_SLOTS")?;
         let social_refresh_slots = required_nonzero::<u64>("AEKO_EXPLORER_SOCIAL_REFRESH_SLOTS")?;
         let max_ready_lag_slots = required_parse_env::<u64>("AEKO_EXPLORER_MAX_READY_LAG_SLOTS")?;
+        let reset_chain_on_start = optional_bool_env("AEKO_RESET_LEDGER")?;
 
         Ok(Self {
             rpc_url,
@@ -69,6 +71,7 @@ impl ExplorerBackendConfig {
             asset_refresh_slots,
             social_refresh_slots,
             max_ready_lag_slots,
+            reset_chain_on_start,
         })
     }
 }
@@ -146,6 +149,17 @@ fn required_duration(key: &str) -> Result<Duration> {
     Ok(Duration::from_secs(required_nonzero::<u64>(key)?))
 }
 
+fn optional_bool_env(key: &str) -> Result<bool> {
+    let Some(value) = optional_env(key) else {
+        return Ok(false);
+    };
+    match value.to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Ok(true),
+        "0" | "false" | "no" | "off" => Ok(false),
+        _ => Err(anyhow!("{key}={value:?} must be a boolean")),
+    }
+}
+
 #[cfg(test)]
 impl Default for ExplorerBackendConfig {
     fn default() -> Self {
@@ -164,6 +178,7 @@ impl Default for ExplorerBackendConfig {
             asset_refresh_slots: 64,
             social_refresh_slots: 16,
             max_ready_lag_slots: 128,
+            reset_chain_on_start: false,
         }
     }
 }

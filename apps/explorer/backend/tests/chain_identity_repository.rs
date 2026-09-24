@@ -22,6 +22,7 @@ fn test_config(database_url: String) -> ExplorerBackendConfig {
         asset_refresh_slots: 64,
         social_refresh_slots: 16,
         max_ready_lag_slots: 128,
+        reset_chain_on_start: false,
     }
 }
 
@@ -55,6 +56,17 @@ async fn postgres_is_permanently_bound_to_one_network_and_genesis() -> Result<()
         .bind_chain_identity("production", "integration-genesis")
         .await;
     assert!(wrong_network.is_err());
+
+    assert!(repository
+        .reset_for_chain_if_requested("test", "replacement-genesis", true)
+        .await?);
+    assert_eq!(repository.chain_identity().await?, None);
+    repository
+        .bind_chain_identity("test", "replacement-genesis")
+        .await?;
+    assert!(!repository
+        .reset_for_chain_if_requested("test", "replacement-genesis", true)
+        .await?);
 
     Ok(())
 }

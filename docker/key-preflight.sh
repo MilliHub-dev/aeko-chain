@@ -22,8 +22,6 @@ parse_bool() {
 }
 
 allow_chain_key_generation="$(parse_bool AEKO_ALLOW_CHAIN_KEY_GENERATION "${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}")"
-allow_protocol_authority_generation="$(parse_bool AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION "${AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION:-0}")"
-protocol_bootstrap_enabled="$(parse_bool AEKO_PROTOCOL_BOOTSTRAP_ENABLED "${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}")"
 
 echo "AEKO key preflight: host source '${keys_source}' is mounted at ${keys_root}"
 
@@ -83,17 +81,8 @@ if [ ! -f "$protocol_path" ] || [ ! -s "$protocol_path" ]; then
     exit 64
   fi
 
-  if [ "$protocol_bootstrap_enabled" = "1" ]; then
-    if [ "$allow_protocol_authority_generation" != "1" ]; then
-      echo "error: protocol bootstrap is enabled but protocol authority key is missing: $protocol_path" >&2
-      echo "error: set AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1 only for the intentional first protocol-authority creation" >&2
-      exit 64
-    fi
-    echo "==> Initializing first AEKO protocol authority key"
-    aeko-keygen new --no-bip39-passphrase --silent --outfile "$protocol_path"
-  else
-    echo "protocol bootstrap disabled and no established protocol identity exists; protocol authority is not required for this compatibility deployment"
-  fi
+  echo "==> Initializing AEKO protocol authority for a network with no established protocol registry"
+  aeko-keygen new --no-bip39-passphrase --silent --outfile "$protocol_path"
 fi
 
 if [ -f "$protocol_path" ] && [ -s "$protocol_path" ]; then

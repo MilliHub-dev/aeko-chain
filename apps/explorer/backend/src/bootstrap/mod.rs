@@ -36,6 +36,14 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
     let repository = PostgresRepository::connect(&backend)
         .await
         .context("initializing required PostgreSQL repository")?;
+    repository
+        .reset_for_chain_if_requested(
+            &backend.network,
+            &genesis_hash,
+            backend.reset_chain_on_start,
+        )
+        .await
+        .context("applying explicit Explorer PostgreSQL chain reset")?;
 
     // Migration 0006 adds chain identity to databases that may already contain
     // Explorer history. Before the first binding of a non-empty legacy DB,
