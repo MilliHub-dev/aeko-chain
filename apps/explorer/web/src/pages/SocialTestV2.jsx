@@ -162,11 +162,11 @@ export default function SocialTestV2() {
   async function ensureFunded(target) {
     const current = await refreshBalance(target);
     if (current >= MIN_TEST_BALANCE) return current;
-    updateStep('fund', 'running', 'Requesting a policy-controlled testnet funding grant for fees and economic custody checks.');
+    updateStep('fund', 'running', 'Requesting a direct Test Console airdrop for fees and economic custody checks.');
     const signature = await requestTestnetFunding(rpcUrl, target.address, aekoToLamports(2));
     await confirmSignature(rpcUrl, signature);
     const funded = await refreshBalance(target);
-    if (funded <= current) throw new Error('Funding grant confirmed but wallet balance did not increase.');
+    if (funded <= current) throw new Error('Test Console airdrop confirmed but wallet balance did not increase.');
     updateStep('fund', 'pass', `Wallet funded: ${formatAeko(funded)}`, signature);
     return funded;
   }
