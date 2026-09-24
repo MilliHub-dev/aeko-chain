@@ -47,7 +47,7 @@ VITE_AEKO_LOCAL_WS=ws://127.0.0.1:8900
 VITE_AEKO_LOCAL_EXPLORER_API=http://127.0.0.1:8088
 ```
 
-All three values must be supplied together and must remain loopback endpoints. Explicit remote Vite preview values are available as `VITE_AEKO_TESTNET_*` / `VITE_AEKO_MAINNET_*`, but normal production deployment uses `AEKO_*` runtime configuration instead.
+All three values must be supplied together and must remain loopback endpoints. They are optional because the same loopback ports are the local defaults. Remote previews and production both use the canonical `AEKO_*` runtime configuration; there is no second remote Vite environment family.
 
 ## Boot the Explorer backend locally
 
