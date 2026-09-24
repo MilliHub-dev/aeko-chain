@@ -603,7 +603,9 @@ fn inspect_custody(
             owner_matches: false,
             data_len: 0,
             condition: "missing".to_string(),
-            error: Some(format!("canonical custody account {address} does not exist")),
+            error: Some(format!(
+                "canonical custody account {address} does not exist"
+            )),
         },
         Ok(Some(value)) if value.owner != expected_owner => CustodyStatus {
             account: Some(address),

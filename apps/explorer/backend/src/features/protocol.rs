@@ -13,7 +13,10 @@ use {
     aeko_permission_registry_program::state::RegistryConfig,
     aeko_public_mint_program::state::PublicMintState,
     aeko_revocation_registry_program::state::RevRegistryConfig,
-    aeko_sdk::{feature::{self, Feature}, system_program},
+    aeko_sdk::{
+        feature::{self, Feature},
+        system_program,
+    },
     aeko_subnet_registry_program::state::SubnetRegistryConfig,
     aeko_token_20_program::state::Aeko20Mint,
     aeko_tokenomics_program::state::TokenomicsStateAccount,
@@ -224,12 +227,7 @@ fn inspect_protocol(
     let accounts = registry
         .accounts
         .iter()
-        .map(|(label, address)| {
-            (
-                label.clone(),
-                inspect_protocol_account(rpc, address),
-            )
-        })
+        .map(|(label, address)| (label.clone(), inspect_protocol_account(rpc, address)))
         .collect::<BTreeMap<_, _>>();
 
     let features_healthy = features.values().all(|status| {
@@ -242,7 +240,9 @@ fn inspect_protocol(
         .values()
         .all(|status| status.present && status.executable && status.error.is_none());
     let states_healthy = states.values().all(|status| status.condition == "healthy");
-    let accounts_healthy = accounts.values().all(|status| status.condition == "healthy");
+    let accounts_healthy = accounts
+        .values()
+        .all(|status| status.condition == "healthy");
 
     let condition = if bootstrap_in_progress {
         "bootstrapInProgress"
