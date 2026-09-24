@@ -936,7 +936,7 @@ fn prepare_protocol_state_continuity(
             "protocol continuity anchor exists but protocol-registry.env is missing; refusing to create replacement canonical state unless AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1 is explicitly set for intentional recovery"
         )),
         (None, None) if require_existing && !allow_initialization => Err(anyhow!(
-            "no established protocol state was found; set AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1 only for the intentional first protocol bootstrap"
+            "no established protocol state was found although existing state was required; restore the protocol-state/protocol-continuity volumes before bootstrapping"
         )),
         (None, None) => Ok(()),
     }
@@ -1092,7 +1092,7 @@ mod tests {
     }
 
     #[test]
-    fn continuity_requires_explicit_first_bootstrap_when_configured() {
+    fn continuity_fails_closed_when_required_state_disappears() {
         let state = TempDir::new().unwrap();
         let continuity = TempDir::new().unwrap();
 
@@ -1107,7 +1107,7 @@ mod tests {
         .unwrap_err();
         assert!(error
             .to_string()
-            .contains("AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1"));
+            .contains("restore the protocol-state/protocol-continuity volumes"));
 
         prepare_protocol_state_continuity(
             state.path(),
