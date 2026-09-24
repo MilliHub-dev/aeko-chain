@@ -89,17 +89,18 @@ npm install @solana/web3.js borsh bs58 @noble/ed25519
 // src/chain/client.ts
 import { AekoConnection, AekoExplorer, PROGRAM_IDS } from "@aeko/sdk";
 
-const RPC_URL      = process.env.AEKO_RPC_URL      ?? "http://localhost:8899";
-const EXPLORER_URL = process.env.AEKO_EXPLORER_URL ?? "http://localhost:8088";
-vscode-webview://0lpmu6jgpekcugb1rc5h5s1si42vju3eau5deci7bhga21soqcea/index.html?id=00e57bbc-5173-4743-9bd0-d6ea77c4ef4a&parentId=4&origin=7aa79b5a-8f10-4aab-bf6a-596587b300d8&swVersion=5&extensionId=Anthropic.claude-code&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&purpose=webviewView&session=7de6ad09-2255-48f4-af63-7a86e4f0488c#
+const RPC_URL = process.env.AEKO_RPC_URL ?? "http://localhost:8899";
+const EXPLORER_URL =
+  process.env.AEKO_INTERNAL_EXPLORER_API_URL ?? "http://localhost:8088";
+
 export const connection = new AekoConnection(RPC_URL);
-export const explorer   = new AekoExplorer(EXPLORER_URL);
+export const explorer = new AekoExplorer(EXPLORER_URL);
 ```
 
-Add to `.env`:
+Add to the **server/backend** `.env`. The Explorer upstream is private; do not expose it through a `NEXT_PUBLIC_*` variable:
 ```
 AEKO_RPC_URL=https://rpc.aeko.online
-AEKO_EXPLORER_URL=https://scan.aeko.online/api/explorer/testnet
+AEKO_INTERNAL_EXPLORER_API_URL=http://explorer-api:8088
 ```
 
 ---
@@ -1223,7 +1224,7 @@ export async function hasWallet(): Promise<boolean> {
 
 ```env
 AEKO_RPC_URL=https://rpc.aeko.online
-AEKO_EXPLORER_URL=https://scan.aeko.online/api/explorer/testnet
+AEKO_INTERNAL_EXPLORER_API_URL=http://explorer-api:8088
 AEKO_SERVICE_KEYPAIR=[1,2,3,...]    # byte array of service wallet secret key
 AEKO_TREASURY_ADDRESS=...           # platform fee destination
 AEKO_PLATFORM_FEE_BPS=200           # 2% platform fee on marketplace sales
