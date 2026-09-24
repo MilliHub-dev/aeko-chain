@@ -9,14 +9,76 @@ use {
         JSON_RPC_SERVER_ERROR_LONG_TERM_STORAGE_SLOT_SKIPPED, JSON_RPC_SERVER_ERROR_SLOT_SKIPPED,
     },
     anyhow::{bail, Context, Result},
-    std::{sync::Arc, time::Duration},
+    std::{
+        collections::HashMap,
+        sync::{Arc, Mutex},
+        time::{Duration, Instant},
+    },
 };
+
+const PROJECTION_FAILURE_WARN_INTERVAL: Duration = Duration::from_secs(60);
+
+#[derive(Debug)]
+struct ProjectionFailure {
+    fingerprint: String,
+    suppressed: u64,
+    last_warn: Instant,
+}
+
+#[derive(Default, Debug)]
+struct ProjectionFailureTracker {
+    failures: HashMap<&'static str, ProjectionFailure>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum ProjectionFailureLog {
+    First,
+    Suppressed,
+    Repeated { suppressed: u64 },
+}
+
+impl ProjectionFailureTracker {
+    fn record_failure(
+        &mut self,
+        stream: &'static str,
+        fingerprint: &str,
+        now: Instant,
+    ) -> ProjectionFailureLog {
+        if let Some(existing) = self.failures.get_mut(stream) {
+            if existing.fingerprint == fingerprint {
+                if now.duration_since(existing.last_warn) < PROJECTION_FAILURE_WARN_INTERVAL {
+                    existing.suppressed = existing.suppressed.saturating_add(1);
+                    return ProjectionFailureLog::Suppressed;
+                }
+                let suppressed = existing.suppressed;
+                existing.suppressed = 0;
+                existing.last_warn = now;
+                return ProjectionFailureLog::Repeated { suppressed };
+            }
+        }
+
+        self.failures.insert(
+            stream,
+            ProjectionFailure {
+                fingerprint: fingerprint.to_string(),
+                suppressed: 0,
+                last_warn: now,
+            },
+        );
+        ProjectionFailureLog::First
+    }
+
+    fn recover(&mut self, stream: &'static str) -> Option<u64> {
+        self.failures.remove(stream).map(|state| state.suppressed)
+    }
+}
 
 #[derive(Clone)]
 pub struct IndexerService {
     source: Arc<dyn ChainDataSource>,
     repository: PostgresRepository,
     config: ExplorerBackendConfig,
+    projection_failures: Arc<Mutex<ProjectionFailureTracker>>,
 }
 
 impl IndexerService {
@@ -29,6 +91,7 @@ impl IndexerService {
             source,
             repository,
             config,
+            projection_failures: Arc::new(Mutex::new(ProjectionFailureTracker::default())),
         }
     }
 
@@ -134,6 +197,57 @@ impl IndexerService {
         Ok(last.is_none_or(|last| trigger_slot.saturating_sub(last) >= cadence))
     }
 
+    fn record_projection_failure(
+        &self,
+        stream: &'static str,
+        trigger_slot: u64,
+        error: &str,
+    ) {
+        let action = self
+            .projection_failures
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .record_failure(stream, error, Instant::now());
+        match action {
+            ProjectionFailureLog::First => tracing::warn!(
+                stream,
+                trigger_slot,
+                error,
+                "projection refresh failed; core cursor remains valid"
+            ),
+            ProjectionFailureLog::Suppressed => {}
+            ProjectionFailureLog::Repeated { suppressed } => tracing::warn!(
+                stream,
+                trigger_slot,
+                suppressed,
+                error,
+                "projection refresh is still failing; repeated identical failures were suppressed"
+            ),
+        }
+    }
+
+    fn record_projection_recovery(
+        &self,
+        stream: &'static str,
+        trigger_slot: u64,
+        snapshot_slot: u64,
+    ) {
+        let suppressed = self
+            .projection_failures
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .recover(stream);
+        if let Some(suppressed) = suppressed {
+            tracing::info!(
+                stream,
+                trigger_slot,
+                snapshot_slot,
+                suppressed,
+                "projection refresh recovered"
+            );
+        }
+    }
+
     async fn refresh_assets(&self, trigger_slot: u64) {
         let source = Arc::clone(&self.source);
         let snapshot = tokio::task::spawn_blocking(move || {
@@ -153,28 +267,31 @@ impl IndexerService {
                             .mark_projection_slot("assets", snapshot_slot)
                             .await
                         {
-                            tracing::warn!(
+                            self.record_projection_failure(
+                                "assets",
                                 trigger_slot,
-                                snapshot_slot,
-                                error = ?error,
-                                "asset data persisted but freshness cursor update failed"
+                                &format!(
+                                    "asset data persisted but freshness cursor update failed: {error:#}"
+                                ),
                             );
                         } else {
+                            self.record_projection_recovery("assets", trigger_slot, snapshot_slot);
                             tracing::info!(trigger_slot, snapshot_slot, "asset snapshot refreshed");
                         }
                     }
-                    Err(error) => tracing::warn!(
+                    Err(error) => self.record_projection_failure(
+                        "assets",
                         trigger_slot,
-                        snapshot_slot,
-                        error = ?error,
-                        "asset snapshot persistence failed; core cursor remains valid"
+                        &format!(
+                            "asset snapshot persistence failed at snapshot {snapshot_slot}: {error:#}"
+                        ),
                     ),
                 }
             }
-            Ok(Err(error)) => tracing::warn!(
+            Ok(Err(error)) => self.record_projection_failure(
+                "assets",
                 trigger_slot,
-                error = ?error,
-                "asset snapshot RPC refresh failed; core cursor remains valid"
+                &format!("asset snapshot RPC refresh failed: {error:#}"),
             ),
             Err(error) => {
                 tracing::error!(trigger_slot, error = %error, "asset snapshot worker panicked")
@@ -197,14 +314,15 @@ impl IndexerService {
                 let snapshot_slot = snapshot.slot;
                 let snapshot_epoch = snapshot.epoch;
                 if let Err(error) = self.repository.persist_social_snapshot(snapshot).await {
-                    tracing::warn!(
+                    self.record_projection_failure(
+                        "social",
                         trigger_slot,
-                        snapshot_slot,
-                        snapshot_epoch,
-                        error = ?error,
-                        "canonical Social snapshot persistence failed; core cursor remains valid"
+                        &format!(
+                            "canonical Social snapshot persistence failed at snapshot {snapshot_slot} epoch {snapshot_epoch}: {error:#}"
+                        ),
                     );
                 } else {
+                    self.record_projection_recovery("social", trigger_slot, snapshot_slot);
                     tracing::info!(
                         trigger_slot,
                         snapshot_slot,
@@ -213,10 +331,10 @@ impl IndexerService {
                     );
                 }
             }
-            Ok(Err(error)) => tracing::warn!(
+            Ok(Err(error)) => self.record_projection_failure(
+                "social",
                 trigger_slot,
-                error = ?error,
-                "canonical Social snapshot RPC refresh failed; core cursor remains valid"
+                &format!("canonical Social snapshot RPC refresh failed: {error:#}"),
             ),
             Err(error) => {
                 tracing::error!(trigger_slot, error = %error, "Social snapshot worker panicked")
@@ -245,7 +363,10 @@ fn is_proven_skipped_slot(error: &anyhow::Error) -> bool {
 #[cfg(test)]
 mod tests {
     use {
-        super::{core_cursor_is_ahead, is_proven_skipped_slot},
+        super::{
+            core_cursor_is_ahead, is_proven_skipped_slot, ProjectionFailureLog,
+            ProjectionFailureTracker, PROJECTION_FAILURE_WARN_INTERVAL,
+        },
         crate::infrastructure::rpc_error::RpcRequestError,
         aeko_rpc_client_api::custom_error::{
             JSON_RPC_SERVER_ERROR_BLOCK_NOT_AVAILABLE,
@@ -290,4 +411,51 @@ mod tests {
         assert!(!core_cursor_is_ahead(100, 100));
         assert!(core_cursor_is_ahead(102, 100));
     }
+    #[test]
+    fn repeated_projection_failures_are_suppressed_until_interval_and_recovery_resets_state() {
+        let mut tracker = ProjectionFailureTracker::default();
+        let now = std::time::Instant::now();
+
+        assert_eq!(
+            tracker.record_failure("social", "missing canonical state", now),
+            ProjectionFailureLog::First
+        );
+        assert_eq!(
+            tracker.record_failure(
+                "social",
+                "missing canonical state",
+                now + std::time::Duration::from_secs(1)
+            ),
+            ProjectionFailureLog::Suppressed
+        );
+        assert_eq!(
+            tracker.record_failure(
+                "social",
+                "missing canonical state",
+                now + PROJECTION_FAILURE_WARN_INTERVAL
+            ),
+            ProjectionFailureLog::Repeated { suppressed: 1 }
+        );
+        assert_eq!(tracker.recover("social"), Some(0));
+        assert_eq!(tracker.recover("social"), None);
+    }
+
+    #[test]
+    fn a_changed_projection_failure_fingerprint_warns_immediately() {
+        let mut tracker = ProjectionFailureTracker::default();
+        let now = std::time::Instant::now();
+        assert_eq!(
+            tracker.record_failure("social", "missing state", now),
+            ProjectionFailureLog::First
+        );
+        assert_eq!(
+            tracker.record_failure(
+                "social",
+                "rpc unavailable",
+                now + std::time::Duration::from_secs(1)
+            ),
+            ProjectionFailureLog::First
+        );
+    }
+
 }
