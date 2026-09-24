@@ -45,12 +45,15 @@ def main() -> int:
     explorer_example = read("apps/explorer/web/.env.example")
     explorer_dockerfile = read("docker/Dockerfile")
     explorer_entrypoint = read("docker/explorer-ui-entrypoint.sh")
+    explorer_server = read("docker/explorer-ui-server.mjs")
     explorer_vite = read("apps/explorer/web/vite.config.js")
     network_config = read("apps/explorer/web/src/utils/networkConfig.js")
     nft_demo = read("apps/explorer/web/src/data/nftDemoExamples.js")
     funding_policy = read("apps/admin/src/app/api/funding/policy/route.ts")
     funding_request = read("apps/admin/src/app/api/funding/request/route.ts")
     funding_airdrop = read("apps/admin/src/app/api/funding/airdrop/route.ts")
+    funding_internal = read("apps/admin/src/app/api/internal/funding/requests/route.ts")
+    funding_admin_client = read("apps/admin/src/lib/funding-admin-client.ts")
     middleware = read("apps/admin/src/middleware.ts")
     funding_cors = read("apps/admin/src/lib/funding-cors.ts")
     ip_throttle = read("apps/admin/src/lib/ip-throttle.ts")
@@ -79,21 +82,29 @@ def main() -> int:
     public_vars = (
         "AEKO_PUBLIC_RPC_URL",
         "AEKO_PUBLIC_WS_URL",
-        "AEKO_PUBLIC_EXPLORER_API_URL",
-        "AEKO_PUBLIC_EXPLORER_URL",
         "AEKO_PUBLIC_FUNDING_URL",
-        "AEKO_PUBLIC_ADMIN_URL",
         "FUNDING_ALLOWED_ORIGINS",
     )
     for name in public_vars:
         require_empty_assignment(public_env, name, "docker/env.public.example")
 
-    for name in (
-        "AEKO_PUBLIC_RPC_URL",
-        "AEKO_PUBLIC_WS_URL",
+    for retired in (
         "AEKO_PUBLIC_EXPLORER_API_URL",
+        "AEKO_PUBLIC_EXPLORER_URL",
+        "AEKO_PUBLIC_ADMIN_URL",
+        "AEKO_MAINNET_EXPLORER_API_URL",
+        "AEKO_MAINNET_EXPLORER_URL",
+        "FUNDING_CLIENT_API_KEY",
     ):
-        reject(admin_env, name, "Operations Web env example")
+        reject(public_env, retired, "docker/env.public.example")
+
+    require(
+        "AEKO_OPERATIONS_ROLE=admin" in admin_env
+        and "AEKO_INTERNAL_EXPLORER_API_URL=" in admin_env
+        and "AEKO_INTERNAL_FUNDING_URL=" in admin_env
+        and "FUNDING_ADMIN_API_KEY=" in admin_env,
+        "Operations Web env example must document the private Admin role and service dependencies",
+    )
     require(
         "FUNDING_IP_REQUESTS_PER_10_MIN=" in admin_env,
         "Operations Web env example must expose the funding request throttle",
@@ -102,17 +113,11 @@ def main() -> int:
         "FUNDING_IP_REQUESTS_PER_10_MIN" in ip_throttle,
         "Funding throttle must read the documented funding request limit",
     )
-    reject(
-        ip_throttle,
-        "FAUCET_IP_REQUESTS_PER_10_MIN",
-        "funding throttle",
-    )
+    reject(ip_throttle, "FAUCET_IP_REQUESTS_PER_10_MIN", "funding throttle")
 
     for name in (
         "AEKO_MAINNET_RPC_URL",
         "AEKO_MAINNET_WS_URL",
-        "AEKO_MAINNET_EXPLORER_API_URL",
-        "AEKO_MAINNET_EXPLORER_URL",
         "AEKO_DEMO_RPC_URL",
         "AEKO_DEMO_COLLECTION",
         "AEKO_DEMO_TOKEN",
@@ -123,13 +128,11 @@ def main() -> int:
     for name in (
         "AEKO_PUBLIC_RPC_URL",
         "AEKO_PUBLIC_WS_URL",
-        "AEKO_PUBLIC_EXPLORER_API_URL",
-        "AEKO_PUBLIC_EXPLORER_URL",
         "AEKO_PUBLIC_FUNDING_URL",
+        "AEKO_INTERNAL_EXPLORER_API_URL",
         "AEKO_MAINNET_RPC_URL",
         "AEKO_MAINNET_WS_URL",
-        "AEKO_MAINNET_EXPLORER_API_URL",
-        "AEKO_MAINNET_EXPLORER_URL",
+        "AEKO_INTERNAL_MAINNET_EXPLORER_API_URL",
         "AEKO_DEMO_RPC_URL",
         "AEKO_DEMO_COLLECTION",
         "AEKO_DEMO_TOKEN",
@@ -137,8 +140,17 @@ def main() -> int:
     ):
         require(
             re.search(rf"^{re.escape(name)}=", explorer_example, re.MULTILINE) is not None,
-            f"Explorer web env example must expose local-dev key {name}",
+            f"Explorer web env example must expose key {name}",
         )
+
+    for retired in (
+        "AEKO_PUBLIC_EXPLORER_API_URL",
+        "AEKO_PUBLIC_EXPLORER_URL",
+        "AEKO_PUBLIC_ADMIN_URL",
+        "AEKO_MAINNET_EXPLORER_API_URL",
+        "AEKO_MAINNET_EXPLORER_URL",
+    ):
+        reject(explorer_example, retired, "Explorer web env example")
 
     for where, text in (
         ("Explorer web env example", explorer_example),
@@ -167,23 +179,28 @@ def main() -> int:
     require(
         "http://127.0.0.1:8899" in network_config
         and "ws://127.0.0.1:8900" in network_config
-        and "http://127.0.0.1:8088" in network_config,
-        "Explorer local Vite mode must retain loopback defaults when no local env endpoints are supplied",
+        and "/api/explorer/testnet" in network_config,
+        "Explorer local mode must retain loopback chain defaults and same-origin indexed reads",
     )
 
     for name in (
         "AEKO_PUBLIC_RPC_URL",
         "AEKO_PUBLIC_WS_URL",
-        "AEKO_PUBLIC_EXPLORER_API_URL",
-        "AEKO_PUBLIC_EXPLORER_URL",
         "AEKO_PUBLIC_FUNDING_URL",
     ):
         require((': "${' + name + ':?') in explorer_entrypoint, f"Explorer runtime entrypoint must require {name}")
+    for retired in (
+        "AEKO_PUBLIC_EXPLORER_API_URL",
+        "AEKO_PUBLIC_EXPLORER_URL",
+        "AEKO_MAINNET_EXPLORER_API_URL",
+        "AEKO_MAINNET_EXPLORER_URL",
+    ):
+        reject(explorer_entrypoint, retired, "Explorer runtime entrypoint")
     require(
-        "AEKO_PUBLIC_EXPLORER_API_URL resolves to the Explorer UI endpoint" in explorer_entrypoint
-        and "explorer-api:8088" in explorer_entrypoint
-        and "explorer-ui:4000" in explorer_entrypoint,
-        "Explorer runtime entrypoint must reject API/UI endpoint collisions with actionable routing guidance",
+        "AEKO_INTERNAL_EXPLORER_API_URL" in explorer_server
+        and "/api/explorer/testnet" in explorer_server
+        and "Explorer UI proxy is read-only" in explorer_server,
+        "Explorer UI server must own a read-only same-origin proxy to the private Explorer backend",
     )
     require(
         "const config = { testnet, mainnet, demo }" in explorer_entrypoint,
