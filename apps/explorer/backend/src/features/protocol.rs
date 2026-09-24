@@ -1,12 +1,4 @@
 use {
-    aeko_emergency_multisig_program::state::MultisigConfig,
-    aeko_finality_oracle_program::state::OracleConfig,
-    aeko_permission_registry_program::state::RegistryConfig,
-    aeko_public_mint_program::state::PublicMintState,
-    aeko_revocation_registry_program::state::RevRegistryConfig,
-    aeko_subnet_registry_program::state::SubnetRegistryConfig,
-    aeko_token_20_program::state::Aeko20Mint,
-    aeko_tokenomics_program::state::TokenomicsStateAccount,
     crate::{
         error::ApiResult,
         infrastructure::{
@@ -16,7 +8,15 @@ use {
         response::{self, DataEnvelope},
         state::SharedState,
     },
+    aeko_emergency_multisig_program::state::MultisigConfig,
+    aeko_finality_oracle_program::state::OracleConfig,
+    aeko_permission_registry_program::state::RegistryConfig,
+    aeko_public_mint_program::state::PublicMintState,
+    aeko_revocation_registry_program::state::RevRegistryConfig,
     aeko_sdk::feature::{self, Feature},
+    aeko_subnet_registry_program::state::SubnetRegistryConfig,
+    aeko_token_20_program::state::Aeko20Mint,
+    aeko_tokenomics_program::state::TokenomicsStateAccount,
     anyhow::Context,
     axum::{extract::State, routing::get, Json, Router},
     serde::Serialize,
@@ -144,10 +144,7 @@ async fn get_status(
     ))
 }
 
-pub(crate) fn inspect_protocol_status(
-    rpc: &RpcChainClient,
-    live_genesis: &str,
-) -> ProtocolStatus {
+pub(crate) fn inspect_protocol_status(rpc: &RpcChainClient, live_genesis: &str) -> ProtocolStatus {
     inspect_protocol(rpc, resolve_protocol_registry(), live_genesis)
 }
 
@@ -377,7 +374,9 @@ fn inspect_state(
             let (condition, error) = if expected_owner.is_none() {
                 (
                     "registryMissing".to_string(),
-                    Some("expected owner program is missing from the protocol registry".to_string()),
+                    Some(
+                        "expected owner program is missing from the protocol registry".to_string(),
+                    ),
                 )
             } else if !owner_matches {
                 (
