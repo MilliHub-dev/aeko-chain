@@ -241,28 +241,49 @@ services:
       start_period: 30s
     networks: [aeko]
 
+  funding-gateway:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-operations-web:${AEKO_IMAGE_TAG:-latest}
+    container_name: aeko-funding-gateway
+    restart: unless-stopped
+    environment:
+      AEKO_OPERATIONS_ROLE: funding
+      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
+      AEKO_PUBLIC_FUNDING_URL: ${AEKO_PUBLIC_FUNDING_URL:-http://localhost:3002}
+      FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:-}
+      FUNDING_ADMIN_API_KEY: ${FUNDING_ADMIN_API_KEY:-local-dev-funding-admin-key-32-chars}
+      FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:-http://localhost:4000}
+      FUNDING_STATE_DIR: /data
+      FUNDING_DEFAULT_AMOUNT_AEKO: ${FUNDING_DEFAULT_AMOUNT_AEKO:-5}
+      FUNDING_DEFAULT_COOLDOWN_HOURS: ${FUNDING_DEFAULT_COOLDOWN_HOURS:-24}
+      FUNDING_DEFAULT_DAILY_BUDGET_AEKO: ${FUNDING_DEFAULT_DAILY_BUDGET_AEKO:-5000}
+      FUNDING_MAX_MANUAL_GRANT_AEKO: ${FUNDING_MAX_MANUAL_GRANT_AEKO:-100}
+      FUNDING_MAX_CONSOLE_AIRDROP_AEKO: ${FUNDING_MAX_CONSOLE_AIRDROP_AEKO:-25}
+    ports:
+      - "${AEKO_FUNDING_HOST_PORT:-3002}:3001"
+    volumes:
+      - admin-state:/data
+    networks: [aeko]
+
   operations-web:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-operations-web:${AEKO_IMAGE_TAG:-latest}
     container_name: aeko-operations-web
     restart: unless-stopped
     environment:
+      AEKO_OPERATIONS_ROLE: admin
       AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
       AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}
       AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:-local-dev-settings-admin-token-32-characters}
-      AEKO_PUBLIC_EXPLORER_URL: ${AEKO_PUBLIC_EXPLORER_URL:-http://localhost:4000}
-      AEKO_PUBLIC_FUNDING_URL: ${AEKO_PUBLIC_FUNDING_URL:-http://localhost:3001}
-      AEKO_PUBLIC_ADMIN_URL: ${AEKO_PUBLIC_ADMIN_URL:-http://localhost:3001}
+      AEKO_INTERNAL_FUNDING_URL: ${AEKO_INTERNAL_FUNDING_URL:-http://funding-gateway:3001}
+      FUNDING_ADMIN_API_KEY: ${FUNDING_ADMIN_API_KEY:-local-dev-funding-admin-key-32-chars}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-local-dev-session-secret}
-      FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:-}
-      FUNDING_CLIENT_API_KEY: ${FUNDING_CLIENT_API_KEY:-}
-      FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:-http://localhost:4000}
-      FUNDING_STATE_DIR: /data
     ports:
       - "${AEKO_OPERATIONS_WEB_HOST_PORT:-3001}:3001"
-    volumes:
-      - admin-state:/data
+    depends_on:
+      funding-gateway:
+        condition: service_started
     networks: [aeko]
+
 
 networks:
   aeko:
