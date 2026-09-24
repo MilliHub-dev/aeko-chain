@@ -32,6 +32,7 @@ EXPLORER_BACKEND_ENV = ROOT / "apps" / "explorer" / "backend" / ".env.example"
 EXPLORER_ENTRYPOINT = DOCKER_DIR / "explorer-ui-entrypoint.sh"
 NETWORK_CONFIG = ROOT / "apps" / "explorer" / "web" / "src" / "utils" / "networkConfig.js"
 PROMOTE_IMAGES = ROOT / ".github" / "actions" / "devops" / "promote-images" / "action.yml"
+LIVE_DIAGNOSTICS = ROOT / ".github" / "workflows" / "live-network-diagnostics.yml"
 
 
 class ContractFailure(RuntimeError):
@@ -84,6 +85,7 @@ def main() -> int:
     explorer_entrypoint = read(EXPLORER_ENTRYPOINT)
     network_config = read(NETWORK_CONFIG)
     promote_images = read(PROMOTE_IMAGES)
+    live_diagnostics = read(LIVE_DIAGNOSTICS)
 
     # The settings mutation credential is server-side control-plane state.
     # Explorer API and Operations Web must share it, while the browser runtime
@@ -240,13 +242,22 @@ def main() -> int:
     # missing state on a previously completed chain. It must also own the
     # economic vault lifecycle so Social programs never need to debit arbitrary
     # system-owned user accounts directly.
+    for removed_recovery_flag in (
+        "AEKO_BOOTSTRAP_ALLOW_MISSING_STATE",
+        "AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE",
+        "AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY",
+    ):
+        require(
+            removed_recovery_flag not in social_bootstrap
+            and removed_recovery_flag not in protocol_bootstrap
+            and removed_recovery_flag not in protocol_integration
+            and removed_recovery_flag not in public_env,
+            f"bootstrap recovery bypass must stay removed: {removed_recovery_flag}",
+        )
     require(
-        'parse_bool_flag("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE")' in social_bootstrap,
-        "SocialFi bootstrap must consume AEKO_BOOTSTRAP_ALLOW_MISSING_STATE",
-    )
-    require(
-        "registry_preexisted && !allow_missing_state" in social_bootstrap,
-        "SocialFi bootstrap must fail closed when completed registry state disappears",
+        "protect_existing_registry" in social_bootstrap
+        and "AEKO_RESET_LEDGER=1" in social_bootstrap,
+        "SocialFi bootstrap must fail closed on missing established state and direct intentional recreation through the chain reset lifecycle",
     )
     require(
         "existing initialized state verified" in social_bootstrap,
@@ -297,7 +308,7 @@ def main() -> int:
     for required in (
         "require_feature_active",
         "require_executable_program",
-        "registry_preexisted && !allow_missing_state",
+        "protect_existing_registry",
         "protocol-registry.env",
         "AEKO_TOKENOMICS_PROGRAM_ID",
         "AEKO_FINALITY_ORACLE_PROGRAM_ID",
@@ -314,8 +325,6 @@ def main() -> int:
     require("smoke-aeko-protocol.py" in protocol_integration, "network integration must execute the read-only Protocol smoke")
     require("smoke-aeko-social.py" in protocol_integration, "network integration must execute the real all-five Social smoke")
     require("aeko-social-bootstrap" in protocol_integration, "network integration must execute the real Social bootstrap")
-    require("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE" in protocol_integration, "network integration must retain explicit Protocol disaster-recovery wiring")
-    require("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE" in protocol_integration, "network integration must retain explicit Social disaster-recovery wiring")
     require("cmp" in protocol_integration and "protocol-registry.env" in protocol_integration and "social-registry.env" in protocol_integration, "network integration must prove idempotent Social and Protocol registry identity")
     require("getGenesisHash" in protocol_integration and "getTransaction" in protocol_integration, "network integration must prove ledger identity and historical transaction continuity across restart")
     require("GENESIS_TWO" in protocol_integration and "GENESIS_THREE" in protocol_integration, "network integration must exercise real replacement genesis and interrupted reset generations")
@@ -324,13 +333,26 @@ def main() -> int:
     require("unexpectedly accepted missing established same-genesis state" in protocol_integration, "network integration must prove same-genesis Social and Protocol corruption fails closed")
     require("/network/readiness" in protocol_integration, "network integration must require strict Social + Protocol readiness before acceptance")
     require("REGISTRY_SCHEMA_VERSION" in bootstrap_lifecycle and "CHAIN_GENESIS_KEY" in bootstrap_lifecycle, "shared bootstrap lifecycle must version and genesis-bind canonical registries")
-    require("ResumeReset" in bootstrap_lifecycle and "AdoptLegacy" in bootstrap_lifecycle, "shared bootstrap lifecycle must cover interrupted reset resumption and verified legacy adoption")
+    require(
+        "ResumeReset" in bootstrap_lifecycle
+        and "AdoptLegacy" not in bootstrap_lifecycle
+        and "Schema-less or unbound registries are unsupported" in bootstrap_lifecycle,
+        "shared bootstrap lifecycle must resume interrupted resets while rejecting schema-less registry adoption",
+    )
     require("aeko-keygen pubkey" in protocol_activate, "feature activation helper must verify offline keypair identities")
     require('FEATURE_SET_SOURCE="$REPO_ROOT/sdk/src/feature_set.rs"' in protocol_activate, "activation helper must resolve feature identities only from the canonical runtime feature set")
     require("aeko_token_programs_v1" in protocol_activate and "aeko_permission_layer_v1" in protocol_activate, "activation helper must resolve both AEKO protocol feature modules")
     require(token_feature_id not in protocol_activate, "activation helper must not duplicate the token feature id literal")
     require(permission_feature_id not in protocol_activate, "activation helper must not duplicate the permission feature id literal")
     require("promote aeko-protocol-bootstrap" in promote_images, "main release promotion must include the protocol-bootstrap image")
+
+    # Live diagnostics are deliberately separate from the image build/release workflow.
+    require("workflow_dispatch:" in live_diagnostics, "live diagnostics must be manually dispatchable")
+    require("pull_request:" not in live_diagnostics and "push:" not in live_diagnostics, "live diagnostics must not run automatically on code changes")
+    require("https://rpc.aeko.online" in live_diagnostics and "https://api.aeko.online" in live_diagnostics, "live diagnostics must target the public AEKO RPC and Explorer API")
+    for endpoint in ("/liveness", "/readiness", "/network/readiness", "/overview", "/registry/social", "/social/status", "/registry/protocol", "/protocol/status"):
+        require(endpoint in live_diagnostics, f"live diagnostics missing control-plane probe: {endpoint}")
+    require("smoke-aeko-social.py" in live_diagnostics and "smoke-aeko-protocol.py" in live_diagnostics, "live diagnostics must execute both repository smoke suites")
 
     # Dokploy is an image-pull deployment contract, never a second build system.
     require(re.search(r"^\s+build:\s*$", dokploy, re.MULTILINE) is None, "Dokploy compose must pull prebuilt images, not build source")
