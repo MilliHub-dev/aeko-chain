@@ -7,7 +7,6 @@ export const dynamic = 'force-dynamic'
 
 export const OPTIONS = fundingPreflight
 
-const EXPLORER_URL = (process.env.AEKO_PUBLIC_EXPLORER_URL ?? '').replace(/\/+$/, '')
 
 /**
  * Public: `{ address }` → one pending policy-sized request for operator approval.
@@ -47,12 +46,7 @@ export async function POST(req: NextRequest) {
   try {
     const request = await requestFundingApproval(address, trusted ? 'backend' : 'public')
     return respond(
-      {
-        data: {
-          ...request,
-          explorerUrl: EXPLORER_URL ? `${EXPLORER_URL}/explorer/account/${request.address}` : null,
-        },
-      },
+      { data: request },
       { status: 202 },
     )
   } catch (err) {
