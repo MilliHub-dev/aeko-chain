@@ -571,11 +571,15 @@ if data["genesisHash"] != genesis:
     raise RuntimeError(f"network readiness genesis mismatch: {data['genesisHash']} != {genesis}")
 if data["social"]["healthy"] != 5 or data["social"]["total"] != 5:
     raise RuntimeError(f"Social readiness is not 5/5: {data['social']}")
+if data["social"]["healthyCustody"] != 5 or data["social"]["custodyTotal"] != 5:
+    raise RuntimeError(f"Social custody readiness is not 5/5: {data['social']}")
 if data["protocol"]["executablePrograms"] != 11 or data["protocol"]["programTotal"] != 11:
     raise RuntimeError(f"Protocol executable programs are not 11/11: {data['protocol']}")
 if data["protocol"]["healthy"] != 8 or data["protocol"]["total"] != 8:
     raise RuntimeError(f"Protocol canonical state is not 8/8: {data['protocol']}")
-print("[ok] strict network readiness reports Social 5/5, Protocol 11/11 programs and 8/8 states")
+if data["protocol"]["healthyCustody"] != 3 or data["protocol"]["custodyTotal"] != 3:
+    raise RuntimeError(f"Protocol custody readiness is not 3/3: {data['protocol']}")
+print("[ok] strict network readiness reports Social 5/5 state + 5/5 custody, Protocol 11/11 programs + 8/8 state + 3/3 custody")
 PY
 
 echo "[PASS] ledger continuity, genesis-bound Social/Protocol lifecycle, interrupted-reset recovery, Explorer readiness and smoke integration"
