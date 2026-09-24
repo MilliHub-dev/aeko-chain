@@ -61,7 +61,10 @@ async function proxyExplorer(req, res, url, target) {
   }
 
   const suffix = url.pathname.slice(target.prefix.length) || '/'
-  const upstreamUrl = new URL(suffix + url.search, target.upstream + '/')
+  const upstreamUrl = new URL(target.upstream)
+  const upstreamBasePath = upstreamUrl.pathname.replace(/\/+$/, '')
+  upstreamUrl.pathname = upstreamBasePath + (suffix.startsWith('/') ? suffix : '/' + suffix)
+  upstreamUrl.search = url.search
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS)
 
@@ -72,6 +75,16 @@ async function proxyExplorer(req, res, url, target) {
       signal: controller.signal,
       redirect: 'manual',
     })
+
+    if (upstream.status >= 300 && upstream.status < 400) {
+      json(res, 502, {
+        error: {
+          code: 'EXPLORER_UPSTREAM_REDIRECT',
+          message: 'Explorer backend returned an unexpected redirect',
+        },
+      })
+      return
+    }
 
     const headers = new Headers(upstream.headers)
     for (const name of [
