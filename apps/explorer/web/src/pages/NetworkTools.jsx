@@ -193,6 +193,7 @@ export default function NetworkTools() {
           network={config.label}
           explorerApiUrl={config.explorerApiUrl}
           explorerUrl={config.explorerUrl}
+          fundingUrl={config.fundingUrl}
         />
       )}
     </div>

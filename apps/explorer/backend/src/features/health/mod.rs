@@ -1,6 +1,7 @@
 use {
     crate::{
         error::ApiResult,
+        features::{protocol::inspect_protocol_status, social::inspect_social_status},
         infrastructure::persistence::settings::PersistedAppSettings,
         response::{self, DataEnvelope},
         state::SharedState,
@@ -60,7 +61,10 @@ struct ExplorerOverviewStatus {
 pub fn router() -> Router<SharedState> {
     Router::new()
         .route("/", get(liveness))
+        .route("/liveness", get(liveness))
         .route("/health", get(readiness))
+        .route("/readiness", get(readiness))
+        .route("/network/readiness", get(network_readiness))
         .route("/overview", get(overview))
 }
 
@@ -76,6 +80,113 @@ async fn liveness(
         }),
         "process",
     )
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ControlPlaneReadiness {
+    complete: bool,
+    condition: String,
+    registry_complete: bool,
+    registry_genesis_hash: Option<String>,
+    live_genesis_hash: String,
+    genesis_matches: bool,
+    bootstrap_in_progress: bool,
+    healthy: usize,
+    total: usize,
+    executable_programs: Option<usize>,
+    program_total: Option<usize>,
+    healthy_custody: usize,
+    custody_total: usize,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NetworkReadinessStatus {
+    ok: bool,
+    genesis_hash: String,
+    social: ControlPlaneReadiness,
+    protocol: ControlPlaneReadiness,
+}
+
+async fn network_readiness(State(state): State<SharedState>) -> Response {
+    let rpc = state.rpc.clone();
+    let live_genesis = state.genesis_hash.clone();
+    let worker_genesis = live_genesis.clone();
+    let statuses = tokio::task::spawn_blocking(move || {
+        (
+            inspect_social_status(&rpc, &worker_genesis),
+            inspect_protocol_status(&rpc, &worker_genesis),
+        )
+    })
+    .await;
+
+    let (social, protocol) = match statuses {
+        Ok(statuses) => statuses,
+        Err(error) => {
+            tracing::error!(error = %error, "network readiness control-plane worker panicked");
+            let body = response::data_from_source(
+                &state.network,
+                json!({
+                    "ok": false,
+                    "genesisHash": live_genesis,
+                    "error": "control-plane readiness worker failed",
+                }),
+                "network-readiness",
+            );
+            return (StatusCode::SERVICE_UNAVAILABLE, body).into_response();
+        }
+    };
+
+    let ready = social.is_complete() && protocol.is_complete();
+    let body = response::data_from_source(
+        &state.network,
+        NetworkReadinessStatus {
+            ok: ready,
+            genesis_hash: live_genesis.clone(),
+            social: ControlPlaneReadiness {
+                complete: social.is_complete(),
+                condition: social.condition().to_string(),
+                registry_complete: social.registry_complete(),
+                registry_genesis_hash: social.registry_genesis_hash().map(str::to_string),
+                live_genesis_hash: live_genesis.clone(),
+                genesis_matches: social.genesis_matches(),
+                bootstrap_in_progress: social.bootstrap_in_progress(),
+                healthy: social.healthy_domain_count(),
+                total: social.domain_count(),
+                executable_programs: None,
+                program_total: None,
+                healthy_custody: social.healthy_custody_count(),
+                custody_total: social.custody_count(),
+            },
+            protocol: ControlPlaneReadiness {
+                complete: protocol.is_complete(),
+                condition: protocol.condition().to_string(),
+                registry_complete: protocol.registry_complete(),
+                registry_genesis_hash: protocol.registry_genesis_hash().map(str::to_string),
+                live_genesis_hash: live_genesis,
+                genesis_matches: protocol.genesis_matches(),
+                bootstrap_in_progress: protocol.bootstrap_in_progress(),
+                healthy: protocol.healthy_state_count(),
+                total: protocol.state_count(),
+                executable_programs: Some(protocol.executable_program_count()),
+                program_total: Some(protocol.program_count()),
+                healthy_custody: protocol.healthy_account_count(),
+                custody_total: protocol.account_count(),
+            },
+        },
+        "network-readiness",
+    );
+
+    (
+        if ready {
+            StatusCode::OK
+        } else {
+            StatusCode::SERVICE_UNAVAILABLE
+        },
+        body,
+    )
+        .into_response()
 }
 
 async fn overview(

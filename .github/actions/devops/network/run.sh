@@ -37,8 +37,9 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
   # builtin/snapshot upgrade tests rather than running the full runtime suite on every PR.
   cargo test --locked -p aeko-runtime --lib aeko_protocol_builtins
 
-  # Exercise the live protocol bootstrap/Explorer path against an actual local
-  # TestValidator and PostgreSQL after the snapshot/archive regression passes.
+  # Exercise the complete live network lifecycle against a real TestValidator
+  # and PostgreSQL: ledger continuity, both canonical bootstraps, replacement
+  # genesis, interrupted reset recovery, strict readiness and both smoke suites.
   bash scripts/ci-protocol-stack-integration.sh
 fi
 

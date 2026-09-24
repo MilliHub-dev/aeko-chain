@@ -6,6 +6,9 @@
 //! enable this bootstrap. Missing or mismatched state on an established
 //! registry fails closed unless explicit recovery is requested.
 
+#[path = "../../bootstrap-common/lifecycle.rs"]
+mod lifecycle;
+
 use {
     aeko_emergency_multisig_program::state::MultisigConfig,
     aeko_finality_oracle_program::state::OracleConfig,
@@ -80,30 +83,36 @@ fn main() -> Result<()> {
     fs::create_dir_all(&continuity_dir)
         .context("creating protocol bootstrap continuity directory")?;
 
-    let allow_missing_state = parse_bool_flag("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE")?;
+    let operator_allow_missing_state =
+        parse_bool_flag("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE")?;
     let allow_continuity_anchor_recovery =
         parse_bool_flag_with_default("AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY", false)?;
 
     let client = RpcClient::new_with_commitment(rpc_url.clone(), CommitmentConfig::confirmed());
     wait_for_rpc_ready(&client)?;
-    if parse_bool_flag_with_default("AEKO_RESET_LEDGER", false)? {
-        let genesis_hash = client
-            .get_genesis_hash()
-            .context("reading validator genesis hash for protocol reset")?
-            .to_string();
-        reset_state_dir_for_genesis(&out_dir, &genesis_hash)?;
-        reset_state_dir_for_genesis(&continuity_dir, &genesis_hash)?;
-    }
-    let registry_preexisted = out_dir.join(REGISTRY_FILE_NAME).is_file();
+    let live_genesis = client
+        .get_genesis_hash()
+        .context("reading validator genesis hash for protocol lifecycle")?
+        .to_string();
+    let reset_requested = parse_bool_flag_with_default("AEKO_RESET_LEDGER", false)?;
+    let lifecycle_decision = lifecycle::prepare(
+        &[out_dir.as_path(), continuity_dir.as_path()],
+        &out_dir.join(REGISTRY_FILE_NAME),
+        &live_genesis,
+        reset_requested,
+    )?;
+    let registry_preexisted = lifecycle_decision.strict_registry_guard();
+    let allow_missing_state =
+        operator_allow_missing_state || lifecycle_decision.allows_recreation();
     let require_existing_protocol_state = registry_preexisted;
-    let allow_protocol_state_initialization = !registry_preexisted;
+    let allow_protocol_state_initialization = lifecycle_decision.allows_recreation();
 
     prepare_protocol_state_continuity(
         &out_dir,
         &continuity_dir,
         require_existing_protocol_state,
         allow_protocol_state_initialization,
-        allow_continuity_anchor_recovery,
+        allow_continuity_anchor_recovery || lifecycle_decision.allows_recreation(),
         allow_missing_state,
     )?;
 
@@ -113,6 +122,23 @@ fn main() -> Result<()> {
     eprintln!("    authority: {}", authority.pubkey());
     eprintln!("    out-dir:   {}", out_dir.display());
     eprintln!("    continuity: {}", continuity_dir.display());
+    eprintln!("    live-genesis: {live_genesis}");
+    eprintln!(
+        "    registry-genesis: {}",
+        lifecycle_decision
+            .registry_genesis
+            .as_deref()
+            .unwrap_or("legacy-or-none")
+    );
+    eprintln!("    reset-requested: {reset_requested}");
+    eprintln!(
+        "    reset-in-progress: {}",
+        lifecycle_decision.reset_in_progress
+    );
+    eprintln!(
+        "    lifecycle-action: {}",
+        lifecycle_decision.action.as_str()
+    );
 
     let token_feature_slot = require_feature_active(
         &client,
@@ -431,8 +457,168 @@ fn main() -> Result<()> {
         },
     )?;
 
+    // Re-read the complete Protocol control plane before committing the durable
+    // lifecycle binding. Transaction confirmation alone is not sufficient to
+    // declare a reset/bootstrap complete.
+    let final_token_feature_slot = require_feature_active(
+        &client,
+        &feature_set::aeko_token_programs_v1::id(),
+        "aeko_token_programs_v1",
+    )?;
+    let final_permission_feature_slot = require_feature_active(
+        &client,
+        &feature_set::aeko_permission_layer_v1::id(),
+        "aeko_permission_layer_v1",
+    )?;
+    if final_token_feature_slot != token_feature_slot
+        || final_permission_feature_slot != permission_feature_slot
+    {
+        return Err(anyhow!(
+            "protocol feature activation changed during bootstrap; refusing to publish canonical lifecycle state"
+        ));
+    }
+    for (program_id, label) in [
+        (aeko_tokenomics_program::id(), "tokenomics"),
+        (aeko_token_20_program::id(), "token-20"),
+        (aeko_public_mint_program::id(), "public-mint"),
+        (aeko_token_721_program::id(), "token-721"),
+        (aeko_nft_marketplace_program::id(), "nft-marketplace"),
+        (aeko_wallet_permissions_program::id(), "wallet-permissions"),
+        (
+            aeko_permission_registry_program::id(),
+            "permission-registry",
+        ),
+        (
+            aeko_revocation_registry_program::id(),
+            "revocation-registry",
+        ),
+        (aeko_subnet_registry_program::id(), "subnet-registry"),
+        (aeko_emergency_multisig_program::id(), "emergency-multisig"),
+        (aeko_finality_oracle_program::id(), "finality-oracle"),
+    ] {
+        require_executable_program(&client, &program_id, label)?;
+    }
+
+    verify_system_vault(&client, &treasury.pubkey(), "tokenomics-treasury")?;
+    verify_system_vault(&client, &validator_rewards.pubkey(), "validator-rewards")?;
+    verify_system_vault(&client, &community_rewards.pubkey(), "community-rewards")?;
+
+    require_protocol_state(
+        &client,
+        &tokenomics_state.pubkey(),
+        &aeko_tokenomics_program::id(),
+        "tokenomics",
+        |data| {
+            let state = TokenomicsStateAccount::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid tokenomics state"))?;
+            Ok(state.is_initialized
+                && state.config.authority == authority.pubkey()
+                && state.config.governance_program_id == authority.pubkey()
+                && state.config.treasury_account == treasury.pubkey()
+                && state.config.validator_rewards_account == validator_rewards.pubkey()
+                && state.config.community_rewards_account == community_rewards.pubkey())
+        },
+    )?;
+
+    let final_reference_name =
+        env::var("AEKO_REFERENCE_MINT_NAME").unwrap_or_else(|_| "AEKO-20 Testnet Reference".into());
+    let final_reference_symbol =
+        env::var("AEKO_REFERENCE_MINT_SYMBOL").unwrap_or_else(|_| "A20T".into());
+    require_protocol_state(
+        &client,
+        &reference_mint.pubkey(),
+        &aeko_token_20_program::id(),
+        "aeko20-reference-mint",
+        |data| {
+            let mint = Aeko20Mint::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid AEKO-20 reference mint"))?;
+            Ok(mint.is_initialized
+                && mint.mint_authority == Some(authority.pubkey())
+                && mint.freeze_authority == Some(authority.pubkey())
+                && mint.name == final_reference_name
+                && mint.symbol == final_reference_symbol
+                && mint.decimals == reference_decimals
+                && mint.mint_policy == MintPolicy::PublicMintControlled)
+        },
+    )?;
+    require_protocol_state(
+        &client,
+        &public_mint_state.pubkey(),
+        &aeko_public_mint_program::id(),
+        "public-mint",
+        |data| {
+            let state = PublicMintState::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid public-mint state"))?;
+            Ok(state.policy == public_policy)
+        },
+    )?;
+    require_protocol_state(
+        &client,
+        &permission_registry.pubkey(),
+        &aeko_permission_registry_program::id(),
+        "permission-registry",
+        |data| {
+            let state = RegistryConfig::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid permission-registry state"))?;
+            Ok(state.is_initialized && state.upgrade_authority == authority.pubkey())
+        },
+    )?;
+    require_protocol_state(
+        &client,
+        &revocation_registry.pubkey(),
+        &aeko_revocation_registry_program::id(),
+        "revocation-registry",
+        |data| {
+            let state = RevRegistryConfig::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid revocation-registry state"))?;
+            Ok(state.is_initialized && state.upgrade_authority == authority.pubkey())
+        },
+    )?;
+    require_protocol_state(
+        &client,
+        &subnet_registry.pubkey(),
+        &aeko_subnet_registry_program::id(),
+        "subnet-registry",
+        |data| {
+            let state = SubnetRegistryConfig::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid subnet-registry state"))?;
+            Ok(state.is_initialized && state.upgrade_authority == authority.pubkey())
+        },
+    )?;
+    let (final_signers, final_freeze, final_revoke, final_policy) =
+        parse_multisig_config(authority.pubkey())?;
+    require_protocol_state(
+        &client,
+        &emergency_multisig.pubkey(),
+        &aeko_emergency_multisig_program::id(),
+        "emergency-multisig",
+        |data| {
+            let state = MultisigConfig::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid emergency-multisig state"))?;
+            Ok(state.is_initialized
+                && state.upgrade_authority == authority.pubkey()
+                && state.signers == final_signers
+                && state.freeze_quorum == final_freeze
+                && state.revoke_quorum == final_revoke
+                && state.policy_quorum == final_policy)
+        },
+    )?;
+    require_protocol_state(
+        &client,
+        &finality_oracle.pubkey(),
+        &aeko_finality_oracle_program::id(),
+        "finality-oracle",
+        |data| {
+            let state = OracleConfig::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid finality-oracle state"))?;
+            Ok(state.is_initialized && state.upgrade_authority == authority.pubkey())
+        },
+    )?;
+
     let registry = format!(
         "# Generated by aeko-protocol-bootstrap. Do not edit by hand.\n\
+AEKO_REGISTRY_SCHEMA_VERSION={}\n\
+AEKO_CHAIN_GENESIS_HASH={}\n\
 AEKO_PROTOCOL_AUTHORITY={}\n\
 AEKO_TOKEN_PROGRAMS_FEATURE={}\n\
 AEKO_TOKEN_PROGRAMS_FEATURE_ACTIVATED_AT={}\n\
@@ -460,6 +646,8 @@ AEKO_REVOCATION_REGISTRY_STATE={}\n\
 AEKO_SUBNET_REGISTRY_STATE={}\n\
 AEKO_EMERGENCY_MULTISIG_STATE={}\n\
 AEKO_FINALITY_ORACLE_STATE={}\n",
+        lifecycle::REGISTRY_SCHEMA_VERSION,
+        live_genesis,
         authority.pubkey(),
         feature_set::aeko_token_programs_v1::id(),
         token_feature_slot,
@@ -490,34 +678,12 @@ AEKO_FINALITY_ORACLE_STATE={}\n",
     );
     write_registry_file(&out_dir, &registry)?;
     write_continuity_anchor(&continuity_dir, &registry)?;
+    lifecycle::mark_complete(
+        &[out_dir.as_path(), continuity_dir.as_path()],
+        &live_genesis,
+    )?;
     println!("# Canonical AEKO protocol registry:");
     print!("{registry}");
-    Ok(())
-}
-
-fn reset_state_dir_for_genesis(dir: &Path, genesis_hash: &str) -> Result<()> {
-    const RESET_MARKER: &str = ".aeko-reset-genesis";
-    let marker = dir.join(RESET_MARKER);
-    if fs::read_to_string(&marker)
-        .ok()
-        .is_some_and(|value| value.trim() == genesis_hash)
-    {
-        return Ok(());
-    }
-    for entry in
-        fs::read_dir(dir).with_context(|| format!("reading reset directory {}", dir.display()))?
-    {
-        let path = entry?.path();
-        if path.is_dir() {
-            fs::remove_dir_all(&path)
-                .with_context(|| format!("removing stale reset directory {}", path.display()))?;
-        } else {
-            fs::remove_file(&path)
-                .with_context(|| format!("removing stale reset file {}", path.display()))?;
-        }
-    }
-    fs::write(&marker, format!("{genesis_hash}\n"))
-        .with_context(|| format!("writing reset marker {}", marker.display()))?;
     Ok(())
 }
 
@@ -570,6 +736,46 @@ fn require_executable_program(client: &RpcClient, program_id: &Pubkey, label: &s
         ));
     }
     Ok(())
+}
+
+fn verify_system_vault(client: &RpcClient, pubkey: &Pubkey, label: &str) -> Result<()> {
+    let account = with_retries(&format!("{label}:final-verify"), || {
+        client
+            .get_account_with_commitment(pubkey, CommitmentConfig::confirmed())
+            .map_err(anyhow::Error::from)
+    })?
+    .value
+    .ok_or_else(|| anyhow!("[{label}] canonical custody account {pubkey} does not exist"))?;
+    if account.owner != system_program::id() {
+        return Err(anyhow!(
+            "[{label}] canonical custody account {pubkey} owner {} does not match system program",
+            account.owner
+        ));
+    }
+    if !account.data.is_empty() {
+        return Err(anyhow!(
+            "[{label}] canonical custody account {pubkey} must remain zero-data"
+        ));
+    }
+    Ok(())
+}
+
+fn require_protocol_state<F>(
+    client: &RpcClient,
+    state_pubkey: &Pubkey,
+    program_id: &Pubkey,
+    label: &str,
+    verifier: F,
+) -> Result<()>
+where
+    F: Fn(&[u8]) -> Result<bool>,
+{
+    if existing_state_is_valid(client, state_pubkey, program_id, label, &verifier)? {
+        return Ok(());
+    }
+    Err(anyhow!(
+        "[{label}] canonical state {state_pubkey} is missing after bootstrap"
+    ))
 }
 
 fn ensure_system_vault(

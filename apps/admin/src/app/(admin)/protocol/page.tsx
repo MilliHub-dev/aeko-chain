@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import StatCard from '@/components/stat-card'
 
 type ProtocolRegistry = {
+  schemaVersion: number | null
+  genesisHash: string | null
   authority: string | null
   tokenProgramsFeature: string | null
   tokenProgramsFeatureActivatedAt: number | null
@@ -39,12 +41,19 @@ type StateStatus = {
   present: boolean
   ownerMatches: boolean
   dataLen: number
+  condition: string
   error: string | null
 }
 
 type ProtocolStatus = {
   complete: boolean
+  condition: string
   registryComplete: boolean
+  registrySchemaVersion: number | null
+  registryGenesisHash: string | null
+  bootstrapInProgress: boolean
+  liveGenesisHash: string
+  genesisMatches: boolean
   features: Record<string, FeatureStatus>
   programs: Record<string, ProgramStatus>
   states: Record<string, StateStatus>
@@ -106,7 +115,7 @@ export default function ProtocolPage() {
   const programEntries = Object.entries(status?.programs ?? {})
   const stateEntries = Object.entries(status?.states ?? {})
   const executablePrograms = programEntries.filter(([, value]) => value.present && value.executable && !value.error).length
-  const healthyStates = stateEntries.filter(([, value]) => value.present && value.ownerMatches && value.dataLen > 0 && !value.error).length
+  const healthyStates = stateEntries.filter(([, value]) => value.condition === 'healthy').length
 
   return (
     <div className="p-6 space-y-6">
@@ -141,6 +150,25 @@ export default function ProtocolPage() {
         <StatCard label="Executable Programs" value={status ? executablePrograms + ' / ' + programEntries.length : '—'} />
         <StatCard label="Healthy State Accounts" value={status ? healthyStates + ' / ' + stateEntries.length : '—'} />
       </div>
+
+      <section className="rounded-xl border border-[#1e2135] bg-[#12141f] p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-white">Chain binding</h2>
+            <p className="mt-1 text-sm text-gray-500">The canonical registry must be bound to the same genesis currently served by the validator before Protocol can be considered complete.</p>
+          </div>
+          <span className={status?.genesisMatches ? 'text-xs text-emerald-400' : 'text-xs text-amber-300'}>
+            {status?.condition ?? 'unavailable'}
+          </span>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <StatusRow label="Schema" value={registry?.schemaVersion == null ? 'legacy / missing' : 'v' + registry.schemaVersion} />
+          <StatusRow label="Registry genesis" value={shortAddress(registry?.genesisHash)} mono />
+          <StatusRow label="Live genesis" value={shortAddress(status?.liveGenesisHash)} mono />
+          <StatusRow label="Binding" value={status ? (status.genesisMatches ? 'matches' : 'mismatch') : '—'} />
+          <StatusRow label="Bootstrap" value={status ? (status.bootstrapInProgress ? 'in progress' : 'settled') : '—'} />
+        </div>
+      </section>
 
       <section className="rounded-xl border border-[#1e2135] bg-[#12141f]">
         <div className="border-b border-[#1e2135] px-5 py-4">
@@ -204,15 +232,16 @@ export default function ProtocolPage() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-[#0a0b12] text-xs uppercase tracking-wider text-gray-600">
-              <tr><th className="px-5 py-3">State</th><th className="px-5 py-3">Account</th><th className="px-5 py-3">Owner</th><th className="px-5 py-3">Data</th><th className="px-5 py-3">Error</th></tr>
+              <tr><th className="px-5 py-3">State</th><th className="px-5 py-3">Account</th><th className="px-5 py-3">Owner</th><th className="px-5 py-3">Data</th><th className="px-5 py-3">Condition</th><th className="px-5 py-3">Error</th></tr>
             </thead>
             <tbody className="divide-y divide-[#1e2135]">
               {stateEntries.map(([name, item]) => (
                 <tr key={name}>
                   <td className="px-5 py-3 text-gray-200">{name}</td>
                   <td className="px-5 py-3 font-mono text-xs text-gray-500">{shortAddress(item.stateAccount)}</td>
-                  <td className={item.ownerMatches ? 'px-5 py-3 text-emerald-400' : 'px-5 py-3 text-amber-300'}>{item.ownerMatches ? 'matches' : 'mismatch'}</td>
-                  <td className="px-5 py-3 text-gray-300">{item.dataLen.toLocaleString()} bytes</td>
+                  <td className={item.present && item.ownerMatches ? 'px-5 py-3 text-emerald-400' : 'px-5 py-3 text-amber-300'}>{!item.present ? 'missing' : item.ownerMatches ? 'matches' : 'mismatch'}</td>
+                  <td className="px-5 py-3 text-gray-300">{item.present ? item.dataLen.toLocaleString() + ' bytes' : '—'}</td>
+                  <td className={item.condition === 'healthy' ? 'px-5 py-3 text-emerald-400' : 'px-5 py-3 text-amber-300'}>{item.condition}</td>
                   <td className="max-w-sm px-5 py-3 text-xs text-gray-500">{item.error ?? '—'}</td>
                 </tr>
               ))}

@@ -56,8 +56,15 @@ aeko-social-monetization-program = { workspace = true }
 aeko-social-posts-program = { workspace = true }
 aeko-social-rewards-program = { workspace = true }
 aeko-social-staking-program = { workspace = true }
+aeko-emergency-multisig-program = { workspace = true }
+aeko-finality-oracle-program = { workspace = true }
+aeko-permission-registry-program = { workspace = true }
+aeko-public-mint-program = { workspace = true }
+aeko-revocation-registry-program = { workspace = true }
+aeko-subnet-registry-program = { workspace = true }
 aeko-token-20-program = { workspace = true }
 aeko-token-721-program = { workspace = true }
+aeko-tokenomics-program = { workspace = true }
 
 [lib]
 crate-type = ["lib"]

@@ -9,6 +9,8 @@ type Stake = { positionId: string; staker: string; creator: string; stakedAmount
 type Engagement = { actor: string; actionKind: string; targetPostId?: string; slot: number }
 
 type SocialRegistry = {
+  schemaVersion: number | null
+  genesisHash: string | null
   posts: string | null
   rewards: string | null
   staking: string | null
@@ -26,14 +28,23 @@ type SocialRegistry = {
 type SocialDomainStatus = {
   stateAccount: string | null
   programId: string
+  present: boolean
   ownerMatches: boolean
   initialized: boolean
+  condition: string
   metrics: Record<string, unknown>
   error: string | null
 }
 
 type SocialStatus = {
   complete: boolean
+  condition: string
+  registryComplete: boolean
+  registrySchemaVersion: number | null
+  registryGenesisHash: string | null
+  bootstrapInProgress: boolean
+  liveGenesisHash: string
+  genesisMatches: boolean
   domains: Record<string, SocialDomainStatus>
 }
 
@@ -104,7 +115,7 @@ export default function SocialPage() {
   const totalStaked = stakes.filter((item) => item.state === 'active').reduce((sum, item) => sum + item.stakedAmount, 0)
   const uniqueCreators = new Set(posts.map((post) => post.creator)).size
   const domainEntries = Object.entries(socialStatus?.domains ?? {})
-  const healthyDomains = domainEntries.filter(([, domain]) => domain.ownerMatches && domain.initialized && !domain.error).length
+  const healthyDomains = domainEntries.filter(([, domain]) => domain.condition === 'healthy').length
 
   return (
     <div className="p-6 space-y-6">
@@ -135,6 +146,25 @@ export default function SocialPage() {
         <StatCard label="Platform Fee" value={registry?.platformFeeBps == null ? '—' : registry.platformFeeBps + ' bps'} />
       </div>
 
+      <section className="rounded-xl border border-[#1e2135] bg-[#12141f] p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-white">Chain binding</h2>
+            <p className="mt-1 text-sm text-gray-500">Registry syntax and live validator identity are separate checks. A stale registry can no longer appear healthy merely because it contains every address.</p>
+          </div>
+          <span className={socialStatus?.genesisMatches ? 'text-xs text-emerald-400' : 'text-xs text-amber-300'}>
+            {socialStatus?.condition ?? 'unavailable'}
+          </span>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <InfoRow label="Schema" value={registry?.schemaVersion == null ? 'legacy / missing' : 'v' + registry.schemaVersion} />
+          <InfoRow label="Registry genesis" value={registry?.genesisHash ? shortAddr(registry.genesisHash) : 'legacy / missing'} mono />
+          <InfoRow label="Live genesis" value={socialStatus?.liveGenesisHash ? shortAddr(socialStatus.liveGenesisHash) : '—'} mono />
+          <InfoRow label="Binding" value={socialStatus ? (socialStatus.genesisMatches ? 'matches' : 'mismatch') : '—'} />
+          <InfoRow label="Bootstrap" value={socialStatus ? (socialStatus.bootstrapInProgress ? 'in progress' : 'settled') : '—'} />
+        </div>
+      </section>
+
       <section className="rounded-xl border border-[#1e2135] bg-[#12141f]">
         <div className="border-b border-[#1e2135] px-5 py-4">
           <h2 className="font-semibold text-white">SocialFi domains</h2>
@@ -142,7 +172,7 @@ export default function SocialPage() {
         </div>
         <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
           {domainEntries.length ? domainEntries.map(([name, domain]) => {
-            const healthy = domain.ownerMatches && domain.initialized && !domain.error
+            const healthy = domain.condition === 'healthy'
             return (
               <div key={name} className="rounded-xl border border-[#1e2135] bg-[#0a0b12] p-4">
                 <div className="flex items-center justify-between gap-3">
@@ -154,8 +184,10 @@ export default function SocialPage() {
                 <div className="mt-3 space-y-2 text-xs">
                   <InfoRow label="State" value={domain.stateAccount ? shortAddr(domain.stateAccount) : 'missing'} mono />
                   <InfoRow label="Program" value={shortAddr(domain.programId)} mono />
-                  <InfoRow label="Owner" value={domain.ownerMatches ? 'matches' : 'mismatch'} />
+                  <InfoRow label="Presence" value={domain.present ? 'exists' : 'missing'} />
+                  <InfoRow label="Owner" value={!domain.present ? 'not applicable' : domain.ownerMatches ? 'matches' : 'mismatch'} />
                   <InfoRow label="Initialized" value={domain.initialized ? 'yes' : 'no'} />
+                  <InfoRow label="Condition" value={domain.condition} />
                 </div>
                 {Object.keys(domain.metrics ?? {}).length ? (
                   <pre className="mt-3 overflow-x-auto rounded-lg border border-[#1e2135] bg-black/20 p-3 text-[11px] leading-5 text-gray-500">

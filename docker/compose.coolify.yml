@@ -138,7 +138,6 @@ services:
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_BOOTSTRAP_OUT_DIR: /state
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
-      AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}
       # Bootstrap creates persisted program-owned vault accounts. These optional
       # amounts only seed payout liquidity; zero remains the safe default.
       AEKO_REWARDS_TREASURY_SEED_LAMPORTS: ${AEKO_REWARDS_TREASURY_SEED_LAMPORTS:-0}

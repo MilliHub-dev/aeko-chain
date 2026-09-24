@@ -19,6 +19,9 @@ const PROTOCOL_REGISTRY_FILE_ENV: &str = "AEKO_PROTOCOL_REGISTRY_FILE";
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SocialRegistry {
+    pub schema_version: Option<u32>,
+    pub genesis_hash: Option<String>,
+    pub bootstrap_in_progress: bool,
     pub posts: Option<String>,
     pub rewards: Option<String>,
     pub staking: Option<String>,
@@ -36,6 +39,9 @@ pub struct SocialRegistry {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProtocolRegistry {
+    pub schema_version: Option<u32>,
+    pub genesis_hash: Option<String>,
+    pub bootstrap_in_progress: bool,
     pub authority: Option<String>,
     pub token_programs_feature: Option<String>,
     pub token_programs_feature_activated_at: Option<u64>,
@@ -50,6 +56,9 @@ pub struct ProtocolRegistry {
 pub fn resolve_social_registry() -> SocialRegistry {
     let file_values = load_registry_file(SOCIAL_REGISTRY_FILE_ENV, "SocialFi");
     let read = |key: &str| read_value(key, &file_values);
+    let schema_version = read("AEKO_REGISTRY_SCHEMA_VERSION").and_then(|value| value.parse().ok());
+    let genesis_hash = read("AEKO_CHAIN_GENESIS_HASH");
+    let bootstrap_in_progress = bootstrap_marker_exists(SOCIAL_REGISTRY_FILE_ENV);
     let posts = read("AEKO_SOCIAL_POSTS_STATE");
     let rewards = read("AEKO_SOCIAL_REWARDS_STATE");
     let staking = read("AEKO_SOCIAL_STAKING_STATE");
@@ -65,11 +74,15 @@ pub fn resolve_social_registry() -> SocialRegistry {
         && staking.is_some()
         && anti_spam.is_some()
         && monetization.is_some()
+        && rewards_treasury.is_some()
         && reward_vault.is_some()
         && stake_vault.is_some()
         && stake_reward_vault.is_some()
         && treasury.is_some();
     SocialRegistry {
+        schema_version,
+        genesis_hash,
+        bootstrap_in_progress,
         posts,
         rewards,
         staking,
@@ -89,6 +102,9 @@ pub fn resolve_protocol_registry() -> ProtocolRegistry {
     let file_values = load_registry_file(PROTOCOL_REGISTRY_FILE_ENV, "protocol");
     let read = |key: &str| read_value(key, &file_values);
 
+    let schema_version = read("AEKO_REGISTRY_SCHEMA_VERSION").and_then(|value| value.parse().ok());
+    let genesis_hash = read("AEKO_CHAIN_GENESIS_HASH");
+    let bootstrap_in_progress = bootstrap_marker_exists(PROTOCOL_REGISTRY_FILE_ENV);
     let authority = read("AEKO_PROTOCOL_AUTHORITY");
     let token_programs_feature = read("AEKO_TOKEN_PROGRAMS_FEATURE");
     let token_programs_feature_activated_at = read("AEKO_TOKEN_PROGRAMS_FEATURE_ACTIVATED_AT")
@@ -145,6 +161,9 @@ pub fn resolve_protocol_registry() -> ProtocolRegistry {
         && accounts.len() == 3;
 
     ProtocolRegistry {
+        schema_version,
+        genesis_hash,
+        bootstrap_in_progress,
         authority,
         token_programs_feature,
         token_programs_feature_activated_at,
@@ -173,6 +192,20 @@ fn read_value(key: &str, file_values: &HashMap<String, String>) -> Option<String
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
         .or_else(|| file_values.get(key).cloned())
+}
+
+fn bootstrap_marker_exists(env_name: &str) -> bool {
+    let Some(path) = env::var(env_name)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+    else {
+        return false;
+    };
+    let Some(parent) = std::path::Path::new(&path).parent() else {
+        return false;
+    };
+    parent.join(".aeko-bootstrap-in-progress").is_file()
 }
 
 fn load_registry_file(env_name: &str, label: &str) -> HashMap<String, String> {
@@ -257,7 +290,17 @@ mod tests {
     #[test]
     fn registry_parser_accepts_both_bootstrap_formats_and_ignores_empty_values() {
         let values = parse_registry_env(
-            "# generated\nAEKO_SOCIAL_POSTS_STATE=posts111\nAEKO_TOKENOMICS_STATE=tokenomics111\nexport AEKO_SOCIAL_REWARDS_STATE=rewards222\nEMPTY=\n",
+            "# generated\nAEKO_REGISTRY_SCHEMA_VERSION=2\nAEKO_CHAIN_GENESIS_HASH=genesis111\nAEKO_SOCIAL_POSTS_STATE=posts111\nAEKO_TOKENOMICS_STATE=tokenomics111\nexport AEKO_SOCIAL_REWARDS_STATE=rewards222\nEMPTY=\n",
+        );
+        assert_eq!(
+            values
+                .get("AEKO_REGISTRY_SCHEMA_VERSION")
+                .map(String::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            values.get("AEKO_CHAIN_GENESIS_HASH").map(String::as_str),
+            Some("genesis111")
         );
         assert_eq!(
             values.get("AEKO_SOCIAL_POSTS_STATE").map(String::as_str),
