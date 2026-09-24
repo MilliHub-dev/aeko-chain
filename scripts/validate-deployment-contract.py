@@ -99,6 +99,11 @@ def main() -> int:
         "deployment env example must declare the Explorer settings admin token",
     )
     require(
+        "FUNDING_MAX_CONSOLE_AIRDROP_AEKO=25" in public_env
+        and "FUNDING_MAX_CONSOLE_AIRDROP_AEKO=25" in admin_env,
+        "deployment and Operations Web env examples must declare the Test Console airdrop cap",
+    )
+    require(
         "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=" in explorer_backend_env,
         "Explorer backend env example must declare the settings admin token",
     )
@@ -515,6 +520,10 @@ def main() -> int:
     require("AEKO_KEYS_DIR" not in coolify, "Coolify compose must not depend on interpolated key-path variables")
     coolify_volume_sources = re.findall(r"^\s+source:\s*(.+?)\s*$", coolify, re.MULTILINE)
     require(coolify_volume_sources, "Coolify compose must declare explicit long-form volume sources")
+    require(
+        re.search(r"^\s+- [A-Za-z0-9_.-]+:/", coolify, re.MULTILINE) is None,
+        "Coolify named volumes must use long-form type/source/target syntax",
+    )
     for source in coolify_volume_sources:
         require("${" not in source, f"Coolify volume source must be literal, not interpolated: {source}")
         require(
@@ -523,7 +532,7 @@ def main() -> int:
         )
     require(coolify.count("source: /data/aeko/keys") >= 5, "Coolify runtime and key bootstrap services must share the fixed host key bind source")
     require(coolify.count("read_only: true") >= 3, "Coolify long-running runtime key mounts must remain read-only")
-    require(re.search(r"^  key-preflight:\\s*$", coolify, re.MULTILINE) is None, "Coolify must retain the key-bootstrap service name used by its dependency graph")
+    require(re.search(r"^  key-preflight:\s*$", coolify, re.MULTILINE) is None, "Coolify must retain the key-bootstrap service name used by its dependency graph")
     require('entrypoint: ["/usr/local/bin/aeko-key-preflight"]' in coolify_key_bootstrap, "Coolify key bootstrap must use the shared tools-image preflight")
     require("AEKO_KEYS_SOURCE: /data/aeko/keys" in coolify_key_bootstrap, "Coolify key bootstrap diagnostics must identify the fixed host key path")
     require("AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}" in coolify_key_bootstrap, "Coolify key bootstrap must preserve explicit first-chain-key generation")
