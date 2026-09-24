@@ -189,8 +189,8 @@ impl PostgresRepository {
         groups.push(
             rows.into_iter()
                 .map(|row| {
-                    let decimals =
-                        u8::try_from(row.get::<i32, _>("decimals")).context("invalid token decimals")?;
+                    let decimals = u8::try_from(row.get::<i32, _>("decimals"))
+                        .context("invalid token decimals")?;
                     let total_supply: String = row.get("total_supply");
                     total_supply
                         .parse::<u128>()
