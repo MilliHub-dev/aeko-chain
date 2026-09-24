@@ -556,7 +556,7 @@ fn inspect_social_domains(
     } else if !registry_complete {
         "registryIncomplete"
     } else if registry_genesis_hash.is_none() {
-        "legacyRegistry"
+        "registryMetadataMissing"
     } else if !genesis_matches {
         "genesisMismatch"
     } else if domains_healthy && custody_healthy {
