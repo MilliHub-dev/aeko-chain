@@ -26,12 +26,11 @@ The additive `/overview` endpoint combines live validator position with real Pos
 
 ## Environment contract
 
-Use [`.env.example`](./.env.example) as the complete Explorer Web reference:
+Configuration ownership is split by environment, without duplicating remote values:
 
-- production/container runtime: `AEKO_PUBLIC_RPC_URL`, `AEKO_PUBLIC_WS_URL`, `AEKO_PUBLIC_EXPLORER_API_URL`, `AEKO_PUBLIC_EXPLORER_URL`, and `AEKO_PUBLIC_FUNDING_URL`;
-- optional mainnet/runtime demo values use the corresponding `AEKO_MAINNET_*` and `AEKO_DEMO_*` names;
-- local Vite development may use the loopback `VITE_AEKO_LOCAL_*` trio; the documented loopback ports are already the defaults when these overrides are absent;
-- remote previews use the same `AEKO_*` runtime contract as production. There is no duplicate remote `VITE_AEKO_*` family.
+- [`docker/env.public.example`](../../../docker/env.public.example) is the single deployment reference for `AEKO_PUBLIC_*`, optional `AEKO_MAINNET_*`, and optional `AEKO_DEMO_*` runtime values;
+- [`.env.example`](./.env.example) is local-development-only and contains just the optional loopback `VITE_AEKO_LOCAL_*` trio;
+- remote previews use the same `AEKO_*` runtime contract as production. There is no second remote Vite configuration family.
 
 The production API URL must route to `explorer-api:8088`; the Explorer UI URL routes to `explorer-ui:4000`. They are intentionally separate services.
 
