@@ -182,11 +182,11 @@ def main() -> int:
         "AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}" in coolify,
         "Coolify must require explicit opt-in before generating chain identity keys",
     )
-    for label, compose, service in (
-        ("Dokploy", dokploy, "key-preflight"),
-        ("Coolify", coolify, "key-bootstrap"),
+    for label, compose, service, next_service in (
+        ("Dokploy", dokploy, "key-preflight", "faucet"),
+        ("Coolify", coolify, "key-bootstrap", "social-bootstrap"),
     ):
-        block = service_block(compose, service, "faucet")
+        block = service_block(compose, service, next_service)
         require(
             'entrypoint: ["/usr/local/bin/aeko-key-preflight"]' in block,
             f"{label} must use the shared key preflight implementation from aeko-tools",
@@ -196,11 +196,21 @@ def main() -> int:
             and "AEKO_PROTOCOL_BOOTSTRAP_ENABLED" not in block,
             f"{label} must not expose protocol lifecycle toggles in normal deployment",
         )
-        require(
-            "protocol-state:/protocol-state:ro" in block
-            and "protocol-continuity:/protocol-continuity:ro" in block,
-            f"{label} key lifecycle must inspect both protocol continuity volumes",
-        )
+        if label == "Coolify":
+            require(
+                block.count("type: volume") >= 2
+                and "source: protocol-state" in block
+                and "target: /protocol-state" in block
+                and "source: protocol-continuity" in block
+                and "target: /protocol-continuity" in block,
+                "Coolify key lifecycle must inspect both protocol continuity volumes through literal long-form mounts",
+            )
+        else:
+            require(
+                "protocol-state:/protocol-state:ro" in block
+                and "protocol-continuity:/protocol-continuity:ro" in block,
+                f"{label} key lifecycle must inspect both protocol continuity volumes",
+            )
     require(
         "refusing to generate a replacement chain identity" in key_preflight
         and "AEKO_ALLOW_CHAIN_KEY_GENERATION=1 only for an intentional first boot" in key_preflight,
@@ -502,11 +512,11 @@ def main() -> int:
         require("image:" in block, f"Coolify {service} must use a published image")
         require("pull_policy: always" in block, f"Coolify {service} must pull the selected Docker Hub tag")
 
-    coolify_key_bootstrap = service_block(coolify, "key-bootstrap", "faucet")
-    coolify_faucet = service_block(coolify, "faucet", "validator")
-    coolify_validator = service_block(coolify, "validator", "social-bootstrap")
+    coolify_key_bootstrap = service_block(coolify, "key-bootstrap", "social-bootstrap")
     coolify_bootstrap = service_block(coolify, "social-bootstrap", "protocol-bootstrap")
-    coolify_protocol_bootstrap = service_block(coolify, "protocol-bootstrap", "explorer-api")
+    coolify_protocol_bootstrap = service_block(coolify, "protocol-bootstrap", "faucet")
+    coolify_faucet = service_block(coolify, "faucet", "validator")
+    coolify_validator = service_block(coolify, "validator", "explorer-api")
     coolify_explorer = service_block(coolify, "explorer-api", "explorer-ui")
     coolify_operations_web = service_block(coolify, "operations-web", "wallet-tools")
     coolify_wallet_tools = service_block(coolify, "wallet-tools")
