@@ -16,7 +16,7 @@ The default public services are below. `operations-web` serves both the public F
 
 ```text
 key-bootstrap (one shot) -> faucet -> validator -> social-bootstrap
-                                      |-> protocol-bootstrap (disabled until feature activation)
+                                      |-> protocol-bootstrap (mandatory one-shot initialize/verify)
                                       |-> explorer-api
 explorer-ui + operations-web (independent liveness)
 ```
@@ -82,14 +82,7 @@ The Coolify contract declares five Docker-managed named volumes:
 
 Normal redeploys must preserve all five volumes. The two protocol volumes form one continuity boundary: losing `protocol-state` while retaining `protocol-continuity` requires explicit recovery and reuses the same canonical addresses; losing `protocol-continuity` must not be treated as a fresh bootstrap. Do not delete them unless intentionally resetting chain state.
 
-For a deliberate fresh-genesis recovery, set both:
-
-```text
-AEKO_RESET_LEDGER=1
-AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1
-```
-
-Redeploy once, verify bootstrap succeeds, then return both values to `0`.
+For a deliberate fresh-genesis reset, set `AEKO_RESET_LEDGER=1`. That single reset signal is propagated to the validator, Aeko Social, AEKO Protocol, and Explorer. Redeploy once, verify both mandatory bootstraps and Explorer binding succeed, then return `AEKO_RESET_LEDGER=0`.
 
 ## Domains and ports
 
@@ -197,7 +190,7 @@ The shared key preflight creates `protocol-authority-keypair.json` automatically
 
 `AEKO_RESET_LEDGER=1` is a destructive new-chain operation. On that reset, SocialFi state and protocol state are cleared once for the new genesis, and Explorer purges the old PostgreSQL projection schema before binding to the replacement genesis. Return the reset variable to `0` after accepting the new chain.
 
-The feature-activation helper remains only for a history-preserving migration of a legacy chain whose genesis predates the AEKO protocol builtins. It is not part of normal fresh deployment or reset-to-genesis deployment. See [protocol-upgrades.md](./protocol-upgrades.md).
+The feature-activation helper remains only for a history-preserving migration of a legacy chain whose genesis predates the AEKO Protocol builtins. It is not part of normal fresh deployment or reset-to-genesis deployment. The complete compatibility and acceptance procedure is consolidated in [`DEPLOYMENT.md`](../../DEPLOYMENT.md).
 
 ## Established-chain continuity guard
 
