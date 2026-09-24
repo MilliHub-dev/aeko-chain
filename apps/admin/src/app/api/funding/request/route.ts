@@ -10,7 +10,7 @@ export const OPTIONS = fundingPreflight
 const EXPLORER_URL = (process.env.AEKO_PUBLIC_EXPLORER_URL ?? '').replace(/\/+$/, '')
 
 /**
- * Public: `{ address }` → one policy-sized grant.
+ * Public: `{ address }` → one pending policy-sized request for operator approval.
  *
  * A trusted Aeko backend may call this on behalf of signed-in users with
  * `x-funding-key: FUNDING_CLIENT_API_KEY`. That skips only the per-IP throttle;
