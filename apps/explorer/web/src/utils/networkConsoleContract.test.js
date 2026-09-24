@@ -236,11 +236,11 @@ test('Explorer web keeps Testnet and Mainnet as the supported network contract',
   const demo = await source('data/nftDemoExamples.js');
 
   for (const key of [
-    'AEKO_TESTNET_RPC_URL',
-    'AEKO_TESTNET_WS_URL',
-    'AEKO_TESTNET_EXPLORER_API_URL',
-    'AEKO_TESTNET_EXPLORER_URL',
-    'AEKO_TESTNET_FUNDING_URL',
+    'AEKO_PUBLIC_RPC_URL',
+    'AEKO_PUBLIC_WS_URL',
+    'AEKO_PUBLIC_EXPLORER_API_URL',
+    'AEKO_PUBLIC_EXPLORER_URL',
+    'AEKO_PUBLIC_FUNDING_URL',
     'AEKO_MAINNET_RPC_URL',
     'AEKO_MAINNET_WS_URL',
     'AEKO_MAINNET_EXPLORER_API_URL',
@@ -263,9 +263,10 @@ test('Explorer web keeps Testnet and Mainnet as the supported network contract',
     assert.match(deploymentEnv, new RegExp(key));
   }
 
-  assert.doesNotMatch(example, /VITE_AEKO_/);
-  assert.doesNotMatch(networkConfig, /VITE_AEKO_/);
-  assert.match(viteConfig, /AEKO_TESTNET/);
+  assert.doesNotMatch(example, /VITE_AEKO_|AEKO_TESTNET_/);
+  assert.doesNotMatch(networkConfig, /VITE_AEKO_|AEKO_TESTNET_/);
+  assert.doesNotMatch(viteConfig, /AEKO_TESTNET_/);
+  assert.match(viteConfig, /AEKO_PUBLIC/);
   assert.match(viteConfig, /AEKO_MAINNET/);
   assert.match(viteConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
 
