@@ -1,8 +1,8 @@
 // Explorer endpoint ownership is intentionally simple:
 // - deployed/preview containers inject AEKO_* values into window.__AEKO_RUNTIME_CONFIG__
 // - local Vite development may override only the loopback RPC/WS/API trio
-// No remote VITE_AEKO_TESTNET_*, VITE_AEKO_MAINNET_* or VITE_AEKO_DEMO_*
-// mirrors are supported. That keeps one deployment source of truth.
+// Remote Vite mirrors are intentionally unsupported. That keeps one
+// deployment source of truth for testnet, mainnet, and demo configuration.
 
 const runtime = globalThis.__AEKO_RUNTIME_CONFIG__ || {};
 const vite = /** @type {Record<string, string | boolean | undefined>} */ (import.meta.env || {});
