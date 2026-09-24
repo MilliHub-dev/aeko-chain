@@ -69,7 +69,7 @@ cargo run --bin aeko -- config set --url https://rpc.aeko.online
 
 ## Step 3. Fund The Wallet
 
-Use the wallet public key from your keypair and request a policy-controlled funding grant:
+Use the wallet public key from your keypair and submit a policy-controlled funding request:
 
 ```bash
 curl -X POST https://fund.aeko.online/api/funding/request \
@@ -77,7 +77,7 @@ curl -X POST https://fund.aeko.online/api/funding/request \
   -d '{"address":"<YOUR_WALLET_PUBKEY>"}'
 ```
 
-The public validator protects the low-level `requestAirdrop` RPC behind the Funding Gateway. The CLI `aeko airdrop` command remains appropriate for local/custom test validators that do not configure that protection.
+The public request is queued for operator approval. After an operator approves it in the Admin Console, Operations Web releases the requested policy amount through the protected low-level `requestAirdrop` RPC. The CLI `aeko airdrop` command remains appropriate for local/custom test validators that do not configure that protection.
 
 If the CLI is not global:
 
