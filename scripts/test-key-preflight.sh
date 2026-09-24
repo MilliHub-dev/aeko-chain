@@ -66,12 +66,14 @@ seed_chain_keys() {
 }
 
 run_preflight() {
+  local reset_ledger="${1:-0}"
   PATH="$MOCK_BIN:$PATH" \
   AEKO_KEYS_ROOT="$KEYS_DIR" \
   AEKO_PROTOCOL_STATE_ROOT="$STATE_DIR" \
   AEKO_PROTOCOL_CONTINUITY_ROOT="$CONTINUITY_DIR" \
   AEKO_KEYS_SOURCE="$KEYS_DIR" \
   AEKO_ALLOW_CHAIN_KEY_GENERATION="${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}" \
+  AEKO_RESET_LEDGER="$reset_ledger" \
   sh "$SCRIPT"
 }
 
@@ -130,6 +132,24 @@ expect_status 65 env \
   sh "$SCRIPT"
 echo "[ok] mismatched protocol registry/continuity still fails closed"
 
+new_case intentional_reset_discards_stale_protocol_identity
+seed_chain_keys
+printf '{"existing":"protocol"}\n' >"$KEYS_DIR/protocol-authority-keypair.json"
+cp "$KEYS_DIR/protocol-authority-keypair.json" "$CASE_DIR/protocol-authority.before"
+printf '%s\n' 'AEKO_PROTOCOL_AUTHORITY=ProtocolAuthority11111111111111111111111111' >"$STATE_DIR/protocol-registry.env"
+printf '%s\n' 'AEKO_PROTOCOL_AUTHORITY=DifferentAuthority111111111111111111111111' >"$CONTINUITY_DIR/protocol-registry.anchor"
+run_preflight 1
+cmp "$CASE_DIR/protocol-authority.before" "$KEYS_DIR/protocol-authority-keypair.json"
+echo "[ok] intentional reset ignores stale protocol state/continuity identity and preserves a valid existing authority"
+
+new_case intentional_reset_missing_protocol_authority
+seed_chain_keys
+printf '%s\n' 'AEKO_PROTOCOL_AUTHORITY=OldAuthority1111111111111111111111111111' >"$STATE_DIR/protocol-registry.env"
+cp "$STATE_DIR/protocol-registry.env" "$CONTINUITY_DIR/protocol-registry.anchor"
+run_preflight 1
+test -s "$KEYS_DIR/protocol-authority-keypair.json"
+echo "[ok] intentional reset can create protocol authority when only discarded protocol identity remains"
+
 new_case missing_chain_identity
 seed_chain_keys
 rm "$KEYS_DIR/vote-1-keypair.json"
@@ -142,5 +162,19 @@ expect_status 64 env \
   AEKO_ALLOW_CHAIN_KEY_GENERATION=0 \
   sh "$SCRIPT"
 echo "[ok] established chain identity remains fail-closed"
+
+new_case reset_still_requires_chain_identity
+seed_chain_keys
+rm "$KEYS_DIR/stake-keypair.json"
+expect_status 64 env \
+  PATH="$MOCK_BIN:$PATH" \
+  AEKO_KEYS_ROOT="$KEYS_DIR" \
+  AEKO_PROTOCOL_STATE_ROOT="$STATE_DIR" \
+  AEKO_PROTOCOL_CONTINUITY_ROOT="$CONTINUITY_DIR" \
+  AEKO_KEYS_SOURCE="$KEYS_DIR" \
+  AEKO_ALLOW_CHAIN_KEY_GENERATION=0 \
+  AEKO_RESET_LEDGER=1 \
+  sh "$SCRIPT"
+echo "[ok] destructive reset never authorizes silent chain-key replacement"
 
 echo "[PASS] AEKO key preflight lifecycle contract"
