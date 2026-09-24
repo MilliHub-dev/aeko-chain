@@ -1,0 +1,179 @@
+name: AEKO Live Network Diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aeko-live-network-diagnostics
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Public RPC and API diagnostics
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      AEKO_RPC_URL: https://rpc.aeko.online
+      AEKO_EXPLORER_API_URL: https://api.aeko.online
+      AEKO_SMOKE_TIMEOUT_SECS: "15"
+      AEKO_SMOKE_SLOT_WAIT_SECS: "10"
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Probe RPC and control-plane endpoints
+        id: probe
+        continue-on-error: true
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import time
+          import urllib.error
+          import urllib.request
+
+          rpc_url = os.environ["AEKO_RPC_URL"].rstrip("/")
+          api_url = os.environ["AEKO_EXPLORER_API_URL"].rstrip("/")
+          failures = []
+
+          def request_json(url, payload=None):
+              body = None if payload is None else json.dumps(payload).encode("utf-8")
+              headers = {"Accept": "application/json"}
+              if body is not None:
+                  headers["Content-Type"] = "application/json"
+              request = urllib.request.Request(
+                  url,
+                  data=body,
+                  headers=headers,
+                  method="POST" if body is not None else "GET",
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=15) as response:
+                      status = response.status
+                      raw = response.read().decode("utf-8", "replace")
+              except urllib.error.HTTPError as error:
+                  status = error.code
+                  raw = error.read().decode("utf-8", "replace")
+              except OSError as error:
+                  return 0, None, str(error)
+              try:
+                  parsed = json.loads(raw)
+              except json.JSONDecodeError:
+                  parsed = None
+              return status, parsed, raw
+
+          def rpc(method):
+              status, payload, raw = request_json(
+                  rpc_url,
+                  {"jsonrpc": "2.0", "id": 1, "method": method, "params": []},
+              )
+              print(f"\n::group::RPC {method}")
+              print(f"HTTP {status}")
+              print(json.dumps(payload, indent=2, sort_keys=True) if payload is not None else raw)
+              print("::endgroup::")
+              if status != 200 or not isinstance(payload, dict) or payload.get("error"):
+                  failures.append(f"RPC {method} failed")
+                  return None
+              return payload.get("result")
+
+          health = rpc("getHealth")
+          if health != "ok":
+              failures.append(f"RPC getHealth expected 'ok', got {health!r}")
+
+          genesis = rpc("getGenesisHash")
+          if not isinstance(genesis, str) or not genesis:
+              failures.append("RPC getGenesisHash did not return a non-empty hash")
+
+          slot_a = rpc("getSlot")
+          time.sleep(2)
+          slot_b = rpc("getSlot")
+          try:
+              if int(slot_b) <= int(slot_a):
+                  failures.append(f"RPC slot did not advance: {slot_a} -> {slot_b}")
+          except (TypeError, ValueError):
+              failures.append(f"RPC slot values were invalid: {slot_a!r}, {slot_b!r}")
+
+          endpoints = [
+              "/liveness",
+              "/readiness",
+              "/network/readiness",
+              "/overview",
+              "/registry/social",
+              "/social/status",
+              "/registry/protocol",
+              "/protocol/status",
+          ]
+          payloads = {}
+          for path in endpoints:
+              status, payload, raw = request_json(api_url + path)
+              payloads[path] = payload
+              print(f"\n::group::API {path}")
+              print(f"HTTP {status}")
+              print(json.dumps(payload, indent=2, sort_keys=True) if payload is not None else raw)
+              print("::endgroup::")
+              if status != 200 or not isinstance(payload, dict):
+                  failures.append(f"API {path} failed with HTTP {status}")
+
+          network = payloads.get("/network/readiness")
+          if isinstance(network, dict):
+              data = network.get("data", network)
+              if isinstance(data, dict) and data.get("ok") is not True:
+                  failures.append("/network/readiness did not report ok=true")
+
+          for path in ("/registry/social", "/social/status", "/registry/protocol", "/protocol/status"):
+              payload = payloads.get(path)
+              if isinstance(payload, dict):
+                  data = payload.get("data", payload)
+                  if isinstance(data, dict) and data.get("complete") is not True:
+                      failures.append(f"{path} did not report complete=true")
+
+          if failures:
+              print("\nDiagnostics found issues:", file=sys.stderr)
+              for failure in failures:
+                  print(f"- {failure}", file=sys.stderr)
+              raise SystemExit(1)
+
+          print(
+              f"\n[PASS] public RPC and control-plane probes are healthy; "
+              f"genesis={genesis}, slot={slot_a}->{slot_b}"
+          )
+          PY
+
+      - name: Run Social live smoke
+        id: social
+        continue-on-error: true
+        run: python3 scripts/smoke-aeko-social.py
+
+      - name: Run Protocol live smoke
+        id: protocol
+        continue-on-error: true
+        run: python3 scripts/smoke-aeko-protocol.py
+
+      - name: Publish diagnostic summary and gate
+        if: always()
+        shell: bash
+        env:
+          PROBE_OUTCOME: ${{ steps.probe.outcome }}
+          SOCIAL_OUTCOME: ${{ steps.social.outcome }}
+          PROTOCOL_OUTCOME: ${{ steps.protocol.outcome }}
+        run: |
+          {
+            echo "## AEKO live network diagnostics"
+            echo
+            echo "| Check | Outcome |"
+            echo "| --- | --- |"
+            echo "| RPC + API control plane | $PROBE_OUTCOME |"
+            echo "| Aeko Social smoke | $SOCIAL_OUTCOME |"
+            echo "| AEKO Protocol smoke | $PROTOCOL_OUTCOME |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$PROBE_OUTCOME" != "success" ] || [ "$SOCIAL_OUTCOME" != "success" ] || [ "$PROTOCOL_OUTCOME" != "success" ]; then
+            echo "One or more live network diagnostics failed. Review the grouped probe output above." >&2
+            exit 1
+          fi
