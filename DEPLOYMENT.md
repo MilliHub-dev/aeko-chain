@@ -92,7 +92,7 @@ Do not copy the same value into multiple configuration surfaces merely because s
 | --- | --- | --- |
 | Validator/vote/stake/faucet identities | persistent key files | Preserve the existing files; generate only during an intentional first chain boot. |
 | Social state and vault addresses | generated `social-state/social-registry.env` | Leave Explorer per-address overrides unset. |
-| Protocol feature identities | compile-time feature IDs | Fresh/reset genesis activates the mandatory protocol runtime features automatically; only a legacy preserved chain uses the compatibility activation helper. |
+| Protocol feature identities | compile-time feature IDs | Fresh/reset genesis activates the mandatory protocol runtime features automatically; only a older preserved chain uses the compatibility activation helper. |
 | Protocol authority and canonical state addresses | persistent protocol authority plus generated `protocol-registry.env` / continuity anchor | Bootstrap automatically when no established protocol identity exists; preserve and verify thereafter. |
 | Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads the same public API resource. |
 | Public browser endpoints | deployment environment (`AEKO_PUBLIC_*`) | Configure once per deployment environment. |
@@ -222,7 +222,7 @@ AEKO_RESET_LEDGER=1
 
 The reset signal is propagated to the validator, SocialFi bootstrap, Protocol bootstrap, and Explorer. For the replacement genesis, SocialFi and Protocol bootstrap first persist a genesis-bound reset-in-progress marker, clear foreign-chain bootstrap artifacts once, recreate and verify canonical state, atomically publish schema-v2 registries, write a completed chain binding, and only then remove the progress marker. Explorer purges stale PostgreSQL projections before binding to the new genesis.
 
-After the replacement chain is accepted, return `AEKO_RESET_LEDGER=0`. If bootstrap was interrupted before completion, the durable progress marker makes the next deployment resume the same replacement genesis even with the flag already back at `0`. A completed same-genesis deployment that later loses an account still fails closed. Missing-state recovery overrides remain incident-recovery controls for damaged established deployments and are not part of normal Compose configuration.
+After the replacement chain is accepted, return `AEKO_RESET_LEDGER=0`. If bootstrap was interrupted before completion, the durable progress marker makes the next deployment resume the same replacement genesis even with the flag already back at `0`. A completed same-genesis deployment that later loses an account still fails closed. There is no missing-state bypass: restore the matching persistent state for the current chain, or use an explicit reset only when intentionally creating a replacement chain.
 
 ## Portable/local deployment
 
@@ -383,13 +383,13 @@ A normal redeploy preserves the validator ledger, chain keys, `social-state`, `p
 
 `AEKO_RESET_LEDGER=1` is the single explicit destructive new-chain signal. The validator creates a replacement genesis once; SocialFi state, Protocol state/continuity, and Explorer's chain-derived PostgreSQL projections follow that new genesis automatically. Social and Protocol canonical registries carry `AEKO_REGISTRY_SCHEMA_VERSION=2` plus `AEKO_CHAIN_GENESIS_HASH`, and their persistent roots retain a reset-in-progress marker until canonical initialization has completely verified. This makes an interrupted intentional reset resumable after the operator returns the reset variable to `0`, while same-genesis state loss remains fail-closed. Key preflight still validates all persistent chain keys and any protocol-authority key that is present, but it does not bind that authority to old Protocol registry/continuity files when an explicit replacement chain is requested.
 
-### Recovery controls
+### Recovery boundary
 
-Missing-state and continuity-anchor recovery overrides remain implemented for deliberate incident recovery, but are not normal Compose settings. A surviving Protocol continuity anchor with a missing registry, or an established registry with a missing continuity anchor, remains a fail-closed condition unless an operator deliberately invokes the appropriate recovery path after verifying canonical identity.
+Bootstrap recovery is lifecycle-driven. There are no missing-state or continuity-anchor bypass environment variables. If established state for the current genesis is missing or inconsistent, restore the matching persistent volumes. Use `AEKO_RESET_LEDGER=1` only when intentionally replacing the chain and its canonical bootstrap state.
 
-### Historical-chain compatibility
+### Historical pre-builtin migration
 
-Runtime feature gates and `scripts/activate-aeko-protocol-features.sh` remain only for a history-preserving migration of a legacy chain whose genesis predates the AEKO Protocol builtins. Do not reset the ledger or Explorer PostgreSQL when preserving such a chain. Back up the ledger, keys, Protocol state/continuity, Social state, and Explorer database first; activate the two protocol feature accounts with the original offline feature-authority keypairs; wait for the activation boundary; then allow the normal mandatory Protocol bootstrap to establish/verify canonical state.
+Runtime feature gates and `scripts/activate-aeko-protocol-features.sh` remain only for a history-preserving migration of an older chain whose genesis predates the AEKO Protocol builtins. Do not reset the ledger or Explorer PostgreSQL when preserving such a chain. Back up the ledger, keys, Protocol state/continuity, Social state, and Explorer database first; activate the two protocol feature accounts with the original offline feature-authority keypairs; wait for the activation boundary; then allow the normal mandatory Protocol bootstrap to establish/verify canonical state.
 
 The rollback boundary is the feature activation itself: before activation, restore the preserved deployment and state without initializing Protocol state; after activation has landed on the preserved chain, do not pretend the feature was never activated by changing deployment flags. Diagnose or roll forward while preserving chain identity.
 
@@ -502,7 +502,7 @@ Use `https://scan.aeko.online/network-tools` and open the Test Console:
 - Route public RPC/WS through the selected deployment platform's HTTP/WebSocket proxy to the validator's exposed `8899`/`8900` ports for the current single-validator topology.
 - Keep node, SocialFi, protocol-authority and feature-authority key material out of Git.
 - Preserve ledger, SocialFi, protocol-state and protocol-continuity volumes on normal redeploys.
-- Treat missing-state and continuity-anchor recovery overrides as deliberate incident-recovery inputs to manual bootstrap execution, not normal Compose settings. Normal public deployment infers first initialization versus established-state verification from the persisted registry and continuity anchor.
+- Do not bypass missing or inconsistent established bootstrap state. Restore the matching persistent volumes for the current genesis, or use `AEKO_RESET_LEDGER=1` only for an intentional replacement chain. Normal public deployment infers first initialization versus established-state verification from the persisted registry and continuity anchor.
 
 ## Protocol maturity boundary
 
