@@ -236,12 +236,13 @@ test('Admin section switches keep descriptions outside non-wrapping tab buttons'
 });
 
 
-test('Explorer web keeps Testnet and Mainnet as the supported network contract', async () => {
+test('Explorer web keeps public browser endpoints separate from private Explorer upstreams', async () => {
   const example = await source('../.env.example');
   const deploymentEnv = await source('../../../../docker/env.public.example');
   const viteConfig = await source('../vite.config.js');
   const networkConfig = await source('utils/networkConfig.js');
   const entrypoint = await source('../../../../docker/explorer-ui-entrypoint.sh');
+  const server = await source('../../../../docker/explorer-ui-server.mjs');
   const explorer = await source('pages/Explorer.jsx');
   const networkTools = await source('pages/NetworkTools.jsx');
   const networkToggle = await source('components/NetworkToggle.jsx');
@@ -250,56 +251,44 @@ test('Explorer web keeps Testnet and Mainnet as the supported network contract',
   for (const key of [
     'AEKO_PUBLIC_RPC_URL',
     'AEKO_PUBLIC_WS_URL',
-    'AEKO_PUBLIC_EXPLORER_API_URL',
-    'AEKO_PUBLIC_EXPLORER_URL',
     'AEKO_PUBLIC_FUNDING_URL',
+    'AEKO_INTERNAL_EXPLORER_API_URL',
     'AEKO_MAINNET_RPC_URL',
     'AEKO_MAINNET_WS_URL',
-    'AEKO_MAINNET_EXPLORER_API_URL',
-    'AEKO_MAINNET_EXPLORER_URL',
+    'AEKO_INTERNAL_MAINNET_EXPLORER_API_URL',
   ]) {
     assert.match(example, new RegExp('^' + key + '=', 'm'));
-  }
-
-  for (const key of [
-    'AEKO_PUBLIC_RPC_URL',
-    'AEKO_PUBLIC_WS_URL',
-    'AEKO_PUBLIC_EXPLORER_API_URL',
-    'AEKO_PUBLIC_EXPLORER_URL',
-    'AEKO_PUBLIC_FUNDING_URL',
-    'AEKO_MAINNET_RPC_URL',
-    'AEKO_MAINNET_WS_URL',
-    'AEKO_MAINNET_EXPLORER_API_URL',
-    'AEKO_MAINNET_EXPLORER_URL',
-  ]) {
     assert.match(deploymentEnv, new RegExp(key));
   }
 
-  assert.doesNotMatch(example, /VITE_AEKO_|AEKO_TESTNET_/);
-  assert.doesNotMatch(networkConfig, /VITE_AEKO_|AEKO_TESTNET_/);
-  assert.doesNotMatch(viteConfig, /AEKO_TESTNET_/);
-  assert.match(viteConfig, /AEKO_PUBLIC/);
-  assert.match(viteConfig, /AEKO_MAINNET/);
+  for (const retired of [
+    'AEKO_PUBLIC_EXPLORER_API_URL',
+    'AEKO_MAINNET_EXPLORER_API_URL',
+    'AEKO_PUBLIC_ADMIN_URL',
+    'VITE_AEKO_',
+  ]) {
+    assert.doesNotMatch(example, new RegExp(retired));
+    assert.doesNotMatch(networkConfig, new RegExp(retired));
+  }
+
+  assert.match(viteConfig, /AEKO_INTERNAL_EXPLORER_API_URL/);
+  assert.match(viteConfig, /\/api\/explorer\/testnet/);
   assert.match(viteConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
+  assert.match(server, /AEKO_INTERNAL_EXPLORER_API_URL/);
+  assert.match(server, /\/api\/explorer\/testnet/);
+  assert.match(server, /Explorer UI proxy is read-only/);
 
   assert.match(networkConfig, /runtime\.testnet/);
   assert.match(networkConfig, /runtime\.mainnet/);
-  assert.match(networkConfig, /mainnet:/);
-  assert.match(networkConfig, /testnet:/);
+  assert.match(networkConfig, /explorerApiUrl: '\/api\/explorer\/testnet'/);
   assert.match(networkToggle, /\['testnet', 'mainnet'\]/);
   assert.match(explorer, /NetworkToggle/);
-  assert.match(explorer, /setNetwork/);
   assert.match(networkTools, /NetworkToggle/);
-  assert.match(networkTools, /requestedNetwork/);
-  assert.match(networkTools, /setNetwork/);
   assert.match(networkTools, /network === 'testnet' && settings\.networkConsoleEnabled/);
 
   assert.match(entrypoint, /const config = \{ testnet, mainnet, demo \}/);
-  assert.match(entrypoint, /AEKO_MAINNET_RPC_URL/);
-  assert.match(networkTools, /aeko config set --url/);
-  assert.match(networkTools, /aeko balance <wallet-address>/);
-  assert.match(networkTools, /aeko transfer <recipient-address> <amount>/);
-  assert.doesNotMatch(networkTools, /curl -X POST/);
+  assert.match(entrypoint, /explorerApiUrl: '\/api\/explorer\/testnet'/);
+  assert.doesNotMatch(entrypoint, /AEKO_PUBLIC_EXPLORER_API_URL|AEKO_PUBLIC_EXPLORER_URL/);
 
   assert.match(demo, /getDemoConfig/);
   assert.doesNotMatch(demo, /AEKO_DEMO_/);
