@@ -47,6 +47,7 @@ def main() -> int:
     network_config = read("apps/explorer/web/src/utils/networkConfig.js")
     funding_policy = read("apps/admin/src/app/api/funding/policy/route.ts")
     funding_request = read("apps/admin/src/app/api/funding/request/route.ts")
+    funding_airdrop = read("apps/admin/src/app/api/funding/airdrop/route.ts")
     middleware = read("apps/admin/src/middleware.ts")
     funding_cors = read("apps/admin/src/lib/funding-cors.ts")
     ip_throttle = read("apps/admin/src/lib/ip-throttle.ts")
@@ -158,7 +159,16 @@ def main() -> int:
     require("AEKO_PUBLIC_ADMIN_URL" in middleware, "Operations middleware must use AEKO_PUBLIC_ADMIN_URL")
     require("AEKO_PUBLIC_EXPLORER_URL" in funding_policy, "Funding policy must use AEKO_PUBLIC_EXPLORER_URL")
     require("AEKO_PUBLIC_ADMIN_URL" in funding_policy, "Funding policy must use AEKO_PUBLIC_ADMIN_URL")
-    require("AEKO_PUBLIC_EXPLORER_URL" in funding_request, "Funding request response must use AEKO_PUBLIC_EXPLORER_URL")
+    require(
+        "AEKO_PUBLIC_EXPLORER_URL" not in funding_request
+        and "explorerUrl" not in funding_request,
+        "Pending funding requests must not imply that funds already exist on-chain",
+    )
+    require(
+        "AEKO_PUBLIC_EXPLORER_URL" in funding_airdrop
+        and "explorerUrl" in funding_airdrop,
+        "Direct Test Console airdrop responses must use AEKO_PUBLIC_EXPLORER_URL for the funded wallet link",
+    )
     require("FUNDING_ALLOWED_ORIGINS" in funding_cors, "Funding CORS must be deployment-configured")
     require(
         "fetch('/api/settings'" in settings_page,
@@ -231,6 +241,7 @@ def main() -> int:
     runtime_surfaces = {
         "funding policy": funding_policy,
         "funding request": funding_request,
+        "funding airdrop": funding_airdrop,
         "operations middleware": middleware,
         "funding CORS": funding_cors,
         "Explorer network config": network_config,
