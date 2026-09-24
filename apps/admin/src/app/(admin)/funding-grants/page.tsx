@@ -102,6 +102,8 @@ export default function FundingGrantsPage() {
           : 'Funding request rejected',
       })
       await refresh()
+    } catch {
+      setNotice({ ok: false, text: 'Could not update the funding request. Try again.' })
     } finally {
       setRequestBusy('')
     }
@@ -197,7 +199,7 @@ export default function FundingGrantsPage() {
                 disabled={Boolean(requestBusy)}
                 className="px-3 py-1.5 rounded-lg bg-emerald-500 text-black text-xs font-semibold disabled:opacity-40"
               >
-                {requestBusy === request.id && request.status === 'processing' ? 'Releasing…' : 'Approve & release'}
+                {requestBusy === request.id ? 'Working…' : 'Approve & release'}
               </button>
               <button
                 type="button"
