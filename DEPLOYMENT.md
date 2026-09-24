@@ -381,7 +381,7 @@ A normal redeploy preserves the validator ledger, chain keys, `social-state`, `p
 
 ### Intentional reset
 
-`AEKO_RESET_LEDGER=1` is the single explicit destructive new-chain signal. The validator creates a replacement genesis once; SocialFi state, Protocol state/continuity, and Explorer's chain-derived PostgreSQL projections follow that new genesis automatically. Return the reset variable to `0` after accepting the replacement chain.
+`AEKO_RESET_LEDGER=1` is the single explicit destructive new-chain signal. The validator creates a replacement genesis once; SocialFi state, Protocol state/continuity, and Explorer's chain-derived PostgreSQL projections follow that new genesis automatically. Key preflight still validates all persistent chain keys and any protocol-authority key that is present, but it does not bind that authority to the old Protocol registry/continuity files because those files are intentional reset targets. Return the reset variable to `0` after accepting the replacement chain.
 
 ### Recovery controls
 
