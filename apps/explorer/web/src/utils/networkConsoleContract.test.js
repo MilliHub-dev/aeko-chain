@@ -271,6 +271,8 @@ test('Explorer web keeps one normalized runtime contract while local env can tar
   assert.match(networkConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
   assert.match(networkConfig, /runtime\.testnet/);
   assert.match(networkConfig, /runtime\.mainnet/);
+  assert.match(networkConfig, /available: useBuiltInLocalTestnet \|\| configuredTestnet\.configured/);
+  assert.match(networkConfig, /Public Testnet \(not configured\)/);
   assert.match(networkConfig, /http:\/\/127\.0\.0\.1:8899/);
   assert.match(networkConfig, /ws:\/\/127\.0\.0\.1:8900/);
   assert.match(networkConfig, /http:\/\/127\.0\.0\.1:8088/);

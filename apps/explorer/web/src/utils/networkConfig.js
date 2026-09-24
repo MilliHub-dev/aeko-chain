@@ -94,8 +94,12 @@ export const NETWORKS = {
   },
   testnet: {
     key: useBuiltInLocalTestnet ? 'localnet' : 'testnet',
-    label: useBuiltInLocalTestnet ? 'Local AEKO Network' : 'Public Testnet',
-    available: true,
+    label: useBuiltInLocalTestnet
+      ? 'Local AEKO Network'
+      : configuredTestnet.configured
+        ? 'Public Testnet'
+        : 'Public Testnet (not configured)',
+    available: useBuiltInLocalTestnet || configuredTestnet.configured,
     rpcUrl: testnet.rpcUrl,
     websocketUrl: testnet.websocketUrl,
     explorerUrl: testnet.explorerUrl,
