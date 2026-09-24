@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Droplets, ExternalLink, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Droplets, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getFundingPolicy, requestFundingApproval } from '../utils/aekoRpcClient';
 
@@ -12,7 +12,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
   const [address, setAddress] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(
-    /** @type {{ kind: 'success' | 'error', message: string, requestId?: string, explorerUrl?: string } | null} */ (null),
+    /** @type {{ kind: 'success' | 'error', message: string, requestId?: string } | null} */ (null),
   );
 
   useEffect(() => {
@@ -57,7 +57,6 @@ export default function TestnetFundingRequest({ fundingUrl }) {
         kind: 'success',
         message: `${request.amountAeko} AEKO funding request submitted for operator approval.`,
         requestId: request.id,
-        explorerUrl: request.explorerUrl,
       });
     } catch (error) {
       setResult({ kind: 'error', message: error.message || String(error) });
@@ -129,11 +128,6 @@ export default function TestnetFundingRequest({ fundingUrl }) {
                 <div className="min-w-0">
                   <div>{result.message}</div>
                   {result.requestId ? <div className="mt-2 break-all font-mono text-[11px] text-gray-300">Request {result.requestId}</div> : null}
-                  {result.explorerUrl ? (
-                    <a href={result.explorerUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-aeko-accent hover:underline">
-                      View wallet on Explorer <ExternalLink size={11} />
-                    </a>
-                  ) : null}
                 </div>
               </div>
             </div>
