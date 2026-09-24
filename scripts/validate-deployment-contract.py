@@ -386,7 +386,10 @@ def main() -> int:
     require("${AEKO_VALIDATOR_LEDGER_VOLUME:-validator-ledger}:/ledger" in validator, "validator ledger must support a separately mounted block volume")
     require("x-logging: &default-logging" in dokploy and "max-size: ${AEKO_LOG_MAX_SIZE:-10m}" in dokploy, "Dokploy must rotate container logs instead of allowing unbounded json-file growth")
 
-    require("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}" in bootstrap, "SocialFi reset recovery must be an explicit opt-in")
+    require(
+        "AEKO_BOOTSTRAP_ALLOW_MISSING_STATE" not in bootstrap,
+        "SocialFi break-glass recovery must not be exposed as a normal Dokploy deployment variable",
+    )
     require("social-state:/state" in bootstrap, "SocialFi state/registry must persist")
     require(
         "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in bootstrap,
@@ -542,7 +545,10 @@ def main() -> int:
     portable_protocol_bootstrap = service_block(portable, "protocol-bootstrap", "explorer-api")
     portable_explorer = service_block(portable, "explorer-api", "explorer-ui")
     portable_operations_web = service_block(portable, "operations-web")
-    require("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE: ${AEKO_BOOTSTRAP_ALLOW_MISSING_STATE:-0}" in portable_bootstrap, "portable bootstrap must expose explicit recovery")
+    require(
+        "AEKO_BOOTSTRAP_ALLOW_MISSING_STATE" not in portable_bootstrap,
+        "SocialFi break-glass recovery must not be exposed as a normal portable deployment variable",
+    )
     require(
         "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in portable_bootstrap,
         "portable bootstrap must use the internal validator RPC by default",
