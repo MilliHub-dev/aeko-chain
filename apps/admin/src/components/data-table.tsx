@@ -19,7 +19,7 @@ function pageWindow(current: number, total: number): Array<number | 'ellipsis'> 
   if (total <= 5) return Array.from({ length: total }, (_, index) => index + 1)
 
   const pages = new Set([1, total, current - 1, current, current + 1])
-  const ordered = [...pages].filter((page) => page >= 1 && page <= total).sort((a, b) => a - b)
+  const ordered = Array.from(pages).filter((page) => page >= 1 && page <= total).sort((a, b) => a - b)
   const result: Array<number | 'ellipsis'> = []
 
   ordered.forEach((page, index) => {
