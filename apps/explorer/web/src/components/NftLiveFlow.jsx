@@ -193,7 +193,7 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
       await confirmSignature(rpcUrl, signature);
       const next = await refreshBalance();
       setLastSignature(signature);
-      appendLog(`Funding grant confirmed. Wallet balance is now ${formatAeko(next)}.`);
+      appendLog(`Test Console airdrop confirmed. Wallet balance is now ${formatAeko(next)}.`);
     } catch (fundError) {
       setError(fundError.message || String(fundError));
     } finally {
