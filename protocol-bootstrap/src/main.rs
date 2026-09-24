@@ -500,16 +500,8 @@ fn main() -> Result<()> {
     }
 
     verify_system_vault(&client, &treasury.pubkey(), "tokenomics-treasury")?;
-    verify_system_vault(
-        &client,
-        &validator_rewards.pubkey(),
-        "validator-rewards",
-    )?;
-    verify_system_vault(
-        &client,
-        &community_rewards.pubkey(),
-        "community-rewards",
-    )?;
+    verify_system_vault(&client, &validator_rewards.pubkey(), "validator-rewards")?;
+    verify_system_vault(&client, &community_rewards.pubkey(), "community-rewards")?;
 
     require_protocol_state(
         &client,

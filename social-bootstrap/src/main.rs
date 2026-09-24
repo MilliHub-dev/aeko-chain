@@ -414,7 +414,10 @@ fn main() -> Result<()> {
         &aeko_social_rewards_program::id(),
         "social-rewards",
         |data| {
-            let state = aeko_social_rewards_program::state::SocialRewardsStateAccount::deserialize_padded(data)
+            let state =
+                aeko_social_rewards_program::state::SocialRewardsStateAccount::deserialize_padded(
+                    data,
+                )
                 .map_err(|_| anyhow!("invalid social-rewards state"))?;
             Ok(state.is_initialized
                 && state.config.authority == final_authority
@@ -431,7 +434,10 @@ fn main() -> Result<()> {
         &aeko_social_staking_program::id(),
         "social-staking",
         |data| {
-            let state = aeko_social_staking_program::state::SocialStakingStateAccount::deserialize_padded(data)
+            let state =
+                aeko_social_staking_program::state::SocialStakingStateAccount::deserialize_padded(
+                    data,
+                )
                 .map_err(|_| anyhow!("invalid social-staking state"))?;
             Ok(state.is_initialized
                 && state.config.authority == final_authority
