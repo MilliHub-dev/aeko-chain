@@ -127,9 +127,9 @@ WORKDIR /web
 COPY apps/explorer/web/package*.json ./
 RUN npm ci
 COPY apps/explorer/web/ ./
-# Vite endpoint values are build-time configuration. These optional args are
-# intentionally empty for normal production builds; PR validation supplies local
-# runner endpoints so the exact PR-built UI can target the local release stack.
+# Production/remote Explorer endpoints are runtime configuration and are never
+# baked into the Vite bundle. These optional build args exist only for isolated
+# local/CI loopback overrides; normal images leave them empty.
 ARG VITE_AEKO_LOCAL_RPC=
 ARG VITE_AEKO_LOCAL_WS=
 ARG VITE_AEKO_LOCAL_EXPLORER_API=
