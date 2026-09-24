@@ -99,7 +99,7 @@ export const explorer   = new AekoExplorer(EXPLORER_URL);
 Add to `.env`:
 ```
 AEKO_RPC_URL=https://rpc.aeko.online
-AEKO_EXPLORER_URL=https://api.aeko.online
+AEKO_EXPLORER_URL=https://scan.aeko.online/api/explorer/testnet
 ```
 
 ---
@@ -1223,7 +1223,7 @@ export async function hasWallet(): Promise<boolean> {
 
 ```env
 AEKO_RPC_URL=https://rpc.aeko.online
-AEKO_EXPLORER_URL=https://api.aeko.online
+AEKO_EXPLORER_URL=https://scan.aeko.online/api/explorer/testnet
 AEKO_SERVICE_KEYPAIR=[1,2,3,...]    # byte array of service wallet secret key
 AEKO_TREASURY_ADDRESS=...           # platform fee destination
 AEKO_PLATFORM_FEE_BPS=200           # 2% platform fee on marketplace sales
