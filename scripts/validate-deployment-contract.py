@@ -499,13 +499,6 @@ def main() -> int:
     # the containers are created.
     require(re.search(r"^\s+build:\s*$", coolify, re.MULTILINE) is None, "Coolify compose must pull prebuilt images, not build source")
     require(re.search(r"^  rpc-node:\s*$", coolify, re.MULTILINE) is None, "Coolify must not make the optional RPC replica a default service")
-    require(
-        coolify.index("  key-bootstrap:") < coolify.index("  social-bootstrap:") < coolify.index("  protocol-bootstrap:")
-        < coolify.index("  faucet:") < coolify.index("  validator:")
-        < coolify.index("  explorer-api:") < coolify.index("  explorer-ui:") < coolify.index("  operations-web:")
-        < coolify.index("  wallet-tools:"),
-        "Coolify services must stay grouped as one-shot lifecycle, core runtime, applications, then opt-in tooling",
-    )
     coolify_ordered = [
         "key-bootstrap",
         "social-bootstrap",
@@ -517,6 +510,15 @@ def main() -> int:
         "operations-web",
         "wallet-tools",
     ]
+    coolify_service_positions = []
+    for service in coolify_ordered:
+        match = re.search(rf"^  {re.escape(service)}:\\s*$", coolify, re.MULTILINE)
+        require(match is not None, f"Coolify compose missing top-level service {service}")
+        coolify_service_positions.append(match.start())
+    require(
+        coolify_service_positions == sorted(coolify_service_positions),
+        "Coolify services must stay grouped as one-shot lifecycle, core runtime, applications, then opt-in tooling",
+    )
     for index, service in enumerate(coolify_ordered):
         next_service = coolify_ordered[index + 1] if index + 1 < len(coolify_ordered) else None
         block = service_block(coolify, service, next_service)
