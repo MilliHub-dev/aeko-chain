@@ -28,7 +28,7 @@ impl PostgresRepository {
             r#"
             SELECT signature, slot, success, fee, primary_program, signer
             FROM transactions
-            WHERE signature ILIKE $1 ESCAPE '\\'
+            WHERE signature ILIKE $1 ESCAPE E'\\\\'
             ORDER BY (signature = $2) DESC, slot DESC
             LIMIT $3
             "#,
@@ -60,7 +60,7 @@ impl PostgresRepository {
             r#"
             SELECT slot, blockhash, parent_slot, transaction_count, producer, unix_timestamp
             FROM blocks
-            WHERE blockhash ILIKE $1 ESCAPE '\\' OR slot::TEXT = $2
+            WHERE blockhash ILIKE $1 ESCAPE E'\\\\' OR slot::TEXT = $2
             ORDER BY (blockhash = $2 OR slot::TEXT = $2) DESC, slot DESC
             LIMIT $3
             "#,
@@ -94,9 +94,9 @@ impl PostgresRepository {
             SELECT mint, mint_authority, freeze_authority, name, symbol, decimals,
                    total_supply, supply_cap, metadata_uri, mint_policy, last_seen_slot
             FROM token_mints
-            WHERE mint ILIKE $1 ESCAPE '\\'
-               OR name ILIKE $1 ESCAPE '\\'
-               OR symbol ILIKE $1 ESCAPE '\\'
+            WHERE mint ILIKE $1 ESCAPE E'\\\\'
+               OR name ILIKE $1 ESCAPE E'\\\\'
+               OR symbol ILIKE $1 ESCAPE E'\\\\'
             ORDER BY (mint = $2) DESC,
                      (LOWER(symbol) = LOWER($2)) DESC,
                      last_seen_slot DESC,
@@ -147,10 +147,10 @@ impl PostgresRepository {
             r#"
             SELECT collection_id, authority, name, symbol, base_uri, total_minted, last_seen_slot
             FROM nft_collections
-            WHERE collection_id ILIKE $1 ESCAPE '\\'
-               OR authority ILIKE $1 ESCAPE '\\'
-               OR name ILIKE $1 ESCAPE '\\'
-               OR symbol ILIKE $1 ESCAPE '\\'
+            WHERE collection_id ILIKE $1 ESCAPE E'\\\\'
+               OR authority ILIKE $1 ESCAPE E'\\\\'
+               OR name ILIKE $1 ESCAPE E'\\\\'
+               OR symbol ILIKE $1 ESCAPE E'\\\\'
             ORDER BY (collection_id = $2) DESC,
                      (LOWER(symbol) = LOWER($2)) DESC,
                      last_seen_slot DESC,
@@ -186,11 +186,11 @@ impl PostgresRepository {
             r#"
             SELECT token_id, collection_id, owner, creator, metadata_uri, frozen, last_seen_slot
             FROM nfts
-            WHERE token_id ILIKE $1 ESCAPE '\\'
-               OR owner ILIKE $1 ESCAPE '\\'
-               OR creator ILIKE $1 ESCAPE '\\'
-               OR collection_id ILIKE $1 ESCAPE '\\'
-               OR metadata_uri ILIKE $1 ESCAPE '\\'
+            WHERE token_id ILIKE $1 ESCAPE E'\\\\'
+               OR owner ILIKE $1 ESCAPE E'\\\\'
+               OR creator ILIKE $1 ESCAPE E'\\\\'
+               OR collection_id ILIKE $1 ESCAPE E'\\\\'
+               OR metadata_uri ILIKE $1 ESCAPE E'\\\\'
             ORDER BY (token_id = $2) DESC, last_seen_slot DESC, token_id ASC
             LIMIT $3
             "#,
@@ -223,10 +223,10 @@ impl PostgresRepository {
             SELECT post_id, creator, content_hash, metadata_hash, content_uri, parent_post_id,
                    post_kind, created_at_unix, edited_at_unix, visibility, moderation_state, signature_ref
             FROM posts
-            WHERE post_id ILIKE $1 ESCAPE '\\'
-               OR creator ILIKE $1 ESCAPE '\\'
-               OR content_uri ILIKE $1 ESCAPE '\\'
-               OR signature_ref ILIKE $1 ESCAPE '\\'
+            WHERE post_id ILIKE $1 ESCAPE E'\\\\'
+               OR creator ILIKE $1 ESCAPE E'\\\\'
+               OR content_uri ILIKE $1 ESCAPE E'\\\\'
+               OR signature_ref ILIKE $1 ESCAPE E'\\\\'
             ORDER BY (post_id = $2) DESC, created_at_unix DESC
             LIMIT $3
             "#,
@@ -262,10 +262,10 @@ impl PostgresRepository {
             r#"
             SELECT mint, source, destination, amount, signature, event_index, slot
             FROM token_transfers
-            WHERE mint ILIKE $1 ESCAPE '\\'
-               OR source ILIKE $1 ESCAPE '\\'
-               OR destination ILIKE $1 ESCAPE '\\'
-               OR signature ILIKE $1 ESCAPE '\\'
+            WHERE mint ILIKE $1 ESCAPE E'\\\\'
+               OR source ILIKE $1 ESCAPE E'\\\\'
+               OR destination ILIKE $1 ESCAPE E'\\\\'
+               OR signature ILIKE $1 ESCAPE E'\\\\'
             ORDER BY (signature = $2) DESC, slot DESC, event_index ASC
             LIMIT $3
             "#,
@@ -298,11 +298,11 @@ impl PostgresRepository {
             SELECT proof_id, actor, target_creator, target_post_id, action_kind, action_weight,
                    slot, unix_timestamp, replay_guard
             FROM engagement_events
-            WHERE proof_id ILIKE $1 ESCAPE '\\'
-               OR actor ILIKE $1 ESCAPE '\\'
-               OR target_creator ILIKE $1 ESCAPE '\\'
-               OR target_post_id ILIKE $1 ESCAPE '\\'
-               OR replay_guard ILIKE $1 ESCAPE '\\'
+            WHERE proof_id ILIKE $1 ESCAPE E'\\\\'
+               OR actor ILIKE $1 ESCAPE E'\\\\'
+               OR target_creator ILIKE $1 ESCAPE E'\\\\'
+               OR target_post_id ILIKE $1 ESCAPE E'\\\\'
+               OR replay_guard ILIKE $1 ESCAPE E'\\\\'
             ORDER BY (proof_id = $2) DESC, slot DESC
             LIMIT $3
             "#,
