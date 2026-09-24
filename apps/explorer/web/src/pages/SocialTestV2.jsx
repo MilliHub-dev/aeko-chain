@@ -108,8 +108,8 @@ function ActionCard({ icon: Icon, title, description, state, disabled, onClick }
 
 export default function SocialTestV2() {
   const config = getNetworkConfig('testnet');
-  const rpcUrl = import.meta.env.VITE_AEKO_LOCAL_RPC || config.rpcUrl;
-  const explorerApiUrl = import.meta.env.VITE_AEKO_LOCAL_EXPLORER_API || config.explorerApiUrl;
+  const rpcUrl = config.rpcUrl;
+  const explorerApiUrl = config.explorerApiUrl;
   const [wallets, setWallets] = useState(() => loadWallets());
   const [walletId, setWalletId] = useState(() => loadWallets()[0]?.id || '');
   const [balance, setBalance] = useState(null);
