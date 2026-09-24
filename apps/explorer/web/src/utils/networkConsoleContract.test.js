@@ -216,6 +216,48 @@ test('Operations Web paginates long datasets and keeps dense control pages focus
 });
 
 
+test('Admin section switches keep descriptions outside non-wrapping tab buttons', async () => {
+  const sectionTabs = await source('../../../admin/src/components/section-tabs.tsx');
+
+  assert.match(sectionTabs, /whitespace-nowrap/);
+  assert.match(sectionTabs, /activeItem\?\.description/);
+  assert.match(sectionTabs, /sm:flex-1/);
+});
+
+
+test('Explorer env example covers runtime and intentional remote-preview settings', async () => {
+  const example = await source('../.env.example');
+  const demo = await source('data/nftDemoExamples.js');
+
+  for (const key of [
+    'AEKO_PUBLIC_RPC_URL',
+    'AEKO_PUBLIC_WS_URL',
+    'AEKO_PUBLIC_EXPLORER_API_URL',
+    'AEKO_PUBLIC_EXPLORER_URL',
+    'AEKO_PUBLIC_FUNDING_URL',
+    'VITE_AEKO_ALLOW_REMOTE_IN_DEV',
+    'VITE_AEKO_DEMO_METADATA_URI',
+  ]) {
+    assert.match(example, new RegExp(key));
+  }
+  assert.match(demo, /VITE_AEKO_DEMO_METADATA_URI/);
+});
+
+
+test('Explorer search is URL-driven, retryable and exposes a no-results state', async () => {
+  const explorer = await source('pages/Explorer.jsx');
+  const transaction = await source('pages/TransactionDetails.jsx');
+
+  assert.match(explorer, /urlSearchQuery/);
+  assert.match(explorer, /setSearchRetry/);
+  assert.match(explorer, /No matching indexed or live chain record/);
+  assert.match(explorer, /match\.kind === 'tokenMint'/);
+  assert.match(explorer, /match\.kind === 'collection'/);
+  assert.match(transaction, /Failed/);
+  assert.doesNotMatch(transaction, /Not confirmed/);
+});
+
+
 test('production Explorer endpoint configuration is runtime-injected rather than domain-hardcoded', async () => {
   const networkConfig = await source('utils/networkConfig.js');
   const rpcClient = await source('utils/aekoRpcClient.js');

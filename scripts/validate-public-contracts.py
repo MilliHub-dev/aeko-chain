@@ -127,6 +127,8 @@ def main() -> int:
         "VITE_AEKO_LOCAL_RPC",
         "VITE_AEKO_LOCAL_WS",
         "VITE_AEKO_LOCAL_EXPLORER_API",
+        "VITE_AEKO_ALLOW_REMOTE_IN_DEV",
+        "VITE_AEKO_DEMO_METADATA_URI",
     ):
         require(name + "=" in explorer_example, f"Explorer web env example must document {name}")
 
