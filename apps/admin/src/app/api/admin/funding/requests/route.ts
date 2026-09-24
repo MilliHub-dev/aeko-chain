@@ -1,15 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-import {
-  decideFundingRequest,
-  FundingError,
-  listFundingRequests,
-} from '@/lib/funding-store'
+import { fundingAdminClient, FundingGatewayError } from '@/lib/funding-admin-client'
 
 export const dynamic = 'force-dynamic'
 
+function gatewayError(err: unknown) {
+  if (err instanceof FundingGatewayError) {
+    return NextResponse.json(
+      { error: { code: err.code, message: err.message, ...err.details } },
+      { status: err.status },
+    )
+  }
+  console.error('admin funding request gateway failure:', err)
+  return NextResponse.json(
+    { error: { code: 'FUNDING_GATEWAY_UNAVAILABLE', message: 'Funding Gateway is unavailable' } },
+    { status: 502 },
+  )
+}
+
 export async function GET(req: NextRequest) {
   const limit = Math.min(500, Math.max(1, Number(req.nextUrl.searchParams.get('limit') ?? 100) || 100))
-  return NextResponse.json({ data: await listFundingRequests(limit) })
+  try {
+    return NextResponse.json({ data: await fundingAdminClient.requests(limit) })
+  } catch (err) {
+    return gatewayError(err)
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -17,7 +31,7 @@ export async function POST(req: NextRequest) {
   try {
     body = (await req.json()) as typeof body
   } catch {
-    return NextResponse.json({ error: { message: 'Invalid request body' } }, { status: 400 })
+    return NextResponse.json({ error: { code: 'INVALID_BODY', message: 'Invalid request body' } }, { status: 400 })
   }
 
   const action = body.action === 'approve' || body.action === 'reject' ? body.action : null
@@ -29,16 +43,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const request = await decideFundingRequest(String(body.id ?? '').trim(), action)
-    return NextResponse.json({ data: request })
+    return NextResponse.json({
+      data: await fundingAdminClient.decideRequest(String(body.id ?? '').trim(), action),
+    })
   } catch (err) {
-    if (err instanceof FundingError) {
-      return NextResponse.json(
-        { error: { code: err.code, message: err.message, ...err.extra } },
-        { status: err.status },
-      )
-    }
-    console.error('funding request decision failed:', err)
-    return NextResponse.json({ error: { message: 'Funding request decision failed' } }, { status: 500 })
+    return gatewayError(err)
   }
 }
