@@ -186,12 +186,13 @@ The public startup graph is intentionally failure-isolated:
 key-bootstrap creates/validates persistent keys and exits 0
   -> faucet
   -> validator healthy
-       |-> social-bootstrap (one shot: exit 0 or visible terminal failure)
+       |-> social-bootstrap (mandatory one shot: initialize/verify or visible terminal failure)
+       |-> protocol-bootstrap (mandatory one shot: initialize/verify or visible terminal failure)
        |-> explorer-api healthy
               -> explorer-ui healthy
 ```
 
-Explorer API/UI remain available in a degraded state when SocialFi bootstrap fails. The Explorer loads `/state/social-registry.env` dynamically and `/social/status` reports `complete: false` plus per-domain errors until the registry and all five on-chain states are valid. This keeps the operational UI/API observable without pretending SocialFi initialization succeeded.
+Explorer API/UI remain available for diagnostics if either mandatory bootstrap fails. The Explorer loads the generated Social and Protocol registries dynamically; `/social/status` and `/protocol/status` remain incomplete until their corresponding canonical on-chain state is valid. Routability therefore does not convert a failed Aeko Social or AEKO Protocol bootstrap into a successful network deployment.
 
 Bootstrap remains safe for a normal redeploy because it does not send another Initialize instruction when the persisted key resolves to an initialized account owned by the expected SocialFi program. Wrong-owner, malformed or unexpectedly missing state on an established chain fails closed.
 
@@ -466,7 +467,7 @@ AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-protocol.py
 ```
 
-That verifies RPC health, slot advancement, registry completeness, state-account ownership/initialization and Explorer SocialFi reads.
+Together these smokes verify RPC health, slot advancement, both mandatory registry surfaces, state-account ownership/initialization, and Explorer reads for Aeko Social and AEKO Protocol.
 
 ### Signed write path
 
