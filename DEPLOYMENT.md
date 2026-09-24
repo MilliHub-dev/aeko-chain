@@ -51,8 +51,8 @@ Internet wallets / dApps / SDKs
                   native SocialFi       PostgreSQL + registry
 
 scan.aeko.online -> explorer-ui :4000 -> explorer-api :8088
-fund.aeko.online -> operations-web :3001 (Testnet Funding Portal)      -> validator RPC
-admin.aeko.online -> operations-web :3001 (operator console, sign-in) -> validator RPC / explorer-api
+fund.aeko.online -> operations-web :3001 (public funding request + Test Console airdrop API) -> validator RPC
+admin.aeko.online -> operations-web :3001 (operator approvals/console, sign-in)                    -> validator RPC / explorer-api
 
 gossip.aeko.online:8001 -> validator gossip entrypoint
 validator host TCP+UDP 8000-8050 -> public validator transport range
@@ -92,7 +92,7 @@ Do not copy the same value into multiple configuration surfaces merely because s
 | --- | --- | --- |
 | Validator/vote/stake/faucet identities | persistent key files | Preserve the existing files; generate only during an intentional first chain boot. |
 | Social state and vault addresses | generated `social-state/social-registry.env` | Leave Explorer per-address overrides unset. |
-| Protocol feature identities | compile-time feature IDs | Fresh/reset genesis activates the mandatory protocol runtime features automatically; only a older preserved chain uses the compatibility activation helper. |
+| Protocol feature identities | compile-time feature IDs | Fresh/reset genesis activates the mandatory protocol runtime features automatically; only an older preserved chain uses the compatibility activation helper. |
 | Protocol authority and canonical state addresses | persistent protocol authority plus generated `protocol-registry.env` / continuity anchor | Bootstrap automatically when no established protocol identity exists; preserve and verify thereafter. |
 | Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads the same public API resource. |
 | Public browser endpoints | deployment environment (`AEKO_PUBLIC_*`) | Configure once per deployment environment. |
@@ -132,6 +132,7 @@ FUNDING_DEFAULT_AMOUNT_AEKO=5
 FUNDING_DEFAULT_COOLDOWN_HOURS=24
 FUNDING_DEFAULT_DAILY_BUDGET_AEKO=5000
 FUNDING_MAX_MANUAL_GRANT_AEKO=100
+FUNDING_MAX_CONSOLE_AIRDROP_AEKO=25
 ```
 
 Optional SocialFi bootstrap configuration:
@@ -484,7 +485,7 @@ Together these smokes verify RPC health, slot advancement, both mandatory regist
 Use `https://scan.aeko.online/network-tools` and open the Test Console:
 
 1. create a test wallet;
-2. request a policy-controlled funding grant;
+2. request a direct Test Console airdrop with the required amount;
 3. verify balance;
 4. submit a signed `AnchorPost`;
 5. confirm the transaction;
