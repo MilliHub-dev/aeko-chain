@@ -42,10 +42,10 @@ def main() -> int:
     portable = read("docker/compose.local.yml")
     coolify = read("docker/compose.coolify.yml")
     dokploy = read("docker/compose.dokploy.yml")
-    explorer_env = read("apps/explorer/web/.env.production")
     explorer_example = read("apps/explorer/web/.env.example")
     explorer_entrypoint = read("docker/explorer-ui-entrypoint.sh")
     network_config = read("apps/explorer/web/src/utils/networkConfig.js")
+    nft_demo = read("apps/explorer/web/src/data/nftDemoExamples.js")
     funding_policy = read("apps/admin/src/app/api/funding/policy/route.ts")
     funding_request = read("apps/admin/src/app/api/funding/request/route.ts")
     funding_airdrop = read("apps/admin/src/app/api/funding/airdrop/route.ts")
@@ -127,23 +127,18 @@ def main() -> int:
         "VITE_AEKO_LOCAL_RPC",
         "VITE_AEKO_LOCAL_WS",
         "VITE_AEKO_LOCAL_EXPLORER_API",
-        "VITE_AEKO_ALLOW_REMOTE_IN_DEV",
-        "VITE_AEKO_DEMO_METADATA_URI",
     ):
         require(name + "=" in explorer_example, f"Explorer web env example must document {name}")
 
-    for name in (
-        "VITE_AEKO_TESTNET_RPC",
-        "VITE_AEKO_TESTNET_WS",
-        "VITE_AEKO_TESTNET_EXPLORER_API",
-        "VITE_AEKO_TESTNET_EXPLORER",
-        "VITE_AEKO_TESTNET_FUNDING_URL",
-        "VITE_AEKO_MAINNET_RPC",
-        "VITE_AEKO_MAINNET_WS",
-        "VITE_AEKO_MAINNET_EXPLORER_API",
-        "VITE_AEKO_MAINNET_EXPLORER",
+    for retired in (
+        "VITE_AEKO_TESTNET_",
+        "VITE_AEKO_MAINNET_",
+        "VITE_AEKO_DEMO_",
+        "VITE_AEKO_ALLOW_REMOTE_IN_DEV",
     ):
-        require_empty_assignment(explorer_env, name, "Explorer production env")
+        reject(explorer_example, retired, "Explorer web env example")
+        reject(network_config, retired, "Explorer network config")
+        reject(nft_demo, retired, "Explorer NFT demo config")
 
     for name in (
         "AEKO_PUBLIC_RPC_URL",
@@ -161,6 +156,31 @@ def main() -> int:
     )
     require("window.__AEKO_RUNTIME_CONFIG__" in network_config, "Explorer must read runtime endpoint configuration")
     require("/app/dist/runtime-config.js" in explorer_entrypoint, "Explorer entrypoint must write runtime-config.js into the served bundle")
+    require(
+        "runtimeKeys" in explorer_entrypoint and "Object.fromEntries" in explorer_entrypoint,
+        "Explorer entrypoint must emit a single canonical AEKO_* runtime object",
+    )
+    for name in (
+        "AEKO_PUBLIC_RPC_URL",
+        "AEKO_PUBLIC_WS_URL",
+        "AEKO_PUBLIC_EXPLORER_API_URL",
+        "AEKO_PUBLIC_EXPLORER_URL",
+        "AEKO_PUBLIC_FUNDING_URL",
+        "AEKO_MAINNET_RPC_URL",
+        "AEKO_MAINNET_WS_URL",
+        "AEKO_MAINNET_EXPLORER_API_URL",
+        "AEKO_MAINNET_EXPLORER_URL",
+    ):
+        require(name in network_config, f"Explorer network config must consume canonical runtime key {name}")
+        require(("'" + name + "'") in explorer_entrypoint, f"Explorer runtime entrypoint must publish {name}")
+    for name in (
+        "AEKO_DEMO_RPC_URL",
+        "AEKO_DEMO_COLLECTION",
+        "AEKO_DEMO_TOKEN",
+        "AEKO_DEMO_METADATA_URI",
+    ):
+        require(name in nft_demo, f"Explorer NFT demo must consume canonical runtime key {name}")
+        require(("'" + name + "'") in explorer_entrypoint, f"Explorer runtime entrypoint must publish {name}")
 
     for label, compose in (("Coolify", coolify), ("Dokploy", dokploy)):
         require(re.search(r"^  operations-web:\s*$", compose, re.MULTILINE) is not None, f"{label} must deploy operations-web")
@@ -339,7 +359,6 @@ def main() -> int:
     for where, text in {
         "admin env": admin_env,
         "public env": public_env,
-        "Explorer production env": explorer_env,
         "Explorer web env example": explorer_example,
     }.items():
         require(r"\n" not in text, f"{where} contains a literal escaped newline instead of a real line break")
