@@ -39,7 +39,7 @@ Optional mainnet and AEKO-721 demo runtime values live in the same canonical dep
 
 ## Local Vite development
 
-Local Vite development can target either localhost or a remote AEKO deployment. Copy `apps/explorer/web/.env.example` to `.env.local` and set the explicit `AEKO_TESTNET_*` and optional `AEKO_MAINNET_*` endpoint groups. If no testnet group is supplied, the client falls back to:
+Local Vite development can target either localhost or a remote AEKO deployment. Copy `apps/explorer/web/.env.example` to `.env.local` and set the explicit `AEKO_PUBLIC_*` and optional `AEKO_MAINNET_*` endpoint groups. If no testnet group is supplied, the client falls back to:
 
 ```text
 RPC          http://127.0.0.1:8899
