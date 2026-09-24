@@ -311,24 +311,20 @@ print(f"[ok] ledger restart preserved finalized genesis, account state and trans
 PY
 
 run_bootstrap() {
-  AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1 \
   AEKO_RPC_URL="$RPC_URL" \
   AEKO_PAYER_KEYPAIR="$LEDGER_DIR/faucet-keypair.json" \
   AEKO_PROTOCOL_AUTHORITY_KEYPAIR="$AUTHORITY_KEYPAIR" \
   AEKO_PROTOCOL_OUT_DIR="$STATE_DIR" \
   AEKO_PROTOCOL_CONTINUITY_DIR="$CONTINUITY_DIR" \
-  AEKO_REQUIRE_EXISTING_PROTOCOL_STATE=1 \
-  AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION="$1" \
-  AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY=0 \
-  AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE="$2" \
+  AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE="${1:-0}" \
   target/debug/aeko-protocol-bootstrap
 }
 
-# First bootstrap is explicit. A second normal run must be idempotent.
-run_bootstrap 1 0
+# First bootstrap is automatic. A second normal run must be idempotent.
+run_bootstrap 0
 cp "$STATE_DIR/protocol-registry.env" "$REGISTRY_BASELINE"
 cmp "$STATE_DIR/protocol-registry.env" "$CONTINUITY_DIR/protocol-registry.anchor"
-run_bootstrap 0 0
+run_bootstrap 0
 cmp "$REGISTRY_BASELINE" "$STATE_DIR/protocol-registry.env"
 cmp "$STATE_DIR/protocol-registry.env" "$CONTINUITY_DIR/protocol-registry.anchor"
 
@@ -337,7 +333,7 @@ cmp "$STATE_DIR/protocol-registry.env" "$CONTINUITY_DIR/protocol-registry.anchor
 # reuses the preserved canonical keypairs and republishes the identical registry.
 rm -rf "$STATE_DIR"
 mkdir -p "$STATE_DIR"
-if run_bootstrap 0 0; then
+if run_bootstrap 0; then
   echo "protocol bootstrap unexpectedly accepted a missing established state volume" >&2
   exit 1
 fi
@@ -345,7 +341,7 @@ if [ -n "$(find "$STATE_DIR" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
   echo "fail-closed protocol-state check wrote files before rejecting recovery" >&2
   exit 1
 fi
-run_bootstrap 0 1
+run_bootstrap 1
 cmp "$REGISTRY_BASELINE" "$STATE_DIR/protocol-registry.env"
 cmp "$STATE_DIR/protocol-registry.env" "$CONTINUITY_DIR/protocol-registry.anchor"
 

@@ -183,12 +183,9 @@ def main() -> int:
             f"{label} must use the shared key preflight implementation from aeko-tools",
         )
         require(
-            "AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION: ${AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION:-0}" in block,
-            f"{label} must require explicit opt-in before creating a protocol authority",
-        )
-        require(
-            "AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in block,
-            f"{label} key lifecycle must know whether protocol bootstrap is intentionally enabled",
+            "AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION" not in block
+            and "AEKO_PROTOCOL_BOOTSTRAP_ENABLED" not in block,
+            f"{label} must not expose protocol lifecycle toggles in normal deployment",
         )
         require(
             "protocol-state:/protocol-state:ro" in block
@@ -201,8 +198,8 @@ def main() -> int:
         "shared key preflight must fail closed on missing established chain identities",
     )
     require(
-        "protocol bootstrap disabled and no established protocol identity exists" in key_preflight,
-        "compatibility deploy must not require a brand-new protocol authority while protocol bootstrap is disabled",
+        "Initializing AEKO protocol authority for a network with no established protocol registry" in key_preflight,
+        "shared key preflight must create the mandatory protocol authority automatically on first bootstrap",
     )
     require(
         "refusing to replace an established protocol authority" in key_preflight
@@ -296,7 +293,6 @@ def main() -> int:
     )
 
     for required in (
-        'parse_bool_flag_with_default("AEKO_PROTOCOL_BOOTSTRAP_ENABLED", false)',
         "require_feature_active",
         "require_executable_program",
         "registry_preexisted && !allow_missing_state",
@@ -314,7 +310,7 @@ def main() -> int:
     require("/protocol/status" in protocol_smoke, "protocol smoke must verify live protocol status")
     require("getHealth" in protocol_smoke and "getSlot" in protocol_smoke, "protocol smoke must verify live chain health and advancement")
     require("smoke-aeko-protocol.py" in protocol_integration, "protocol integration must execute the read-only protocol smoke")
-    require("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE" in protocol_integration, "protocol integration must exercise explicit state-volume recovery")
+    require("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE" in protocol_integration, "protocol integration must retain explicit disaster-recovery coverage while normal bootstrap stays automatic")
     require("cmp" in protocol_integration and "protocol-registry.env" in protocol_integration, "protocol integration must prove idempotent canonical registry identity")
     require("getGenesisHash" in protocol_integration and "getTransaction" in protocol_integration, "protocol integration must prove ledger identity and historical transaction continuity across restart")
     require("unexpectedly accepted a missing established state volume" in protocol_integration, "protocol integration must prove missing protocol-state fails closed before recovery")
@@ -390,15 +386,13 @@ def main() -> int:
     for obsolete_override in ("AEKO_REWARD_VAULT:", "AEKO_STAKE_VAULT:"):
         require(obsolete_override not in bootstrap, f"Dokploy bootstrap must not configure obsolete operator-owned vault address {obsolete_override}")
 
-    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in protocol_bootstrap_service, "Dokploy protocol bootstrap must default disabled during runtime upgrade")
     require("protocol-authority-keypair.json" in protocol_bootstrap_service, "Dokploy protocol bootstrap must use a dedicated protocol authority")
     require("protocol-state:/state" in protocol_bootstrap_service, "Dokploy protocol state must persist")
     require("protocol-continuity:/continuity" in protocol_bootstrap_service, "Dokploy protocol continuity anchor must persist separately")
-    require("AEKO_REQUIRE_EXISTING_PROTOCOL_STATE: ${AEKO_REQUIRE_EXISTING_PROTOCOL_STATE:-1}" in protocol_bootstrap_service, "Dokploy protocol bootstrap must fail closed when established protocol state disappears")
-    require("AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION: ${AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION:-0}" in protocol_bootstrap_service, "Dokploy first protocol-state initialization must be explicit")
+    require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in protocol_bootstrap_service, "Dokploy protocol bootstrap must follow intentional chain resets")
+    require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in explorer, "Dokploy Explorer must purge stale projections on intentional chain resets")
     require('restart: "no"' in protocol_bootstrap_service, "Dokploy protocol bootstrap must be a one-shot service")
     require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in explorer, "Dokploy Explorer must consume protocol registry")
-    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in explorer, "Dokploy Explorer must receive the protocol bootstrap phase")
     require("protocol-state:/protocol-state:ro" in explorer, "Dokploy Explorer must mount protocol state read-only")
     require("depends_on:" not in operations_web, "Dokploy Operations Web lifecycle must be independent of validator health")
 
@@ -476,18 +470,15 @@ def main() -> int:
     require('entrypoint: ["/usr/local/bin/aeko-key-preflight"]' in coolify_key_bootstrap, "Coolify key bootstrap must use the shared tools-image preflight")
     require("AEKO_KEYS_SOURCE: /data/aeko/keys" in coolify_key_bootstrap, "Coolify key bootstrap diagnostics must identify the fixed host key path")
     require("AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}" in coolify_key_bootstrap, "Coolify key bootstrap must preserve explicit first-chain-key generation")
-    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in coolify_key_bootstrap, "Coolify key bootstrap must not require a new protocol authority during compatibility deployment")
     require('restart: "no"' in coolify_key_bootstrap, "Coolify key bootstrap must be a one-shot initializer")
     require("key-bootstrap:" in coolify_faucet and "condition: service_completed_successfully" in coolify_faucet, "Coolify faucet must wait for persistent key initialization")
     require('restart: "no"' in coolify_bootstrap, "Coolify SocialFi bootstrap must remain a one-shot initializer")
-    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in coolify_protocol_bootstrap, "Coolify protocol bootstrap must default disabled during runtime upgrade")
     require("protocol-authority-keypair.json" in coolify_protocol_bootstrap, "Coolify protocol bootstrap must use dedicated authority")
     require("protocol-state:/state" in coolify_protocol_bootstrap, "Coolify protocol state must persist")
     require("protocol-continuity:/continuity" in coolify_protocol_bootstrap, "Coolify protocol continuity anchor must persist separately")
-    require("AEKO_REQUIRE_EXISTING_PROTOCOL_STATE: ${AEKO_REQUIRE_EXISTING_PROTOCOL_STATE:-1}" in coolify_protocol_bootstrap, "Coolify protocol bootstrap must fail closed when established protocol state disappears")
-    require("AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION: ${AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION:-0}" in coolify_protocol_bootstrap, "Coolify first protocol-state initialization must be explicit")
+    require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in coolify_protocol_bootstrap, "Coolify protocol bootstrap must follow intentional chain resets")
+    require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in coolify_explorer, "Coolify Explorer must purge stale projections on intentional chain resets")
     require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in coolify_explorer, "Coolify Explorer must consume protocol registry")
-    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in coolify_explorer, "Coolify Explorer must receive the protocol bootstrap phase")
     require("protocol-state:/protocol-state:ro" in coolify_explorer, "Coolify Explorer must mount protocol state read-only")
     require("depends_on:" not in coolify_operations_web, "Coolify Operations Web lifecycle must be independent of validator health")
     require('profiles: ["ops"]' in coolify_wallet_tools, "Coolify wallet tools must remain operator-only and absent from default startup")
@@ -542,11 +533,11 @@ def main() -> int:
         "AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in portable_operations_web,
         "portable operations web must use the internal Explorer API",
     )
-    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in portable_protocol_bootstrap, "portable protocol bootstrap must default disabled")
     require("protocol-authority-keypair.json" in portable_protocol_bootstrap, "portable protocol bootstrap must use dedicated authority")
     require("protocol-continuity:/continuity" in portable_protocol_bootstrap, "portable protocol continuity anchor must persist separately")
+    require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in portable_protocol_bootstrap, "portable protocol bootstrap must follow intentional chain resets")
+    require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in portable_explorer, "portable Explorer must follow intentional chain resets")
     require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in portable_explorer, "portable Explorer must consume protocol registry")
-    require("AEKO_PROTOCOL_BOOTSTRAP_ENABLED: ${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" in portable_explorer, "portable Explorer must receive the protocol bootstrap phase")
     require("protocol-state:/protocol-state:ro" in portable_explorer, "portable Explorer must mount protocol state read-only")
     require("depends_on:" not in portable_operations_web, "portable Operations Web lifecycle must be independent of validator health")
     require("AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-localnet}" in portable_explorer, "portable Explorer must default to localnet identity rather than production testnet")

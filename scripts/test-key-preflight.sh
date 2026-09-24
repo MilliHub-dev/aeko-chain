@@ -72,8 +72,6 @@ run_preflight() {
   AEKO_PROTOCOL_CONTINUITY_ROOT="$CONTINUITY_DIR" \
   AEKO_KEYS_SOURCE="$KEYS_DIR" \
   AEKO_ALLOW_CHAIN_KEY_GENERATION="${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}" \
-  AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION="${AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION:-0}" \
-  AEKO_PROTOCOL_BOOTSTRAP_ENABLED="${AEKO_PROTOCOL_BOOTSTRAP_ENABLED:-0}" \
   sh "$SCRIPT"
 }
 
@@ -90,31 +88,11 @@ expect_status() {
   fi
 }
 
-new_case compatibility_without_protocol
+new_case fresh_protocol_identity
 seed_chain_keys
-AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0 AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0 run_preflight
-test ! -e "$KEYS_DIR/protocol-authority-keypair.json"
-echo "[ok] compatibility deploy does not require a brand-new protocol authority"
-
-new_case enabled_requires_explicit_authority_creation
-seed_chain_keys
-expect_status 64 env \
-  PATH="$MOCK_BIN:$PATH" \
-  AEKO_KEYS_ROOT="$KEYS_DIR" \
-  AEKO_PROTOCOL_STATE_ROOT="$STATE_DIR" \
-  AEKO_PROTOCOL_CONTINUITY_ROOT="$CONTINUITY_DIR" \
-  AEKO_KEYS_SOURCE="$KEYS_DIR" \
-  AEKO_ALLOW_CHAIN_KEY_GENERATION=0 \
-  AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0 \
-  AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1 \
-  sh "$SCRIPT"
-echo "[ok] enabled first protocol bootstrap requires explicit authority creation"
-
-new_case enabled_explicit_authority_creation
-seed_chain_keys
-AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1 AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1 run_preflight
+run_preflight
 test -s "$KEYS_DIR/protocol-authority-keypair.json"
-echo "[ok] intentional first protocol bootstrap creates the authority explicitly"
+echo "[ok] a network with no protocol registry gets its mandatory protocol authority automatically"
 
 new_case established_protocol_missing_authority
 seed_chain_keys
@@ -126,8 +104,6 @@ expect_status 64 env \
   AEKO_PROTOCOL_CONTINUITY_ROOT="$CONTINUITY_DIR" \
   AEKO_KEYS_SOURCE="$KEYS_DIR" \
   AEKO_ALLOW_CHAIN_KEY_GENERATION=0 \
-  AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0 \
-  AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0 \
   sh "$SCRIPT"
 echo "[ok] established protocol identity still fails closed when its authority is missing"
 
@@ -136,7 +112,7 @@ seed_chain_keys
 printf '{"existing":"protocol"}\n' >"$KEYS_DIR/protocol-authority-keypair.json"
 printf '%s\n' 'AEKO_PROTOCOL_AUTHORITY=ProtocolAuthority11111111111111111111111111' >"$STATE_DIR/protocol-registry.env"
 cp "$STATE_DIR/protocol-registry.env" "$CONTINUITY_DIR/protocol-registry.anchor"
-AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0 AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0 run_preflight
+run_preflight
 echo "[ok] established matching protocol identity validates during normal redeploy"
 
 new_case mismatched_protocol_continuity
@@ -151,8 +127,6 @@ expect_status 65 env \
   AEKO_PROTOCOL_CONTINUITY_ROOT="$CONTINUITY_DIR" \
   AEKO_KEYS_SOURCE="$KEYS_DIR" \
   AEKO_ALLOW_CHAIN_KEY_GENERATION=0 \
-  AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0 \
-  AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0 \
   sh "$SCRIPT"
 echo "[ok] mismatched protocol registry/continuity still fails closed"
 
@@ -166,8 +140,6 @@ expect_status 64 env \
   AEKO_PROTOCOL_CONTINUITY_ROOT="$CONTINUITY_DIR" \
   AEKO_KEYS_SOURCE="$KEYS_DIR" \
   AEKO_ALLOW_CHAIN_KEY_GENERATION=0 \
-  AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0 \
-  AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0 \
   sh "$SCRIPT"
 echo "[ok] established chain identity remains fail-closed"
 

@@ -50,6 +50,42 @@ impl PostgresRepository {
         Ok(repository)
     }
 
+    pub async fn reset_for_chain_if_requested(
+        &self,
+        network: &str,
+        genesis_hash: &str,
+        requested: bool,
+    ) -> Result<bool> {
+        if !requested {
+            return Ok(false);
+        }
+        if self.chain_identity().await?
+            == Some((network.to_string(), genesis_hash.to_string()))
+        {
+            tracing::info!(network, genesis_hash, "Explorer PostgreSQL reset already applied for this genesis");
+            return Ok(false);
+        }
+
+        tracing::warn!(
+            network,
+            genesis_hash,
+            "AEKO_RESET_LEDGER is active and Explorer PostgreSQL belongs to another or unknown chain; purging the Explorer schema"
+        );
+        sqlx::query("DROP SCHEMA public CASCADE")
+            .execute(&self.pool)
+            .await
+            .context("dropping Explorer PostgreSQL public schema for chain reset")?;
+        sqlx::query("CREATE SCHEMA public")
+            .execute(&self.pool)
+            .await
+            .context("recreating Explorer PostgreSQL public schema for chain reset")?;
+        sqlx::migrate!("./migrations")
+            .run(&self.pool)
+            .await
+            .context("re-running Explorer PostgreSQL migrations after chain reset")?;
+        Ok(true)
+    }
+
     pub async fn ping(&self) -> Result<()> {
         let value: i32 = sqlx::query_scalar("SELECT 1")
             .fetch_one(&self.pool)

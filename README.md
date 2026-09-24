@@ -51,7 +51,7 @@ Consumers, wallets and dApps use **RPC/WS**, never gossip. Index-heavy reads can
 | RPC node | `surdma/aeko-validator` | optional portable/local profile using `AEKO_NODE_ROLE=rpc`; not required by the default public deployment |
 | Faucet Daemon | `surdma/aeko-faucet` | private TCP signer used only by the validator funding path |
 | SocialFi bootstrap | `surdma/aeko-social-bootstrap` | verifies/initializes the five SocialFi state accounts and writes the registry |
-| Protocol bootstrap | `surdma/aeko-protocol-bootstrap` | after feature activation, verifies/initializes canonical token/security protocol state and writes the protocol registry |
+| Protocol bootstrap | `surdma/aeko-protocol-bootstrap` | always participates in the default network lifecycle; verifies/initializes canonical token/security protocol state and writes the protocol registry |
 | Explorer API | `surdma/aeko-explorer-api` | chain indexer, REST API and SocialFi registry/read endpoints |
 | Explorer UI | `surdma/aeko-explorer-ui` | browser block/social explorer and test console |
 | Wallet/operator tools | `surdma/aeko-tools` | `aeko` CLI and `aeko-keygen`; wallets are signers, not a network daemon |
@@ -111,20 +111,13 @@ Normal redeploy behavior is fail-closed and idempotent at the deployment boundar
 4. Wrong-owner, malformed or unexpectedly missing persisted state fails deployment instead of silently overwriting social state.
 5. Bootstrap writes `/state/social-registry.env`.
 6. Explorer mounts the same volume read-only through `AEKO_SOCIAL_REGISTRY_FILE=/state/social-registry.env`.
-7. Explorer starts only after bootstrap exits successfully.
+7. The default deployment always starts Social bootstrap; Explorer may remain routable for diagnostics while `/social/status` reports incomplete state until bootstrap succeeds.
 
 Operator env vars can intentionally override registry values, but normal deployment no longer requires copying/renaming state addresses by hand.
 
-### Intentional fresh-genesis recovery
+### Intentional fresh-genesis reset
 
-If the chain is deliberately reset while the SocialFi state-key volume is retained, use both switches for that one recovery deployment:
-
-```text
-AEKO_RESET_LEDGER=1
-AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1
-```
-
-The public Compose contracts pass `AEKO_RESET_LEDGER` to the validator. The optional portable RPC replica has its own local ledger and is not part of the default public topology. `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE` is deliberately separate and defaults to `0`; do not leave it enabled for ordinary redeploys. Return both switches to `0` after recovery.
+For an intentional new chain, set `AEKO_RESET_LEDGER=1`. The reset propagates automatically to the validator, Aeko Social, AEKO Protocol, and Explorer state boundaries. No SocialFi/Protocol missing-state override is required for this normal reset path. Return the reset flag to `0` after accepting the replacement chain.
 
 ## Social write/read split
 
@@ -226,7 +219,7 @@ AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main SHA>
 ```
 
-Required persistent chain key files during the protocol-disabled compatibility phase:
+Required persistent chain key files:
 
 ```text
 validator-1-keypair.json
@@ -235,7 +228,7 @@ stake-keypair.json
 faucet-keypair.json
 ```
 
-`protocol-authority-keypair.json` is a separate protocol identity. It is created only for the intentional first protocol bootstrap after both runtime features are active, and is not a prerequisite while `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` and no protocol registry exists.
+`protocol-authority-keypair.json` is a separate protocol identity. AEKO Protocol is mandatory: the shared key preflight creates this authority automatically when no established protocol registry or continuity identity exists, then preserves and verifies it on later redeploys.
 
 Never commit those keypairs. Keep them in persistent restricted storage/File Mounts; do not depend on files inside an AutoDeploy Git checkout.
 
@@ -553,10 +546,9 @@ DEPLOYMENT.md                         operator deployment contract
 
 MIT. See [`LICENSE`](./LICENSE).
 
-## Native protocol upgrades
+## Mandatory AEKO Protocol lifecycle
 
-The eleven AEKO token and permission/security native programs added after the established testnet genesis are runtime-feature gated. Deploying a new validator binary no longer requires wiping historical chain state to introduce them.
+Aeko Social and AEKO Protocol are part of every default network deployment. Fresh and reset-to-genesis networks activate the mandatory Protocol runtime features at genesis, and both one-shot bootstraps initialize-or-verify their canonical state on every deployment. They are not operator feature toggles.
 
-Keep `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` while the upgraded validator restores the existing ledger. Activate the two offline-authority feature accounts and wait for epoch activation. The intentional first canonical-state bootstrap also requires `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1`; return that flag to `0` after acceptance. Preserve both `protocol-state` and the independent `protocol-continuity` volume on later redeploys.
+Legacy history-preserving Protocol activation, reset behavior, recovery boundaries, and Social/Protocol acceptance checks are consolidated in [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
-See [`docs/operations/protocol-upgrades.md`](./docs/operations/protocol-upgrades.md) for the ordered procedure, feature IDs, rollback boundary and acceptance checks. Explorer exposes `/registry/protocol` and `/protocol/status` after bootstrap.

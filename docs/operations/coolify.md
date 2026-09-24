@@ -16,7 +16,7 @@ The default public services are below. `operations-web` serves both the public F
 
 ```text
 key-bootstrap (one shot) -> faucet -> validator -> social-bootstrap
-                                      |-> protocol-bootstrap (disabled until feature activation)
+                                      |-> protocol-bootstrap (mandatory one-shot initialize/verify)
                                       |-> explorer-api
 explorer-ui + operations-web (independent liveness)
 ```
@@ -62,7 +62,7 @@ stake-keypair.json
 faucet-keypair.json
 ```
 
-`protocol-authority-keypair.json` is created later only when the intentional first protocol bootstrap is enabled (or may already exist on an established protocol-enabled deployment). A compatibility redeploy with `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` does not require a brand-new protocol authority.
+`protocol-authority-keypair.json` is created automatically when no established protocol registry or continuity identity exists. On established deployments the same authority is required and verified rather than replaced.
 
 You do not need to set `AEKO_KEYS_DIR` in the Coolify dashboard and you do not need to generate these files manually for a fresh chain. If this Coolify deployment is replacing an existing Dokploy/AEKO deployment, copy the **same existing validator/vote/stake/faucet keypairs** into this directory before deploying so the bootstrap preserves them. Replacing them changes validator/faucet identity and can make the persisted ledger unusable for the intended chain. Generate new keys only when intentionally creating a fresh chain identity.
 
@@ -82,14 +82,7 @@ The Coolify contract declares five Docker-managed named volumes:
 
 Normal redeploys must preserve all five volumes. The two protocol volumes form one continuity boundary: losing `protocol-state` while retaining `protocol-continuity` requires explicit recovery and reuses the same canonical addresses; losing `protocol-continuity` must not be treated as a fresh bootstrap. Do not delete them unless intentionally resetting chain state.
 
-For a deliberate fresh-genesis recovery, set both:
-
-```text
-AEKO_RESET_LEDGER=1
-AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1
-```
-
-Redeploy once, verify bootstrap succeeds, then return both values to `0`.
+For a deliberate fresh-genesis reset, set `AEKO_RESET_LEDGER=1`. That single reset signal is propagated to the validator, Aeko Social, AEKO Protocol, and Explorer. Redeploy once, verify both mandatory bootstraps and Explorer binding succeed, then return `AEKO_RESET_LEDGER=0`.
 
 ## Domains and ports
 
@@ -177,9 +170,7 @@ Do not replace the Coolify bind mounts with any `${...}` volume-source form, inc
 
 ## Key troubleshooting
 
-The reusable `docker/key-preflight.sh` helper uses exit 64 for missing/empty required keys and exit 65 for invalid keypair content. Coolify runs the same implementation through the one-shot `key-bootstrap` service, and the faucet intentionally waits for that service to complete successfully. During the protocol-disabled compatibility phase, the successful message `protocol bootstrap disabled and no established protocol identity exists` means no protocol authority is required yet; it is not a key-preflight failure.
-
-If the faucet or validator fails because a key is unavailable, inspect the fixed host directory directly:
+The reusable `docker/key-preflight.sh` helper uses exit 64 for missing/empty required keys and exit 65 for invalid keypair content. Coolify runs the same implementation through the one-shot `key-bootstrap` service, and the faucet intentionally waits for that service to complete successfully. If the faucet or validator fails because a key is unavailable, inspect the fixed host directory directly:
 
 ```bash
 sudo ls -la /data/aeko/keys
@@ -191,43 +182,15 @@ sudo test -s /data/aeko/keys/vote-1-keypair.json
 
 Preserve the existing identities when continuing an existing chain; do not regenerate keys merely to make container status green.
 
-## Existing-chain protocol upgrade
+## AEKO Protocol lifecycle
 
-For the first deployment of the feature-gated validator, keep:
+AEKO Protocol is mandatory on new networks. Fresh genesis creation activates its runtime feature accounts automatically, and the one-shot `protocol-bootstrap` service runs idempotently on every deployment. There is no normal `AEKO_PROTOCOL_BOOTSTRAP_ENABLED` or protocol-state initialization switch.
 
-```text
-AEKO_RESET_LEDGER=0
-AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0
-```
+The shared key preflight creates `protocol-authority-keypair.json` automatically when no established protocol registry or continuity anchor exists. Once protocol identity exists, a missing or mismatched authority remains fatal.
 
-This lets the validator restore the existing ledger without inserting the eleven newer builtin accounts into a historical frozen Bank. Prove the old genesis and slot history are continuing before feature activation. In this phase, `/protocol-state/protocol-registry.env` is expected to be absent on a chain that has never completed protocol bootstrap, and Explorer must report protocol state as incomplete rather than treating that absence as initialized state. Do not create or copy a registry file by hand.
+`AEKO_RESET_LEDGER=1` is a destructive new-chain operation. On that reset, SocialFi state and protocol state are cleared once for the new genesis, and Explorer purges the old PostgreSQL projection schema before binding to the replacement genesis. Return the reset variable to `0` after accepting the new chain.
 
-Then activate the two runtime features with their offline keypairs and wait until both are active at the epoch boundary. For the first canonical-state bootstrap set:
-
-```text
-AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1
-AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1
-AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1
-```
-
-The shared key preflight creates `protocol-authority-keypair.json` only because protocol bootstrap is now explicitly enabled. After the first successful bootstrap, back up that key and return both one-time creation flags to `0`.
-
-Redeploy the one-shot `protocol-bootstrap` service, run the acceptance checks, and immediately return `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=0`. Established deployments keep `AEKO_REQUIRE_EXISTING_PROTOCOL_STATE=1`.
-
-Do not put the two feature-authority private keypairs in `/data/aeko/keys`. The runtime key directory contains the separate `protocol-authority-keypair.json`, which controls canonical protocol configuration after activation.
-
-Both `compose.coolify.yml` and `compose.dokploy.yml` already include the one-shot `protocol-bootstrap` service and its independent persistent state/continuity volumes. The service is disabled by default for history-preserving upgrades. The activation helper resolves the two canonical feature IDs from `sdk/src/feature_set.rs` and verifies the offline keypairs against that single source of truth; deployment environment variables must not redefine consensus feature IDs.
-
-Use [`protocol-upgrades.md`](./protocol-upgrades.md) for the full ordered procedure and rollback boundary. Acceptance requires:
-
-```bash
-curl -s https://api.aeko.online/registry/protocol
-curl -s https://api.aeko.online/protocol/status
-
-AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://api.aeko.online \
-python3 scripts/smoke-aeko-protocol.py
-```
+The feature-activation helper remains only for a history-preserving migration of a legacy chain whose genesis predates the AEKO Protocol builtins. It is not part of normal fresh deployment or reset-to-genesis deployment. The complete compatibility and acceptance procedure is consolidated in [`DEPLOYMENT.md`](../../DEPLOYMENT.md).
 
 ## Established-chain continuity guard
 
@@ -239,7 +202,6 @@ For every normal redeploy of an established chain keep:
 AEKO_RESET_LEDGER=0
 AEKO_REQUIRE_EXISTING_LEDGER=1
 AEKO_ALLOW_CHAIN_KEY_GENERATION=0
-AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0
 ```
 
 With those settings:
@@ -248,7 +210,7 @@ With those settings:
 - if any validator, vote, stake, or faucet key is missing from `/data/aeko/keys`, Coolify key bootstrap exits instead of creating a replacement identity;
 - if `protocol-registry.env` exists but the protocol-authority key is missing, bootstrap exits instead of replacing the established authority.
 
-For the **first-ever genesis only**, set `AEKO_REQUIRE_EXISTING_LEDGER=0`. If Coolify is also responsible for creating the four chain keys, temporarily set `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`. When creating `protocol-authority-keypair.json` for the first time, temporarily set `AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1`. Return all three switches to their safe normal values immediately after the intended first-time creation.
+For the **first-ever genesis only**, set `AEKO_REQUIRE_EXISTING_LEDGER=0`. If Coolify is also responsible for creating the four chain keys, temporarily set `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`. The protocol authority is created automatically when no established protocol identity exists. Return the two chain-lifecycle switches to their safe normal values immediately after intentional first-time chain creation.
 
 An intentional `AEKO_RESET_LEDGER=1` remains an explicit destructive action and bypasses the existing-ledger guard for that reset. Never use it to recover from an unknown or changed volume mount.
 

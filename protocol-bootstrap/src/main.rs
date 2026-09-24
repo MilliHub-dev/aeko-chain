@@ -55,13 +55,6 @@ const REGISTRY_FILE_NAME: &str = "protocol-registry.env";
 const REGISTRY_ANCHOR_FILE_NAME: &str = "protocol-registry.anchor";
 
 fn main() -> Result<()> {
-    if !parse_bool_flag_with_default("AEKO_PROTOCOL_BOOTSTRAP_ENABLED", false)? {
-        eprintln!(
-            "aeko-protocol-bootstrap disabled; activate AEKO runtime features first, then set AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1"
-        );
-        return Ok(());
-    }
-
     let rpc_url = env::var("AEKO_RPC_URL").unwrap_or_else(|_| "http://localhost:8899".to_string());
     let payer_path = env::var("AEKO_PAYER_KEYPAIR")
         .context("AEKO_PAYER_KEYPAIR must point at a funded keypair file")?;
@@ -87,16 +80,25 @@ fn main() -> Result<()> {
     fs::create_dir_all(&continuity_dir)
         .context("creating protocol bootstrap continuity directory")?;
 
-    let registry_preexisted = out_dir.join(REGISTRY_FILE_NAME).is_file();
     let allow_missing_state = parse_bool_flag("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE")?;
-    let require_existing_protocol_state =
-        parse_bool_flag_with_default("AEKO_REQUIRE_EXISTING_PROTOCOL_STATE", false)?;
-    let allow_protocol_state_initialization =
-        parse_bool_flag_with_default("AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION", false)?;
     let allow_continuity_anchor_recovery = parse_bool_flag_with_default(
         "AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY",
         false,
     )?;
+
+    let client = RpcClient::new_with_commitment(rpc_url.clone(), CommitmentConfig::confirmed());
+    wait_for_rpc_ready(&client)?;
+    if parse_bool_flag_with_default("AEKO_RESET_LEDGER", false)? {
+        let genesis_hash = client
+            .get_genesis_hash()
+            .context("reading validator genesis hash for protocol reset")?
+            .to_string();
+        reset_state_dir_for_genesis(&out_dir, &genesis_hash)?;
+        reset_state_dir_for_genesis(&continuity_dir, &genesis_hash)?;
+    }
+    let registry_preexisted = out_dir.join(REGISTRY_FILE_NAME).is_file();
+    let require_existing_protocol_state = registry_preexisted;
+    let allow_protocol_state_initialization = !registry_preexisted;
 
     prepare_protocol_state_continuity(
         &out_dir,
@@ -107,15 +109,12 @@ fn main() -> Result<()> {
         allow_missing_state,
     )?;
 
-    let client = RpcClient::new_with_commitment(rpc_url.clone(), CommitmentConfig::confirmed());
     eprintln!("==> aeko-protocol-bootstrap");
     eprintln!("    rpc:       {rpc_url}");
     eprintln!("    payer:     {}", payer.pubkey());
     eprintln!("    authority: {}", authority.pubkey());
     eprintln!("    out-dir:   {}", out_dir.display());
     eprintln!("    continuity: {}", continuity_dir.display());
-
-    wait_for_rpc_ready(&client)?;
 
     let token_feature_slot = require_feature_active(
         &client,
@@ -495,6 +494,25 @@ AEKO_FINALITY_ORACLE_STATE={}\n",
     write_continuity_anchor(&continuity_dir, &registry)?;
     println!("# Canonical AEKO protocol registry:");
     print!("{registry}");
+    Ok(())
+}
+
+fn reset_state_dir_for_genesis(dir: &Path, genesis_hash: &str) -> Result<()> {
+    const RESET_MARKER: &str = ".aeko-reset-genesis";
+    let marker = dir.join(RESET_MARKER);
+    if fs::read_to_string(&marker).ok().is_some_and(|value| value.trim() == genesis_hash) {
+        return Ok(());
+    }
+    for entry in fs::read_dir(dir).with_context(|| format!("reading reset directory {}", dir.display()))? {
+        let path = entry?.path();
+        if path.is_dir() {
+            fs::remove_dir_all(&path).with_context(|| format!("removing stale reset directory {}", path.display()))?;
+        } else {
+            fs::remove_file(&path).with_context(|| format!("removing stale reset file {}", path.display()))?;
+        }
+    }
+    fs::write(&marker, format!("{genesis_hash}\n"))
+        .with_context(|| format!("writing reset marker {}", marker.display()))?;
     Ok(())
 }
 

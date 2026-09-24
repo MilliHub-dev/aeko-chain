@@ -15,7 +15,6 @@ use {
 
 const SOCIAL_REGISTRY_FILE_ENV: &str = "AEKO_SOCIAL_REGISTRY_FILE";
 const PROTOCOL_REGISTRY_FILE_ENV: &str = "AEKO_PROTOCOL_REGISTRY_FILE";
-const PROTOCOL_BOOTSTRAP_ENABLED_ENV: &str = "AEKO_PROTOCOL_BOOTSTRAP_ENABLED";
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -186,13 +185,7 @@ fn load_registry_file(env_name: &str, label: &str) -> HashMap<String, String> {
     };
     match fs::read_to_string(&path) {
         Ok(content) => parse_registry_env(&content),
-        Err(error)
-            if expected_missing_registry(
-                env_name,
-                &error,
-                env_flag_enabled(PROTOCOL_BOOTSTRAP_ENABLED_ENV),
-            ) =>
-        {
+        Err(error) if expected_missing_registry(env_name, &error) => {
             tracing::debug!(
                 path,
                 env_name,
@@ -208,21 +201,8 @@ fn load_registry_file(env_name: &str, label: &str) -> HashMap<String, String> {
     }
 }
 
-fn expected_missing_registry(
-    env_name: &str,
-    error: &std::io::Error,
-    protocol_bootstrap_enabled: bool,
-) -> bool {
-    env_name == PROTOCOL_REGISTRY_FILE_ENV
-        && error.kind() == ErrorKind::NotFound
-        && !protocol_bootstrap_enabled
-}
-
-fn env_flag_enabled(name: &str) -> bool {
-    env::var(name)
-        .ok()
-        .map(|value| value.trim().to_ascii_lowercase())
-        .is_some_and(|value| matches!(value.as_str(), "1" | "true" | "yes" | "on"))
+fn expected_missing_registry(env_name: &str, error: &std::io::Error) -> bool {
+    env_name == PROTOCOL_REGISTRY_FILE_ENV && error.kind() == ErrorKind::NotFound
 }
 
 fn parse_registry_env(content: &str) -> HashMap<String, String> {
@@ -258,28 +238,11 @@ mod tests {
     #[test]
     fn missing_protocol_registry_is_expected_only_for_not_found() {
         let missing = Error::from(ErrorKind::NotFound);
-        assert!(expected_missing_registry(
-            PROTOCOL_REGISTRY_FILE_ENV,
-            &missing,
-            false,
-        ));
-        assert!(!expected_missing_registry(
-            PROTOCOL_REGISTRY_FILE_ENV,
-            &missing,
-            true,
-        ));
-        assert!(!expected_missing_registry(
-            SOCIAL_REGISTRY_FILE_ENV,
-            &missing,
-            false,
-        ));
+        assert!(expected_missing_registry(PROTOCOL_REGISTRY_FILE_ENV, &missing));
+        assert!(!expected_missing_registry(SOCIAL_REGISTRY_FILE_ENV, &missing));
 
         let denied = Error::from(ErrorKind::PermissionDenied);
-        assert!(!expected_missing_registry(
-            PROTOCOL_REGISTRY_FILE_ENV,
-            &denied,
-            false,
-        ));
+        assert!(!expected_missing_registry(PROTOCOL_REGISTRY_FILE_ENV, &denied));
     }
 
     #[test]

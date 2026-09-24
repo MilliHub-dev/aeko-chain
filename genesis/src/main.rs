@@ -23,6 +23,7 @@ use {
         clock,
         epoch_schedule::EpochSchedule,
         fee_calculator::FeeRateGovernor,
+        feature_set,
         genesis_config::{ClusterType, GenesisConfig},
         inflation::Inflation,
         native_token::aeko_to_lamports,
@@ -580,6 +581,18 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     aeko_stake_program::add_genesis_accounts(&mut genesis_config);
     if genesis_config.cluster_type == ClusterType::Development {
         aeko_runtime::genesis_utils::activate_all_features(&mut genesis_config);
+    } else {
+        // AEKO protocol programs are mandatory network capabilities on every new
+        // genesis. Feature gates remain only for compatibility with historical
+        // snapshots created before these builtins existed.
+        aeko_runtime::genesis_utils::activate_feature(
+            &mut genesis_config,
+            feature_set::aeko_token_programs_v1::id(),
+        );
+        aeko_runtime::genesis_utils::activate_feature(
+            &mut genesis_config,
+            feature_set::aeko_permission_layer_v1::id(),
+        );
     }
 
     if let Some(files) = matches.values_of("primordial_accounts_file") {
