@@ -1,59 +1,76 @@
 # Explorer Web Setup
 
-This guide connects the new explorer frontend pages in `web/` to the explorer backend in `explorer-backend/`.
+AEKO Explorer is split into two deployable services:
 
-## What Exists Now
+- `apps/explorer/web`: React/Vite Explorer UI
+- `apps/explorer/backend`: Rust/Axum Explorer API and indexer
 
-- backend HTTP server:
-  - [`explorer-backend/src/server.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/server.rs)
-- backend boot example:
-  - [`explorer-backend/examples/api_server.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/examples/api_server.rs)
-- frontend explorer pages:
-  - [`web/src/pages/Explorer.jsx`](/Users/ok/Documents/projects/aeko-chain/web/src/pages/Explorer.jsx)
-  - [`web/src/pages/BlockDetails.jsx`](/Users/ok/Documents/projects/aeko-chain/web/src/pages/BlockDetails.jsx)
-  - [`web/src/pages/TransactionDetails.jsx`](/Users/ok/Documents/projects/aeko-chain/web/src/pages/TransactionDetails.jsx)
-  - [`web/src/pages/ExplorerAccount.jsx`](/Users/ok/Documents/projects/aeko-chain/web/src/pages/ExplorerAccount.jsx)
-  - [`web/src/pages/ExplorerCreator.jsx`](/Users/ok/Documents/projects/aeko-chain/web/src/pages/ExplorerCreator.jsx)
-  - [`web/src/pages/ExplorerPost.jsx`](/Users/ok/Documents/projects/aeko-chain/web/src/pages/ExplorerPost.jsx)
-  - [`web/src/pages/ExplorerNft.jsx`](/Users/ok/Documents/projects/aeko-chain/web/src/pages/ExplorerNft.jsx)
+Production history is not stored in the browser and is not an in-memory simulation. The backend projects finalized validator data into PostgreSQL, while selected live reads such as account lookup and transaction fallback may query validator RPC directly.
 
-## Required Web Env Vars
+## Data path
 
-Add these to your local web env file:
-
-```bash
-VITE_AEKO_TESTNET_EXPLORER_API=http://127.0.0.1:8088
-VITE_AEKO_MAINNET_EXPLORER_API=
+```text
+Explorer Web
+    |
+    v
+Explorer REST API (:8088)
+    |                    \
+    |                     +--> validator JSON-RPC (live reads)
+    v
+PostgreSQL
+(finalized blocks, transactions, assets, Social projections)
 ```
 
-The example values are also present in:
+## Production runtime configuration
 
-- [`web/.env.example`](/Users/ok/Documents/projects/aeko-chain/web/.env.example)
-
-## Boot The Explorer Backend
-
-From the repo root:
+Production images are deployment-neutral. `docker/explorer-ui-entrypoint.sh` reads these required variables when the container starts and writes `/runtime-config.js`:
 
 ```bash
-AEKO_EXPLORER_RPC=https://rpc.aeko.online \
-AEKO_EXPLORER_NETWORK=testnet \
+AEKO_PUBLIC_RPC_URL=
+AEKO_PUBLIC_WS_URL=
+AEKO_PUBLIC_EXPLORER_API_URL=
+AEKO_PUBLIC_EXPLORER_URL=
+AEKO_PUBLIC_FUNDING_URL=
+```
+
+The API URL must route to `explorer-api:8088`. The UI URL must route to `explorer-ui:4000`; the entrypoint rejects an API/UI endpoint collision.
+
+Optional mainnet and AEKO-721 demo runtime values are documented in `apps/explorer/web/.env.example`.
+
+## Local Vite development
+
+For local development, the Explorer uses the atomic loopback override trio from `apps/explorer/web/.env.example`:
+
+```bash
+VITE_AEKO_LOCAL_RPC=http://127.0.0.1:8899
+VITE_AEKO_LOCAL_WS=ws://127.0.0.1:8900
+VITE_AEKO_LOCAL_EXPLORER_API=http://127.0.0.1:8088
+```
+
+All three values must be supplied together and must remain loopback endpoints. Explicit remote Vite preview values are available as `VITE_AEKO_TESTNET_*` / `VITE_AEKO_MAINNET_*`, but normal production deployment uses `AEKO_*` runtime configuration instead.
+
+## Boot the Explorer backend locally
+
+The backend requires PostgreSQL and validator RPC:
+
+```bash
+EXPLORER_DATABASE_URL=postgres://aeko:change-me@127.0.0.1:5432/aeko_explorer \
+AEKO_EXPLORER_RPC=http://127.0.0.1:8899 \
+AEKO_EXPLORER_NETWORK=localnet \
 AEKO_EXPLORER_BIND=127.0.0.1:8088 \
-cargo run -p aeko-explorer-backend --example api_server
+cargo run -p aeko-explorer-backend
 ```
 
-Optional:
+Useful indexing controls include `AEKO_EXPLORER_START_SLOT`, `AEKO_EXPLORER_MAX_BATCH_SIZE`, and `AEKO_EXPLORER_SYNC_INTERVAL_SECS`. See `docker/env.public.example` for the deployment-wide Explorer backend settings.
 
-- set `AEKO_EXPLORER_START_SLOT` if you want to start from a non-zero slot
-
-## Run The Web App
-
-From the repo root:
+## Run Explorer Web locally
 
 ```bash
-npm --prefix web run dev
+npm --prefix apps/explorer/web ci
+npm --prefix apps/explorer/web run dev
 ```
 
-Then open:
+Key Explorer routes include:
 
 - `/explorer`
 - `/explorer/block/:height`
@@ -62,14 +79,13 @@ Then open:
 - `/explorer/creator/:address`
 - `/explorer/post/:postId`
 - `/explorer/nft/:tokenId`
+- `/explorer/token/:mint`
+- `/explorer/collection/:collectionId`
 
-## Current Behavior
+## Source-of-truth behavior
 
-- if `VITE_AEKO_*_EXPLORER_API` is set, the explorer pages use live backend data
-- if it is not set, the pages show a configuration message instead of fake data
-
-## Current Limitations
-
-- the backend is still first-pass and in-memory
-- AEKO-20 data is currently modeled as account-balance snapshots rather than full historical transfer decoding
-- some richer explorer views still need dedicated backend endpoints and durable storage
+- finalized blocks and transaction history come from PostgreSQL projections;
+- exact live account reads are verified against validator RPC;
+- current token/NFT state is refreshed from canonical program accounts and persisted in PostgreSQL;
+- SocialFi state is projected from canonical registry-bound state accounts;
+- Explorer surfaces fail honestly when a required source is unavailable instead of substituting fixtures or dummy records.
