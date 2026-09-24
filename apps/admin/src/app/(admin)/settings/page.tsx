@@ -409,7 +409,7 @@ function ToggleRow({
         >
           <span
             className={
-              'absolute left-0.5 top-0.5 h-4.5 w-4.5 rounded-full bg-white shadow-sm transition-transform ' +
+              'absolute left-0.5 top-0.5 h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform ' +
               (checked ? 'translate-x-5' : 'translate-x-0')
             }
           />
