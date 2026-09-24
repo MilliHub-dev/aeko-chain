@@ -13,7 +13,7 @@ use {
     aeko_permission_registry_program::state::RegistryConfig,
     aeko_public_mint_program::state::PublicMintState,
     aeko_revocation_registry_program::state::RevRegistryConfig,
-    aeko_sdk::feature::{self, Feature},
+    aeko_sdk::{feature::{self, Feature}, system_program},
     aeko_subnet_registry_program::state::SubnetRegistryConfig,
     aeko_token_20_program::state::Aeko20Mint,
     aeko_tokenomics_program::state::TokenomicsStateAccount,
@@ -49,6 +49,7 @@ pub(crate) struct ProtocolStatus {
     features: BTreeMap<String, FeatureStatus>,
     programs: BTreeMap<String, ProgramStatus>,
     states: BTreeMap<String, StateStatus>,
+    accounts: BTreeMap<String, AccountStatus>,
 }
 
 impl ProtocolStatus {
@@ -93,6 +94,17 @@ impl ProtocolStatus {
     pub(crate) fn state_count(&self) -> usize {
         self.states.len()
     }
+
+    pub(crate) fn healthy_account_count(&self) -> usize {
+        self.accounts
+            .values()
+            .filter(|status| status.condition == "healthy")
+            .count()
+    }
+
+    pub(crate) fn account_count(&self) -> usize {
+        self.accounts.len()
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -122,6 +134,18 @@ struct ProgramStatus {
 struct StateStatus {
     state_account: String,
     expected_owner: Option<String>,
+    present: bool,
+    owner_matches: bool,
+    data_len: usize,
+    condition: String,
+    error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AccountStatus {
+    account: String,
+    expected_owner: String,
     present: bool,
     owner_matches: bool,
     data_len: usize,
@@ -197,6 +221,17 @@ fn inspect_protocol(
         })
         .collect::<BTreeMap<_, _>>();
 
+    let accounts = registry
+        .accounts
+        .iter()
+        .map(|(label, address)| {
+            (
+                label.clone(),
+                inspect_protocol_account(rpc, address),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+
     let features_healthy = features.values().all(|status| {
         status.present
             && status.owner_matches
@@ -207,6 +242,7 @@ fn inspect_protocol(
         .values()
         .all(|status| status.present && status.executable && status.error.is_none());
     let states_healthy = states.values().all(|status| status.condition == "healthy");
+    let accounts_healthy = accounts.values().all(|status| status.condition == "healthy");
 
     let condition = if bootstrap_in_progress {
         "bootstrapInProgress"
@@ -216,7 +252,7 @@ fn inspect_protocol(
         "legacyRegistry"
     } else if !genesis_matches {
         "genesisMismatch"
-    } else if features_healthy && programs_healthy && states_healthy {
+    } else if features_healthy && programs_healthy && states_healthy && accounts_healthy {
         "healthy"
     } else {
         "stateIncomplete"
@@ -228,7 +264,8 @@ fn inspect_protocol(
             && genesis_matches
             && features_healthy
             && programs_healthy
-            && states_healthy,
+            && states_healthy
+            && accounts_healthy,
         condition,
         registry_complete,
         registry_schema_version,
@@ -239,6 +276,7 @@ fn inspect_protocol(
         features,
         programs,
         states,
+        accounts,
     }
 }
 
@@ -354,6 +392,60 @@ fn inspect_program(rpc: &RpcChainClient, program_id: &str) -> ProgramStatus {
             present: false,
             executable: false,
             owner: None,
+            error: Some(error.to_string()),
+        },
+    }
+}
+
+fn inspect_protocol_account(rpc: &RpcChainClient, address: &str) -> AccountStatus {
+    let expected_owner = system_program::id().to_string();
+    match rpc.fetch_account(address) {
+        Ok(None) => AccountStatus {
+            account: address.to_string(),
+            expected_owner,
+            present: false,
+            owner_matches: false,
+            data_len: 0,
+            condition: "missing".to_string(),
+            error: Some("canonical protocol custody account does not exist".to_string()),
+        },
+        Ok(Some(value)) if value.owner != expected_owner => AccountStatus {
+            account: address.to_string(),
+            expected_owner: expected_owner.clone(),
+            present: true,
+            owner_matches: false,
+            data_len: value.data_len,
+            condition: "wrongOwner".to_string(),
+            error: Some(format!(
+                "canonical protocol custody owner mismatch: expected {expected_owner}, got {}",
+                value.owner
+            )),
+        },
+        Ok(Some(value)) if value.data_len != 0 => AccountStatus {
+            account: address.to_string(),
+            expected_owner,
+            present: true,
+            owner_matches: true,
+            data_len: value.data_len,
+            condition: "invalidData".to_string(),
+            error: Some("canonical protocol custody account must remain zero-data".to_string()),
+        },
+        Ok(Some(value)) => AccountStatus {
+            account: address.to_string(),
+            expected_owner,
+            present: true,
+            owner_matches: true,
+            data_len: value.data_len,
+            condition: "healthy".to_string(),
+            error: None,
+        },
+        Err(error) => AccountStatus {
+            account: address.to_string(),
+            expected_owner,
+            present: false,
+            owner_matches: false,
+            data_len: 0,
+            condition: "rpcError".to_string(),
             error: Some(error.to_string()),
         },
     }
