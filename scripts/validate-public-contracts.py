@@ -43,6 +43,7 @@ def main() -> int:
     coolify = read("docker/compose.coolify.yml")
     dokploy = read("docker/compose.dokploy.yml")
     explorer_env = read("apps/explorer/web/.env.production")
+    explorer_example = read("apps/explorer/web/.env.example")
     explorer_entrypoint = read("docker/explorer-ui-entrypoint.sh")
     network_config = read("apps/explorer/web/src/utils/networkConfig.js")
     funding_policy = read("apps/admin/src/app/api/funding/policy/route.ts")
@@ -104,6 +105,30 @@ def main() -> int:
         "FAUCET_IP_REQUESTS_PER_10_MIN",
         "funding throttle",
     )
+
+    for name in (
+        "AEKO_PUBLIC_RPC_URL",
+        "AEKO_PUBLIC_WS_URL",
+        "AEKO_PUBLIC_EXPLORER_API_URL",
+        "AEKO_PUBLIC_EXPLORER_URL",
+        "AEKO_PUBLIC_FUNDING_URL",
+        "AEKO_MAINNET_RPC_URL",
+        "AEKO_MAINNET_WS_URL",
+        "AEKO_MAINNET_EXPLORER_API_URL",
+        "AEKO_MAINNET_EXPLORER_URL",
+        "AEKO_DEMO_RPC_URL",
+        "AEKO_DEMO_COLLECTION",
+        "AEKO_DEMO_TOKEN",
+        "AEKO_DEMO_METADATA_URI",
+    ):
+        require_empty_assignment(explorer_example, name, "Explorer web env example")
+
+    for name in (
+        "VITE_AEKO_LOCAL_RPC",
+        "VITE_AEKO_LOCAL_WS",
+        "VITE_AEKO_LOCAL_EXPLORER_API",
+    ):
+        require(name + "=" in explorer_example, f"Explorer web env example must document {name}")
 
     for name in (
         "VITE_AEKO_TESTNET_RPC",
@@ -313,6 +338,7 @@ def main() -> int:
         "admin env": admin_env,
         "public env": public_env,
         "Explorer production env": explorer_env,
+        "Explorer web env example": explorer_example,
     }.items():
         require(r"\n" not in text, f"{where} contains a literal escaped newline instead of a real line break")
 
