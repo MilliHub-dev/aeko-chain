@@ -225,8 +225,9 @@ test('Admin section switches keep descriptions outside non-wrapping tab buttons'
 });
 
 
-test('Explorer web uses one remote runtime env contract plus local-only Vite overrides', async () => {
+test('Explorer web keeps remote runtime config in deployment env and local overrides in web env', async () => {
   const example = await source('../.env.example');
+  const deploymentEnv = await source('../../../../docker/env.public.example');
   const networkConfig = await source('utils/networkConfig.js');
   const demo = await source('data/nftDemoExamples.js');
   const consoleWrapper = await source('components/NetworkConsoleModal.jsx');
@@ -240,13 +241,22 @@ test('Explorer web uses one remote runtime env contract plus local-only Vite ove
     'AEKO_PUBLIC_EXPLORER_URL',
     'AEKO_PUBLIC_FUNDING_URL',
     'AEKO_MAINNET_RPC_URL',
+    'AEKO_MAINNET_EXPLORER_API_URL',
     'AEKO_DEMO_COLLECTION',
+    'AEKO_DEMO_TOKEN',
+  ]) {
+    assert.match(deploymentEnv, new RegExp(key));
+  }
+
+  for (const key of [
     'VITE_AEKO_LOCAL_RPC',
     'VITE_AEKO_LOCAL_WS',
     'VITE_AEKO_LOCAL_EXPLORER_API',
   ]) {
     assert.match(example, new RegExp(key));
   }
+
+  assert.doesNotMatch(example, /^AEKO_(?:PUBLIC|MAINNET|DEMO)_/m);
 
   for (const retired of [
     'VITE_AEKO_TESTNET_',
