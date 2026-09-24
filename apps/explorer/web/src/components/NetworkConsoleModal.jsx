@@ -6,15 +6,11 @@ export default function NetworkConsoleModal(props) {
     ? 'mainnet'
     : 'testnet';
   const config = getNetworkConfig(networkKey);
-  const localWs =
-    networkKey === 'testnet' && import.meta.env.VITE_AEKO_LOCAL_WS
-      ? import.meta.env.VITE_AEKO_LOCAL_WS
-      : '';
 
   return (
     <NetworkConsoleModalV2
       {...props}
-      websocketUrl={props.websocketUrl || localWs || config.websocketUrl}
+      websocketUrl={props.websocketUrl || config.websocketUrl}
     />
   );
 }
