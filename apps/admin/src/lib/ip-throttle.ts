@@ -16,15 +16,16 @@ export function clientIp(headers: Headers): string {
 }
 
 /** Returns seconds to wait, or 0 when the request may proceed. */
-export function throttle(ip: string): number {
+export function throttle(ip: string, scope = 'funding'): number {
   const now = Date.now()
-  const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS)
+  const bucket = `${scope}:${ip}`
+  const recent = (hits.get(bucket) ?? []).filter((t) => now - t < WINDOW_MS)
   if (recent.length >= MAX_PER_WINDOW) {
-    hits.set(ip, recent)
+    hits.set(bucket, recent)
     return Math.ceil((recent[0] + WINDOW_MS - now) / 1000)
   }
   recent.push(now)
-  hits.set(ip, recent)
+  hits.set(bucket, recent)
   if (hits.size > 10_000) {
     // Drop stale entries rather than growing without bound.
     hits.forEach((times, key) => {
