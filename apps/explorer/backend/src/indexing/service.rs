@@ -197,12 +197,7 @@ impl IndexerService {
         Ok(last.is_none_or(|last| trigger_slot.saturating_sub(last) >= cadence))
     }
 
-    fn record_projection_failure(
-        &self,
-        stream: &'static str,
-        trigger_slot: u64,
-        error: &str,
-    ) {
+    fn record_projection_failure(&self, stream: &'static str, trigger_slot: u64, error: &str) {
         let action = self
             .projection_failures
             .lock()
@@ -457,5 +452,4 @@ mod tests {
             ProjectionFailureLog::First
         );
     }
-
 }
