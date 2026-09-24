@@ -20,7 +20,10 @@ function configuredHost(value: string | undefined): string {
 }
 
 const matchesPrefix = (pathname: string, prefixes: string[]) =>
-  prefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix))
+  prefixes.some((prefix) =>
+    pathname === prefix
+    || pathname.startsWith(prefix.endsWith('/') ? prefix : prefix + '/'),
+  )
 
 function notFound() {
   return NextResponse.json({ error: { message: 'Not found' } }, { status: 404 })
