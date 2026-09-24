@@ -292,7 +292,9 @@ mod tests {
             "# generated\nAEKO_REGISTRY_SCHEMA_VERSION=2\nAEKO_CHAIN_GENESIS_HASH=genesis111\nAEKO_SOCIAL_POSTS_STATE=posts111\nAEKO_TOKENOMICS_STATE=tokenomics111\nexport AEKO_SOCIAL_REWARDS_STATE=rewards222\nEMPTY=\n",
         );
         assert_eq!(
-            values.get("AEKO_REGISTRY_SCHEMA_VERSION").map(String::as_str),
+            values
+                .get("AEKO_REGISTRY_SCHEMA_VERSION")
+                .map(String::as_str),
             Some("2")
         );
         assert_eq!(
