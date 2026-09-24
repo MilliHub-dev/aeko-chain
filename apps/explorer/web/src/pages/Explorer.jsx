@@ -399,7 +399,7 @@ export default function Explorer() {
             id: 'unavailable',
             kind: 'info',
             title: 'Explorer API not configured',
-            children: `The ${networkLabel} network has no explorer API endpoint set. Configure AEKO_PUBLIC_EXPLORER_API_URL at container runtime or the matching VITE_AEKO_*_EXPLORER_API value for local preview.`,
+            children: `The ${networkLabel} network has no Explorer API endpoint configured. Deployed and remote-preview builds use the canonical AEKO_* runtime configuration; local Vite development uses the loopback resolver.`,
           },
           !unavailable && searchState.error && {
             id: 'search-error',
