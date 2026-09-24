@@ -28,6 +28,7 @@ services:
     environment:
       AEKO_KEYS_SOURCE: /data/aeko/keys
       AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}
+      AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
     entrypoint: ["/usr/local/bin/aeko-key-preflight"]
     volumes:
       - type: bind
