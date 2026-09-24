@@ -10,8 +10,7 @@ Backend integration guide for the currently deployed AEKO public testnet. Verify
 |---|---|---|
 | JSON-RPC | `https://rpc.aeko.online` | Direct chain reads, transactions, program deployment |
 | WebSocket PubSub | `wss://ws.aeko.online` | Live subscriptions |
-| Explorer REST API | `https://api.aeko.online` | Indexed Explorer data |
-| Explorer UI | `https://scan.aeko.online` | Human-readable chain explorer |
+| Explorer UI/read proxy | `https://scan.aeko.online` | Human-readable explorer; browser-indexed reads stay same-origin |
 | Testnet Funding API | `https://fund.aeko.online/api/funding` | Public funding requests and constrained developer airdrops |
 | Faucet Daemon | **private only**, TCP `faucet:9900` | Signs low-level funding transfers for the validator |
 
