@@ -374,7 +374,7 @@ curl -s https://rpc.aeko.online \
   }'
 ```
 
-Public testnet funding is policy-controlled through the Funding Portal/Gateway; the Faucet Daemon on TCP `:9900` remains private and the deployed public RPC protects `requestAirdrop`:
+Public testnet funding is policy-controlled through the Funding Portal/Gateway; the Faucet Daemon on TCP `:9900` remains private and the deployed public RPC protects `requestAirdrop`. Public requests wait for operator approval before release:
 
 ```bash
 curl -X POST https://fund.aeko.online/api/funding/request \
@@ -441,7 +441,7 @@ Deployment acceptance requires `/network/readiness` to return HTTP 200 with Soci
 
 ## Aeko Social end-to-end acceptance
 
-The Explorer site's Network Tools/Test Console has a real browser path for signed social transactions. It creates test Ed25519 wallets, requests a policy-controlled funding grant, transfers AEKO, discovers SocialFi state, builds/signs an `AnchorPost`, submits it through RPC, creates a signed Like engagement transaction and reads state back from-chain.
+The Explorer site's Network Tools/Test Console has a real browser path for signed social transactions. It creates test Ed25519 wallets, requests a constrained direct Test Console airdrop with a chosen amount, transfers AEKO, discovers SocialFi state, builds/signs an `AnchorPost`, submits it through RPC, creates a signed Like engagement transaction and reads state back from-chain. This developer airdrop path is separate from public funding requests that require operator approval.
 
 Use this sequence before certifying a deployment:
 
@@ -451,7 +451,7 @@ Use this sequence before certifying a deployment:
 4. All five SocialFi state addresses are non-null.
 5. Each state account exists, is initialized and has the expected SocialFi program owner.
 6. Create a test wallet.
-7. Request a funding grant and verify balance.
+7. Request a Test Console airdrop and verify balance.
 8. Submit a signed `AnchorPost`.
 9. Confirm the transaction.
 10. Read the post back from Social Posts state.
