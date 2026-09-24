@@ -43,7 +43,7 @@ export default function FundingGrantsPage() {
     ])
     if (s.data) {
       setSettings(s.data.settings)
-      setDraft(s.data.settings)
+      setDraft((current) => current ?? s.data.settings)
       setRemaining(s.data.dailyRemainingAeko)
     }
     setGrants(g.data ?? [])
@@ -71,8 +71,12 @@ export default function FundingGrantsPage() {
     const json = await res.json()
     setBusy(false)
     if (!res.ok) return setNotice({ ok: false, text: json.error?.message ?? 'Save failed' })
+    if (json.data?.settings) {
+      setSettings(json.data.settings)
+      setDraft(json.data.settings)
+    }
     setNotice({ ok: true, text: 'Policy saved' })
-    refresh()
+    void refresh()
   }
 
   async function toggleEnabled() {
