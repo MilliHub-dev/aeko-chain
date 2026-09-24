@@ -162,17 +162,26 @@ test('Operations Web separates public approval requests from direct Test Console
   assert.match(store, /status: 'pending'/);
   assert.match(store, /GrantSource = 'public' \| 'backend' \| 'admin' \| 'console'/);
   assert.match(store, /FUNDING_MAX_CONSOLE_AIRDROP_AEKO/);
-  assert.match(store, /trimDecidedFundingRequests/);
+  assert.match(store, /makeRoomForFundingRequest/);
   assert.match(store, /REQUEST_QUEUE_FULL/);
-  assert.match(publicRoute, /requestFundingApproval\(address\)/);
+  assert.match(publicRoute, /requestFundingApproval\(address, trusted \? 'backend' : 'public'\)/);
   assert.match(publicRoute, /status: 202/);
-  assert.doesNotMatch(publicRoute, /requestAirdrop/);
+  assert.doesNotMatch(publicRoute, /\bgrant\(|requestAirdrop/);
   assert.match(consoleRoute, /source: 'console'/);
   assert.match(consoleRoute, /throttle\(clientIp\(req\.headers\)\)/);
   assert.match(adminRoute, /decideFundingRequest/);
   assert.match(adminRoute, /approve/);
   assert.match(adminRoute, /reject/);
 });
+
+test('Admin funding polling preserves an operator policy draft', async () => {
+  const adminPage = await source('../../../admin/src/app/(admin)/funding-grants/page.tsx');
+
+  assert.match(adminPage, /setInterval/);
+  assert.match(adminPage, /setDraft\(\(current\) => current \?\? s\.data\.settings\)/);
+  assert.match(adminPage, /setDraft\(json\.data\.settings\)/);
+});
+
 
 test('production Explorer endpoint configuration is runtime-injected rather than domain-hardcoded', async () => {
   const networkConfig = await source('utils/networkConfig.js');
