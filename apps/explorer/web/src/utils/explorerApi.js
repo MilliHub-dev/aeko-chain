@@ -256,7 +256,11 @@ export async function fetchNftDetails(network, tokenId) {
   return fetchJson(`/nfts/${encodeURIComponent(tokenId)}`, network);
 }
 
-export async function searchExplorer(network, query) {
-  const payload = await fetchJson(`/search?q=${encodeURIComponent(query)}&limit=8`, network);
+export async function searchExplorer(network, query, limit = 12) {
+  const safeLimit = Math.min(50, Math.max(5, Number.isInteger(limit) ? limit : 12));
+  const payload = await fetchJson(
+    `/search?q=${encodeURIComponent(query)}&limit=${safeLimit}`,
+    network,
+  );
   return { matches: normalizeSearchMatches(payload) };
 }
