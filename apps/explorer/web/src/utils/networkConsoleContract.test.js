@@ -225,9 +225,13 @@ test('Admin section switches keep descriptions outside non-wrapping tab buttons'
 });
 
 
-test('Explorer env example covers runtime and intentional remote-preview settings', async () => {
+test('Explorer web uses one remote runtime env contract plus local-only Vite overrides', async () => {
   const example = await source('../.env.example');
+  const networkConfig = await source('utils/networkConfig.js');
   const demo = await source('data/nftDemoExamples.js');
+  const consoleWrapper = await source('components/NetworkConsoleModal.jsx');
+  const socialModal = await source('components/social/NetworkSocialModal.jsx');
+  const socialTest = await source('pages/SocialTestV2.jsx');
 
   for (const key of [
     'AEKO_PUBLIC_RPC_URL',
@@ -235,12 +239,31 @@ test('Explorer env example covers runtime and intentional remote-preview setting
     'AEKO_PUBLIC_EXPLORER_API_URL',
     'AEKO_PUBLIC_EXPLORER_URL',
     'AEKO_PUBLIC_FUNDING_URL',
-    'VITE_AEKO_ALLOW_REMOTE_IN_DEV',
-    'VITE_AEKO_DEMO_METADATA_URI',
+    'AEKO_MAINNET_RPC_URL',
+    'AEKO_DEMO_COLLECTION',
+    'VITE_AEKO_LOCAL_RPC',
+    'VITE_AEKO_LOCAL_WS',
+    'VITE_AEKO_LOCAL_EXPLORER_API',
   ]) {
     assert.match(example, new RegExp(key));
   }
-  assert.match(demo, /VITE_AEKO_DEMO_METADATA_URI/);
+
+  for (const retired of [
+    'VITE_AEKO_TESTNET_',
+    'VITE_AEKO_MAINNET_',
+    'VITE_AEKO_DEMO_',
+    'VITE_AEKO_ALLOW_REMOTE_IN_DEV',
+  ]) {
+    assert.doesNotMatch(example, new RegExp(retired));
+    assert.doesNotMatch(networkConfig, new RegExp(retired));
+  }
+
+  assert.match(networkConfig, /getRuntimeConfigValue\('AEKO_PUBLIC_RPC_URL'\)/);
+  assert.match(demo, /getRuntimeConfigValue\('AEKO_DEMO_COLLECTION'\)/);
+  assert.doesNotMatch(demo, /import\.meta\.env/);
+  assert.doesNotMatch(consoleWrapper, /import\.meta\.env/);
+  assert.doesNotMatch(socialModal, /import\.meta\.env/);
+  assert.doesNotMatch(socialTest, /import\.meta\.env/);
 });
 
 
@@ -261,12 +284,12 @@ test('Explorer search is URL-driven, retryable and exposes a no-results state', 
 test('production Explorer endpoint configuration is runtime-injected rather than domain-hardcoded', async () => {
   const networkConfig = await source('utils/networkConfig.js');
   const rpcClient = await source('utils/aekoRpcClient.js');
-  const productionEnv = await source('../.env.production');
+  const runtimeConfig = await source('../public/runtime-config.js');
   const html = await source('../index.html');
 
   assert.match(html, /runtime-config\.js/);
+  assert.match(runtimeConfig, /__AEKO_RUNTIME_CONFIG__ = \{\}/);
   assert.match(networkConfig, /__AEKO_RUNTIME_CONFIG__/);
   assert.doesNotMatch(networkConfig, /aeko\.online/);
   assert.doesNotMatch(rpcClient, /aeko\.online/);
-  assert.doesNotMatch(productionEnv, /https?:\/\//);
 });
