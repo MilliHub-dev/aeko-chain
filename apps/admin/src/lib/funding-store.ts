@@ -89,7 +89,7 @@ const MAX_CONSOLE_AIRDROP_AEKO =
     : 25
 const STATE_DIR = process.env.FUNDING_STATE_DIR ?? path.join(process.cwd(), 'data')
 const STATE_FILE = path.join(STATE_DIR, 'funding-state.json')
-const LEGACY_STATE_FILE = path.join(STATE_DIR, 'faucet-state.json')
+const PREVIOUS_STATE_FILE = path.join(STATE_DIR, 'faucet-state.json')
 
 const todayKey = () => new Date().toISOString().slice(0, 10)
 
@@ -104,7 +104,7 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 async function readStateFile(): Promise<string | null> {
-  for (const file of [STATE_FILE, LEGACY_STATE_FILE]) {
+  for (const file of [STATE_FILE, PREVIOUS_STATE_FILE]) {
     try {
       return await fs.readFile(file, 'utf8')
     } catch (err) {
