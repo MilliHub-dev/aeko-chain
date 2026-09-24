@@ -157,8 +157,8 @@ export default function SocialPage() {
           </span>
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <InfoRow label="Schema" value={registry?.schemaVersion == null ? 'legacy / missing' : 'v' + registry.schemaVersion} />
-          <InfoRow label="Registry genesis" value={registry?.genesisHash ? shortAddr(registry.genesisHash) : 'legacy / missing'} mono />
+          <InfoRow label="Schema" value={registry?.schemaVersion == null ? 'missing' : 'v' + registry.schemaVersion} />
+          <InfoRow label="Registry genesis" value={registry?.genesisHash ? shortAddr(registry.genesisHash) : 'missing'} mono />
           <InfoRow label="Live genesis" value={socialStatus?.liveGenesisHash ? shortAddr(socialStatus.liveGenesisHash) : '—'} mono />
           <InfoRow label="Binding" value={socialStatus ? (socialStatus.genesisMatches ? 'matches' : 'mismatch') : '—'} />
           <InfoRow label="Bootstrap" value={socialStatus ? (socialStatus.bootstrapInProgress ? 'in progress' : 'settled') : '—'} />
