@@ -23,7 +23,7 @@ Internal dependencies use `AEKO_RPC_URL` and `AEKO_EXPLORER_URL`. `AEKO_EXPLORER
 | Path | Audience | Purpose |
 | --- | --- | --- |
 | `/funding` | public | Submit a policy-sized testnet funding request for operator approval |
-| `POST /api/funding/request` | public / trusted backend | Public callers create a pending request; trusted backends retain the immediate policy grant path |
+| `POST /api/funding/request` | public / trusted backend | Create a pending operator-approval request; the trusted key bypasses only per-IP throttling |
 | `POST /api/funding/airdrop` | Explorer Test Console | Submit a constrained direct developer airdrop with a caller-selected amount |
 | `GET /api/funding/policy` | public | Funding policy/status |
 | `/login` | operator | Admin sign-in |
