@@ -1,4 +1,12 @@
 use {
+    aeko_emergency_multisig_program::state::MultisigConfig,
+    aeko_finality_oracle_program::state::OracleConfig,
+    aeko_permission_registry_program::state::RegistryConfig,
+    aeko_public_mint_program::state::PublicMintState,
+    aeko_revocation_registry_program::state::RevRegistryConfig,
+    aeko_subnet_registry_program::state::SubnetRegistryConfig,
+    aeko_token_20_program::state::Aeko20Mint,
+    aeko_tokenomics_program::state::TokenomicsStateAccount,
     crate::{
         error::ApiResult,
         infrastructure::{
@@ -185,7 +193,10 @@ fn inspect_protocol(
             let expected_owner = owner_label_for_state(label)
                 .and_then(|program_label| registry.programs.get(program_label))
                 .cloned();
-            (label.clone(), inspect_state(rpc, address, expected_owner))
+            (
+                label.clone(),
+                inspect_state(rpc, label, address, expected_owner),
+            )
         })
         .collect::<BTreeMap<_, _>>();
 
@@ -353,11 +364,12 @@ fn inspect_program(rpc: &RpcChainClient, program_id: &str) -> ProgramStatus {
 
 fn inspect_state(
     rpc: &RpcChainClient,
+    label: &str,
     address: &str,
     expected_owner: Option<String>,
 ) -> StateStatus {
-    match rpc.fetch_account(address) {
-        Ok(Some(account)) => {
+    match rpc.fetch_account_with_data(address) {
+        Ok(Some((account, data))) => {
             let owner_matches = expected_owner
                 .as_ref()
                 .map(|owner| owner == &account.owner)
@@ -376,13 +388,18 @@ fn inspect_state(
                         account.owner
                     )),
                 )
-            } else if account.data_len == 0 {
-                (
-                    "uninitialized".to_string(),
-                    Some("canonical state account exists but has no initialized data".to_string()),
-                )
             } else {
-                ("healthy".to_string(), None)
+                match canonical_state_initialized(label, &data) {
+                    Ok(true) => ("healthy".to_string(), None),
+                    Ok(false) => (
+                        "uninitialized".to_string(),
+                        Some(
+                            "canonical state account has valid schema but is not initialized"
+                                .to_string(),
+                        ),
+                    ),
+                    Err(error) => ("invalidData".to_string(), Some(error)),
+                }
             };
             StateStatus {
                 state_account: address.to_string(),
@@ -412,6 +429,38 @@ fn inspect_state(
             condition: "rpcError".to_string(),
             error: Some(error.to_string()),
         },
+    }
+}
+
+fn canonical_state_initialized(label: &str, data: &[u8]) -> Result<bool, String> {
+    match label {
+        "tokenomics" => TokenomicsStateAccount::deserialize_padded(data)
+            .map(|state| state.is_initialized)
+            .map_err(|error| format!("invalid tokenomics state data: {error}")),
+        "referenceMint" => Aeko20Mint::deserialize_padded(data)
+            .map(|state| state.is_initialized)
+            .map_err(|error| format!("invalid AEKO-20 reference mint data: {error}")),
+        "publicMint" => PublicMintState::deserialize_padded(data)
+            .map(|state| state.policy.is_initialized)
+            .map_err(|error| format!("invalid public-mint state data: {error}")),
+        "permissionRegistry" => RegistryConfig::deserialize_padded(data)
+            .map(|state| state.is_initialized)
+            .map_err(|error| format!("invalid permission-registry state data: {error}")),
+        "revocationRegistry" => RevRegistryConfig::deserialize_padded(data)
+            .map(|state| state.is_initialized)
+            .map_err(|error| format!("invalid revocation-registry state data: {error}")),
+        "subnetRegistry" => SubnetRegistryConfig::deserialize_padded(data)
+            .map(|state| state.is_initialized)
+            .map_err(|error| format!("invalid subnet-registry state data: {error}")),
+        "emergencyMultisig" => MultisigConfig::deserialize_padded(data)
+            .map(|state| state.is_initialized)
+            .map_err(|error| format!("invalid emergency-multisig state data: {error}")),
+        "finalityOracle" => OracleConfig::deserialize_padded(data)
+            .map(|state| state.is_initialized)
+            .map_err(|error| format!("invalid finality-oracle state data: {error}")),
+        other => Err(format!(
+            "no canonical state decoder is registered for protocol state {other}"
+        )),
     }
 }
 
