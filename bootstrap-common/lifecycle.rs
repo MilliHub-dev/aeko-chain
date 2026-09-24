@@ -1,11 +1,6 @@
 use {
     anyhow::{anyhow, Context, Result},
-    std::{
-        collections::BTreeSet,
-        fs,
-        io::ErrorKind,
-        path::Path,
-    },
+    std::{collections::BTreeSet, fs, io::ErrorKind, path::Path},
 };
 
 pub const REGISTRY_SCHEMA_VERSION: u32 = 2;
@@ -105,7 +100,9 @@ pub fn prepare(
     reset_requested: bool,
 ) -> Result<LifecycleDecision> {
     if roots.is_empty() {
-        return Err(anyhow!("bootstrap lifecycle requires at least one persistent root"));
+        return Err(anyhow!(
+            "bootstrap lifecycle requires at least one persistent root"
+        ));
     }
     if live_genesis.trim().is_empty() {
         return Err(anyhow!("live genesis hash must not be empty"));
@@ -225,9 +222,7 @@ pub fn prepare(
 }
 
 pub fn registry_metadata_prefix(live_genesis: &str) -> String {
-    format!(
-        "{REGISTRY_SCHEMA_KEY}={REGISTRY_SCHEMA_VERSION}\n{CHAIN_GENESIS_KEY}={live_genesis}\n"
-    )
+    format!("{REGISTRY_SCHEMA_KEY}={REGISTRY_SCHEMA_VERSION}\n{CHAIN_GENESIS_KEY}={live_genesis}\n")
 }
 
 pub fn mark_complete(roots: &[&Path], live_genesis: &str) -> Result<()> {
@@ -240,8 +235,9 @@ pub fn mark_complete(roots: &[&Path], live_genesis: &str) -> Result<()> {
             Ok(()) => {}
             Err(error) if error.kind() == ErrorKind::NotFound => {}
             Err(error) => {
-                return Err(error)
-                    .with_context(|| format!("removing bootstrap progress marker in {}", root.display()))
+                return Err(error).with_context(|| {
+                    format!("removing bootstrap progress marker in {}", root.display())
+                })
             }
         }
     }
@@ -338,7 +334,8 @@ fn read_consistent_progress(roots: &[&Path]) -> Result<Option<ProgressMarker>> {
             }
         }
         markers.push(ProgressMarker {
-            kind: mode.ok_or_else(|| anyhow!("{} is missing AEKO_BOOTSTRAP_MODE", path.display()))?,
+            kind: mode
+                .ok_or_else(|| anyhow!("{} is missing AEKO_BOOTSTRAP_MODE", path.display()))?,
             genesis: genesis
                 .filter(|value| !value.is_empty())
                 .ok_or_else(|| anyhow!("{} is missing {CHAIN_GENESIS_KEY}", path.display()))?,
@@ -370,13 +367,14 @@ fn purge_roots(roots: &[&Path]) -> Result<()> {
     for root in roots {
         fs::create_dir_all(root)
             .with_context(|| format!("creating reset root {}", root.display()))?;
-        for entry in fs::read_dir(root)
-            .with_context(|| format!("reading reset root {}", root.display()))?
+        for entry in
+            fs::read_dir(root).with_context(|| format!("reading reset root {}", root.display()))?
         {
             let path = entry?.path();
             if path.is_dir() {
-                fs::remove_dir_all(&path)
-                    .with_context(|| format!("removing stale reset directory {}", path.display()))?;
+                fs::remove_dir_all(&path).with_context(|| {
+                    format!("removing stale reset directory {}", path.display())
+                })?;
             } else {
                 fs::remove_file(&path)
                     .with_context(|| format!("removing stale reset file {}", path.display()))?;
@@ -428,10 +426,8 @@ mod tests {
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_nanos();
-            let path = std::env::temp_dir().join(format!(
-                "aeko-lifecycle-{label}-{}-{nonce}",
-                process::id()
-            ));
+            let path = std::env::temp_dir()
+                .join(format!("aeko-lifecycle-{label}-{}-{nonce}", process::id()));
             fs::create_dir_all(&path).unwrap();
             Self(path)
         }
