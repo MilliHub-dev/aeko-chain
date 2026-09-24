@@ -70,7 +70,7 @@ const configuredMainnet = validateNetwork(
 );
 
 const useBuiltInLocalTestnet =
-  Boolean(import.meta.env.DEV) && !configuredTestnet.configured;
+  Boolean(import.meta.env?.DEV) && !configuredTestnet.configured;
 
 const testnet = useBuiltInLocalTestnet
   ? LOCAL_TESTNET_DEFAULTS
