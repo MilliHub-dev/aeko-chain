@@ -356,6 +356,127 @@ fn main() -> Result<()> {
         "migrate social-monetization treasury",
     )?;
 
+    // A confirmed transaction is not the lifecycle commit point. Re-read every
+    // canonical Social state and custody account from RPC before publishing the
+    // registry/binding so an interrupted or partially applied bootstrap remains
+    // resumable instead of being recorded as complete.
+    verify_program_vault(
+        &client,
+        &rewards_treasury.pubkey(),
+        &aeko_social_rewards_program::id(),
+        "social-rewards-treasury",
+    )?;
+    verify_program_vault(
+        &client,
+        &rewards_vault.pubkey(),
+        &aeko_social_rewards_program::id(),
+        "social-rewards-vault",
+    )?;
+    verify_program_vault(
+        &client,
+        &stake_vault.pubkey(),
+        &aeko_social_staking_program::id(),
+        "social-staking-principal-vault",
+    )?;
+    verify_program_vault(
+        &client,
+        &stake_reward_vault.pubkey(),
+        &aeko_social_staking_program::id(),
+        "social-staking-reward-vault",
+    )?;
+    verify_program_vault(
+        &client,
+        &monetization_treasury.pubkey(),
+        &aeko_social_monetization_program::id(),
+        "social-monetization-treasury",
+    )?;
+
+    let final_authority = authority.pubkey();
+    require_social_state(
+        &client,
+        &posts_state.pubkey(),
+        &aeko_social_posts_program::id(),
+        "social-posts",
+        |data| {
+            let state =
+                aeko_social_posts_program::state::SocialPostsStateAccount::deserialize_padded(data)
+                    .map_err(|_| anyhow!("invalid social-posts state"))?;
+            Ok(state.is_initialized
+                && state.config.authority == final_authority
+                && state.config.posting_enabled
+                && state.config.engagement_enabled
+                && state.config.max_content_uri_len == 512)
+        },
+    )?;
+    require_social_state(
+        &client,
+        &rewards_state.pubkey(),
+        &aeko_social_rewards_program::id(),
+        "social-rewards",
+        |data| {
+            let state = aeko_social_rewards_program::state::SocialRewardsStateAccount::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid social-rewards state"))?;
+            Ok(state.is_initialized
+                && state.config.authority == final_authority
+                && state.config.settlement_authority == final_authority
+                && state.config.treasury == rewards_treasury.pubkey()
+                && state.config.reward_vault == rewards_vault.pubkey()
+                && state.config.min_claim_amount == 0
+                && state.config.rewards_enabled)
+        },
+    )?;
+    require_social_state(
+        &client,
+        &staking_state.pubkey(),
+        &aeko_social_staking_program::id(),
+        "social-staking",
+        |data| {
+            let state = aeko_social_staking_program::state::SocialStakingStateAccount::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid social-staking state"))?;
+            Ok(state.is_initialized
+                && state.config.authority == final_authority
+                && state.config.stake_vault == stake_vault.pubkey()
+                && state.config.reward_vault == stake_reward_vault.pubkey()
+                && state.config.min_stake_amount == 0
+                && state.config.cooldown_epochs == 7
+                && state.config.staking_enabled)
+        },
+    )?;
+    require_social_state(
+        &client,
+        &anti_spam_state.pubkey(),
+        &aeko_social_anti_spam_program::id(),
+        "social-anti-spam",
+        |data| {
+            let state = aeko_social_anti_spam_program::state::SocialAntiSpamStateAccount::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid social-anti-spam state"))?;
+            Ok(state.is_initialized
+                && state.config.authority == final_authority
+                && state.config.mode
+                    == aeko_social_anti_spam_program::state::AntiSpamMode::ObserveOnly
+                && state.config.min_post_stake == 0
+                && state.config.min_post_reputation == 0
+                && state.config.cooldown_epochs == 1
+                && state.config.slash_bps == 0)
+        },
+    )?;
+    require_social_state(
+        &client,
+        &monetization_state.pubkey(),
+        &aeko_social_monetization_program::id(),
+        "social-monetization",
+        |data| {
+            let state = aeko_social_monetization_program::state::SocialMonetizationStateAccount::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid social-monetization state"))?;
+            Ok(state.is_initialized
+                && state.config.authority == final_authority
+                && state.config.treasury == monetization_treasury.pubkey()
+                && state.config.platform_fee_bps == platform_fee_bps
+                && state.config.subscriptions_enabled
+                && state.config.paid_content_enabled)
+        },
+    )?;
+
     let registry = format!(
         "# Generated by aeko-social-bootstrap. Do not edit by hand.\n\
 AEKO_REGISTRY_SCHEMA_VERSION={}\n\
@@ -389,6 +510,66 @@ AEKO_PLATFORM_FEE_BPS={}\n",
     lifecycle::mark_complete(&[out_dir.as_path()], &live_genesis)?;
     println!("# Canonical Explorer/AEKO Social registry:");
     print!("{registry}");
+    Ok(())
+}
+
+fn verify_program_vault(
+    client: &RpcClient,
+    pubkey: &Pubkey,
+    owner: &Pubkey,
+    label: &str,
+) -> Result<()> {
+    let account = with_retries(&format!("{label}:verify"), || {
+        client
+            .get_account_with_commitment(pubkey, CommitmentConfig::confirmed())
+            .map_err(anyhow::Error::from)
+    })?
+    .value
+    .ok_or_else(|| anyhow!("[{label}] canonical vault {pubkey} does not exist after bootstrap"))?;
+    if account.owner != *owner {
+        return Err(anyhow!(
+            "[{label}] canonical vault {pubkey} owner {} does not match {owner}",
+            account.owner
+        ));
+    }
+    if !account.data.is_empty() {
+        return Err(anyhow!(
+            "[{label}] canonical vault {pubkey} must remain zero-data"
+        ));
+    }
+    Ok(())
+}
+
+fn require_social_state<F>(
+    client: &RpcClient,
+    state_pubkey: &Pubkey,
+    program_id: &Pubkey,
+    label: &str,
+    verifier: F,
+) -> Result<()>
+where
+    F: Fn(&[u8]) -> Result<bool>,
+{
+    let account = with_retries(&format!("{label}:final-verify"), || {
+        client
+            .get_account_with_commitment(state_pubkey, CommitmentConfig::confirmed())
+            .map_err(anyhow::Error::from)
+    })?
+    .value
+    .ok_or_else(|| {
+        anyhow!("[{label}] canonical state {state_pubkey} does not exist after bootstrap")
+    })?;
+    if account.owner != *program_id {
+        return Err(anyhow!(
+            "[{label}] canonical state {state_pubkey} owner {} does not match {program_id}",
+            account.owner
+        ));
+    }
+    if !verifier(&account.data)? {
+        return Err(anyhow!(
+            "[{label}] canonical state {state_pubkey} failed final configuration verification"
+        ));
+    }
     Ok(())
 }
 

@@ -457,6 +457,172 @@ fn main() -> Result<()> {
         },
     )?;
 
+    // Re-read the complete Protocol control plane before committing the durable
+    // lifecycle binding. Transaction confirmation alone is not sufficient to
+    // declare a reset/bootstrap complete.
+    let final_token_feature_slot = require_feature_active(
+        &client,
+        &feature_set::aeko_token_programs_v1::id(),
+        "aeko_token_programs_v1",
+    )?;
+    let final_permission_feature_slot = require_feature_active(
+        &client,
+        &feature_set::aeko_permission_layer_v1::id(),
+        "aeko_permission_layer_v1",
+    )?;
+    if final_token_feature_slot != token_feature_slot
+        || final_permission_feature_slot != permission_feature_slot
+    {
+        return Err(anyhow!(
+            "protocol feature activation changed during bootstrap; refusing to publish canonical lifecycle state"
+        ));
+    }
+    for (program_id, label) in [
+        (aeko_tokenomics_program::id(), "tokenomics"),
+        (aeko_token_20_program::id(), "token-20"),
+        (aeko_public_mint_program::id(), "public-mint"),
+        (aeko_token_721_program::id(), "token-721"),
+        (aeko_nft_marketplace_program::id(), "nft-marketplace"),
+        (aeko_wallet_permissions_program::id(), "wallet-permissions"),
+        (
+            aeko_permission_registry_program::id(),
+            "permission-registry",
+        ),
+        (
+            aeko_revocation_registry_program::id(),
+            "revocation-registry",
+        ),
+        (aeko_subnet_registry_program::id(), "subnet-registry"),
+        (aeko_emergency_multisig_program::id(), "emergency-multisig"),
+        (aeko_finality_oracle_program::id(), "finality-oracle"),
+    ] {
+        require_executable_program(&client, &program_id, label)?;
+    }
+
+    verify_system_vault(&client, &treasury.pubkey(), "tokenomics-treasury")?;
+    verify_system_vault(
+        &client,
+        &validator_rewards.pubkey(),
+        "validator-rewards",
+    )?;
+    verify_system_vault(
+        &client,
+        &community_rewards.pubkey(),
+        "community-rewards",
+    )?;
+
+    require_protocol_state(
+        &client,
+        &tokenomics_state.pubkey(),
+        &aeko_tokenomics_program::id(),
+        "tokenomics",
+        |data| {
+            let state = TokenomicsStateAccount::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid tokenomics state"))?;
+            Ok(state.is_initialized
+                && state.config.authority == authority.pubkey()
+                && state.config.governance_program_id == authority.pubkey()
+                && state.config.treasury_account == treasury.pubkey()
+                && state.config.validator_rewards_account == validator_rewards.pubkey()
+                && state.config.community_rewards_account == community_rewards.pubkey())
+        },
+    )?;
+
+    let final_reference_name =
+        env::var("AEKO_REFERENCE_MINT_NAME").unwrap_or_else(|_| "AEKO-20 Testnet Reference".into());
+    let final_reference_symbol =
+        env::var("AEKO_REFERENCE_MINT_SYMBOL").unwrap_or_else(|_| "A20T".into());
+    require_protocol_state(
+        &client,
+        &reference_mint.pubkey(),
+        &aeko_token_20_program::id(),
+        "aeko20-reference-mint",
+        |data| {
+            let mint = Aeko20Mint::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid AEKO-20 reference mint"))?;
+            Ok(mint.is_initialized
+                && mint.mint_authority == Some(authority.pubkey())
+                && mint.freeze_authority == Some(authority.pubkey())
+                && mint.name == final_reference_name
+                && mint.symbol == final_reference_symbol
+                && mint.decimals == reference_decimals
+                && mint.mint_policy == MintPolicy::PublicMintControlled)
+        },
+    )?;
+    require_protocol_state(
+        &client,
+        &public_mint_state.pubkey(),
+        &aeko_public_mint_program::id(),
+        "public-mint",
+        |data| {
+            let state = PublicMintState::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid public-mint state"))?;
+            Ok(state.policy == public_policy)
+        },
+    )?;
+    require_protocol_state(
+        &client,
+        &permission_registry.pubkey(),
+        &aeko_permission_registry_program::id(),
+        "permission-registry",
+        |data| {
+            let state = RegistryConfig::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid permission-registry state"))?;
+            Ok(state.is_initialized && state.upgrade_authority == authority.pubkey())
+        },
+    )?;
+    require_protocol_state(
+        &client,
+        &revocation_registry.pubkey(),
+        &aeko_revocation_registry_program::id(),
+        "revocation-registry",
+        |data| {
+            let state = RevRegistryConfig::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid revocation-registry state"))?;
+            Ok(state.is_initialized && state.upgrade_authority == authority.pubkey())
+        },
+    )?;
+    require_protocol_state(
+        &client,
+        &subnet_registry.pubkey(),
+        &aeko_subnet_registry_program::id(),
+        "subnet-registry",
+        |data| {
+            let state = SubnetRegistryConfig::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid subnet-registry state"))?;
+            Ok(state.is_initialized && state.upgrade_authority == authority.pubkey())
+        },
+    )?;
+    let (final_signers, final_freeze, final_revoke, final_policy) =
+        parse_multisig_config(authority.pubkey())?;
+    require_protocol_state(
+        &client,
+        &emergency_multisig.pubkey(),
+        &aeko_emergency_multisig_program::id(),
+        "emergency-multisig",
+        |data| {
+            let state = MultisigConfig::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid emergency-multisig state"))?;
+            Ok(state.is_initialized
+                && state.upgrade_authority == authority.pubkey()
+                && state.signers == final_signers
+                && state.freeze_quorum == final_freeze
+                && state.revoke_quorum == final_revoke
+                && state.policy_quorum == final_policy)
+        },
+    )?;
+    require_protocol_state(
+        &client,
+        &finality_oracle.pubkey(),
+        &aeko_finality_oracle_program::id(),
+        "finality-oracle",
+        |data| {
+            let state = OracleConfig::deserialize_padded(data)
+                .map_err(|_| anyhow!("invalid finality-oracle state"))?;
+            Ok(state.is_initialized && state.upgrade_authority == authority.pubkey())
+        },
+    )?;
+
     let registry = format!(
         "# Generated by aeko-protocol-bootstrap. Do not edit by hand.\n\
 AEKO_REGISTRY_SCHEMA_VERSION={}\n\
@@ -578,6 +744,46 @@ fn require_executable_program(client: &RpcClient, program_id: &Pubkey, label: &s
         ));
     }
     Ok(())
+}
+
+fn verify_system_vault(client: &RpcClient, pubkey: &Pubkey, label: &str) -> Result<()> {
+    let account = with_retries(&format!("{label}:final-verify"), || {
+        client
+            .get_account_with_commitment(pubkey, CommitmentConfig::confirmed())
+            .map_err(anyhow::Error::from)
+    })?
+    .value
+    .ok_or_else(|| anyhow!("[{label}] canonical custody account {pubkey} does not exist"))?;
+    if account.owner != system_program::id() {
+        return Err(anyhow!(
+            "[{label}] canonical custody account {pubkey} owner {} does not match system program",
+            account.owner
+        ));
+    }
+    if !account.data.is_empty() {
+        return Err(anyhow!(
+            "[{label}] canonical custody account {pubkey} must remain zero-data"
+        ));
+    }
+    Ok(())
+}
+
+fn require_protocol_state<F>(
+    client: &RpcClient,
+    state_pubkey: &Pubkey,
+    program_id: &Pubkey,
+    label: &str,
+    verifier: F,
+) -> Result<()>
+where
+    F: Fn(&[u8]) -> Result<bool>,
+{
+    if existing_state_is_valid(client, state_pubkey, program_id, label, &verifier)? {
+        return Ok(());
+    }
+    Err(anyhow!(
+        "[{label}] canonical state {state_pubkey} is missing after bootstrap"
+    ))
 }
 
 fn ensure_system_vault(
