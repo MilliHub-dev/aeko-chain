@@ -50,9 +50,9 @@ Internet wallets / dApps / SDKs
                          |                    |
                   native SocialFi       PostgreSQL + registry
 
-scan.aeko.online -> explorer-ui :4000 -> explorer-api :8088
-fund.aeko.online -> operations-web :3001 (public funding request + Test Console airdrop API) -> validator RPC
-admin.aeko.online -> operations-web :3001 (operator approvals/console, sign-in)                    -> validator RPC / explorer-api
+scan.aeko.online -> explorer-ui :4000 -> private explorer-api :8088 via /api/explorer/testnet
+fund.aeko.online -> funding-gateway :3001 (public funding request + Test Console airdrop API) -> validator RPC
+admin.aeko.online -> operations-web :3001 (operator approvals/console, sign-in) -> private funding-gateway / explorer-api
 
 gossip.aeko.online:8001 -> validator gossip entrypoint
 validator host TCP+UDP 8000-8050 -> public validator transport range
@@ -73,7 +73,7 @@ Persist:
 - `social-state` named volume;
 - `protocol-state` named volume;
 - `protocol-continuity` named volume;
-- `admin-state` named volume (funding policy and grant ledger);
+- `admin-state` named volume (Funding Gateway policy, approval queue and grant ledger);
 - validator identity key;
 - vote-account key;
 - stake key;
@@ -94,12 +94,12 @@ Do not copy the same value into multiple configuration surfaces merely because s
 | Social state and vault addresses | generated `social-state/social-registry.env` | Leave Explorer per-address overrides unset. |
 | Protocol feature identities | compile-time feature IDs | Fresh/reset genesis activates the mandatory protocol runtime features automatically; only an older preserved chain uses the compatibility activation helper. |
 | Protocol authority and canonical state addresses | persistent protocol authority plus generated `protocol-registry.env` / continuity anchor | Bootstrap automatically when no established protocol identity exists; preserve and verify thereafter. |
-| Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads the same public API resource. |
-| Public browser endpoints | deployment environment (`AEKO_PUBLIC_*`) | Configure once per deployment environment. |
-| Internal container endpoints | Compose service DNS defaults | Normally leave the `AEKO_INTERNAL_*` overrides unset. |
+| Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads it through the same-origin read proxy. |
+| Public browser endpoints | deployment environment (`AEKO_PUBLIC_RPC_URL`, `AEKO_PUBLIC_WS_URL`, `AEKO_PUBLIC_FUNDING_URL`) | Configure once per deployment environment. |
+| Internal service endpoints | Compose service DNS defaults | Keep Explorer, Funding Admin API and Faucet traffic on `AEKO_INTERNAL_*` / Docker DNS. |
 | Recovery address overrides | Explorer process environment | Use only for explicit recovery; never as a parallel normal source of truth. |
 
-Similar names are not automatically duplicates. For example, `AEKO_EXPLORER_URL` is the Operations Web server-to-server Explorer endpoint, while `AEKO_PUBLIC_EXPLORER_API_URL` is the browser-facing Explorer API endpoint. They may resolve to the same service through different network paths and must not be substituted blindly.
+The Explorer backend has one canonical server-side upstream name, `AEKO_INTERNAL_EXPLORER_API_URL`. Browsers never receive that origin; Explorer UI serves indexed reads from its own `/api/explorer/{network}` path. Funding follows the same rule: the browser knows only `AEKO_PUBLIC_FUNDING_URL`, while Admin uses `AEKO_INTERNAL_FUNDING_URL`.
 
 ## Required production environment
 
@@ -113,15 +113,13 @@ AEKO_REQUIRE_EXISTING_LEDGER=1
 AEKO_ALLOW_CHAIN_KEY_GENERATION=0   # Coolify; enable only for intentional first boot
 AEKO_PUBLIC_RPC_URL=<public JSON-RPC URL>
 AEKO_PUBLIC_WS_URL=<public PubSub WebSocket URL>
-AEKO_PUBLIC_EXPLORER_API_URL=<public Explorer REST API URL>
-AEKO_PUBLIC_EXPLORER_URL=<public Explorer UI URL>
-AEKO_PUBLIC_FUNDING_URL=<public Testnet Funding Portal URL>
-AEKO_PUBLIC_ADMIN_URL=<public operator-console URL>
-FUNDING_ALLOWED_ORIGINS=<comma-separated browser origins allowed to call funding>
+AEKO_PUBLIC_FUNDING_URL=<public Testnet Funding Gateway URL>
+FUNDING_ALLOWED_ORIGINS=<comma-separated Explorer UI origins allowed to call funding>
 ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
-FUNDING_GATEWAY_KEY=<server secret shared with validator requestAirdrop authorization>
-FUNDING_CLIENT_API_KEY=<optional trusted backend secret sent as x-funding-key>
+AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=<private Admin-to-Explorer settings token>
+FUNDING_GATEWAY_KEY=<Funding Gateway secret shared with validator requestAirdrop authorization>
+FUNDING_ADMIN_API_KEY=<different private Admin-to-Funding service key>
 ```
 
 Optional funding policy (initial values; editable in the admin console afterwards):
@@ -193,7 +191,7 @@ key-bootstrap creates/validates persistent keys and exits 0
               -> explorer-ui healthy
 ```
 
-Explorer API/UI remain available in a degraded state for diagnostics if either mandatory bootstrap fails. The Explorer loads the generated Social and Protocol registries dynamically; `/social/status` and `/protocol/status` remain incomplete until their corresponding canonical on-chain state is valid. Routability therefore does not convert a failed Aeko Social or AEKO Protocol bootstrap into a successful network deployment.
+Explorer UI remains available in a degraded state for diagnostics if either mandatory bootstrap fails. The Explorer loads the generated Social and Protocol registries dynamically; `/social/status` and `/protocol/status` remain incomplete until their corresponding canonical on-chain state is valid. Routability therefore does not convert a failed Aeko Social or AEKO Protocol bootstrap into a successful network deployment.
 
 Bootstrap remains safe for a normal redeploy because it does not send another Initialize instruction when the persisted key resolves to an initialized account owned by the expected SocialFi program. Wrong-owner, malformed or unexpectedly missing state on an established chain fails closed.
 
@@ -261,9 +259,8 @@ Dokploy's native Domains feature is preferred. Route:
 | --- | --- | ---: |
 | `rpc.aeko.online` | `validator` | `8899` |
 | `ws.aeko.online` | `validator` | `8900` |
-| `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
-| `fund.aeko.online` | `operations-web` | `3001` |
+| `fund.aeko.online` | `funding-gateway` | `3001` |
 | `admin.aeko.online` | `operations-web` | `3001` |
 
 Do not route `gossip.aeko.online` through Traefik. DNS should point it directly at `AEKO_PUBLIC_IP`. Gossip starts on `8001`, and the Compose publishes the full validator TCP+UDP `8000-8050` transport range with same-port host mappings so advertised peer addresses stay reachable.
@@ -298,9 +295,8 @@ Configure domains to the same internal services:
 | --- | --- | ---: |
 | `rpc.aeko.online` | `validator` | `8899` |
 | `ws.aeko.online` | `validator` | `8900` |
-| `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
-| `fund.aeko.online` | `operations-web` | `3001` |
+| `fund.aeko.online` | `funding-gateway` | `3001` |
 | `admin.aeko.online` | `operations-web` | `3001` |
 
 Keep `gossip.aeko.online` outside the HTTP proxy. Point its DNS directly to `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050`.
@@ -399,11 +395,11 @@ The rollback boundary is the feature activation itself: before activation, resto
 Verify the live Protocol registry and state:
 
 ```bash
-curl -s https://api.aeko.online/registry/protocol
-curl -s https://api.aeko.online/protocol/status
+curl -s https://scan.aeko.online/api/explorer/testnet/registry/protocol
+curl -s https://scan.aeko.online/api/explorer/testnet/protocol/status
 
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://api.aeko.online \
+AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
 python3 scripts/smoke-aeko-protocol.py
 ```
 
@@ -416,9 +412,9 @@ Do not certify the public network merely because containers are `running` or bec
 First distinguish process and dependency health:
 
 ```bash
-curl -s https://api.aeko.online/liveness
-curl -s https://api.aeko.online/readiness
-curl -s https://api.aeko.online/network/readiness
+curl -s https://scan.aeko.online/api/explorer/testnet/liveness
+curl -s https://scan.aeko.online/api/explorer/testnet/readiness
+curl -s https://scan.aeko.online/api/explorer/testnet/network/readiness
 ```
 
 `/liveness` only proves the Explorer process is serving. `/readiness` proves PostgreSQL/RPC/indexer dependencies. Final network acceptance requires `/network/readiness` HTTP 200 with the registry genesis equal to the live validator genesis, Social `5/5`, Protocol executable programs `11/11`, and Protocol canonical states `8/8`.
@@ -436,7 +432,7 @@ It must return `result: "ok"`. Call `getSlot` twice and confirm it advances.
 ### SocialFi registry
 
 ```bash
-curl -s https://api.aeko.online/registry/social
+curl -s https://scan.aeko.online/api/explorer/testnet/registry/social
 ```
 
 The response is wrapped under `data`. Acceptance requires:
@@ -457,7 +453,7 @@ The response is wrapped under `data`. Acceptance requires:
 Also check live state verification:
 
 ```bash
-curl -s https://api.aeko.online/social/status
+curl -s https://scan.aeko.online/api/explorer/testnet/social/status
 ```
 
 Acceptance requires `data.complete == true`. A healthy Explorer with `complete: false` is intentionally a degraded/diagnostic state, not SocialFi success.
@@ -466,7 +462,7 @@ Acceptance requires `data.complete == true`. A healthy Explorer with `complete: 
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://api.aeko.online \
+AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
 python3 scripts/smoke-aeko-social.py
 ```
 
@@ -474,7 +470,7 @@ Also run the mandatory Protocol smoke:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://api.aeko.online \
+AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
 python3 scripts/smoke-aeko-protocol.py
 ```
 
