@@ -732,8 +732,8 @@ def main() -> int:
     for endpoint in (
         "https://rpc.aeko.online",
         "wss://ws.aeko.online",
-        "https://api.aeko.online",
         "https://scan.aeko.online",
+        "https://fund.aeko.online",
         "gossip.aeko.online:8001",
     ):
         require(endpoint in readme, f"README missing public endpoint {endpoint}")
@@ -746,7 +746,7 @@ def main() -> int:
     require("rpc.aeko.online` | `validator` | `8899" in deployment, "deployment guide must route public RPC to validator")
     require("ws.aeko.online` | `validator` | `8900" in deployment, "deployment guide must route public WebSocket to validator")
     require("public/Dokploy stack; uses prebuilt Docker Hub images and serves RPC/WS from the healthy voting validator" in deployment, "deployment guide must describe the single-validator Dokploy RPC topology")
-    require("Explorer API/UI remain available in a degraded state" in deployment, "deployment guide must document degraded Explorer behavior when SocialFi bootstrap fails")
+    require("Explorer UI remains available in a degraded state" in deployment, "deployment guide must document degraded Explorer behavior when SocialFi bootstrap fails")
     require("docker/compose.coolify.yml" in deployment, "deployment guide must document the Coolify Compose path")
 
     print("[PASS] AEKO local + Dokploy + Coolify deployment contracts are internally consistent")
