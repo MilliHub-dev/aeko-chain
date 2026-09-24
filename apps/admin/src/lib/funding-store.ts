@@ -195,6 +195,27 @@ export async function listFundingRequests(limit = 100): Promise<FundingRequest[]
   return (await load()).requests.slice(0, limit)
 }
 
+function trimDecidedFundingRequests(state: State): void {
+  while (state.requests.length > MAX_REQUESTS_KEPT) {
+    let removable = -1
+    for (let index = state.requests.length - 1; index >= 0; index -= 1) {
+      const status = state.requests[index].status
+      if (status === 'approved' || status === 'rejected') {
+        removable = index
+        break
+      }
+    }
+    if (removable < 0) {
+      throw new FundingError(
+        503,
+        'REQUEST_QUEUE_FULL',
+        'The funding approval queue is full. An operator must process pending requests before new requests can be accepted.',
+      )
+    }
+    state.requests.splice(removable, 1)
+  }
+}
+
 function cooldownWaitSeconds(state: State, address: string): number {
   const last = state.lastGrantAt[address]
   if (!last) return 0
@@ -249,7 +270,7 @@ export async function requestFundingApproval(address: string): Promise<FundingRe
       status: 'pending',
     }
     state.requests.unshift(request)
-    if (state.requests.length > MAX_REQUESTS_KEPT) state.requests.length = MAX_REQUESTS_KEPT
+    trimDecidedFundingRequests(state)
     await save(state)
     return { ...request }
   })
