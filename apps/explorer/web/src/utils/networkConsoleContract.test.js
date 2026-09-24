@@ -224,7 +224,7 @@ test('Admin section switches keep descriptions outside non-wrapping tab buttons'
 });
 
 
-test('Explorer web uses one testnet-only runtime contract', async () => {
+test('Explorer web keeps Testnet and Mainnet as the supported network contract', async () => {
   const example = await source('../.env.example');
   const deploymentEnv = await source('../../../../docker/env.public.example');
   const viteConfig = await source('../vite.config.js');
@@ -232,6 +232,7 @@ test('Explorer web uses one testnet-only runtime contract', async () => {
   const entrypoint = await source('../../../../docker/explorer-ui-entrypoint.sh');
   const explorer = await source('pages/Explorer.jsx');
   const networkTools = await source('pages/NetworkTools.jsx');
+  const networkToggle = await source('components/NetworkToggle.jsx');
   const demo = await source('data/nftDemoExamples.js');
 
   for (const key of [
@@ -240,6 +241,10 @@ test('Explorer web uses one testnet-only runtime contract', async () => {
     'AEKO_TESTNET_EXPLORER_API_URL',
     'AEKO_TESTNET_EXPLORER_URL',
     'AEKO_TESTNET_FUNDING_URL',
+    'AEKO_MAINNET_RPC_URL',
+    'AEKO_MAINNET_WS_URL',
+    'AEKO_MAINNET_EXPLORER_API_URL',
+    'AEKO_MAINNET_EXPLORER_URL',
   ]) {
     assert.match(example, new RegExp('^' + key + '=', 'm'));
   }
@@ -250,38 +255,41 @@ test('Explorer web uses one testnet-only runtime contract', async () => {
     'AEKO_PUBLIC_EXPLORER_API_URL',
     'AEKO_PUBLIC_EXPLORER_URL',
     'AEKO_PUBLIC_FUNDING_URL',
+    'AEKO_MAINNET_RPC_URL',
+    'AEKO_MAINNET_WS_URL',
+    'AEKO_MAINNET_EXPLORER_API_URL',
+    'AEKO_MAINNET_EXPLORER_URL',
   ]) {
     assert.match(deploymentEnv, new RegExp(key));
   }
 
-  assert.doesNotMatch(example, /VITE_AEKO_|AEKO_MAINNET_/);
-  assert.doesNotMatch(deploymentEnv, /AEKO_MAINNET_/);
-  assert.doesNotMatch(networkConfig, /VITE_AEKO_|mainnet/i);
-  assert.doesNotMatch(entrypoint, /AEKO_MAINNET_|mainnet/i);
-  assert.doesNotMatch(viteConfig, /AEKO_MAINNET_|mainnet/i);
-  assert.doesNotMatch(explorer, /NetworkToggle|setNetwork/);
-  assert.doesNotMatch(networkTools, /NetworkToggle|requestedNetwork|setNetwork/);
-
-  assert.match(viteConfig, /loadEnv/);
-  assert.match(viteConfig, /command === 'serve'/);
+  assert.doesNotMatch(example, /VITE_AEKO_/);
+  assert.doesNotMatch(networkConfig, /VITE_AEKO_/);
   assert.match(viteConfig, /AEKO_TESTNET/);
+  assert.match(viteConfig, /AEKO_MAINNET/);
   assert.match(viteConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
 
-  assert.match(networkConfig, /__AEKO_RUNTIME_CONFIG__/);
-  assert.match(networkConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
   assert.match(networkConfig, /runtime\.testnet/);
-  assert.match(networkConfig, /available: useBuiltInLocalTestnet \|\| configuredTestnet\.configured/);
-  assert.match(networkConfig, /Public Testnet \(not configured\)/);
-  assert.match(networkConfig, /http:\/\/127\.0\.0\.1:8899/);
-  assert.match(networkConfig, /ws:\/\/127\.0\.0\.1:8900/);
-  assert.match(networkConfig, /http:\/\/127\.0\.0\.1:8088/);
+  assert.match(networkConfig, /runtime\.mainnet/);
+  assert.match(networkConfig, /mainnet:/);
+  assert.match(networkConfig, /testnet:/);
+  assert.match(networkToggle, /\['testnet', 'mainnet'\]/);
+  assert.match(explorer, /NetworkToggle/);
+  assert.match(explorer, /setNetwork/);
+  assert.match(networkTools, /NetworkToggle/);
+  assert.match(networkTools, /requestedNetwork/);
+  assert.match(networkTools, /setNetwork/);
 
-  assert.match(entrypoint, /const config = \{ testnet, demo \}/);
-  assert.match(entrypoint, /AEKO_PUBLIC_RPC_URL/);
+  assert.match(entrypoint, /const config = \{ testnet, mainnet, demo \}/);
+  assert.match(entrypoint, /AEKO_MAINNET_RPC_URL/);
+  assert.match(networkTools, /aeko config set --url/);
+  assert.match(networkTools, /aeko balance <wallet-address>/);
+  assert.match(networkTools, /aeko transfer <recipient-address> <amount>/);
+  assert.doesNotMatch(networkTools, /curl -X POST/);
+
   assert.match(demo, /getDemoConfig/);
   assert.doesNotMatch(demo, /AEKO_DEMO_/);
 });
-
 
 test('Explorer search is URL-driven, retryable and exposes a no-results state', async () => {
   const explorer = await source('pages/Explorer.jsx');
