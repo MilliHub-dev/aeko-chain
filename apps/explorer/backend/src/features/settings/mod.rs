@@ -232,7 +232,9 @@ fn build_snapshot(
         })?;
     let explorer_auto_refresh_seconds =
         u64::try_from(persisted.explorer_auto_refresh_seconds).map_err(|_| {
-            ApiError::Internal(anyhow!("persisted Explorer auto refresh interval is invalid"))
+            ApiError::Internal(anyhow!(
+                "persisted Explorer auto refresh interval is invalid"
+            ))
         })?;
     let settings_refresh_seconds =
         u64::try_from(persisted.settings_refresh_seconds).map_err(|_| {
