@@ -4,17 +4,14 @@ import { clientIp, throttle } from '@/lib/ip-throttle'
 import { fundingCorsHeaders, fundingPreflight } from '@/lib/funding-cors'
 
 export const dynamic = 'force-dynamic'
-
 export const OPTIONS = fundingPreflight
-
-const EXPLORER_URL = (process.env.AEKO_PUBLIC_EXPLORER_URL ?? '').replace(/\/+$/, '')
 
 /**
  * Developer Test Console airdrop.
  *
- * This is deliberately separate from the public funding-approval queue. The
- * browser chooses the amount, while this server keeps the private Funding
- * Gateway credential out of the client and enforces IP and amount ceilings.
+ * This is separate from the public approval queue. The browser chooses the
+ * amount; the Funding Gateway keeps Faucet authorization server-side and
+ * enforces independent IP and amount ceilings.
  */
 export async function POST(req: NextRequest) {
   const cors = fundingCorsHeaders(req)
@@ -45,12 +42,7 @@ export async function POST(req: NextRequest) {
       amountAeko: Number(body.amountAeko),
       source: 'console',
     })
-    return respond({
-      data: {
-        ...record,
-        explorerUrl: EXPLORER_URL ? `${EXPLORER_URL}/explorer/account/${record.address}` : null,
-      },
-    })
+    return respond({ data: record })
   } catch (err) {
     if (err instanceof FundingError) {
       return respond({ error: { code: err.code, message: err.message, ...err.extra } }, { status: err.status })
