@@ -343,6 +343,7 @@ pub(crate) struct SocialFiStatus {
     live_genesis_hash: String,
     genesis_matches: bool,
     domains: BTreeMap<String, SocialDomainStatus>,
+    custody: BTreeMap<String, CustodyStatus>,
 }
 
 impl SocialFiStatus {
@@ -376,6 +377,17 @@ impl SocialFiStatus {
     pub(crate) fn domain_count(&self) -> usize {
         self.domains.len()
     }
+
+    pub(crate) fn healthy_custody_count(&self) -> usize {
+        self.custody
+            .values()
+            .filter(|status| status.condition == "healthy")
+            .count()
+    }
+
+    pub(crate) fn custody_count(&self) -> usize {
+        self.custody.len()
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -388,6 +400,18 @@ struct SocialDomainStatus {
     initialized: bool,
     condition: String,
     metrics: Value,
+    error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CustodyStatus {
+    account: Option<String>,
+    expected_owner: String,
+    present: bool,
+    owner_matches: bool,
+    data_len: usize,
+    condition: String,
     error: Option<String>,
 }
 
@@ -473,7 +497,56 @@ fn inspect_social_domains(
         ),
     );
 
+    let custody = BTreeMap::from([
+        (
+            "rewardsTreasury".to_string(),
+            inspect_custody(
+                rpc,
+                registry.rewards_treasury,
+                aeko_social_rewards_program::id(),
+                "social-rewards-treasury",
+            ),
+        ),
+        (
+            "rewardVault".to_string(),
+            inspect_custody(
+                rpc,
+                registry.reward_vault,
+                aeko_social_rewards_program::id(),
+                "social-rewards-vault",
+            ),
+        ),
+        (
+            "stakeVault".to_string(),
+            inspect_custody(
+                rpc,
+                registry.stake_vault,
+                aeko_social_staking_program::id(),
+                "social-staking-principal-vault",
+            ),
+        ),
+        (
+            "stakeRewardVault".to_string(),
+            inspect_custody(
+                rpc,
+                registry.stake_reward_vault,
+                aeko_social_staking_program::id(),
+                "social-staking-reward-vault",
+            ),
+        ),
+        (
+            "treasury".to_string(),
+            inspect_custody(
+                rpc,
+                registry.treasury,
+                aeko_social_monetization_program::id(),
+                "social-monetization-treasury",
+            ),
+        ),
+    ]);
+
     let domains_healthy = domains.values().all(|domain| domain.condition == "healthy");
+    let custody_healthy = custody.values().all(|status| status.condition == "healthy");
     let condition = if bootstrap_in_progress {
         "bootstrapInProgress"
     } else if !registry_complete {
@@ -482,7 +555,7 @@ fn inspect_social_domains(
         "legacyRegistry"
     } else if !genesis_matches {
         "genesisMismatch"
-    } else if domains_healthy {
+    } else if domains_healthy && custody_healthy {
         "healthy"
     } else {
         "stateIncomplete"
@@ -490,7 +563,7 @@ fn inspect_social_domains(
     .to_string();
 
     SocialFiStatus {
-        complete: registry_complete && genesis_matches && domains_healthy,
+        complete: registry_complete && genesis_matches && domains_healthy && custody_healthy,
         condition,
         registry_complete,
         registry_schema_version,
@@ -499,6 +572,78 @@ fn inspect_social_domains(
         live_genesis_hash: live_genesis.to_string(),
         genesis_matches,
         domains,
+        custody,
+    }
+}
+
+fn inspect_custody(
+    rpc: &RpcChainClient,
+    account: Option<String>,
+    expected_owner: Pubkey,
+    label: &str,
+) -> CustodyStatus {
+    let expected_owner = expected_owner.to_string();
+    let Some(address) = account else {
+        return CustodyStatus {
+            account: None,
+            expected_owner,
+            present: false,
+            owner_matches: false,
+            data_len: 0,
+            condition: "registryMissing".to_string(),
+            error: Some(format!("{label} is missing from the canonical registry")),
+        };
+    };
+
+    match rpc.fetch_account(&address) {
+        Ok(None) => CustodyStatus {
+            account: Some(address.clone()),
+            expected_owner,
+            present: false,
+            owner_matches: false,
+            data_len: 0,
+            condition: "missing".to_string(),
+            error: Some(format!("canonical custody account {address} does not exist")),
+        },
+        Ok(Some(value)) if value.owner != expected_owner => CustodyStatus {
+            account: Some(address),
+            expected_owner: expected_owner.clone(),
+            present: true,
+            owner_matches: false,
+            data_len: value.data_len,
+            condition: "wrongOwner".to_string(),
+            error: Some(format!(
+                "canonical custody owner mismatch: expected {expected_owner}, got {}",
+                value.owner
+            )),
+        },
+        Ok(Some(value)) if value.data_len != 0 => CustodyStatus {
+            account: Some(address),
+            expected_owner,
+            present: true,
+            owner_matches: true,
+            data_len: value.data_len,
+            condition: "invalidData".to_string(),
+            error: Some("canonical custody account must remain zero-data".to_string()),
+        },
+        Ok(Some(value)) => CustodyStatus {
+            account: Some(address),
+            expected_owner,
+            present: true,
+            owner_matches: true,
+            data_len: value.data_len,
+            condition: "healthy".to_string(),
+            error: None,
+        },
+        Err(error) => CustodyStatus {
+            account: Some(address),
+            expected_owner,
+            present: false,
+            owner_matches: false,
+            data_len: 0,
+            condition: "rpcError".to_string(),
+            error: Some(error.to_string()),
+        },
     }
 }
 
