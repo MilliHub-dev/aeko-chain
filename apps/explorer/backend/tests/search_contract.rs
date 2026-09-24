@@ -40,14 +40,12 @@ fn search_contract_serializes_asset_entity_result_kinds() {
         Some("tokenMint")
     );
 
-    let collection = serde_json::to_value(SearchResultRecord::Collection(
-        NftCollectionRecord {
-            collection_id: "collection-1".to_string(),
-            name: "Integration Collection".to_string(),
-            symbol: "ICOL".to_string(),
-            ..NftCollectionRecord::default()
-        },
-    ))
+    let collection = serde_json::to_value(SearchResultRecord::Collection(NftCollectionRecord {
+        collection_id: "collection-1".to_string(),
+        name: "Integration Collection".to_string(),
+        symbol: "ICOL".to_string(),
+        ..NftCollectionRecord::default()
+    }))
     .expect("collection search result should serialize");
     assert_eq!(
         collection.get("kind").and_then(|item| item.as_str()),

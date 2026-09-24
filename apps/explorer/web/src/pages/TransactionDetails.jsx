@@ -7,31 +7,33 @@ import { fetchTransactionDetails, getExplorerAvailability } from '../utils/explo
 export default function TransactionDetails() {
   const { hash } = useParams();
   const [network, setNetwork] = useState('testnet');
-  const [state, setState] = useState({ loading: true, error: '', data: null });
+  const requestKey = `${network}:${hash}`;
+  const [state, setState] = useState({ requestKey: '', error: '', data: null });
 
   useEffect(() => {
     let cancelled = false;
-    setState({ loading: true, error: '', data: null });
 
     fetchTransactionDetails(network, hash)
       .then((data) => {
         if (!cancelled) {
-          setState({ loading: false, error: '', data });
+          setState({ requestKey, error: '', data });
         }
       })
       .catch((error) => {
         if (!cancelled) {
-          setState({ loading: false, error: error.message, data: null });
+          setState({ requestKey, error: error.message, data: null });
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [network, hash]);
+  }, [network, hash, requestKey]);
 
   const unavailable = !getExplorerAvailability(network);
-  const tx = state.data;
+  const requestCurrent = state.requestKey === requestKey;
+  const loading = !requestCurrent;
+  const tx = requestCurrent ? state.data : null;
 
   return (
     <div className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -48,9 +50,9 @@ export default function TransactionDetails() {
         </div>
       ) : null}
 
-      {!unavailable && state.loading ? <div className="text-gray-400">Loading transaction...</div> : null}
+      {!unavailable && loading ? <div className="text-gray-400">Loading transaction...</div> : null}
 
-      {!unavailable && state.error ? (
+      {!unavailable && requestCurrent && state.error ? (
         <div className="bg-red-500/10 border border-red-500/20 text-red-200 rounded-2xl p-6">
           {state.error}
         </div>
