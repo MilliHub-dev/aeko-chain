@@ -35,11 +35,17 @@ async fn app_settings_are_durable_and_revision_guarded() -> Result<()> {
 
     let initial = repository.app_settings().await?;
     assert!(initial.revision > 0);
+    assert!(initial.network_tools_enabled);
     assert!(!initial.network_console_enabled);
+    assert!(initial.docs_enabled);
+    assert!(initial.developers_enabled);
+    assert!(initial.bridge_enabled);
     assert!(initial.nft_demo_enabled);
     assert!(!initial.nft_live_flow_enabled);
     assert!(!initial.nft_advanced_tools_enabled);
     assert!((3..=12).contains(&initial.explorer_list_size));
+    assert!((5..=50).contains(&initial.explorer_search_result_limit));
+    assert!((5..=300).contains(&initial.explorer_auto_refresh_seconds));
     assert!((10..=300).contains(&initial.settings_refresh_seconds));
 
     let expected_revision = initial.revision;
@@ -47,11 +53,17 @@ async fn app_settings_are_durable_and_revision_guarded() -> Result<()> {
         .update_app_settings(
             expected_revision,
             &AppSettingsUpdate {
+                network_tools_enabled: Some(false),
                 network_console_enabled: Some(false),
+                docs_enabled: Some(false),
+                developers_enabled: Some(false),
+                bridge_enabled: Some(false),
                 nft_demo_enabled: Some(false),
                 nft_live_flow_enabled: Some(false),
                 nft_advanced_tools_enabled: Some(false),
                 explorer_list_size: Some(9),
+                explorer_search_result_limit: Some(24),
+                explorer_auto_refresh_seconds: Some(20),
                 settings_refresh_seconds: Some(60),
                 max_ready_lag_slots_override: Some(256),
                 social_readiness_required_override: Some(false),
@@ -61,11 +73,17 @@ async fn app_settings_are_durable_and_revision_guarded() -> Result<()> {
         .context("settings update should succeed at the current revision")?;
 
     assert_eq!(updated.revision, expected_revision + 1);
+    assert!(!updated.network_tools_enabled);
     assert!(!updated.network_console_enabled);
+    assert!(!updated.docs_enabled);
+    assert!(!updated.developers_enabled);
+    assert!(!updated.bridge_enabled);
     assert!(!updated.nft_demo_enabled);
     assert!(!updated.nft_live_flow_enabled);
     assert!(!updated.nft_advanced_tools_enabled);
     assert_eq!(updated.explorer_list_size, 9);
+    assert_eq!(updated.explorer_search_result_limit, 24);
+    assert_eq!(updated.explorer_auto_refresh_seconds, 20);
     assert_eq!(updated.settings_refresh_seconds, 60);
     assert_eq!(updated.max_ready_lag_slots_override, Some(256));
     assert_eq!(updated.social_readiness_required_override, Some(false));
