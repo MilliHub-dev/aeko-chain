@@ -396,17 +396,25 @@ def main() -> int:
     require('env::var("AEKO_RPC_URL")' in cli_config, "CLI config must accept AEKO_RPC_URL")
     require('env::var("AEKO_TESTNET_RPC_URL")' in cli_config, "CLI config must accept AEKO_TESTNET_RPC_URL")
     require('"http://localhost:8899".to_string()' in cli_config, "CLI source fallback must remain local-only")
-    require("build_target operations-web" in deploy_script, "deploy helper must build Operations Web")
-    require("operations-web" in deploy_script and "docker compose" in deploy_script, "deploy helper must start Operations Web")
+    require("build_target operations-web" in deploy_script, "deploy helper must build the shared Operations image")
+    require(
+        "funding-gateway" in deploy_script
+        and "operations-web" in deploy_script
+        and "docker compose" in deploy_script,
+        "deploy helper must start isolated Funding Gateway and Admin services",
+    )
     for name in (
         "AEKO_PUBLIC_RPC_URL",
         "AEKO_PUBLIC_WS_URL",
+        "AEKO_PUBLIC_FUNDING_URL",
+    ):
+        require(name in deploy_script, f"deploy helper must expose public browser endpoint {name}")
+    for retired in (
         "AEKO_PUBLIC_EXPLORER_API_URL",
         "AEKO_PUBLIC_EXPLORER_URL",
-        "AEKO_PUBLIC_FUNDING_URL",
         "AEKO_PUBLIC_ADMIN_URL",
     ):
-        require(name in deploy_script, f"deploy helper must expose {name} through environment configuration")
+        reject(deploy_script, retired, "deploy helper")
 
     for where, text in {
         "admin env": admin_env,
