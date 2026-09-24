@@ -1,11 +1,11 @@
 // Explorer endpoint ownership has one normalized browser contract:
 //
-//   { testnet: {...}, demo: {...} }
+//   { testnet: {...}, mainnet: {...}, demo: {...} }
 //
 // Production/preview containers inject window.__AEKO_RUNTIME_CONFIG__ at
 // startup. Local Vite development receives the same shape from vite.config.js,
-// which reads only whitelisted AEKO_TESTNET_* and AEKO_DEMO_* values from .env
-// files. Production builds never bake deployment endpoints.
+// which reads only whitelisted AEKO_TESTNET_*, AEKO_MAINNET_* and AEKO_DEMO_*
+// values from .env files. Production builds never bake deployment endpoints.
 
 const injectedRuntime = globalThis.__AEKO_RUNTIME_CONFIG__ || {};
 const devRuntime = globalThis.__AEKO_DEV_RUNTIME_CONFIG__ || {};
@@ -22,25 +22,26 @@ const LOCAL_TESTNET_DEFAULTS = {
 
 const clean = (value) => String(value || '').trim();
 
-function normalizeTestnet(value) {
+function normalizeNetwork(value, { funding = false } = {}) {
   const input = value && typeof value === 'object' ? value : {};
-  return {
+  const normalized = {
     rpcUrl: clean(input.rpcUrl),
     websocketUrl: clean(input.websocketUrl),
     explorerApiUrl: clean(input.explorerApiUrl),
     explorerUrl: clean(input.explorerUrl),
-    fundingUrl: clean(input.fundingUrl),
   };
+  if (funding) normalized.fundingUrl = clean(input.fundingUrl);
+  return normalized;
 }
 
-function validateTestnet(config) {
+function validateNetwork(name, config) {
   const required = ['rpcUrl', 'websocketUrl', 'explorerApiUrl', 'explorerUrl'];
   const anyConfigured = Object.values(config).some(Boolean);
   const missing = required.filter((key) => !config[key]);
 
   if (anyConfigured && missing.length > 0) {
     throw new Error(
-      `Testnet Explorer endpoint configuration is partial. Missing: ${missing.join(', ')}.`,
+      `${name} Explorer endpoint configuration is partial. Missing: ${missing.join(', ')}.`,
     );
   }
 
@@ -59,14 +60,38 @@ function explorerLabel(url) {
   }
 }
 
-const configuredTestnet = validateTestnet(normalizeTestnet(runtime.testnet));
+const configuredTestnet = validateNetwork(
+  'Testnet',
+  normalizeNetwork(runtime.testnet, { funding: true }),
+);
+const configuredMainnet = validateNetwork(
+  'Mainnet',
+  normalizeNetwork(runtime.mainnet),
+);
+
 const useBuiltInLocalTestnet =
   Boolean(import.meta.env.DEV) && !configuredTestnet.configured;
+
 const testnet = useBuiltInLocalTestnet
   ? LOCAL_TESTNET_DEFAULTS
   : configuredTestnet.value;
+const mainnet = configuredMainnet.value;
 
 export const NETWORKS = {
+  mainnet: {
+    key: 'mainnet',
+    label: configuredMainnet.configured ? 'Mainnet' : 'Mainnet (not configured)',
+    available: configuredMainnet.configured,
+    rpcUrl: mainnet.rpcUrl,
+    websocketUrl: mainnet.websocketUrl,
+    explorerUrl: mainnet.explorerUrl,
+    explorerApiUrl: mainnet.explorerApiUrl,
+    explorerLabel: explorerLabel(mainnet.explorerUrl),
+    fundingUrl: '',
+    fundingLabel: 'No test funding on mainnet',
+    fundingEnabled: false,
+    cliCluster: mainnet.rpcUrl,
+  },
   testnet: {
     key: useBuiltInLocalTestnet ? 'localnet' : 'testnet',
     label: useBuiltInLocalTestnet
@@ -89,8 +114,8 @@ export const NETWORKS = {
   },
 };
 
-export function getNetworkConfig() {
-  return NETWORKS.testnet;
+export function getNetworkConfig(network) {
+  return NETWORKS[network] || NETWORKS.testnet;
 }
 
 export function getDemoConfig() {
