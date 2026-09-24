@@ -225,9 +225,10 @@ test('Admin section switches keep descriptions outside non-wrapping tab buttons'
 });
 
 
-test('Explorer web keeps remote runtime config in deployment env and local overrides in web env', async () => {
+test('Explorer web has one runtime endpoint configuration surface', async () => {
   const example = await source('../.env.example');
   const deploymentEnv = await source('../../../../docker/env.public.example');
+  const dockerfile = await source('../../../../docker/Dockerfile');
   const networkConfig = await source('utils/networkConfig.js');
   const demo = await source('data/nftDemoExamples.js');
   const consoleWrapper = await source('components/NetworkConsoleModal.jsx');
@@ -248,26 +249,25 @@ test('Explorer web keeps remote runtime config in deployment env and local overr
     assert.match(deploymentEnv, new RegExp(key));
   }
 
-  for (const key of [
-    'VITE_AEKO_LOCAL_RPC',
-    'VITE_AEKO_LOCAL_WS',
-    'VITE_AEKO_LOCAL_EXPLORER_API',
+  assert.match(example, /docker\/env\.public\.example/);
+  assert.doesNotMatch(example, /^[A-Z][A-Z0-9_]*=/m);
+
+  for (const sourceText of [
+    example,
+    dockerfile,
+    networkConfig,
+    demo,
+    consoleWrapper,
+    socialModal,
+    socialTest,
   ]) {
-    assert.match(example, new RegExp(key));
+    assert.doesNotMatch(sourceText, /VITE_AEKO_/);
   }
 
-  assert.doesNotMatch(example, /^AEKO_(?:PUBLIC|MAINNET|DEMO)_/m);
-
-  for (const retired of [
-    'VITE_AEKO_TESTNET_',
-    'VITE_AEKO_MAINNET_',
-    'VITE_AEKO_DEMO_',
-    'VITE_AEKO_ALLOW_REMOTE_IN_DEV',
-  ]) {
-    assert.doesNotMatch(example, new RegExp(retired));
-    assert.doesNotMatch(networkConfig, new RegExp(retired));
-  }
-
+  assert.match(networkConfig, /import\.meta\.env\.DEV/);
+  assert.match(networkConfig, /http:\/\/127\.0\.0\.1:8899/);
+  assert.match(networkConfig, /ws:\/\/127\.0\.0\.1:8900/);
+  assert.match(networkConfig, /http:\/\/127\.0\.0\.1:8088/);
   assert.match(networkConfig, /getRuntimeConfigValue\('AEKO_PUBLIC_RPC_URL'\)/);
   assert.match(demo, /getRuntimeConfigValue\('AEKO_DEMO_COLLECTION'\)/);
   assert.doesNotMatch(demo, /import\.meta\.env/);

@@ -127,15 +127,9 @@ WORKDIR /web
 COPY apps/explorer/web/package*.json ./
 RUN npm ci
 COPY apps/explorer/web/ ./
-# Production/remote Explorer endpoints are runtime configuration and are never
-# baked into the Vite bundle. These optional build args exist only for isolated
-# local/CI loopback overrides; normal images leave them empty.
-ARG VITE_AEKO_LOCAL_RPC=
-ARG VITE_AEKO_LOCAL_WS=
-ARG VITE_AEKO_LOCAL_EXPLORER_API=
-ENV VITE_AEKO_LOCAL_RPC=${VITE_AEKO_LOCAL_RPC} \
-    VITE_AEKO_LOCAL_WS=${VITE_AEKO_LOCAL_WS} \
-    VITE_AEKO_LOCAL_EXPLORER_API=${VITE_AEKO_LOCAL_EXPLORER_API}
+# Explorer endpoint configuration is runtime-only. The built Vite bundle is
+# deployment-neutral; docker/explorer-ui-entrypoint.sh writes AEKO_* values to
+# /runtime-config.js when the container starts.
 RUN npm run build
 
 FROM node:22-alpine AS explorer-ui

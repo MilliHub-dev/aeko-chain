@@ -1,14 +1,15 @@
-// Explorer endpoint ownership is intentionally simple:
+// Explorer endpoint ownership has one source per runtime:
 // - deployed/preview containers inject AEKO_* values into window.__AEKO_RUNTIME_CONFIG__
-// - local Vite development may override only the loopback RPC/WS/API trio
-// Remote Vite mirrors are intentionally unsupported. That keeps one
-// deployment source of truth for testnet, mainnet, and demo configuration.
+// - local Vite development uses fixed loopback defaults
+//
+// Endpoint-specific VITE_AEKO_* variables are intentionally unsupported. Vite
+// values are compiled into the bundle and can outlive the environment that
+// built the image, which made production deployments fragile and duplicated
+// the canonical AEKO_* runtime contract.
 
 const runtime = globalThis.__AEKO_RUNTIME_CONFIG__ || {};
-const vite = /** @type {Record<string, string | boolean | undefined>} */ (import.meta.env || {});
 
 export const getRuntimeConfigValue = (key) => String(runtime[key] || '').trim();
-const viteValue = (key) => String(vite[key] || '').trim();
 
 const browserOrigin =
   typeof globalThis.location?.origin === 'string' ? globalThis.location.origin : '';
@@ -19,31 +20,6 @@ const LOCAL_DEFAULTS = {
   explorer: 'http://127.0.0.1:4000',
   explorerApi: 'http://127.0.0.1:8088',
 };
-
-const LOCAL_OVERRIDE = {
-  rpc: viteValue('VITE_AEKO_LOCAL_RPC'),
-  ws: viteValue('VITE_AEKO_LOCAL_WS'),
-  explorerApi: viteValue('VITE_AEKO_LOCAL_EXPLORER_API'),
-};
-const localOverrideValues = Object.values(LOCAL_OVERRIDE);
-const hasAnyLocalOverride = localOverrideValues.some(Boolean);
-const hasCompleteLocalOverride = localOverrideValues.every(Boolean);
-
-if (hasAnyLocalOverride && !hasCompleteLocalOverride) {
-  throw new Error(
-    'AEKO local endpoint overrides are atomic: set local RPC, WebSocket, and Explorer API together.',
-  );
-}
-
-function isLoopbackEndpoint(value) {
-  if (!value) return false;
-  const hostname = new URL(value).hostname.toLowerCase();
-  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
-}
-
-if (hasCompleteLocalOverride && !localOverrideValues.every(isLoopbackEndpoint)) {
-  throw new Error('AEKO local endpoint overrides must be loopback endpoints.');
-}
 
 const PUBLIC_TESTNET = {
   rpc: getRuntimeConfigValue('AEKO_PUBLIC_RPC_URL'),
@@ -60,15 +36,16 @@ const hasPublicRuntime = Boolean(
   && PUBLIC_TESTNET.explorerApi,
 );
 
-const useLocalEndpoints =
-  hasCompleteLocalOverride || (Boolean(vite.DEV) && !hasPublicRuntime);
+// Vite dev is the only implicit local mode. Production/preview builds never
+// infer localhost merely because runtime configuration is missing.
+const useLocalEndpoints = Boolean(import.meta.env.DEV) && !hasPublicRuntime;
 
 const TESTNET_RUNTIME = useLocalEndpoints
   ? {
-      rpc: LOCAL_OVERRIDE.rpc || LOCAL_DEFAULTS.rpc,
-      ws: LOCAL_OVERRIDE.ws || LOCAL_DEFAULTS.ws,
+      rpc: LOCAL_DEFAULTS.rpc,
+      ws: LOCAL_DEFAULTS.ws,
       explorer: LOCAL_DEFAULTS.explorer,
-      explorerApi: LOCAL_OVERRIDE.explorerApi || LOCAL_DEFAULTS.explorerApi,
+      explorerApi: LOCAL_DEFAULTS.explorerApi,
       funding: '',
     }
   : PUBLIC_TESTNET;
@@ -79,6 +56,7 @@ const MAINNET_RUNTIME = {
   explorer: getRuntimeConfigValue('AEKO_MAINNET_EXPLORER_URL'),
   explorerApi: getRuntimeConfigValue('AEKO_MAINNET_EXPLORER_API_URL'),
 };
+
 const mainnetAvailable = Object.values(MAINNET_RUNTIME).every(Boolean);
 const testnetAvailable = Boolean(
   TESTNET_RUNTIME.rpc

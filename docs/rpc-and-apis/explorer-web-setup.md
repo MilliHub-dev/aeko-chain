@@ -39,15 +39,16 @@ Optional mainnet and AEKO-721 demo runtime values live in the same canonical dep
 
 ## Local Vite development
 
-For local development, `apps/explorer/web/.env.example` contains only the optional atomic loopback override trio:
+Local Vite development does not require endpoint environment variables. The client uses fixed loopback defaults:
 
-```bash
-VITE_AEKO_LOCAL_RPC=http://127.0.0.1:8899
-VITE_AEKO_LOCAL_WS=ws://127.0.0.1:8900
-VITE_AEKO_LOCAL_EXPLORER_API=http://127.0.0.1:8088
+```text
+RPC          http://127.0.0.1:8899
+WebSocket    ws://127.0.0.1:8900
+Explorer API http://127.0.0.1:8088
+Explorer UI  http://127.0.0.1:4000
 ```
 
-All three values must be supplied together and must remain loopback endpoints. They are optional because the same loopback ports are the local defaults. Remote previews and production both use the canonical `AEKO_*` runtime configuration; there is no second remote Vite environment family.
+`apps/explorer/web/.env.example` documents this ownership rule but intentionally contains no endpoint assignments. Remote previews and production both use the canonical `AEKO_*` runtime configuration from `docker/env.public.example`; endpoint-specific `VITE_AEKO_*` variables are unsupported.
 
 ## Boot the Explorer backend locally
 

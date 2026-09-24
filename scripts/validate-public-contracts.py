@@ -43,6 +43,7 @@ def main() -> int:
     coolify = read("docker/compose.coolify.yml")
     dokploy = read("docker/compose.dokploy.yml")
     explorer_example = read("apps/explorer/web/.env.example")
+    explorer_dockerfile = read("docker/Dockerfile")
     explorer_entrypoint = read("docker/explorer-ui-entrypoint.sh")
     network_config = read("apps/explorer/web/src/utils/networkConfig.js")
     nft_demo = read("apps/explorer/web/src/data/nftDemoExamples.js")
@@ -118,27 +119,30 @@ def main() -> int:
     ):
         require_empty_assignment(public_env, name, "docker/env.public.example")
 
-    for name in (
-        "VITE_AEKO_LOCAL_RPC",
-        "VITE_AEKO_LOCAL_WS",
-        "VITE_AEKO_LOCAL_EXPLORER_API",
-    ):
-        require(name + "=" in explorer_example, f"Explorer web env example must document {name}")
-
     require(
-        re.search(r"^AEKO_(?:PUBLIC|MAINNET|DEMO)_", explorer_example, re.MULTILINE) is None,
-        "Explorer web env example must remain local-only; remote AEKO_* values belong in docker/env.public.example",
+        "docker/env.public.example" in explorer_example,
+        "Explorer web env example must point operators to the canonical deployment env",
+    )
+    require(
+        re.search(r"^[A-Z][A-Z0-9_]*=", explorer_example, re.MULTILINE) is None,
+        "Explorer web env example must not define a second endpoint configuration surface",
     )
 
-    for retired in (
-        "VITE_AEKO_TESTNET_",
-        "VITE_AEKO_MAINNET_",
-        "VITE_AEKO_DEMO_",
-        "VITE_AEKO_ALLOW_REMOTE_IN_DEV",
+    for where, text in (
+        ("Explorer web env example", explorer_example),
+        ("Explorer network config", network_config),
+        ("Explorer NFT demo config", nft_demo),
+        ("Explorer Dockerfile", explorer_dockerfile),
     ):
-        reject(explorer_example, retired, "Explorer web env example")
-        reject(network_config, retired, "Explorer network config")
-        reject(nft_demo, retired, "Explorer NFT demo config")
+        reject(text, "VITE_AEKO_", where)
+
+    require(
+        "import.meta.env.DEV" in network_config
+        and "http://127.0.0.1:8899" in network_config
+        and "ws://127.0.0.1:8900" in network_config
+        and "http://127.0.0.1:8088" in network_config,
+        "Explorer local Vite mode must use fixed loopback defaults without endpoint env duplication",
+    )
 
     for name in (
         "AEKO_PUBLIC_RPC_URL",
