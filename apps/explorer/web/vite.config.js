@@ -29,7 +29,7 @@ function hasAnyValue(config) {
 export default defineConfig(({ command, mode }) => {
   const env = command === 'serve' ? loadEnv(mode, process.cwd(), '') : {}
 
-  const testnet = networkFromEnv(env, 'AEKO_TESTNET', { funding: true })
+  const testnet = networkFromEnv(env, 'AEKO_PUBLIC', { funding: true })
   const mainnet = networkFromEnv(env, 'AEKO_MAINNET')
   const demo = {
     rpcUrl: clean(env.AEKO_DEMO_RPC_URL),
