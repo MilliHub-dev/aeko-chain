@@ -280,6 +280,7 @@ test('Explorer web keeps Testnet and Mainnet as the supported network contract',
   assert.match(networkTools, /NetworkToggle/);
   assert.match(networkTools, /requestedNetwork/);
   assert.match(networkTools, /setNetwork/);
+  assert.match(networkTools, /network === 'testnet' && settings\.networkConsoleEnabled/);
 
   assert.match(entrypoint, /const config = \{ testnet, mainnet, demo \}/);
   assert.match(entrypoint, /AEKO_MAINNET_RPC_URL/);
