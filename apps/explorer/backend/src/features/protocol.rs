@@ -253,7 +253,7 @@ fn inspect_protocol(
     } else if !registry_complete {
         "registryIncomplete"
     } else if registry_genesis_hash.is_none() {
-        "legacyRegistry"
+        "registryMetadataMissing"
     } else if !genesis_matches {
         "genesisMismatch"
     } else if features_healthy && programs_healthy && states_healthy && accounts_healthy {
