@@ -78,7 +78,7 @@ export default function AccountPage() {
   const tabs = ['txs', 'nfts', 'posts', 'stakes', 'rewards'] as const
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <div className="flex items-center gap-3">
         <button onClick={() => router.back()} className="text-gray-500 hover:text-white transition-colors text-sm">← Back</button>
         <div>
@@ -114,6 +114,7 @@ export default function AccountPage() {
 
       {tab === 'txs' && (
         <DataTable
+          paginationLabel="transactions"
           columns={['Signature', 'Slot', 'Status', 'Fee', 'Program']}
           rows={(data?.recentTransactions ?? []).map((tx) => [
             tx.signature.slice(0, 14) + '…',
@@ -127,6 +128,7 @@ export default function AccountPage() {
       )}
       {tab === 'nfts' && (
         <DataTable
+          paginationLabel="NFTs"
           columns={['Token', 'Name', 'Collection']}
           rows={(data?.nftHoldings ?? []).map((n) => [n.tokenId.slice(0, 12) + '…', n.name, shortAddr(n.collection)])}
           empty="No NFTs"
@@ -134,6 +136,7 @@ export default function AccountPage() {
       )}
       {tab === 'posts' && (
         <DataTable
+          paginationLabel="posts"
           columns={['Post ID', 'Kind', 'Date']}
           rows={posts.map((p) => [p.postId.slice(0, 12) + '…', p.postKind, new Date(p.createdAtUnix * 1000).toLocaleDateString()])}
           empty="No posts"
@@ -141,6 +144,7 @@ export default function AccountPage() {
       )}
       {tab === 'stakes' && (
         <DataTable
+          paginationLabel="stake positions"
           columns={['Creator', 'Staked', 'State']}
           rows={stakes.map((s) => [
             shortAddr(s.creator),
@@ -152,6 +156,7 @@ export default function AccountPage() {
       )}
       {tab === 'rewards' && (
         <DataTable
+          paginationLabel="reward epochs"
           columns={['Epoch', 'Earned', 'Claimable']}
           rows={rewards.map((r) => [r.epoch, fmtAeko(r.rewardAmount), <span key={r.epoch} className="text-emerald-400">{fmtAeko(r.claimableAmount)}</span>])}
           empty="No rewards"
