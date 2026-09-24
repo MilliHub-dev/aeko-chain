@@ -314,25 +314,21 @@ print(f"[ok] ledger restart preserved finalized genesis, account state and trans
 PY
 
 run_social_bootstrap() {
-  local allow_missing_state="${1:-0}"
-  local reset_ledger="${2:-0}"
+  local reset_ledger="${1:-0}"
   AEKO_RPC_URL="$RPC_URL" \
   AEKO_PAYER_KEYPAIR="$LEDGER_DIR/faucet-keypair.json" \
   AEKO_BOOTSTRAP_OUT_DIR="$SOCIAL_STATE_DIR" \
-  AEKO_BOOTSTRAP_ALLOW_MISSING_STATE="$allow_missing_state" \
   AEKO_RESET_LEDGER="$reset_ledger" \
   target/debug/aeko-social-bootstrap
 }
 
 run_protocol_bootstrap() {
-  local allow_missing_state="${1:-0}"
-  local reset_ledger="${2:-0}"
+  local reset_ledger="${1:-0}"
   AEKO_RPC_URL="$RPC_URL" \
   AEKO_PAYER_KEYPAIR="$LEDGER_DIR/faucet-keypair.json" \
   AEKO_PROTOCOL_AUTHORITY_KEYPAIR="$AUTHORITY_KEYPAIR" \
   AEKO_PROTOCOL_OUT_DIR="$STATE_DIR" \
   AEKO_PROTOCOL_CONTINUITY_DIR="$CONTINUITY_DIR" \
-  AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE="$allow_missing_state" \
   AEKO_RESET_LEDGER="$reset_ledger" \
   target/debug/aeko-protocol-bootstrap
 }
@@ -366,8 +362,8 @@ assert_registry_bound() {
 # initialize automatically, then a normal redeploy must verify without changing
 # canonical registry identity.
 GENESIS_ONE="$(rpc_value getGenesisHash)"
-run_social_bootstrap 0 0
-run_protocol_bootstrap 0 0
+run_social_bootstrap 0
+run_protocol_bootstrap 0
 assert_registry_bound "$SOCIAL_STATE_DIR/social-registry.env" "$GENESIS_ONE"
 assert_registry_bound "$STATE_DIR/protocol-registry.env" "$GENESIS_ONE"
 cmp "$STATE_DIR/protocol-registry.env" "$CONTINUITY_DIR/protocol-registry.anchor"
@@ -377,8 +373,8 @@ test ! -e "$CONTINUITY_DIR/.aeko-bootstrap-in-progress"
 
 cp "$SOCIAL_STATE_DIR/social-registry.env" "$SOCIAL_REGISTRY_BASELINE"
 cp "$STATE_DIR/protocol-registry.env" "$REGISTRY_BASELINE"
-run_social_bootstrap 0 0
-run_protocol_bootstrap 0 0
+run_social_bootstrap 0
+run_protocol_bootstrap 0
 cmp "$SOCIAL_REGISTRY_BASELINE" "$SOCIAL_STATE_DIR/social-registry.env"
 cmp "$REGISTRY_BASELINE" "$STATE_DIR/protocol-registry.env"
 cmp "$STATE_DIR/protocol-registry.env" "$CONTINUITY_DIR/protocol-registry.anchor"
@@ -389,7 +385,7 @@ echo "[ok] normal redeploy preserved Social and Protocol canonical identity"
 # control plane may silently bless that replacement during a normal redeploy.
 cp -a "$SOCIAL_STATE_DIR" "$WORK_DIR/social-state.before-corruption"
 rm "$SOCIAL_STATE_DIR/social-posts-state.json"
-if run_social_bootstrap 0 0; then
+if run_social_bootstrap 0; then
   echo "Social bootstrap unexpectedly accepted missing established same-genesis state" >&2
   exit 1
 fi
@@ -399,7 +395,7 @@ cp -a "$WORK_DIR/social-state.before-corruption" "$SOCIAL_STATE_DIR"
 cp -a "$STATE_DIR" "$WORK_DIR/protocol-state.before-corruption"
 cp -a "$CONTINUITY_DIR" "$WORK_DIR/protocol-continuity.before-corruption"
 rm "$CONTINUITY_DIR/tokenomics-state.json"
-if run_protocol_bootstrap 0 0; then
+if run_protocol_bootstrap 0; then
   echo "Protocol bootstrap unexpectedly accepted missing established same-genesis state" >&2
   exit 1
 fi
@@ -423,8 +419,8 @@ fi
 printf '%s\n' "stale-state" >"$SOCIAL_STATE_DIR/stale-before-reset"
 printf '%s\n' "stale-state" >"$STATE_DIR/stale-before-reset"
 printf '%s\n' "stale-continuity" >"$CONTINUITY_DIR/stale-before-reset"
-run_social_bootstrap 0 1
-run_protocol_bootstrap 0 1
+run_social_bootstrap 1
+run_protocol_bootstrap 1
 test ! -e "$SOCIAL_STATE_DIR/stale-before-reset"
 test ! -e "$STATE_DIR/stale-before-reset"
 test ! -e "$CONTINUITY_DIR/stale-before-reset"
@@ -434,8 +430,8 @@ cmp "$STATE_DIR/protocol-registry.env" "$CONTINUITY_DIR/protocol-registry.anchor
 
 cp "$SOCIAL_STATE_DIR/social-registry.env" "$SOCIAL_REGISTRY_BASELINE"
 cp "$STATE_DIR/protocol-registry.env" "$REGISTRY_BASELINE"
-run_social_bootstrap 0 1
-run_protocol_bootstrap 0 1
+run_social_bootstrap 1
+run_protocol_bootstrap 1
 cmp "$SOCIAL_REGISTRY_BASELINE" "$SOCIAL_STATE_DIR/social-registry.env"
 cmp "$REGISTRY_BASELINE" "$STATE_DIR/protocol-registry.env"
 echo "[ok] explicit reset replaced foreign-chain state once and is same-genesis idempotent"
@@ -443,8 +439,8 @@ echo "[ok] explicit reset replaced foreign-chain state once and is same-genesis 
 # The operator must be able to return AEKO_RESET_LEDGER to zero immediately
 # after accepting the replacement chain. Routine redeploy keeps the replacement
 # genesis and all canonical identities.
-run_social_bootstrap 0 0
-run_protocol_bootstrap 0 0
+run_social_bootstrap 0
+run_protocol_bootstrap 0
 cmp "$SOCIAL_REGISTRY_BASELINE" "$SOCIAL_STATE_DIR/social-registry.env"
 cmp "$REGISTRY_BASELINE" "$STATE_DIR/protocol-registry.env"
 echo "[ok] replacement chain remains stable after reset flag returns to zero"
@@ -471,8 +467,8 @@ AEKO_CHAIN_GENESIS_HASH=$GENESIS_THREE
 EOF
 done
 
-run_social_bootstrap 0 0
-run_protocol_bootstrap 0 0
+run_social_bootstrap 0
+run_protocol_bootstrap 0
 assert_registry_bound "$SOCIAL_STATE_DIR/social-registry.env" "$GENESIS_THREE"
 assert_registry_bound "$STATE_DIR/protocol-registry.env" "$GENESIS_THREE"
 cmp "$STATE_DIR/protocol-registry.env" "$CONTINUITY_DIR/protocol-registry.anchor"
