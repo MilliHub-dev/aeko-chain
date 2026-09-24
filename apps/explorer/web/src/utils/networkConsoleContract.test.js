@@ -19,7 +19,7 @@ test('active test console delegates to the end-to-end implementation', async () 
   assert.match(implementation, /fetchWalletProfile/);
   assert.match(implementation, /fetchSocialStatus/);
   assert.match(implementation, /fetchSocialProjection/);
-  assert.match(implementation, /requestFundingGrant/);
+  assert.match(implementation, /requestConsoleAirdrop/);
   assert.doesNotMatch(implementation, /requestAirdrop|requestTestnetFunding/);
   assert.match(implementation, /buildSignedTransfer/);
   assert.match(implementation, /buildSignedAnchorPostTx/);
@@ -115,7 +115,7 @@ test('social payout actions preflight live program-owned vault liquidity', async
 });
 
 
-test('accounts workspace funds an unfunded wallet only through the policy-controlled Gateway', async () => {
+test('accounts workspace keeps public funding approval separate from direct Test Console airdrops', async () => {
   const implementation = await source('components/NetworkConsoleModalV2.jsx');
   const funding = await source('components/TestnetFundingRequest.jsx');
   const networkTools = await source('pages/NetworkTools.jsx');
@@ -123,17 +123,54 @@ test('accounts workspace funds an unfunded wallet only through the policy-contro
   assert.match(implementation, /profileIssue\?\.status === 404/);
   assert.match(implementation, /Not funded yet/);
   assert.match(implementation, /Local wallet only/);
-  assert.match(implementation, /Request test AEKO/);
+  assert.match(implementation, /Test Console airdrop/);
+  assert.match(implementation, /Request airdrop/);
   assert.match(implementation, /hasSpendableBalance/);
-  assert.match(implementation, /requestFundingGrant\(fundingUrl, wallet\.address\)/);
+  assert.match(implementation, /requestConsoleAirdrop\(fundingUrl, wallet\.address, value\)/);
+  assert.match(implementation, /lg:grid-cols-2/);
   assert.doesNotMatch(implementation, /\brequestAirdrop\b|\brequestTestnetFunding\b|FUNDING_GATEWAY_KEY/);
   assert.match(networkTools, /fundingUrl=\{config\.fundingUrl\}/);
 
   assert.match(networkTools, /<TestnetFundingRequest fundingUrl=\{config\.fundingUrl\} \/>/);
   assert.match(funding, /Your AEKO wallet address/);
-  assert.match(funding, /requestFundingGrant\(fundingUrl, address\.trim\(\)\)/);
+  assert.match(funding, /operator approval/i);
+  assert.match(funding, /requestFundingApproval\(fundingUrl, address\.trim\(\)\)/);
 });
 
+
+test('funding API URLs resolve from the configured origin and reject HTML 200 responses', async () => {
+  const rpcClient = await source('utils/aekoRpcClient.js');
+
+  assert.match(rpcClient, /base\.origin/);
+  assert.match(rpcClient, /new URL\(path,/);
+  assert.match(rpcClient, /content-type/);
+  assert.match(rpcClient, /non-JSON/);
+  assert.match(rpcClient, /requestFundingApproval/);
+  assert.match(rpcClient, /requestConsoleAirdrop/);
+  assert.match(rpcClient, /requestConsoleAirdrop\(config\.fundingUrl, address, lamportsToAeko\(lamports\)\)/);
+});
+
+
+test('Operations Web separates public approval requests from direct Test Console airdrops', async () => {
+  const store = await source('../../../admin/src/lib/funding-store.ts');
+  const publicRoute = await source('../../../admin/src/app/api/funding/request/route.ts');
+  const consoleRoute = await source('../../../admin/src/app/api/funding/airdrop/route.ts');
+  const adminRoute = await source('../../../admin/src/app/api/admin/funding/requests/route.ts');
+
+  assert.match(store, /requestFundingApproval/);
+  assert.match(store, /decideFundingRequest/);
+  assert.match(store, /status: 'pending'/);
+  assert.match(store, /source: 'console'/);
+  assert.match(store, /FUNDING_MAX_CONSOLE_AIRDROP_AEKO/);
+  assert.match(publicRoute, /requestFundingApproval\(address\)/);
+  assert.match(publicRoute, /status: 202/);
+  assert.doesNotMatch(publicRoute, /requestAirdrop/);
+  assert.match(consoleRoute, /source: 'console'/);
+  assert.match(consoleRoute, /throttle\(clientIp\(req\.headers\)\)/);
+  assert.match(adminRoute, /decideFundingRequest/);
+  assert.match(adminRoute, /approve/);
+  assert.match(adminRoute, /reject/);
+});
 
 test('production Explorer endpoint configuration is runtime-injected rather than domain-hardcoded', async () => {
   const networkConfig = await source('utils/networkConfig.js');
