@@ -111,7 +111,6 @@ AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
 AEKO_REQUIRE_EXISTING_LEDGER=1
 AEKO_ALLOW_CHAIN_KEY_GENERATION=0   # Coolify; enable only for intentional first boot
-AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0
 AEKO_PUBLIC_RPC_URL=<public JSON-RPC URL>
 AEKO_PUBLIC_WS_URL=<public PubSub WebSocket URL>
 AEKO_PUBLIC_EXPLORER_API_URL=<public Explorer REST API URL>
@@ -290,7 +289,7 @@ AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
 ```
 
-Create `/data/aeko/keys` on the deployment host before the first deploy and preserve the validator, vote, stake and faucet keypairs there. The protocol authority is generated only while no established protocol registry exists. On an established chain, missing chain keys or a missing established protocol authority are fatal instead of being silently replaced. Coolify's Compose definition remains the source of truth for the `validator-ledger` and `social-state` named volumes. The full variable set is in `docker/env.public.example`.
+Create `/data/aeko/keys` on the deployment host before the first deploy and preserve the validator, vote, stake and faucet keypairs there. The protocol authority is generated automatically only while no established protocol registry or continuity anchor exists. On an established chain, missing chain keys or a missing established protocol authority are fatal instead of being silently replaced. Coolify's Compose definition remains the source of truth for the `validator-ledger` and `social-state` named volumes. The full variable set is in `docker/env.public.example`.
 
 Configure domains to the same internal services:
 
@@ -313,7 +312,6 @@ For every normal public redeploy keep:
 AEKO_RESET_LEDGER=0
 AEKO_REQUIRE_EXISTING_LEDGER=1
 AEKO_ALLOW_CHAIN_KEY_GENERATION=0
-AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0
 ```
 
 The validator now refuses to create a replacement genesis when an established deployment unexpectedly sees an empty/wrong ledger mount. Coolify likewise refuses to manufacture replacement validator/vote/stake/faucet identities on a normal redeploy. This protects against Compose project/resource renames that would otherwise resolve `validator-ledger` to a new empty Docker volume.
@@ -359,12 +357,9 @@ The webhook also does not choose the Compose path. A Coolify resource must point
 
 Post-genesis native builtins are introduced through explicit runtime feature activation rather than unconditional mutation of historical Banks. The public stack therefore keeps `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` by default.
 
-For an existing chain, first deploy the compatible validator and prove unchanged genesis/history/slot continuity. Then activate:
+For fresh genesis and reset-to-genesis deployments, AEKO Protocol is mandatory. Genesis activates the AEKO protocol runtime features automatically and the protocol bootstrap runs idempotently on every deployment. No protocol enable/activation lifecycle environment variables are required.
 
-- `aeko_token_programs_v1`: `Ca5Lhktqd4epk3DDqsp7azXAunK3KZ8ZxeykU81oUUHT`
-- `aeko_permission_layer_v1`: `KBq8JBrCEbWJ6S2NXpcBvQDvt7J6hUZW3i61zzzZWxF`
-
-with their matching offline feature keypairs. Wait for both features to become active at an epoch boundary. For the intentional first canonical-state initialization, set `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=1` and `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1`, run the one-shot protocol bootstrap, verify acceptance, then immediately return `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=0`.
+The legacy feature-activation helper remains only for history-preserving migration of a chain whose genesis predates the protocol builtins. See `docs/operations/protocol-upgrades.md`.
 
 The complete backup, activation, rollback and validation procedure is in [`docs/operations/protocol-upgrades.md`](./docs/operations/protocol-upgrades.md).
 

@@ -30,7 +30,7 @@ python3 scripts/validate-deployment-contract.py
 
 The two public Compose files intentionally share service names, images, ports, health checks and dependency ordering. Platform-specific differences should stay limited to deployment concerns such as storage parsing and platform routing.
 
-Dokploy keeps `AEKO_KEYS_DIR` configurable as an absolute host path. Coolify deliberately does not parameterize key bind sources: `compose.coolify.yml` binds the literal host path `/data/aeko/keys` and uses a Docker-managed `validator-ledger` volume so its storage validator never sees `${...}` in a volume source. On public deployments, normal redeploys fail closed if the established ledger or persistent authority material is missing. Coolify chain-key generation requires the explicit first-boot flag `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`; protocol-authority creation on either public platform requires `AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1` only for its intentional first creation.
+Dokploy keeps `AEKO_KEYS_DIR` configurable as an absolute host path. Coolify deliberately does not parameterize key bind sources: `compose.coolify.yml` binds the literal host path `/data/aeko/keys` and uses a Docker-managed `validator-ledger` volume so its storage validator never sees `${...}` in a volume source. On public deployments, normal redeploys fail closed if the established ledger or persistent authority material is missing. Coolify chain-key generation still requires the explicit first-boot flag `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`. AEKO Protocol itself is mandatory: when no established protocol registry exists, the shared key preflight creates the protocol authority automatically and the idempotent protocol bootstrap establishes canonical state.
 
 ## CI release boundary
 
