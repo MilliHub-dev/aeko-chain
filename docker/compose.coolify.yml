@@ -257,7 +257,10 @@ services:
         source: social-state
         target: /state
         read_only: true
-      - protocol-state:/protocol-state:ro
+      - type: volume
+        source: protocol-state
+        target: /protocol-state
+        read_only: true
     depends_on:
       validator:
         condition: service_healthy
