@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 
 type Policy = {
   enabled: boolean
@@ -8,8 +7,6 @@ type Policy = {
   cooldownHours: number
   dailyBudgetAeko: number
   dailyRemainingAeko: number
-  explorerUrl: string
-  adminUrl?: string
 }
 
 type Result =
@@ -64,22 +61,9 @@ export default function PublicFundingPage() {
           <div className="text-emerald-400 font-bold text-lg tracking-wide">AEKO Chain</div>
           <div className="text-gray-500 text-xs">Testnet funding</div>
         </div>
-        <nav className="flex items-center gap-4 text-sm">
-          {policy && (
-            <a href={policy.explorerUrl} className="text-gray-400 hover:text-white" target="_blank" rel="noreferrer">
-              Explorer
-            </a>
-          )}
-          {policy?.adminUrl ? (
-            <a href={`${policy.adminUrl}/login`} className="text-gray-500 hover:text-white">
-              Operator sign-in
-            </a>
-          ) : (
-            <Link href="/login" className="text-gray-500 hover:text-white">
-              Operator sign-in
-            </Link>
-          )}
-        </nav>
+        <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+          Public testnet service
+        </div>
       </header>
 
       <main className="flex-1 flex items-start justify-center p-6">
@@ -87,7 +71,7 @@ export default function PublicFundingPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">Get test AEKO</h1>
             <p className="text-gray-500 text-sm mt-1">
-              Request testnet AEKO for trying Aeko. An operator reviews and releases approved requests from the Admin Console.
+              Request testnet AEKO for development and testing. Approved requests are released by an operator through a separate private control plane.
             </p>
           </div>
 
