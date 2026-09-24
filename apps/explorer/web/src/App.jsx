@@ -38,9 +38,9 @@ function ConfiguredApp() {
         <ScrollToTop />
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/docs" element={<Docs />} />
+          <Route path="/docs" element={optionalRoute(settings.docsEnabled, <Docs />)} />
           <Route path="/token" element={<Token />} />
-          <Route path="/developers" element={<Developers />} />
+          <Route path="/developers" element={optionalRoute(settings.developersEnabled, <Developers />)} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/explorer" element={<Explorer />} />
           <Route path="/explorer/tx/:hash" element={<TransactionDetails />} />
@@ -51,11 +51,17 @@ function ConfiguredApp() {
           <Route path="/explorer/nft/:tokenId" element={<ExplorerNft />} />
           <Route path="/explorer/token/:mint" element={<ExplorerToken />} />
           <Route path="/explorer/collection/:collectionId" element={<ExplorerCollection />} />
-          <Route path="/bridge" element={<Bridge />} />
-          <Route path="/network-tools" element={<NetworkTools />} />
+          <Route path="/bridge" element={optionalRoute(settings.bridgeEnabled, <Bridge />)} />
+          <Route
+            path="/network-tools"
+            element={optionalRoute(settings.networkToolsEnabled, <NetworkTools />)}
+          />
           <Route
             path="/network-tools/social-e2e"
-            element={optionalRoute(settings.networkConsoleEnabled, <SocialTest />)}
+            element={optionalRoute(
+              settings.networkToolsEnabled && settings.networkConsoleEnabled,
+              <SocialTest />,
+            )}
           />
           <Route path="/faucet" element={<Navigate to="/network-tools" replace />} />
           <Route
