@@ -13,7 +13,7 @@ type Policy = {
 }
 
 type Result =
-  | { kind: 'ok'; signature: string; amountAeko: number; confirmed: boolean; explorerUrl: string }
+  | { kind: 'ok'; id: string; amountAeko: number; status: string; explorerUrl: string | null }
   | { kind: 'error'; message: string }
 
 const ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
@@ -49,7 +49,6 @@ export default function PublicFundingPage() {
         setResult({ kind: 'error', message: json.error?.message ?? 'Request failed' })
       } else {
         setResult({ kind: 'ok', ...json.data })
-        setPolicy((p) => (p ? { ...p, dailyRemainingAeko: Math.max(0, p.dailyRemainingAeko - json.data.amountAeko) } : p))
       }
     } catch {
       setResult({ kind: 'error', message: 'Could not reach the funding service. Try again in a moment.' })
@@ -88,7 +87,7 @@ export default function PublicFundingPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">Get test AEKO</h1>
             <p className="text-gray-500 text-sm mt-1">
-              Testnet tokens for trying Aeko. They have no monetary value and the chain may be reset.
+              Request testnet AEKO for trying Aeko. An operator reviews and releases approved requests from the Admin Console.
             </p>
           </div>
 
@@ -118,17 +117,19 @@ export default function PublicFundingPage() {
                 disabled={busy || !valid || !policy || !policy.enabled}
                 className="w-full py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-semibold transition-colors text-sm"
               >
-                {busy ? 'Sending…' : policy ? `Send me ${policy.amountAeko} AEKO` : 'Loading…'}
+                {busy ? 'Submitting…' : policy ? `Request ${policy.amountAeko} AEKO` : 'Loading…'}
               </button>
             </form>
 
             {result?.kind === 'ok' && (
               <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 space-y-1">
                 <div className="text-emerald-400 text-sm font-semibold">
-                  {result.confirmed ? `✓ ${result.amountAeko} AEKO sent` : `${result.amountAeko} AEKO submitted — confirming…`}
+                  ✓ Funding request submitted for operator approval
                 </div>
-                <div className="text-gray-500 text-xs">Transaction</div>
-                <div className="mono text-xs text-gray-300 break-all">{result.signature}</div>
+                <div className="text-gray-500 text-xs">Requested amount</div>
+                <div className="text-sm text-gray-300">{result.amountAeko} AEKO</div>
+                <div className="text-gray-500 text-xs mt-2">Request ID</div>
+                <div className="mono text-xs text-gray-300 break-all">{result.id}</div>
                 <a href={result.explorerUrl} target="_blank" rel="noreferrer" className="inline-block text-xs text-emerald-400 hover:underline mt-1">
                   View wallet on the explorer →
                 </a>
@@ -157,7 +158,7 @@ export default function PublicFundingPage() {
           )}
 
           <p className="text-xs text-gray-600">
-            In the Aeko app, Wallet → “Get test AEKO” should link to this Funding Portal.
+            Public funding requests require operator approval. Developer Test Console airdrops are handled separately and do not use this approval queue.
           </p>
         </div>
       </main>
