@@ -19,9 +19,9 @@ test('resolveOwnedPersona never promotes a viewed external address to signer', (
 });
 
 test('closing console removes all nested social state without touching network', () => {
-  const input = new URLSearchParams('network=mainnet&console=1&tab=social&social=post&post=p1&dialog=tip&target=p1&persona=w1');
+  const input = new URLSearchParams('network=testnet&console=1&tab=social&social=post&post=p1&dialog=tip&target=p1&persona=w1');
   const next = applyConsoleNavigation(input, { consoleOpen: false });
-  assert.equal(next.get('network'), 'mainnet');
+  assert.equal(next.get('network'), 'testnet');
   assert.equal(next.has('console'), false);
   assert.equal(next.has('tab'), false);
   SOCIAL_QUERY_KEYS.forEach((key) => assert.equal(next.has(key), false, key));
