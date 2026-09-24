@@ -512,7 +512,7 @@ def main() -> int:
     ]
     coolify_service_positions = []
     for service in coolify_ordered:
-        match = re.search(rf"^  {re.escape(service)}:\\s*$", coolify, re.MULTILINE)
+        match = re.search(rf"^  {re.escape(service)}:\s*$", coolify, re.MULTILINE)
         require(match is not None, f"Coolify compose missing top-level service {service}")
         coolify_service_positions.append(match.start())
     require(
