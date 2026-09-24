@@ -311,20 +311,29 @@ print(f"[ok] ledger restart preserved finalized genesis, account state and trans
 PY
 
 run_bootstrap() {
+  local allow_missing_state="${1:-0}"
+  local reset_ledger="${2:-0}"
   AEKO_RPC_URL="$RPC_URL" \
   AEKO_PAYER_KEYPAIR="$LEDGER_DIR/faucet-keypair.json" \
   AEKO_PROTOCOL_AUTHORITY_KEYPAIR="$AUTHORITY_KEYPAIR" \
   AEKO_PROTOCOL_OUT_DIR="$STATE_DIR" \
   AEKO_PROTOCOL_CONTINUITY_DIR="$CONTINUITY_DIR" \
-  AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE="${1:-0}" \
+  AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE="$allow_missing_state" \
+  AEKO_RESET_LEDGER="$reset_ledger" \
   target/debug/aeko-protocol-bootstrap
 }
 
-# First bootstrap is automatic. A second normal run must be idempotent.
-run_bootstrap 0
+# Exercise the new reset wiring against the live validator. Stale files from a
+# previous genesis must be removed once, while a second run for the same genesis
+# must preserve the canonical registry and continuity identities.
+printf '%s\n' "stale-state" >"$STATE_DIR/stale-before-reset"
+printf '%s\n' "stale-continuity" >"$CONTINUITY_DIR/stale-before-reset"
+run_bootstrap 0 1
+test ! -e "$STATE_DIR/stale-before-reset"
+test ! -e "$CONTINUITY_DIR/stale-before-reset"
 cp "$STATE_DIR/protocol-registry.env" "$REGISTRY_BASELINE"
 cmp "$STATE_DIR/protocol-registry.env" "$CONTINUITY_DIR/protocol-registry.anchor"
-run_bootstrap 0
+run_bootstrap 0 1
 cmp "$REGISTRY_BASELINE" "$STATE_DIR/protocol-registry.env"
 cmp "$STATE_DIR/protocol-registry.env" "$CONTINUITY_DIR/protocol-registry.anchor"
 
@@ -384,6 +393,7 @@ AEKO_EXPLORER_REQUEST_TIMEOUT_SECS=30 \
 AEKO_EXPLORER_MAX_BODY_BYTES=1048576 \
 AEKO_EXPLORER_SYNC_INTERVAL_SECS=1 \
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=protocol-ci-settings-admin-token-123456789 \
+AEKO_RESET_LEDGER=1 \
 AEKO_PROTOCOL_REGISTRY_FILE="$STATE_DIR/protocol-registry.env" \
 AEKO_SOCIAL_REGISTRY_FILE="$WORK_DIR/social-registry.env" \
 target/debug/aeko-explorer-backend >"$EXPLORER_LOG" 2>&1 &

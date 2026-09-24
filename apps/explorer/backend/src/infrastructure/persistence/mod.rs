@@ -59,10 +59,12 @@ impl PostgresRepository {
         if !requested {
             return Ok(false);
         }
-        if self.chain_identity().await?
-            == Some((network.to_string(), genesis_hash.to_string()))
-        {
-            tracing::info!(network, genesis_hash, "Explorer PostgreSQL reset already applied for this genesis");
+        if self.chain_identity().await? == Some((network.to_string(), genesis_hash.to_string())) {
+            tracing::info!(
+                network,
+                genesis_hash,
+                "Explorer PostgreSQL reset already applied for this genesis"
+            );
             return Ok(false);
         }
 

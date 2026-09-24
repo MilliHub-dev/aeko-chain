@@ -192,7 +192,7 @@ key-bootstrap creates/validates persistent keys and exits 0
               -> explorer-ui healthy
 ```
 
-Explorer API/UI remain available for diagnostics if either mandatory bootstrap fails. The Explorer loads the generated Social and Protocol registries dynamically; `/social/status` and `/protocol/status` remain incomplete until their corresponding canonical on-chain state is valid. Routability therefore does not convert a failed Aeko Social or AEKO Protocol bootstrap into a successful network deployment.
+Explorer API/UI remain available in a degraded state for diagnostics if either mandatory bootstrap fails. The Explorer loads the generated Social and Protocol registries dynamically; `/social/status` and `/protocol/status` remain incomplete until their corresponding canonical on-chain state is valid. Routability therefore does not convert a failed Aeko Social or AEKO Protocol bootstrap into a successful network deployment.
 
 Bootstrap remains safe for a normal redeploy because it does not send another Initialize instruction when the persisted key resolves to an initialized account owned by the expected SocialFi program. Wrong-owner, malformed or unexpectedly missing state on an established chain fails closed.
 

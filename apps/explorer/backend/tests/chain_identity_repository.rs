@@ -57,16 +57,20 @@ async fn postgres_is_permanently_bound_to_one_network_and_genesis() -> Result<()
         .await;
     assert!(wrong_network.is_err());
 
-    assert!(repository
-        .reset_for_chain_if_requested("test", "replacement-genesis", true)
-        .await?);
+    assert!(
+        repository
+            .reset_for_chain_if_requested("test", "replacement-genesis", true)
+            .await?
+    );
     assert_eq!(repository.chain_identity().await?, None);
     repository
         .bind_chain_identity("test", "replacement-genesis")
         .await?;
-    assert!(!repository
-        .reset_for_chain_if_requested("test", "replacement-genesis", true)
-        .await?);
+    assert!(
+        !repository
+            .reset_for_chain_if_requested("test", "replacement-genesis", true)
+            .await?
+    );
 
     Ok(())
 }

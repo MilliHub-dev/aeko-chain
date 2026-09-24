@@ -238,11 +238,20 @@ mod tests {
     #[test]
     fn missing_protocol_registry_is_expected_only_for_not_found() {
         let missing = Error::from(ErrorKind::NotFound);
-        assert!(expected_missing_registry(PROTOCOL_REGISTRY_FILE_ENV, &missing));
-        assert!(!expected_missing_registry(SOCIAL_REGISTRY_FILE_ENV, &missing));
+        assert!(expected_missing_registry(
+            PROTOCOL_REGISTRY_FILE_ENV,
+            &missing
+        ));
+        assert!(!expected_missing_registry(
+            SOCIAL_REGISTRY_FILE_ENV,
+            &missing
+        ));
 
         let denied = Error::from(ErrorKind::PermissionDenied);
-        assert!(!expected_missing_registry(PROTOCOL_REGISTRY_FILE_ENV, &denied));
+        assert!(!expected_missing_registry(
+            PROTOCOL_REGISTRY_FILE_ENV,
+            &denied
+        ));
     }
 
     #[test]
