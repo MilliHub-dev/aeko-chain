@@ -107,11 +107,6 @@ def main() -> int:
     )
 
     for name in (
-        "AEKO_PUBLIC_RPC_URL",
-        "AEKO_PUBLIC_WS_URL",
-        "AEKO_PUBLIC_EXPLORER_API_URL",
-        "AEKO_PUBLIC_EXPLORER_URL",
-        "AEKO_PUBLIC_FUNDING_URL",
         "AEKO_MAINNET_RPC_URL",
         "AEKO_MAINNET_WS_URL",
         "AEKO_MAINNET_EXPLORER_API_URL",
@@ -121,7 +116,7 @@ def main() -> int:
         "AEKO_DEMO_TOKEN",
         "AEKO_DEMO_METADATA_URI",
     ):
-        require_empty_assignment(explorer_example, name, "Explorer web env example")
+        require_empty_assignment(public_env, name, "docker/env.public.example")
 
     for name in (
         "VITE_AEKO_LOCAL_RPC",
@@ -129,6 +124,11 @@ def main() -> int:
         "VITE_AEKO_LOCAL_EXPLORER_API",
     ):
         require(name + "=" in explorer_example, f"Explorer web env example must document {name}")
+
+    require(
+        re.search(r"^AEKO_(?:PUBLIC|MAINNET|DEMO)_", explorer_example, re.MULTILINE) is None,
+        "Explorer web env example must remain local-only; remote AEKO_* values belong in docker/env.public.example",
+    )
 
     for retired in (
         "VITE_AEKO_TESTNET_",
@@ -196,6 +196,17 @@ def main() -> int:
             "AEKO_PUBLIC_FUNDING_URL",
         ):
             require((name + ": ${" + name + ":?}") in compose, f"{label} must receive {name} from deployment environment")
+        for name in (
+            "AEKO_MAINNET_RPC_URL",
+            "AEKO_MAINNET_WS_URL",
+            "AEKO_MAINNET_EXPLORER_API_URL",
+            "AEKO_MAINNET_EXPLORER_URL",
+            "AEKO_DEMO_RPC_URL",
+            "AEKO_DEMO_COLLECTION",
+            "AEKO_DEMO_TOKEN",
+            "AEKO_DEMO_METADATA_URI",
+        ):
+            require((name + ": ${" + name + ":-}") in compose, f"{label} Explorer UI must receive optional runtime value {name}")
         require("AEKO_PUBLIC_ADMIN_URL: ${AEKO_PUBLIC_ADMIN_URL:?}" in compose, f"{label} operations web must receive AEKO_PUBLIC_ADMIN_URL")
         require("FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:?}" in compose, f"{label} must receive browser funding origins explicitly")
         reject(compose, "aeko-admin:", f"{label} compose")
