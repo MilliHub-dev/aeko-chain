@@ -276,7 +276,7 @@ function AccountsWorkspace({
               <input value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="Recipient address" className="mt-3 h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 font-mono text-xs outline-none focus:border-aeko-accent" />
               <AmountInput value={amount} onChange={setAmount} />
               <button type="button" onClick={runTransfer} disabled={Boolean(busy) || !hasSpendableBalance} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-aeko-accent px-4 text-xs font-semibold text-black disabled:opacity-40">{busy === 'send' ? <Loader2 size={13} className="animate-spin" /> : null} Sign & send</button>
-              {!hasSpendableBalance ? <div className="mt-2 text-[10px] text-gray-500">Fund this wallet from the Network Tools funding section before sending AEKO.</div> : null}
+              {!hasSpendableBalance ? <div className="mt-2 text-[10px] text-gray-500">Request test AEKO above to fund this wallet before sending.</div> : null}
             </section>
             <TxResult result={result} explorerUrl={explorerUrl} />
             <button type="button" onClick={() => persist(wallets.filter((item) => item.id !== wallet.id))} className="inline-flex h-9 items-center gap-2 rounded-xl border border-red-400/20 px-3 text-xs text-red-200 hover:bg-red-500/10"><Trash2 size={13} /> Remove local test wallet</button>
