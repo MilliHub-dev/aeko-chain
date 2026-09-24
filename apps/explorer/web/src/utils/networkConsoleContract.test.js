@@ -182,6 +182,7 @@ test('Admin funding polling preserves an operator policy draft', async () => {
   assert.match(adminPage, /setInterval/);
   assert.match(adminPage, /setDraft\(\(current\) => current \?\? s\.data\.settings\)/);
   assert.match(adminPage, /setDraft\(json\.data\.settings\)/);
+  assert.match(adminPage, /setDraft\(\(current\) => current \? \{ \.\.\.current, enabled: nextEnabled \} : current\)/);
 });
 
 
