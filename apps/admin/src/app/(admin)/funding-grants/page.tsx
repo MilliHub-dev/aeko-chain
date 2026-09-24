@@ -85,12 +85,16 @@ export default function FundingGrantsPage() {
 
   async function toggleEnabled() {
     if (!settings) return
+    const nextEnabled = !settings.enabled
     const res = await fetch('/api/admin/funding/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: !settings.enabled }),
+      body: JSON.stringify({ enabled: nextEnabled }),
     })
-    if (res.ok) void refresh()
+    if (!res.ok) return
+    setSettings((current) => current ? { ...current, enabled: nextEnabled } : current)
+    setDraft((current) => current ? { ...current, enabled: nextEnabled } : current)
+    void refresh()
   }
 
   async function decideRequest(id: string, action: 'approve' | 'reject') {
