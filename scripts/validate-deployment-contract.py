@@ -455,7 +455,13 @@ def main() -> int:
     require('restart: "no"' in protocol_bootstrap_service, "Dokploy protocol bootstrap must be a one-shot service")
     require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in explorer, "Dokploy Explorer must consume protocol registry")
     require("protocol-state:/protocol-state:ro" in explorer, "Dokploy Explorer must mount protocol state read-only")
-    require("depends_on:" not in operations_web, "Dokploy Operations Web lifecycle must be independent of validator health")
+    require(
+        "funding-gateway:" in operations_web
+        and "condition: service_healthy" in operations_web
+        and "validator:" not in operations_web
+        and "explorer-api:" not in operations_web,
+        "Dokploy Admin may wait for its private Funding Gateway but must remain independent of validator/Explorer readiness",
+    )
 
     require(
         "AEKO_EXPLORER_RPC: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in explorer,
