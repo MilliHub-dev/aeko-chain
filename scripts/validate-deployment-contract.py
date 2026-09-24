@@ -22,6 +22,7 @@ BUILTINS = ROOT / "runtime" / "src" / "builtins.rs"
 PROTOCOL_SMOKE = ROOT / "scripts" / "smoke-aeko-protocol.py"
 PROTOCOL_ACTIVATE = ROOT / "scripts" / "activate-aeko-protocol-features.sh"
 PROTOCOL_INTEGRATION = ROOT / "scripts" / "ci-protocol-stack-integration.sh"
+BOOTSTRAP_LIFECYCLE = ROOT / "bootstrap-common" / "lifecycle.rs"
 EXPLORER_HEALTH = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "health" / "mod.rs"
 README = ROOT / "README.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
@@ -73,6 +74,7 @@ def main() -> int:
     protocol_smoke = read(PROTOCOL_SMOKE)
     protocol_activate = read(PROTOCOL_ACTIVATE)
     protocol_integration = read(PROTOCOL_INTEGRATION)
+    bootstrap_lifecycle = read(BOOTSTRAP_LIFECYCLE)
     explorer_health = read(EXPLORER_HEALTH)
     readme = read(README)
     deployment = read(DEPLOYMENT)
@@ -309,12 +311,20 @@ def main() -> int:
     require("/registry/protocol" in protocol_smoke, "protocol smoke must verify Explorer protocol registry")
     require("/protocol/status" in protocol_smoke, "protocol smoke must verify live protocol status")
     require("getHealth" in protocol_smoke and "getSlot" in protocol_smoke, "protocol smoke must verify live chain health and advancement")
-    require("smoke-aeko-protocol.py" in protocol_integration, "protocol integration must execute the read-only protocol smoke")
-    require("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE" in protocol_integration, "protocol integration must retain explicit disaster-recovery coverage while normal bootstrap stays automatic")
-    require("cmp" in protocol_integration and "protocol-registry.env" in protocol_integration, "protocol integration must prove idempotent canonical registry identity")
-    require("getGenesisHash" in protocol_integration and "getTransaction" in protocol_integration, "protocol integration must prove ledger identity and historical transaction continuity across restart")
-    require("AEKO_RESET_LEDGER" in protocol_integration and "stale-before-reset" in protocol_integration, "protocol integration must exercise intentional reset cleanup and same-genesis idempotency")
-    require("unexpectedly accepted a missing established state volume" in protocol_integration, "protocol integration must prove missing protocol-state fails closed before recovery")
+    require("smoke-aeko-protocol.py" in protocol_integration, "network integration must execute the read-only Protocol smoke")
+    require("smoke-aeko-social.py" in protocol_integration, "network integration must execute the real all-five Social smoke")
+    require("aeko-social-bootstrap" in protocol_integration, "network integration must execute the real Social bootstrap")
+    require("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE" in protocol_integration, "network integration must retain explicit Protocol disaster-recovery wiring")
+    require("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE" in protocol_integration, "network integration must retain explicit Social disaster-recovery wiring")
+    require("cmp" in protocol_integration and "protocol-registry.env" in protocol_integration and "social-registry.env" in protocol_integration, "network integration must prove idempotent Social and Protocol registry identity")
+    require("getGenesisHash" in protocol_integration and "getTransaction" in protocol_integration, "network integration must prove ledger identity and historical transaction continuity across restart")
+    require("GENESIS_TWO" in protocol_integration and "GENESIS_THREE" in protocol_integration, "network integration must exercise real replacement genesis and interrupted reset generations")
+    require("stale-before-reset" in protocol_integration, "network integration must prove intentional reset cleanup")
+    require("AEKO_BOOTSTRAP_MODE=reset" in protocol_integration and ".aeko-bootstrap-in-progress" in protocol_integration, "network integration must prove durable interrupted-reset resumption after the reset flag is cleared")
+    require("unexpectedly accepted missing established same-genesis state" in protocol_integration, "network integration must prove same-genesis Social and Protocol corruption fails closed")
+    require("/network/readiness" in protocol_integration, "network integration must require strict Social + Protocol readiness before acceptance")
+    require("REGISTRY_SCHEMA_VERSION" in bootstrap_lifecycle and "CHAIN_GENESIS_KEY" in bootstrap_lifecycle, "shared bootstrap lifecycle must version and genesis-bind canonical registries")
+    require("ResumeReset" in bootstrap_lifecycle and "AdoptLegacy" in bootstrap_lifecycle, "shared bootstrap lifecycle must cover interrupted reset resumption and verified legacy adoption")
     require("aeko-keygen pubkey" in protocol_activate, "feature activation helper must verify offline keypair identities")
     require('FEATURE_SET_SOURCE="$REPO_ROOT/sdk/src/feature_set.rs"' in protocol_activate, "activation helper must resolve feature identities only from the canonical runtime feature set")
     require("aeko_token_programs_v1" in protocol_activate and "aeko_permission_layer_v1" in protocol_activate, "activation helper must resolve both AEKO protocol feature modules")
@@ -432,6 +442,8 @@ def main() -> int:
     require("rpc.health()?" in explorer_health and "rpc.latest_slot()" in explorer_health, "Explorer readiness must prove validator RPC health and slot availability")
     require("latest_indexed_slot().await" in explorer_health, "Explorer readiness must inspect the durable indexer cursor")
     require("StatusCode::SERVICE_UNAVAILABLE" in explorer_health, "Explorer readiness must fail closed when dependencies or cursor lag are unhealthy")
+    require('"/liveness"' in explorer_health and '"/readiness"' in explorer_health, "Explorer must expose explicit liveness and dependency readiness routes")
+    require('"/network/readiness"' in explorer_health, "Explorer must expose strict mandatory-capability network readiness")
     require('"complete":true' not in explorer, "Explorer core health must not be coupled to SocialFi completeness")
     require("explorer-api:" not in explorer_ui, "Dokploy Explorer UI startup must not depend on Explorer API health")
     require("http://explorer-api:8088" not in explorer_ui, "Dokploy Explorer UI healthcheck must not probe Explorer API")
