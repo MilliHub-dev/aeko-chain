@@ -1,7 +1,6 @@
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { extname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 const PORT = Number(process.env.PORT || 4000)
 const ROOT = resolve('/app/dist')
@@ -115,7 +114,12 @@ async function proxyExplorer(req, res, url, target) {
 }
 
 function safeStaticPath(pathname) {
-  const decoded = decodeURIComponent(pathname)
+  let decoded
+  try {
+    decoded = decodeURIComponent(pathname)
+  } catch {
+    return null
+  }
   const candidate = resolve(ROOT, '.' + decoded)
   return candidate === ROOT || candidate.startsWith(ROOT + '/') ? candidate : null
 }
