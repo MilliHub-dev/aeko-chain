@@ -15,7 +15,7 @@ The Testnet Funding API at `https://fund.aeko.online/api/funding` is also a sepa
 
 ## Other networks
 
-No mainnet or separate devnet public endpoint is defined by the current repository deployment contract. Configure non-testnet endpoints explicitly rather than relying on legacy placeholder domains.
+No mainnet or separate devnet public endpoint is defined by the current repository deployment contract. Configure non-testnet endpoints explicitly rather than relying on old placeholder domains.
 
 ## Rate limits
 
