@@ -40,7 +40,7 @@ This closes:
 - public mint program id recorded
 - canonical AEKO-721 collection address recorded
 - canonical AEKO-721 token address recorded
-- web demo configured with live `VITE_AEKO_DEMO_*` values
+- web demo configured with live `AEKO_DEMO_*` runtime values
 - testnet verification transaction signatures recorded
 - [`docs/token-standards/phase2-implementation-spec.md`](/Users/ok/Documents/projects/aeko-chain/docs/token-standards/phase2-implementation-spec.md) updated to mark both remaining items complete
 
