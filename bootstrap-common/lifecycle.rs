@@ -15,7 +15,6 @@ pub enum LifecycleAction {
     ResumeInitialize,
     Verify,
     CompletePending,
-    AdoptLegacy,
     BeginReset,
     ResumeReset,
 }
@@ -27,7 +26,6 @@ impl LifecycleAction {
             Self::ResumeInitialize => "resume-initialize",
             Self::Verify => "verify",
             Self::CompletePending => "complete-pending",
-            Self::AdoptLegacy => "adopt-legacy",
             Self::BeginReset => "begin-reset",
             Self::ResumeReset => "resume-reset",
         }
@@ -193,12 +191,9 @@ pub fn prepare(
                 registry_genesis: registry_metadata.genesis,
                 reset_in_progress: false,
             }),
-            None => Ok(LifecycleDecision {
-                action: LifecycleAction::AdoptLegacy,
-                registry_preexisted: true,
-                registry_genesis: None,
-                reset_in_progress: false,
-            }),
+            None => Err(anyhow!(
+                "canonical registry is missing a current genesis binding; expected {REGISTRY_SCHEMA_KEY}={REGISTRY_SCHEMA_VERSION} and {CHAIN_GENESIS_KEY}. Schema-less or unbound registries are unsupported; restore the matching registry/state volume or set AEKO_RESET_LEDGER=1 for an intentional new chain"
+            )),
         }
     } else {
         if binding_genesis.is_some() {
@@ -462,7 +457,7 @@ mod tests {
     #[test]
     fn interrupted_reset_resumes_after_reset_flag_is_cleared() {
         let root = TestDir::new("reset-resume");
-        fs::write(root.path().join("old-registry.env"), "legacy").unwrap();
+        fs::write(root.path().join("old-registry.env"), "stale").unwrap();
         let registry = root.path().join("registry.env");
         let reset = prepare(&[root.path()], &registry, "genesis-b", true).unwrap();
         assert_eq!(reset.action, LifecycleAction::BeginReset);
@@ -496,13 +491,27 @@ mod tests {
     }
 
     #[test]
-    fn legacy_registry_is_adopted_only_after_domain_verification() {
-        let root = TestDir::new("legacy");
+    fn schema_less_registry_fails_closed_without_explicit_reset() {
+        let root = TestDir::new("schema-less");
         let registry = root.path().join("registry.env");
-        write_registry(root.path(), "AEKO_SOCIAL_POSTS_STATE=legacy-address\n");
-        let decision = prepare(&[root.path()], &registry, "genesis-a", false).unwrap();
-        assert_eq!(decision.action, LifecycleAction::AdoptLegacy);
-        assert!(decision.strict_registry_guard());
+        write_registry(root.path(), "AEKO_SOCIAL_POSTS_STATE=stale-address\n");
+        let error = prepare(&[root.path()], &registry, "genesis-a", false)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("Schema-less or unbound registries are unsupported"));
+        assert!(error.contains("AEKO_RESET_LEDGER=1"));
+        assert!(registry.is_file());
+    }
+
+    #[test]
+    fn explicit_reset_replaces_schema_less_registry() {
+        let root = TestDir::new("schema-less-reset");
+        let registry = root.path().join("registry.env");
+        write_registry(root.path(), "AEKO_SOCIAL_POSTS_STATE=stale-address\n");
+        let decision = prepare(&[root.path()], &registry, "genesis-b", true).unwrap();
+        assert_eq!(decision.action, LifecycleAction::BeginReset);
+        assert!(decision.allows_recreation());
+        assert!(!registry.exists());
     }
 
     #[test]
