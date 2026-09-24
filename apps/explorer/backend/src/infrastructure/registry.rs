@@ -21,6 +21,7 @@ const PROTOCOL_REGISTRY_FILE_ENV: &str = "AEKO_PROTOCOL_REGISTRY_FILE";
 pub struct SocialRegistry {
     pub schema_version: Option<u32>,
     pub genesis_hash: Option<String>,
+    pub bootstrap_in_progress: bool,
     pub posts: Option<String>,
     pub rewards: Option<String>,
     pub staking: Option<String>,
@@ -40,6 +41,7 @@ pub struct SocialRegistry {
 pub struct ProtocolRegistry {
     pub schema_version: Option<u32>,
     pub genesis_hash: Option<String>,
+    pub bootstrap_in_progress: bool,
     pub authority: Option<String>,
     pub token_programs_feature: Option<String>,
     pub token_programs_feature_activated_at: Option<u64>,
@@ -56,6 +58,7 @@ pub fn resolve_social_registry() -> SocialRegistry {
     let read = |key: &str| read_value(key, &file_values);
     let schema_version = read("AEKO_REGISTRY_SCHEMA_VERSION").and_then(|value| value.parse().ok());
     let genesis_hash = read("AEKO_CHAIN_GENESIS_HASH");
+    let bootstrap_in_progress = bootstrap_marker_exists(SOCIAL_REGISTRY_FILE_ENV);
     let posts = read("AEKO_SOCIAL_POSTS_STATE");
     let rewards = read("AEKO_SOCIAL_REWARDS_STATE");
     let staking = read("AEKO_SOCIAL_STAKING_STATE");
@@ -78,6 +81,7 @@ pub fn resolve_social_registry() -> SocialRegistry {
     SocialRegistry {
         schema_version,
         genesis_hash,
+        bootstrap_in_progress,
         posts,
         rewards,
         staking,
@@ -99,6 +103,7 @@ pub fn resolve_protocol_registry() -> ProtocolRegistry {
 
     let schema_version = read("AEKO_REGISTRY_SCHEMA_VERSION").and_then(|value| value.parse().ok());
     let genesis_hash = read("AEKO_CHAIN_GENESIS_HASH");
+    let bootstrap_in_progress = bootstrap_marker_exists(PROTOCOL_REGISTRY_FILE_ENV);
     let authority = read("AEKO_PROTOCOL_AUTHORITY");
     let token_programs_feature = read("AEKO_TOKEN_PROGRAMS_FEATURE");
     let token_programs_feature_activated_at = read("AEKO_TOKEN_PROGRAMS_FEATURE_ACTIVATED_AT")
@@ -157,6 +162,7 @@ pub fn resolve_protocol_registry() -> ProtocolRegistry {
     ProtocolRegistry {
         schema_version,
         genesis_hash,
+        bootstrap_in_progress,
         authority,
         token_programs_feature,
         token_programs_feature_activated_at,
@@ -185,6 +191,20 @@ fn read_value(key: &str, file_values: &HashMap<String, String>) -> Option<String
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
         .or_else(|| file_values.get(key).cloned())
+}
+
+fn bootstrap_marker_exists(env_name: &str) -> bool {
+    let Some(path) = env::var(env_name)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+    else {
+        return false;
+    };
+    let Some(parent) = std::path::Path::new(&path).parent() else {
+        return false;
+    };
+    parent.join(".aeko-bootstrap-in-progress").is_file()
 }
 
 fn load_registry_file(env_name: &str, label: &str) -> HashMap<String, String> {

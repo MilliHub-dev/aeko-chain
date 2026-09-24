@@ -35,6 +35,7 @@ pub(crate) struct ProtocolStatus {
     registry_complete: bool,
     registry_schema_version: Option<u32>,
     registry_genesis_hash: Option<String>,
+    bootstrap_in_progress: bool,
     live_genesis_hash: String,
     genesis_matches: bool,
     features: BTreeMap<String, FeatureStatus>,
@@ -150,6 +151,7 @@ fn inspect_protocol(
     let registry_complete = registry.complete;
     let registry_schema_version = registry.schema_version;
     let registry_genesis_hash = registry.genesis_hash.clone();
+    let bootstrap_in_progress = registry.bootstrap_in_progress;
     let genesis_matches = registry_genesis_hash.as_deref() == Some(live_genesis);
 
     let mut features = BTreeMap::new();
@@ -198,7 +200,9 @@ fn inspect_protocol(
         .all(|status| status.present && status.executable && status.error.is_none());
     let states_healthy = states.values().all(|status| status.condition == "healthy");
 
-    let condition = if !registry_complete {
+    let condition = if bootstrap_in_progress {
+        "bootstrapInProgress"
+    } else if !registry_complete {
         "registryIncomplete"
     } else if registry_genesis_hash.is_none() {
         "legacyRegistry"
@@ -221,6 +225,7 @@ fn inspect_protocol(
         registry_complete,
         registry_schema_version,
         registry_genesis_hash,
+        bootstrap_in_progress,
         live_genesis_hash: live_genesis.to_string(),
         genesis_matches,
         features,

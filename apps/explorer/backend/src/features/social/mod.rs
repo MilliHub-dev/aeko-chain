@@ -339,6 +339,7 @@ pub(crate) struct SocialFiStatus {
     registry_complete: bool,
     registry_schema_version: Option<u32>,
     registry_genesis_hash: Option<String>,
+    bootstrap_in_progress: bool,
     live_genesis_hash: String,
     genesis_matches: bool,
     domains: BTreeMap<String, SocialDomainStatus>,
@@ -420,6 +421,7 @@ fn inspect_social_domains(
     let registry_complete = registry.complete;
     let registry_schema_version = registry.schema_version;
     let registry_genesis_hash = registry.genesis_hash.clone();
+    let bootstrap_in_progress = registry.bootstrap_in_progress;
     let genesis_matches = registry_genesis_hash.as_deref() == Some(live_genesis);
 
     let mut domains = BTreeMap::new();
@@ -475,7 +477,9 @@ fn inspect_social_domains(
     );
 
     let domains_healthy = domains.values().all(|domain| domain.condition == "healthy");
-    let condition = if !registry_complete {
+    let condition = if bootstrap_in_progress {
+        "bootstrapInProgress"
+    } else if !registry_complete {
         "registryIncomplete"
     } else if registry_genesis_hash.is_none() {
         "legacyRegistry"
@@ -494,6 +498,7 @@ fn inspect_social_domains(
         registry_complete,
         registry_schema_version,
         registry_genesis_hash,
+        bootstrap_in_progress,
         live_genesis_hash: live_genesis.to_string(),
         genesis_matches,
         domains,

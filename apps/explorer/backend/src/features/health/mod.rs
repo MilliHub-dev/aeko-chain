@@ -97,6 +97,8 @@ struct ControlPlaneReadiness {
     genesis_matches: bool,
     healthy: usize,
     total: usize,
+    executable_programs: Option<usize>,
+    program_total: Option<usize>,
 }
 
 #[derive(Debug, Serialize)]
@@ -152,6 +154,8 @@ async fn network_readiness(State(state): State<SharedState>) -> Response {
                 genesis_matches: social.genesis_matches(),
                 healthy: social.healthy_domain_count(),
                 total: social.domain_count(),
+                executable_programs: None,
+                program_total: None,
             },
             protocol: ControlPlaneReadiness {
                 complete: protocol.is_complete(),
@@ -162,6 +166,8 @@ async fn network_readiness(State(state): State<SharedState>) -> Response {
                 genesis_matches: protocol.genesis_matches(),
                 healthy: protocol.healthy_state_count(),
                 total: protocol.state_count(),
+                executable_programs: Some(protocol.executable_program_count()),
+                program_total: Some(protocol.program_count()),
             },
         },
         "network-readiness",
