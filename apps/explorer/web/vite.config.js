@@ -27,7 +27,15 @@ export default defineConfig(({ command, mode }) => {
     )
   }
 
-  const testnetConfigured = hasAll([publicRpc, publicWs])
+  const testnetValues = [publicRpc, publicWs]
+  const testnetConfigured = hasAll(testnetValues)
+  if (testnetValues.some(Boolean) && !testnetConfigured) {
+    throw new Error(
+      'AEKO testnet dev configuration is partial. Set AEKO_PUBLIC_RPC_URL and '
+        + 'AEKO_PUBLIC_WS_URL together.',
+    )
+  }
+
   const devRuntimeConfig =
     command === 'serve'
       ? {
