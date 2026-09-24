@@ -44,8 +44,8 @@ export default function TokensPage() {
   const circulatingPct = supply ? Math.round((supply.circulating / supply.total) * 100) : 0
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Tokens</h1>
           <p className="text-gray-500 text-sm mt-0.5">{lastUpdate ? `Updated ${lastUpdate}` : 'Loading…'}</p>
@@ -56,7 +56,7 @@ export default function TokensPage() {
       </div>
 
       {/* Supply breakdown */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
         <StatCard label="Total Supply" value={supply ? fmtAeko(supply.total) : '—'} accent />
         <StatCard label="Circulating" value={supply ? fmtAeko(supply.circulating) : '—'} sub={`${circulatingPct}% of total`} />
         <StatCard label="Non-Circulating" value={supply ? fmtAeko(supply.nonCirculating) : '—'} />
@@ -89,6 +89,7 @@ export default function TokensPage() {
           <div className="text-gray-600 text-sm py-8 text-center">Loading transfers…</div>
         ) : (
           <DataTable
+            paginationLabel="token transfers"
             columns={['Signature', 'Mint', 'From', 'To', 'Amount', 'Slot']}
             rows={transfers.map(t => [
               t.signature.slice(0, 12) + '…',
