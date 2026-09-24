@@ -385,36 +385,27 @@ function ToggleRow({
         <div className="text-sm font-medium text-white">{label}</div>
         <div className="mt-1 max-w-2xl text-sm leading-5 text-gray-500">{description}</div>
       </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
+
+      <label
         className={
-          'inline-flex min-h-[44px] w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 disabled:cursor-not-allowed disabled:opacity-40 sm:w-[148px] ' +
-          (checked
-            ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-200'
-            : 'border-[#343a55] bg-[#0d0e16] text-gray-400')
+          'inline-flex min-h-[44px] items-center justify-end rounded-lg px-1 focus-within:outline-none focus-within:ring-2 focus-within:ring-emerald-400/70 ' +
+          (disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer')
         }
       >
-        <span>{checked ? 'Enabled' : 'Disabled'}</span>
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.checked)}
+          className="peer sr-only"
+          aria-label={label}
+        />
         <span
           aria-hidden="true"
-          className={
-            'relative h-6 w-11 shrink-0 rounded-full border transition-colors ' +
-            (checked ? 'border-emerald-300/60 bg-emerald-400' : 'border-[#343a55] bg-[#1b1e2d]')
-          }
-        >
-          <span
-            className={
-              'absolute left-0.5 top-0.5 h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform ' +
-              (checked ? 'translate-x-5' : 'translate-x-0')
-            }
-          />
-        </span>
-      </button>
+          className="relative h-5 w-9 shrink-0 rounded-full bg-[#2a2e3f] transition-colors duration-200 after:absolute after:start-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-white/10 after:bg-white after:content-[''] after:shadow-sm after:transition-transform after:duration-200 peer-checked:bg-emerald-400 peer-checked:after:translate-x-full peer-focus-visible:ring-4 peer-focus-visible:ring-emerald-400/20 peer-disabled:cursor-not-allowed rtl:peer-checked:after:-translate-x-full"
+        />
+        <span className="sr-only">{checked ? 'Enabled' : 'Disabled'}</span>
+      </label>
     </div>
   )
 }
