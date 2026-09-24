@@ -12,14 +12,16 @@ Use the repository's image-only Coolify Compose file:
 
 Coolify does not build the AEKO Rust or web applications from source. It pulls the published images selected by `AEKO_IMAGE_REPOSITORY` and `AEKO_IMAGE_TAG`.
 
-The default public services are below. `operations-web` serves both the public Funding Portal and authenticated Admin Console; `faucet` is the private Rust signer daemon:
+The default public services are below. The Compose file is intentionally ordered by lifecycle so Coolify's service list is easy to scan: one-shot jobs first, then long-running chain services, then long-running application services, then opt-in tools. `operations-web` serves the public Funding Portal/Test Console funding API and authenticated Admin Console; `faucet` is the private Rust signer daemon.
 
 ```text
-key-bootstrap (one shot) -> faucet -> validator -> social-bootstrap
-                                      |-> protocol-bootstrap (mandatory one-shot initialize/verify)
-                                      |-> explorer-api
-explorer-ui + operations-web (independent liveness)
+One-shot (expected Exited 0): key-bootstrap, social-bootstrap, protocol-bootstrap
+Core running/healthy:         faucet, validator
+Application running/healthy:  explorer-api, explorer-ui, operations-web
+Opt-in only:                   wallet-tools
 ```
+
+The dependency graph remains `key-bootstrap -> faucet -> validator -> social-bootstrap/protocol-bootstrap/explorer-api`; declaration order is only for operator readability.
 
 The validator owns public JSON-RPC/PubSub in this single-validator topology. The non-voting `rpc-node` remains an optional local/portable profile and is not part of the Coolify deployment.
 
@@ -43,6 +45,7 @@ ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
 FUNDING_GATEWAY_KEY=<server secret shared with validator>
 FUNDING_CLIENT_API_KEY=<optional trusted app-backend key sent as x-funding-key>
+FUNDING_MAX_CONSOLE_AIRDROP_AEKO=25
 ```
 
 Use the full template in [`docker/env.public.example`](../../docker/env.public.example) for optional storage, Explorer, SocialFi and logging settings.
@@ -68,7 +71,7 @@ You do not need to set `AEKO_KEYS_DIR` in the Coolify dashboard and you do not n
 
 For a fresh chain, no host-side key command is required. After the first successful deployment, you may inspect `/data/aeko/keys` on the Coolify host if you want to back up the generated identities. Never commit keypairs or place them in a disposable Git checkout.
 
-The Coolify Compose mounts this directory with long-form bind syntax and the literal source `/data/aeko/keys`. Runtime services mount it read-only; the optional `wallet-tools` profile can mount it read-write for explicit operator work. This is intentional: the current Coolify volume validator rejects `${...}` interpolation in a bind source.
+The Coolify Compose uses long-form volume syntax for every bind and named volume. Every `source:` is literal, including the fixed `/data/aeko/keys` bind; no `source:` contains `${...}` interpolation or copied smart-quote characters. Runtime services mount it read-only; the optional `wallet-tools` profile can mount it read-write for explicit operator work. This is intentional: the current Coolify volume validator rejects `${...}` interpolation in a bind source.
 
 ## Persistent chain state
 
@@ -78,7 +81,7 @@ The Coolify contract declares five Docker-managed named volumes:
 - `social-state` for SocialFi state keypairs and `social-registry.env`.
 - `protocol-state` for the published `protocol-registry.env`.
 - `protocol-continuity` for canonical protocol state/custody keypairs and the independent registry continuity anchor.
-- `admin-state` for the funding policy and grant ledger of the operations web app (admin.aeko.online / fund.aeko.online).
+- `admin-state` for the funding policy, pending approval queue and grant ledger of the operations web app (admin.aeko.online / fund.aeko.online).
 
 Normal redeploys must preserve all five volumes. The two protocol volumes form one continuity boundary: losing `protocol-state` while retaining `protocol-continuity` requires explicit recovery and reuses the same canonical addresses; losing `protocol-continuity` must not be treated as a fresh bootstrap. Social and Protocol registries are bound to the live genesis and the bootstrap volumes also carry durable lifecycle metadata. Do not remove `.aeko-bootstrap-in-progress` or `.aeko-chain-binding` manually.
 
