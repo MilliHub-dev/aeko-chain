@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Activity, Blocks, ChevronLeft, ChevronRight, Image, RotateCcw, Search, Sparkles, Wallet } from 'lucide-react';
-import NetworkToggle from '../components/NetworkToggle';
 import { fetchExplorerHome, getExplorerAvailability, searchExplorer } from '../utils/explorerApi';
 import { formatExplorerMetric } from '../utils/explorerData';
 import {
@@ -36,8 +35,9 @@ const INITIAL_HOME_STATE = { ...EMPTY_HOME_STATE, loading: true };
 
 export default function Explorer() {
   const { settings } = useAppSettings();
-  const [network, setNetwork] = useState('testnet');
+  const network = 'testnet';
   const [searchParams, setSearchParams] = useSearchParams();
+  const [homeRefreshTick, setHomeRefreshTick] = useState(0);
   const [homeState, setHomeState] = useState(INITIAL_HOME_STATE);
   const urlSearchQuery = sanitizeSearchQuery(searchParams.get('q') || '');
   const [query, setQuery] = useState(urlSearchQuery);
@@ -52,7 +52,15 @@ export default function Explorer() {
   const toaster = useToaster();
 
   const unavailable = !getExplorerAvailability(network);
-  const networkLabel = useMemo(() => network.charAt(0).toUpperCase() + network.slice(1), [network]);
+  const networkLabel = 'Testnet';
+
+  useEffect(() => {
+    const interval = window.setInterval(
+      () => setHomeRefreshTick((current) => current + 1),
+      settings.explorerAutoRefreshSeconds * 1000,
+    );
+    return () => window.clearInterval(interval);
+  }, [settings.explorerAutoRefreshSeconds]);
 
   // Sanitize every URL-derived filter value before it can reach the backend.
   // Hand-edited URLs can carry anything — control chars, megabyte strings,
@@ -131,7 +139,7 @@ export default function Explorer() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [network, unavailable, filters, settings.explorerListSize]);
+  }, [network, unavailable, filters, settings.explorerListSize, homeRefreshTick]);
 
   useEffect(() => {
     setQuery(urlSearchQuery);
@@ -151,7 +159,7 @@ export default function Explorer() {
       searchedQuery: urlSearchQuery,
     });
 
-    searchExplorer(network, urlSearchQuery)
+    searchExplorer(network, urlSearchQuery, settings.explorerSearchResultLimit)
       .then((payload) => {
         if (cancelled) return;
         setSearchState({
@@ -174,7 +182,7 @@ export default function Explorer() {
     return () => {
       cancelled = true;
     };
-  }, [network, unavailable, urlSearchQuery, searchRetry]);
+  }, [network, unavailable, urlSearchQuery, searchRetry, settings.explorerSearchResultLimit]);
 
   function handleSearch(event) {
     event.preventDefault();
@@ -349,7 +357,6 @@ export default function Explorer() {
             Inspect live chain position and durable blocks, transactions, assets, accounts, and SocialFi state through the Explorer backend.
           </p>
         </div>
-        <NetworkToggle value={network} onChange={setNetwork} />
       </div>
 
       <form onSubmit={handleSearch} className="relative mb-8">
