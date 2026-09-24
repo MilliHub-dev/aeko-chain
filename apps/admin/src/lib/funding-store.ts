@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { isValidAddress } from './base58'
@@ -26,7 +27,21 @@ export type FundingSettings = {
   maxManualGrantAeko: number
 }
 
-export type GrantSource = 'public' | 'backend' | 'admin'
+export type GrantSource = 'public' | 'backend' | 'admin' | 'console'
+
+export type FundingRequestStatus = 'pending' | 'processing' | 'approved' | 'rejected'
+
+export type FundingRequest = {
+  id: string
+  address: string
+  amountAeko: number
+  requestedAt: string
+  source: 'public'
+  status: FundingRequestStatus
+  decidedAt?: string
+  signature?: string
+  confirmed?: boolean
+}
 
 export type Grant = {
   address: string
@@ -40,6 +55,7 @@ export type Grant = {
 type State = {
   settings: FundingSettings
   grants: Grant[]
+  requests: FundingRequest[]
   lastGrantAt: Record<string, string>
   dayKey: string
   daySpentAeko: number
@@ -65,6 +81,8 @@ const DEFAULT_SETTINGS: FundingSettings = {
 }
 
 const MAX_GRANTS_KEPT = 500
+const MAX_REQUESTS_KEPT = 500
+const MAX_CONSOLE_AIRDROP_AEKO = Number(process.env.FUNDING_MAX_CONSOLE_AIRDROP_AEKO ?? 25)
 const STATE_DIR = process.env.FUNDING_STATE_DIR ?? path.join(process.cwd(), 'data')
 const STATE_FILE = path.join(STATE_DIR, 'funding-state.json')
 const LEGACY_STATE_FILE = path.join(STATE_DIR, 'faucet-state.json')
@@ -97,7 +115,7 @@ async function load(): Promise<State> {
 
   const persisted = await readStateFile()
   if (persisted === null) {
-    cached = { settings: { ...DEFAULT_SETTINGS }, grants: [], lastGrantAt: {}, dayKey: todayKey(), daySpentAeko: 0 }
+    cached = { settings: { ...DEFAULT_SETTINGS }, grants: [], requests: [], lastGrantAt: {}, dayKey: todayKey(), daySpentAeko: 0 }
     return cached
   }
 
@@ -105,6 +123,7 @@ async function load(): Promise<State> {
   cached = {
     settings: { ...DEFAULT_SETTINGS, ...(raw.settings ?? {}) },
     grants: Array.isArray(raw.grants) ? raw.grants : [],
+    requests: Array.isArray(raw.requests) ? raw.requests : [],
     lastGrantAt: raw.lastGrantAt ?? {},
     dayKey: raw.dayKey ?? todayKey(),
     daySpentAeko: Number(raw.daySpentAeko ?? 0),
@@ -168,6 +187,172 @@ export async function listGrants(limit = 100): Promise<Grant[]> {
   return (await load()).grants.slice(0, limit)
 }
 
+export async function listFundingRequests(limit = 100): Promise<FundingRequest[]> {
+  return (await load()).requests.slice(0, limit)
+}
+
+function cooldownWaitSeconds(state: State, address: string): number {
+  const last = state.lastGrantAt[address]
+  if (!last) return 0
+  const nextAt = new Date(last).getTime() + state.settings.cooldownHours * 3_600_000
+  return Math.max(0, Math.ceil((nextAt - Date.now()) / 1000))
+}
+
+export async function requestFundingApproval(address: string): Promise<FundingRequest> {
+  if (!isValidAddress(address)) {
+    throw new FundingError(400, 'INVALID_ADDRESS', 'Enter a valid AEKO wallet address')
+  }
+
+  return withLock(async () => {
+    const state = await load()
+    rollDay(state)
+    if (!state.settings.enabled) {
+      throw new FundingError(503, 'FUNDING_DISABLED', 'Testnet funding is paused right now. Try again later.')
+    }
+
+    const wait = cooldownWaitSeconds(state, address)
+    if (wait > 0) {
+      throw new FundingError(
+        429,
+        'COOLDOWN',
+        `This wallet already received test AEKO. Try again in ${formatWait(wait)}.`,
+        { retryAfterSeconds: wait },
+      )
+    }
+
+    const pending = state.requests.find(
+      (request) => request.address === address && ['pending', 'processing'].includes(request.status),
+    )
+    if (pending) {
+      throw new FundingError(
+        409,
+        'REQUEST_PENDING',
+        'This wallet already has a funding request waiting for an operator decision.',
+        { requestId: pending.id },
+      )
+    }
+
+    if (state.daySpentAeko + state.settings.amountAeko > state.settings.dailyBudgetAeko) {
+      throw new FundingError(429, 'BUDGET_EXHAUSTED', "Today's testnet funding budget is used up. Try again tomorrow.")
+    }
+
+    const request: FundingRequest = {
+      id: randomUUID(),
+      address,
+      amountAeko: state.settings.amountAeko,
+      requestedAt: new Date().toISOString(),
+      source: 'public',
+      status: 'pending',
+    }
+    state.requests.unshift(request)
+    if (state.requests.length > MAX_REQUESTS_KEPT) state.requests.length = MAX_REQUESTS_KEPT
+    await save(state)
+    return { ...request }
+  })
+}
+
+export async function decideFundingRequest(
+  id: string,
+  action: 'approve' | 'reject',
+): Promise<FundingRequest> {
+  if (!id.trim()) throw new FundingError(400, 'INVALID_REQUEST_ID', 'Funding request id is required')
+
+  if (action === 'reject') {
+    return withLock(async () => {
+      const state = await load()
+      const request = state.requests.find((entry) => entry.id === id)
+      if (!request) throw new FundingError(404, 'REQUEST_NOT_FOUND', 'Funding request not found')
+      if (request.status !== 'pending') {
+        throw new FundingError(409, 'REQUEST_ALREADY_DECIDED', `Funding request is already ${request.status}`)
+      }
+      request.status = 'rejected'
+      request.decidedAt = new Date().toISOString()
+      await save(state)
+      return { ...request }
+    })
+  }
+
+  const reserved = await withLock(async () => {
+    const state = await load()
+    rollDay(state)
+    const request = state.requests.find((entry) => entry.id === id)
+    if (!request) throw new FundingError(404, 'REQUEST_NOT_FOUND', 'Funding request not found')
+    if (request.status !== 'pending') {
+      throw new FundingError(409, 'REQUEST_ALREADY_DECIDED', `Funding request is already ${request.status}`)
+    }
+
+    const wait = cooldownWaitSeconds(state, request.address)
+    if (wait > 0) {
+      throw new FundingError(
+        429,
+        'COOLDOWN',
+        `This wallet already received test AEKO. Try again in ${formatWait(wait)}.`,
+        { retryAfterSeconds: wait },
+      )
+    }
+    if (state.daySpentAeko + request.amountAeko > state.settings.dailyBudgetAeko) {
+      throw new FundingError(429, 'BUDGET_EXHAUSTED', "Today's testnet funding budget is used up. Try again tomorrow.")
+    }
+
+    const reservedAt = new Date().toISOString()
+    request.status = 'processing'
+    state.daySpentAeko += request.amountAeko
+    state.lastGrantAt[request.address] = reservedAt
+    await save(state)
+    return { request: { ...request }, reservedAt }
+  })
+
+  let signature: string
+  try {
+    signature = await requestAirdrop(
+      reserved.request.address,
+      Math.round(reserved.request.amountAeko * 1_000_000_000),
+    )
+  } catch (err) {
+    await withLock(async () => {
+      const state = await load()
+      rollDay(state)
+      const request = state.requests.find((entry) => entry.id === id)
+      if (request?.status === 'processing') request.status = 'pending'
+      state.daySpentAeko = Math.max(0, state.daySpentAeko - reserved.request.amountAeko)
+      if (state.lastGrantAt[reserved.request.address] === reserved.reservedAt) {
+        delete state.lastGrantAt[reserved.request.address]
+      }
+      await save(state)
+    })
+    const message = err instanceof Error ? err.message : 'low-level funding transfer failed'
+    throw new FundingError(
+      502,
+      'FUNDING_TRANSFER_FAILED',
+      `The private Faucet Daemon rejected the approved funding transfer: ${message}`,
+    )
+  }
+
+  const confirmed = await waitForConfirmation(signature)
+  return withLock(async () => {
+    const state = await load()
+    const request = state.requests.find((entry) => entry.id === id)
+    if (!request) throw new FundingError(404, 'REQUEST_NOT_FOUND', 'Funding request not found after approval')
+    request.status = 'approved'
+    request.decidedAt = new Date().toISOString()
+    request.signature = signature
+    request.confirmed = confirmed
+
+    const record: Grant = {
+      address: request.address,
+      amountAeko: request.amountAeko,
+      signature,
+      at: request.decidedAt,
+      source: request.source,
+      confirmed,
+    }
+    state.grants.unshift(record)
+    if (state.grants.length > MAX_GRANTS_KEPT) state.grants.length = MAX_GRANTS_KEPT
+    await save(state)
+    return { ...request }
+  })
+}
+
 /** Polls briefly so the caller can say "landed" rather than "submitted". */
 async function waitForConfirmation(signature: string): Promise<boolean> {
   for (let attempt = 0; attempt < 12; attempt += 1) {
@@ -204,16 +389,18 @@ export async function grant(input: {
     const state = await load()
     rollDay(state)
     const { settings } = state
-    const isAdmin = input.source === 'admin'
+    const customAmount = input.source === 'admin' || input.source === 'console'
 
     let amountAeko = settings.amountAeko
-    if (isAdmin) {
+    if (customAmount) {
       amountAeko = Number(input.amountAeko)
       if (!Number.isFinite(amountAeko) || amountAeko <= 0) {
         throw new FundingError(400, 'INVALID_AMOUNT', 'Amount must be greater than 0')
       }
-      if (amountAeko > settings.maxManualGrantAeko) {
-        throw new FundingError(400, 'AMOUNT_TOO_LARGE', `Manual grants are capped at ${settings.maxManualGrantAeko} AEKO`)
+      const cap = input.source === 'console' ? MAX_CONSOLE_AIRDROP_AEKO : settings.maxManualGrantAeko
+      if (amountAeko > cap) {
+        const label = input.source === 'console' ? 'Test Console airdrops' : 'Manual grants'
+        throw new FundingError(400, 'AMOUNT_TOO_LARGE', `${label} are capped at ${cap} AEKO`)
       }
     } else {
       if (!settings.enabled) {
@@ -245,7 +432,7 @@ export async function grant(input: {
   try {
     signature = await requestAirdrop(input.address, Math.round(reserved * 1_000_000_000))
   } catch (err) {
-    if (input.source !== 'admin') {
+    if (input.source !== 'admin' && input.source !== 'console') {
       await withLock(async () => {
         const state = await load()
         rollDay(state)
