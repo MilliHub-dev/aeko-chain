@@ -375,7 +375,7 @@ def main() -> int:
         re.search(r"^  rpc-node:\s*$", dokploy, re.MULTILINE) is None,
         "Dokploy must not make the non-voting RPC replica a mandatory/default service",
     )
-    ordered = ["faucet", "validator", "social-bootstrap", "protocol-bootstrap", "explorer-api", "explorer-ui", "operations-web", "wallet-tools"]
+    ordered = ["faucet", "validator", "social-bootstrap", "protocol-bootstrap", "explorer-api", "explorer-ui", "funding-gateway", "operations-web", "wallet-tools"]
     for index, service in enumerate(ordered):
         next_service = ordered[index + 1] if index + 1 < len(ordered) else None
         block = service_block(dokploy, service, next_service)
@@ -387,7 +387,8 @@ def main() -> int:
     bootstrap = service_block(dokploy, "social-bootstrap", "protocol-bootstrap")
     protocol_bootstrap_service = service_block(dokploy, "protocol-bootstrap", "explorer-api")
     explorer = service_block(dokploy, "explorer-api", "explorer-ui")
-    explorer_ui = service_block(dokploy, "explorer-ui", "operations-web")
+    explorer_ui = service_block(dokploy, "explorer-ui", "funding-gateway")
+    funding_gateway = service_block(dokploy, "funding-gateway", "operations-web")
     operations_web = service_block(dokploy, "operations-web", "wallet-tools")
     wallet_tools = service_block(dokploy, "wallet-tools")
 
@@ -461,9 +462,22 @@ def main() -> int:
         "Dokploy operations web must talk to the validator through the internal Docker-network RPC",
     )
     require(
-        "AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in operations_web,
+        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in operations_web,
         "Dokploy operations web must talk to Explorer through the internal Docker-network API",
     )
+    require(
+        "AEKO_INTERNAL_FUNDING_URL: ${AEKO_INTERNAL_FUNDING_URL:-http://funding-gateway:3001}" in operations_web
+        and "FUNDING_ADMIN_API_KEY: ${FUNDING_ADMIN_API_KEY:?}" in operations_web,
+        "Dokploy Admin must reach Funding Gateway only through the private service API",
+    )
+    require(
+        "AEKO_OPERATIONS_ROLE: funding" in funding_gateway
+        and "FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in funding_gateway,
+        "Dokploy Funding Gateway must own public funding policy and protected airdrop authorization",
+    )
+    require("admin-state:/data" in funding_gateway, "Dokploy Funding Gateway must own the persisted funding state")
+    require("admin-state:/data" not in operations_web, "Dokploy Admin must not mount Funding Gateway state")
+    require("FUNDING_GATEWAY_KEY" not in operations_web, "Dokploy Admin must not receive protected airdrop authorization")
     require("EXPLORER_DATABASE_URL:?" in explorer, "public Explorer must require durable PostgreSQL")
     require("AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env" in explorer, "Explorer must consume generated SocialFi registry")
     for registry_key in (
@@ -485,8 +499,11 @@ def main() -> int:
     require('"/liveness"' in explorer_health and '"/readiness"' in explorer_health, "Explorer must expose explicit liveness and dependency readiness routes")
     require('"/network/readiness"' in explorer_health, "Explorer must expose strict mandatory-capability network readiness")
     require('"complete":true' not in explorer, "Explorer core health must not be coupled to SocialFi completeness")
-    require("explorer-api:" not in explorer_ui, "Dokploy Explorer UI startup must not depend on Explorer API health")
-    require("http://explorer-api:8088" not in explorer_ui, "Dokploy Explorer UI healthcheck must not probe Explorer API")
+    require("depends_on:" not in explorer_ui, "Dokploy Explorer UI startup must remain independent of Explorer API readiness")
+    require(
+        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in explorer_ui,
+        "Dokploy Explorer UI must proxy indexed reads to the private Explorer backend",
+    )
     require("http://127.0.0.1:4000/" in explorer_ui, "Dokploy Explorer UI healthcheck must prove only the UI server is serving")
     require('"complete":true' not in explorer_ui, "Explorer UI liveness must not be coupled to SocialFi completeness")
     require('profiles: ["ops"]' in wallet_tools, "wallet tools must be operator-only, not a public daemon")
