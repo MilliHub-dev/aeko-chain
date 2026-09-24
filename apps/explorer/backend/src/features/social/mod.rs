@@ -333,9 +333,48 @@ async fn get_registry(
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct SocialFiStatus {
+pub(crate) struct SocialFiStatus {
     complete: bool,
+    condition: String,
+    registry_complete: bool,
+    registry_schema_version: Option<u32>,
+    registry_genesis_hash: Option<String>,
+    live_genesis_hash: String,
+    genesis_matches: bool,
     domains: BTreeMap<String, SocialDomainStatus>,
+}
+
+impl SocialFiStatus {
+    pub(crate) fn is_complete(&self) -> bool {
+        self.complete
+    }
+
+    pub(crate) fn condition(&self) -> &str {
+        &self.condition
+    }
+
+    pub(crate) fn registry_complete(&self) -> bool {
+        self.registry_complete
+    }
+
+    pub(crate) fn registry_genesis_hash(&self) -> Option<&str> {
+        self.registry_genesis_hash.as_deref()
+    }
+
+    pub(crate) fn genesis_matches(&self) -> bool {
+        self.genesis_matches
+    }
+
+    pub(crate) fn healthy_domain_count(&self) -> usize {
+        self.domains
+            .values()
+            .filter(|domain| domain.condition == "healthy")
+            .count()
+    }
+
+    pub(crate) fn domain_count(&self) -> usize {
+        self.domains.len()
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -343,8 +382,10 @@ struct SocialFiStatus {
 struct SocialDomainStatus {
     state_account: Option<String>,
     program_id: String,
+    present: bool,
     owner_matches: bool,
     initialized: bool,
+    condition: String,
     metrics: Value,
     error: Option<String>,
 }
@@ -353,8 +394,8 @@ async fn get_social_status(
     State(state): State<SharedState>,
 ) -> ApiResult<Json<DataEnvelope<SocialFiStatus>>> {
     let rpc = state.rpc.clone();
-    let registry = resolve_social_registry();
-    let status = tokio::task::spawn_blocking(move || inspect_social_domains(&rpc, registry))
+    let live_genesis = state.genesis_hash.clone();
+    let status = tokio::task::spawn_blocking(move || inspect_social_status(&rpc, &live_genesis))
         .await
         .context("SocialFi status worker panicked")?;
     Ok(response::data_from_source(
@@ -364,7 +405,23 @@ async fn get_social_status(
     ))
 }
 
-fn inspect_social_domains(rpc: &RpcChainClient, registry: SocialRegistry) -> SocialFiStatus {
+pub(crate) fn inspect_social_status(
+    rpc: &RpcChainClient,
+    live_genesis: &str,
+) -> SocialFiStatus {
+    inspect_social_domains(rpc, resolve_social_registry(), live_genesis)
+}
+
+fn inspect_social_domains(
+    rpc: &RpcChainClient,
+    registry: SocialRegistry,
+    live_genesis: &str,
+) -> SocialFiStatus {
+    let registry_complete = registry.complete;
+    let registry_schema_version = registry.schema_version;
+    let registry_genesis_hash = registry.genesis_hash.clone();
+    let genesis_matches = registry_genesis_hash.as_deref() == Some(live_genesis);
+
     let mut domains = BTreeMap::new();
     domains.insert(
         "posts".to_string(),
@@ -416,10 +473,31 @@ fn inspect_social_domains(rpc: &RpcChainClient, registry: SocialRegistry) -> Soc
             summarize_monetization,
         ),
     );
-    let complete = domains
-        .values()
-        .all(|domain| domain.owner_matches && domain.initialized && domain.error.is_none());
-    SocialFiStatus { complete, domains }
+
+    let domains_healthy = domains.values().all(|domain| domain.condition == "healthy");
+    let condition = if !registry_complete {
+        "registryIncomplete"
+    } else if registry_genesis_hash.is_none() {
+        "legacyRegistry"
+    } else if !genesis_matches {
+        "genesisMismatch"
+    } else if domains_healthy {
+        "healthy"
+    } else {
+        "stateIncomplete"
+    }
+    .to_string();
+
+    SocialFiStatus {
+        complete: registry_complete && genesis_matches && domains_healthy,
+        condition,
+        registry_complete,
+        registry_schema_version,
+        registry_genesis_hash,
+        live_genesis_hash: live_genesis.to_string(),
+        genesis_matches,
+        domains,
+    }
 }
 
 fn inspect_domain<T>(
@@ -432,39 +510,105 @@ fn inspect_domain<T>(
 where
     T: BorshDeserialize,
 {
+    let program_id_string = program_id.to_string();
     let Some(address) = state_account else {
         return SocialDomainStatus {
             state_account: None,
-            program_id: program_id.to_string(),
+            program_id: program_id_string,
+            present: false,
             owner_matches: false,
             initialized: false,
+            condition: "registryMissing".to_string(),
             metrics: json!({}),
             error: Some(format!(
                 "{label} state is missing from the canonical registry"
             )),
         };
     };
-    match rpc.fetch_owned_state::<T>(&address, program_id, label) {
-        Ok(value) => {
-            let (initialized, metrics) = summarize(value);
-            SocialDomainStatus {
-                state_account: Some(address),
-                program_id: program_id.to_string(),
-                owner_matches: true,
-                initialized,
-                metrics,
-                error: None,
-            }
-        }
-        Err(error) => SocialDomainStatus {
-            state_account: Some(address),
-            program_id: program_id.to_string(),
+
+    match rpc.fetch_account_with_data(&address) {
+        Ok(None) => SocialDomainStatus {
+            state_account: Some(address.clone()),
+            program_id: program_id_string,
+            present: false,
             owner_matches: false,
             initialized: false,
+            condition: "missing".to_string(),
+            metrics: json!({}),
+            error: Some(format!(
+                "canonical {label} state account {address} does not exist"
+            )),
+        },
+        Ok(Some((account, _))) if account.owner != program_id_string => SocialDomainStatus {
+            state_account: Some(address),
+            program_id: program_id_string.clone(),
+            present: true,
+            owner_matches: false,
+            initialized: false,
+            condition: "wrongOwner".to_string(),
+            metrics: json!({}),
+            error: Some(format!(
+                "canonical {label} state owner mismatch: expected {program_id_string}, got {}",
+                account.owner
+            )),
+        },
+        Ok(Some((_account, data))) => match deserialize_padded::<T>(&data) {
+            Some(value) => {
+                let (initialized, metrics) = summarize(value);
+                SocialDomainStatus {
+                    state_account: Some(address),
+                    program_id: program_id_string,
+                    present: true,
+                    owner_matches: true,
+                    initialized,
+                    condition: if initialized {
+                        "healthy".to_string()
+                    } else {
+                        "uninitialized".to_string()
+                    },
+                    metrics,
+                    error: if initialized {
+                        None
+                    } else {
+                        Some(format!(
+                            "canonical {label} state exists with the expected owner but is not initialized"
+                        ))
+                    },
+                }
+            }
+            None => SocialDomainStatus {
+                state_account: Some(address),
+                program_id: program_id_string,
+                present: true,
+                owner_matches: true,
+                initialized: false,
+                condition: "invalidData".to_string(),
+                metrics: json!({}),
+                error: Some(format!(
+                    "canonical {label} state is not valid padded Borsh data"
+                )),
+            },
+        },
+        Err(error) => SocialDomainStatus {
+            state_account: Some(address),
+            program_id: program_id_string,
+            present: false,
+            owner_matches: false,
+            initialized: false,
+            condition: "rpcError".to_string(),
             metrics: json!({}),
             error: Some(error.to_string()),
         },
     }
+}
+
+fn deserialize_padded<T: BorshDeserialize>(data: &[u8]) -> Option<T> {
+    let mut input = data;
+    let value = T::deserialize(&mut input).ok()?;
+    if input.iter().any(|byte| *byte != 0) {
+        return None;
+    }
+    Some(value)
 }
 
 fn summarize_posts(

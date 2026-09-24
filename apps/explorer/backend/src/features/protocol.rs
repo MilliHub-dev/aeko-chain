@@ -29,12 +29,61 @@ async fn get_registry(
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct ProtocolStatus {
+pub(crate) struct ProtocolStatus {
     complete: bool,
+    condition: String,
     registry_complete: bool,
+    registry_schema_version: Option<u32>,
+    registry_genesis_hash: Option<String>,
+    live_genesis_hash: String,
+    genesis_matches: bool,
     features: BTreeMap<String, FeatureStatus>,
     programs: BTreeMap<String, ProgramStatus>,
     states: BTreeMap<String, StateStatus>,
+}
+
+impl ProtocolStatus {
+    pub(crate) fn is_complete(&self) -> bool {
+        self.complete
+    }
+
+    pub(crate) fn condition(&self) -> &str {
+        &self.condition
+    }
+
+    pub(crate) fn registry_complete(&self) -> bool {
+        self.registry_complete
+    }
+
+    pub(crate) fn registry_genesis_hash(&self) -> Option<&str> {
+        self.registry_genesis_hash.as_deref()
+    }
+
+    pub(crate) fn genesis_matches(&self) -> bool {
+        self.genesis_matches
+    }
+
+    pub(crate) fn executable_program_count(&self) -> usize {
+        self.programs
+            .values()
+            .filter(|status| status.present && status.executable && status.error.is_none())
+            .count()
+    }
+
+    pub(crate) fn program_count(&self) -> usize {
+        self.programs.len()
+    }
+
+    pub(crate) fn healthy_state_count(&self) -> usize {
+        self.states
+            .values()
+            .filter(|status| status.condition == "healthy")
+            .count()
+    }
+
+    pub(crate) fn state_count(&self) -> usize {
+        self.states.len()
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -67,6 +116,7 @@ struct StateStatus {
     present: bool,
     owner_matches: bool,
     data_len: usize,
+    condition: String,
     error: Option<String>,
 }
 
@@ -74,8 +124,8 @@ async fn get_status(
     State(state): State<SharedState>,
 ) -> ApiResult<Json<DataEnvelope<ProtocolStatus>>> {
     let rpc = state.rpc.clone();
-    let registry = resolve_protocol_registry();
-    let status = tokio::task::spawn_blocking(move || inspect_protocol(&rpc, registry))
+    let live_genesis = state.genesis_hash.clone();
+    let status = tokio::task::spawn_blocking(move || inspect_protocol_status(&rpc, &live_genesis))
         .await
         .context("protocol status worker panicked")?;
     Ok(response::data_from_source(
@@ -85,7 +135,23 @@ async fn get_status(
     ))
 }
 
-fn inspect_protocol(rpc: &RpcChainClient, registry: ProtocolRegistry) -> ProtocolStatus {
+pub(crate) fn inspect_protocol_status(
+    rpc: &RpcChainClient,
+    live_genesis: &str,
+) -> ProtocolStatus {
+    inspect_protocol(rpc, resolve_protocol_registry(), live_genesis)
+}
+
+fn inspect_protocol(
+    rpc: &RpcChainClient,
+    registry: ProtocolRegistry,
+    live_genesis: &str,
+) -> ProtocolStatus {
+    let registry_complete = registry.complete;
+    let registry_schema_version = registry.schema_version;
+    let registry_genesis_hash = registry.genesis_hash.clone();
+    let genesis_matches = registry_genesis_hash.as_deref() == Some(live_genesis);
+
     let mut features = BTreeMap::new();
     features.insert(
         "tokenPrograms".to_string(),
@@ -121,23 +187,42 @@ fn inspect_protocol(rpc: &RpcChainClient, registry: ProtocolRegistry) -> Protoco
         })
         .collect::<BTreeMap<_, _>>();
 
-    let complete = registry.complete
-        && features.values().all(|status| {
-            status.present
-                && status.owner_matches
-                && status.activated_at.is_some()
-                && status.error.is_none()
-        })
-        && programs
-            .values()
-            .all(|status| status.present && status.executable && status.error.is_none())
-        && states.values().all(|status| {
-            status.present && status.owner_matches && status.data_len > 0 && status.error.is_none()
-        });
+    let features_healthy = features.values().all(|status| {
+        status.present
+            && status.owner_matches
+            && status.activated_at.is_some()
+            && status.error.is_none()
+    });
+    let programs_healthy = programs
+        .values()
+        .all(|status| status.present && status.executable && status.error.is_none());
+    let states_healthy = states.values().all(|status| status.condition == "healthy");
+
+    let condition = if !registry_complete {
+        "registryIncomplete"
+    } else if registry_genesis_hash.is_none() {
+        "legacyRegistry"
+    } else if !genesis_matches {
+        "genesisMismatch"
+    } else if features_healthy && programs_healthy && states_healthy {
+        "healthy"
+    } else {
+        "stateIncomplete"
+    }
+    .to_string();
 
     ProtocolStatus {
-        complete,
-        registry_complete: registry.complete,
+        complete: registry_complete
+            && genesis_matches
+            && features_healthy
+            && programs_healthy
+            && states_healthy,
+        condition,
+        registry_complete,
+        registry_schema_version,
+        registry_genesis_hash,
+        live_genesis_hash: live_genesis.to_string(),
+        genesis_matches,
         features,
         programs,
         states,
@@ -234,6 +319,7 @@ fn feature_activation_consistency_error(
         _ => None,
     }
 }
+
 fn inspect_program(rpc: &RpcChainClient, program_id: &str) -> ProgramStatus {
     match rpc.fetch_account(program_id) {
         Ok(Some(account)) => ProgramStatus {
@@ -271,13 +357,36 @@ fn inspect_state(
                 .as_ref()
                 .map(|owner| owner == &account.owner)
                 .unwrap_or(false);
+            let (condition, error) = if expected_owner.is_none() {
+                (
+                    "registryMissing".to_string(),
+                    Some("expected owner program is missing from the protocol registry".to_string()),
+                )
+            } else if !owner_matches {
+                (
+                    "wrongOwner".to_string(),
+                    Some(format!(
+                        "canonical state owner mismatch: expected {}, got {}",
+                        expected_owner.as_deref().unwrap_or("unknown"),
+                        account.owner
+                    )),
+                )
+            } else if account.data_len == 0 {
+                (
+                    "uninitialized".to_string(),
+                    Some("canonical state account exists but has no initialized data".to_string()),
+                )
+            } else {
+                ("healthy".to_string(), None)
+            };
             StateStatus {
                 state_account: address.to_string(),
                 expected_owner,
                 present: true,
                 owner_matches,
                 data_len: account.data_len,
-                error: None,
+                condition,
+                error,
             }
         }
         Ok(None) => StateStatus {
@@ -286,6 +395,7 @@ fn inspect_state(
             present: false,
             owner_matches: false,
             data_len: 0,
+            condition: "missing".to_string(),
             error: Some("canonical state account does not exist".to_string()),
         },
         Err(error) => StateStatus {
@@ -294,6 +404,7 @@ fn inspect_state(
             present: false,
             owner_matches: false,
             data_len: 0,
+            condition: "rpcError".to_string(),
             error: Some(error.to_string()),
         },
     }
