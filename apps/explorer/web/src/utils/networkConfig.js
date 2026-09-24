@@ -4,7 +4,7 @@
 //
 // Production/preview containers inject window.__AEKO_RUNTIME_CONFIG__ at
 // startup. Local Vite development receives the same shape from vite.config.js,
-// which reads only whitelisted AEKO_TESTNET_*, AEKO_MAINNET_* and AEKO_DEMO_*
+// which reads only whitelisted AEKO_PUBLIC_*, AEKO_MAINNET_* and AEKO_DEMO_*
 // values from .env files. Production builds never bake deployment endpoints.
 
 const injectedRuntime = globalThis.__AEKO_RUNTIME_CONFIG__ || {};
