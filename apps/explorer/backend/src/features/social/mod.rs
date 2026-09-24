@@ -406,10 +406,7 @@ async fn get_social_status(
     ))
 }
 
-pub(crate) fn inspect_social_status(
-    rpc: &RpcChainClient,
-    live_genesis: &str,
-) -> SocialFiStatus {
+pub(crate) fn inspect_social_status(rpc: &RpcChainClient, live_genesis: &str) -> SocialFiStatus {
     inspect_social_domains(rpc, resolve_social_registry(), live_genesis)
 }
 
