@@ -19,7 +19,8 @@ test('active test console delegates to the end-to-end implementation', async () 
   assert.match(implementation, /fetchWalletProfile/);
   assert.match(implementation, /fetchSocialStatus/);
   assert.match(implementation, /fetchSocialProjection/);
-  assert.doesNotMatch(implementation, /requestAirdrop|requestTestnetFunding|requestFundingGrant/);
+  assert.match(implementation, /requestFundingGrant/);
+  assert.doesNotMatch(implementation, /requestAirdrop|requestTestnetFunding/);
   assert.match(implementation, /buildSignedTransfer/);
   assert.match(implementation, /buildSignedAnchorPostTx/);
   assert.match(implementation, /buildSignedLikeTx/);
@@ -114,7 +115,7 @@ test('social payout actions preflight live program-owned vault liquidity', async
 });
 
 
-test('accounts workspace distinguishes a browser-local unfunded wallet from an API outage without owning funding', async () => {
+test('accounts workspace funds an unfunded wallet only through the policy-controlled Gateway', async () => {
   const implementation = await source('components/NetworkConsoleModalV2.jsx');
   const funding = await source('components/TestnetFundingRequest.jsx');
   const networkTools = await source('pages/NetworkTools.jsx');
@@ -122,9 +123,11 @@ test('accounts workspace distinguishes a browser-local unfunded wallet from an A
   assert.match(implementation, /profileIssue\?\.status === 404/);
   assert.match(implementation, /Not funded yet/);
   assert.match(implementation, /Local wallet only/);
-  assert.match(implementation, /standalone Testnet Funding section/);
+  assert.match(implementation, /Request test AEKO/);
   assert.match(implementation, /hasSpendableBalance/);
-  assert.doesNotMatch(implementation, /Request test AEKO|requestAirdrop|requestTestnetFunding|requestFundingGrant/);
+  assert.match(implementation, /requestFundingGrant\(fundingUrl, wallet\.address\)/);
+  assert.doesNotMatch(implementation, /\brequestAirdrop\b|\brequestTestnetFunding\b|FUNDING_GATEWAY_KEY/);
+  assert.match(networkTools, /fundingUrl=\{config\.fundingUrl\}/);
 
   assert.match(networkTools, /<TestnetFundingRequest fundingUrl=\{config\.fundingUrl\} \/>/);
   assert.match(funding, /Your AEKO wallet address/);
