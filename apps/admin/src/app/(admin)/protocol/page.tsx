@@ -51,6 +51,7 @@ type ProtocolStatus = {
   registryComplete: boolean
   registrySchemaVersion: number | null
   registryGenesisHash: string | null
+  bootstrapInProgress: boolean
   liveGenesisHash: string
   genesisMatches: boolean
   features: Record<string, FeatureStatus>
@@ -160,11 +161,12 @@ export default function ProtocolPage() {
             {status?.condition ?? 'unavailable'}
           </span>
         </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <StatusRow label="Schema" value={registry?.schemaVersion == null ? 'legacy / missing' : 'v' + registry.schemaVersion} />
           <StatusRow label="Registry genesis" value={shortAddress(registry?.genesisHash)} mono />
           <StatusRow label="Live genesis" value={shortAddress(status?.liveGenesisHash)} mono />
           <StatusRow label="Binding" value={status ? (status.genesisMatches ? 'matches' : 'mismatch') : '—'} />
+          <StatusRow label="Bootstrap" value={status ? (status.bootstrapInProgress ? 'in progress' : 'settled') : '—'} />
         </div>
       </section>
 

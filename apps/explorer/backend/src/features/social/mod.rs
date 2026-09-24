@@ -367,6 +367,10 @@ impl SocialFiStatus {
         self.genesis_matches
     }
 
+    pub(crate) fn bootstrap_in_progress(&self) -> bool {
+        self.bootstrap_in_progress
+    }
+
     pub(crate) fn healthy_domain_count(&self) -> usize {
         self.domains
             .values()

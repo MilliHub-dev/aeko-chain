@@ -76,6 +76,10 @@ impl ProtocolStatus {
         self.genesis_matches
     }
 
+    pub(crate) fn bootstrap_in_progress(&self) -> bool {
+        self.bootstrap_in_progress
+    }
+
     pub(crate) fn executable_program_count(&self) -> usize {
         self.programs
             .values()

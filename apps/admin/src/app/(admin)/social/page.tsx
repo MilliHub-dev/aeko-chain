@@ -42,6 +42,7 @@ type SocialStatus = {
   registryComplete: boolean
   registrySchemaVersion: number | null
   registryGenesisHash: string | null
+  bootstrapInProgress: boolean
   liveGenesisHash: string
   genesisMatches: boolean
   domains: Record<string, SocialDomainStatus>
@@ -155,11 +156,12 @@ export default function SocialPage() {
             {socialStatus?.condition ?? 'unavailable'}
           </span>
         </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <InfoRow label="Schema" value={registry?.schemaVersion == null ? 'legacy / missing' : 'v' + registry.schemaVersion} />
           <InfoRow label="Registry genesis" value={registry?.genesisHash ? shortAddr(registry.genesisHash) : 'legacy / missing'} mono />
           <InfoRow label="Live genesis" value={socialStatus?.liveGenesisHash ? shortAddr(socialStatus.liveGenesisHash) : '—'} mono />
           <InfoRow label="Binding" value={socialStatus ? (socialStatus.genesisMatches ? 'matches' : 'mismatch') : '—'} />
+          <InfoRow label="Bootstrap" value={socialStatus ? (socialStatus.bootstrapInProgress ? 'in progress' : 'settled') : '—'} />
         </div>
       </section>
 
