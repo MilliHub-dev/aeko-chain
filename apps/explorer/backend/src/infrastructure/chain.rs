@@ -8,7 +8,7 @@ use {
             TransactionAccountRecord, TransactionRecord,
         },
     },
-    aeko_sdk::pubkey::Pubkey,
+    aeko_sdk::{pubkey::Pubkey, signature::Signature},
     aeko_token_20_program::{
         instruction::Token20Instruction,
         state::{Aeko20Account, Aeko20Mint, MintPolicy},
@@ -98,6 +98,44 @@ impl RpcChainClient {
         Ok(self
             .fetch_account_with_data(address)?
             .map(|(account, _)| account))
+    }
+
+    /// Resolve a confirmed transaction directly from validator RPC when the
+    /// finalized PostgreSQL projection has not reached it yet. This is a
+    /// read-only fallback; confirmed data is never written into the durable
+    /// finalized index from this path.
+    pub fn fetch_transaction(&self, signature: &str) -> Result<Option<TransactionRecord>> {
+        let requested = signature
+            .parse::<Signature>()
+            .with_context(|| format!("invalid AEKO transaction signature {signature:?}"))?;
+        let value: Option<Value> = self.rpc_request(
+            "getTransaction",
+            json!([
+                signature,
+                {
+                    "commitment": "confirmed",
+                    "encoding": "json",
+                    "maxSupportedTransactionVersion": 0
+                }
+            ]),
+        )?;
+        let Some(value) = value else {
+            return Ok(None);
+        };
+
+        let slot = required_u64(&value, "slot", "getTransaction")?;
+        let (record, _, _) = parse_transaction(slot, &value)?;
+        let returned = record
+            .signature
+            .parse::<Signature>()
+            .context("getTransaction returned an invalid primary signature")?;
+        if returned != requested {
+            bail!(
+                "getTransaction signature mismatch: requested {signature}, returned {}",
+                record.signature
+            );
+        }
+        Ok(Some(record))
     }
 
     /// Protocol verification needs the account metadata plus raw account bytes
