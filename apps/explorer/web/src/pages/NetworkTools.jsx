@@ -1,6 +1,5 @@
 import { Droplets, FlaskConical, Network, Terminal, WalletCards } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import NetworkToggle from '../components/NetworkToggle';
 import NetworkToolsPanel from '../components/NetworkToolsPanel';
 import TestnetFundingRequest from '../components/TestnetFundingRequest';
 import NetworkConsoleModal from '../components/NetworkConsoleModal';
@@ -14,10 +13,8 @@ const SOCIAL_QUERY_KEYS = ['social', 'profile', 'post', 'dialog', 'target', 'per
 export default function NetworkTools() {
   const { settings } = useAppSettings();
   const [searchParams, setSearchParams] = useSearchParams();
-  const requestedNetwork = searchParams.get('network');
-  const requestedConfig = getNetworkConfig(requestedNetwork);
-  const network = requestedNetwork === 'mainnet' && requestedConfig.available ? 'mainnet' : 'testnet';
-  const config = getNetworkConfig(network);
+  const network = 'testnet';
+  const config = getNetworkConfig();
   const consoleOpen = settings.networkConsoleEnabled && searchParams.get('console') === '1';
   const requestedTab = searchParams.get('tab');
   const consoleTab = CONSOLE_TABS.has(requestedTab) ? requestedTab : 'accounts';
@@ -32,13 +29,6 @@ export default function NetworkTools() {
       else next.set(key, value);
     });
     setSearchParams(next, { replace });
-  };
-
-  const setNetwork = (nextNetwork) => {
-    updateParams(
-      { network: nextNetwork === 'testnet' ? null : nextNetwork },
-      { remove: SOCIAL_QUERY_KEYS },
-    );
   };
 
   const openConsole = (tab = 'accounts') => {
@@ -72,18 +62,15 @@ export default function NetworkTools() {
             verify native SocialFi state, and exercise the on-chain social timeline from one place.
           </p>
         </div>
-        <NetworkToggle value={network} onChange={setNetwork} />
       </div>
 
       <div className="mb-10">
         <NetworkToolsPanel network={network} />
       </div>
 
-      {network === 'testnet' ? (
-        <TestnetFundingRequest fundingUrl={config.fundingUrl} />
-      ) : null}
+      <TestnetFundingRequest fundingUrl={config.fundingUrl} />
 
-      {network === 'testnet' && settings.networkConsoleEnabled && (
+      {settings.networkConsoleEnabled && (
         <div className="mb-10 rounded-2xl border border-aeko-accent/40 bg-gradient-to-br from-aeko-accent/10 via-white/[0.02] to-transparent p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
@@ -136,30 +123,22 @@ export default function NetworkTools() {
             <h2 className="text-2xl font-bold">{config.label} access</h2>
           </div>
           <p className="text-gray-400 mb-6">
-            {network === 'testnet'
-              ? config.key === 'localnet'
-                ? 'Local development can use requestAirdrop directly on the local validator RPC.'
-                : 'Use the Testnet Funding Portal to submit a public funding request for operator approval. The Network Console has a separate constrained developer airdrop flow. The private Faucet Daemon remains internal infrastructure, and the public RPC does not accept unauthenticated requestAirdrop calls.'
-              : 'Mainnet does not expose test funding. Use your normal treasury, exchange, or operational distribution flow.'}
+            {config.key === 'localnet'
+              ? 'Local development can use requestAirdrop directly on the local validator RPC.'
+              : 'Use the Testnet Funding Portal to submit a public funding request for operator approval. The Network Console has a separate constrained developer airdrop flow. The private Faucet Daemon remains internal infrastructure, and the public RPC does not accept unauthenticated requestAirdrop calls.'}
           </p>
 
-          {network === 'testnet' ? (
-            <div className="rounded-xl border border-white/15 bg-black/20 p-5">
-              <div className="text-sm font-medium text-white mb-1">Public funding path</div>
-              <div className="text-sm text-green-400 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                Policy-controlled Funding Gateway
-              </div>
-              <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-white/10">
-                The Faucet Daemon is a private TCP service. Public users submit funding requests through
-                the Funding Portal and an operator approves release; only server-side funding routes are authorized to invoke requestAirdrop.
-              </div>
+          <div className="rounded-xl border border-white/15 bg-black/20 p-5">
+            <div className="text-sm font-medium text-white mb-1">Public funding path</div>
+            <div className="text-sm text-green-400 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              Policy-controlled Funding Gateway
             </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-white/15 bg-black/20 p-5 text-sm text-gray-400">
-              {config.fundingLabel}
+            <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-white/10">
+              The Faucet Daemon is a private TCP service. Public users submit funding requests through
+              the Funding Portal and an operator approves release; only server-side funding routes are authorized to invoke requestAirdrop.
             </div>
-          )}
+          </div>
         </div>
 
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
