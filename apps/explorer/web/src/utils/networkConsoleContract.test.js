@@ -162,6 +162,8 @@ test('Operations Web separates public approval requests from direct Test Console
   assert.match(store, /status: 'pending'/);
   assert.match(store, /source: 'console'/);
   assert.match(store, /FUNDING_MAX_CONSOLE_AIRDROP_AEKO/);
+  assert.match(store, /trimDecidedFundingRequests/);
+  assert.match(store, /REQUEST_QUEUE_FULL/);
   assert.match(publicRoute, /requestFundingApproval\(address\)/);
   assert.match(publicRoute, /status: 202/);
   assert.doesNotMatch(publicRoute, /requestAirdrop/);
