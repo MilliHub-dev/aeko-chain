@@ -83,7 +83,8 @@ fn main() -> Result<()> {
     fs::create_dir_all(&continuity_dir)
         .context("creating protocol bootstrap continuity directory")?;
 
-    let operator_allow_missing_state = parse_bool_flag("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE")?;
+    let operator_allow_missing_state =
+        parse_bool_flag("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE")?;
     let allow_continuity_anchor_recovery =
         parse_bool_flag_with_default("AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY", false)?;
 
@@ -124,14 +125,20 @@ fn main() -> Result<()> {
     eprintln!("    live-genesis: {live_genesis}");
     eprintln!(
         "    registry-genesis: {}",
-        lifecycle_decision.registry_genesis.as_deref().unwrap_or("legacy-or-none")
+        lifecycle_decision
+            .registry_genesis
+            .as_deref()
+            .unwrap_or("legacy-or-none")
     );
     eprintln!("    reset-requested: {reset_requested}");
     eprintln!(
         "    reset-in-progress: {}",
         lifecycle_decision.reset_in_progress
     );
-    eprintln!("    lifecycle-action: {}", lifecycle_decision.action.as_str());
+    eprintln!(
+        "    lifecycle-action: {}",
+        lifecycle_decision.action.as_str()
+    );
 
     let token_feature_slot = require_feature_active(
         &client,
@@ -513,7 +520,10 @@ AEKO_FINALITY_ORACLE_STATE={}\n",
     );
     write_registry_file(&out_dir, &registry)?;
     write_continuity_anchor(&continuity_dir, &registry)?;
-    lifecycle::mark_complete(&[out_dir.as_path(), continuity_dir.as_path()], &live_genesis)?;
+    lifecycle::mark_complete(
+        &[out_dir.as_path(), continuity_dir.as_path()],
+        &live_genesis,
+    )?;
     println!("# Canonical AEKO protocol registry:");
     print!("{registry}");
     Ok(())
