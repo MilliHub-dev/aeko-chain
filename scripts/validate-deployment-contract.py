@@ -364,7 +364,11 @@ def main() -> int:
     # Live diagnostics are deliberately separate from the image build/release workflow.
     require("workflow_dispatch:" in live_diagnostics, "live diagnostics must be manually dispatchable")
     require("pull_request:" not in live_diagnostics and "push:" not in live_diagnostics, "live diagnostics must not run automatically on code changes")
-    require("https://rpc.aeko.online" in live_diagnostics and "https://api.aeko.online" in live_diagnostics, "live diagnostics must target the public AEKO RPC and Explorer API")
+    require(
+        "https://rpc.aeko.online" in live_diagnostics
+        and "https://scan.aeko.online/api/explorer/testnet" in live_diagnostics,
+        "live diagnostics must target public RPC and the Explorer UI same-origin read proxy",
+    )
     for endpoint in ("/liveness", "/readiness", "/network/readiness", "/overview", "/registry/social", "/social/status", "/registry/protocol", "/protocol/status"):
         require(endpoint in live_diagnostics, f"live diagnostics missing control-plane probe: {endpoint}")
     require("smoke-aeko-social.py" in live_diagnostics and "smoke-aeko-protocol.py" in live_diagnostics, "live diagnostics must execute both repository smoke suites")
