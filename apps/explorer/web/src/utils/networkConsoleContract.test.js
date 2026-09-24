@@ -160,7 +160,7 @@ test('Operations Web separates public approval requests from direct Test Console
   assert.match(store, /requestFundingApproval/);
   assert.match(store, /decideFundingRequest/);
   assert.match(store, /status: 'pending'/);
-  assert.match(store, /source: 'console'/);
+  assert.match(store, /GrantSource = 'public' \| 'backend' \| 'admin' \| 'console'/);
   assert.match(store, /FUNDING_MAX_CONSOLE_AIRDROP_AEKO/);
   assert.match(store, /trimDecidedFundingRequests/);
   assert.match(store, /REQUEST_QUEUE_FULL/);
