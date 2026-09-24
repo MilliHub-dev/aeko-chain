@@ -275,35 +275,56 @@ services:
     logging: *default-logging
     networks: [aeko]
 
-  operations-web:
+  funding-gateway:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-operations-web:${AEKO_IMAGE_TAG:-latest}
     pull_policy: always
     restart: unless-stopped
     environment:
+      AEKO_OPERATIONS_ROLE: funding
       AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
-      AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}
-      AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?}
-      AEKO_PUBLIC_EXPLORER_URL: ${AEKO_PUBLIC_EXPLORER_URL:?}
       AEKO_PUBLIC_FUNDING_URL: ${AEKO_PUBLIC_FUNDING_URL:?}
-      AEKO_PUBLIC_ADMIN_URL: ${AEKO_PUBLIC_ADMIN_URL:?}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}
-      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}
       FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}
-      FUNDING_CLIENT_API_KEY: ${FUNDING_CLIENT_API_KEY:-}
+      FUNDING_ADMIN_API_KEY: ${FUNDING_ADMIN_API_KEY:?}
       FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:?}
       FUNDING_STATE_DIR: /data
       FUNDING_DEFAULT_AMOUNT_AEKO: ${FUNDING_DEFAULT_AMOUNT_AEKO:-5}
       FUNDING_DEFAULT_COOLDOWN_HOURS: ${FUNDING_DEFAULT_COOLDOWN_HOURS:-24}
       FUNDING_DEFAULT_DAILY_BUDGET_AEKO: ${FUNDING_DEFAULT_DAILY_BUDGET_AEKO:-5000}
       FUNDING_MAX_MANUAL_GRANT_AEKO: ${FUNDING_MAX_MANUAL_GRANT_AEKO:-100}
+      FUNDING_MAX_CONSOLE_AIRDROP_AEKO: ${FUNDING_MAX_CONSOLE_AIRDROP_AEKO:-25}
     expose:
       - "3001"
     volumes:
       - admin-state:/data
-    # Liveness only: the public Funding Portal must stay up to say "paused" or
-    # "chain unavailable" while the node or Explorer recover.
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/funding/policy >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    networks: [aeko]
+
+  operations-web:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-operations-web:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      AEKO_OPERATIONS_ROLE: admin
+      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
+      AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}
+      AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?}
+      AEKO_INTERNAL_FUNDING_URL: ${AEKO_INTERNAL_FUNDING_URL:-http://funding-gateway:3001}
+      FUNDING_ADMIN_API_KEY: ${FUNDING_ADMIN_API_KEY:?}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}
+    expose:
+      - "3001"
+    depends_on:
+      funding-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/login >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
