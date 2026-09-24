@@ -1,10 +1,7 @@
 use {
     crate::{
         error::ApiResult,
-        features::{
-            protocol::inspect_protocol_status,
-            social::inspect_social_status,
-        },
+        features::{protocol::inspect_protocol_status, social::inspect_social_status},
         infrastructure::persistence::settings::PersistedAppSettings,
         response::{self, DataEnvelope},
         state::SharedState,
@@ -84,7 +81,6 @@ async fn liveness(
         "process",
     )
 }
-
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
