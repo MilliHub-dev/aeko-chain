@@ -226,12 +226,12 @@ fn build_snapshot(
         .map_err(|_| ApiError::Internal(anyhow!("persisted settings revision is negative")))?;
     let explorer_list_size = u16::try_from(persisted.explorer_list_size)
         .map_err(|_| ApiError::Internal(anyhow!("persisted Explorer list size is invalid")))?;
-    let explorer_search_result_limit =
-        u16::try_from(persisted.explorer_search_result_limit).map_err(|_| {
+    let explorer_search_result_limit = u16::try_from(persisted.explorer_search_result_limit)
+        .map_err(|_| {
             ApiError::Internal(anyhow!("persisted Explorer search result limit is invalid"))
         })?;
-    let explorer_auto_refresh_seconds =
-        u64::try_from(persisted.explorer_auto_refresh_seconds).map_err(|_| {
+    let explorer_auto_refresh_seconds = u64::try_from(persisted.explorer_auto_refresh_seconds)
+        .map_err(|_| {
             ApiError::Internal(anyhow!(
                 "persisted Explorer auto refresh interval is invalid"
             ))
