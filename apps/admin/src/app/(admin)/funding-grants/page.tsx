@@ -51,7 +51,11 @@ export default function FundingGrantsPage() {
   }, [])
 
   useEffect(() => {
-    refresh()
+    void refresh()
+    const timer = window.setInterval(() => {
+      void refresh()
+    }, 15_000)
+    return () => window.clearInterval(timer)
   }, [refresh])
 
   async function saveSettings(e: React.FormEvent) {
