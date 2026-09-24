@@ -524,6 +524,7 @@ def main() -> int:
         "validator",
         "explorer-api",
         "explorer-ui",
+        "funding-gateway",
         "operations-web",
         "wallet-tools",
     ]
@@ -548,14 +549,32 @@ def main() -> int:
     coolify_faucet = service_block(coolify, "faucet", "validator")
     coolify_validator = service_block(coolify, "validator", "explorer-api")
     coolify_explorer = service_block(coolify, "explorer-api", "explorer-ui")
+    coolify_explorer_ui = service_block(coolify, "explorer-ui", "funding-gateway")
+    coolify_funding_gateway = service_block(coolify, "funding-gateway", "operations-web")
     coolify_operations_web = service_block(coolify, "operations-web", "wallet-tools")
     coolify_wallet_tools = service_block(coolify, "wallet-tools")
-    # The operations web app owns public Funding Gateway policy plus the operator
-    # console. The private Faucet Daemon is a separate TCP service.
+    # Public funding and Admin are isolated service roles. The Funding Gateway
+    # owns persistent policy/queue state and Faucet authorization; Admin is only
+    # a private authenticated client of that service.
+    require("AEKO_OPERATIONS_ROLE: funding" in coolify_funding_gateway, "Coolify Funding Gateway role must be explicit")
+    require("AEKO_OPERATIONS_ROLE: admin" in coolify_operations_web, "Coolify Admin role must be explicit")
     require("ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}" in coolify_operations_web, "Coolify operations web must require an operator password")
     require("ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}" in coolify_operations_web, "Coolify operations web must require a session secret")
-    require("source: admin-state" in coolify_operations_web and "target: /data" in coolify_operations_web, "Coolify operations web must persist funding policy/grants in the admin-state volume")
-    require("http://127.0.0.1:3001/api/funding/policy" in coolify_operations_web, "Coolify operations web healthcheck must probe the public funding policy endpoint")
+    require("source: admin-state" in coolify_funding_gateway and "target: /data" in coolify_funding_gateway, "Coolify Funding Gateway must persist policy/queue state")
+    require("source: admin-state" not in coolify_operations_web, "Coolify Admin must not mount Funding Gateway state")
+    require("http://127.0.0.1:3001/api/funding/policy" in coolify_funding_gateway, "Coolify Funding Gateway healthcheck must probe public funding policy")
+    require("http://127.0.0.1:3001/login" in coolify_operations_web, "Coolify Admin healthcheck must probe only the Admin process")
+    require(
+        "AEKO_INTERNAL_FUNDING_URL: ${AEKO_INTERNAL_FUNDING_URL:-http://funding-gateway:3001}" in coolify_operations_web
+        and "FUNDING_ADMIN_API_KEY: ${FUNDING_ADMIN_API_KEY:?}" in coolify_operations_web,
+        "Coolify Admin must use the private Funding Gateway API",
+    )
+    require("FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_funding_gateway, "Coolify Funding Gateway must own protected airdrop authorization")
+    require("FUNDING_GATEWAY_KEY" not in coolify_operations_web, "Coolify Admin must not receive protected airdrop authorization")
+    require(
+        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in coolify_explorer_ui,
+        "Coolify Explorer UI must proxy indexed reads to the private Explorer backend",
+    )
     require("--per-request-cap" in coolify_faucet, "Coolify faucet must enforce a per-request airdrop ceiling")
     require("AEKO_KEYS_DIR" not in coolify, "Coolify compose must not depend on interpolated key-path variables")
     coolify_volume_sources = re.findall(r"^\s+source:\s*(.+?)\s*$", coolify, re.MULTILINE)
@@ -590,7 +609,13 @@ def main() -> int:
     require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in coolify_explorer, "Coolify Explorer must purge stale projections on intentional chain resets")
     require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in coolify_explorer, "Coolify Explorer must consume protocol registry")
     require("source: protocol-state" in coolify_explorer and "target: /protocol-state" in coolify_explorer and "read_only: true" in coolify_explorer, "Coolify Explorer must mount protocol state read-only")
-    require("depends_on:" not in coolify_operations_web, "Coolify Operations Web lifecycle must be independent of validator health")
+    require(
+        "funding-gateway:" in coolify_operations_web
+        and "condition: service_healthy" in coolify_operations_web
+        and "validator:" not in coolify_operations_web
+        and "explorer-api:" not in coolify_operations_web,
+        "Coolify Admin may wait for its private Funding Gateway but must remain independent of validator/Explorer readiness",
+    )
     require('profiles: ["ops"]' in coolify_wallet_tools, "Coolify wallet tools must remain operator-only and absent from default startup")
     require("exit 64" in key_preflight and "exit 65" in key_preflight, "reusable key preflight helper must preserve distinct missing/invalid key exit codes")
     require(
@@ -601,10 +626,10 @@ def main() -> int:
     require("AEKO_VALIDATOR_LEDGER_VOLUME" not in coolify, "Coolify ledger source must not use interpolated volume-source syntax")
     require("AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?}" in coolify_validator, "Coolify must require the public validator address")
     require("AEKO_FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_validator, "Coolify validator must protect requestAirdrop behind the Funding Gateway key")
-    require("FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_operations_web, "Coolify admin must receive the matching Funding Gateway key")
+    require("FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_funding_gateway, "Coolify Funding Gateway must receive the matching validator authorization key")
     require(
-        "FUNDING_MAX_CONSOLE_AIRDROP_AEKO: ${FUNDING_MAX_CONSOLE_AIRDROP_AEKO:-25}" in coolify_operations_web,
-        "Coolify Operations Web must cap direct Test Console airdrops",
+        "FUNDING_MAX_CONSOLE_AIRDROP_AEKO: ${FUNDING_MAX_CONSOLE_AIRDROP_AEKO:-25}" in coolify_funding_gateway,
+        "Coolify Funding Gateway must cap direct Test Console airdrops",
     )
     require('"8000-8050:8000-8050/tcp"' in coolify_validator, "Coolify validator TCP transport range must be published")
     require('"8000-8050:8000-8050/udp"' in coolify_validator, "Coolify validator UDP transport range must be published")
@@ -621,7 +646,7 @@ def main() -> int:
         "Coolify operations web must use the internal validator RPC",
     )
     require(
-        "AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in coolify_operations_web,
+        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in coolify_operations_web,
         "Coolify operations web must use the internal Explorer API",
     )
     require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?}" in coolify_explorer, "Coolify Explorer must require durable PostgreSQL")
