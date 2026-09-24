@@ -55,7 +55,7 @@ fn main() -> Result<()> {
     eprintln!("    authority: {}", authority.pubkey());
     eprintln!("    out-dir:   {}", out_dir.display());
     wait_for_rpc_ready(&client)?;
-    if parse_bool_flag_with_default("AEKO_RESET_LEDGER", false)? {
+    if parse_bool_flag("AEKO_RESET_LEDGER")? {
         let genesis_hash = client
             .get_genesis_hash()
             .context("reading validator genesis hash for SocialFi reset")?
