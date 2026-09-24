@@ -167,8 +167,10 @@ test('Operations Web separates public approval requests from direct Test Console
   assert.match(publicRoute, /requestFundingApproval\(address, trusted \? 'backend' : 'public'\)/);
   assert.match(publicRoute, /status: 202/);
   assert.doesNotMatch(publicRoute, /\bgrant\(|requestAirdrop/);
+  assert.match(publicRoute, /throttle\(clientIp\(req\.headers\), 'approval'\)/);
+  assert.doesNotMatch(publicRoute, /explorerUrl/);
   assert.match(consoleRoute, /source: 'console'/);
-  assert.match(consoleRoute, /throttle\(clientIp\(req\.headers\)\)/);
+  assert.match(consoleRoute, /throttle\(clientIp\(req\.headers\), 'console-airdrop'\)/);
   assert.match(adminRoute, /decideFundingRequest/);
   assert.match(adminRoute, /approve/);
   assert.match(adminRoute, /reject/);
