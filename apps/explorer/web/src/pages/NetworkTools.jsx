@@ -18,7 +18,7 @@ export default function NetworkTools() {
   const requestedConfig = getNetworkConfig(requestedNetwork);
   const network = requestedNetwork === 'mainnet' && requestedConfig.available ? 'mainnet' : 'testnet';
   const config = getNetworkConfig(network);
-  const consoleOpen = settings.networkConsoleEnabled && searchParams.get('console') === '1';
+  const consoleOpen = network === 'testnet' && settings.networkConsoleEnabled && searchParams.get('console') === '1';
   const requestedTab = searchParams.get('tab');
   const consoleTab = CONSOLE_TABS.has(requestedTab) ? requestedTab : 'accounts';
 
