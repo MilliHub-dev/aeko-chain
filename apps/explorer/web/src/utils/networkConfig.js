@@ -1,22 +1,20 @@
-// Explorer endpoint ownership has one normalized browser contract:
-//
-//   { testnet: {...}, mainnet: {...}, demo: {...} }
-//
-// Production/preview containers inject window.__AEKO_RUNTIME_CONFIG__ at
-// startup. Local Vite development receives the same shape from vite.config.js,
-// which reads only whitelisted AEKO_PUBLIC_*, AEKO_MAINNET_* and AEKO_DEMO_*
-// values from .env files. Production builds never bake deployment endpoints.
+// Browser-visible network configuration contains only endpoints the browser
+// genuinely owns: JSON-RPC, WebSocket, the public Funding Gateway, and the
+// same-origin Explorer read proxy. Explorer backend upstream origins remain
+// server/container configuration and are never injected into the browser.
 
 const injectedRuntime = globalThis.__AEKO_RUNTIME_CONFIG__ || {};
 const devRuntime = globalThis.__AEKO_DEV_RUNTIME_CONFIG__ || {};
 const runtime =
   Object.keys(injectedRuntime).length > 0 ? injectedRuntime : devRuntime;
 
+const browserOrigin =
+  typeof globalThis.location?.origin === 'string' ? globalThis.location.origin : '';
+
 const LOCAL_TESTNET_DEFAULTS = {
   rpcUrl: 'http://127.0.0.1:8899',
   websocketUrl: 'ws://127.0.0.1:8900',
-  explorerApiUrl: 'http://127.0.0.1:8088',
-  explorerUrl: 'http://127.0.0.1:4000',
+  explorerApiUrl: '/api/explorer/testnet',
   fundingUrl: '',
 };
 
@@ -28,20 +26,19 @@ function normalizeNetwork(value, { funding = false } = {}) {
     rpcUrl: clean(input.rpcUrl),
     websocketUrl: clean(input.websocketUrl),
     explorerApiUrl: clean(input.explorerApiUrl),
-    explorerUrl: clean(input.explorerUrl),
   };
   if (funding) normalized.fundingUrl = clean(input.fundingUrl);
   return normalized;
 }
 
 function validateNetwork(name, config) {
-  const required = ['rpcUrl', 'websocketUrl', 'explorerApiUrl', 'explorerUrl'];
+  const required = ['rpcUrl', 'websocketUrl', 'explorerApiUrl'];
   const anyConfigured = Object.values(config).some(Boolean);
   const missing = required.filter((key) => !config[key]);
 
   if (anyConfigured && missing.length > 0) {
     throw new Error(
-      `${name} Explorer endpoint configuration is partial. Missing: ${missing.join(', ')}.`,
+      `${name} Explorer configuration is partial. Missing: ${missing.join(', ')}.`,
     );
   }
 
@@ -51,12 +48,12 @@ function validateNetwork(name, config) {
   };
 }
 
-function explorerLabel(url) {
-  if (!url) return 'Not configured';
+function explorerLabel() {
+  if (!browserOrigin) return 'This Explorer';
   try {
-    return new URL(url).host;
+    return new URL(browserOrigin).host;
   } catch {
-    return 'Invalid URL';
+    return 'This Explorer';
   }
 }
 
@@ -84,9 +81,9 @@ export const NETWORKS = {
     available: configuredMainnet.configured,
     rpcUrl: mainnet.rpcUrl,
     websocketUrl: mainnet.websocketUrl,
-    explorerUrl: mainnet.explorerUrl,
+    explorerUrl: browserOrigin,
     explorerApiUrl: mainnet.explorerApiUrl,
-    explorerLabel: explorerLabel(mainnet.explorerUrl),
+    explorerLabel: explorerLabel(),
     fundingUrl: '',
     fundingLabel: 'No test funding on mainnet',
     fundingEnabled: false,
@@ -102,9 +99,9 @@ export const NETWORKS = {
     available: useBuiltInLocalTestnet || configuredTestnet.configured,
     rpcUrl: testnet.rpcUrl,
     websocketUrl: testnet.websocketUrl,
-    explorerUrl: testnet.explorerUrl,
+    explorerUrl: browserOrigin || 'http://127.0.0.1:4000',
     explorerApiUrl: testnet.explorerApiUrl,
-    explorerLabel: explorerLabel(testnet.explorerUrl),
+    explorerLabel: explorerLabel(),
     fundingUrl: testnet.fundingUrl || '',
     fundingLabel: useBuiltInLocalTestnet
       ? 'Local funding uses requestAirdrop on the local RPC'
