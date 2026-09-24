@@ -30,13 +30,21 @@ const endpointKey = (parsed) => {
   return `${parsed.protocol}//${parsed.host}${path}`;
 };
 
+const testnet = {
+  rpcUrl: optional('AEKO_PUBLIC_RPC_URL'),
+  websocketUrl: optional('AEKO_PUBLIC_WS_URL'),
+  explorerApiUrl: optional('AEKO_PUBLIC_EXPLORER_API_URL'),
+  explorerUrl: optional('AEKO_PUBLIC_EXPLORER_URL'),
+  fundingUrl: optional('AEKO_PUBLIC_FUNDING_URL'),
+};
+
 const explorerApi = parsePublicHttpUrl(
   'AEKO_PUBLIC_EXPLORER_API_URL',
-  optional('AEKO_PUBLIC_EXPLORER_API_URL'),
+  testnet.explorerApiUrl,
 );
 const explorerUi = parsePublicHttpUrl(
   'AEKO_PUBLIC_EXPLORER_URL',
-  optional('AEKO_PUBLIC_EXPLORER_URL'),
+  testnet.explorerUrl,
 );
 
 if (endpointKey(explorerApi) === endpointKey(explorerUi)) {
@@ -46,27 +54,30 @@ if (endpointKey(explorerApi) === endpointKey(explorerUi)) {
   );
 }
 
-const runtimeKeys = [
-  'AEKO_PUBLIC_RPC_URL',
-  'AEKO_PUBLIC_WS_URL',
-  'AEKO_PUBLIC_EXPLORER_API_URL',
-  'AEKO_PUBLIC_EXPLORER_URL',
-  'AEKO_PUBLIC_FUNDING_URL',
-  'AEKO_MAINNET_RPC_URL',
-  'AEKO_MAINNET_WS_URL',
-  'AEKO_MAINNET_EXPLORER_API_URL',
-  'AEKO_MAINNET_EXPLORER_URL',
-  'AEKO_DEMO_RPC_URL',
-  'AEKO_DEMO_COLLECTION',
-  'AEKO_DEMO_TOKEN',
-  'AEKO_DEMO_METADATA_URI',
-];
+const mainnet = {
+  rpcUrl: optional('AEKO_MAINNET_RPC_URL'),
+  websocketUrl: optional('AEKO_MAINNET_WS_URL'),
+  explorerApiUrl: optional('AEKO_MAINNET_EXPLORER_API_URL'),
+  explorerUrl: optional('AEKO_MAINNET_EXPLORER_URL'),
+};
 
-const config = Object.fromEntries(
-  runtimeKeys
-    .map((name) => [name, optional(name)])
-    .filter(([, value]) => Boolean(value)),
-);
+const mainnetValues = Object.values(mainnet);
+if (mainnetValues.some(Boolean) && !mainnetValues.every(Boolean)) {
+  const missing = Object.entries(mainnet)
+    .filter(([, value]) => !value)
+    .map(([key]) => key)
+    .join(', ');
+  throw new Error(`AEKO mainnet Explorer configuration is partial. Missing: ${missing}.`);
+}
+
+const demo = {
+  rpcUrl: optional('AEKO_DEMO_RPC_URL'),
+  collection: optional('AEKO_DEMO_COLLECTION'),
+  token: optional('AEKO_DEMO_TOKEN'),
+  metadataUri: optional('AEKO_DEMO_METADATA_URI'),
+};
+
+const config = { testnet, mainnet, demo };
 
 fs.writeFileSync(
   '/app/dist/runtime-config.js',

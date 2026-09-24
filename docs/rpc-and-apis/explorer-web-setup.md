@@ -39,7 +39,7 @@ Optional mainnet and AEKO-721 demo runtime values live in the same canonical dep
 
 ## Local Vite development
 
-Local Vite development does not require endpoint environment variables. The client uses fixed loopback defaults:
+Local Vite development can target either localhost or a remote AEKO deployment. Copy `apps/explorer/web/.env.example` to `.env.local` and set the explicit `AEKO_TESTNET_*` and optional `AEKO_MAINNET_*` endpoint groups. If no testnet group is supplied, the client falls back to:
 
 ```text
 RPC          http://127.0.0.1:8899
@@ -48,7 +48,7 @@ Explorer API http://127.0.0.1:8088
 Explorer UI  http://127.0.0.1:4000
 ```
 
-`apps/explorer/web/.env.example` documents this ownership rule but intentionally contains no endpoint assignments. Remote previews and production both use the canonical `AEKO_*` runtime configuration from `docker/env.public.example`; endpoint-specific `VITE_AEKO_*` variables are unsupported.
+`apps/explorer/web/.env.example` documents both local-development networks. Vite reads only those whitelisted endpoint keys during `npm run dev`; production builds do not bake them. Remote previews and production continue to use `docker/env.public.example`, and the container entrypoint normalizes those deployment variables into the same browser `testnet/mainnet/demo` runtime shape. Endpoint-specific `VITE_AEKO_*` variables are unsupported.
 
 ## Boot the Explorer backend locally
 

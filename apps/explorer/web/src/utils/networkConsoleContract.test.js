@@ -225,15 +225,27 @@ test('Admin section switches keep descriptions outside non-wrapping tab buttons'
 });
 
 
-test('Explorer web has one runtime endpoint configuration surface', async () => {
+test('Explorer web keeps one normalized runtime contract while local env can target remote networks', async () => {
   const example = await source('../.env.example');
   const deploymentEnv = await source('../../../../docker/env.public.example');
-  const dockerfile = await source('../../../../docker/Dockerfile');
+  const viteConfig = await source('../vite.config.js');
   const networkConfig = await source('utils/networkConfig.js');
+  const entrypoint = await source('../../../../docker/explorer-ui-entrypoint.sh');
   const demo = await source('data/nftDemoExamples.js');
-  const consoleWrapper = await source('components/NetworkConsoleModal.jsx');
-  const socialModal = await source('components/social/NetworkSocialModal.jsx');
-  const socialTest = await source('pages/SocialTestV2.jsx');
+
+  for (const key of [
+    'AEKO_TESTNET_RPC_URL',
+    'AEKO_TESTNET_WS_URL',
+    'AEKO_TESTNET_EXPLORER_API_URL',
+    'AEKO_TESTNET_EXPLORER_URL',
+    'AEKO_TESTNET_FUNDING_URL',
+    'AEKO_MAINNET_RPC_URL',
+    'AEKO_MAINNET_WS_URL',
+    'AEKO_MAINNET_EXPLORER_API_URL',
+    'AEKO_MAINNET_EXPLORER_URL',
+  ]) {
+    assert.match(example, new RegExp('^' + key + '=', 'm'));
+  }
 
   for (const key of [
     'AEKO_PUBLIC_RPC_URL',
@@ -243,37 +255,31 @@ test('Explorer web has one runtime endpoint configuration surface', async () => 
     'AEKO_PUBLIC_FUNDING_URL',
     'AEKO_MAINNET_RPC_URL',
     'AEKO_MAINNET_EXPLORER_API_URL',
-    'AEKO_DEMO_COLLECTION',
-    'AEKO_DEMO_TOKEN',
   ]) {
     assert.match(deploymentEnv, new RegExp(key));
   }
 
-  assert.match(example, /docker\/env\.public\.example/);
-  assert.doesNotMatch(example, /^[A-Z][A-Z0-9_]*=/m);
+  assert.doesNotMatch(example, /VITE_AEKO_/);
+  assert.doesNotMatch(networkConfig, /VITE_AEKO_/);
+  assert.match(viteConfig, /loadEnv/);
+  assert.match(viteConfig, /command === 'serve'/);
+  assert.match(viteConfig, /AEKO_TESTNET/);
+  assert.match(viteConfig, /AEKO_MAINNET/);
+  assert.match(viteConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
 
-  for (const sourceText of [
-    example,
-    dockerfile,
-    networkConfig,
-    demo,
-    consoleWrapper,
-    socialModal,
-    socialTest,
-  ]) {
-    assert.doesNotMatch(sourceText, /VITE_AEKO_/);
-  }
-
-  assert.match(networkConfig, /import\.meta\.env\.DEV/);
+  assert.match(networkConfig, /__AEKO_RUNTIME_CONFIG__/);
+  assert.match(networkConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
+  assert.match(networkConfig, /runtime\.testnet/);
+  assert.match(networkConfig, /runtime\.mainnet/);
   assert.match(networkConfig, /http:\/\/127\.0\.0\.1:8899/);
   assert.match(networkConfig, /ws:\/\/127\.0\.0\.1:8900/);
   assert.match(networkConfig, /http:\/\/127\.0\.0\.1:8088/);
-  assert.match(networkConfig, /getRuntimeConfigValue\('AEKO_PUBLIC_RPC_URL'\)/);
-  assert.match(demo, /getRuntimeConfigValue\('AEKO_DEMO_COLLECTION'\)/);
-  assert.doesNotMatch(demo, /import\.meta\.env/);
-  assert.doesNotMatch(consoleWrapper, /import\.meta\.env/);
-  assert.doesNotMatch(socialModal, /import\.meta\.env/);
-  assert.doesNotMatch(socialTest, /import\.meta\.env/);
+
+  assert.match(entrypoint, /const config = \{ testnet, mainnet, demo \}/);
+  assert.match(entrypoint, /AEKO_PUBLIC_RPC_URL/);
+  assert.match(entrypoint, /AEKO_MAINNET_RPC_URL/);
+  assert.match(demo, /getDemoConfig/);
+  assert.doesNotMatch(demo, /AEKO_DEMO_/);
 });
 
 

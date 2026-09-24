@@ -1,105 +1,127 @@
-// Explorer endpoint ownership has one source per runtime:
-// - deployed/preview containers inject AEKO_* values into window.__AEKO_RUNTIME_CONFIG__
-// - local Vite development uses fixed loopback defaults
+// Explorer endpoint ownership has one normalized browser contract:
 //
-// Endpoint-specific Vite variables are intentionally unsupported. Vite values
-// are compiled into the bundle and can outlive the environment that
-// built the image, which made production deployments fragile and duplicated
-// the canonical AEKO_* runtime contract.
+//   { testnet: {...}, mainnet: {...}, demo: {...} }
+//
+// Production/preview containers inject window.__AEKO_RUNTIME_CONFIG__ at
+// startup. Local Vite development receives the same shape from vite.config.js,
+// which reads only whitelisted AEKO_TESTNET_*, AEKO_MAINNET_* and AEKO_DEMO_*
+// values from .env files. Production builds never bake deployment endpoints.
 
-const runtime = globalThis.__AEKO_RUNTIME_CONFIG__ || {};
+const injectedRuntime = globalThis.__AEKO_RUNTIME_CONFIG__ || {};
+const devRuntime = globalThis.__AEKO_DEV_RUNTIME_CONFIG__ || {};
+const runtime =
+  Object.keys(injectedRuntime).length > 0 ? injectedRuntime : devRuntime;
 
-export const getRuntimeConfigValue = (key) => String(runtime[key] || '').trim();
-
-const browserOrigin =
-  typeof globalThis.location?.origin === 'string' ? globalThis.location.origin : '';
-
-const LOCAL_DEFAULTS = {
-  rpc: 'http://127.0.0.1:8899',
-  ws: 'ws://127.0.0.1:8900',
-  explorer: 'http://127.0.0.1:4000',
-  explorerApi: 'http://127.0.0.1:8088',
+const LOCAL_TESTNET_DEFAULTS = {
+  rpcUrl: 'http://127.0.0.1:8899',
+  websocketUrl: 'ws://127.0.0.1:8900',
+  explorerApiUrl: 'http://127.0.0.1:8088',
+  explorerUrl: 'http://127.0.0.1:4000',
+  fundingUrl: '',
 };
 
-const PUBLIC_TESTNET = {
-  rpc: getRuntimeConfigValue('AEKO_PUBLIC_RPC_URL'),
-  ws: getRuntimeConfigValue('AEKO_PUBLIC_WS_URL'),
-  explorer: getRuntimeConfigValue('AEKO_PUBLIC_EXPLORER_URL') || browserOrigin,
-  explorerApi: getRuntimeConfigValue('AEKO_PUBLIC_EXPLORER_API_URL'),
-  funding: getRuntimeConfigValue('AEKO_PUBLIC_FUNDING_URL'),
-};
+const clean = (value) => String(value || '').trim();
 
-const hasPublicRuntime = Boolean(
-  PUBLIC_TESTNET.rpc
-  && PUBLIC_TESTNET.ws
-  && PUBLIC_TESTNET.explorer
-  && PUBLIC_TESTNET.explorerApi,
+function normalizeNetwork(value, { funding = false } = {}) {
+  const input = value && typeof value === 'object' ? value : {};
+  const normalized = {
+    rpcUrl: clean(input.rpcUrl),
+    websocketUrl: clean(input.websocketUrl),
+    explorerApiUrl: clean(input.explorerApiUrl),
+    explorerUrl: clean(input.explorerUrl),
+  };
+  if (funding) normalized.fundingUrl = clean(input.fundingUrl);
+  return normalized;
+}
+
+function validateNetwork(name, config) {
+  const required = ['rpcUrl', 'websocketUrl', 'explorerApiUrl', 'explorerUrl'];
+  const anyConfigured = Object.values(config).some(Boolean);
+  const missing = required.filter((key) => !config[key]);
+
+  if (anyConfigured && missing.length > 0) {
+    throw new Error(
+      `${name} Explorer endpoint configuration is partial. Missing: ${missing.join(', ')}.`,
+    );
+  }
+
+  return {
+    configured: anyConfigured && missing.length === 0,
+    value: config,
+  };
+}
+
+function explorerLabel(url) {
+  if (!url) return 'Not configured';
+  try {
+    return new URL(url).host;
+  } catch {
+    return 'Invalid URL';
+  }
+}
+
+const configuredTestnet = validateNetwork(
+  'Testnet',
+  normalizeNetwork(runtime.testnet, { funding: true }),
+);
+const configuredMainnet = validateNetwork(
+  'Mainnet',
+  normalizeNetwork(runtime.mainnet),
 );
 
-// Vite dev is the only implicit local mode. Production/preview builds never
-// infer localhost merely because runtime configuration is missing.
-const useLocalEndpoints = Boolean(import.meta.env.DEV) && !hasPublicRuntime;
+const useBuiltInLocalTestnet =
+  Boolean(import.meta.env.DEV) && !configuredTestnet.configured;
 
-const TESTNET_RUNTIME = useLocalEndpoints
-  ? {
-      rpc: LOCAL_DEFAULTS.rpc,
-      ws: LOCAL_DEFAULTS.ws,
-      explorer: LOCAL_DEFAULTS.explorer,
-      explorerApi: LOCAL_DEFAULTS.explorerApi,
-      funding: '',
-    }
-  : PUBLIC_TESTNET;
-
-const MAINNET_RUNTIME = {
-  rpc: getRuntimeConfigValue('AEKO_MAINNET_RPC_URL'),
-  ws: getRuntimeConfigValue('AEKO_MAINNET_WS_URL'),
-  explorer: getRuntimeConfigValue('AEKO_MAINNET_EXPLORER_URL'),
-  explorerApi: getRuntimeConfigValue('AEKO_MAINNET_EXPLORER_API_URL'),
-};
-
-const mainnetAvailable = Object.values(MAINNET_RUNTIME).every(Boolean);
-const testnetAvailable = Boolean(
-  TESTNET_RUNTIME.rpc
-  && TESTNET_RUNTIME.ws
-  && TESTNET_RUNTIME.explorer
-  && TESTNET_RUNTIME.explorerApi,
-);
+const testnet = useBuiltInLocalTestnet
+  ? LOCAL_TESTNET_DEFAULTS
+  : configuredTestnet.value;
+const mainnet = configuredMainnet.value;
 
 export const NETWORKS = {
   mainnet: {
     key: 'mainnet',
-    label: mainnetAvailable ? 'Mainnet' : 'Mainnet (not configured)',
-    available: mainnetAvailable,
-    rpcUrl: MAINNET_RUNTIME.rpc,
-    websocketUrl: MAINNET_RUNTIME.ws,
-    explorerUrl: MAINNET_RUNTIME.explorer,
-    explorerApiUrl: MAINNET_RUNTIME.explorerApi,
-    explorerLabel: MAINNET_RUNTIME.explorer ? new URL(MAINNET_RUNTIME.explorer).host : 'Not configured',
+    label: configuredMainnet.configured ? 'Mainnet' : 'Mainnet (not configured)',
+    available: configuredMainnet.configured,
+    rpcUrl: mainnet.rpcUrl,
+    websocketUrl: mainnet.websocketUrl,
+    explorerUrl: mainnet.explorerUrl,
+    explorerApiUrl: mainnet.explorerApiUrl,
+    explorerLabel: explorerLabel(mainnet.explorerUrl),
     fundingUrl: '',
     fundingLabel: 'No test funding on mainnet',
     fundingEnabled: false,
-    cliCluster: MAINNET_RUNTIME.rpc,
+    cliCluster: mainnet.rpcUrl,
   },
   testnet: {
-    key: useLocalEndpoints ? 'localnet' : 'testnet',
-    label: useLocalEndpoints ? 'Local AEKO Network' : 'Public Testnet',
-    available: testnetAvailable,
-    rpcUrl: TESTNET_RUNTIME.rpc,
-    websocketUrl: TESTNET_RUNTIME.ws,
-    explorerUrl: TESTNET_RUNTIME.explorer,
-    explorerApiUrl: TESTNET_RUNTIME.explorerApi,
-    explorerLabel: TESTNET_RUNTIME.explorer ? new URL(TESTNET_RUNTIME.explorer).host : 'Not configured',
-    fundingUrl: TESTNET_RUNTIME.funding,
-    fundingLabel: useLocalEndpoints
+    key: useBuiltInLocalTestnet ? 'localnet' : 'testnet',
+    label: useBuiltInLocalTestnet ? 'Local AEKO Network' : 'Public Testnet',
+    available: true,
+    rpcUrl: testnet.rpcUrl,
+    websocketUrl: testnet.websocketUrl,
+    explorerUrl: testnet.explorerUrl,
+    explorerApiUrl: testnet.explorerApiUrl,
+    explorerLabel: explorerLabel(testnet.explorerUrl),
+    fundingUrl: testnet.fundingUrl || '',
+    fundingLabel: useBuiltInLocalTestnet
       ? 'Local funding uses requestAirdrop on the local RPC'
       : 'Policy-controlled Testnet Funding Portal',
-    fundingEnabled: Boolean(TESTNET_RUNTIME.funding),
-    cliCluster: TESTNET_RUNTIME.rpc,
+    fundingEnabled: Boolean(testnet.fundingUrl),
+    cliCluster: testnet.rpcUrl,
   },
 };
 
 export function getNetworkConfig(network) {
   return NETWORKS[network] || NETWORKS.testnet;
+}
+
+export function getDemoConfig() {
+  const demo = runtime.demo && typeof runtime.demo === 'object' ? runtime.demo : {};
+  return {
+    rpcUrl: clean(demo.rpcUrl),
+    collection: clean(demo.collection),
+    token: clean(demo.token),
+    metadataUri: clean(demo.metadataUri),
+  };
 }
 
 export function isLocalNetworkConfig(config) {
