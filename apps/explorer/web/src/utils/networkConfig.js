@@ -2,8 +2,8 @@
 // - deployed/preview containers inject AEKO_* values into window.__AEKO_RUNTIME_CONFIG__
 // - local Vite development uses fixed loopback defaults
 //
-// Endpoint-specific VITE_AEKO_* variables are intentionally unsupported. Vite
-// values are compiled into the bundle and can outlive the environment that
+// Endpoint-specific Vite variables are intentionally unsupported. Vite values
+// are compiled into the bundle and can outlive the environment that
 // built the image, which made production deployments fragile and duplicated
 // the canonical AEKO_* runtime contract.
 
