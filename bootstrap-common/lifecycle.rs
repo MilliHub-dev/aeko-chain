@@ -113,6 +113,11 @@ pub fn prepare(
     let registry_preexisted = registry_path.is_file();
     let registry_metadata = read_registry_metadata(registry_path)?;
     validate_registry_metadata(&registry_metadata)?;
+    if registry_preexisted && !reset_requested && registry_metadata.genesis.is_none() {
+        return Err(anyhow!(
+            "canonical registry is missing a current genesis binding; expected {REGISTRY_SCHEMA_KEY}={REGISTRY_SCHEMA_VERSION} and {CHAIN_GENESIS_KEY}. Schema-less or unbound registries are unsupported; restore the matching registry/state volume or set AEKO_RESET_LEDGER=1 for an intentional new chain"
+        ));
+    }
     let binding_genesis = read_consistent_binding(roots)?;
     let progress = read_consistent_progress(roots)?;
 
@@ -501,6 +506,19 @@ mod tests {
         assert!(error.contains("Schema-less or unbound registries are unsupported"));
         assert!(error.contains("AEKO_RESET_LEDGER=1"));
         assert!(registry.is_file());
+    }
+
+    #[test]
+    fn schema_less_registry_cannot_hide_behind_progress_marker() {
+        let root = TestDir::new("schema-less-progress");
+        let registry = root.path().join("registry.env");
+        write_registry(root.path(), "AEKO_SOCIAL_POSTS_STATE=stale-address\n");
+        write_progress(&[root.path()], ProgressKind::Initialize, "genesis-a").unwrap();
+
+        let error = prepare(&[root.path()], &registry, "genesis-a", false)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("Schema-less or unbound registries are unsupported"));
     }
 
     #[test]
