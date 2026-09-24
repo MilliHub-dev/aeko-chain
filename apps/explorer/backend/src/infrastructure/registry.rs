@@ -74,6 +74,7 @@ pub fn resolve_social_registry() -> SocialRegistry {
         && staking.is_some()
         && anti_spam.is_some()
         && monetization.is_some()
+        && rewards_treasury.is_some()
         && reward_vault.is_some()
         && stake_vault.is_some()
         && stake_reward_vault.is_some()
