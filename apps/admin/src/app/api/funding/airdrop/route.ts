@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       headers: { ...cors, ...(init.headers ?? {}) },
     })
 
-  const wait = throttle(clientIp(req.headers))
+  const wait = throttle(clientIp(req.headers), 'console-airdrop')
   if (wait > 0) {
     return respond(
       { error: { code: 'RATE_LIMITED', message: `Too many Test Console airdrops. Try again in ${wait}s.`, retryAfterSeconds: wait } },
