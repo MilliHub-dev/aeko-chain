@@ -1280,16 +1280,20 @@ mod tests {
         let continuity = TempDir::new().unwrap();
         write_continuity_anchor(continuity.path(), "registry-v1").unwrap();
 
-        assert!(prepare_protocol_state_continuity(state.path(), continuity.path(), false)
-            .unwrap_err()
-            .to_string()
-            .contains("protocol-registry.env is missing"));
+        assert!(
+            prepare_protocol_state_continuity(state.path(), continuity.path(), false)
+                .unwrap_err()
+                .to_string()
+                .contains("protocol-registry.env is missing")
+        );
 
         fs::write(state.path().join(REGISTRY_FILE_NAME), "registry-v2").unwrap();
-        assert!(prepare_protocol_state_continuity(state.path(), continuity.path(), false)
-            .unwrap_err()
-            .to_string()
-            .contains("disagree"));
+        assert!(
+            prepare_protocol_state_continuity(state.path(), continuity.path(), false)
+                .unwrap_err()
+                .to_string()
+                .contains("disagree")
+        );
     }
 
     #[test]
@@ -1298,10 +1302,12 @@ mod tests {
         let continuity = TempDir::new().unwrap();
         fs::write(state.path().join(REGISTRY_FILE_NAME), "registry-v1").unwrap();
 
-        assert!(prepare_protocol_state_continuity(state.path(), continuity.path(), false)
-            .unwrap_err()
-            .to_string()
-            .contains("AEKO_RESET_LEDGER=1"));
+        assert!(
+            prepare_protocol_state_continuity(state.path(), continuity.path(), false)
+                .unwrap_err()
+                .to_string()
+                .contains("AEKO_RESET_LEDGER=1")
+        );
 
         prepare_protocol_state_continuity(state.path(), continuity.path(), true).unwrap();
         prepare_protocol_state_continuity(state.path(), continuity.path(), false).unwrap();
@@ -1313,10 +1319,12 @@ mod tests {
         let continuity = TempDir::new().unwrap();
         write_continuity_anchor(continuity.path(), "registry-v1").unwrap();
 
-        assert!(prepare_protocol_state_continuity(state.path(), continuity.path(), false)
-            .unwrap_err()
-            .to_string()
-            .contains("AEKO_RESET_LEDGER=1"));
+        assert!(
+            prepare_protocol_state_continuity(state.path(), continuity.path(), false)
+                .unwrap_err()
+                .to_string()
+                .contains("AEKO_RESET_LEDGER=1")
+        );
 
         prepare_protocol_state_continuity(state.path(), continuity.path(), true).unwrap();
     }
