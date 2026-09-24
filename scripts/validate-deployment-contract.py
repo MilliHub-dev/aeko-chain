@@ -506,8 +506,19 @@ def main() -> int:
         < coolify.index("  wallet-tools:"),
         "Coolify services must stay grouped as one-shot lifecycle, core runtime, applications, then opt-in tooling",
     )
-    for index, service in enumerate(ordered):
-        next_service = ordered[index + 1] if index + 1 < len(ordered) else None
+    coolify_ordered = [
+        "key-bootstrap",
+        "social-bootstrap",
+        "protocol-bootstrap",
+        "faucet",
+        "validator",
+        "explorer-api",
+        "explorer-ui",
+        "operations-web",
+        "wallet-tools",
+    ]
+    for index, service in enumerate(coolify_ordered):
+        next_service = coolify_ordered[index + 1] if index + 1 < len(coolify_ordered) else None
         block = service_block(coolify, service, next_service)
         require("image:" in block, f"Coolify {service} must use a published image")
         require("pull_policy: always" in block, f"Coolify {service} must pull the selected Docker Hub tag")
