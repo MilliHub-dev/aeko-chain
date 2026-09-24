@@ -3,11 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type ApplicationSettings = {
+  networkToolsEnabled: boolean
   networkConsoleEnabled: boolean
+  docsEnabled: boolean
+  developersEnabled: boolean
+  bridgeEnabled: boolean
   nftDemoEnabled: boolean
   nftLiveFlowEnabled: boolean
   nftAdvancedToolsEnabled: boolean
   explorerListSize: number
+  explorerSearchResultLimit: number
+  explorerAutoRefreshSeconds: number
   settingsRefreshSeconds: number
 }
 
@@ -34,22 +40,39 @@ type SettingsSnapshot = {
 }
 
 const SAFE_DRAFT: SettingsDraft = {
+  networkToolsEnabled: true,
   networkConsoleEnabled: false,
+  docsEnabled: true,
+  developersEnabled: true,
+  bridgeEnabled: true,
   nftDemoEnabled: true,
   nftLiveFlowEnabled: false,
   nftAdvancedToolsEnabled: false,
   explorerListSize: 6,
+  explorerSearchResultLimit: 12,
+  explorerAutoRefreshSeconds: 15,
   settingsRefreshSeconds: 30,
   socialReadinessRequired: false,
   maxReadyLagSlots: 128,
 }
 
 const SECTIONS = [
-  { id: 'public-features', label: 'Public features', description: 'Route visibility and tools' },
-  { id: 'explorer-experience', label: 'Explorer experience', description: 'Panel size and refresh' },
+  { id: 'public-features', label: 'Public surfaces', description: 'Routes, tools and demos' },
+  { id: 'explorer-experience', label: 'Explorer behavior', description: 'Search, density and refresh' },
   { id: 'readiness-policy', label: 'Readiness policy', description: 'Indexer health thresholds' },
-  { id: 'chain-binding', label: 'Chain binding', description: 'Read-only runtime identity' },
+  { id: 'chain-binding', label: 'Runtime identity', description: 'Read-only chain binding' },
 ] as const
+
+type ToggleSetting =
+  | 'networkToolsEnabled'
+  | 'networkConsoleEnabled'
+  | 'docsEnabled'
+  | 'developersEnabled'
+  | 'bridgeEnabled'
+  | 'nftDemoEnabled'
+  | 'nftLiveFlowEnabled'
+  | 'nftAdvancedToolsEnabled'
+  | 'socialReadinessRequired'
 
 function toDraft(snapshot: SettingsSnapshot): SettingsDraft {
   return {
@@ -103,6 +126,19 @@ export default function SettingsPage() {
 
   const update = <K extends keyof SettingsDraft>(key: K, value: SettingsDraft[K]) => {
     setDraft((current) => ({ ...current, [key]: value }))
+    setNotice('')
+  }
+
+  const updateToggle = (key: ToggleSetting, value: boolean) => {
+    setDraft((current) => {
+      const next = { ...current, [key]: value }
+      if (key === 'networkToolsEnabled' && !value) next.networkConsoleEnabled = false
+      if (key === 'nftDemoEnabled' && !value) {
+        next.nftLiveFlowEnabled = false
+        next.nftAdvancedToolsEnabled = false
+      }
+      return next
+    })
     setNotice('')
   }
 
@@ -241,27 +277,33 @@ export default function SettingsPage() {
         <div className="min-w-0 space-y-6">
           <section id="public-features" className="scroll-mt-32 rounded-2xl border border-[#1e2135] bg-[#12141f]">
             <div className="border-b border-[#1e2135] px-5 py-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">01 · Public features</div>
-              <h2 className="mt-1 font-semibold text-white">Visibility and operator tooling</h2>
-              <p className="mt-1 text-sm leading-6 text-gray-500">These switches control public Explorer surfaces. Disabled routes fail closed and redirect to Aeko Scan.</p>
+              <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">01 · Public surfaces</div>
+              <h2 className="mt-1 font-semibold text-white">Routes, developer tools and demos</h2>
+              <p className="mt-1 text-sm leading-6 text-gray-500">These controls change real public routes and navigation. Disabled routes fail closed and redirect to Aeko Scan.</p>
             </div>
             <div className="divide-y divide-[#1e2135]">
-              <ToggleRow label="AEKO Network Console" description="Show the testnet accounts, programs, Social workspace, and Social E2E acceptance lab." checked={draft.networkConsoleEnabled} onChange={(value) => update('networkConsoleEnabled', value)} disabled={controlsDisabled} />
-              <ToggleRow label="NFT Demo page" description="Expose the AEKO-721 demo route and navigation links." checked={draft.nftDemoEnabled} onChange={(value) => update('nftDemoEnabled', value)} disabled={controlsDisabled} />
-              <ToggleRow label="NFT live lifecycle" description="Show the public wallet-local create, mint, freeze, thaw, update, transfer, and Explorer verification flow." checked={draft.nftLiveFlowEnabled} onChange={(value) => update('nftLiveFlowEnabled', value)} disabled={controlsDisabled || !draft.nftDemoEnabled} />
-              <ToggleRow label="NFT advanced protocol tools" description="Show lower-level account reads, setup builders, unsigned transaction tools, wallet adapter diagnostics, and signed submission." checked={draft.nftAdvancedToolsEnabled} onChange={(value) => update('nftAdvancedToolsEnabled', value)} disabled={controlsDisabled || !draft.nftDemoEnabled} />
+              <ToggleRow label="Network Tools page" description="Expose the testnet endpoint workspace, public funding entry point and developer network utilities." checked={draft.networkToolsEnabled} onChange={(value) => updateToggle('networkToolsEnabled', value)} disabled={controlsDisabled} />
+              <ToggleRow label="AEKO Network Console" description="Enable the signed test-wallet, program, Social workspace and Social E2E tools inside Network Tools." checked={draft.networkConsoleEnabled} onChange={(value) => updateToggle('networkConsoleEnabled', value)} disabled={controlsDisabled || !draft.networkToolsEnabled} />
+              <ToggleRow label="Documentation" description="Expose the public documentation route and navigation entry." checked={draft.docsEnabled} onChange={(value) => updateToggle('docsEnabled', value)} disabled={controlsDisabled} />
+              <ToggleRow label="Developer portal" description="Expose the Build on Aeko developer page and navigation entry." checked={draft.developersEnabled} onChange={(value) => updateToggle('developersEnabled', value)} disabled={controlsDisabled} />
+              <ToggleRow label="Bridge page" description="Expose the public bridge route and navigation entry." checked={draft.bridgeEnabled} onChange={(value) => updateToggle('bridgeEnabled', value)} disabled={controlsDisabled} />
+              <ToggleRow label="NFT Demo page" description="Expose the AEKO-721 demo route and navigation links." checked={draft.nftDemoEnabled} onChange={(value) => updateToggle('nftDemoEnabled', value)} disabled={controlsDisabled} />
+              <ToggleRow label="NFT live lifecycle" description="Show the public wallet-local create, mint, freeze, thaw, update, transfer, and Explorer verification flow." checked={draft.nftLiveFlowEnabled} onChange={(value) => updateToggle('nftLiveFlowEnabled', value)} disabled={controlsDisabled || !draft.nftDemoEnabled} />
+              <ToggleRow label="NFT advanced protocol tools" description="Show lower-level account reads, setup builders, unsigned transaction tools, wallet adapter diagnostics, and signed submission." checked={draft.nftAdvancedToolsEnabled} onChange={(value) => updateToggle('nftAdvancedToolsEnabled', value)} disabled={controlsDisabled || !draft.nftDemoEnabled} />
             </div>
           </section>
 
           <section id="explorer-experience" className="scroll-mt-32 rounded-2xl border border-[#1e2135] bg-[#12141f]">
             <div className="border-b border-[#1e2135] px-5 py-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">02 · Explorer experience</div>
-              <h2 className="mt-1 font-semibold text-white">Public data density and refresh</h2>
-              <p className="mt-1 text-sm leading-6 text-gray-500">Numeric controls are constrained by the backend contract, not only by the browser.</p>
+              <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">02 · Explorer behavior</div>
+              <h2 className="mt-1 font-semibold text-white">Search depth, data density and refresh cadence</h2>
+              <p className="mt-1 text-sm leading-6 text-gray-500">These values directly control Aeko Scan requests. Backend validation enforces the same ranges.</p>
             </div>
             <div className="space-y-8 p-5">
-              <RangeSetting label="Records per Explorer panel" description="Controls the number of blocks, transactions, posts, stakes, and NFTs fetched for each Aeko Scan panel." value={draft.explorerListSize} min={3} max={12} step={1} suffix=" records" onChange={(value) => update('explorerListSize', value)} disabled={controlsDisabled} />
-              <RangeSetting label="Public settings propagation" description="How often an open Explorer page refreshes application settings from Explorer backend." value={draft.settingsRefreshSeconds} min={10} max={300} step={10} suffix=" sec" onChange={(value) => update('settingsRefreshSeconds', value)} disabled={controlsDisabled} />
+              <RangeSetting label="Records per Explorer panel" description="Number of blocks, transactions, posts, stakes and NFTs requested for each Aeko Scan panel." value={draft.explorerListSize} min={3} max={12} step={1} suffix=" records" onChange={(value) => update('explorerListSize', value)} disabled={controlsDisabled} />
+              <RangeSetting label="Search result limit" description="Maximum indexed/live matches requested for each Explorer search." value={draft.explorerSearchResultLimit} min={5} max={50} step={1} suffix=" results" onChange={(value) => update('explorerSearchResultLimit', value)} disabled={controlsDisabled} />
+              <RangeSetting label="Explorer auto refresh" description="How often Aeko Scan refreshes its live overview and recent indexed panels while the page remains open." value={draft.explorerAutoRefreshSeconds} min={5} max={300} step={5} suffix=" sec" onChange={(value) => update('explorerAutoRefreshSeconds', value)} disabled={controlsDisabled} />
+              <RangeSetting label="Settings propagation" description="How often public Explorer clients re-read this application configuration." value={draft.settingsRefreshSeconds} min={10} max={300} step={10} suffix=" sec" onChange={(value) => update('settingsRefreshSeconds', value)} disabled={controlsDisabled} />
             </div>
           </section>
 
@@ -278,7 +320,7 @@ export default function SettingsPage() {
                 label="Require Social projection for readiness"
                 description="When enabled, Explorer reports not ready if the Social projection is missing or beyond the configured lag tolerance."
                 checked={draft.socialReadinessRequired}
-                onChange={(value) => update('socialReadinessRequired', value)}
+                onChange={(value) => updateToggle('socialReadinessRequired', value)}
                 disabled={controlsDisabled}
               />
               <div className="p-5">
@@ -338,8 +380,8 @@ function ToggleRow({
   disabled?: boolean
 }) {
   return (
-    <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-      <div>
+    <div className="grid gap-4 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6">
+      <div className="min-w-0">
         <div className="text-sm font-medium text-white">{label}</div>
         <div className="mt-1 max-w-2xl text-sm leading-5 text-gray-500">{description}</div>
       </div>
@@ -351,11 +393,27 @@ function ToggleRow({
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={
-          'relative h-7 w-12 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 disabled:cursor-not-allowed disabled:opacity-40 ' +
-          (checked ? 'border-emerald-400/60 bg-emerald-400' : 'border-[#343a55] bg-[#1b1e2d]')
+          'inline-flex min-h-[44px] w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 disabled:cursor-not-allowed disabled:opacity-40 sm:w-[148px] ' +
+          (checked
+            ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-200'
+            : 'border-[#343a55] bg-[#0d0e16] text-gray-400')
         }
       >
-        <span className={'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ' + (checked ? 'translate-x-5' : 'translate-x-0.5')} />
+        <span>{checked ? 'Enabled' : 'Disabled'}</span>
+        <span
+          aria-hidden="true"
+          className={
+            'relative h-6 w-11 shrink-0 rounded-full border transition-colors ' +
+            (checked ? 'border-emerald-300/60 bg-emerald-400' : 'border-[#343a55] bg-[#1b1e2d]')
+          }
+        >
+          <span
+            className={
+              'absolute left-0.5 top-0.5 h-4.5 w-4.5 rounded-full bg-white shadow-sm transition-transform ' +
+              (checked ? 'translate-x-5' : 'translate-x-0')
+            }
+          />
+        </span>
       </button>
     </div>
   )
