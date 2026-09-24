@@ -112,7 +112,7 @@ Normal redeploy behavior is fail-closed and idempotent at the deployment boundar
 5. Bootstrap binds the canonical registry to the live validator with `AEKO_REGISTRY_SCHEMA_VERSION=2` and `AEKO_CHAIN_GENESIS_HASH=<getGenesisHash>`.
 6. Bootstrap writes an in-progress marker before first initialization/reset work and replaces it with a completed chain binding only after every canonical account verifies and the registry is published atomically.
 7. Bootstrap writes `/state/social-registry.env`; Explorer mounts the same volume read-only through `AEKO_SOCIAL_REGISTRY_FILE=/state/social-registry.env`.
-8. A legacy registry without genesis metadata is adopted only after its existing canonical accounts verify against the live chain. Ambiguous or partially missing established state fails closed.
+8. Existing registries must already be schema-v2 and bound to the live genesis. Schema-less or unbound registries fail closed; use `AEKO_RESET_LEDGER=1` only when intentionally creating a replacement chain.
 9. The default deployment always starts Social bootstrap; Explorer may remain routable for diagnostics while `/social/status` and `/network/readiness` report the incomplete lifecycle.
 
 Operator env vars can intentionally override registry values, but normal deployment no longer requires copying/renaming state addresses by hand.
@@ -563,5 +563,5 @@ MIT. See [`LICENSE`](./LICENSE).
 
 Aeko Social and AEKO Protocol are part of every default network deployment. Fresh and reset-to-genesis networks activate the mandatory Protocol runtime features at genesis, and both one-shot bootstraps initialize-or-verify their canonical state on every deployment. They are not operator feature toggles.
 
-Legacy history-preserving Protocol activation, reset behavior, recovery boundaries, and Social/Protocol acceptance checks are consolidated in [`DEPLOYMENT.md`](./DEPLOYMENT.md).
+Historical pre-builtin Protocol migration, reset behavior, recovery boundaries, and Social/Protocol acceptance checks are consolidated in [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
