@@ -130,9 +130,11 @@ export default function PublicFundingPage() {
                 <div className="text-sm text-gray-300">{result.amountAeko} AEKO</div>
                 <div className="text-gray-500 text-xs mt-2">Request ID</div>
                 <div className="mono text-xs text-gray-300 break-all">{result.id}</div>
-                <a href={result.explorerUrl} target="_blank" rel="noreferrer" className="inline-block text-xs text-emerald-400 hover:underline mt-1">
-                  View wallet on the explorer →
-                </a>
+                {result.explorerUrl ? (
+                  <a href={result.explorerUrl} target="_blank" rel="noreferrer" className="inline-block text-xs text-emerald-400 hover:underline mt-1">
+                    View wallet on the explorer →
+                  </a>
+                ) : null}
               </div>
             )}
             {result?.kind === 'error' && (
