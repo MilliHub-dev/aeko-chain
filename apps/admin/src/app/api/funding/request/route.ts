@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   const trusted = Boolean(apiKey) && suppliedKey === apiKey
 
   if (!trusted) {
-    const wait = throttle(clientIp(req.headers))
+    const wait = throttle(clientIp(req.headers), 'approval')
     if (wait > 0) {
       return respond(
         { error: { code: 'RATE_LIMITED', message: `Too many requests. Try again in ${wait}s.`, retryAfterSeconds: wait } },
