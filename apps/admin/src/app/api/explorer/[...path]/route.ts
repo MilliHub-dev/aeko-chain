@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const EXPLORER_URL = process.env.AEKO_EXPLORER_URL ?? 'http://localhost:8088'
+const EXPLORER_URL = process.env.AEKO_INTERNAL_EXPLORER_API_URL ?? 'http://localhost:8088'
 
 export async function GET(req: NextRequest, { params }: { params: { path: string[] } }) {
   const subpath = '/' + params.path.join('/')
