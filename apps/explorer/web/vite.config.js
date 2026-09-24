@@ -3,14 +3,19 @@ import react from '@vitejs/plugin-react'
 
 const clean = (value) => String(value || '').trim()
 
-function testnetFromEnv(env) {
-  return {
-    rpcUrl: clean(env.AEKO_TESTNET_RPC_URL),
-    websocketUrl: clean(env.AEKO_TESTNET_WS_URL),
-    explorerApiUrl: clean(env.AEKO_TESTNET_EXPLORER_API_URL),
-    explorerUrl: clean(env.AEKO_TESTNET_EXPLORER_URL),
-    fundingUrl: clean(env.AEKO_TESTNET_FUNDING_URL),
+function networkFromEnv(env, prefix, { funding = false } = {}) {
+  const config = {
+    rpcUrl: clean(env[`${prefix}_RPC_URL`]),
+    websocketUrl: clean(env[`${prefix}_WS_URL`]),
+    explorerApiUrl: clean(env[`${prefix}_EXPLORER_API_URL`]),
+    explorerUrl: clean(env[`${prefix}_EXPLORER_URL`]),
   }
+
+  if (funding) {
+    config.fundingUrl = clean(env[`${prefix}_FUNDING_URL`])
+  }
+
+  return config
 }
 
 function hasAnyValue(config) {
@@ -24,7 +29,8 @@ function hasAnyValue(config) {
 export default defineConfig(({ command, mode }) => {
   const env = command === 'serve' ? loadEnv(mode, process.cwd(), '') : {}
 
-  const testnet = testnetFromEnv(env)
+  const testnet = networkFromEnv(env, 'AEKO_TESTNET', { funding: true })
+  const mainnet = networkFromEnv(env, 'AEKO_MAINNET')
   const demo = {
     rpcUrl: clean(env.AEKO_DEMO_RPC_URL),
     collection: clean(env.AEKO_DEMO_COLLECTION),
@@ -36,6 +42,7 @@ export default defineConfig(({ command, mode }) => {
     command === 'serve'
       ? {
           ...(hasAnyValue(testnet) ? { testnet } : {}),
+          ...(hasAnyValue(mainnet) ? { mainnet } : {}),
           ...(hasAnyValue(demo) ? { demo } : {}),
         }
       : {}
