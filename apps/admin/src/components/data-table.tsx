@@ -119,7 +119,7 @@ export default function DataTable({
                   setRowsPerPage(Number(event.target.value))
                   setPage(1)
                 }}
-                className="h-9 rounded-lg border border-[#2b3048] bg-[#12141f] px-2 text-xs text-gray-200 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/40"
+                className="h-11 rounded-lg border border-[#2b3048] bg-[#12141f] px-2 text-xs text-gray-200 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/40"
               >
                 {options.map((option) => (
                   <option key={option} value={option}>{option}</option>
@@ -133,7 +133,7 @@ export default function DataTable({
                 aria-label="Previous page"
                 onClick={() => setPage((current) => Math.max(1, current - 1))}
                 disabled={safePage === 1}
-                className="min-h-[36px] rounded-lg border border-[#2b3048] px-3 text-xs text-gray-300 transition-colors hover:border-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                className="min-h-[44px] rounded-lg border border-[#2b3048] px-3 text-xs text-gray-300 transition-colors hover:border-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
               >
                 Previous
               </button>
@@ -150,7 +150,7 @@ export default function DataTable({
                       aria-current={safePage === item ? 'page' : undefined}
                       onClick={() => setPage(item)}
                       className={
-                        'h-9 min-w-9 rounded-lg border px-2 text-xs tabular-nums transition-colors ' +
+                        'h-11 min-w-11 rounded-lg border px-2 text-xs tabular-nums transition-colors ' +
                         (safePage === item
                           ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300'
                           : 'border-[#2b3048] text-gray-400 hover:border-gray-500 hover:text-white')
@@ -171,7 +171,7 @@ export default function DataTable({
                 aria-label="Next page"
                 onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
                 disabled={safePage === totalPages}
-                className="min-h-[36px] rounded-lg border border-[#2b3048] px-3 text-xs text-gray-300 transition-colors hover:border-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                className="min-h-[44px] rounded-lg border border-[#2b3048] px-3 text-xs text-gray-300 transition-colors hover:border-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
               >
                 Next
               </button>
