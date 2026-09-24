@@ -82,7 +82,11 @@ const DEFAULT_SETTINGS: FundingSettings = {
 
 const MAX_GRANTS_KEPT = 500
 const MAX_REQUESTS_KEPT = 500
-const MAX_CONSOLE_AIRDROP_AEKO = Number(process.env.FUNDING_MAX_CONSOLE_AIRDROP_AEKO ?? 25)
+const configuredConsoleAirdropCap = Number(process.env.FUNDING_MAX_CONSOLE_AIRDROP_AEKO ?? 25)
+const MAX_CONSOLE_AIRDROP_AEKO =
+  Number.isFinite(configuredConsoleAirdropCap) && configuredConsoleAirdropCap > 0
+    ? configuredConsoleAirdropCap
+    : 25
 const STATE_DIR = process.env.FUNDING_STATE_DIR ?? path.join(process.cwd(), 'data')
 const STATE_FILE = path.join(STATE_DIR, 'funding-state.json')
 const LEGACY_STATE_FILE = path.join(STATE_DIR, 'faucet-state.json')
@@ -372,7 +376,8 @@ async function waitForConfirmation(signature: string): Promise<boolean> {
 /**
  * Grants AEKO to `address` under the current policy.
  *
- * `admin` grants choose their own amount and skip cooldown and budget; the
+ * `admin` grants and `console` airdrops choose their own amount and skip the
+ * public cooldown/budget. Console airdrops remain capped separately. The
  * `backend` source is the Aeko app calling on a user's behalf and follows the
  * public rules (the app's IP is shared, which is why IP limits are not here).
  */
