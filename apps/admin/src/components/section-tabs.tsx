@@ -21,7 +21,7 @@ export default function SectionTabs<T extends string>({
   return (
     <div className="overflow-x-auto">
       <div
-        role="tablist"
+        role="group"
         aria-label={label}
         className="inline-flex min-w-full gap-1 rounded-xl border border-[#1e2135] bg-[#0a0b12] p-1 sm:min-w-0"
       >
@@ -31,8 +31,7 @@ export default function SectionTabs<T extends string>({
             <button
               key={item.value}
               type="button"
-              role="tab"
-              aria-selected={active}
+              aria-pressed={active}
               onClick={() => onChange(item.value)}
               className={
                 'min-h-[44px] min-w-[150px] flex-1 rounded-lg px-4 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ' +
