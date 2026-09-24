@@ -95,6 +95,8 @@ struct ControlPlaneReadiness {
     total: usize,
     executable_programs: Option<usize>,
     program_total: Option<usize>,
+    healthy_custody: usize,
+    custody_total: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -152,6 +154,8 @@ async fn network_readiness(State(state): State<SharedState>) -> Response {
                 total: social.domain_count(),
                 executable_programs: None,
                 program_total: None,
+                healthy_custody: social.healthy_custody_count(),
+                custody_total: social.custody_count(),
             },
             protocol: ControlPlaneReadiness {
                 complete: protocol.is_complete(),
@@ -164,6 +168,8 @@ async fn network_readiness(State(state): State<SharedState>) -> Response {
                 total: protocol.state_count(),
                 executable_programs: Some(protocol.executable_program_count()),
                 program_total: Some(protocol.program_count()),
+                healthy_custody: protocol.healthy_account_count(),
+                custody_total: protocol.account_count(),
             },
         },
         "network-readiness",
