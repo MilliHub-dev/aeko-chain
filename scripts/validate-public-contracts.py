@@ -121,11 +121,11 @@ def main() -> int:
         require_empty_assignment(public_env, name, "docker/env.public.example")
 
     for name in (
-        "AEKO_TESTNET_RPC_URL",
-        "AEKO_TESTNET_WS_URL",
-        "AEKO_TESTNET_EXPLORER_API_URL",
-        "AEKO_TESTNET_EXPLORER_URL",
-        "AEKO_TESTNET_FUNDING_URL",
+        "AEKO_PUBLIC_RPC_URL",
+        "AEKO_PUBLIC_WS_URL",
+        "AEKO_PUBLIC_EXPLORER_API_URL",
+        "AEKO_PUBLIC_EXPLORER_URL",
+        "AEKO_PUBLIC_FUNDING_URL",
         "AEKO_MAINNET_RPC_URL",
         "AEKO_MAINNET_WS_URL",
         "AEKO_MAINNET_EXPLORER_API_URL",
@@ -152,10 +152,10 @@ def main() -> int:
     require(
         "loadEnv" in explorer_vite
         and "command === 'serve'" in explorer_vite
-        and "AEKO_TESTNET" in explorer_vite
+        and "AEKO_PUBLIC" in explorer_vite
         and "AEKO_MAINNET" in explorer_vite
         and "__AEKO_DEV_RUNTIME_CONFIG__" in explorer_vite,
-        "Explorer local Vite mode must read whitelisted testnet/mainnet env endpoints only during dev",
+        "Explorer local Vite mode must read whitelisted public-testnet/mainnet env endpoints only during dev",
     )
     require(
         "__AEKO_RUNTIME_CONFIG__" in network_config
