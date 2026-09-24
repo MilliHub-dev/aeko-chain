@@ -12,7 +12,7 @@ Backend integration guide for the currently deployed AEKO public testnet. Verify
 | WebSocket PubSub | `wss://ws.aeko.online` | Live subscriptions |
 | Explorer REST API | `https://api.aeko.online` | Indexed Explorer data |
 | Explorer UI | `https://scan.aeko.online` | Human-readable chain explorer |
-| Testnet Funding API | `https://fund.aeko.online/api/funding` | Policy-controlled test AEKO grants |
+| Testnet Funding API | `https://fund.aeko.online/api/funding` | Public funding requests and constrained developer airdrops |
 | Faucet Daemon | **private only**, TCP `faucet:9900` | Signs low-level funding transfers for the validator |
 
 Application backends must not connect directly to TCP `9900`.
