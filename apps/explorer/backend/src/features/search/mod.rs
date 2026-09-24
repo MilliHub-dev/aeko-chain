@@ -77,6 +77,13 @@ async fn search(
                     .repository
                     .build_wallet_profile(&account.address, Some(account.lamports))
                     .await?;
+                items.retain(|item| {
+                    !matches!(
+                        item,
+                        SearchResultRecord::Wallet(existing)
+                            if existing.address == profile.address
+                    )
+                });
                 items.insert(0, SearchResultRecord::Wallet(profile));
                 used_rpc = true;
             }

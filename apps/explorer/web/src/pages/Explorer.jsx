@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Activity, Blocks, ChevronLeft, ChevronRight, Image, RotateCcw, Search, Sparkles, Wallet } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
@@ -39,8 +39,15 @@ export default function Explorer() {
   const [network, setNetwork] = useState('testnet');
   const [searchParams, setSearchParams] = useSearchParams();
   const [homeState, setHomeState] = useState(INITIAL_HOME_STATE);
-  const [query, setQuery] = useState(searchParams.get('q') || '');
-  const [searchState, setSearchState] = useState({ loading: false, error: '', matches: [] });
+  const urlSearchQuery = sanitizeSearchQuery(searchParams.get('q') || '');
+  const [query, setQuery] = useState(urlSearchQuery);
+  const [searchRetry, setSearchRetry] = useState(0);
+  const [searchState, setSearchState] = useState({
+    loading: false,
+    error: '',
+    matches: [],
+    searchedQuery: '',
+  });
   const [filtersOpen, setFiltersOpen] = useState(false);
   const toaster = useToaster();
 
@@ -126,9 +133,50 @@ export default function Explorer() {
     };
   }, [network, unavailable, filters, settings.explorerListSize]);
 
-  const lastSearchRef = useRef('');
+  useEffect(() => {
+    setQuery(urlSearchQuery);
+  }, [urlSearchQuery]);
 
-  async function handleSearch(event) {
+  useEffect(() => {
+    if (unavailable || urlSearchQuery.length < SEARCH_QUERY_MIN) {
+      setSearchState({ loading: false, error: '', matches: [], searchedQuery: '' });
+      return undefined;
+    }
+
+    let cancelled = false;
+    setSearchState({
+      loading: true,
+      error: '',
+      matches: [],
+      searchedQuery: urlSearchQuery,
+    });
+
+    searchExplorer(network, urlSearchQuery)
+      .then((payload) => {
+        if (cancelled) return;
+        setSearchState({
+          loading: false,
+          error: '',
+          matches: payload.matches || [],
+          searchedQuery: urlSearchQuery,
+        });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setSearchState({
+          loading: false,
+          error: error.message,
+          matches: [],
+          searchedQuery: urlSearchQuery,
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [network, unavailable, urlSearchQuery, searchRetry]);
+
+  function handleSearch(event) {
     event.preventDefault();
     if (unavailable) return;
 
@@ -138,28 +186,19 @@ export default function Explorer() {
         loading: false,
         error: `Type at least ${SEARCH_QUERY_MIN} characters to search.`,
         matches: [],
+        searchedQuery: '',
       });
       return;
     }
-    // Skip identical re-submits — common when users hit Enter twice or
-    // when the input still holds the last successful query.
-    if (cleaned === lastSearchRef.current) return;
-    lastSearchRef.current = cleaned;
 
-    setSearchState({ loading: true, error: '', matches: [] });
-    try {
-      const payload = await searchExplorer(network, cleaned);
-      setSearchState({
-        loading: false,
-        error: '',
-        matches: payload.matches || [],
-      });
-      const next = new URLSearchParams(searchParams);
-      next.set('q', cleaned);
-      setSearchParams(next, { replace: true });
-    } catch (error) {
-      setSearchState({ loading: false, error: error.message, matches: [] });
+    if (cleaned === urlSearchQuery) {
+      setSearchRetry((current) => current + 1);
+      return;
     }
+
+    const next = new URLSearchParams(searchParams);
+    next.set('q', cleaned);
+    setSearchParams(next, { replace: true });
   }
 
   const updateFilter = useCallback(
@@ -360,7 +399,7 @@ export default function Explorer() {
             id: 'unavailable',
             kind: 'info',
             title: 'Explorer API not configured',
-            children: `The ${networkLabel} network has no explorer API endpoint set. Switch network or configure VITE_AEKO_${network.toUpperCase()}_EXPLORER_API.`,
+            children: `The ${networkLabel} network has no explorer API endpoint set. Configure AEKO_PUBLIC_EXPLORER_API_URL at container runtime or the matching VITE_AEKO_*_EXPLORER_API value for local preview.`,
           },
           !unavailable && searchState.error && {
             id: 'search-error',
@@ -379,18 +418,29 @@ export default function Explorer() {
         ].filter(Boolean)}
       />
 
-      {!unavailable && (searchState.loading || searchState.matches.length > 0) ? (
+      {!unavailable && (searchState.loading || searchState.searchedQuery) ? (
         <div className="mb-10 bg-white/5 border border-white/10 rounded-2xl p-6">
-          <h2 className="text-lg font-bold mb-4">Search Results</h2>
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-4">
+            <h2 className="text-lg font-bold">Search Results</h2>
+            {searchState.searchedQuery ? (
+              <span className="text-xs text-gray-500">
+                Query: <span className="font-mono text-gray-300">{searchState.searchedQuery}</span>
+              </span>
+            ) : null}
+          </div>
           {searchState.loading ? (
-            <div className="text-gray-400">Searching {networkLabel.toLowerCase()} index...</div>
-          ) : (
-            <div className="space-y-3">
+            <div className="text-gray-400">Searching indexed data and exact live chain records…</div>
+          ) : searchState.matches.length ? (
+            <div className="divide-y divide-white/5">
               {searchState.matches.map((match, index) => (
                 <SearchResultRow key={`${match.kind}-${index}`} match={match} />
               ))}
             </div>
-          )}
+          ) : !searchState.error ? (
+            <div className="rounded-xl border border-white/10 bg-black/10 px-4 py-6 text-sm text-gray-400">
+              No matching indexed or live chain record was found for this query.
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -624,20 +674,73 @@ function PagerControls({ active, onOlder, onNewer, onReset }) {
 function SearchResultRow({ match }) {
   const data = match.data || {};
   let href = '/explorer';
+  let label = match.kind;
+  let primary = '';
+  let secondary = '';
 
-  if (match.kind === 'block') href = `/explorer/block/${data.slot}`;
-  if (match.kind === 'transaction') href = `/explorer/tx/${data.signature}`;
-  if (match.kind === 'wallet') href = `/explorer/account/${data.address}`;
-  if (match.kind === 'tokenTransfer') href = `/explorer/token/${data.mint}`;
-  if (match.kind === 'socialPost') href = `/explorer/post/${data.postId}`;
-  if (match.kind === 'nft') href = `/explorer/nft/${data.tokenId}`;
+  if (match.kind === 'block') {
+    href = `/explorer/block/${data.slot}`;
+    label = 'Block';
+    primary = `#${data.slot}`;
+    secondary = data.blockhash || '';
+  } else if (match.kind === 'transaction') {
+    href = `/explorer/tx/${data.signature}`;
+    label = 'Transaction';
+    primary = data.signature || '';
+    secondary = `Slot ${data.slot ?? '—'} · ${data.success ? 'Success' : 'Failed'}`;
+  } else if (match.kind === 'wallet') {
+    href = `/explorer/account/${data.address}`;
+    label = 'Account';
+    primary = data.address || '';
+    secondary = `${data.tokenCount ?? 0} token types · ${data.nftCount ?? 0} NFTs`;
+  } else if (match.kind === 'tokenMint') {
+    href = `/explorer/token/${data.mint}`;
+    label = 'Token';
+    primary = [data.symbol, data.name].filter(Boolean).join(' · ') || data.mint || '';
+    secondary = data.mint || '';
+  } else if (match.kind === 'collection') {
+    href = `/explorer/collection/${data.collectionId}`;
+    label = 'NFT Collection';
+    primary = [data.symbol, data.name].filter(Boolean).join(' · ') || data.collectionId || '';
+    secondary = data.collectionId || '';
+  } else if (match.kind === 'tokenTransfer') {
+    href = `/explorer/tx/${data.signature}`;
+    label = 'Token Transfer';
+    primary = data.signature || '';
+    secondary = data.mint ? `Mint ${data.mint}` : '';
+  } else if (match.kind === 'socialPost') {
+    href = `/explorer/post/${data.postId}`;
+    label = 'Post';
+    primary = data.postId || '';
+    secondary = data.creator ? `Creator ${data.creator}` : '';
+  } else if (match.kind === 'nft') {
+    href = `/explorer/nft/${data.tokenId}`;
+    label = 'NFT';
+    primary = data.tokenId || '';
+    secondary = data.collectionId ? `Collection ${data.collectionId}` : data.owner || '';
+  } else if (match.kind === 'engagement') {
+    href = data.targetPostId
+      ? `/explorer/post/${data.targetPostId}`
+      : data.actor
+        ? `/explorer/account/${data.actor}`
+        : '/explorer';
+    label = 'Engagement';
+    primary = data.proofId || data.targetPostId || '';
+    secondary = [data.actionKind, data.actor].filter(Boolean).join(' · ');
+  }
 
   return (
-    <Link to={href} className="flex items-center justify-between py-3 border-b border-white/5 last:border-b-0">
-      <div className="text-sm text-white">{match.kind}</div>
-      <div className="font-mono text-xs text-aeko-accent break-all text-right max-w-[75%]">
-        {JSON.stringify(data)}
+    <Link
+      to={href}
+      className="flex flex-col gap-2 py-4 transition-colors hover:bg-white/[0.025] sm:flex-row sm:items-center sm:justify-between sm:px-2"
+    >
+      <div className="min-w-0">
+        <div className="text-xs font-medium uppercase tracking-[0.14em] text-gray-500">{label}</div>
+        <div className="mt-1 break-all font-mono text-sm text-aeko-accent">{primary}</div>
       </div>
+      {secondary ? (
+        <div className="break-all text-xs text-gray-500 sm:max-w-[42%] sm:text-right">{secondary}</div>
+      ) : null}
     </Link>
   );
 }

@@ -26,7 +26,7 @@ export default function SectionTabs<T extends string>({
         <div
           role="group"
           aria-label={label}
-          className="inline-flex min-w-max gap-1 rounded-xl border border-[#1e2135] bg-[#0a0b12] p-1"
+          className="flex min-w-max gap-1 rounded-xl border border-[#1e2135] bg-[#0a0b12] p-1 sm:min-w-full"
         >
           {items.map((item) => {
             const active = item.value === value
@@ -37,7 +37,7 @@ export default function SectionTabs<T extends string>({
                 aria-pressed={active}
                 onClick={() => onChange(item.value)}
                 className={
-                  'inline-flex min-h-[44px] shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ' +
+                  'inline-flex min-h-[44px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 sm:flex-1 ' +
                   (active
                     ? 'bg-[#171a29] text-white shadow-sm'
                     : 'text-gray-500 hover:bg-white/[0.035] hover:text-gray-300')

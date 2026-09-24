@@ -22,7 +22,7 @@ const canonicalExample = {
   collectionSymbol: 'AGEN',
   collectionBaseUri: 'ar://aeko-genesis-passes',
   metadataName: 'Genesis Pass #1',
-  metadataUri: String(runtime.demoMetadataUri || 'ar://genesis-pass-1').trim(),
+  metadataUri: String(runtime.demoMetadataUri || vite.VITE_AEKO_DEMO_METADATA_URI || 'ar://genesis-pass-1').trim(),
   tokenId: '1',
   royaltyBps: '500',
 };

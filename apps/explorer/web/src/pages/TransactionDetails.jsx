@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Activity, ArrowLeft, CheckCircle2, CircleDashed, Wallet } from 'lucide-react';
+import { Activity, ArrowLeft, CheckCircle2, Wallet, XCircle } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { fetchTransactionDetails, getExplorerAvailability } from '../utils/explorerApi';
 
@@ -67,9 +67,9 @@ export default function TransactionDetails() {
                 </div>
                 <p className="font-mono text-sm text-gray-400 break-all">{tx.signature}</p>
               </div>
-              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border ${tx.success ? 'bg-green-500/10 border-green-500/20 text-green-300' : 'bg-amber-500/10 border-amber-500/20 text-amber-300'}`}>
-                {tx.success ? <CheckCircle2 className="h-4 w-4" /> : <CircleDashed className="h-4 w-4" />}
-                {tx.success ? 'Success' : 'Not confirmed'}
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border ${tx.success ? 'bg-green-500/10 border-green-500/20 text-green-300' : 'bg-red-500/10 border-red-500/20 text-red-300'}`}>
+                {tx.success ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                {tx.success ? 'Success' : 'Failed'}
               </div>
             </div>
           </div>

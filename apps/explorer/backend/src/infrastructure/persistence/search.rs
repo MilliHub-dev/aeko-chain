@@ -3,6 +3,7 @@ use {
     crate::models::{
         BlockRecord, EngagementRecord, NftCollectionRecord, NftRecord, SearchResultRecord,
         SocialPostRecord, TokenMintRecord, TokenTransferRecord, TransactionRecord,
+        WalletProfileRecord,
     },
     anyhow::{Context, Result},
     sqlx::Row,
@@ -84,6 +85,81 @@ impl PostgresRepository {
                             .context("negative transaction count")?,
                         producer: row.get("producer"),
                         unix_timestamp: row.get("unix_timestamp"),
+                    }))
+                })
+                .collect::<Result<Vec<_>>>()?,
+        );
+
+        let rows = sqlx::query(
+            r#"
+            WITH known_addresses(address) AS (
+                SELECT address FROM transaction_accounts
+                UNION
+                SELECT signer FROM transactions WHERE signer IS NOT NULL
+                UNION
+                SELECT address FROM token_accounts
+                UNION
+                SELECT owner FROM token_accounts
+                UNION
+                SELECT owner FROM nfts
+                UNION
+                SELECT creator FROM nfts
+                UNION
+                SELECT creator FROM posts
+                UNION
+                SELECT actor FROM engagement_events
+                UNION
+                SELECT target_creator FROM engagement_events
+                UNION
+                SELECT staker FROM social_stakes
+                UNION
+                SELECT creator FROM social_stakes
+            ),
+            token_counts AS (
+                SELECT owner AS address, COUNT(DISTINCT mint) AS token_count
+                FROM token_accounts
+                WHERE balance <> '0'
+                GROUP BY owner
+            ),
+            nft_counts AS (
+                SELECT owner AS address, COUNT(*) AS nft_count
+                FROM nfts
+                GROUP BY owner
+            )
+            SELECT known.address,
+                   profile.reputation_score,
+                   COALESCE(tokens.token_count, 0) AS token_count,
+                   COALESCE(nfts.nft_count, 0) AS nft_count
+            FROM known_addresses AS known
+            LEFT JOIN anti_spam_profiles AS profile ON profile.wallet = known.address
+            LEFT JOIN token_counts AS tokens ON tokens.address = known.address
+            LEFT JOIN nft_counts AS nfts ON nfts.address = known.address
+            WHERE known.address ILIKE $1 ESCAPE E'\\'
+            ORDER BY (known.address = $2) DESC, known.address ASC
+            LIMIT $3
+            "#,
+        )
+        .bind(&pattern)
+        .bind(query)
+        .bind(limit_i)
+        .fetch_all(&self.pool)
+        .await
+        .context("searching indexed account addresses")?;
+        groups.push(
+            rows.into_iter()
+                .map(|row| {
+                    Ok(SearchResultRecord::Wallet(WalletProfileRecord {
+                        address: row.get("address"),
+                        reputation_score: row
+                            .get::<Option<i32>, _>("reputation_score")
+                            .map(u16::try_from)
+                            .transpose()
+                            .context("invalid reputation score")?,
+                        native_balance: None,
+                        token_count: usize::try_from(row.get::<i64, _>("token_count"))
+                            .context("negative token count")?,
+                        nft_count: usize::try_from(row.get::<i64, _>("nft_count"))
+                            .context("negative NFT count")?,
                     }))
                 })
                 .collect::<Result<Vec<_>>>()?,
