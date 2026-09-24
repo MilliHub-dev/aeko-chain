@@ -658,6 +658,8 @@ def main() -> int:
     portable_bootstrap = service_block(portable, "social-bootstrap", "protocol-bootstrap")
     portable_protocol_bootstrap = service_block(portable, "protocol-bootstrap", "explorer-api")
     portable_explorer = service_block(portable, "explorer-api", "explorer-ui")
+    portable_explorer_ui = service_block(portable, "explorer-ui", "funding-gateway")
+    portable_funding_gateway = service_block(portable, "funding-gateway", "operations-web")
     portable_operations_web = service_block(portable, "operations-web")
     require(
         "AEKO_BOOTSTRAP_ALLOW_MISSING_STATE" not in portable_bootstrap,
@@ -676,16 +678,38 @@ def main() -> int:
         "portable operations web must use the internal validator RPC",
     )
     require(
-        "AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in portable_operations_web,
+        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in portable_operations_web,
         "portable operations web must use the internal Explorer API",
     )
+    require(
+        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in portable_explorer_ui,
+        "portable Explorer UI must proxy indexed reads to the private Explorer backend",
+    )
+    require(
+        "AEKO_OPERATIONS_ROLE: funding" in portable_funding_gateway
+        and "FUNDING_GATEWAY_KEY:" in portable_funding_gateway
+        and "admin-state:/data" in portable_funding_gateway,
+        "portable Funding Gateway must own public funding state and protected airdrop authorization",
+    )
+    require(
+        "AEKO_OPERATIONS_ROLE: admin" in portable_operations_web
+        and "AEKO_INTERNAL_FUNDING_URL: ${AEKO_INTERNAL_FUNDING_URL:-http://funding-gateway:3001}" in portable_operations_web
+        and "FUNDING_ADMIN_API_KEY:" in portable_operations_web,
+        "portable Admin must use the private Funding Gateway API",
+    )
+    require("FUNDING_GATEWAY_KEY" not in portable_operations_web, "portable Admin must not receive protected airdrop authorization")
     require("protocol-authority-keypair.json" in portable_protocol_bootstrap, "portable protocol bootstrap must use dedicated authority")
     require("protocol-continuity:/continuity" in portable_protocol_bootstrap, "portable protocol continuity anchor must persist separately")
     require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in portable_protocol_bootstrap, "portable protocol bootstrap must follow intentional chain resets")
     require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in portable_explorer, "portable Explorer must follow intentional chain resets")
     require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in portable_explorer, "portable Explorer must consume protocol registry")
     require("protocol-state:/protocol-state:ro" in portable_explorer, "portable Explorer must mount protocol state read-only")
-    require("depends_on:" not in portable_operations_web, "portable Operations Web lifecycle must be independent of validator health")
+    require(
+        "funding-gateway:" in portable_operations_web
+        and "validator:" not in portable_operations_web
+        and "explorer-api:" not in portable_operations_web,
+        "portable Admin may depend on Funding Gateway but must remain independent of validator/Explorer readiness",
+    )
     require("AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-localnet}" in portable_explorer, "portable Explorer must default to localnet identity rather than production testnet")
     require("http://127.0.0.1:8088/" in portable_explorer, "portable Explorer container health must use process liveness")
     require("http://127.0.0.1:8088/health" not in portable_explorer, "portable Explorer container health must not couple process liveness to readiness")
