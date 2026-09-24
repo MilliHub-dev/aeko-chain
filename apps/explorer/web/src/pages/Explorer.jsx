@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Activity, Blocks, ChevronLeft, ChevronRight, Image, RotateCcw, Search, Sparkles, Wallet } from 'lucide-react';
+import NetworkToggle from '../components/NetworkToggle';
 import { fetchExplorerHome, getExplorerAvailability, searchExplorer } from '../utils/explorerApi';
 import { formatExplorerMetric } from '../utils/explorerData';
 import {
@@ -35,7 +36,7 @@ const INITIAL_HOME_STATE = { ...EMPTY_HOME_STATE, loading: true };
 
 export default function Explorer() {
   const { settings } = useAppSettings();
-  const network = 'testnet';
+  const [network, setNetwork] = useState('testnet');
   const [searchParams, setSearchParams] = useSearchParams();
   const [homeRefreshTick, setHomeRefreshTick] = useState(0);
   const [homeState, setHomeState] = useState(INITIAL_HOME_STATE);
@@ -52,7 +53,10 @@ export default function Explorer() {
   const toaster = useToaster();
 
   const unavailable = !getExplorerAvailability(network);
-  const networkLabel = 'Testnet';
+  const networkLabel = useMemo(
+    () => network.charAt(0).toUpperCase() + network.slice(1),
+    [network],
+  );
 
   useEffect(() => {
     const interval = window.setInterval(
@@ -357,6 +361,7 @@ export default function Explorer() {
             Inspect live chain position and durable blocks, transactions, assets, accounts, and SocialFi state through the Explorer backend.
           </p>
         </div>
+        <NetworkToggle value={network} onChange={setNetwork} />
       </div>
 
       <form onSubmit={handleSearch} className="relative mb-8">
