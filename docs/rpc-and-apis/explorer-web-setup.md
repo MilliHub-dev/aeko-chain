@@ -35,11 +35,11 @@ AEKO_PUBLIC_FUNDING_URL=
 
 The API URL must route to `explorer-api:8088`. The UI URL must route to `explorer-ui:4000`; the entrypoint rejects an API/UI endpoint collision.
 
-Optional mainnet and AEKO-721 demo runtime values are documented in `apps/explorer/web/.env.example`.
+Optional mainnet and AEKO-721 demo runtime values live in the same canonical deployment template: `docker/env.public.example`.
 
 ## Local Vite development
 
-For local development, the Explorer uses the atomic loopback override trio from `apps/explorer/web/.env.example`:
+For local development, `apps/explorer/web/.env.example` contains only the optional atomic loopback override trio:
 
 ```bash
 VITE_AEKO_LOCAL_RPC=http://127.0.0.1:8899
