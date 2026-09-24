@@ -102,7 +102,9 @@ export default function FundingGrantsPage() {
       setNotice({
         ok: true,
         text: action === 'approve'
-          ? `Approved and released ${json.data.amountAeko} AEKO to ${json.data.address}`
+          ? json.data.confirmed
+            ? `Approved and confirmed ${json.data.amountAeko} AEKO to ${json.data.address}`
+            : `Approved ${json.data.amountAeko} AEKO for ${json.data.address}; transaction submitted but confirmation was not observed yet`
           : 'Funding request rejected',
       })
       await refresh()
