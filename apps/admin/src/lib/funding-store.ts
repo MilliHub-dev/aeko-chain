@@ -36,7 +36,7 @@ export type FundingRequest = {
   address: string
   amountAeko: number
   requestedAt: string
-  source: 'public'
+  source: 'public' | 'backend'
   status: FundingRequestStatus
   decidedAt?: string
   signature?: string
@@ -151,6 +151,17 @@ function rollDay(state: State) {
   }
 }
 
+function mutableState(state: State): State {
+  return {
+    settings: { ...state.settings },
+    grants: state.grants.map((grant) => ({ ...grant })),
+    requests: state.requests.map((request) => ({ ...request })),
+    lastGrantAt: { ...state.lastGrantAt },
+    dayKey: state.dayKey,
+    daySpentAeko: state.daySpentAeko,
+  }
+}
+
 export async function getSettings(): Promise<FundingSettings> {
   return { ...(await load()).settings }
 }
@@ -169,7 +180,7 @@ export async function getPolicy() {
 
 export async function updateSettings(patch: Partial<FundingSettings>): Promise<FundingSettings> {
   return withLock(async () => {
-    const state = await load()
+    const state = mutableState(await load())
     const next = { ...state.settings }
     if (typeof patch.enabled === 'boolean') next.enabled = patch.enabled
     for (const key of ['amountAeko', 'cooldownHours', 'dailyBudgetAeko', 'maxManualGrantAeko'] as const) {
@@ -195,8 +206,8 @@ export async function listFundingRequests(limit = 100): Promise<FundingRequest[]
   return (await load()).requests.slice(0, limit)
 }
 
-function trimDecidedFundingRequests(state: State): void {
-  while (state.requests.length > MAX_REQUESTS_KEPT) {
+function makeRoomForFundingRequest(state: State): void {
+  while (state.requests.length >= MAX_REQUESTS_KEPT) {
     let removable = -1
     for (let index = state.requests.length - 1; index >= 0; index -= 1) {
       const status = state.requests[index].status
@@ -223,13 +234,16 @@ function cooldownWaitSeconds(state: State, address: string): number {
   return Math.max(0, Math.ceil((nextAt - Date.now()) / 1000))
 }
 
-export async function requestFundingApproval(address: string): Promise<FundingRequest> {
+export async function requestFundingApproval(
+  address: string,
+  source: 'public' | 'backend' = 'public',
+): Promise<FundingRequest> {
   if (!isValidAddress(address)) {
     throw new FundingError(400, 'INVALID_ADDRESS', 'Enter a valid AEKO wallet address')
   }
 
   return withLock(async () => {
-    const state = await load()
+    const state = mutableState(await load())
     rollDay(state)
     if (!state.settings.enabled) {
       throw new FundingError(503, 'FUNDING_DISABLED', 'Testnet funding is paused right now. Try again later.')
@@ -261,16 +275,16 @@ export async function requestFundingApproval(address: string): Promise<FundingRe
       throw new FundingError(429, 'BUDGET_EXHAUSTED', "Today's testnet funding budget is used up. Try again tomorrow.")
     }
 
+    makeRoomForFundingRequest(state)
     const request: FundingRequest = {
       id: randomUUID(),
       address,
       amountAeko: state.settings.amountAeko,
       requestedAt: new Date().toISOString(),
-      source: 'public',
+      source,
       status: 'pending',
     }
     state.requests.unshift(request)
-    trimDecidedFundingRequests(state)
     await save(state)
     return { ...request }
   })
@@ -284,7 +298,7 @@ export async function decideFundingRequest(
 
   if (action === 'reject') {
     return withLock(async () => {
-      const state = await load()
+      const state = mutableState(await load())
       const request = state.requests.find((entry) => entry.id === id)
       if (!request) throw new FundingError(404, 'REQUEST_NOT_FOUND', 'Funding request not found')
       if (request.status !== 'pending') {
@@ -298,7 +312,7 @@ export async function decideFundingRequest(
   }
 
   const reserved = await withLock(async () => {
-    const state = await load()
+    const state = mutableState(await load())
     rollDay(state)
     const request = state.requests.find((entry) => entry.id === id)
     if (!request) throw new FundingError(404, 'REQUEST_NOT_FOUND', 'Funding request not found')
@@ -335,7 +349,7 @@ export async function decideFundingRequest(
     )
   } catch (err) {
     await withLock(async () => {
-      const state = await load()
+      const state = mutableState(await load())
       rollDay(state)
       const request = state.requests.find((entry) => entry.id === id)
       if (request?.status === 'processing') request.status = 'pending'
@@ -355,7 +369,7 @@ export async function decideFundingRequest(
 
   const confirmed = await waitForConfirmation(signature)
   return withLock(async () => {
-    const state = await load()
+    const state = mutableState(await load())
     const request = state.requests.find((entry) => entry.id === id)
     if (!request) throw new FundingError(404, 'REQUEST_NOT_FOUND', 'Funding request not found after approval')
     request.status = 'approved'
@@ -395,61 +409,31 @@ async function waitForConfirmation(signature: string): Promise<boolean> {
 }
 
 /**
- * Grants AEKO to `address` under the current policy.
+ * Sends an immediate operator grant or Test Console airdrop.
  *
- * `admin` grants and `console` airdrops choose their own amount and skip the
- * public cooldown/budget. Console airdrops remain capped separately. The
- * `backend` source is the Aeko app calling on a user's behalf and follows the
- * public rules (the app's IP is shared, which is why IP limits are not here).
+ * Normal public and trusted-backend funding requests never call this function;
+ * they enter the approval queue and are released only by `decideFundingRequest`.
  */
 export async function grant(input: {
   address: string
-  source: GrantSource
-  amountAeko?: number
+  source: 'admin' | 'console'
+  amountAeko: number
 }): Promise<Grant & { retryAfterSeconds?: undefined }> {
   if (!isValidAddress(input.address)) {
     throw new FundingError(400, 'INVALID_ADDRESS', 'Enter a valid AEKO wallet address')
   }
 
   const reserved = await withLock(async () => {
-    const state = await load()
-    rollDay(state)
+    const state = mutableState(await load())
     const { settings } = state
-    const customAmount = input.source === 'admin' || input.source === 'console'
-
-    let amountAeko = settings.amountAeko
-    if (customAmount) {
-      amountAeko = Number(input.amountAeko)
-      if (!Number.isFinite(amountAeko) || amountAeko <= 0) {
-        throw new FundingError(400, 'INVALID_AMOUNT', 'Amount must be greater than 0')
-      }
-      const cap = input.source === 'console' ? MAX_CONSOLE_AIRDROP_AEKO : settings.maxManualGrantAeko
-      if (amountAeko > cap) {
-        const label = input.source === 'console' ? 'Test Console airdrops' : 'Manual grants'
-        throw new FundingError(400, 'AMOUNT_TOO_LARGE', `${label} are capped at ${cap} AEKO`)
-      }
-    } else {
-      if (!settings.enabled) {
-        throw new FundingError(503, 'FUNDING_DISABLED', 'Testnet funding is paused right now. Try again later.')
-      }
-      const last = state.lastGrantAt[input.address]
-      if (last) {
-        const nextAt = new Date(last).getTime() + settings.cooldownHours * 3_600_000
-        const wait = Math.ceil((nextAt - Date.now()) / 1000)
-        if (wait > 0) {
-          throw new FundingError(429, 'COOLDOWN', `This wallet already received test AEKO. Try again in ${formatWait(wait)}.`, {
-            retryAfterSeconds: wait,
-          })
-        }
-      }
-      if (state.daySpentAeko + amountAeko > settings.dailyBudgetAeko) {
-        throw new FundingError(429, 'BUDGET_EXHAUSTED', "Today's testnet funding budget is used up. Try again tomorrow.")
-      }
-      // Reserve the budget before the RPC call so concurrent requests can't
-      // all pass the check; released below if the airdrop fails.
-      state.daySpentAeko += amountAeko
-      state.lastGrantAt[input.address] = new Date().toISOString()
-      await save(state)
+    const amountAeko = Number(input.amountAeko)
+    if (!Number.isFinite(amountAeko) || amountAeko <= 0) {
+      throw new FundingError(400, 'INVALID_AMOUNT', 'Amount must be greater than 0')
+    }
+    const cap = input.source === 'console' ? MAX_CONSOLE_AIRDROP_AEKO : settings.maxManualGrantAeko
+    if (amountAeko > cap) {
+      const label = input.source === 'console' ? 'Test Console airdrops' : 'Manual grants'
+      throw new FundingError(400, 'AMOUNT_TOO_LARGE', `${label} are capped at ${cap} AEKO`)
     }
     return amountAeko
   })
@@ -458,15 +442,6 @@ export async function grant(input: {
   try {
     signature = await requestAirdrop(input.address, Math.round(reserved * 1_000_000_000))
   } catch (err) {
-    if (input.source !== 'admin' && input.source !== 'console') {
-      await withLock(async () => {
-        const state = await load()
-        rollDay(state)
-        state.daySpentAeko = Math.max(0, state.daySpentAeko - reserved)
-        delete state.lastGrantAt[input.address]
-        await save(state)
-      })
-    }
     const message = err instanceof Error ? err.message : 'low-level funding transfer failed'
     throw new FundingError(502, 'FUNDING_TRANSFER_FAILED', `The private Faucet Daemon rejected the low-level funding transfer: ${message}`)
   }
@@ -481,7 +456,7 @@ export async function grant(input: {
     confirmed,
   }
   await withLock(async () => {
-    const state = await load()
+    const state = mutableState(await load())
     state.grants.unshift(record)
     if (state.grants.length > MAX_GRANTS_KEPT) state.grants.length = MAX_GRANTS_KEPT
     await save(state)
