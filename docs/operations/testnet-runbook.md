@@ -78,7 +78,7 @@ The bootstrap flow on first boot:
 4. `aeko-faucet` is independently listening on container port 9900 with the faucet keypair loaded. It is NOT exposed to the public internet — the validator reaches it on the docker bridge at `faucet:9900`.
 5. On the public testnet, the Funding Gateway first applies policy and calls the validator's protected `requestAirdrop` method with server authorization. The validator then opens a TCP connection to the private Faucet Daemon at `faucet:9900`, receives a signed transfer transaction, submits it through its banking pipeline, and returns the signature.
 6. `aeko-explorer-backend` reads finalized chain data from validator RPC, persists durable Explorer projections in PostgreSQL, and serves the REST API on `:8088`. The HTTP server binds while historical catch-up runs in a background task, so indexed history grows toward the finalized chain tip without substituting in-memory production state.
-7. `aeko-explorer-ui` serves the built Vite SPA from `/app/dist` via `serve -s`. All API calls go directly to `https://api.aeko.online` (set at build time in `web/.env.production`).
+7. `aeko-explorer-ui` serves the deployment-neutral Vite SPA from `/app/dist` via `serve -s`. At container startup, `docker/explorer-ui-entrypoint.sh` injects the canonical `AEKO_*` endpoint values into `/runtime-config.js`; public API calls use that runtime configuration.
 
 ---
 
