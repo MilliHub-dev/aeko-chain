@@ -54,22 +54,6 @@ if (endpointKey(explorerApi) === endpointKey(explorerUi)) {
   );
 }
 
-const mainnet = {
-  rpcUrl: optional('AEKO_MAINNET_RPC_URL'),
-  websocketUrl: optional('AEKO_MAINNET_WS_URL'),
-  explorerApiUrl: optional('AEKO_MAINNET_EXPLORER_API_URL'),
-  explorerUrl: optional('AEKO_MAINNET_EXPLORER_URL'),
-};
-
-const mainnetValues = Object.values(mainnet);
-if (mainnetValues.some(Boolean) && !mainnetValues.every(Boolean)) {
-  const missing = Object.entries(mainnet)
-    .filter(([, value]) => !value)
-    .map(([key]) => key)
-    .join(', ');
-  throw new Error(`AEKO mainnet Explorer configuration is partial. Missing: ${missing}.`);
-}
-
 const demo = {
   rpcUrl: optional('AEKO_DEMO_RPC_URL'),
   collection: optional('AEKO_DEMO_COLLECTION'),
@@ -77,7 +61,7 @@ const demo = {
   metadataUri: optional('AEKO_DEMO_METADATA_URI'),
 };
 
-const config = { testnet, mainnet, demo };
+const config = { testnet, demo };
 
 fs.writeFileSync(
   '/app/dist/runtime-config.js',
