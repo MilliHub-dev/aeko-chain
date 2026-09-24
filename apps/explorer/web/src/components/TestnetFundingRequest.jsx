@@ -1,6 +1,6 @@
 import { AlertTriangle, CheckCircle2, Droplets, ExternalLink, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getFundingPolicy, requestFundingGrant } from '../utils/aekoRpcClient';
+import { getFundingPolicy, requestFundingApproval } from '../utils/aekoRpcClient';
 
 const ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
@@ -12,7 +12,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
   const [address, setAddress] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(
-    /** @type {{ kind: 'success' | 'error', message: string, signature?: string, explorerUrl?: string } | null} */ (null),
+    /** @type {{ kind: 'success' | 'error', message: string, requestId?: string, explorerUrl?: string } | null} */ (null),
   );
 
   useEffect(() => {
@@ -52,26 +52,13 @@ export default function TestnetFundingRequest({ fundingUrl }) {
     setBusy(true);
     setResult(null);
     try {
-      const grant = await requestFundingGrant(fundingUrl, address.trim());
+      const request = await requestFundingApproval(fundingUrl, address.trim());
       setResult({
         kind: 'success',
-        message: grant.confirmed
-          ? `${grant.amountAeko} AEKO sent to your testnet wallet.`
-          : `${grant.amountAeko} AEKO submitted and awaiting confirmation.`,
-        signature: grant.signature,
-        explorerUrl: grant.explorerUrl,
+        message: `${request.amountAeko} AEKO funding request submitted for operator approval.`,
+        requestId: request.id,
+        explorerUrl: request.explorerUrl,
       });
-      setPolicy((current) =>
-        current
-          ? {
-              ...current,
-              dailyRemainingAeko: Math.max(
-                0,
-                current.dailyRemainingAeko - Number(grant.amountAeko || 0),
-              ),
-            }
-          : current,
-      );
     } catch (error) {
       setResult({ kind: 'error', message: error.message || String(error) });
     } finally {
@@ -91,7 +78,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
               <div className="text-xs font-medium uppercase tracking-[0.16em] text-aeko-accent">Testnet Funding</div>
               <h2 className="mt-1 text-2xl font-bold text-white">Get test AEKO</h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-400">
-                Paste any AEKO testnet wallet address. This request is separate from the Network Console and follows the configured cooldown and daily-budget policy.
+                Paste any AEKO testnet wallet address. This creates a pending funding request for the operator to review and release from the Admin Console. Network Console airdrops are a separate developer flow.
               </p>
             </div>
           </div>
@@ -131,7 +118,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-aeko-accent px-5 text-sm font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {busy ? <Loader2 size={15} className="animate-spin" /> : <Droplets size={15} />}
-              {busy ? 'Sending…' : policy ? `Send me ${policy.amountAeko} AEKO` : 'Loading funding policy…'}
+              {busy ? 'Submitting…' : policy ? `Request ${policy.amountAeko} AEKO` : 'Loading funding policy…'}
             </button>
           </form>
 
@@ -141,7 +128,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
                 {result.kind === 'success' ? <CheckCircle2 size={16} className="mt-0.5 shrink-0" /> : <AlertTriangle size={16} className="mt-0.5 shrink-0" />}
                 <div className="min-w-0">
                   <div>{result.message}</div>
-                  {result.signature ? <div className="mt-2 break-all font-mono text-[11px] text-gray-300">{result.signature}</div> : null}
+                  {result.requestId ? <div className="mt-2 break-all font-mono text-[11px] text-gray-300">Request {result.requestId}</div> : null}
                   {result.explorerUrl ? (
                     <a href={result.explorerUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-aeko-accent hover:underline">
                       View wallet on Explorer <ExternalLink size={11} />
@@ -156,7 +143,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
         <aside className="border-t border-white/10 bg-black/20 p-6 sm:p-8 lg:border-l lg:border-t-0">
           <div className="text-sm font-semibold text-white">Funding policy</div>
           <p className="mt-1 text-xs leading-relaxed text-gray-500">
-            The public Funding Gateway controls grant size and abuse limits. The private Faucet Daemon is not exposed to browsers.
+            The public Funding Gateway controls request size and abuse limits. Requests remain pending until an operator approves them; only the server can reach the private Faucet Daemon.
           </p>
           <div className="mt-5 grid gap-3">
             <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
