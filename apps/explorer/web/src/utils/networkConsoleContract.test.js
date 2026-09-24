@@ -185,6 +185,36 @@ test('Admin funding polling preserves an operator policy draft', async () => {
 });
 
 
+test('Operations Web paginates long datasets and keeps dense control pages focused', async () => {
+  const dataTable = await source('../../../admin/src/components/data-table.tsx');
+  const fundingPage = await source('../../../admin/src/app/(admin)/funding-grants/page.tsx');
+  const settingsPage = await source('../../../admin/src/app/(admin)/settings/page.tsx');
+  const socialPage = await source('../../../admin/src/app/(admin)/social/page.tsx');
+  const protocolPage = await source('../../../admin/src/app/(admin)/protocol/page.tsx');
+
+  assert.match(dataTable, /Rows per page/);
+  assert.match(dataTable, /Table pagination/);
+  assert.match(dataTable, /Previous page/);
+  assert.match(dataTable, /Next page/);
+  assert.match(dataTable, /Showing/);
+
+  assert.match(fundingPage, /SectionTabs/);
+  assert.match(fundingPage, /Approval queue/);
+  assert.match(fundingPage, /Policy & manual grant/);
+  assert.match(fundingPage, /Grant history/);
+
+  assert.match(settingsPage, /Settings sections/);
+  assert.match(settingsPage, /sticky top-14/);
+  assert.match(settingsPage, /id="public-features"/);
+  assert.match(settingsPage, /id="chain-binding"/);
+
+  assert.match(socialPage, /Health & registry/);
+  assert.match(socialPage, /Indexed activity/);
+  assert.match(protocolPage, /Native programs/);
+  assert.match(protocolPage, /State accounts/);
+});
+
+
 test('production Explorer endpoint configuration is runtime-injected rather than domain-hardcoded', async () => {
   const networkConfig = await source('utils/networkConfig.js');
   const rpcClient = await source('utils/aekoRpcClient.js');
