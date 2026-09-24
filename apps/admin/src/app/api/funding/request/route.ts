@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { FundingError, grant, requestFundingApproval } from '@/lib/funding-store'
+import { FundingError, requestFundingApproval } from '@/lib/funding-store'
 import { clientIp, throttle } from '@/lib/ip-throttle'
 import { fundingCorsHeaders, fundingPreflight } from '@/lib/funding-cors'
 
@@ -45,17 +45,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    if (trusted) {
-      const record = await grant({ address, source: 'backend' })
-      return respond({
-        data: {
-          ...record,
-          explorerUrl: EXPLORER_URL ? `${EXPLORER_URL}/explorer/account/${record.address}` : null,
-        },
-      })
-    }
-
-    const request = await requestFundingApproval(address)
+    const request = await requestFundingApproval(address, trusted ? 'backend' : 'public')
     return respond(
       {
         data: {
