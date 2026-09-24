@@ -53,10 +53,10 @@ def service_block(compose: str, service: str, next_service: str | None = None) -
     start = re.search(rf"^  {re.escape(service)}:\s*$", compose, re.MULTILINE)
     require(start is not None, f"missing service {service}")
     tail = compose[start.end() :]
-    if next_service:
-        stop = re.search(rf"^  {re.escape(next_service)}:\s*$", tail, re.MULTILINE)
-    else:
-        stop = re.search(r"^(?:networks|volumes):\s*$", tail, re.MULTILINE)
+    # Service declaration order is a presentation concern, not a dependency
+    # contract. Stop at whichever two-space service key appears next so Coolify
+    # can group one-shot and long-running services without weakening checks.
+    stop = re.search(r"^(?:  [A-Za-z0-9_.-]+:|networks:|volumes:)\s*$", tail, re.MULTILINE)
     return tail[: stop.start()] if stop else tail
 
 
@@ -484,6 +484,13 @@ def main() -> int:
     # the containers are created.
     require(re.search(r"^\s+build:\s*$", coolify, re.MULTILINE) is None, "Coolify compose must pull prebuilt images, not build source")
     require(re.search(r"^  rpc-node:\s*$", coolify, re.MULTILINE) is None, "Coolify must not make the optional RPC replica a default service")
+    require(
+        coolify.index("  key-bootstrap:") < coolify.index("  social-bootstrap:") < coolify.index("  protocol-bootstrap:")
+        < coolify.index("  faucet:") < coolify.index("  validator:")
+        < coolify.index("  explorer-api:") < coolify.index("  explorer-ui:") < coolify.index("  operations-web:")
+        < coolify.index("  wallet-tools:"),
+        "Coolify services must stay grouped as one-shot lifecycle, core runtime, applications, then opt-in tooling",
+    )
     for index, service in enumerate(ordered):
         next_service = ordered[index + 1] if index + 1 < len(ordered) else None
         block = service_block(coolify, service, next_service)
@@ -502,11 +509,18 @@ def main() -> int:
     # console. The private Faucet Daemon is a separate TCP service.
     require("ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}" in coolify_operations_web, "Coolify operations web must require an operator password")
     require("ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}" in coolify_operations_web, "Coolify operations web must require a session secret")
-    require("- admin-state:/data" in coolify_operations_web, "Coolify operations web must persist funding policy/grants in the admin-state volume")
+    require("source: admin-state" in coolify_operations_web and "target: /data" in coolify_operations_web, "Coolify operations web must persist funding policy/grants in the admin-state volume")
     require("http://127.0.0.1:3001/api/funding/policy" in coolify_operations_web, "Coolify operations web healthcheck must probe the public funding policy endpoint")
     require("--per-request-cap" in coolify_faucet, "Coolify faucet must enforce a per-request airdrop ceiling")
     require("AEKO_KEYS_DIR" not in coolify, "Coolify compose must not depend on interpolated key-path variables")
-    require("source: ${" not in coolify, "Coolify volume sources must not contain Compose interpolation")
+    coolify_volume_sources = re.findall(r"^\s+source:\s*(.+?)\s*$", coolify, re.MULTILINE)
+    require(coolify_volume_sources, "Coolify compose must declare explicit long-form volume sources")
+    for source in coolify_volume_sources:
+        require("${" not in source, f"Coolify volume source must be literal, not interpolated: {source}")
+        require(
+            not any(character in source for character in "‘’“”"),
+            f"Coolify volume source contains a forbidden smart quote: {source}",
+        )
     require(coolify.count("source: /data/aeko/keys") >= 5, "Coolify runtime and key bootstrap services must share the fixed host key bind source")
     require(coolify.count("read_only: true") >= 3, "Coolify long-running runtime key mounts must remain read-only")
     require(re.search(r"^  key-preflight:\\s*$", coolify, re.MULTILINE) is None, "Coolify must retain the key-bootstrap service name used by its dependency graph")
@@ -521,12 +535,12 @@ def main() -> int:
     require("key-bootstrap:" in coolify_faucet and "condition: service_completed_successfully" in coolify_faucet, "Coolify faucet must wait for persistent key initialization")
     require('restart: "no"' in coolify_bootstrap, "Coolify SocialFi bootstrap must remain a one-shot initializer")
     require("protocol-authority-keypair.json" in coolify_protocol_bootstrap, "Coolify protocol bootstrap must use dedicated authority")
-    require("protocol-state:/state" in coolify_protocol_bootstrap, "Coolify protocol state must persist")
-    require("protocol-continuity:/continuity" in coolify_protocol_bootstrap, "Coolify protocol continuity anchor must persist separately")
+    require("source: protocol-state" in coolify_protocol_bootstrap and "target: /state" in coolify_protocol_bootstrap, "Coolify protocol state must persist")
+    require("source: protocol-continuity" in coolify_protocol_bootstrap and "target: /continuity" in coolify_protocol_bootstrap, "Coolify protocol continuity anchor must persist separately")
     require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in coolify_protocol_bootstrap, "Coolify protocol bootstrap must follow intentional chain resets")
     require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in coolify_explorer, "Coolify Explorer must purge stale projections on intentional chain resets")
     require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in coolify_explorer, "Coolify Explorer must consume protocol registry")
-    require("protocol-state:/protocol-state:ro" in coolify_explorer, "Coolify Explorer must mount protocol state read-only")
+    require("source: protocol-state" in coolify_explorer and "target: /protocol-state" in coolify_explorer and "read_only: true" in coolify_explorer, "Coolify Explorer must mount protocol state read-only")
     require("depends_on:" not in coolify_operations_web, "Coolify Operations Web lifecycle must be independent of validator health")
     require('profiles: ["ops"]' in coolify_wallet_tools, "Coolify wallet tools must remain operator-only and absent from default startup")
     require("exit 64" in key_preflight and "exit 65" in key_preflight, "reusable key preflight helper must preserve distinct missing/invalid key exit codes")
@@ -534,11 +548,15 @@ def main() -> int:
         'reset_ledger="$(parse_bool AEKO_RESET_LEDGER' in key_preflight,
         "reusable key preflight helper must understand the destructive chain-reset signal",
     )
-    require("validator-ledger:/ledger" in coolify_validator, "Coolify validator must use a Docker-managed ledger volume by default")
+    require("source: validator-ledger" in coolify_validator and "target: /ledger" in coolify_validator, "Coolify validator must use a Docker-managed ledger volume by default")
     require("AEKO_VALIDATOR_LEDGER_VOLUME" not in coolify, "Coolify ledger source must not use interpolated volume-source syntax")
     require("AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?}" in coolify_validator, "Coolify must require the public validator address")
     require("AEKO_FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_validator, "Coolify validator must protect requestAirdrop behind the Funding Gateway key")
     require("FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_operations_web, "Coolify admin must receive the matching Funding Gateway key")
+    require(
+        "FUNDING_MAX_CONSOLE_AIRDROP_AEKO: ${FUNDING_MAX_CONSOLE_AIRDROP_AEKO:-25}" in coolify_operations_web,
+        "Coolify Operations Web must cap direct Test Console airdrops",
+    )
     require('"8000-8050:8000-8050/tcp"' in coolify_validator, "Coolify validator TCP transport range must be published")
     require('"8000-8050:8000-8050/udp"' in coolify_validator, "Coolify validator UDP transport range must be published")
     require(
