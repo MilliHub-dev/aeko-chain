@@ -213,49 +213,59 @@ def main() -> int:
     )
 
     for label, compose in (("Coolify", coolify), ("Dokploy", dokploy)):
+        require(re.search(r"^  funding-gateway:\s*$", compose, re.MULTILINE) is not None, f"{label} must deploy a dedicated funding-gateway service")
         require(re.search(r"^  operations-web:\s*$", compose, re.MULTILINE) is not None, f"{label} must deploy operations-web")
-        require("aeko-operations-web:" in compose, f"{label} must pull the operations-web image")
-        require("AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in compose, f"{label} must use internal validator DNS")
-        require("AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in compose, f"{label} operations web must use internal Explorer DNS")
+        require(compose.count("aeko-operations-web:") >= 2, f"{label} must run isolated funding and Admin instances from the validated Operations image")
+        require("AEKO_OPERATIONS_ROLE: funding" in compose, f"{label} funding gateway must run in funding role")
+        require("AEKO_OPERATIONS_ROLE: admin" in compose, f"{label} operations web must run in admin role")
+        require("AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in compose, f"{label} services must use internal validator DNS")
+        require("AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in compose, f"{label} Explorer consumers must use private Docker DNS")
+        require("AEKO_INTERNAL_FUNDING_URL: ${AEKO_INTERNAL_FUNDING_URL:-http://funding-gateway:3001}" in compose, f"{label} Admin must use private Funding Gateway DNS")
+        require("FUNDING_ADMIN_API_KEY: ${FUNDING_ADMIN_API_KEY:?}" in compose, f"{label} must authenticate private Admin-to-funding calls")
+        require("FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in compose, f"{label} Funding Gateway must own protected airdrop authorization")
+        require("FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:?}" in compose, f"{label} Funding Gateway must receive browser CORS origins explicitly")
         require("AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-faucet:9900}" in compose, f"{label} validator must reach the private Faucet Daemon by Docker DNS")
         for name in (
             "AEKO_PUBLIC_RPC_URL",
             "AEKO_PUBLIC_WS_URL",
-            "AEKO_PUBLIC_EXPLORER_API_URL",
-            "AEKO_PUBLIC_EXPLORER_URL",
             "AEKO_PUBLIC_FUNDING_URL",
         ):
-            require((name + ": ${" + name + ":?}") in compose, f"{label} must receive {name} from deployment environment")
-        for name in (
-            "AEKO_MAINNET_RPC_URL",
-            "AEKO_MAINNET_WS_URL",
+            require((name + ": ${" + name + ":?}") in compose, f"{label} Explorer/Funding runtime must receive {name}")
+        require("AEKO_INTERNAL_MAINNET_EXPLORER_API_URL: ${AEKO_INTERNAL_MAINNET_EXPLORER_API_URL:-}" in compose, f"{label} Explorer UI must accept optional private mainnet Explorer upstream")
+        for retired in (
+            "AEKO_PUBLIC_EXPLORER_API_URL",
+            "AEKO_PUBLIC_EXPLORER_URL",
+            "AEKO_PUBLIC_ADMIN_URL",
             "AEKO_MAINNET_EXPLORER_API_URL",
             "AEKO_MAINNET_EXPLORER_URL",
-            "AEKO_DEMO_RPC_URL",
-            "AEKO_DEMO_COLLECTION",
-            "AEKO_DEMO_TOKEN",
-            "AEKO_DEMO_METADATA_URI",
+            "FUNDING_CLIENT_API_KEY",
+            "AEKO_EXPLORER_URL:",
         ):
-            require((name + ": ${" + name + ":-}") in compose, f"{label} Explorer UI must receive optional runtime value {name}")
-        require("AEKO_PUBLIC_ADMIN_URL: ${AEKO_PUBLIC_ADMIN_URL:?}" in compose, f"{label} operations web must receive AEKO_PUBLIC_ADMIN_URL")
-        require("FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:?}" in compose, f"{label} must receive browser funding origins explicitly")
+            reject(compose, retired, f"{label} compose")
         reject(compose, "aeko-admin:", f"{label} compose")
         reject(compose, "FUNDING_PUBLIC_HOST", f"{label} compose")
         reject(compose, "ADMIN_PUBLIC_HOST", f"{label} compose")
 
-    require("AEKO_PUBLIC_FUNDING_URL" in middleware, "Operations middleware must use AEKO_PUBLIC_FUNDING_URL")
-    require("AEKO_PUBLIC_ADMIN_URL" in middleware, "Operations middleware must use AEKO_PUBLIC_ADMIN_URL")
-    require("AEKO_PUBLIC_EXPLORER_URL" in funding_policy, "Funding policy must use AEKO_PUBLIC_EXPLORER_URL")
-    require("AEKO_PUBLIC_ADMIN_URL" in funding_policy, "Funding policy must use AEKO_PUBLIC_ADMIN_URL")
+    require("AEKO_OPERATIONS_ROLE" in middleware, "Operations middleware must isolate Admin and Funding runtime roles")
+    require("AEKO_PUBLIC_FUNDING_URL" in middleware, "Funding role must recognize its public funding host")
+    reject(middleware, "AEKO_PUBLIC_ADMIN_URL", "operations middleware")
+    for topology_name in ("AEKO_PUBLIC_EXPLORER_URL", "AEKO_PUBLIC_ADMIN_URL", "explorerUrl", "adminUrl"):
+        reject(funding_policy, topology_name, "public funding policy")
+        reject(funding_airdrop, topology_name, "public funding airdrop")
     require(
-        "AEKO_PUBLIC_EXPLORER_URL" not in funding_request
-        and "explorerUrl" not in funding_request,
-        "Pending funding requests must not imply that funds already exist on-chain",
+        "requestFundingApproval(address, 'public')" in funding_request
+        and "FUNDING_CLIENT_API_KEY" not in funding_request,
+        "Every public funding request must enter the same operator-approval queue",
     )
     require(
-        "AEKO_PUBLIC_EXPLORER_URL" in funding_airdrop
-        and "explorerUrl" in funding_airdrop,
-        "Direct Test Console airdrop responses must use AEKO_PUBLIC_EXPLORER_URL for the funded wallet link",
+        "isAuthorizedFundingAdminRequest" in funding_internal
+        and "decideFundingRequest" in funding_internal,
+        "Funding Gateway private Admin API must authenticate before mutating queue state",
+    )
+    require(
+        "AEKO_INTERNAL_FUNDING_URL" in funding_admin_client
+        and "x-aeko-funding-admin-key" in funding_admin_client,
+        "Admin funding controls must use the private Funding Gateway client",
     )
     require("FUNDING_ALLOWED_ORIGINS" in funding_cors, "Funding CORS must be deployment-configured")
     require(
@@ -275,7 +285,8 @@ def main() -> int:
         "private Explorer settings token must never appear in Admin client code",
     )
     require(
-        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" in settings_route,
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" in settings_route
+        and "AEKO_INTERNAL_EXPLORER_API_URL" in settings_route,
         "private Explorer settings token must remain server-side in the Next.js route",
     )
     require(
