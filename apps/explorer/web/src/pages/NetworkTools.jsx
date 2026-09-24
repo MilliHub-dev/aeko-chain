@@ -139,7 +139,7 @@ export default function NetworkTools() {
             {network === 'testnet'
               ? config.key === 'localnet'
                 ? 'Local development can use requestAirdrop directly on the local validator RPC.'
-                : 'Use the Testnet Funding Portal for test AEKO. The private Faucet Daemon is internal infrastructure, and the public RPC does not accept unauthenticated requestAirdrop calls.'
+                : 'Use the Testnet Funding Portal to submit a public funding request for operator approval. The Network Console has a separate constrained developer airdrop flow. The private Faucet Daemon remains internal infrastructure, and the public RPC does not accept unauthenticated requestAirdrop calls.'
               : 'Mainnet does not expose test funding. Use your normal treasury, exchange, or operational distribution flow.'}
           </p>
 
@@ -151,8 +151,8 @@ export default function NetworkTools() {
                 Policy-controlled Funding Gateway
               </div>
               <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-white/10">
-                The Faucet Daemon is a private TCP service. Public users request a funding grant through
-                the Funding Portal; only the server-side gateway is authorized to invoke requestAirdrop.
+                The Faucet Daemon is a private TCP service. Public users submit funding requests through
+                the Funding Portal and an operator approves release; only server-side funding routes are authorized to invoke requestAirdrop.
               </div>
             </div>
           ) : (
