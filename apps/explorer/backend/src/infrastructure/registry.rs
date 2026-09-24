@@ -9,11 +9,13 @@ use {
     std::{
         collections::{BTreeMap, HashMap},
         env, fs,
+        io::ErrorKind,
     },
 };
 
 const SOCIAL_REGISTRY_FILE_ENV: &str = "AEKO_SOCIAL_REGISTRY_FILE";
 const PROTOCOL_REGISTRY_FILE_ENV: &str = "AEKO_PROTOCOL_REGISTRY_FILE";
+const PROTOCOL_BOOTSTRAP_ENABLED_ENV: &str = "AEKO_PROTOCOL_BOOTSTRAP_ENABLED";
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -184,11 +186,43 @@ fn load_registry_file(env_name: &str, label: &str) -> HashMap<String, String> {
     };
     match fs::read_to_string(&path) {
         Ok(content) => parse_registry_env(&content),
+        Err(error)
+            if expected_missing_registry(
+                env_name,
+                &error,
+                env_flag_enabled(PROTOCOL_BOOTSTRAP_ENABLED_ENV),
+            ) =>
+        {
+            tracing::debug!(
+                path,
+                env_name,
+                label,
+                "protocol registry file is not present yet"
+            );
+            HashMap::new()
+        }
         Err(error) => {
             tracing::warn!(path, env_name, label, error = %error, "unable to read bootstrap registry file");
             HashMap::new()
         }
     }
+}
+
+fn expected_missing_registry(
+    env_name: &str,
+    error: &std::io::Error,
+    protocol_bootstrap_enabled: bool,
+) -> bool {
+    env_name == PROTOCOL_REGISTRY_FILE_ENV
+        && error.kind() == ErrorKind::NotFound
+        && !protocol_bootstrap_enabled
+}
+
+fn env_flag_enabled(name: &str) -> bool {
+    env::var(name)
+        .ok()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .is_some_and(|value| matches!(value.as_str(), "1" | "true" | "yes" | "on"))
 }
 
 fn parse_registry_env(content: &str) -> HashMap<String, String> {
@@ -213,7 +247,40 @@ fn parse_registry_env(content: &str) -> HashMap<String, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_registry_env;
+    use {
+        super::{
+            expected_missing_registry, parse_registry_env, PROTOCOL_REGISTRY_FILE_ENV,
+            SOCIAL_REGISTRY_FILE_ENV,
+        },
+        std::io::{Error, ErrorKind},
+    };
+
+    #[test]
+    fn missing_protocol_registry_is_expected_only_for_not_found() {
+        let missing = Error::from(ErrorKind::NotFound);
+        assert!(expected_missing_registry(
+            PROTOCOL_REGISTRY_FILE_ENV,
+            &missing,
+            false,
+        ));
+        assert!(!expected_missing_registry(
+            PROTOCOL_REGISTRY_FILE_ENV,
+            &missing,
+            true,
+        ));
+        assert!(!expected_missing_registry(
+            SOCIAL_REGISTRY_FILE_ENV,
+            &missing,
+            false,
+        ));
+
+        let denied = Error::from(ErrorKind::PermissionDenied);
+        assert!(!expected_missing_registry(
+            PROTOCOL_REGISTRY_FILE_ENV,
+            &denied,
+            false,
+        ));
+    }
 
     #[test]
     fn registry_parser_accepts_both_bootstrap_formats_and_ignores_empty_values() {

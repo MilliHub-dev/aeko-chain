@@ -78,11 +78,28 @@ Persist:
 - vote-account key;
 - stake key;
 - faucet key;
-- protocol authority key.
+- protocol authority key, once the protocol has been initialized.
 
 The `social-state` volume contains the five SocialFi state keypairs plus `social-registry.env`. The `protocol-state` volume contains the published `protocol-registry.env`. The separate `protocol-continuity` volume contains the canonical protocol state/custody keypairs plus the registry continuity anchor. Preserve both protocol volumes together.
 
 The optional portable/local RPC replica keeps its own identity and ledger when that profile is explicitly enabled; those are not requirements of the default public topology.
+
+## Configuration ownership and source of truth
+
+Do not copy the same value into multiple configuration surfaces merely because similarly named variables exist.
+
+| Configuration | Canonical source | Normal operator action |
+| --- | --- | --- |
+| Validator/vote/stake/faucet identities | persistent key files | Preserve the existing files; generate only during an intentional first chain boot. |
+| Social state and vault addresses | generated `social-state/social-registry.env` | Leave Explorer per-address overrides unset. |
+| Protocol feature identities | compile-time feature IDs plus their matching offline private keypairs | Activate the two feature accounts once from a secured operator machine. |
+| Protocol authority and canonical state addresses | persistent protocol authority plus generated `protocol-registry.env` / continuity anchor | Create only during the intentional first protocol bootstrap, then preserve. |
+| Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads the same public API resource. |
+| Public browser endpoints | deployment environment (`AEKO_PUBLIC_*`) | Configure once per deployment environment. |
+| Internal container endpoints | Compose service DNS defaults | Normally leave the `AEKO_INTERNAL_*` overrides unset. |
+| Recovery address overrides | Explorer process environment | Use only for explicit recovery; never as a parallel normal source of truth. |
+
+Similar names are not automatically duplicates. For example, `AEKO_EXPLORER_URL` is the Operations Web server-to-server Explorer endpoint, while `AEKO_PUBLIC_EXPLORER_API_URL` is the browser-facing Explorer API endpoint. They may resolve to the same service through different network paths and must not be substituted blindly.
 
 ## Required production environment
 
@@ -118,30 +135,33 @@ FUNDING_DEFAULT_DAILY_BUDGET_AEKO=5000
 FUNDING_MAX_MANUAL_GRANT_AEKO=100
 ```
 
-Optional SocialFi configuration:
+Optional SocialFi bootstrap configuration:
 
 ```text
-AEKO_TREASURY_ADDRESS=<pubkey>
-AEKO_REWARD_VAULT=<pubkey>
-AEKO_STAKE_VAULT=<pubkey>
+AEKO_REWARDS_TREASURY_SEED_LAMPORTS=0
+AEKO_REWARD_VAULT_SEED_LAMPORTS=0
+AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS=0
 AEKO_PLATFORM_FEE_BPS=200
 ```
+
+Normal public deployments do not configure Social state or vault addresses by hand. `social-bootstrap` creates the canonical accounts and publishes them in `social-registry.env`; the Explorer's per-address environment variables are recovery overrides and should normally remain unset.
 
 `AEKO_PUBLIC_IP` must be the address external validators can reach. Allow inbound TCP+UDP `8000-8050` at the host/cloud firewall. `EXPLORER_DATABASE_URL` is intentionally required by both public Compose contracts. In-memory indexing is useful for disposable local runs but is not a public-network storage contract.
 
 ## Required key files
 
-The public key directory uses the same four files on every platform. Dokploy/local select it with `AEKO_KEYS_DIR`; Coolify binds the fixed host path `/data/aeko/keys` and its one-shot `key-bootstrap` service creates any missing files on a fresh deployment:
+The established chain identity uses the same four files on every platform. Dokploy/local select the directory with `AEKO_KEYS_DIR`; Coolify binds the fixed host path `/data/aeko/keys`:
 
 ```text
 validator-1-keypair.json
 vote-1-keypair.json
 stake-keypair.json
 faucet-keypair.json
-protocol-authority-keypair.json
 ```
 
-Generate missing keys with `aeko-tools`. Do not use the validator image just to create a wallet/keypair.
+`protocol-authority-keypair.json` is intentionally separate. It is absent during the protocol-disabled compatibility phase unless the deployment already completed protocol bootstrap. Create it only as part of the intentional first protocol bootstrap, after both runtime features have activated.
+
+Generate missing first-boot chain keys with `aeko-tools`, or on Coolify temporarily enable the explicit first-boot generation flag. Do not use the validator image just to create a wallet/keypair.
 
 ```bash
 docker run --rm \

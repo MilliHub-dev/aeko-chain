@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
   try {
     const res = await fetch(url, { cache: 'no-store' })
     const data = await res.json()
-    return NextResponse.json(data)
+    return NextResponse.json(data, { status: res.status })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Explorer unreachable'
     return NextResponse.json({ error: { message: msg } }, { status: 503 })
