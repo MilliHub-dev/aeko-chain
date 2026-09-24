@@ -151,11 +151,13 @@ test('funding API URLs resolve from the configured origin and reject HTML 200 re
 });
 
 
-test('Operations Web separates public approval requests from direct Test Console airdrops', async () => {
+test('funding runtime separates public approval, private admin control and direct Test Console airdrops', async () => {
   const store = await source('../../../admin/src/lib/funding-store.ts');
   const publicRoute = await source('../../../admin/src/app/api/funding/request/route.ts');
   const consoleRoute = await source('../../../admin/src/app/api/funding/airdrop/route.ts');
   const adminRoute = await source('../../../admin/src/app/api/admin/funding/requests/route.ts');
+  const privateRoute = await source('../../../admin/src/app/api/internal/funding/requests/route.ts');
+  const adminClient = await source('../../../admin/src/lib/funding-admin-client.ts');
 
   assert.match(store, /requestFundingApproval/);
   assert.match(store, /decideFundingRequest/);
@@ -164,16 +166,26 @@ test('Operations Web separates public approval requests from direct Test Console
   assert.match(store, /FUNDING_MAX_CONSOLE_AIRDROP_AEKO/);
   assert.match(store, /makeRoomForFundingRequest/);
   assert.match(store, /REQUEST_QUEUE_FULL/);
-  assert.match(publicRoute, /requestFundingApproval\(address, trusted \? 'backend' : 'public'\)/);
+
+  assert.match(publicRoute, /requestFundingApproval\(address, 'public'\)/);
   assert.match(publicRoute, /status: 202/);
-  assert.doesNotMatch(publicRoute, /\bgrant\(|requestAirdrop/);
+  assert.doesNotMatch(publicRoute, /trusted|FUNDING_ADMIN_API_KEY|\bgrant\(|requestAirdrop/);
   assert.match(publicRoute, /throttle\(clientIp\(req\.headers\), 'approval'\)/);
   assert.doesNotMatch(publicRoute, /explorerUrl/);
+
   assert.match(consoleRoute, /source: 'console'/);
   assert.match(consoleRoute, /throttle\(clientIp\(req\.headers\), 'console-airdrop'\)/);
-  assert.match(adminRoute, /decideFundingRequest/);
-  assert.match(adminRoute, /approve/);
-  assert.match(adminRoute, /reject/);
+
+  assert.match(adminRoute, /fundingAdminClient/);
+  assert.match(adminRoute, /decideRequest/);
+  assert.doesNotMatch(adminRoute, /decideFundingRequest/);
+  assert.match(adminClient, /AEKO_INTERNAL_FUNDING_URL/);
+  assert.match(adminClient, /x-aeko-funding-admin-key/);
+
+  assert.match(privateRoute, /isAuthorizedFundingAdminRequest/);
+  assert.match(privateRoute, /decideFundingRequest/);
+  assert.match(privateRoute, /approve/);
+  assert.match(privateRoute, /reject/);
 });
 
 test('Admin funding polling preserves an operator policy draft', async () => {
