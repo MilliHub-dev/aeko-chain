@@ -240,10 +240,10 @@ export function decodeSocialPostsStateAccount(base64Data) {
 // State accounts are created by `social-bootstrap` with a random keypair
 // persisted on the validator host. The browser has two ways to find them:
 //
-//   1. Hit the explorer-backend registry endpoint (/registry/social) which
-//      returns the pubkeys the OPERATOR pasted into Coolify after seeing
-//      them in the bootstrap log. Fast, one HTTP call, doesn't depend on
-//      the validator at all. This is the production path.
+//   1. Hit the explorer-backend registry endpoint (/registry/social), which
+//      reads the generated, genesis-bound social-registry.env mounted from
+//      the Social bootstrap state volume. Fast, one HTTP call, and no manual
+//      state-address environment variables are required. This is the production path.
 //
 //   2. Fall back to getProgramAccounts on the validator RPC. Works on a
 //      local cluster but the public production RPC throttles or disables
@@ -352,7 +352,7 @@ export async function discoverSocialPostsStateAccount(rpcUrl, explorerApiUrl) {
   });
   if (!hit) {
     throw new Error(
-      'No social-posts state account on chain. Set AEKO_SOCIAL_POSTS_STATE on the explorer-backend (operator-published registry) or run `aeko-social-bootstrap`.',
+      'No social-posts state account is available from the canonical registry or live chain. Verify Social bootstrap and /registry/social.',
     );
   }
   return hit;
