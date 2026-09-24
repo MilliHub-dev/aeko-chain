@@ -80,9 +80,9 @@ The Coolify contract declares five Docker-managed named volumes:
 - `protocol-continuity` for canonical protocol state/custody keypairs and the independent registry continuity anchor.
 - `admin-state` for the funding policy and grant ledger of the operations web app (admin.aeko.online / fund.aeko.online).
 
-Normal redeploys must preserve all five volumes. The two protocol volumes form one continuity boundary: losing `protocol-state` while retaining `protocol-continuity` requires explicit recovery and reuses the same canonical addresses; losing `protocol-continuity` must not be treated as a fresh bootstrap. Do not delete them unless intentionally resetting chain state.
+Normal redeploys must preserve all five volumes. The two protocol volumes form one continuity boundary: losing `protocol-state` while retaining `protocol-continuity` requires explicit recovery and reuses the same canonical addresses; losing `protocol-continuity` must not be treated as a fresh bootstrap. Social and Protocol registries are bound to the live genesis and the bootstrap volumes also carry durable lifecycle metadata. Do not remove `.aeko-bootstrap-in-progress` or `.aeko-chain-binding` manually.
 
-For a deliberate fresh-genesis reset, set `AEKO_RESET_LEDGER=1`. That single reset signal is propagated through key bootstrap/preflight to the validator, Aeko Social, AEKO Protocol, and Explorer. Key preflight still validates the persistent chain identities, but it deliberately ignores the old Protocol registry/continuity binding because those volumes are reset targets. Redeploy once, verify both mandatory bootstraps and Explorer binding succeed, then return `AEKO_RESET_LEDGER=0`.
+For a deliberate fresh-genesis reset, set `AEKO_RESET_LEDGER=1`. That single reset signal is propagated through key bootstrap/preflight to the validator, Aeko Social, AEKO Protocol, and Explorer. Social/Protocol persist the replacement genesis as reset-in-progress before canonical recreation and mark it complete only after verification. If deployment is interrupted, the next run resumes from that marker even after the environment flag is returned to `0`. Key preflight still validates the persistent chain identities, but it deliberately ignores the old Protocol registry/continuity binding because those volumes are reset targets.
 
 ## Domains and ports
 
@@ -140,14 +140,19 @@ curl -s https://rpc.aeko.online \
 
 The result must be `"ok"`, and repeated `getSlot` calls must advance.
 
-Then check:
+Then check the three Explorer health layers and both control planes:
 
 ```bash
+curl -s https://api.aeko.online/liveness
+curl -s https://api.aeko.online/readiness
+curl -s https://api.aeko.online/network/readiness
 curl -s https://api.aeko.online/registry/social
 curl -s https://api.aeko.online/social/status
+curl -s https://api.aeko.online/registry/protocol
+curl -s https://api.aeko.online/protocol/status
 ```
 
-Both SocialFi views must report complete state before accepting SocialFi. For the full read-path smoke test:
+Final acceptance requires `/network/readiness` HTTP 200, the registry genesis matching the live validator genesis, Social `5/5`, Protocol executable programs `11/11`, and Protocol canonical state `8/8`. For the full read-path smoke test:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \

@@ -80,7 +80,7 @@ Persist:
 - faucet key;
 - protocol authority key, once the protocol has been initialized.
 
-The `social-state` volume contains the five SocialFi state keypairs plus `social-registry.env`. The `protocol-state` volume contains the published `protocol-registry.env`. The separate `protocol-continuity` volume contains the canonical protocol state/custody keypairs plus the registry continuity anchor. Preserve both protocol volumes together.
+The `social-state` volume contains the five SocialFi state keypairs plus `social-registry.env`. The `protocol-state` volume contains the published `protocol-registry.env`. The separate `protocol-continuity` volume contains the canonical protocol state/custody keypairs plus the registry continuity anchor. Both registries are schema-versioned and bound to the validator genesis. During first initialization or an intentional reset the bootstrap roots also contain `.aeko-bootstrap-in-progress`; after all canonical state verifies they contain `.aeko-chain-binding`. Preserve both protocol volumes together and never delete lifecycle metadata to force startup.
 
 The optional portable/local RPC replica keeps its own identity and ledger when that profile is explicitly enabled; those are not requirements of the default public topology.
 
@@ -220,9 +220,9 @@ A deliberate ledger reset creates a new blockchain identity. Set only:
 AEKO_RESET_LEDGER=1
 ```
 
-The reset signal is propagated to the validator, SocialFi bootstrap, Protocol bootstrap, and Explorer. For the replacement genesis, SocialFi state is cleared once and recreated, Protocol state and continuity are cleared once and recreated, and Explorer purges the stale PostgreSQL projection schema before binding to the new genesis. No SocialFi or Protocol missing-state recovery flag is required for this intentional reset path.
+The reset signal is propagated to the validator, SocialFi bootstrap, Protocol bootstrap, and Explorer. For the replacement genesis, SocialFi and Protocol bootstrap first persist a genesis-bound reset-in-progress marker, clear foreign-chain bootstrap artifacts once, recreate and verify canonical state, atomically publish schema-v2 registries, write a completed chain binding, and only then remove the progress marker. Explorer purges stale PostgreSQL projections before binding to the new genesis.
 
-After the replacement chain is accepted, return `AEKO_RESET_LEDGER=0`. Missing-state recovery overrides remain incident-recovery controls for damaged established deployments and are not part of normal Compose configuration.
+After the replacement chain is accepted, return `AEKO_RESET_LEDGER=0`. If bootstrap was interrupted before completion, the durable progress marker makes the next deployment resume the same replacement genesis even with the flag already back at `0`. A completed same-genesis deployment that later loses an account still fails closed. Missing-state recovery overrides remain incident-recovery controls for damaged established deployments and are not part of normal Compose configuration.
 
 ## Portable/local deployment
 
@@ -381,7 +381,7 @@ A normal redeploy preserves the validator ledger, chain keys, `social-state`, `p
 
 ### Intentional reset
 
-`AEKO_RESET_LEDGER=1` is the single explicit destructive new-chain signal. The validator creates a replacement genesis once; SocialFi state, Protocol state/continuity, and Explorer's chain-derived PostgreSQL projections follow that new genesis automatically. Key preflight still validates all persistent chain keys and any protocol-authority key that is present, but it does not bind that authority to the old Protocol registry/continuity files because those files are intentional reset targets. Return the reset variable to `0` after accepting the replacement chain.
+`AEKO_RESET_LEDGER=1` is the single explicit destructive new-chain signal. The validator creates a replacement genesis once; SocialFi state, Protocol state/continuity, and Explorer's chain-derived PostgreSQL projections follow that new genesis automatically. Social and Protocol canonical registries carry `AEKO_REGISTRY_SCHEMA_VERSION=2` plus `AEKO_CHAIN_GENESIS_HASH`, and their persistent roots retain a reset-in-progress marker until canonical initialization has completely verified. This makes an interrupted intentional reset resumable after the operator returns the reset variable to `0`, while same-genesis state loss remains fail-closed. Key preflight still validates all persistent chain keys and any protocol-authority key that is present, but it does not bind that authority to old Protocol registry/continuity files when an explicit replacement chain is requested.
 
 ### Recovery controls
 
@@ -411,6 +411,16 @@ Acceptance requires a complete Protocol registry/status, all eleven native progr
 ## Deployment acceptance
 
 Do not certify the public network merely because containers are `running` or because Explorer is healthy.
+
+First distinguish process and dependency health:
+
+```bash
+curl -s https://api.aeko.online/liveness
+curl -s https://api.aeko.online/readiness
+curl -s https://api.aeko.online/network/readiness
+```
+
+`/liveness` only proves the Explorer process is serving. `/readiness` proves PostgreSQL/RPC/indexer dependencies. Final network acceptance requires `/network/readiness` HTTP 200 with the registry genesis equal to the live validator genesis, Social `5/5`, Protocol executable programs `11/11`, and Protocol canonical states `8/8`.
 
 ### RPC
 

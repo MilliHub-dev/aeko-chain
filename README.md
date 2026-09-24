@@ -109,15 +109,17 @@ Normal redeploy behavior is fail-closed and idempotent at the deployment boundar
 2. Bootstrap reads the corresponding account from-chain.
 3. An initialized account owned by the expected program is reused without another Initialize transaction.
 4. Wrong-owner, malformed or unexpectedly missing persisted state fails deployment instead of silently overwriting social state.
-5. Bootstrap writes `/state/social-registry.env`.
-6. Explorer mounts the same volume read-only through `AEKO_SOCIAL_REGISTRY_FILE=/state/social-registry.env`.
-7. The default deployment always starts Social bootstrap; Explorer may remain routable for diagnostics while `/social/status` reports incomplete state until bootstrap succeeds.
+5. Bootstrap binds the canonical registry to the live validator with `AEKO_REGISTRY_SCHEMA_VERSION=2` and `AEKO_CHAIN_GENESIS_HASH=<getGenesisHash>`.
+6. Bootstrap writes an in-progress marker before first initialization/reset work and replaces it with a completed chain binding only after every canonical account verifies and the registry is published atomically.
+7. Bootstrap writes `/state/social-registry.env`; Explorer mounts the same volume read-only through `AEKO_SOCIAL_REGISTRY_FILE=/state/social-registry.env`.
+8. A legacy registry without genesis metadata is adopted only after its existing canonical accounts verify against the live chain. Ambiguous or partially missing established state fails closed.
+9. The default deployment always starts Social bootstrap; Explorer may remain routable for diagnostics while `/social/status` and `/network/readiness` report the incomplete lifecycle.
 
 Operator env vars can intentionally override registry values, but normal deployment no longer requires copying/renaming state addresses by hand.
 
 ### Intentional fresh-genesis reset
 
-For an intentional new chain, set `AEKO_RESET_LEDGER=1`. The reset propagates automatically to the validator, Aeko Social, AEKO Protocol, and Explorer state boundaries. No SocialFi/Protocol missing-state override is required for this normal reset path. Return the reset flag to `0` after accepting the replacement chain.
+For an intentional new chain, set `AEKO_RESET_LEDGER=1`. The reset propagates automatically to the validator, Aeko Social, AEKO Protocol, and Explorer state boundaries. Social and Protocol write a durable `.aeko-bootstrap-in-progress` marker bound to the replacement genesis before recreating canonical state; after successful verification they publish `.aeko-chain-binding` and remove the in-progress marker. If a deployment is interrupted after the reset begins, the next bootstrap resumes that same genesis even after `AEKO_RESET_LEDGER` has been returned to `0`. Do not delete these markers manually. No SocialFi/Protocol missing-state override is required for this normal reset path.
 
 ## Social write/read split
 
@@ -407,6 +409,9 @@ Explorer uses a common response envelope. A ready deployment has the logical sha
 ```json
 {
   "data": {
+    "schemaVersion": 2,
+    "genesisHash": "<validator-genesis-hash>",
+    "bootstrapInProgress": false,
     "posts": "<pubkey>",
     "rewards": "<pubkey>",
     "staking": "<pubkey>",
@@ -425,6 +430,14 @@ Explorer uses a common response envelope. A ready deployment has the logical sha
 ```
 
 For public deployment, `data.complete == true` is a hard acceptance criterion, but it is not by itself proof of the signed write path.
+
+Explorer exposes three deliberately different health surfaces:
+
+- `/liveness`: the API process is serving;
+- `/readiness`: PostgreSQL, validator RPC and indexer freshness are acceptable;
+- `/network/readiness`: mandatory Aeko Social and AEKO Protocol state is bound to the same live genesis and fully healthy.
+
+Deployment acceptance requires `/network/readiness` to return HTTP 200 with Social `5/5`, Protocol programs `11/11`, and Protocol state `8/8`.
 
 ## Aeko Social end-to-end acceptance
 
