@@ -11,6 +11,14 @@ type Settings = {
   maxManualGrantAeko: number
 }
 type Grant = { address: string; amountAeko: number; signature: string; at: string; source: string; confirmed: boolean }
+type FundingRequest = {
+  id: string
+  address: string
+  amountAeko: number
+  requestedAt: string
+  status: 'pending' | 'processing' | 'approved' | 'rejected'
+  signature?: string
+}
 
 const inputClass =
   'w-full bg-[#0d0e16] border border-[#1e2135] rounded-lg px-3 py-2 text-sm mono text-gray-100 focus:outline-none focus:border-emerald-500 transition-colors'
@@ -20,15 +28,18 @@ export default function FundingGrantsPage() {
   const [draft, setDraft] = useState<Settings | null>(null)
   const [remaining, setRemaining] = useState<number | null>(null)
   const [grants, setGrants] = useState<Grant[]>([])
+  const [requests, setRequests] = useState<FundingRequest[]>([])
+  const [requestBusy, setRequestBusy] = useState('')
   const [address, setAddress] = useState('')
   const [amount, setAmount] = useState('10')
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
 
   const refresh = useCallback(async () => {
-    const [s, g] = await Promise.all([
-      fetch('/api/admin/funding/settings').then((r) => r.json()),
-      fetch('/api/admin/funding/grants?limit=100').then((r) => r.json()),
+    const [s, g, r] = await Promise.all([
+      fetch('/api/admin/funding/settings').then((response) => response.json()),
+      fetch('/api/admin/funding/grants?limit=100').then((response) => response.json()),
+      fetch('/api/admin/funding/requests?limit=100').then((response) => response.json()),
     ])
     if (s.data) {
       setSettings(s.data.settings)
@@ -36,6 +47,7 @@ export default function FundingGrantsPage() {
       setRemaining(s.data.dailyRemainingAeko)
     }
     setGrants(g.data ?? [])
+    setRequests(r.data ?? [])
   }, [])
 
   useEffect(() => {
@@ -67,6 +79,32 @@ export default function FundingGrantsPage() {
       body: JSON.stringify({ enabled: !settings.enabled }),
     })
     if (res.ok) refresh()
+  }
+
+  async function decideRequest(id: string, action: 'approve' | 'reject') {
+    setRequestBusy(id)
+    setNotice(null)
+    try {
+      const res = await fetch('/api/admin/funding/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setNotice({ ok: false, text: json.error?.message ?? `Funding request ${action} failed` })
+        return
+      }
+      setNotice({
+        ok: true,
+        text: action === 'approve'
+          ? `Approved and released ${json.data.amountAeko} AEKO to ${json.data.address}`
+          : 'Funding request rejected',
+      })
+      await refresh()
+    } finally {
+      setRequestBusy('')
+    }
   }
 
   async function manualGrant(e: React.FormEvent) {
@@ -101,13 +139,15 @@ export default function FundingGrantsPage() {
       </div>
     )
 
+  const pendingRequests = requests.filter((request) => request.status === 'pending' || request.status === 'processing')
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Funding grants</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            Policy-controlled testnet funding and operator grants. Public users request at <span className="mono">/funding</span>; approved grants become low-level <span className="mono">requestAirdrop</span> calls.
+            Public funding requests wait here for operator approval. Releasing an approved request performs the protected low-level <span className="mono">requestAirdrop</span>; manual grants remain a separate operator tool.
           </p>
         </div>
         {settings && (
@@ -122,10 +162,11 @@ export default function FundingGrantsPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard label="Status" value={settings ? (settings.enabled ? 'Open' : 'Paused') : '—'} accent={settings?.enabled} />
         <StatCard label="Per request" value={settings ? `${settings.amountAeko} AEKO` : '—'} />
         <StatCard label="Left today" value={remaining !== null ? `${remaining.toLocaleString()} AEKO` : '—'} sub={settings ? `of ${settings.dailyBudgetAeko.toLocaleString()}` : undefined} />
+        <StatCard label="Pending requests" value={pendingRequests.length} />
         <StatCard label="Grants kept" value={grants.length} />
       </div>
 
@@ -134,6 +175,43 @@ export default function FundingGrantsPage() {
           {notice.text}
         </div>
       )}
+
+      <div>
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Pending funding requests</h2>
+            <p className="text-xs text-gray-600 mt-1">Approve to release the requested policy amount, or reject without sending funds.</p>
+          </div>
+        </div>
+        <DataTable
+          columns={['Requested', 'Address', 'Amount', 'Status', 'Decision']}
+          rows={pendingRequests.map((request) => [
+            new Date(request.requestedAt).toLocaleString(),
+            request.address.slice(0, 10) + '…' + request.address.slice(-6),
+            `${request.amountAeko} AEKO`,
+            <span key={`${request.id}-status`} className={request.status === 'processing' ? 'text-yellow-400' : 'text-emerald-400'}>{request.status}</span>,
+            <div key={request.id} className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => decideRequest(request.id, 'approve')}
+                disabled={Boolean(requestBusy)}
+                className="px-3 py-1.5 rounded-lg bg-emerald-500 text-black text-xs font-semibold disabled:opacity-40"
+              >
+                {requestBusy === request.id && request.status === 'processing' ? 'Releasing…' : 'Approve & release'}
+              </button>
+              <button
+                type="button"
+                onClick={() => decideRequest(request.id, 'reject')}
+                disabled={Boolean(requestBusy) || request.status === 'processing'}
+                className="px-3 py-1.5 rounded-lg border border-[#1e2135] text-gray-400 text-xs hover:text-white disabled:opacity-40"
+              >
+                Reject
+              </button>
+            </div>,
+          ])}
+          empty="No pending funding requests"
+        />
+      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <form onSubmit={saveSettings} className="bg-[#12141f] border border-[#1e2135] rounded-xl p-6 space-y-4">
