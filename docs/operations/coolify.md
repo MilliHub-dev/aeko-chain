@@ -62,7 +62,7 @@ stake-keypair.json
 faucet-keypair.json
 ```
 
-`protocol-authority-keypair.json` is created later only when the intentional first protocol bootstrap is enabled (or may already exist on an established protocol-enabled deployment). A compatibility redeploy with `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` does not require a brand-new protocol authority.
+`protocol-authority-keypair.json` is created automatically when no established protocol registry or continuity identity exists. On established deployments the same authority is required and verified rather than replaced.
 
 You do not need to set `AEKO_KEYS_DIR` in the Coolify dashboard and you do not need to generate these files manually for a fresh chain. If this Coolify deployment is replacing an existing Dokploy/AEKO deployment, copy the **same existing validator/vote/stake/faucet keypairs** into this directory before deploying so the bootstrap preserves them. Replacing them changes validator/faucet identity and can make the persisted ledger unusable for the intended chain. Generate new keys only when intentionally creating a fresh chain identity.
 
@@ -209,7 +209,6 @@ For every normal redeploy of an established chain keep:
 AEKO_RESET_LEDGER=0
 AEKO_REQUIRE_EXISTING_LEDGER=1
 AEKO_ALLOW_CHAIN_KEY_GENERATION=0
-AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=0
 ```
 
 With those settings:

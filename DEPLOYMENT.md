@@ -316,7 +316,7 @@ AEKO_ALLOW_CHAIN_KEY_GENERATION=0
 
 The validator now refuses to create a replacement genesis when an established deployment unexpectedly sees an empty/wrong ledger mount. Coolify likewise refuses to manufacture replacement validator/vote/stake/faucet identities on a normal redeploy. This protects against Compose project/resource renames that would otherwise resolve `validator-ledger` to a new empty Docker volume.
 
-For an intentional first genesis only, set `AEKO_REQUIRE_EXISTING_LEDGER=0`; on Coolify, set `AEKO_ALLOW_CHAIN_KEY_GENERATION=1` only if the platform should create the four chain keys. On either public platform, set `AEKO_ALLOW_PROTOCOL_AUTHORITY_GENERATION=1` only for the intentional first creation of the protocol authority. Return the safe values above immediately afterwards.
+For an intentional first genesis only, set `AEKO_REQUIRE_EXISTING_LEDGER=0`; on Coolify, set `AEKO_ALLOW_CHAIN_KEY_GENERATION=1` only if the platform should create the four chain keys. The protocol authority and canonical protocol state initialize automatically when no established protocol identity exists. Return the chain lifecycle values above immediately afterwards.
 
 Before moving a live ledger to attached storage, inspect the current container mount and Docker root. If Docker already stores the named volume on the larger filesystem, no Compose change is required. Otherwise stop the chain, migrate the existing volume/data root, and verify `genesis.bin`, genesis hash, key identities and ledger size before switching storage. Never point the validator at a newly-created empty path as a migration.
 
@@ -355,7 +355,7 @@ The webhook also does not choose the Compose path. A Coolify resource must point
 
 ## Native-program upgrade procedure
 
-Post-genesis native builtins are introduced through explicit runtime feature activation rather than unconditional mutation of historical Banks. The public stack therefore keeps `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` by default.
+Historical chains whose genesis predates the AEKO protocol builtins still use explicit runtime feature activation so their existing Banks are not mutated. This compatibility path does not apply to fresh or reset-to-genesis networks.
 
 For fresh genesis and reset-to-genesis deployments, AEKO Protocol is mandatory. Genesis activates the AEKO protocol runtime features automatically and the protocol bootstrap runs idempotently on every deployment. No protocol enable/activation lifecycle environment variables are required.
 
@@ -447,8 +447,7 @@ Use `https://scan.aeko.online/network-tools` and open the Test Console:
 - Route public RPC/WS through the selected deployment platform's HTTP/WebSocket proxy to the validator's exposed `8899`/`8900` ports for the current single-validator topology.
 - Keep node, SocialFi, protocol-authority and feature-authority key material out of Git.
 - Preserve ledger, SocialFi, protocol-state and protocol-continuity volumes on normal redeploys.
-- Treat `AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1` and `AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1` as deliberate recovery switches, not normal settings.
-- Keep `AEKO_REQUIRE_EXISTING_PROTOCOL_STATE=1` and `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=0` after the first protocol bootstrap so missing/replaced protocol state fails closed.
+- Treat missing-state and continuity-anchor recovery overrides as deliberate incident-recovery inputs to manual bootstrap execution, not normal Compose settings. Normal public deployment infers first initialization versus established-state verification from the persisted registry and continuity anchor.
 
 ## Protocol maturity boundary
 

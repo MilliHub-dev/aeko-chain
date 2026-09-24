@@ -226,7 +226,7 @@ AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main SHA>
 ```
 
-Required persistent chain key files during the protocol-disabled compatibility phase:
+Required persistent chain key files:
 
 ```text
 validator-1-keypair.json
@@ -235,7 +235,7 @@ stake-keypair.json
 faucet-keypair.json
 ```
 
-`protocol-authority-keypair.json` is a separate protocol identity. It is created only for the intentional first protocol bootstrap after both runtime features are active, and is not a prerequisite while `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` and no protocol registry exists.
+`protocol-authority-keypair.json` is a separate protocol identity. AEKO Protocol is mandatory: the shared key preflight creates this authority automatically when no established protocol registry or continuity identity exists, then preserves and verifies it on later redeploys.
 
 Never commit those keypairs. Keep them in persistent restricted storage/File Mounts; do not depend on files inside an AutoDeploy Git checkout.
 
@@ -557,6 +557,6 @@ MIT. See [`LICENSE`](./LICENSE).
 
 The eleven AEKO token and permission/security native programs added after the established testnet genesis are runtime-feature gated. Deploying a new validator binary no longer requires wiping historical chain state to introduce them.
 
-Keep `AEKO_PROTOCOL_BOOTSTRAP_ENABLED=0` while the upgraded validator restores the existing ledger. Activate the two offline-authority feature accounts and wait for epoch activation. The intentional first canonical-state bootstrap also requires `AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1`; return that flag to `0` after acceptance. Preserve both `protocol-state` and the independent `protocol-continuity` volume on later redeploys.
+For a legacy chain whose genesis predates the AEKO protocol builtins, use the explicit history-preserving feature-activation procedure in `docs/operations/protocol-upgrades.md`. Fresh and reset-to-genesis networks activate the mandatory protocol features at genesis and bootstrap canonical state automatically. Preserve both `protocol-state` and the independent `protocol-continuity` volume on later redeploys.
 
 See [`docs/operations/protocol-upgrades.md`](./docs/operations/protocol-upgrades.md) for the ordered procedure, feature IDs, rollback boundary and acceptance checks. Explorer exposes `/registry/protocol` and `/protocol/status` after bootstrap.
