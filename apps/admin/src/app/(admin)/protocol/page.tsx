@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import DataTable from '@/components/data-table'
+import SectionTabs from '@/components/section-tabs'
 import StatCard from '@/components/stat-card'
 
 type ProtocolRegistry = {
@@ -59,6 +61,8 @@ type ProtocolStatus = {
   states: Record<string, StateStatus>
 }
 
+type ProtocolView = 'overview' | 'programs' | 'states'
+
 async function readEnvelope<T>(path: string): Promise<T> {
   const response = await fetch('/api/explorer/' + path, { cache: 'no-store' })
   const payload = await response.json().catch(() => null)
@@ -85,6 +89,7 @@ export default function ProtocolPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [lastUpdate, setLastUpdate] = useState('')
+  const [view, setView] = useState<ProtocolView>('overview')
 
   const refresh = useCallback(async () => {
     setError('')
@@ -106,7 +111,7 @@ export default function ProtocolPage() {
   }, [])
 
   useEffect(() => {
-    refresh()
+    void refresh()
     const id = setInterval(refresh, 15_000)
     return () => clearInterval(id)
   }, [refresh])
@@ -118,13 +123,13 @@ export default function ProtocolPage() {
   const healthyStates = stateEntries.filter(([, value]) => value.condition === 'healthy').length
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="mx-auto max-w-[1500px] space-y-6 p-4 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="text-xs uppercase tracking-[0.22em] text-emerald-400">Chain control plane</div>
           <h1 className="mt-1 text-2xl font-bold text-white">AEKO Protocol</h1>
-          <p className="mt-1 max-w-3xl text-sm text-gray-500">
-            Canonical protocol registry, feature activation, native program registration, and state-account ownership from the Explorer live RPC checks.
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-gray-500">
+            Canonical protocol registry, feature activation, native program registration, and state-account ownership from Explorer live RPC checks.
           </p>
           <p className="mt-1 text-xs text-gray-600">{lastUpdate ? 'Updated ' + lastUpdate : 'Waiting for live status'}</p>
         </div>
@@ -144,121 +149,133 @@ export default function ProtocolPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:gap-4">
         <StatCard label="Protocol" value={status ? stateLabel(status.complete, 'Complete', 'Incomplete') : '—'} accent={Boolean(status?.complete)} />
         <StatCard label="Registry" value={registry ? stateLabel(registry.complete, 'Complete', 'Incomplete') : '—'} />
         <StatCard label="Executable Programs" value={status ? executablePrograms + ' / ' + programEntries.length : '—'} />
         <StatCard label="Healthy State Accounts" value={status ? healthyStates + ' / ' + stateEntries.length : '—'} />
       </div>
 
-      <section className="rounded-xl border border-[#1e2135] bg-[#12141f] p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="font-semibold text-white">Chain binding</h2>
-            <p className="mt-1 text-sm text-gray-500">The canonical registry must be bound to the same genesis currently served by the validator before Protocol can be considered complete.</p>
-          </div>
-          <span className={status?.genesisMatches ? 'text-xs text-emerald-400' : 'text-xs text-amber-300'}>
-            {status?.condition ?? 'unavailable'}
-          </span>
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <StatusRow label="Schema" value={registry?.schemaVersion == null ? 'missing' : 'v' + registry.schemaVersion} />
-          <StatusRow label="Registry genesis" value={shortAddress(registry?.genesisHash)} mono />
-          <StatusRow label="Live genesis" value={shortAddress(status?.liveGenesisHash)} mono />
-          <StatusRow label="Binding" value={status ? (status.genesisMatches ? 'matches' : 'mismatch') : '—'} />
-          <StatusRow label="Bootstrap" value={status ? (status.bootstrapInProgress ? 'in progress' : 'settled') : '—'} />
-        </div>
-      </section>
+      <SectionTabs
+        label="Protocol control plane sections"
+        value={view}
+        onChange={setView}
+        items={[
+          { value: 'overview', label: 'Overview', description: 'Binding and feature activation' },
+          { value: 'programs', label: 'Native programs', description: 'Executable registrations', count: programEntries.length },
+          { value: 'states', label: 'State accounts', description: 'Ownership and initialization', count: stateEntries.length },
+        ]}
+      />
 
-      <section className="rounded-xl border border-[#1e2135] bg-[#12141f]">
-        <div className="border-b border-[#1e2135] px-5 py-4">
-          <h2 className="font-semibold text-white">Feature activation</h2>
-          <p className="mt-1 text-sm text-gray-500">Runtime features must exist, be owned by the feature program, and agree with the canonical registry activation slot.</p>
-        </div>
-        <div className="grid gap-4 p-5 lg:grid-cols-2">
-          {featureEntries.length ? featureEntries.map(([name, feature]) => {
-            const healthy = feature.present && feature.ownerMatches && feature.activatedAt !== null && !feature.error
-            return (
-              <div key={name} className="rounded-xl border border-[#1e2135] bg-[#0a0b12] p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="font-medium text-white">{name}</div>
-                  <span className={healthy ? 'text-xs text-emerald-400' : 'text-xs text-amber-300'}>
-                    {healthy ? 'active' : 'attention'}
-                  </span>
-                </div>
-                <dl className="mt-4 space-y-2 text-xs">
-                  <StatusRow label="Feature ID" value={shortAddress(feature.featureId)} mono />
-                  <StatusRow label="On-chain activation slot" value={feature.activatedAt === null ? 'pending' : String(feature.activatedAt)} />
-                  <StatusRow label="Registry activation slot" value={feature.registryActivatedAt === null ? 'missing' : String(feature.registryActivatedAt)} />
-                  <StatusRow label="Owner" value={feature.ownerMatches ? 'matches feature program' : 'mismatch'} />
-                </dl>
-                {feature.error ? <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-200">{feature.error}</div> : null}
+      {view === 'overview' ? (
+        <div className="space-y-6">
+          <section className="rounded-xl border border-[#1e2135] bg-[#12141f] p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="font-semibold text-white">Chain binding</h2>
+                <p className="mt-1 text-sm leading-6 text-gray-500">
+                  The canonical registry must be bound to the same genesis currently served by the validator before Protocol can be considered complete.
+                </p>
               </div>
-            )
-          }) : <div className="text-sm text-gray-600">No feature status returned.</div>}
-        </div>
-      </section>
+              <span className={status?.genesisMatches ? 'text-xs text-emerald-400' : 'text-xs text-amber-300'}>
+                {status?.condition ?? 'unavailable'}
+              </span>
+            </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              <StatusRow label="Schema" value={registry?.schemaVersion == null ? 'missing' : 'v' + registry.schemaVersion} />
+              <StatusRow label="Registry genesis" value={shortAddress(registry?.genesisHash)} mono />
+              <StatusRow label="Live genesis" value={shortAddress(status?.liveGenesisHash)} mono />
+              <StatusRow label="Binding" value={status ? (status.genesisMatches ? 'matches' : 'mismatch') : '—'} />
+              <StatusRow label="Bootstrap" value={status ? (status.bootstrapInProgress ? 'in progress' : 'settled') : '—'} />
+            </div>
+          </section>
 
-      <section className="rounded-xl border border-[#1e2135] bg-[#12141f] overflow-hidden">
-        <div className="border-b border-[#1e2135] px-5 py-4">
-          <h2 className="font-semibold text-white">Native programs</h2>
-          <p className="mt-1 text-sm text-gray-500">Program IDs come from the protocol registry, not hard-coded Admin constants.</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="bg-[#0a0b12] text-xs uppercase tracking-wider text-gray-600">
-              <tr><th className="px-5 py-3">Program</th><th className="px-5 py-3">Program ID</th><th className="px-5 py-3">Present</th><th className="px-5 py-3">Executable</th><th className="px-5 py-3">Error</th></tr>
-            </thead>
-            <tbody className="divide-y divide-[#1e2135]">
-              {programEntries.map(([name, program]) => (
-                <tr key={name}>
-                  <td className="px-5 py-3 text-gray-200">{name}</td>
-                  <td className="px-5 py-3 font-mono text-xs text-gray-500">{shortAddress(program.programId)}</td>
-                  <td className="px-5 py-3 text-gray-300">{program.present ? 'yes' : 'no'}</td>
-                  <td className={program.executable ? 'px-5 py-3 text-emerald-400' : 'px-5 py-3 text-amber-300'}>{program.executable ? 'yes' : 'no'}</td>
-                  <td className="max-w-sm px-5 py-3 text-xs text-gray-500">{program.error ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+          <section className="rounded-xl border border-[#1e2135] bg-[#12141f]">
+            <div className="border-b border-[#1e2135] px-5 py-4">
+              <h2 className="font-semibold text-white">Feature activation</h2>
+              <p className="mt-1 text-sm leading-6 text-gray-500">Runtime features must exist, be owned by the feature program, and agree with the canonical registry activation slot.</p>
+            </div>
+            <div className="grid gap-4 p-5 lg:grid-cols-2">
+              {featureEntries.length ? featureEntries.map(([name, feature]) => {
+                const healthy = feature.present && feature.ownerMatches && feature.activatedAt !== null && !feature.error
+                return (
+                  <div key={name} className="rounded-xl border border-[#1e2135] bg-[#0a0b12] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-medium text-white">{name}</div>
+                      <span className={healthy ? 'text-xs text-emerald-400' : 'text-xs text-amber-300'}>
+                        {healthy ? 'active' : 'attention'}
+                      </span>
+                    </div>
+                    <dl className="mt-4 space-y-2 text-xs">
+                      <StatusRow label="Feature ID" value={shortAddress(feature.featureId)} mono />
+                      <StatusRow label="On-chain activation slot" value={feature.activatedAt === null ? 'pending' : String(feature.activatedAt)} />
+                      <StatusRow label="Registry activation slot" value={feature.registryActivatedAt === null ? 'missing' : String(feature.registryActivatedAt)} />
+                      <StatusRow label="Owner" value={feature.ownerMatches ? 'matches feature program' : 'mismatch'} />
+                    </dl>
+                    {feature.error ? <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-200">{feature.error}</div> : null}
+                  </div>
+                )
+              }) : <div className="text-sm text-gray-600">No feature status returned.</div>}
+            </div>
+          </section>
 
-      <section className="rounded-xl border border-[#1e2135] bg-[#12141f] overflow-hidden">
-        <div className="border-b border-[#1e2135] px-5 py-4">
-          <h2 className="font-semibold text-white">Canonical state accounts</h2>
-          <p className="mt-1 text-sm text-gray-500">State is healthy only when the account exists, has the expected owner, and contains initialized data.</p>
+          <section className="rounded-xl border border-[#1e2135] bg-[#12141f] p-5">
+            <div>
+              <h2 className="font-semibold text-white">Registry identity</h2>
+              <p className="mt-1 text-sm text-gray-500">Canonical authority and registry inventory for this chain.</p>
+            </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <StatusRow label="Protocol authority" value={shortAddress(registry?.authority)} mono />
+              <StatusRow label="Registered programs" value={registry ? String(Object.keys(registry.programs).length) : '—'} />
+              <StatusRow label="Registered state accounts" value={registry ? String(Object.keys(registry.states).length) : '—'} />
+              <StatusRow label="Registered protocol accounts" value={registry ? String(Object.keys(registry.accounts).length) : '—'} />
+            </div>
+          </section>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="bg-[#0a0b12] text-xs uppercase tracking-wider text-gray-600">
-              <tr><th className="px-5 py-3">State</th><th className="px-5 py-3">Account</th><th className="px-5 py-3">Owner</th><th className="px-5 py-3">Data</th><th className="px-5 py-3">Condition</th><th className="px-5 py-3">Error</th></tr>
-            </thead>
-            <tbody className="divide-y divide-[#1e2135]">
-              {stateEntries.map(([name, item]) => (
-                <tr key={name}>
-                  <td className="px-5 py-3 text-gray-200">{name}</td>
-                  <td className="px-5 py-3 font-mono text-xs text-gray-500">{shortAddress(item.stateAccount)}</td>
-                  <td className={item.present && item.ownerMatches ? 'px-5 py-3 text-emerald-400' : 'px-5 py-3 text-amber-300'}>{!item.present ? 'missing' : item.ownerMatches ? 'matches' : 'mismatch'}</td>
-                  <td className="px-5 py-3 text-gray-300">{item.present ? item.dataLen.toLocaleString() + ' bytes' : '—'}</td>
-                  <td className={item.condition === 'healthy' ? 'px-5 py-3 text-emerald-400' : 'px-5 py-3 text-amber-300'}>{item.condition}</td>
-                  <td className="max-w-sm px-5 py-3 text-xs text-gray-500">{item.error ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      ) : null}
 
-      <section className="rounded-xl border border-[#1e2135] bg-[#12141f] p-5">
-        <h2 className="font-semibold text-white">Registry identity</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <StatusRow label="Protocol authority" value={shortAddress(registry?.authority)} mono />
-          <StatusRow label="Registered programs" value={registry ? String(Object.keys(registry.programs).length) : '—'} />
-          <StatusRow label="Registered state accounts" value={registry ? String(Object.keys(registry.states).length) : '—'} />
-          <StatusRow label="Registered protocol accounts" value={registry ? String(Object.keys(registry.accounts).length) : '—'} />
-        </div>
-      </section>
+      {view === 'programs' ? (
+        <section className="rounded-xl border border-[#1e2135] bg-[#12141f] p-4 sm:p-5">
+          <div className="mb-4">
+            <h2 className="font-semibold text-white">Native program registrations</h2>
+            <p className="mt-1 text-sm text-gray-500">Program IDs come from the canonical protocol registry, not duplicate Admin constants.</p>
+          </div>
+          <DataTable
+            paginationLabel="programs"
+            columns={['Program', 'Program ID', 'Present', 'Executable', 'Error']}
+            rows={programEntries.map(([name, program]) => [
+              name,
+              <span key={name + '-id'} className="font-mono text-gray-500">{shortAddress(program.programId)}</span>,
+              program.present ? 'yes' : 'no',
+              <span key={name + '-exec'} className={program.executable ? 'text-emerald-300' : 'text-amber-300'}>{program.executable ? 'yes' : 'no'}</span>,
+              program.error ?? '—',
+            ])}
+            empty="No native program status returned"
+          />
+        </section>
+      ) : null}
+
+      {view === 'states' ? (
+        <section className="rounded-xl border border-[#1e2135] bg-[#12141f] p-4 sm:p-5">
+          <div className="mb-4">
+            <h2 className="font-semibold text-white">Canonical state accounts</h2>
+            <p className="mt-1 text-sm text-gray-500">State is healthy only when the account exists, has the expected owner, and contains initialized data.</p>
+          </div>
+          <DataTable
+            paginationLabel="state accounts"
+            columns={['State', 'Account', 'Owner', 'Data', 'Condition', 'Error']}
+            rows={stateEntries.map(([name, item]) => [
+              name,
+              <span key={name + '-account'} className="font-mono text-gray-500">{shortAddress(item.stateAccount)}</span>,
+              <span key={name + '-owner'} className={item.present && item.ownerMatches ? 'text-emerald-300' : 'text-amber-300'}>{!item.present ? 'missing' : item.ownerMatches ? 'matches' : 'mismatch'}</span>,
+              item.present ? item.dataLen.toLocaleString() + ' bytes' : '—',
+              <span key={name + '-condition'} className={item.condition === 'healthy' ? 'text-emerald-300' : 'text-amber-300'}>{item.condition}</span>,
+              item.error ?? '—',
+            ])}
+            empty="No canonical state status returned"
+          />
+        </section>
+      ) : null}
     </div>
   )
 }
