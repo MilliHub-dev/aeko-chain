@@ -81,10 +81,8 @@ fn main() -> Result<()> {
         .context("creating protocol bootstrap continuity directory")?;
 
     let allow_missing_state = parse_bool_flag("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE")?;
-    let allow_continuity_anchor_recovery = parse_bool_flag_with_default(
-        "AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY",
-        false,
-    )?;
+    let allow_continuity_anchor_recovery =
+        parse_bool_flag_with_default("AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY", false)?;
 
     let client = RpcClient::new_with_commitment(rpc_url.clone(), CommitmentConfig::confirmed());
     wait_for_rpc_ready(&client)?;
@@ -500,15 +498,22 @@ AEKO_FINALITY_ORACLE_STATE={}\n",
 fn reset_state_dir_for_genesis(dir: &Path, genesis_hash: &str) -> Result<()> {
     const RESET_MARKER: &str = ".aeko-reset-genesis";
     let marker = dir.join(RESET_MARKER);
-    if fs::read_to_string(&marker).ok().is_some_and(|value| value.trim() == genesis_hash) {
+    if fs::read_to_string(&marker)
+        .ok()
+        .is_some_and(|value| value.trim() == genesis_hash)
+    {
         return Ok(());
     }
-    for entry in fs::read_dir(dir).with_context(|| format!("reading reset directory {}", dir.display()))? {
+    for entry in
+        fs::read_dir(dir).with_context(|| format!("reading reset directory {}", dir.display()))?
+    {
         let path = entry?.path();
         if path.is_dir() {
-            fs::remove_dir_all(&path).with_context(|| format!("removing stale reset directory {}", path.display()))?;
+            fs::remove_dir_all(&path)
+                .with_context(|| format!("removing stale reset directory {}", path.display()))?;
         } else {
-            fs::remove_file(&path).with_context(|| format!("removing stale reset file {}", path.display()))?;
+            fs::remove_file(&path)
+                .with_context(|| format!("removing stale reset file {}", path.display()))?;
         }
     }
     fs::write(&marker, format!("{genesis_hash}\n"))
@@ -936,7 +941,7 @@ fn prepare_protocol_state_continuity(
             "protocol continuity anchor exists but protocol-registry.env is missing; refusing to create replacement canonical state unless AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1 is explicitly set for intentional recovery"
         )),
         (None, None) if require_existing && !allow_initialization => Err(anyhow!(
-            "no established protocol state was found; set AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1 only for the intentional first protocol bootstrap"
+            "no established protocol state was found although existing state was required; restore the protocol-state/protocol-continuity volumes before bootstrapping"
         )),
         (None, None) => Ok(()),
     }
@@ -1003,11 +1008,7 @@ fn sleep_backoff(attempt: u32) {
 
 #[cfg(test)]
 mod tests {
-    use {
-        super::*,
-        aeko_sdk::account::AccountSharedData,
-        tempfile::TempDir,
-    };
+    use {super::*, aeko_sdk::account::AccountSharedData, tempfile::TempDir};
 
     fn test_account(owner: Pubkey, data: &[u8]) -> AccountSharedData {
         let mut account = AccountSharedData::new(1, data.len(), &owner);
@@ -1034,16 +1035,20 @@ mod tests {
     fn feature_validation_rejects_pending_and_wrong_owner() {
         let feature_id = Pubkey::new_unique();
         let pending = feature::create_account(&Feature::default(), 1);
-        assert!(validate_feature_account(&pending, &feature_id, "test-feature")
-            .unwrap_err()
-            .to_string()
-            .contains("pending"));
+        assert!(
+            validate_feature_account(&pending, &feature_id, "test-feature")
+                .unwrap_err()
+                .to_string()
+                .contains("pending")
+        );
 
         let wrong_owner = test_account(Pubkey::new_unique(), pending.data());
-        assert!(validate_feature_account(&wrong_owner, &feature_id, "test-feature")
-            .unwrap_err()
-            .to_string()
-            .contains("owner"));
+        assert!(
+            validate_feature_account(&wrong_owner, &feature_id, "test-feature")
+                .unwrap_err()
+                .to_string()
+                .contains("owner")
+        );
     }
 
     #[test]
@@ -1092,7 +1097,7 @@ mod tests {
     }
 
     #[test]
-    fn continuity_requires_explicit_first_bootstrap_when_configured() {
+    fn continuity_fails_closed_when_required_state_disappears() {
         let state = TempDir::new().unwrap();
         let continuity = TempDir::new().unwrap();
 
@@ -1107,7 +1112,7 @@ mod tests {
         .unwrap_err();
         assert!(error
             .to_string()
-            .contains("AEKO_ALLOW_PROTOCOL_STATE_INITIALIZATION=1"));
+            .contains("restore the protocol-state/protocol-continuity volumes"));
 
         prepare_protocol_state_continuity(
             state.path(),
@@ -1211,8 +1216,7 @@ mod tests {
 
         require_missing_state_recovery_authorized(false, false, &state_pubkey, "test-state")
             .unwrap();
-        require_missing_state_recovery_authorized(true, true, &state_pubkey, "test-state")
-            .unwrap();
+        require_missing_state_recovery_authorized(true, true, &state_pubkey, "test-state").unwrap();
 
         let error =
             require_missing_state_recovery_authorized(true, false, &state_pubkey, "test-state")
@@ -1245,4 +1249,3 @@ mod tests {
         assert_eq!(first.pubkey(), recovered.pubkey());
     }
 }
-

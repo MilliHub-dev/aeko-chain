@@ -22,6 +22,7 @@ parse_bool() {
 }
 
 allow_chain_key_generation="$(parse_bool AEKO_ALLOW_CHAIN_KEY_GENERATION "${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}")"
+reset_ledger="$(parse_bool AEKO_RESET_LEDGER "${AEKO_RESET_LEDGER:-0}")"
 
 echo "AEKO key preflight: host source '${keys_source}' is mounted at ${keys_root}"
 
@@ -59,19 +60,23 @@ state_registry="$protocol_state_root/protocol-registry.env"
 continuity_registry="$protocol_continuity_root/protocol-registry.anchor"
 protocol_registry=""
 
-if [ -s "$state_registry" ] && [ -s "$continuity_registry" ]; then
-  state_registry_contents="$(cat "$state_registry")"
-  continuity_registry_contents="$(cat "$continuity_registry")"
-  if [ "$state_registry_contents" != "$continuity_registry_contents" ]; then
-    echo "error: protocol registry and continuity anchor disagree" >&2
-    echo "error: restore the correct protocol-state/protocol-continuity volumes before redeploying" >&2
-    exit 65
+if [ "$reset_ledger" = "1" ]; then
+  echo "AEKO key preflight: intentional chain reset requested; persisted protocol state/continuity identity will be replaced after the validator creates the reset genesis"
+else
+  if [ -s "$state_registry" ] && [ -s "$continuity_registry" ]; then
+    state_registry_contents="$(cat "$state_registry")"
+    continuity_registry_contents="$(cat "$continuity_registry")"
+    if [ "$state_registry_contents" != "$continuity_registry_contents" ]; then
+      echo "error: protocol registry and continuity anchor disagree" >&2
+      echo "error: restore the correct protocol-state/protocol-continuity volumes before redeploying" >&2
+      exit 65
+    fi
+    protocol_registry="$state_registry"
+  elif [ -s "$state_registry" ]; then
+    protocol_registry="$state_registry"
+  elif [ -s "$continuity_registry" ]; then
+    protocol_registry="$continuity_registry"
   fi
-  protocol_registry="$state_registry"
-elif [ -s "$state_registry" ]; then
-  protocol_registry="$state_registry"
-elif [ -s "$continuity_registry" ]; then
-  protocol_registry="$continuity_registry"
 fi
 
 if [ ! -f "$protocol_path" ] || [ ! -s "$protocol_path" ]; then

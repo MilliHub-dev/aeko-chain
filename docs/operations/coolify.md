@@ -82,7 +82,7 @@ The Coolify contract declares five Docker-managed named volumes:
 
 Normal redeploys must preserve all five volumes. The two protocol volumes form one continuity boundary: losing `protocol-state` while retaining `protocol-continuity` requires explicit recovery and reuses the same canonical addresses; losing `protocol-continuity` must not be treated as a fresh bootstrap. Do not delete them unless intentionally resetting chain state.
 
-For a deliberate fresh-genesis reset, set `AEKO_RESET_LEDGER=1`. That single reset signal is propagated to the validator, Aeko Social, AEKO Protocol, and Explorer. Redeploy once, verify both mandatory bootstraps and Explorer binding succeed, then return `AEKO_RESET_LEDGER=0`.
+For a deliberate fresh-genesis reset, set `AEKO_RESET_LEDGER=1`. That single reset signal is propagated through key bootstrap/preflight to the validator, Aeko Social, AEKO Protocol, and Explorer. Key preflight still validates the persistent chain identities, but it deliberately ignores the old Protocol registry/continuity binding because those volumes are reset targets. Redeploy once, verify both mandatory bootstraps and Explorer binding succeed, then return `AEKO_RESET_LEDGER=0`.
 
 ## Domains and ports
 

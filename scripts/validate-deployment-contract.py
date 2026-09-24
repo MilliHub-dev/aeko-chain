@@ -313,6 +313,7 @@ def main() -> int:
     require("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE" in protocol_integration, "protocol integration must retain explicit disaster-recovery coverage while normal bootstrap stays automatic")
     require("cmp" in protocol_integration and "protocol-registry.env" in protocol_integration, "protocol integration must prove idempotent canonical registry identity")
     require("getGenesisHash" in protocol_integration and "getTransaction" in protocol_integration, "protocol integration must prove ledger identity and historical transaction continuity across restart")
+    require("AEKO_RESET_LEDGER" in protocol_integration and "stale-before-reset" in protocol_integration, "protocol integration must exercise intentional reset cleanup and same-genesis idempotency")
     require("unexpectedly accepted a missing established state volume" in protocol_integration, "protocol integration must prove missing protocol-state fails closed before recovery")
     require("aeko-keygen pubkey" in protocol_activate, "feature activation helper must verify offline keypair identities")
     require('FEATURE_SET_SOURCE="$REPO_ROOT/sdk/src/feature_set.rs"' in protocol_activate, "activation helper must resolve feature identities only from the canonical runtime feature set")
@@ -334,6 +335,7 @@ def main() -> int:
         require("image:" in block, f"Dokploy {service} must use a published image")
         require("pull_policy: always" in block, f"Dokploy {service} must pull the selected Docker Hub tag")
 
+    dokploy_key_preflight = service_block(dokploy, "key-preflight", "faucet")
     validator = service_block(dokploy, "validator", "social-bootstrap")
     bootstrap = service_block(dokploy, "social-bootstrap", "protocol-bootstrap")
     protocol_bootstrap_service = service_block(dokploy, "protocol-bootstrap", "explorer-api")
@@ -342,6 +344,10 @@ def main() -> int:
     operations_web = service_block(dokploy, "operations-web", "wallet-tools")
     wallet_tools = service_block(dokploy, "wallet-tools")
 
+    require(
+        "AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in dokploy_key_preflight,
+        "Dokploy key preflight must receive intentional chain resets before validator startup",
+    )
     require("AEKO_NODE_ROLE: validator" in validator, "validator role must be explicit")
     require("AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?" in validator, "public validator must advertise the Dokploy host")
     require("AEKO_DYNAMIC_PORT_RANGE: 8000-8050" in validator, "public validator transport range must be explicit")
@@ -470,6 +476,10 @@ def main() -> int:
     require('entrypoint: ["/usr/local/bin/aeko-key-preflight"]' in coolify_key_bootstrap, "Coolify key bootstrap must use the shared tools-image preflight")
     require("AEKO_KEYS_SOURCE: /data/aeko/keys" in coolify_key_bootstrap, "Coolify key bootstrap diagnostics must identify the fixed host key path")
     require("AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}" in coolify_key_bootstrap, "Coolify key bootstrap must preserve explicit first-chain-key generation")
+    require(
+        "AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in coolify_key_bootstrap,
+        "Coolify key bootstrap must receive intentional chain resets before validator startup",
+    )
     require('restart: "no"' in coolify_key_bootstrap, "Coolify key bootstrap must be a one-shot initializer")
     require("key-bootstrap:" in coolify_faucet and "condition: service_completed_successfully" in coolify_faucet, "Coolify faucet must wait for persistent key initialization")
     require('restart: "no"' in coolify_bootstrap, "Coolify SocialFi bootstrap must remain a one-shot initializer")
@@ -483,6 +493,10 @@ def main() -> int:
     require("depends_on:" not in coolify_operations_web, "Coolify Operations Web lifecycle must be independent of validator health")
     require('profiles: ["ops"]' in coolify_wallet_tools, "Coolify wallet tools must remain operator-only and absent from default startup")
     require("exit 64" in key_preflight and "exit 65" in key_preflight, "reusable key preflight helper must preserve distinct missing/invalid key exit codes")
+    require(
+        'reset_ledger="$(parse_bool AEKO_RESET_LEDGER' in key_preflight,
+        "reusable key preflight helper must understand the destructive chain-reset signal",
+    )
     require("validator-ledger:/ledger" in coolify_validator, "Coolify validator must use a Docker-managed ledger volume by default")
     require("AEKO_VALIDATOR_LEDGER_VOLUME" not in coolify, "Coolify ledger source must not use interpolated volume-source syntax")
     require("AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?}" in coolify_validator, "Coolify must require the public validator address")

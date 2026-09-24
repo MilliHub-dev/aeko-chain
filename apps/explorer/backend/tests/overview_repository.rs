@@ -22,6 +22,7 @@ fn test_config(database_url: String) -> ExplorerBackendConfig {
         asset_refresh_slots: 64,
         social_refresh_slots: 16,
         max_ready_lag_slots: 128,
+        reset_chain_on_start: false,
     }
 }
 
