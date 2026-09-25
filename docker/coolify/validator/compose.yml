@@ -39,6 +39,11 @@ services:
     ports:
       - "8000-8050:8000-8050/tcp"
       - "8000-8050:8000-8050/udp"
+      # Coolify domains still route to the container ports. These loopback
+      # bindings additionally support explicit private cross-server routing
+      # without exposing RPC/WS on every host interface.
+      - "${AEKO_RPC_BIND_IP:-127.0.0.1}:${AEKO_RPC_HOST_PORT:-8899}:8899"
+      - "${AEKO_WS_BIND_IP:-127.0.0.1}:${AEKO_WS_HOST_PORT:-8900}:8900"
     expose:
       - "8899"
       - "8900"
