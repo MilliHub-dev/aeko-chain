@@ -283,14 +283,21 @@ Coolify supports independent resource deployments under
 validator, Explorer API, Explorer UI and Operations Web can be updated without
 recreating one another.
 
-Each deployable resource has its own Compose path and .env.example, for example:
+The preferred topology has six Coolify resources, each with its own Compose
+path and .env.example:
 
 ```text
+docker/coolify/bootstrap/compose.yml
+docker/coolify/faucet-tools/compose.yml
 docker/coolify/validator/compose.yml
 docker/coolify/explorer-api/compose.yml
 docker/coolify/explorer-ui/compose.yml
 docker/coolify/operations-web/compose.yml
 ```
+
+The bootstrap resource contains key, Social and Protocol one-shot jobs.
+faucet-tools contains the private Faucet daemon plus wallet-tools under the
+opt-in ops profile.
 
 The existing [docker/compose.coolify.yml](./docker/compose.coolify.yml) remains
 the legacy all-in-one compatibility/rollback contract. Merging the split files
