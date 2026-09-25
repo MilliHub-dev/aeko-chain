@@ -39,14 +39,12 @@ trigger_resource() {
   fi
 
   echo "Coolify split deploy: trigger ${label}"
-  "$CURL_BIN" --fail-with-body --silent --show-error     --request POST     --header "Authorization: Bearer ${token}"     "$url"
+  "$CURL_BIN" --fail-with-body --silent --show-error --request POST --header "Authorization: Bearer ${token}" "$url"
 }
 
-trigger_resource   "Explorer API"   "${DEPLOY_EXPLORER_API:-false}"   "${COOLIFY_EXPLORER_API_WEBHOOK_URL:-}"   "${COOLIFY_EXPLORER_API_WEBHOOK_API_KEY:-}"
-
-trigger_resource   "Explorer UI"   "${DEPLOY_EXPLORER_UI:-false}"   "${COOLIFY_EXPLORER_UI_WEBHOOK_URL:-}"   "${COOLIFY_EXPLORER_UI_WEBHOOK_API_KEY:-}"
-
-trigger_resource   "Operations Web"   "${DEPLOY_OPERATIONS_WEB:-false}"   "${COOLIFY_OPERATIONS_WEB_WEBHOOK_URL:-}"   "${COOLIFY_OPERATIONS_WEB_WEBHOOK_API_KEY:-}"
+trigger_resource "Explorer API" "${DEPLOY_EXPLORER_API:-false}" "${COOLIFY_EXPLORER_API_WEBHOOK_URL:-}" "${COOLIFY_EXPLORER_API_WEBHOOK_API_KEY:-}"
+trigger_resource "Explorer UI" "${DEPLOY_EXPLORER_UI:-false}" "${COOLIFY_EXPLORER_UI_WEBHOOK_URL:-}" "${COOLIFY_EXPLORER_UI_WEBHOOK_API_KEY:-}"
+trigger_resource "Operations Web" "${DEPLOY_OPERATIONS_WEB:-false}" "${COOLIFY_OPERATIONS_WEB_WEBHOOK_URL:-}" "${COOLIFY_OPERATIONS_WEB_WEBHOOK_API_KEY:-}"
 
 if [ "$(normalize_bool "${STATEFUL_COOLIFY_RELEASE:-false}")" = "true" ]; then
   echo "Coolify split deploy: stateful chain images/config changed; Validator, bootstrap, and faucet-tools remain manual by policy."
