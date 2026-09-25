@@ -31,6 +31,31 @@ validator resource.
 See docker/coolify/README.md for the resource map, migration order and
 established-chain storage safeguards.
 
+## Auto-deploy isolation
+
+Creating separate Coolify applications is only half of validator isolation.
+A Git-connected application can still redeploy on every matching repository
+webhook.
+
+For production, disable Auto Deploy on Validator and all one-shot lifecycle
+resources. Keep Validator on an immutable AEKO_IMAGE_TAG and promote it only
+when a validator release is intentional.
+
+For Explorer API, Explorer UI and Operations Web, either use the same explicit
+promotion model or configure Coolify Watch Paths so only changes relevant to
+that application trigger deployment. Coolify stores these settings on the
+application rather than in the Compose YAML.
+
+When split resources on the same Coolify destination need private
+cross-resource communication, Connect To Predefined Network can attach them to
+the destination network. Continue to set AEKO_INTERNAL_* endpoints explicitly
+after verifying the actual attached hostname. For resources on different
+servers, use private routed networking or a VPN/overlay instead of exposing
+Faucet 9900 or Explorer API 8088 publicly.
+
+The recommended resource settings and Watch Paths examples are in
+docker/coolify/README.md.
+
 ## Required Coolify variables
 
 Do not use one giant shared Coolify environment for the split topology. Each
