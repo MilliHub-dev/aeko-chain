@@ -8,7 +8,7 @@ x-logging: &default-logging
 
 services:
   faucet:
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-faucet:${AEKO_IMAGE_TAG:-latest}
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-faucet:${AEKO_IMAGE_TAG:?Set an immutable published AEKO image tag}
     pull_policy: always
     restart: unless-stopped
     volumes:
@@ -37,7 +37,7 @@ services:
 
   wallet-tools:
     profiles: ["ops"]
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:?Set an immutable published AEKO image tag}
     pull_policy: always
     restart: "no"
     command: ["aeko", "--help"]
