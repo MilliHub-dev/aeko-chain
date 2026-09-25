@@ -43,6 +43,12 @@ jobs:
       packaging: ${{ steps.changes.outputs.packaging }}
       explorer_backend: ${{ steps.changes.outputs.explorer_backend }}
       explorer_web: ${{ steps.changes.outputs.explorer_web }}
+      coolify_bootstrap: ${{ steps.changes.outputs.coolify_bootstrap }}
+      coolify_faucet_tools: ${{ steps.changes.outputs.coolify_faucet_tools }}
+      coolify_validator: ${{ steps.changes.outputs.coolify_validator }}
+      coolify_explorer_api: ${{ steps.changes.outputs.coolify_explorer_api }}
+      coolify_explorer_ui: ${{ steps.changes.outputs.coolify_explorer_ui }}
+      coolify_operations_web: ${{ steps.changes.outputs.coolify_operations_web }}
       sdk_js: ${{ steps.changes.outputs.sdk_js }}
       sdk_node: ${{ steps.changes.outputs.sdk_node }}
       sdk_python: ${{ steps.changes.outputs.sdk_python }}
@@ -64,6 +70,10 @@ jobs:
       run_sdk_non_rust: ${{ steps.plan.outputs.run_sdk_non_rust }}
       run_sdk_rust: ${{ steps.plan.outputs.run_sdk_rust }}
       run_ci_contract: ${{ steps.plan.outputs.run_ci_contract }}
+      deploy_explorer_api: ${{ steps.plan.outputs.deploy_explorer_api }}
+      deploy_explorer_ui: ${{ steps.plan.outputs.deploy_explorer_ui }}
+      deploy_operations_web: ${{ steps.plan.outputs.deploy_operations_web }}
+      stateful_coolify_release: ${{ steps.plan.outputs.stateful_coolify_release }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
@@ -100,6 +110,12 @@ jobs:
           PACKAGING: ${{ steps.changes.outputs.packaging }}
           EXPLORER_BACKEND: ${{ steps.changes.outputs.explorer_backend }}
           EXPLORER_WEB: ${{ steps.changes.outputs.explorer_web }}
+          COOLIFY_BOOTSTRAP: ${{ steps.changes.outputs.coolify_bootstrap }}
+          COOLIFY_FAUCET_TOOLS: ${{ steps.changes.outputs.coolify_faucet_tools }}
+          COOLIFY_VALIDATOR: ${{ steps.changes.outputs.coolify_validator }}
+          COOLIFY_EXPLORER_API: ${{ steps.changes.outputs.coolify_explorer_api }}
+          COOLIFY_EXPLORER_UI: ${{ steps.changes.outputs.coolify_explorer_ui }}
+          COOLIFY_OPERATIONS_WEB: ${{ steps.changes.outputs.coolify_operations_web }}
           SDK_JS: ${{ steps.changes.outputs.sdk_js }}
           SDK_NODE: ${{ steps.changes.outputs.sdk_node }}
           SDK_PYTHON: ${{ steps.changes.outputs.sdk_python }}
@@ -478,8 +494,8 @@ jobs:
           explorer-backend: ${{ needs.classify.outputs.run_explorer_backend }}
           explorer-web: ${{ needs.classify.outputs.run_explorer_web }}
 
-      - name: Trigger production deployment after successful promotion
-        if: needs.classify.outputs.deployable == 'true' || needs.classify.outputs.ci_pipeline == 'true'
+      - name: Trigger legacy production deployment after successful promotion
+        if: (needs.classify.outputs.deployable == 'true' || needs.classify.outputs.ci_pipeline == 'true') && vars.COOLIFY_DEPLOYMENT_MODE != 'split'
         shell: bash
         env:
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
@@ -495,3 +511,19 @@ jobs:
             --request POST \
             --header "Authorization: Bearer ${WEBHOOK_API_KEY}" \
             "$WEBHOOK_URL"
+
+      - name: Trigger selected split Coolify application deployments
+        if: vars.COOLIFY_DEPLOYMENT_MODE == 'split' && (needs.classify.outputs.deploy_explorer_api == 'true' || needs.classify.outputs.deploy_explorer_ui == 'true' || needs.classify.outputs.deploy_operations_web == 'true' || needs.classify.outputs.stateful_coolify_release == 'true')
+        shell: bash
+        env:
+          DEPLOY_EXPLORER_API: ${{ needs.classify.outputs.deploy_explorer_api }}
+          DEPLOY_EXPLORER_UI: ${{ needs.classify.outputs.deploy_explorer_ui }}
+          DEPLOY_OPERATIONS_WEB: ${{ needs.classify.outputs.deploy_operations_web }}
+          STATEFUL_COOLIFY_RELEASE: ${{ needs.classify.outputs.stateful_coolify_release }}
+          COOLIFY_EXPLORER_API_WEBHOOK_URL: ${{ secrets.COOLIFY_EXPLORER_API_WEBHOOK_URL }}
+          COOLIFY_EXPLORER_API_WEBHOOK_API_KEY: ${{ secrets.COOLIFY_EXPLORER_API_WEBHOOK_API_KEY }}
+          COOLIFY_EXPLORER_UI_WEBHOOK_URL: ${{ secrets.COOLIFY_EXPLORER_UI_WEBHOOK_URL }}
+          COOLIFY_EXPLORER_UI_WEBHOOK_API_KEY: ${{ secrets.COOLIFY_EXPLORER_UI_WEBHOOK_API_KEY }}
+          COOLIFY_OPERATIONS_WEB_WEBHOOK_URL: ${{ secrets.COOLIFY_OPERATIONS_WEB_WEBHOOK_URL }}
+          COOLIFY_OPERATIONS_WEB_WEBHOOK_API_KEY: ${{ secrets.COOLIFY_OPERATIONS_WEB_WEBHOOK_API_KEY }}
+        run: bash .github/actions/devops/pipeline/deploy-coolify-split.sh
