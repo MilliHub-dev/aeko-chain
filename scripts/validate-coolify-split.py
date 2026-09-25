@@ -10,15 +10,12 @@ ROOT = Path(__file__).resolve().parents[1]
 COOLIFY = ROOT / "docker" / "coolify"
 
 RESOURCES = {
-    "key-bootstrap": "key-bootstrap",
-    "faucet": "faucet",
-    "validator": "validator",
-    "social-bootstrap": "social-bootstrap",
-    "protocol-bootstrap": "protocol-bootstrap",
-    "explorer-api": "explorer-api",
-    "explorer-ui": "explorer-ui",
-    "operations-web": "operations-web",
-    "wallet-tools": "wallet-tools",
+    "bootstrap": ["key-bootstrap", "social-bootstrap", "protocol-bootstrap"],
+    "faucet-tools": ["faucet", "wallet-tools"],
+    "validator": ["validator"],
+    "explorer-api": ["explorer-api"],
+    "explorer-ui": ["explorer-ui"],
+    "operations-web": ["operations-web"],
 }
 
 
@@ -43,6 +40,14 @@ def service_names(compose: str) -> list[str]:
     return re.findall(r"^  ([A-Za-z0-9_.-]+):\s*$", tail, re.MULTILINE)
 
 
+def service_block(compose: str, service: str) -> str:
+    match = re.search(rf"^  {re.escape(service)}:\s*$", compose, re.MULTILINE)
+    require(match is not None, f"missing service block: {service}")
+    tail = compose[match.end() :]
+    next_service = re.search(r"^  [A-Za-z0-9_.-]+:\s*$", tail, re.MULTILINE)
+    return tail[: next_service.start()] if next_service else tail
+
+
 def interpolated_names(compose: str) -> set[str]:
     return set(re.findall(r"\$\{([A-Z][A-Z0-9_]*)", compose))
 
@@ -57,12 +62,17 @@ def require_literal_bind_sources(label: str, compose: str) -> None:
         require(source.startswith("/data/aeko/"), f"{label} persistent bind must stay under /data/aeko: {source}")
 
 
-def validate_common(label: str, service: str, compose: str, env_example: str) -> None:
+def validate_common(label: str, expected_services: list[str], compose: str, env_example: str) -> None:
     names = service_names(compose)
-    require(names == [service], f"{label} must contain exactly one deployable service ({service}); found {names}")
-    require("build:" not in compose, f"{label} must pull a published image, not build source")
-    require("pull_policy: always" in compose, f"{label} must always pull the selected image tag")
-    require("depends_on:" not in compose, f"{label} must not contain cross-resource Compose dependencies")
+    require(
+        names == expected_services,
+        f"{label} services changed; expected {expected_services}, found {names}",
+    )
+    require("build:" not in compose, f"{label} must pull published images, not build source")
+    require(
+        compose.count("pull_policy: always") == len(expected_services),
+        f"{label} must always pull the selected image tag for every service",
+    )
     require("type: volume" not in compose, f"{label} must not use project-scoped named volumes")
     require("x-logging: &default-logging" in compose, f"{label} must use bounded json-file logging")
     require_literal_bind_sources(label, compose)
@@ -78,14 +88,18 @@ def main() -> int:
     read(COOLIFY / "README.md")
 
     loaded: dict[str, str] = {}
-    for label, service in RESOURCES.items():
+    for label, expected_services in RESOURCES.items():
         directory = COOLIFY / label
         compose = read(directory / "compose.yml")
         env_example = read(directory / ".env.example")
-        validate_common(label, service, compose, env_example)
+        validate_common(label, expected_services, compose, env_example)
         loaded[label] = compose
 
-    key_bootstrap = loaded["key-bootstrap"]
+    bootstrap = loaded["bootstrap"]
+    key_bootstrap = service_block(bootstrap, "key-bootstrap")
+    social = service_block(bootstrap, "social-bootstrap")
+    protocol = service_block(bootstrap, "protocol-bootstrap")
+
     require("source: /data/aeko/keys" in key_bootstrap, "key bootstrap must own the fixed key path")
     require("source: /data/aeko/protocol-state" in key_bootstrap, "key bootstrap must inspect Protocol state")
     require("source: /data/aeko/protocol-continuity" in key_bootstrap, "key bootstrap must inspect Protocol continuity")
@@ -93,14 +107,38 @@ def main() -> int:
         "AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}" in key_bootstrap,
         "key bootstrap must fail closed unless first-boot generation is explicit",
     )
+    require('restart: "no"' in key_bootstrap, "key bootstrap must remain one-shot")
 
-    faucet = loaded["faucet"]
+    for label, block in (("Social", social), ("Protocol", protocol)):
+        require(
+            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?" in block,
+            f"{label} bootstrap must require an explicit reachable validator RPC endpoint",
+        )
+        require(
+            "key-bootstrap:" in block and "condition: service_completed_successfully" in block,
+            f"{label} bootstrap must wait for the co-located key preflight",
+        )
+        require("validator:" not in block, f"{label} bootstrap must not depend on a validator Compose service")
+        require('restart: "no"' in block, f"{label} bootstrap must remain one-shot")
+
+    require("source: /data/aeko/social-state" in social, "Social bootstrap state must use a stable host path")
+    require("source: /data/aeko/protocol-state" in protocol, "Protocol state must use a stable host path")
+    require("source: /data/aeko/protocol-continuity" in protocol, "Protocol continuity must use a stable host path")
+
+    faucet_tools = loaded["faucet-tools"]
+    faucet = service_block(faucet_tools, "faucet")
+    wallet_tools = service_block(faucet_tools, "wallet-tools")
+    require("depends_on:" not in faucet_tools, "Faucet/tools resource must not invent a runtime dependency")
     require(
         '"${AEKO_FAUCET_BIND_IP:-127.0.0.1}:${AEKO_FAUCET_HOST_PORT:-9900}:9900"' in faucet,
         "Faucet cross-server host binding must default to loopback",
     )
+    require("source: /data/aeko/keys" in faucet, "Faucet must read the persistent chain key store")
+    require('profiles: ["ops"]' in wallet_tools, "wallet tools must remain opt-in operator tooling")
+    require("source: /data/aeko/keys" in wallet_tools, "wallet tools must use the persistent chain key store")
 
     validator = loaded["validator"]
+    require("depends_on:" not in validator, "validator must remain independent of other Compose resources")
     require("source: /data/aeko/validator-ledger" in validator, "validator ledger must use stable host storage")
     require("source: /data/aeko/keys" in validator, "validator must mount persistent chain identities")
     require(
@@ -109,7 +147,7 @@ def main() -> int:
     )
     require(
         "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:?" in validator,
-        "split validator must require an explicit private Faucet endpoint",
+        "split validator must require an explicit reachable Faucet endpoint",
     )
     require("df -Pk /ledger" in validator, "split validator healthcheck must enforce the low-disk guard")
     require(
@@ -121,19 +159,12 @@ def main() -> int:
         "Validator WebSocket host binding must default to loopback",
     )
 
-    social = loaded["social-bootstrap"]
-    require("AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?" in social, "Social bootstrap must require explicit validator RPC")
-    require("source: /data/aeko/social-state" in social, "Social bootstrap state must use a stable host path")
-    require('restart: "no"' in social, "Social bootstrap must remain a one-shot job")
-
-    protocol = loaded["protocol-bootstrap"]
-    require("AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?" in protocol, "Protocol bootstrap must require explicit validator RPC")
-    require("source: /data/aeko/protocol-state" in protocol, "Protocol state must use a stable host path")
-    require("source: /data/aeko/protocol-continuity" in protocol, "Protocol continuity must use a stable host path")
-    require('restart: "no"' in protocol, "Protocol bootstrap must remain a one-shot job")
-
     explorer_api = loaded["explorer-api"]
-    require("AEKO_EXPLORER_RPC: ${AEKO_INTERNAL_RPC_URL:?" in explorer_api, "Explorer API must require explicit validator RPC")
+    require("depends_on:" not in explorer_api, "Explorer API must remain independent of validator Compose lifecycle")
+    require(
+        "AEKO_EXPLORER_RPC: ${AEKO_INTERNAL_RPC_URL:?" in explorer_api,
+        "Explorer API must require an explicit reachable validator RPC endpoint",
+    )
     require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?" in explorer_api, "Explorer API must require persistent PostgreSQL")
     require("source: /data/aeko/social-state" in explorer_api, "Explorer API must read canonical Social registry state")
     require("source: /data/aeko/protocol-state" in explorer_api, "Explorer API must read canonical Protocol registry state")
@@ -161,16 +192,21 @@ def main() -> int:
         )
 
     explorer_ui = loaded["explorer-ui"]
+    require("depends_on:" not in explorer_ui, "Explorer UI must remain independently deployable")
     require(
         "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?" in explorer_ui,
-        "Explorer UI must require an explicit private Explorer API upstream",
+        "Explorer UI must require an explicit server-side Explorer API upstream",
     )
 
     operations = loaded["operations-web"]
-    require("AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?" in operations, "Operations Web must require explicit validator RPC")
+    require("depends_on:" not in operations, "Operations Web must remain independently deployable")
+    require(
+        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?" in operations,
+        "Operations Web must require an explicit reachable validator RPC endpoint",
+    )
     require(
         "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?" in operations,
-        "Operations Web must require an explicit private Explorer API upstream",
+        "Operations Web must require an explicit server-side Explorer API upstream",
     )
 
     print("split Coolify deployment contract: ok")
