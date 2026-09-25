@@ -49,9 +49,14 @@ application rather than in the Compose YAML.
 When split resources on the same Coolify destination need private
 cross-resource communication, Connect To Predefined Network can attach them to
 the destination network. Continue to set AEKO_INTERNAL_* endpoints explicitly
-after verifying the actual attached hostname. For resources on different
-servers, use private routed networking or a VPN/overlay instead of exposing
-Faucet 9900 or Explorer API 8088 publicly.
+after verifying the actual attached hostname.
+
+For resources on different servers, use private routed networking or a
+VPN/overlay. Faucet, Validator RPC/WS and Explorer API default their host-port
+bindings to 127.0.0.1. Change the corresponding *_BIND_IP only to a private/VPN
+interface when cross-server access is required, and restrict those ports with
+host/cloud firewall rules. Do not expose Faucet 9900 or Explorer API 8088 to the
+public Internet.
 
 The recommended resource settings and Watch Paths examples are in
 docker/coolify/README.md.
