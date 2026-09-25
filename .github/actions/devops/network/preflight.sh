@@ -16,6 +16,9 @@ fi
 
 AEKO_PUBLIC_IP=203.0.113.10 \
 AEKO_KEYS_DIR=/tmp/aeko-keys \
+AEKO_INTERNAL_FAUCET_ADDRESS=10.0.0.12:9900 \
+AEKO_INTERNAL_RPC_URL=http://10.0.0.10:8899 \
+AEKO_INTERNAL_EXPLORER_API_URL=http://10.0.0.20:8088 \
 EXPLORER_DATABASE_URL=postgres://aeko:aeko@postgres:5432/aeko_explorer \
 AEKO_IMAGE_TAG=ci \
 ADMIN_PASSWORD=ci-admin-password \
@@ -40,6 +43,10 @@ bash -c '
   # so running them here makes every network image build fail before Rust or
   # Docker work starts.
   python3 scripts/validate-program-ids.py
+  python3 scripts/validate-coolify-split.py
+  for compose in docker/coolify/*/compose.yml; do
+    docker compose -f "$compose" config >/dev/null
+  done
   docker compose -f docker/compose.local.yml config >/dev/null
   docker compose -f docker/compose.dokploy.yml config >/dev/null
   docker compose -f docker/compose.coolify.yml config >/dev/null
