@@ -11,7 +11,7 @@ AEKO keeps platform-specific Compose contracts so local convenience and public d
 | `docker/compose.local.yml` | portable local/testnet stack; validator RPC/WS are host-published and `rpc-node` is optional |
 | `docker/compose.dokploy.yml` | public/Dokploy stack; uses prebuilt Docker Hub images and serves RPC/WS from the healthy voting validator |
 | `docker/compose.coolify.yml` | legacy public/Coolify all-in-one compatibility stack |
-| `docker/coolify/*/compose.yml` | preferred Coolify split resources; each deployable role has an independent Compose/environment contract |
+| `docker/coolify/*/compose.yml` | preferred Coolify split resources; independent failure/lifecycle boundaries with related bootstrap and operator roles grouped together |
 
 Coolify split resources are additive. The existing `docker/compose.coolify.yml` remains the rollback/compatibility path and is not rewritten by the split migration. An established chain must migrate the current named-volume contents into the fixed `/data/aeko/**` paths before switching the configured Coolify Compose paths. See [`docker/coolify/README.md`](./docker/coolify/README.md).
 
