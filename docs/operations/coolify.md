@@ -120,7 +120,7 @@ faucet-keypair.json
 
 You do not need to set `AEKO_KEYS_DIR` in the Coolify dashboard and you do not need to generate these files manually for a fresh chain. If this Coolify deployment is replacing an existing Dokploy/AEKO deployment, copy the **same existing validator/vote/stake/faucet keypairs** into this directory before deploying so the bootstrap preserves them. Replacing them changes validator/faucet identity and can make the persisted ledger unusable for the intended chain. Generate new keys only when intentionally creating a fresh chain identity.
 
-For a fresh chain, run the `key-bootstrap` service first, then bring up Faucet and Validator, then run the full bootstrap resource after Validator RPC is healthy. If these resources are on different Ubuntu hosts, remember that the same `/data/aeko/keys` path is host-local; provision only the required key files to each host through your secure custody process. Never commit keypairs or place them in a disposable Git checkout.
+For a fresh chain, provision the intended chain keys under `/data/aeko/keys` before the full bootstrap application is deployed, then bring up Faucet and Validator. After Validator RPC is healthy, deploy the full bootstrap resource; its key-bootstrap service verifies those keys before Social/Protocol run. If these resources are on different Ubuntu hosts, remember that the same `/data/aeko/keys` path is host-local; provision only the required key files to each host through your secure custody process. Never commit keypairs or place them in a disposable Git checkout.
 
 Both Coolify contracts use literal bind sources. The legacy monolith fixes `/data/aeko/keys`; the split resources also fix their state directories under `/data/aeko/**`. No split bind `source:` contains `${...}` interpolation. Runtime consumers mount key/registry data read-only where possible, while explicit operator/bootstrap jobs receive only the write access they require. This is intentional because the current Coolify volume validator rejects interpolation in bind sources.
 
@@ -207,12 +207,11 @@ For an established chain:
    run in parallel against the explicit `AEKO_INTERNAL_RPC_URL`;
 6. deploy Explorer API, Explorer UI and Operations Web independently.
 
-For a genuinely new chain, key generation is a two-stage bootstrap lifecycle.
-Run `key-bootstrap` with `AEKO_ALLOW_CHAIN_KEY_GENERATION=1` before first
-Validator genesis. Then start Faucet and Validator with
-`AEKO_REQUIRE_EXISTING_LEDGER=0`. Return the first-boot flags to their safe
-values and deploy/redeploy the full `bootstrap` resource after Validator RPC
-is healthy.
+For a genuinely new chain, provision/generate the intended keys before first
+Validator genesis, then start Faucet and Validator with
+`AEKO_REQUIRE_EXISTING_LEDGER=0`. After genesis exists, return first-boot
+flags to their safe values and deploy the full `bootstrap` resource only after
+Validator RPC is healthy.
 
 All three bootstrap services are one-shot. `Exited (0)` is expected success.
 Only Social and Protocol have an internal Compose dependency, and it points to
