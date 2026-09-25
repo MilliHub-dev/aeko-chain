@@ -1,0 +1,30 @@
+# Coolify split resource: chain key lifecycle preflight.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: ${AEKO_LOG_MAX_SIZE:-10m}
+    max-file: ${AEKO_LOG_MAX_FILES:-3}
+
+services:
+  key-bootstrap:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: "no"
+    environment:
+      AEKO_KEYS_SOURCE: /data/aeko/keys
+      AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}
+      AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
+    entrypoint: ["/usr/local/bin/aeko-key-preflight"]
+    volumes:
+      - type: bind
+        source: /data/aeko/keys
+        target: /keys
+      - type: bind
+        source: /data/aeko/protocol-state
+        target: /protocol-state
+        read_only: true
+      - type: bind
+        source: /data/aeko/protocol-continuity
+        target: /protocol-continuity
+        read_only: true
+    logging: *default-logging
