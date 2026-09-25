@@ -87,7 +87,7 @@ fi
 # Stateful chain lifecycle resources are intentionally never auto-deployed by
 # the release workflow. This output exists so release logs can call out when
 # an intentional operator promotion may be required.
-if [ "$CORE" = "true" ]   || [ "$COOLIFY_BOOTSTRAP" = "true" ]   || [ "$COOLIFY_FAUCET_TOOLS" = "true" ]   || [ "$COOLIFY_VALIDATOR" = "true" ]; then
+if [ "$CORE" = "true" ] || [ "$COOLIFY_BOOTSTRAP" = "true" ] || [ "$COOLIFY_FAUCET_TOOLS" = "true" ] || [ "$COOLIFY_VALIDATOR" = "true" ]; then
   stateful_coolify_release=true
 fi
 
