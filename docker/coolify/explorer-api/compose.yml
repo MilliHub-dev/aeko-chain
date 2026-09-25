@@ -1,6 +1,6 @@
 # Coolify split resource: private Aeko Scan/Explorer API only.
-# Registry files are mounted read-only when co-located. Non-empty registry
-# environment values override file values for a remote Explorer host.
+# Bootstrap registry identity is supplied through this resource's environment
+# so the API can run on a different host/provider without shared /data mounts.
 x-logging: &default-logging
   driver: json-file
   options:
@@ -33,10 +33,7 @@ services:
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       AEKO_SCAN_AIRDROP_KEY: ${AEKO_SCAN_AIRDROP_KEY:-}
       DATABASE_URL: ${EXPLORER_DATABASE_URL:?Set persistent PostgreSQL for Explorer}
-      AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env
-      AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env
-
-      # Cross-host registry overrides. Empty values preserve file fallback.
+      # Canonical registry values exported from the bootstrap resource.
       AEKO_REGISTRY_SCHEMA_VERSION: ${AEKO_REGISTRY_SCHEMA_VERSION:-}
       AEKO_CHAIN_GENESIS_HASH: ${AEKO_CHAIN_GENESIS_HASH:-}
       AEKO_SOCIAL_POSTS_STATE: ${AEKO_SOCIAL_POSTS_STATE:-}
@@ -84,15 +81,6 @@ services:
     # or Operations Web is intentionally hosted on another server.
     ports:
       - "${AEKO_EXPLORER_API_BIND_IP:-127.0.0.1}:${AEKO_EXPLORER_API_HOST_PORT:-8088}:8088"
-    volumes:
-      - type: bind
-        source: /data/aeko/social-state
-        target: /state
-        read_only: true
-      - type: bind
-        source: /data/aeko/protocol-state
-        target: /protocol-state
-        read_only: true
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/ >/dev/null || exit 1"]
       interval: 30s
