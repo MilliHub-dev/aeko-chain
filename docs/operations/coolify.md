@@ -90,7 +90,7 @@ You do not need to set `AEKO_KEYS_DIR` in the Coolify dashboard and you do not n
 
 For a fresh chain, no host-side key command is required. After the first successful deployment, you may inspect `/data/aeko/keys` on the Coolify host if you want to back up the generated identities. Never commit keypairs or place them in a disposable Git checkout.
 
-The Coolify Compose uses long-form volume syntax for every bind and named volume. Every `source:` is literal, including the fixed `/data/aeko/keys` bind; no `source:` contains `${...}` interpolation or copied smart-quote characters. Runtime services mount it read-only; the optional `wallet-tools` profile can mount it read-write for explicit operator work. This is intentional: the current Coolify volume validator rejects `${...}` interpolation in a bind source.
+Both Coolify contracts use literal bind sources. The legacy monolith fixes `/data/aeko/keys`; the split resources also fix their state directories under `/data/aeko/**`. No split bind `source:` contains `${...}` interpolation. Runtime consumers mount key/registry data read-only where possible, while explicit operator/bootstrap jobs receive only the write access they require. This is intentional because the current Coolify volume validator rejects interpolation in bind sources.
 
 ## Persistent chain state
 
@@ -131,7 +131,6 @@ Configure Coolify domains against these internal services:
 | `https://rpc.aeko.online` | `validator` | `8899` |
 | `wss://ws.aeko.online` | `validator` | `8900` |
 | `https://scan.aeko.online` | `explorer-ui` | `4000` |
-| `https://fund.aeko.online` | `funding-gateway` | `3001` (Testnet Funding Portal/API) |
 | `https://admin.aeko.online` | `operations-web` | `3001` (operator console) |
 
 Do not configure `gossip.aeko.online` as an HTTP route. Point that DNS record directly to `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050` at the host/cloud firewall. Gossip starts on `8001` inside that range.
