@@ -3,10 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Blocks, Clock3, Hash, Layers3 } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { fetchBlockDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { getDefaultExplorerNetwork } from '../utils/networkConfig';
 
 export default function BlockDetails() {
   const { height } = useParams();
-  const [network, setNetwork] = useState('testnet');
+  const [network, setNetwork] = useState(() => getDefaultExplorerNetwork());
   const [state, setState] = useState({ loading: true, error: '', data: null });
 
   useEffect(() => {

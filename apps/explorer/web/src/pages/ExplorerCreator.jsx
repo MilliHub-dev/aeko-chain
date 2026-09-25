@@ -3,10 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Coins, FileText, Sparkles, Users } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { fetchCreatorDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { getDefaultExplorerNetwork } from '../utils/networkConfig';
 
 export default function ExplorerCreator() {
   const { address } = useParams();
-  const [network, setNetwork] = useState('testnet');
+  const [network, setNetwork] = useState(() => getDefaultExplorerNetwork());
   const [state, setState] = useState({ loading: true, error: '', data: null });
 
   useEffect(() => {

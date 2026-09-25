@@ -3,10 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Boxes, FileText, ShieldCheck, Wallet } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { fetchAccountDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { getDefaultExplorerNetwork } from '../utils/networkConfig';
 
 export default function ExplorerAccount() {
   const { address } = useParams();
-  const [network, setNetwork] = useState('testnet');
+  const [network, setNetwork] = useState(() => getDefaultExplorerNetwork());
   const [state, setState] = useState({ loading: true, error: '', data: null });
 
   useEffect(() => {

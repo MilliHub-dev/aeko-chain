@@ -1,7 +1,11 @@
 import { getNetworkConfig } from '../utils/networkConfig';
 
+// Production order: mainnet first whenever it is available. Test-only
+// networks (testnet/localnet) follow for console, demo and developer flows.
+const NETWORK_ORDER = ['mainnet', 'testnet', 'localnet'];
+
 export default function NetworkToggle({ value, onChange }) {
-  const options = ['testnet', 'mainnet'].filter((option) => getNetworkConfig(option).available);
+  const options = NETWORK_ORDER.filter((option) => getNetworkConfig(option).available);
 
   return (
     <div className="inline-flex items-center rounded-full border border-white/10 bg-white/5 p-1">

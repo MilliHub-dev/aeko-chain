@@ -5,7 +5,7 @@ import NetworkToolsPanel from '../components/NetworkToolsPanel';
 import TestnetFundingRequest from '../components/TestnetFundingRequest';
 import NetworkConsoleModal from '../components/NetworkConsoleModal';
 import NetworkSocialModal from '../components/social/NetworkSocialModal';
-import { getNetworkConfig } from '../utils/networkConfig';
+import { getDefaultExplorerNetwork, getNetworkConfig, isTestSurfaceNetwork, resolveExplorerNetwork } from '../utils/networkConfig';
 import { useAppSettings } from '../components/AppSettingsContext';
 
 const CONSOLE_TABS = new Set(['accounts', 'programs', 'social']);
@@ -15,10 +15,12 @@ export default function NetworkTools() {
   const { settings } = useAppSettings();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedNetwork = searchParams.get('network');
-  const requestedConfig = getNetworkConfig(requestedNetwork);
-  const network = requestedNetwork === 'mainnet' && requestedConfig.available ? 'mainnet' : 'testnet';
+  // Production default: mainnet whenever it is available. The Test Console
+  // below stays pinned to test-only networks (testnet/localnet).
+  const network = resolveExplorerNetwork(requestedNetwork);
   const config = getNetworkConfig(network);
-  const consoleOpen = network === 'testnet' && settings.networkConsoleEnabled && searchParams.get('console') === '1';
+  const isTestNetwork = isTestSurfaceNetwork(network);
+  const consoleOpen = isTestNetwork && settings.networkConsoleEnabled && searchParams.get('console') === '1';
   const requestedTab = searchParams.get('tab');
   const consoleTab = CONSOLE_TABS.has(requestedTab) ? requestedTab : 'accounts';
 
@@ -36,7 +38,7 @@ export default function NetworkTools() {
 
   const setNetwork = (nextNetwork) => {
     updateParams(
-      { network: nextNetwork === 'testnet' ? null : nextNetwork },
+      { network: nextNetwork === getDefaultExplorerNetwork() ? null : nextNetwork },
       { remove: SOCIAL_QUERY_KEYS },
     );
   };
@@ -79,11 +81,11 @@ export default function NetworkTools() {
         <NetworkToolsPanel network={network} />
       </div>
 
-      {network === 'testnet' ? (
+      {isTestNetwork ? (
         <TestnetFundingRequest fundingUrl={config.fundingUrl} />
       ) : null}
 
-      {network === 'testnet' && settings.networkConsoleEnabled && (
+      {isTestNetwork && settings.networkConsoleEnabled && (
         <div className="mb-10 rounded-2xl border border-aeko-accent/40 bg-gradient-to-br from-aeko-accent/10 via-white/[0.02] to-transparent p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
@@ -136,14 +138,14 @@ export default function NetworkTools() {
             <h2 className="text-2xl font-bold">{config.label} access</h2>
           </div>
           <p className="text-gray-400 mb-6">
-            {network === 'testnet'
+            {isTestNetwork
               ? config.key === 'localnet'
                 ? 'Local development can use requestAirdrop directly on the local validator RPC.'
                 : 'Use the Testnet Funding Portal to submit a public funding request for operator approval. The Network Console has a separate constrained developer airdrop flow. The private Faucet Daemon remains internal infrastructure, and the public RPC does not accept unauthenticated requestAirdrop calls.'
               : 'Mainnet does not expose test funding. Use your normal treasury, exchange, or operational distribution flow.'}
           </p>
 
-          {network === 'testnet' ? (
+          {isTestNetwork ? (
             <div className="rounded-xl border border-white/15 bg-black/20 p-5">
               <div className="text-sm font-medium text-white mb-1">Public funding path</div>
               <div className="text-sm text-green-400 flex items-center gap-2">

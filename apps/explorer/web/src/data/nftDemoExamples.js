@@ -1,6 +1,6 @@
-import { getDemoConfig, getNetworkConfig } from '../utils/networkConfig';
+import { getDemoConfig, getTestNetworkConfig } from '../utils/networkConfig';
 
-const testnet = getNetworkConfig('testnet');
+const testnet = getTestNetworkConfig();
 const demo = getDemoConfig();
 
 const canonicalExample = {

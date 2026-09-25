@@ -4,11 +4,12 @@ import { motion } from 'framer-motion';
 import docsData from '../data/docs.json';
 import NetworkToggle from '../components/NetworkToggle';
 import NetworkToolsPanel from '../components/NetworkToolsPanel';
+import { getDefaultExplorerNetwork } from '../utils/networkConfig';
 
 export default function Docs() {
   const [activeTab, setActiveTab] = useState("Introduction to AEKO Chain");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [network, setNetwork] = useState('testnet');
+  const [network, setNetwork] = useState(() => getDefaultExplorerNetwork());
 
   const sections = docsData.sections;
   const currentContent = docsData.content[activeTab];

@@ -1,0 +1,24 @@
+{
+  "settings": {
+    "enabled": true,
+    "amountAeko": 5,
+    "cooldownHours": 24,
+    "dailyBudgetAeko": 5000,
+    "maxManualGrantAeko": 100
+  },
+  "grants": [
+    {
+      "address": "Bed97rCvUdEgcHgXhm4zhwg9tkZkVYmmj1kq3rFJECLw",
+      "amountAeko": 5,
+      "signature": "212QLcd4fzXBkKiXsLqpSQmJ91fzFySver83SpCH63Kw6UXhVYSs1fjCnfPFnwwhtXSEQjeLUDvUH3JaWcu9Yoij",
+      "at": "2026-09-22T09:34:31.390Z",
+      "source": "public",
+      "confirmed": true
+    }
+  ],
+  "lastGrantAt": {
+    "Bed97rCvUdEgcHgXhm4zhwg9tkZkVYmmj1kq3rFJECLw": "2026-09-22T09:34:29.942Z"
+  },
+  "dayKey": "2026-09-22",
+  "daySpentAeko": 5
+}

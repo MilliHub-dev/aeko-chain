@@ -12,7 +12,7 @@ import {
   Wallet,
   XCircle,
 } from 'lucide-react';
-import { getNetworkConfig } from '../utils/networkConfig';
+import { getTestNetworkConfig } from '../utils/networkConfig';
 import {
   aekoToLamports,
   confirmSignature,
@@ -107,7 +107,8 @@ function ActionCard({ icon: Icon, title, description, state, disabled, onClick }
 }
 
 export default function SocialTestV2() {
-  const config = getNetworkConfig('testnet');
+  // Test-only surface: pinned to the test network, never mainnet.
+  const config = getTestNetworkConfig();
   const rpcUrl = config.rpcUrl;
   const explorerApiUrl = config.explorerApiUrl;
   const [wallets, setWallets] = useState(() => loadWallets());

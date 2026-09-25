@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { resolveAdminExplorerUrl } from '../../../lib/network'
 
 export const dynamic = 'force-dynamic'
 
-const EXPLORER_URL = process.env.AEKO_INTERNAL_EXPLORER_API_URL ?? 'http://localhost:8088'
 const SETTINGS_TOKEN = process.env.AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN ?? ''
 
 async function explorerSettings(init?: RequestInit) {
+  const EXPLORER_URL = resolveAdminExplorerUrl()
   try {
     const response = await fetch(`${EXPLORER_URL}/settings`, {
       cache: 'no-store',

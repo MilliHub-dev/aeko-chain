@@ -3,10 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Boxes, Image, Users } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { fetchCollectionDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { getDefaultExplorerNetwork } from '../utils/networkConfig';
 
 export default function ExplorerCollection() {
   const { collectionId } = useParams();
-  const [network, setNetwork] = useState('testnet');
+  const [network, setNetwork] = useState(() => getDefaultExplorerNetwork());
   const [state, setState] = useState({ loading: true, error: '', data: null });
 
   useEffect(() => {

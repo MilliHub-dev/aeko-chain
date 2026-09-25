@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-const RPC_URL = process.env.AEKO_RPC_URL ?? 'http://localhost:8899'
+import { resolveAdminRpcUrl } from '../../../lib/network'
 
 /**
  * Read-only RPC relay for the admin pages (the middleware requires an operator
  * session). Funding grants go through /api/funding/request, where the policy lives,
  * and nothing that submits or mutates is relayed at all.
+ *
+ * Admin always targets mainnet whenever AEKO_MAINNET_RPC_URL is configured;
+ * otherwise the configured AEKO_RPC_URL (testnet in current deployments) or
+ * explicit AEKO_LOCALNET_RPC_URL for local runs. See lib/network.ts.
  */
 const isReadOnly = (method: unknown) =>
   typeof method === 'string' && (method.startsWith('get') || method === 'simulateTransaction')
@@ -27,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const res = await fetch(RPC_URL, {
+    const res = await fetch(resolveAdminRpcUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

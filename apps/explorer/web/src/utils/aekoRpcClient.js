@@ -1,4 +1,4 @@
-import { getNetworkConfig, isLocalNetworkConfig } from './networkConfig.js';
+import { getTestNetworkConfig, isLocalNetworkConfig } from './networkConfig.js';
 
 // Thin JSON-RPC client for the AEKO testnet validator.
 //
@@ -76,7 +76,7 @@ function normalizedUrl(value) {
 }
 
 export function isConfiguredPublicTestnetRpc(rpcUrl) {
-  const config = getNetworkConfig('testnet');
+  const config = getTestNetworkConfig();
   if (!config.available || isLocalNetworkConfig(config) || !config.fundingUrl) return false;
   return normalizedUrl(rpcUrl) === normalizedUrl(config.rpcUrl);
 }
@@ -145,7 +145,7 @@ export async function requestConsoleAirdrop(fundingUrl, address, amountAeko) {
 }
 
 export async function requestTestnetFunding(rpcUrl, address, lamports) {
-  const config = getNetworkConfig('testnet');
+  const config = getTestNetworkConfig();
   if (!isConfiguredPublicTestnetRpc(rpcUrl)) {
     return requestAirdrop(rpcUrl, address, lamports);
   }

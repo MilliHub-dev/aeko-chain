@@ -31,9 +31,28 @@ The additive `/overview` endpoint combines live validator position with real Pos
 
 Configuration ownership is single-source:
 
-- [`docker/env.public.example`](../../../docker/env.public.example) is the only endpoint configuration reference for `AEKO_PUBLIC_*`, optional `AEKO_MAINNET_*`, and optional `AEKO_DEMO_*` runtime values;
-- [`.env.example`](./.env.example) documents the local-development Testnet/Mainnet endpoint keys using the same deployment key families; copy it to `.env.local` and point those values at localhost or any remote AEKO deployment;
-- remote previews and production remain build-neutral: the container entrypoint translates deployment env into the same normalized `testnet/mainnet/demo` runtime object. Endpoint-specific `VITE_AEKO_*` variables remain unsupported.
+- [`docker/env.public.example`](../../../docker/env.public.example) is the only endpoint configuration reference for `AEKO_PUBLIC_*` (testnet), optional `AEKO_MAINNET_*`, optional `AEKO_LOCALNET_*`, and optional `AEKO_DEMO_*` runtime values;
+- [`.env.example`](./.env.example) documents the local-development Testnet/Mainnet/Localnet endpoint keys using the same deployment key families; copy it to `.env.local` and point those values at localhost or any remote AEKO deployment;
+- remote previews and production remain build-neutral: the container entrypoint translates deployment env into the same normalized `testnet/mainnet/localnet/demo` runtime object. Endpoint-specific `VITE_AEKO_*` variables remain unsupported.
+
+## Network policy
+
+Single source of truth: `src/utils/networkConfig.js`.
+
+- `mainnet` is production. Every production surface (Explorer pages, docs
+  network panel, app settings, Admin) defaults to mainnet whenever it is
+  configured. `getNetworkConfig()` with no argument and
+  `getDefaultExplorerNetwork()` both resolve mainnet-first.
+- `testnet` is the shared test server. Test-only surfaces stay pinned to it
+  via `getTestNetwork()` / `getTestNetworkConfig()` and never silently follow
+  mainnet: Test Console / network console, `nft-demo` (AEKO-721 demo), the
+  Social E2E lab (`/network-tools/social-e2e`), and developer
+  testing/simulation helpers (`Developers` page, `requestTestnetFunding`).
+- `localnet` means "running locally" (loopback validator). Explicit
+  `AEKO_LOCALNET_*` env values always override the hardcoded `127.0.0.1`
+  loopback defaults — env variables are prioritized above hardcoded network
+  config. `devnet` is accepted as a legacy alias (localnet when available,
+  otherwise testnet); there is no separate devnet deployment.
 
 The raw `explorer-api:8088` service stays on the private deployment network. The public Explorer origin is only `explorer-ui:4000`, which proxies read-only indexed requests internally.
 

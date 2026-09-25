@@ -1,9 +1,13 @@
-const RPC = process.env.AEKO_RPC_URL ?? 'http://localhost:8899'
+import { resolveAdminRpcUrl } from './network'
+
+function rpcUrl(): string {
+  return resolveAdminRpcUrl()
+}
 
 let requestId = 1
 
 async function call<T>(method: string, params: unknown[] = []): Promise<T> {
-  const res = await fetch(RPC, {
+  const res = await fetch(rpcUrl(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: requestId++, method, params }),

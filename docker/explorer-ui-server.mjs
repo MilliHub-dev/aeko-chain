@@ -10,6 +10,9 @@ const TESTNET_UPSTREAM = String(
 const MAINNET_UPSTREAM = String(
   process.env.AEKO_INTERNAL_MAINNET_EXPLORER_API_URL || '',
 ).replace(/\/+$/, '')
+const LOCALNET_UPSTREAM = String(
+  process.env.AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL || '',
+).replace(/\/+$/, '')
 const UPSTREAM_TIMEOUT_MS = Number(process.env.AEKO_EXPLORER_PROXY_TIMEOUT_MS || 20_000)
 
 const MIME = {
@@ -41,6 +44,7 @@ function upstreamFor(pathname) {
   const prefixes = [
     ['/api/explorer/testnet', TESTNET_UPSTREAM],
     ['/api/explorer/mainnet', MAINNET_UPSTREAM],
+    ['/api/explorer/localnet', LOCALNET_UPSTREAM],
   ]
   for (const [prefix, upstream] of prefixes) {
     if (pathname === prefix || pathname.startsWith(prefix + '/')) {

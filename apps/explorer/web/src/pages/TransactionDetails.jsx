@@ -3,10 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import { Activity, ArrowLeft, CheckCircle2, Wallet, XCircle } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { fetchTransactionDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { getDefaultExplorerNetwork } from '../utils/networkConfig';
 
 export default function TransactionDetails() {
   const { hash } = useParams();
-  const [network, setNetwork] = useState('testnet');
+  const [network, setNetwork] = useState(() => getDefaultExplorerNetwork());
   const requestKey = `${network}:${hash}`;
   const [state, setState] = useState({ requestKey: '', error: '', data: null });
 

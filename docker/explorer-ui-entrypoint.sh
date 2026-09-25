@@ -40,6 +40,21 @@ const mainnet = {
   explorerApiUrl: mainnetValues.every(Boolean) ? '/api/explorer/mainnet' : '',
 };
 
+// Localnet: explicit env always overrides hardcoded loopback. Any single
+// AEKO_LOCALNET_* value opts into localnet; unset RPC/WS pieces fall back to
+// loopback for local Compose runs.
+const localnetRpcEnv = optional('AEKO_LOCALNET_RPC_URL');
+const localnetWsEnv = optional('AEKO_LOCALNET_WS_URL');
+const localnetFundingEnv = optional('AEKO_LOCALNET_FUNDING_URL');
+const localnetUpstreamEnv = optional('AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL');
+const localnetEnvSet = [localnetRpcEnv, localnetWsEnv, localnetFundingEnv, localnetUpstreamEnv].some(Boolean);
+const localnet = {
+  rpcUrl: localnetRpcEnv || (localnetEnvSet ? 'http://127.0.0.1:8899' : ''),
+  websocketUrl: localnetWsEnv || (localnetEnvSet ? 'ws://127.0.0.1:8900' : ''),
+  explorerApiUrl: localnetEnvSet ? '/api/explorer/localnet' : '',
+  fundingUrl: localnetFundingEnv,
+};
+
 const demo = {
   rpcUrl: optional('AEKO_DEMO_RPC_URL'),
   collection: optional('AEKO_DEMO_COLLECTION'),
@@ -47,7 +62,7 @@ const demo = {
   metadataUri: optional('AEKO_DEMO_METADATA_URI'),
 };
 
-const config = { testnet, mainnet, demo };
+const config = { testnet, mainnet, localnet, demo };
 
 fs.writeFileSync(
   '/app/dist/runtime-config.js',

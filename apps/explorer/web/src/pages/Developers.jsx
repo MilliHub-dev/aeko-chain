@@ -3,12 +3,14 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import NetworkToggle from '../components/NetworkToggle';
 import NetworkToolsPanel from '../components/NetworkToolsPanel';
-import { getNetworkConfig } from '../utils/networkConfig';
+import { getNetworkConfig, getTestNetwork } from '../utils/networkConfig';
 import { useAppSettings } from '../components/AppSettingsContext';
 
 export default function Developers() {
   const { settings } = useAppSettings();
-  const [network, setNetwork] = useState('testnet');
+  // Developer testing/simulation surface: pinned to the test network
+  // (testnet, localnet fallback). Never defaults to mainnet.
+  const [network, setNetwork] = useState(() => getTestNetwork());
   const activeNetwork = getNetworkConfig(network);
   const sdkCards = [
     {

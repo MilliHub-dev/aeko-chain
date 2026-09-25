@@ -39,7 +39,7 @@ import {
   token721ProgramId,
 } from '../utils/nftTransactionBuilder';
 import NftLiveFlow from '../components/NftLiveFlow';
-import { getNetworkConfig } from '../utils/networkConfig';
+import { getTestNetworkConfig } from '../utils/networkConfig';
 import { useAppSettings } from '../components/AppSettingsContext';
 
 const StatRow = ({ label, value, subtle = false }) => (
@@ -74,7 +74,9 @@ const actionOptions = [
 
 export default function NftDemo() {
   const { settings } = useAppSettings();
-  const networkConfig = getNetworkConfig('testnet');
+  // Test-only surface: always pinned to the test network (testnet, with
+  // localnet fallback for local dev). Never follows mainnet.
+  const networkConfig = getTestNetworkConfig();
   const [liveReadForm, setLiveReadForm] = useState(() => ({
     ...defaultLiveRead,
     rpcEndpoint: networkConfig.rpcUrl,

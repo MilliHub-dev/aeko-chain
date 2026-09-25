@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-const EXPLORER_URL = process.env.AEKO_INTERNAL_EXPLORER_API_URL ?? 'http://localhost:8088'
+import { resolveAdminExplorerUrl } from '../../../../lib/network'
 
 export async function GET(req: NextRequest, { params }: { params: { path: string[] } }) {
+  const EXPLORER_URL = resolveAdminExplorerUrl()
   const subpath = '/' + params.path.join('/')
   const search = req.nextUrl.search
   const url = `${EXPLORER_URL}${subpath}${search}`

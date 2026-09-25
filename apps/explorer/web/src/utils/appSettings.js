@@ -1,4 +1,4 @@
-import { getNetworkConfig } from './networkConfig.js';
+import { getDefaultExplorerNetwork, getNetworkConfig } from './networkConfig.js';
 
 export const SAFE_APP_SETTINGS = Object.freeze({
   networkToolsEnabled: true,
@@ -70,7 +70,11 @@ export function normalizeAppSettingsPayload(data) {
 }
 
 export async function fetchPublicAppSettings() {
-  const explorerApiUrl = getNetworkConfig().explorerApiUrl;
+  // Production default: mainnet whenever it is available. Admin-style and
+  // generic Explorer reads follow the same mainnet-first rule; test-only
+  // surfaces (console, nft-demo, Social E2E) stay pinned to the test network
+  // via getTestNetwork() and never read settings from here.
+  const explorerApiUrl = getNetworkConfig(getDefaultExplorerNetwork()).explorerApiUrl;
   if (!explorerApiUrl) throw new Error('Explorer API is not configured for application settings');
 
   const response = await fetch(`${explorerApiUrl}/settings`, {
