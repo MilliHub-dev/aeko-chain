@@ -51,8 +51,6 @@ fi
 if [ "${AEKO_BOOTSTRAP:-0}" = "1" ]; then
   require_file "$IDENTITY_FILE" "validator identity"
   require_file "$VOTE_FILE" "vote account"
-  require_file "$STAKE_FILE" "stake account"
-  require_file "$FAUCET_FILE" "faucet"
 
   if [ ! -f "$LEDGER_PATH/genesis.bin" ]; then
     if [ "$REQUIRE_EXISTING_LEDGER" = "1" ] && [ "$RESET_LEDGER" != "1" ]; then
@@ -61,6 +59,13 @@ if [ "${AEKO_BOOTSTRAP:-0}" = "1" ]; then
       echo "error: verify the Docker/Coolify volume identity and storage mount; use AEKO_REQUIRE_EXISTING_LEDGER=0 only for an intentional first genesis" >&2
       exit 66
     fi
+
+    # Stake and Faucet keypairs are genesis-only inputs. Established Validator
+    # restarts must not require copies of these secrets when genesis already
+    # exists, especially when Faucet/bootstrap run on another host.
+    require_file "$STAKE_FILE" "stake account"
+    require_file "$FAUCET_FILE" "faucet"
+
     echo "==> Creating AEKO genesis in ${LEDGER_PATH}"
     aeko-genesis \
       --ledger "$LEDGER_PATH" \
