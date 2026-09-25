@@ -342,20 +342,62 @@ docker compose -f docker/compose.coolify.yml up -d
 docker compose -f docker/compose.coolify.yml ps
 ```
 
-The GitHub `AEKO DevOps (single runner)` workflow validates the selected release surfaces, publishes and promotes validated images on `main`, then runs `Trigger production deployment after successful promotion`.
+The GitHub `AEKO DevOps (single runner)` workflow validates selected release surfaces and promotes validated images on `main`. Deployment behavior is deliberately separated from the build/validation DAG.
 
-The production deployment trigger is deliberately platform-neutral and uses two GitHub Actions secrets:
+### Legacy single-resource deployment
+
+Until the split Coolify migration is deliberately enabled, the existing production trigger remains backward-compatible:
 
 ```text
 WEBHOOK_URL=<authenticated production deploy webhook>
 WEBHOOK_API_KEY=<deployment API token>
 ```
 
-For the current Coolify deployment, `WEBHOOK_URL` is the Coolify authenticated deploy webhook and `WEBHOOK_API_KEY` is the corresponding deploy-capable API token. CI sends the token as `Authorization: Bearer <token>`. Dokploy and Coolify remain separate deployment platforms with separate Compose contracts; this generic CI trigger does not make their configuration interchangeable.
+This triggers the one preconfigured legacy production resource after promotion.
 
-The webhook only triggers the preconfigured production resource. It does not rewrite deployment-platform environment variables. In particular, if `AEKO_IMAGE_TAG` is pinned to an immutable SHA, update that environment value to the newly published 12-character main SHA before/with the deployment. Otherwise the platform can read the newest Compose while still pulling older runtime binaries. Use `latest` only when intentional automatic roll-forward is preferred over immutable releases.
+### Split Coolify deployment
 
-The webhook also does not choose the Compose path. A Coolify resource must point to `docker/compose.coolify.yml`; a Dokploy resource must point to `docker/compose.dokploy.yml`.
+After the six split Coolify resources are created and validated, set the GitHub repository variable:
+
+```text
+COOLIFY_DEPLOYMENT_MODE=split
+```
+
+Split mode never auto-deploys `validator`, `bootstrap`, or `faucet-tools`.
+Those resources remain explicit operator releases even when a core/network image
+was rebuilt and promoted.
+
+The three application resources use independent deploy credentials so they may
+live on different Coolify instances:
+
+```text
+COOLIFY_EXPLORER_API_WEBHOOK_URL=<Explorer API deploy webhook>
+COOLIFY_EXPLORER_API_WEBHOOK_API_KEY=<Explorer API deploy token>
+
+COOLIFY_EXPLORER_UI_WEBHOOK_URL=<Explorer UI deploy webhook>
+COOLIFY_EXPLORER_UI_WEBHOOK_API_KEY=<Explorer UI deploy token>
+
+COOLIFY_OPERATIONS_WEB_WEBHOOK_URL=<Operations Web deploy webhook>
+COOLIFY_OPERATIONS_WEB_WEBHOOK_API_KEY=<Operations Web deploy token>
+```
+
+CI only triggers an application resource when its own source or split Compose
+configuration selected that deployment. Broad packaging/core validation does
+not imply a broad production redeploy.
+
+For webhook-managed application resources, `AEKO_IMAGE_TAG=latest` is the
+supported automatic flow: CI promotes the validated selected image to
+`latest` before invoking that resource's webhook. If an application resource
+is pinned to an immutable SHA, update the Coolify environment tag as part of
+the release because a webhook cannot rewrite it.
+
+Validator/bootstrap/faucet-tools should remain pinned to immutable validated
+tags. Their promotion/deployment is intentional and independent of Explorer or
+Admin releases.
+
+A webhook never chooses a Compose path. Each Coolify split resource must already
+point at its matching `docker/coolify/<resource>/compose.yml`; the legacy
+resource remains on `docker/compose.coolify.yml`.
 
 ## Mandatory Aeko Social and AEKO Protocol lifecycle
 
