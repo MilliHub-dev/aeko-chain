@@ -94,6 +94,12 @@ def main() -> int:
         "key bootstrap must fail closed unless first-boot generation is explicit",
     )
 
+    faucet = loaded["faucet"]
+    require(
+        '"${AEKO_FAUCET_BIND_IP:-127.0.0.1}:${AEKO_FAUCET_HOST_PORT:-9900}:9900"' in faucet,
+        "Faucet cross-server host binding must default to loopback",
+    )
+
     validator = loaded["validator"]
     require("source: /data/aeko/validator-ledger" in validator, "validator ledger must use stable host storage")
     require("source: /data/aeko/keys" in validator, "validator must mount persistent chain identities")
@@ -106,6 +112,14 @@ def main() -> int:
         "split validator must require an explicit private Faucet endpoint",
     )
     require("df -Pk /ledger" in validator, "split validator healthcheck must enforce the low-disk guard")
+    require(
+        '"${AEKO_RPC_BIND_IP:-127.0.0.1}:${AEKO_RPC_HOST_PORT:-8899}:8899"' in validator,
+        "Validator RPC host binding must default to loopback",
+    )
+    require(
+        '"${AEKO_WS_BIND_IP:-127.0.0.1}:${AEKO_WS_HOST_PORT:-8900}:8900"' in validator,
+        "Validator WebSocket host binding must default to loopback",
+    )
 
     social = loaded["social-bootstrap"]
     require("AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?" in social, "Social bootstrap must require explicit validator RPC")
@@ -123,6 +137,10 @@ def main() -> int:
     require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?" in explorer_api, "Explorer API must require persistent PostgreSQL")
     require("source: /data/aeko/social-state" in explorer_api, "Explorer API must read canonical Social registry state")
     require("source: /data/aeko/protocol-state" in explorer_api, "Explorer API must read canonical Protocol registry state")
+    require(
+        '"${AEKO_EXPLORER_API_BIND_IP:-127.0.0.1}:${AEKO_EXPLORER_API_HOST_PORT:-8088}:8088"' in explorer_api,
+        "Explorer API cross-server host binding must default to loopback",
+    )
     for registry_key in (
         "AEKO_REGISTRY_SCHEMA_VERSION",
         "AEKO_CHAIN_GENESIS_HASH",
