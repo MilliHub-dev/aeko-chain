@@ -4,51 +4,72 @@ This guide describes the current single-validator public testnet deployment. The
 
 ## Deployment contract
 
-Use the repository's image-only Coolify Compose file:
+Coolify now has two deployment contracts:
 
-```text
-./docker/compose.coolify.yml
-```
+| Contract | Purpose |
+| --- | --- |
+| docker/coolify/*/compose.yml | preferred split resources; validator, Explorer API/UI and Operations Web can be deployed independently |
+| docker/compose.coolify.yml | compatibility contract for the existing all-in-one resource and rollback during migration |
 
-Coolify does not build the AEKO Rust or web applications from source. It pulls the published images selected by `AEKO_IMAGE_REPOSITORY` and `AEKO_IMAGE_TAG`.
+For new Coolify resources, create one Git-based Docker Compose application per
+folder under docker/coolify and select that folder's compose.yml. Do not point
+every resource at docker/compose.coolify.yml.
 
-The default public services are below. The Compose file is intentionally ordered by lifecycle so Coolify's service list is easy to scan: one-shot jobs first, then long-running chain services, then long-running application services, then opt-in tools. `funding-gateway` is the funding role of the single `aeko-operations-web` image (same source as Admin, separate deployment; not a separate app repo) serving the public funding/Test Console funding API, while `operations-web` is the authenticated Admin Console. `faucet` is the private Rust signer daemon.
+The split files pull the same published images as the legacy contract. They do
+not build Rust or web source on the Coolify host. Each resource has its own
+.env.example and has no Compose depends_on relationship to another resource.
 
-```text
-One-shot (expected Exited 0): key-bootstrap, social-bootstrap, protocol-bootstrap
-Core running/healthy:         faucet, validator
-Application running/healthy:  explorer-api, explorer-ui, funding-gateway, operations-web
-Opt-in only:                   wallet-tools
-```
+Cross-resource traffic must use explicit private endpoints. Service-name
+defaults such as validator:8899, faucet:9900 and explorer-api:8088 only work
+inside the old monolithic Compose project and are intentionally absent from the
+split contracts.
 
-The dependency graph remains `key-bootstrap -> faucet -> validator -> social-bootstrap/protocol-bootstrap/explorer-api`; declaration order is only for operator readability.
+The validator is now a true independent deployment unit. Updating Aeko Scan,
+the Explorer API or Operations Web does not require Coolify to recreate the
+validator resource.
 
-The validator owns public JSON-RPC/PubSub in this single-validator topology. The non-voting `rpc-node` remains an optional local/portable profile and is not part of the Coolify deployment.
+See docker/coolify/README.md for the resource map, migration order and
+established-chain storage safeguards.
 
 ## Required Coolify variables
 
-Add these values in the application's **Environment Variables** section:
+Do not use one giant shared Coolify environment for the split topology. Each
+resource owns only the variables documented in its adjacent .env.example.
 
-```text
-AEKO_PUBLIC_IP=<public IP of the Coolify host>
-EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
+Common image/logging variables are:
+
+~~~text
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended immutable 12-character main SHA>
-AEKO_PUBLIC_RPC_URL=<public JSON-RPC URL>
-AEKO_PUBLIC_WS_URL=<public PubSub WebSocket URL>
-AEKO_PUBLIC_FUNDING_URL=<public Testnet funding-role URL>
-FUNDING_ALLOWED_ORIGINS=<comma-separated Scan UI origins allowed to call funding>
-ADMIN_PASSWORD=<operator password>
-ADMIN_SESSION_SECRET=<16+ random characters>
-AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=<private Admin-to-Explorer settings token>
-FUNDING_GATEWAY_KEY=<funding-role secret authorizing server-side airdrops>
-FUNDING_ADMIN_API_KEY=<different private Admin-to-funding-role service key>
-FUNDING_MAX_CONSOLE_AIRDROP_AEKO=25
-```
+AEKO_LOG_MAX_SIZE=10m
+AEKO_LOG_MAX_FILES=3
+~~~
 
-Use the full template in [`docker/env.public.example`](../../docker/env.public.example) for optional storage, Explorer, SocialFi and logging settings.
+Important cross-resource values are configured only on consumers:
 
-Do not wrap Coolify environment values in shell quotes. The key directory is not an environment variable in the Coolify contract; it is deliberately fixed to the literal host path `/data/aeko/keys` so Coolify never parses `${...}` inside a volume source.
+~~~text
+# validator
+AEKO_PUBLIC_IP=<validator public IP>
+AEKO_INTERNAL_FAUCET_ADDRESS=<private-faucet-host>:9900
+
+# Social bootstrap / Protocol bootstrap / Explorer API / Operations Web
+AEKO_INTERNAL_RPC_URL=http://<private-validator-host>:8899
+
+# Explorer UI / Operations Web
+AEKO_INTERNAL_EXPLORER_API_URL=http://<private-explorer-api-host>:8088
+~~~
+
+Explorer API additionally owns EXPLORER_DATABASE_URL and its Explorer settings
+token. Explorer UI owns public browser RPC/WS URLs. Operations Web owns its
+admin credentials. Bootstrap and validator tunables remain local to their
+corresponding resources.
+
+Coolify values should be entered without shell quotes. The split contracts do
+not use env_file, so an uncommitted .env file is never a runtime dependency.
+
+The persistent host paths are also not environment variables. They are literal
+/data/aeko/** bind sources so Coolify can validate storage before containers
+start.
 
 ## Persistent keys
 
@@ -73,17 +94,33 @@ The Coolify Compose uses long-form volume syntax for every bind and named volume
 
 ## Persistent chain state
 
-The Coolify contract declares five Docker-managed named volumes:
+The legacy monolithic contract uses Docker-managed named volumes. The split
+contract deliberately uses stable host paths so moving a service into another
+Coolify resource cannot silently create a fresh project-scoped volume:
 
-- `validator-ledger` for validator ledger/accounts/snapshots.
-- `social-state` for SocialFi state keypairs and `social-registry.env`.
-- `protocol-state` for the published `protocol-registry.env`.
-- `protocol-continuity` for canonical protocol state/custody keypairs and the independent registry continuity anchor.
-- `admin-state` for the Funding Gateway policy, pending approval queue and grant ledger. Admin does not mount this volume.
+- /data/aeko/validator-ledger for validator ledger/accounts/snapshots.
+- /data/aeko/social-state for SocialFi state keypairs, lifecycle markers and social-registry.env.
+- /data/aeko/protocol-state for protocol-registry.env and Protocol lifecycle state.
+- /data/aeko/protocol-continuity for canonical Protocol custody/state keypairs and continuity anchor.
+- /data/aeko/keys for chain and Protocol authority key material.
 
-Normal redeploys must preserve all five volumes. The two protocol volumes form one continuity boundary: losing `protocol-state` while retaining `protocol-continuity` requires explicit recovery and reuses the same canonical addresses; losing `protocol-continuity` must not be treated as a fresh bootstrap. Social and Protocol registries are bound to the live genesis and the bootstrap volumes also carry durable lifecycle metadata. Do not remove `.aeko-bootstrap-in-progress` or `.aeko-chain-binding` manually.
+For an established chain, copy the contents of the current named volumes into
+these fixed paths before starting the corresponding split resource. Preserve
+ownership, modes and hidden lifecycle metadata. Keep
+AEKO_REQUIRE_EXISTING_LEDGER=1 and AEKO_ALLOW_CHAIN_KEY_GENERATION=0 during
+migration.
 
-For a deliberate fresh-genesis reset, set `AEKO_RESET_LEDGER=1`. That single reset signal is propagated through key bootstrap/preflight to the validator, Aeko Social, AEKO Protocol, and Explorer. Social/Protocol persist the replacement genesis as reset-in-progress before canonical recreation and mark it complete only after verification. If deployment is interrupted, the next run resumes from that marker even after the environment flag is returned to `0`. Key preflight still validates the persistent chain identities, but it deliberately ignores the old Protocol registry/continuity binding because those volumes are reset targets.
+The two Protocol paths remain one continuity boundary. Losing continuity must
+never be treated as a fresh bootstrap. Social and Protocol registries remain
+bound to the live genesis.
+
+An operator may mount dedicated block storage at
+/data/aeko/validator-ledger. This is intentionally outside the container
+definition: the validator only requires that the host path is durable and
+contains the established ledger.
+
+For the complete migration sequence and remote-Explorer registry override
+contract, use docker/coolify/README.md.
 
 ## Domains and ports
 
@@ -115,15 +152,38 @@ The browser never receives the raw Explorer backend origin. The proxy accepts re
 
 ## First deployment
 
-1. Create a Git-based Docker Compose application in Coolify and select this repository/branch.
-2. Set the Compose path to `./docker/compose.coolify.yml`.
-3. Add the required environment variables above, without shell quotes. Do not add `AEKO_KEYS_DIR`.
-4. Configure RPC, WebSocket, Explorer UI, Funding Gateway and the authenticated Admin domain. Do not expose explorer-api directly.
-5. Open TCP+UDP `8000-8050` for validator transport.
-6. For a genuinely fresh chain only, temporarily set `AEKO_REQUIRE_EXISTING_LEDGER=0` and `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`. For an established chain, keep `AEKO_REQUIRE_EXISTING_LEDGER=1` and `AEKO_ALLOW_CHAIN_KEY_GENERATION=0`.
-7. Deploy. After a fresh-chain deployment has created the intended identities and genesis, return the one-time flags to their safe established-chain values.
+For the split topology, create separate Coolify applications using these
+Compose paths:
 
-The Coolify stack uses `key-bootstrap` as a one-shot validator/initializer. It creates missing persistent chain keypairs only under the explicit first-boot flag and exits successfully; the faucet then starts, followed by the validator. Existing key files are never overwritten. `social-bootstrap` remains a one-shot initializer; successful completion is `Exited (0)`, which is an expected completed state rather than an unhealthy long-running service. `wallet-tools` is an opt-in `ops` profile and is not part of the default deployment.
+1. docker/coolify/key-bootstrap/compose.yml
+2. docker/coolify/faucet/compose.yml
+3. docker/coolify/validator/compose.yml
+4. docker/coolify/social-bootstrap/compose.yml
+5. docker/coolify/protocol-bootstrap/compose.yml
+6. docker/coolify/explorer-api/compose.yml
+7. docker/coolify/explorer-ui/compose.yml
+8. docker/coolify/operations-web/compose.yml
+
+wallet-tools is an optional operator job at
+docker/coolify/wallet-tools/compose.yml.
+
+For an established chain, do not deploy the split validator until the current
+ledger has been copied to /data/aeko/validator-ledger. Keep first-boot key and
+ledger guards in their fail-closed state.
+
+For a genuinely new chain, run Key bootstrap with
+AEKO_ALLOW_CHAIN_KEY_GENERATION=1, start Faucet, then start Validator with
+AEKO_REQUIRE_EXISTING_LEDGER=0. After the intended identities/genesis exist,
+return both flags to their established-chain values before future redeploys.
+
+Social and Protocol bootstrap remain one-shot jobs. Exited (0) is expected
+success. They no longer use Compose depends_on, so run them after the validator
+is healthy. Explorer UI and Operations Web can then be deployed or updated
+without restarting the validator or Explorer API.
+
+The legacy docker/compose.coolify.yml flow remains valid until you intentionally
+migrate; merging this repository change alone does not alter a configured
+Coolify resource's Compose path.
 
 ## Acceptance
 
@@ -165,9 +225,9 @@ The signed browser write path in the Explorer test console remains the final end
 
 If Coolify reports an error such as `Invalid Docker volume definition` or `Invalid volume source` before containers start:
 
-1. Confirm the application uses `./docker/compose.coolify.yml`, not the Dokploy or retired Compose path.
-2. Confirm every key bind source in the selected Compose is the literal `/data/aeko/keys` path with no `${...}` interpolation.
-3. Reload the Compose definition in Coolify and redeploy. The `key-bootstrap` service owns first-boot creation of the persistent key directory and missing keypairs.
+1. Confirm the application uses the intended docker/coolify/<resource>/compose.yml path, or the legacy docker/compose.coolify.yml only when intentionally using the monolith.
+2. Confirm every bind source is a literal /data/aeko/** path with no environment interpolation.
+3. Verify the required host directory/state exists before redeploying. Key bootstrap owns first-boot chain-key creation; it does not recreate an established ledger or bootstrap registry.
 
 Do not replace the Coolify bind mounts with any `${...}` volume-source form, including the Dokploy `${VAR:?message}` pattern. The separate Coolify contract uses a literal host path specifically to satisfy Coolify's storage parser.
 
