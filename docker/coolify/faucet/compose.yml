@@ -22,6 +22,10 @@ services:
       - ${AEKO_FAUCET_PER_REQUEST_CAP:-100}
     expose:
       - "9900"
+    # Loopback is the safe default. For a cross-server private route, bind this
+    # only to the host's VPN/private interface and protect it with host/cloud ACLs.
+    ports:
+      - "${AEKO_FAUCET_BIND_IP:-127.0.0.1}:${AEKO_FAUCET_HOST_PORT:-9900}:9900"
     healthcheck:
       test: ["CMD-SHELL", "test -s /keys/faucet-keypair.json"]
       interval: 30s
