@@ -165,8 +165,13 @@ An operator may mount dedicated block storage at
 definition: the validator only requires that the host path is durable and
 contains the established ledger.
 
-For the complete migration sequence and remote-Explorer registry override
-contract, use docker/coolify/README.md.
+The split Explorer API does not mount either bootstrap state directory. After
+bootstrap succeeds, copy the canonical Social/Protocol registry values into the
+Explorer API resource environment. This keeps Explorer independent of the
+bootstrap host while preserving the same genesis-bound identities.
+
+For the complete migration sequence and registry handoff contract, use
+docker/coolify/README.md.
 
 ## Domains and ports
 
