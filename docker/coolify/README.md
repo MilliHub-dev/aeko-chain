@@ -50,15 +50,18 @@ A successful bootstrap is a one-shot `Exited (0)` state.
 For an established chain, deploy this resource only after Validator RPC is
 healthy.
 
-For a brand-new chain, key generation is a two-stage lifecycle because the
-Social and Protocol services require a live Validator:
+For a brand-new chain, key creation/preflight is necessarily earlier than the
+full bootstrap application because Social and Protocol require a live
+Validator. Provision the intended chain keys under `/data/aeko/keys` first
+(using the existing AEKO tools/key-preflight workflow), then deploy
+`faucet-tools` and Validator. After Validator RPC is healthy, deploy the full
+`bootstrap` resource: key-bootstrap verifies the same keys first, then Social
+and Protocol initialize canonical state.
 
-1. run the `key-bootstrap` service with
-   `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`;
-2. deploy `faucet-tools` and then the Validator for first genesis;
-3. return `AEKO_ALLOW_CHAIN_KEY_GENERATION=0`;
-4. deploy/redeploy the full `bootstrap` resource so Social and Protocol
-   canonical state is initialized.
+Do not deploy the full bootstrap application before a fresh Validator exists
+and expect Social/Protocol to succeed. This explicit first-genesis exception
+avoids adding a normal environment switch that could silently disable mandatory
+Social or Protocol bootstrap.
 
 The bootstrap resource should normally live on the chain/key-custody host.
 Moving it to another server means that host must also receive the required
