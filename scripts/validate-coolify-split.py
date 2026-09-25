@@ -166,8 +166,11 @@ def main() -> int:
         "Explorer API must require an explicit reachable validator RPC endpoint",
     )
     require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?" in explorer_api, "Explorer API must require persistent PostgreSQL")
-    require("source: /data/aeko/social-state" in explorer_api, "Explorer API must read canonical Social registry state")
-    require("source: /data/aeko/protocol-state" in explorer_api, "Explorer API must read canonical Protocol registry state")
+    require("volumes:" not in explorer_api, "Explorer API split resource must not require bootstrap-host filesystem mounts")
+    require(
+        "AEKO_SOCIAL_REGISTRY_FILE" not in explorer_api and "AEKO_PROTOCOL_REGISTRY_FILE" not in explorer_api,
+        "Explorer API split resource must use exported registry environment values, not local registry files",
+    )
     require(
         '"${AEKO_EXPLORER_API_BIND_IP:-127.0.0.1}:${AEKO_EXPLORER_API_HOST_PORT:-8088}:8088"' in explorer_api,
         "Explorer API cross-server host binding must default to loopback",
