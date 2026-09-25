@@ -95,6 +95,22 @@ def main() -> int:
         validate_common(label, expected_services, compose, env_example)
         loaded[label] = compose
 
+    for label in ("bootstrap", "faucet-tools", "validator"):
+        require(
+            "${AEKO_IMAGE_TAG:?" in loaded[label],
+            f"{label} must require an explicit immutable image tag",
+        )
+        require(
+            "${AEKO_IMAGE_TAG:-latest}" not in loaded[label],
+            f"{label} must not silently roll forward through latest",
+        )
+
+    for label in ("explorer-api", "explorer-ui", "operations-web"):
+        require(
+            "${AEKO_IMAGE_TAG:-latest}" in loaded[label],
+            f"{label} must support post-promotion latest-tag application deploys",
+        )
+
     bootstrap = loaded["bootstrap"]
     key_bootstrap = service_block(bootstrap, "key-bootstrap")
     social = service_block(bootstrap, "social-bootstrap")
