@@ -278,26 +278,45 @@ The GitHub deployment workflow calls the configured Dokploy webhook only after t
 
 ## Coolify / public deployment
 
-Use [`docker/compose.coolify.yml`](./docker/compose.coolify.yml) for Coolify. It preserves the same public validator, SocialFi and Explorer topology as Dokploy, but its storage syntax avoids required/error and fallback interpolation in volume sources so Coolify can validate persistent storage before container startup.
+Coolify supports independent resource deployments under
+[docker/coolify](./docker/coolify/README.md). This is the preferred topology:
+validator, Explorer API, Explorer UI and Operations Web can be updated without
+recreating one another.
 
-Set the Compose path to:
-
-```text
-./docker/compose.coolify.yml
-```
-
-Required Coolify variables:
+Each deployable resource has its own Compose path and .env.example, for example:
 
 ```text
-AEKO_PUBLIC_IP=<public IP of Coolify host>
-EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
-AEKO_IMAGE_REPOSITORY=surdma
-AEKO_IMAGE_TAG=<recommended 12-character published main SHA>
+docker/coolify/validator/compose.yml
+docker/coolify/explorer-api/compose.yml
+docker/coolify/explorer-ui/compose.yml
+docker/coolify/operations-web/compose.yml
 ```
 
-Enter Coolify values without surrounding shell quotes. Coolify does not use an `AEKO_KEYS_DIR` dashboard variable; the deployment contract binds the literal host path `/data/aeko/keys`. Existing-chain redeploys must preserve the four established validator/faucet key files there. A deliberate first boot may temporarily set `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`, then return it to `0`. The Coolify contract uses Docker-managed `validator-ledger`, `social-state`, `protocol-state`, and `protocol-continuity` volumes. See [`docker/env.public.example`](./docker/env.public.example) for the complete public environment template.
+The existing [docker/compose.coolify.yml](./docker/compose.coolify.yml) remains
+the legacy all-in-one compatibility/rollback contract. Merging the split files
+does not change an existing Coolify resource until its configured Compose path
+is intentionally migrated.
 
-Configure Coolify domains against the internal service ports:
+Split Coolify state uses literal host paths under /data/aeko. In particular,
+the validator ledger is /data/aeko/validator-ledger and chain keys remain
+/data/aeko/keys. This avoids a new Coolify/Compose project name silently
+creating an empty replacement named volume.
+
+Cross-resource dependencies are explicit environment endpoints rather than
+Compose service DNS. For example, validator requires
+AEKO_INTERNAL_FAUCET_ADDRESS, while Explorer API/bootstrap jobs require
+AEKO_INTERNAL_RPC_URL and Explorer UI requires
+AEKO_INTERNAL_EXPLORER_API_URL.
+
+For an established chain, migrate current named-volume data into the fixed
+/data/aeko paths before switching Compose paths. Keep
+AEKO_REQUIRE_EXISTING_LEDGER=1 and AEKO_ALLOW_CHAIN_KEY_GENERATION=0 during that
+migration. The full migration order, remote-Explorer registry override
+contract, and resource-specific variables are documented in
+[docker/coolify/README.md](./docker/coolify/README.md) and
+[docs/operations/coolify.md](./docs/operations/coolify.md).
+
+Public routing remains:
 
 ```text
 rpc.aeko.online   -> validator:8899
@@ -305,7 +324,8 @@ ws.aeko.online    -> validator:8900
 scan.aeko.online  -> explorer-ui:4000
 ```
 
-As with Dokploy, `gossip.aeko.online` points directly to `AEKO_PUBLIC_IP`. Allow inbound TCP+UDP `8000-8050` and do not route gossip through the HTTP proxy.
+gossip.aeko.online still points directly to AEKO_PUBLIC_IP. Allow inbound
+TCP+UDP 8000-8050 and do not route gossip through the HTTP proxy.
 
 ## Create and use a wallet
 
