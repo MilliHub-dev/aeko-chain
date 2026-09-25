@@ -91,12 +91,17 @@ contract never assumes these cross-resource names:
 
 Use explicit reachable endpoints instead:
 
-    AEKO_INTERNAL_FAUCET_ADDRESS=<private-faucet-host>:9900
-    AEKO_INTERNAL_RPC_URL=http://<private-validator-host>:8899
-    AEKO_INTERNAL_EXPLORER_API_URL=http://<private-explorer-api-host>:8088
+    AEKO_INTERNAL_FAUCET_ADDRESS=<reachable-faucet-host>:9900
+    AEKO_INTERNAL_RPC_URL=<reachable-validator-http-or-https-url>
+    AEKO_INTERNAL_EXPLORER_API_URL=<reachable-explorer-api-http-or-https-url>
 
-Here, `INTERNAL` means server-side/private configuration. It does not mean
-"must be Docker-internal" or "must be on the same machine."
+Here, `INTERNAL` means server-side configuration. It does not mean "must be
+Docker-internal", "must be on the same machine", or even "must use a private
+address". A private/VPN route is preferred, but an HTTP service consumer may use
+a controlled HTTPS endpoint when separate providers/instances have no shared
+private network. Faucet is raw TCP, so if it must cross hosts without a VPN,
+bind it only on the required interface and firewall port 9900 to the Validator
+source addresses.
 
 When resources are on the same Coolify destination, you may use Coolify's
 predefined network after verifying the actual hostname. Still configure the
@@ -151,6 +156,14 @@ resource/project name cannot silently create empty replacement state:
 
 These paths are deliberately not environment-interpolated because Coolify
 validates bind sources before starting containers.
+
+Create the required host directories before first split deployment:
+
+    sudo mkdir -p /data/aeko/keys
+    sudo mkdir -p /data/aeko/validator-ledger
+    sudo mkdir -p /data/aeko/social-state
+    sudo mkdir -p /data/aeko/protocol-state
+    sudo mkdir -p /data/aeko/protocol-continuity
 
 A path may itself be backed by an attached block volume or another durable
 filesystem. What matters to the container contract is that the path is stable
