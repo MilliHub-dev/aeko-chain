@@ -145,6 +145,12 @@ def main() -> int:
         and 'refusing to create a replacement genesis' in validator_entrypoint,
         "validator entrypoint must fail closed instead of recreating an established chain",
     )
+    genesis_guard = validator_entrypoint.index('if [ ! -f "$LEDGER_PATH/genesis.bin" ]; then')
+    require(
+        validator_entrypoint.index('require_file "$STAKE_FILE" "stake account"') > genesis_guard
+        and validator_entrypoint.index('require_file "$FAUCET_FILE" "faucet"') > genesis_guard,
+        "validator entrypoint must require stake/faucet keypairs only when genesis is actually created",
+    )
     for label, compose in (("Dokploy", dokploy), ("Coolify", coolify)):
         require(
             "AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-1}" in compose,
