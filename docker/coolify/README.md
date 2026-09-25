@@ -118,8 +118,29 @@ configuration and set the AEKO_INTERNAL_* variable explicitly; do not hard-code
 a guessed service name.
 
 When resources are on different servers, use a private routed address, private
-DNS, VPN/overlay network or another controlled internal route. Do not make
-Faucet 9900 or Explorer API 8088 public merely to make the split topology work.
+DNS, VPN/overlay network or another controlled internal route. The Faucet,
+Validator RPC/WS and Explorer API split Compose files publish their server-side
+ports to 127.0.0.1 by default. To make one reachable from another server, change
+only that service's *_BIND_IP to the host's VPN/private-interface address and
+allow the port only between the required private peers:
+
+    Faucet:
+      AEKO_FAUCET_BIND_IP=<private-or-vpn-ip>
+      AEKO_FAUCET_HOST_PORT=9900
+
+    Validator:
+      AEKO_RPC_BIND_IP=<private-or-vpn-ip>
+      AEKO_RPC_HOST_PORT=8899
+      AEKO_WS_BIND_IP=<private-or-vpn-ip>
+      AEKO_WS_HOST_PORT=8900
+
+    Explorer API:
+      AEKO_EXPLORER_API_BIND_IP=<private-or-vpn-ip>
+      AEKO_EXPLORER_API_HOST_PORT=8088
+
+Do not use 0.0.0.0 for Faucet or Explorer API merely to make cross-server
+routing convenient. A host-port mapping bypasses Coolify's domain proxy and
+must be protected by host/cloud firewall rules.
 
 ## State and key affinity
 
