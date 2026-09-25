@@ -36,17 +36,22 @@ established-chain storage safeguards.
 ## Auto-deploy isolation
 
 Creating separate Coolify applications is only half of validator isolation.
-A Git-connected application can still redeploy on every matching repository
-webhook.
+The release trigger must also stop targeting one monolithic application.
 
-For production, disable Auto Deploy on Validator, the bootstrap resource and
-normally faucet-tools. Keep Validator on an immutable AEKO_IMAGE_TAG and
-promote it only when a validator release is intentional.
+Keep the default legacy webhook mode during migration. After all six resources
+exist and are validated, set the GitHub repository variable
+`COOLIFY_DEPLOYMENT_MODE=split`. In that mode CI triggers separate post-image-
+promotion webhooks only for Explorer API, Explorer UI and Operations Web.
+Validator, bootstrap and faucet-tools remain manual releases.
 
-For Explorer API, Explorer UI and Operations Web, either use the same explicit
-promotion model or configure Coolify Watch Paths so only changes relevant to
-that application trigger deployment. Coolify stores these settings on the
-application rather than in the Compose YAML.
+Disable Coolify Git Auto Deploy for webhook-managed resources so a repository
+push cannot race ahead of Docker image promotion. Validator/bootstrap/
+faucet-tools should also stay manual.
+
+The three application resources use `AEKO_IMAGE_TAG=latest` in their split
+examples so the post-promotion webhook actually pulls the newly promoted image.
+If you pin them to immutable SHA tags, update the environment tag as part of
+the deployment because a webhook alone cannot change it.
 
 When split resources on the same Coolify destination need private
 cross-resource communication, Connect To Predefined Network can attach them to
@@ -72,10 +77,14 @@ Common image/logging variables are:
 
 ~~~text
 AEKO_IMAGE_REPOSITORY=surdma
-AEKO_IMAGE_TAG=<recommended immutable 12-character main SHA>
 AEKO_LOG_MAX_SIZE=10m
 AEKO_LOG_MAX_FILES=3
 ~~~
+
+Image-tag policy is resource-specific: keep Validator/bootstrap/faucet-tools on
+an immutable validated SHA. Explorer API/UI and Operations Web default to
+`latest` when using the split post-promotion webhooks; pinning them to a SHA
+requires updating that value during release.
 
 Important cross-resource values are configured only on consumers:
 
