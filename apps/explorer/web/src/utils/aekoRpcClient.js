@@ -87,7 +87,7 @@ function fundingEndpoint(fundingUrl, path) {
 
   let base;
   try {
-    base = new URL(configured);
+    base = new URL(configured, globalThis.location?.origin || 'http://127.0.0.1');
   } catch {
     throw new Error('Test funding address is invalid.');
   }
@@ -95,10 +95,11 @@ function fundingEndpoint(fundingUrl, path) {
     throw new Error('Test funding address must use http or https.');
   }
 
-  // Funding URLs may point at the public /funding page. API routes always live
-  // at the deployment origin, so resolve absolute API paths from the origin
-  // instead of string-concatenating them onto an optional page pathname.
-  return new URL(path, `${base.origin}/`).toString();
+  // Funding is now served by the Explorer/Scan backend. `fundingUrl` is the
+  // same-origin Explorer proxy base (for example
+  // `/api/explorer/testnet`), not a separate Funding Gateway address.
+  const basePath = `${base.pathname.replace(/\/?$/, '/')}`;
+  return new URL(path.replace(/^\//, ''), `${base.origin}${basePath}`).toString();
 }
 
 async function readFundingResponse(response, label) {
@@ -118,12 +119,12 @@ async function readFundingResponse(response, label) {
 }
 
 export async function getFundingPolicy(fundingUrl) {
-  const response = await fetch(fundingEndpoint(fundingUrl, '/api/funding/policy'));
+  const response = await fetch(fundingEndpoint(fundingUrl, '/funding/policy'));
   return readFundingResponse(response, 'Funding policy request');
 }
 
 export async function requestFundingApproval(fundingUrl, address) {
-  const response = await fetch(fundingEndpoint(fundingUrl, '/api/funding/request'), {
+  const response = await fetch(fundingEndpoint(fundingUrl, '/funding/request'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address }),
@@ -132,7 +133,7 @@ export async function requestFundingApproval(fundingUrl, address) {
 }
 
 export async function requestConsoleAirdrop(fundingUrl, address, amountAeko) {
-  const response = await fetch(fundingEndpoint(fundingUrl, '/api/funding/airdrop'), {
+  const response = await fetch(fundingEndpoint(fundingUrl, '/funding/airdrop'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address, amountAeko }),

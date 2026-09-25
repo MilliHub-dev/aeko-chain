@@ -13,7 +13,6 @@ pub struct AppState {
     pub max_ready_lag_slots: u64,
     pub social_enabled: bool,
     pub settings_admin_token: String,
-    pub funding_admin_token: String,
 }
 
 impl AppState {
@@ -25,7 +24,6 @@ impl AppState {
         max_ready_lag_slots: u64,
         social_enabled: bool,
         settings_admin_token: impl Into<String>,
-        funding_admin_token: impl Into<String>,
     ) -> Self {
         Self {
             repository,
@@ -35,7 +33,6 @@ impl AppState {
             max_ready_lag_slots,
             social_enabled,
             settings_admin_token: settings_admin_token.into(),
-            funding_admin_token: funding_admin_token.into(),
         }
     }
 

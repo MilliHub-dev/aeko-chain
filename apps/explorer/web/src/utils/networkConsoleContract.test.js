@@ -142,7 +142,8 @@ test('funding API URLs resolve from the configured origin and reject HTML 200 re
   const rpcClient = await source('utils/aekoRpcClient.js');
 
   assert.match(rpcClient, /base\.origin/);
-  assert.match(rpcClient, /new URL\(path,/);
+  assert.match(rpcClient, /new URL\(path\.replace\(/);
+  assert.match(rpcClient, /same-origin Explorer proxy base/);
   assert.match(rpcClient, /content-type/);
   assert.match(rpcClient, /non-JSON/);
   assert.match(rpcClient, /requestFundingApproval/);
@@ -151,41 +152,16 @@ test('funding API URLs resolve from the configured origin and reject HTML 200 re
 });
 
 
-test('funding runtime separates public approval, private admin control and direct Test Console airdrops', async () => {
-  const store = await source('../../../admin/src/lib/funding-store.ts');
-  const publicRoute = await source('../../../admin/src/app/api/funding/request/route.ts');
-  const consoleRoute = await source('../../../admin/src/app/api/funding/airdrop/route.ts');
-  const adminRoute = await source('../../../admin/src/app/api/admin/funding/requests/route.ts');
-  const privateRoute = await source('../../../admin/src/app/api/internal/funding/requests/route.ts');
-  const adminClient = await source('../../../admin/src/lib/funding-admin-client.ts');
+test('funding runtime is owned by the Scan backend after the Admin gateway removal', async () => {
+  const migration = await source('../../../explorer/backend/migrations/0010_funding.sql');
+  const fundingFeature = await source('../../../explorer/backend/src/features/funding/mod.rs');
 
-  assert.match(store, /requestFundingApproval/);
-  assert.match(store, /decideFundingRequest/);
-  assert.match(store, /status: 'pending'/);
-  assert.match(store, /GrantSource = 'public' \| 'backend' \| 'admin' \| 'console'/);
-  assert.match(store, /FUNDING_MAX_CONSOLE_AIRDROP_AEKO/);
-  assert.match(store, /makeRoomForFundingRequest/);
-  assert.match(store, /REQUEST_QUEUE_FULL/);
-
-  assert.match(publicRoute, /requestFundingApproval\(address, 'public'\)/);
-  assert.match(publicRoute, /status: 202/);
-  assert.doesNotMatch(publicRoute, /trusted|FUNDING_ADMIN_API_KEY|\bgrant\(|requestAirdrop/);
-  assert.match(publicRoute, /throttle\(clientIp\(req\.headers\), 'approval'\)/);
-  assert.doesNotMatch(publicRoute, /explorerUrl/);
-
-  assert.match(consoleRoute, /source: 'console'/);
-  assert.match(consoleRoute, /throttle\(clientIp\(req\.headers\), 'console-airdrop'\)/);
-
-  assert.match(adminRoute, /fundingAdminClient/);
-  assert.match(adminRoute, /decideRequest/);
-  assert.doesNotMatch(adminRoute, /decideFundingRequest/);
-  assert.match(adminClient, /AEKO_INTERNAL_FUNDING_URL/);
-  assert.match(adminClient, /x-aeko-funding-admin-key/);
-
-  assert.match(privateRoute, /isAuthorizedFundingAdminRequest/);
-  assert.match(privateRoute, /decideFundingRequest/);
-  assert.match(privateRoute, /approve/);
-  assert.match(privateRoute, /reject/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS funding_settings/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS funding_requests/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS funding_grants/);
+  assert.match(fundingFeature, /\/funding\/request/);
+  assert.match(fundingFeature, /\/funding\/airdrop/);
+  assert.match(fundingFeature, /x-aeko-funding-admin-token/);
 });
 
 test('Admin funding polling preserves an operator policy draft', async () => {

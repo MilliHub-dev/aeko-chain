@@ -22,7 +22,10 @@ run_explorer_web=false
 run_network=false
 run_sdk_non_rust=false
 run_sdk_rust=false
-run_ci_contract=false
+# Every DevOps run must prove that all local composite actions still load.
+# This is a cheap orchestration smoke test and must not depend on whether the
+# product change happened to touch a CI-owned path.
+run_ci_contract=true
 
 if [ "$ADMIN" = "true" ] || [ "$PACKAGING" = "true" ]; then run_admin=true; fi
 if [ "$CLI" = "true" ] || [ "$PACKAGING" = "true" ]; then run_cli=true; fi
@@ -49,7 +52,6 @@ if [ "$CI_PIPELINE" = "true" ]; then
   run_network=true
   run_sdk_non_rust=true
   run_sdk_rust=true
-  run_ci_contract=true
 fi
 
 if [ "$SDK_JS" = "true" ] || [ "$SDK_NODE" = "true" ] || [ "$SDK_PYTHON" = "true" ]; then

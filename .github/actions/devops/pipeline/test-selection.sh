@@ -61,8 +61,9 @@ run_plan_case() {
   if [ "$ci_pipeline" = "true" ]; then
     assert_output "$output" "run_sdk_non_rust=true"
     assert_output "$output" "run_sdk_rust=true"
-    assert_output "$output" "run_ci_contract=true"
   fi
+
+  assert_output "$output" "run_ci_contract=true"
 
   rm -f "$output"
   echo "[ok] $label"

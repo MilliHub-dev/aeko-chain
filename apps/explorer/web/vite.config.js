@@ -110,7 +110,7 @@ export default defineConfig(({ command, mode }) => {
                   rpcUrl: testnetLoopback?.rpcUrl || publicRpc,
                   websocketUrl: testnetLoopback?.websocketUrl || publicWs,
                   explorerApiUrl: '/api/explorer/testnet',
-                  fundingUrl: '/api/explorer/testnet/funding',
+                  fundingUrl: '/api/explorer/testnet',
                 },
               }
             : {}),
@@ -129,7 +129,7 @@ export default defineConfig(({ command, mode }) => {
                   rpcUrl: localnetRpc,
                   websocketUrl: localnetWs,
                   explorerApiUrl: '/api/explorer/localnet',
-                  fundingUrl: '/api/explorer/localnet/funding',
+                  fundingUrl: '/api/explorer/localnet',
                 },
               }
             : {}),

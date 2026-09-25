@@ -18,7 +18,6 @@ export AEKO_DEPLOY_ENV
 if [ "$AEKO_DEPLOY_ENV" != "local" ]; then
   : "${AEKO_PUBLIC_RPC_URL:?AEKO_PUBLIC_RPC_URL is required}"
   : "${AEKO_PUBLIC_WS_URL:?AEKO_PUBLIC_WS_URL is required}"
-  : "${AEKO_PUBLIC_FUNDING_URL:?AEKO_PUBLIC_FUNDING_URL is required}"
 fi
 
 node <<'NODE'
@@ -44,7 +43,7 @@ const testnet = {
   rpcUrl: optional('AEKO_PUBLIC_RPC_URL'),
   websocketUrl: optional('AEKO_PUBLIC_WS_URL'),
   explorerApiUrl: '/api/explorer/testnet',
-  fundingUrl: optional('AEKO_PUBLIC_FUNDING_URL'),
+  fundingUrl: '/api/explorer/testnet',
 };
 
 const mainnetRpcUrl = optional('AEKO_MAINNET_RPC_URL');
@@ -75,14 +74,13 @@ const mainnet = {
 // loopback for local Compose runs.
 const localnetRpcEnv = optional('AEKO_LOCALNET_RPC_URL');
 const localnetWsEnv = optional('AEKO_LOCALNET_WS_URL');
-const localnetFundingEnv = optional('AEKO_LOCALNET_FUNDING_URL');
 const localnetUpstreamEnv = optional('AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL');
-const localnetEnvSet = [localnetRpcEnv, localnetWsEnv, localnetFundingEnv, localnetUpstreamEnv].some(Boolean);
+const localnetEnvSet = [localnetRpcEnv, localnetWsEnv, localnetUpstreamEnv].some(Boolean);
 const localnet = {
   rpcUrl: localnetRpcEnv || (localnetEnvSet ? 'http://127.0.0.1:8899' : ''),
   websocketUrl: localnetWsEnv || (localnetEnvSet ? 'ws://127.0.0.1:8900' : ''),
   explorerApiUrl: localnetEnvSet ? '/api/explorer/localnet' : '',
-  fundingUrl: localnetFundingEnv,
+  fundingUrl: localnetUpstreamEnv ? '/api/explorer/localnet' : '',
 };
 
 const demo = {

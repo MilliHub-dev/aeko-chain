@@ -5,6 +5,16 @@ function EndpointValue({ value }) {
   return <div className="font-mono text-sm break-all text-white">{value || 'Not configured'}</div>;
 }
 
+function fundingHost(value) {
+  if (!value) return null;
+  try {
+    const origin = globalThis.location?.origin || 'http://127.0.0.1';
+    return new URL(value, origin).host || value;
+  } catch {
+    return null;
+  }
+}
+
 export default function NetworkToolsPanel({ network }) {
   const config = getNetworkConfig(network);
 
@@ -36,14 +46,14 @@ export default function NetworkToolsPanel({ network }) {
       </div>
       <div className="bg-white/5 border border-white/10 rounded-xl p-5">
         <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Test funding</div>
-        {config.fundingEnabled ? (
+        {config.fundingEnabled && fundingHost(config.fundingUrl) ? (
           <a
             href={config.fundingUrl}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 text-aeko-accent hover:text-white transition-colors text-sm break-all"
           >
-            {new URL(config.fundingUrl).host}
+            {fundingHost(config.fundingUrl)}
             <ExternalLink size={14} />
           </a>
         ) : (

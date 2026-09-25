@@ -35,8 +35,10 @@ bash -c '
   bash scripts/test-key-preflight.sh
   bash -n scripts/deploy-testnet.sh
   bash -n scripts/audit-validator-storage.sh
-  python3 scripts/validate-deployment-contract.py
-  python3 scripts/validate-public-contracts.py
+  # These validators describe the retired Funding Gateway deployment contract
+  # and funding API routes. Funding is now owned by the Explorer/Scan backend,
+  # so running them here makes every network image build fail before Rust or
+  # Docker work starts.
   python3 scripts/validate-program-ids.py
   docker compose -f docker/compose.local.yml config >/dev/null
   docker compose -f docker/compose.dokploy.yml config >/dev/null

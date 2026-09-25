@@ -11,6 +11,7 @@ type Settings = {
   cooldownHours: number
   dailyBudgetAeko: number
   maxManualGrantAeko: number
+  consoleAirdropCapAeko: number
 }
 type Grant = { address: string; amountAeko: number; signature: string; at: string; source: string; confirmed: boolean }
 type FundingRequest = {
@@ -152,7 +153,7 @@ export default function FundingGrantsPage() {
           type="number"
           min="0"
           step={step}
-          value={String(draft[key])}
+          value={String(draft[key] ?? (key === 'consoleAirdropCapAeko' ? 25 : 0))}
           onChange={(e) => setDraft({ ...draft, [key]: Number(e.target.value) })}
           className={inputClass}
         />
@@ -270,7 +271,7 @@ export default function FundingGrantsPage() {
               <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">Public policy</div>
               <h2 className="mt-1 font-semibold text-white">Approval limits</h2>
               <p className="mt-1 text-sm leading-6 text-gray-500">
-                These values define what a normal public request asks for and what can be released after approval.
+                These values define public grant requests, manual operator grants, and the separate developer Test Console airdrop ceiling.
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -278,6 +279,7 @@ export default function FundingGrantsPage() {
               {field('cooldownHours', 'Cooldown per wallet (hours)')}
               {field('dailyBudgetAeko', 'Daily budget (AEKO)')}
               {field('maxManualGrantAeko', 'Max manual grant (AEKO)')}
+              {field('consoleAirdropCapAeko', 'Test Console airdrop cap (AEKO)', '0.1')}
             </div>
             <button type="submit" disabled={busy || !draft} className="mt-5 min-h-[44px] rounded-lg bg-emerald-400 px-4 text-sm font-semibold text-black transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40">
               {busy ? 'Saving…' : 'Save policy'}
@@ -289,7 +291,7 @@ export default function FundingGrantsPage() {
               <div className="text-xs uppercase tracking-[0.18em] text-amber-300">Operator action</div>
               <h2 className="mt-1 font-semibold text-white">Manual grant</h2>
               <p className="mt-1 text-sm leading-6 text-gray-500">
-                Bypasses public cooldown and daily budget. The manual ceiling and private Faucet Daemon per-request cap still apply.
+                Sends an operator-initiated grant to a recipient. This is separate from public approval requests and direct Test Console airdrops; the manual grant ceiling and private Faucet Daemon cap still apply.
               </p>
             </div>
             <div>
