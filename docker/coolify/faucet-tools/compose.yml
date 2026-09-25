@@ -1,0 +1,48 @@
+# Coolify split resource: private Faucet daemon plus opt-in wallet/operator tools.
+# These services share chain key custody, but only Faucet is a long-running daemon.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: ${AEKO_LOG_MAX_SIZE:-10m}
+    max-file: ${AEKO_LOG_MAX_FILES:-3}
+
+services:
+  faucet:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-faucet:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /data/aeko/keys
+        target: /keys
+        read_only: true
+    command:
+      - --keypair
+      - /keys/faucet-keypair.json
+      - --per-request-cap
+      - ${AEKO_FAUCET_PER_REQUEST_CAP:-100}
+    expose:
+      - "9900"
+    # Loopback is the safe default. For a validator on another server, bind
+    # only to a VPN/private interface and restrict the port to validator peers.
+    ports:
+      - "${AEKO_FAUCET_BIND_IP:-127.0.0.1}:${AEKO_FAUCET_HOST_PORT:-9900}:9900"
+    healthcheck:
+      test: ["CMD-SHELL", "test -s /keys/faucet-keypair.json"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging: *default-logging
+
+  wallet-tools:
+    profiles: ["ops"]
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: "no"
+    command: ["aeko", "--help"]
+    volumes:
+      - type: bind
+        source: /data/aeko/keys
+        target: /keys
+    logging: *default-logging
