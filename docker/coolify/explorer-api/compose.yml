@@ -80,6 +80,10 @@ services:
       AEKO_COMMUNITY_REWARDS_ACCOUNT: ${AEKO_COMMUNITY_REWARDS_ACCOUNT:-}
     expose:
       - "8088"
+    # Keep the API private by default. Bind to a VPN/private NIC only when UI
+    # or Operations Web is intentionally hosted on another server.
+    ports:
+      - "${AEKO_EXPLORER_API_BIND_IP:-127.0.0.1}:${AEKO_EXPLORER_API_HOST_PORT:-8088}:8088"
     volumes:
       - type: bind
         source: /data/aeko/social-state
