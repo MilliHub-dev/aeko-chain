@@ -8,7 +8,7 @@ x-logging: &default-logging
 
 services:
   validator:
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-validator:${AEKO_IMAGE_TAG:-latest}
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-validator:${AEKO_IMAGE_TAG:?Set an immutable published AEKO image tag}
     pull_policy: always
     restart: unless-stopped
     environment:
