@@ -91,14 +91,19 @@ Important cross-resource values are configured only on consumers:
 ~~~text
 # validator
 AEKO_PUBLIC_IP=<validator public IP>
-AEKO_INTERNAL_FAUCET_ADDRESS=<private-faucet-host>:9900
+AEKO_INTERNAL_FAUCET_ADDRESS=<reachable-faucet-host>:9900
 
 # bootstrap / Explorer API / Operations Web
-AEKO_INTERNAL_RPC_URL=http://<private-validator-host>:8899
+AEKO_INTERNAL_RPC_URL=<reachable-validator-http-or-https-url>
 
 # Explorer UI / Operations Web
-AEKO_INTERNAL_EXPLORER_API_URL=http://<private-explorer-api-host>:8088
+AEKO_INTERNAL_EXPLORER_API_URL=<reachable-explorer-api-http-or-https-url>
 ~~~
+
+The `INTERNAL` prefix means server-side configuration, not same-host Docker
+DNS. When two instances or providers have no shared private network, HTTP
+consumers may use a controlled HTTPS endpoint. Faucet is raw TCP and should be
+restricted to Validator source addresses when it crosses hosts.
 
 Explorer API additionally owns EXPLORER_DATABASE_URL and its Explorer settings
 token. Explorer UI owns public browser RPC/WS URLs. Operations Web owns its
