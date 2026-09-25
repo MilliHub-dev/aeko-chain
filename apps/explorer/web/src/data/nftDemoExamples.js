@@ -1,28 +1,24 @@
-import { getNetworkConfig } from '../utils/networkConfig';
+import { getDemoConfig, getNetworkConfig } from '../utils/networkConfig';
 
-const runtime = globalThis.__AEKO_RUNTIME_CONFIG__ || {};
-const vite = import.meta.env;
 const testnet = getNetworkConfig('testnet');
-
-const demoCollection = String(runtime.demoCollection || vite.VITE_AEKO_DEMO_COLLECTION || '').trim();
-const demoToken = String(runtime.demoToken || vite.VITE_AEKO_DEMO_TOKEN || '').trim();
+const demo = getDemoConfig();
 
 const canonicalExample = {
   id: 'aeko-genesis-pass-1',
   label: 'AEKO Genesis Pass #1',
-  status: demoCollection && demoToken ? 'live' : 'pending',
+  status: demo.collection && demo.token ? 'live' : 'pending',
   description:
     'Canonical AEKO-721 example for docs, wallet testing, and explorer verification.',
-  rpcEndpoint: String(runtime.demoRpcUrl || vite.VITE_AEKO_DEMO_RPC || testnet.rpcUrl || '').trim(),
-  collectionAddress: demoCollection,
-  tokenAddress: demoToken,
-  collectionSeed: vite.VITE_AEKO_DEMO_COLLECTION_SEED || 'aeko-genesis-collection',
-  tokenSeed: vite.VITE_AEKO_DEMO_TOKEN_SEED || 'aeko-genesis-token-1',
+  rpcEndpoint: demo.rpcUrl || testnet.rpcUrl,
+  collectionAddress: demo.collection,
+  tokenAddress: demo.token,
+  collectionSeed: 'aeko-genesis-collection',
+  tokenSeed: 'aeko-genesis-token-1',
   collectionName: 'AEKO Genesis Passes',
   collectionSymbol: 'AGEN',
   collectionBaseUri: 'ar://aeko-genesis-passes',
   metadataName: 'Genesis Pass #1',
-  metadataUri: String(runtime.demoMetadataUri || 'ar://genesis-pass-1').trim(),
+  metadataUri: demo.metadataUri || 'ar://genesis-pass-1',
   tokenId: '1',
   royaltyBps: '500',
 };

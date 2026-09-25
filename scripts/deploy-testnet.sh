@@ -26,10 +26,7 @@ AEKO_IMAGE_REPOSITORY=${AEKO_IMAGE_REPOSITORY:-surdma}
 AEKO_IMAGE_TAG=${AEKO_IMAGE_TAG:-latest}
 AEKO_PUBLIC_RPC_URL=${AEKO_PUBLIC_RPC_URL:-}
 AEKO_PUBLIC_WS_URL=${AEKO_PUBLIC_WS_URL:-}
-AEKO_PUBLIC_EXPLORER_API_URL=${AEKO_PUBLIC_EXPLORER_API_URL:-}
-AEKO_PUBLIC_EXPLORER_URL=${AEKO_PUBLIC_EXPLORER_URL:-}
 AEKO_PUBLIC_FUNDING_URL=${AEKO_PUBLIC_FUNDING_URL:-}
-AEKO_PUBLIC_ADMIN_URL=${AEKO_PUBLIC_ADMIN_URL:-}
 AEKO_PUBLIC_GOSSIP_ADDRESS=${AEKO_PUBLIC_GOSSIP_ADDRESS:-}
 FORCE_REBUILD=${FORCE_REBUILD:-0}
 RESET_CHAIN=0
@@ -131,8 +128,8 @@ if [ -z "${AEKO_EXPLORER_START_SLOT:-}" ]; then
   fi
 fi
 
-log "starting faucet, validator, state bootstraps, Explorer and Operations Web"
-docker compose -f "$COMPOSE_FILE" up -d faucet validator social-bootstrap protocol-bootstrap explorer-api explorer-ui operations-web
+log "starting faucet, validator, state bootstraps, Explorer, Funding Gateway and Admin"
+docker compose -f "$COMPOSE_FILE" up -d faucet validator social-bootstrap protocol-bootstrap explorer-api explorer-ui funding-gateway operations-web
 
 log "waiting for validator RPC (max 90s)"
 HEALTHY=0
@@ -203,20 +200,22 @@ fi
 log "✓ testnet is live (slot $SLOT_B, advancing; SocialFi registry complete)"
 cat <<EOF2
 
-  Direct host endpoints:
+  Direct local endpoints:
     RPC          http://${AEKO_DOMAIN}:8899
     PubSub WS    ws://${AEKO_DOMAIN}:8900
-    Explorer API http://${AEKO_DOMAIN}:8088
     Explorer UI  http://${AEKO_DOMAIN}:4000
+    Funding      http://${AEKO_DOMAIN}:3002
+    Admin        http://${AEKO_DOMAIN}:3001
 
-  Configured public endpoints (set these through deployment environment):
+  Configured public browser endpoints:
     RPC          ${AEKO_PUBLIC_RPC_URL:-<not configured>}
     PubSub WS    ${AEKO_PUBLIC_WS_URL:-<not configured>}
-    Explorer API ${AEKO_PUBLIC_EXPLORER_API_URL:-<not configured>}
-    Explorer UI  ${AEKO_PUBLIC_EXPLORER_URL:-<not configured>}
     Funding      ${AEKO_PUBLIC_FUNDING_URL:-<not configured>}
-    Admin        ${AEKO_PUBLIC_ADMIN_URL:-<not configured>}
     Gossip       ${AEKO_PUBLIC_GOSSIP_ADDRESS:-<not configured>} (raw TCP/UDP, not HTTP)
+
+  Explorer indexed reads are served through the Explorer UI same-origin
+  /api/explorer/testnet proxy. The explorer-api container is not a public
+  browser endpoint.
 
   Complete deployment + SocialFi read-path smoke test:
     python3 scripts/smoke-aeko-social.py
@@ -233,6 +232,7 @@ cat <<EOF2
     docker logs -f aeko-protocol-bootstrap
     docker logs -f aeko-explorer-api
     docker logs -f aeko-explorer-ui
+    docker logs -f aeko-funding-gateway
     docker logs -f aeko-operations-web
 
   See README.md for the social-first developer mental model and

@@ -1,11 +1,17 @@
 import { getNetworkConfig } from './networkConfig.js';
 
 export const SAFE_APP_SETTINGS = Object.freeze({
+  networkToolsEnabled: true,
   networkConsoleEnabled: false,
+  docsEnabled: true,
+  developersEnabled: true,
+  bridgeEnabled: true,
   nftDemoEnabled: true,
   nftLiveFlowEnabled: false,
   nftAdvancedToolsEnabled: false,
   explorerListSize: 6,
+  explorerSearchResultLimit: 12,
+  explorerAutoRefreshSeconds: 15,
   settingsRefreshSeconds: 30,
 });
 
@@ -23,12 +29,33 @@ export function normalizeAppSettingsPayload(data) {
     revision: Number.isInteger(data?.revision) && data.revision >= 0 ? data.revision : 0,
     updatedAt: typeof data?.updatedAt === 'string' ? data.updatedAt : '',
     application: {
+      networkToolsEnabled: booleanOr(application.networkToolsEnabled, SAFE_APP_SETTINGS.networkToolsEnabled),
       networkConsoleEnabled: booleanOr(application.networkConsoleEnabled, SAFE_APP_SETTINGS.networkConsoleEnabled),
+      docsEnabled: booleanOr(application.docsEnabled, SAFE_APP_SETTINGS.docsEnabled),
+      developersEnabled: booleanOr(application.developersEnabled, SAFE_APP_SETTINGS.developersEnabled),
+      bridgeEnabled: booleanOr(application.bridgeEnabled, SAFE_APP_SETTINGS.bridgeEnabled),
       nftDemoEnabled: booleanOr(application.nftDemoEnabled, SAFE_APP_SETTINGS.nftDemoEnabled),
       nftLiveFlowEnabled: booleanOr(application.nftLiveFlowEnabled, SAFE_APP_SETTINGS.nftLiveFlowEnabled),
       nftAdvancedToolsEnabled: booleanOr(application.nftAdvancedToolsEnabled, SAFE_APP_SETTINGS.nftAdvancedToolsEnabled),
       explorerListSize: integerInRange(application.explorerListSize, 3, 12, SAFE_APP_SETTINGS.explorerListSize),
-      settingsRefreshSeconds: integerInRange(application.settingsRefreshSeconds, 10, 300, SAFE_APP_SETTINGS.settingsRefreshSeconds),
+      explorerSearchResultLimit: integerInRange(
+        application.explorerSearchResultLimit,
+        5,
+        50,
+        SAFE_APP_SETTINGS.explorerSearchResultLimit,
+      ),
+      explorerAutoRefreshSeconds: integerInRange(
+        application.explorerAutoRefreshSeconds,
+        5,
+        300,
+        SAFE_APP_SETTINGS.explorerAutoRefreshSeconds,
+      ),
+      settingsRefreshSeconds: integerInRange(
+        application.settingsRefreshSeconds,
+        10,
+        300,
+        SAFE_APP_SETTINGS.settingsRefreshSeconds,
+      ),
     },
     blockchain: {
       network: typeof data?.blockchain?.network === 'string' ? data.blockchain.network : '',
@@ -43,7 +70,7 @@ export function normalizeAppSettingsPayload(data) {
 }
 
 export async function fetchPublicAppSettings() {
-  const explorerApiUrl = getNetworkConfig('testnet').explorerApiUrl;
+  const explorerApiUrl = getNetworkConfig().explorerApiUrl;
   if (!explorerApiUrl) throw new Error('Explorer API is not configured for application settings');
 
   const response = await fetch(`${explorerApiUrl}/settings`, {

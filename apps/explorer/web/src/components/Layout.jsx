@@ -12,12 +12,12 @@ const Navbar = () => {
 
   const links = [
     { name: 'Home', path: '/' },
-    { name: 'Docs', path: '/docs' },
-    { name: 'Network Tools', path: '/network-tools' },
+    ...(settings.docsEnabled ? [{ name: 'Docs', path: '/docs' }] : []),
+    ...(settings.networkToolsEnabled ? [{ name: 'Network Tools', path: '/network-tools' }] : []),
     { name: 'Token', path: '/token' },
     ...(settings.nftDemoEnabled ? [{ name: 'NFT Demo', path: '/nft-demo' }] : []),
-    { name: 'Developers', path: '/developers' },
-    { name: 'Bridge', path: '/bridge' },
+    ...(settings.developersEnabled ? [{ name: 'Developers', path: '/developers' }] : []),
+    ...(settings.bridgeEnabled ? [{ name: 'Bridge', path: '/bridge' }] : []),
     { name: 'Contact', path: '/contact' },
   ];
 
@@ -171,13 +171,19 @@ const Footer = () => {
             <h3 className="font-bold mb-4">Ecosystem</h3>
             <ul className="space-y-2 text-gray-400">
               <li><Link to="/token" className="hover:text-aeko-accent">Tokenomics</Link></li>
-              <li><Link to="/network-tools" className="hover:text-aeko-accent">Network Tools</Link></li>
+              {settings.networkToolsEnabled ? (
+                <li><Link to="/network-tools" className="hover:text-aeko-accent">Network Tools</Link></li>
+              ) : null}
               {settings.nftDemoEnabled ? (
                 <li><Link to="/nft-demo" className="hover:text-aeko-accent">AEKO-721 Demo</Link></li>
               ) : null}
-              <li><Link to="/developers" className="hover:text-aeko-accent">Build on Aeko</Link></li>
+              {settings.developersEnabled ? (
+                <li><Link to="/developers" className="hover:text-aeko-accent">Build on Aeko</Link></li>
+              ) : null}
               <li><Link to="/explorer" className="hover:text-aeko-accent">Explorer/Aeko Scan</Link></li>
-              <li><Link to="/bridge" className="hover:text-aeko-accent">Bridge</Link></li>
+              {settings.bridgeEnabled ? (
+                <li><Link to="/bridge" className="hover:text-aeko-accent">Bridge</Link></li>
+              ) : null}
             </ul>
           </div>
 

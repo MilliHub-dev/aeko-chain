@@ -24,7 +24,7 @@ import {
   confirmSignature,
   formatAeko,
   getLatestBlockhash,
-  requestFundingGrant,
+  requestConsoleAirdrop,
   sendTransaction,
 } from '../utils/aekoRpcClient';
 import { AekoWsClient } from '../utils/aekoWsClient';
@@ -113,6 +113,7 @@ function AccountsWorkspace({
   const [selectedId, setSelectedId] = useState(wallets[0]?.id || '');
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('1');
+  const [airdropAmount, setAirdropAmount] = useState('2');
   const [recipient, setRecipient] = useState('');
   const [busy, setBusy] = useState('');
   const [result, setResult] = useState(null);
@@ -146,32 +147,37 @@ function AccountsWorkspace({
     setRename('');
   };
 
-  const runFunding = async () => {
+  const runAirdrop = async () => {
     if (!wallet) return;
     if (!fundingUrl) {
-      setResult({ kind: 'error', message: 'The Testnet Funding Gateway is not configured for this deployment.' });
+      setResult({ kind: 'error', message: 'The Testnet Funding service is not configured for this deployment.' });
       return;
     }
-    setBusy('fund');
+    const value = Number(airdropAmount);
+    if (!Number.isFinite(value) || value <= 0) {
+      setResult({ kind: 'error', message: 'Enter a positive AEKO airdrop amount.' });
+      return;
+    }
+    setBusy('airdrop');
     setResult(null);
     try {
-      const grant = await requestFundingGrant(fundingUrl, wallet.address);
+      const grant = await requestConsoleAirdrop(fundingUrl, wallet.address, value);
       let confirmed = Boolean(grant.confirmed);
-      if (!confirmed && grant.signature) {
+      if (!confirmed) {
         try {
           await confirmSignature(rpcUrl, grant.signature);
           confirmed = true;
         } catch {
-          // The Gateway already submitted this grant. A browser confirmation
-          // timeout must never trigger a duplicate funding request.
+          // The server already submitted this airdrop. A browser confirmation
+          // timeout must never trigger a duplicate request.
         }
       }
       await refreshWallet(wallet.address);
       setResult({
         kind: 'success',
         message: confirmed
-          ? String(grant.amountAeko) + ' AEKO funded to this test wallet.'
-          : String(grant.amountAeko) + ' AEKO funding was submitted. Refresh the wallet if the balance is still settling.',
+          ? String(grant.amountAeko) + ' AEKO Test Console airdrop confirmed.'
+          : String(grant.amountAeko) + ' AEKO Test Console airdrop submitted. Refresh if the balance is still settling.',
         signature: grant.signature,
       });
     } catch (error) {
@@ -257,27 +263,30 @@ function AccountsWorkspace({
                 <input value={rename} onChange={(event) => setRename(event.target.value)} placeholder={`Rename ${wallet.name}`} className="h-9 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 text-xs outline-none focus:border-aeko-accent" />
                 <button type="button" onClick={renameWallet} disabled={!rename.trim()} className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs text-gray-300 disabled:opacity-40"><Pencil size={12} /> Rename</button>
               </div>
-              {isUnfunded ? <div className="mt-3 rounded-xl border border-aeko-accent/20 bg-aeko-accent/[0.06] p-3 text-xs leading-relaxed text-gray-300">This browser-local wallet does not exist on-chain yet. Request test AEKO below to fund it through the policy-controlled Funding Gateway before sending, staking, monetization, rewards, or NFT transactions.</div> : profileIssue ? <div className="mt-3 text-xs text-amber-200">Explorer API: {profileIssue.message}</div> : null}
+              {isUnfunded ? <div className="mt-3 rounded-xl border border-aeko-accent/20 bg-aeko-accent/[0.06] p-3 text-xs leading-relaxed text-gray-300">This browser-local wallet does not exist on-chain yet. Use the Test Console airdrop below to create spendable test balance before sending, staking, monetization, rewards, or NFT transactions.</div> : profileIssue ? <div className="mt-3 text-xs text-amber-200">Explorer API: {profileIssue.message}</div> : null}
             </section>
 
-            <section className="rounded-2xl border border-aeko-accent/20 bg-aeko-accent/[0.04] p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Droplets size={14} className="text-aeko-accent" /> Testnet funding</div>
-              <p className="mt-1 text-[11px] leading-relaxed text-gray-600">Funding uses the public policy-controlled Gateway. The browser never receives the private Faucet or Funding Gateway credential.</p>
-              <button type="button" onClick={runFunding} disabled={Boolean(busy) || !fundingUrl || !wallet} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-aeko-accent/30 bg-aeko-accent/10 px-4 text-xs font-semibold text-aeko-accent disabled:opacity-40">
-                {busy === 'fund' ? <Loader2 size={13} className="animate-spin" /> : <Droplets size={13} />}
-                Request test AEKO
-              </button>
-              {!fundingUrl ? <div className="mt-2 text-[10px] text-amber-200">Funding Gateway is not configured for this deployment.</div> : null}
-            </section>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <section className="rounded-2xl border border-aeko-accent/20 bg-aeko-accent/[0.04] p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-white"><Droplets size={14} className="text-aeko-accent" /> Test Console airdrop</div>
+                <p className="mt-1 text-[11px] leading-relaxed text-gray-600">This developer-only flow is separate from public funding approval. Choose an amount and the server submits a constrained testnet airdrop without exposing the private Funding Gateway credential.</p>
+                <AmountInput value={airdropAmount} onChange={setAirdropAmount} />
+                <button type="button" onClick={runAirdrop} disabled={Boolean(busy) || !fundingUrl || !wallet} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-aeko-accent/30 bg-aeko-accent/10 px-4 text-xs font-semibold text-aeko-accent disabled:opacity-40">
+                  {busy === 'airdrop' ? <Loader2 size={13} className="animate-spin" /> : <Droplets size={13} />}
+                  Request airdrop
+                </button>
+                {!fundingUrl ? <div className="mt-2 text-[10px] text-amber-200">Funding service is not configured for this deployment.</div> : null}
+              </section>
 
-            <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Send size={14} className="text-aeko-accent" /> Send AEKO</div>
-              <p className="mt-1 text-[11px] leading-relaxed text-gray-600">Transfers are signed in this browser and submitted directly to the validator after the selected wallet has live spendable AEKO.</p>
-              <input value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="Recipient address" className="mt-3 h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 font-mono text-xs outline-none focus:border-aeko-accent" />
-              <AmountInput value={amount} onChange={setAmount} />
-              <button type="button" onClick={runTransfer} disabled={Boolean(busy) || !hasSpendableBalance} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-aeko-accent px-4 text-xs font-semibold text-black disabled:opacity-40">{busy === 'send' ? <Loader2 size={13} className="animate-spin" /> : null} Sign & send</button>
-              {!hasSpendableBalance ? <div className="mt-2 text-[10px] text-gray-500">Request test AEKO above to fund this wallet before sending.</div> : null}
-            </section>
+              <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-white"><Send size={14} className="text-aeko-accent" /> Send AEKO</div>
+                <p className="mt-1 text-[11px] leading-relaxed text-gray-600">Transfers are signed in this browser and submitted directly to the validator after the selected wallet has live spendable AEKO.</p>
+                <input value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="Recipient address" className="mt-3 h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 font-mono text-xs outline-none focus:border-aeko-accent" />
+                <AmountInput value={amount} onChange={setAmount} />
+                <button type="button" onClick={runTransfer} disabled={Boolean(busy) || !hasSpendableBalance} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-aeko-accent px-4 text-xs font-semibold text-black disabled:opacity-40">{busy === 'send' ? <Loader2 size={13} className="animate-spin" /> : null} Sign & send</button>
+                {!hasSpendableBalance ? <div className="mt-2 text-[10px] text-gray-500">Use the Test Console airdrop beside this card before sending.</div> : null}
+              </section>
+            </div>
             <TxResult result={result} explorerUrl={explorerUrl} />
             <button type="button" onClick={() => persist(wallets.filter((item) => item.id !== wallet.id))} className="inline-flex h-9 items-center gap-2 rounded-xl border border-red-400/20 px-3 text-xs text-red-200 hover:bg-red-500/10"><Trash2 size={13} /> Remove local test wallet</button>
           </>

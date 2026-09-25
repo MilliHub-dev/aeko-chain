@@ -1,37 +1,39 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Activity, ArrowLeft, CheckCircle2, CircleDashed, Wallet } from 'lucide-react';
+import { Activity, ArrowLeft, CheckCircle2, Wallet, XCircle } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { fetchTransactionDetails, getExplorerAvailability } from '../utils/explorerApi';
 
 export default function TransactionDetails() {
   const { hash } = useParams();
   const [network, setNetwork] = useState('testnet');
-  const [state, setState] = useState({ loading: true, error: '', data: null });
+  const requestKey = `${network}:${hash}`;
+  const [state, setState] = useState({ requestKey: '', error: '', data: null });
 
   useEffect(() => {
     let cancelled = false;
-    setState({ loading: true, error: '', data: null });
 
     fetchTransactionDetails(network, hash)
       .then((data) => {
         if (!cancelled) {
-          setState({ loading: false, error: '', data });
+          setState({ requestKey, error: '', data });
         }
       })
       .catch((error) => {
         if (!cancelled) {
-          setState({ loading: false, error: error.message, data: null });
+          setState({ requestKey, error: error.message, data: null });
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [network, hash]);
+  }, [network, hash, requestKey]);
 
   const unavailable = !getExplorerAvailability(network);
-  const tx = state.data;
+  const requestCurrent = state.requestKey === requestKey;
+  const loading = !requestCurrent;
+  const tx = requestCurrent ? state.data : null;
 
   return (
     <div className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -48,9 +50,9 @@ export default function TransactionDetails() {
         </div>
       ) : null}
 
-      {!unavailable && state.loading ? <div className="text-gray-400">Loading transaction...</div> : null}
+      {!unavailable && loading ? <div className="text-gray-400">Loading transaction...</div> : null}
 
-      {!unavailable && state.error ? (
+      {!unavailable && requestCurrent && state.error ? (
         <div className="bg-red-500/10 border border-red-500/20 text-red-200 rounded-2xl p-6">
           {state.error}
         </div>
@@ -67,9 +69,9 @@ export default function TransactionDetails() {
                 </div>
                 <p className="font-mono text-sm text-gray-400 break-all">{tx.signature}</p>
               </div>
-              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border ${tx.success ? 'bg-green-500/10 border-green-500/20 text-green-300' : 'bg-amber-500/10 border-amber-500/20 text-amber-300'}`}>
-                {tx.success ? <CheckCircle2 className="h-4 w-4" /> : <CircleDashed className="h-4 w-4" />}
-                {tx.success ? 'Success' : 'Not confirmed'}
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border ${tx.success ? 'bg-green-500/10 border-green-500/20 text-green-300' : 'bg-red-500/10 border-red-500/20 text-red-300'}`}>
+                {tx.success ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                {tx.success ? 'Success' : 'Failed'}
               </div>
             </div>
           </div>
@@ -95,7 +97,7 @@ export default function TransactionDetails() {
   );
 }
 
-function MetricCard({ icon: Icon, label, value }) {
+function MetricCard({ icon: Icon = null, label, value }) {
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
       <div className="flex items-center gap-3 text-gray-400 mb-3">

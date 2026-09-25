@@ -18,7 +18,7 @@ export default function NetworkTools() {
   const requestedConfig = getNetworkConfig(requestedNetwork);
   const network = requestedNetwork === 'mainnet' && requestedConfig.available ? 'mainnet' : 'testnet';
   const config = getNetworkConfig(network);
-  const consoleOpen = settings.networkConsoleEnabled && searchParams.get('console') === '1';
+  const consoleOpen = network === 'testnet' && settings.networkConsoleEnabled && searchParams.get('console') === '1';
   const requestedTab = searchParams.get('tab');
   const consoleTab = CONSOLE_TABS.has(requestedTab) ? requestedTab : 'accounts';
 
@@ -139,7 +139,7 @@ export default function NetworkTools() {
             {network === 'testnet'
               ? config.key === 'localnet'
                 ? 'Local development can use requestAirdrop directly on the local validator RPC.'
-                : 'Use the Testnet Funding Portal for test AEKO. The private Faucet Daemon is internal infrastructure, and the public RPC does not accept unauthenticated requestAirdrop calls.'
+                : 'Use the Testnet Funding Portal to submit a public funding request for operator approval. The Network Console has a separate constrained developer airdrop flow. The private Faucet Daemon remains internal infrastructure, and the public RPC does not accept unauthenticated requestAirdrop calls.'
               : 'Mainnet does not expose test funding. Use your normal treasury, exchange, or operational distribution flow.'}
           </p>
 
@@ -151,8 +151,8 @@ export default function NetworkTools() {
                 Policy-controlled Funding Gateway
               </div>
               <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-white/10">
-                The Faucet Daemon is a private TCP service. Public users request a funding grant through
-                the Funding Portal; only the server-side gateway is authorized to invoke requestAirdrop.
+                The Faucet Daemon is a private TCP service. Public users submit funding requests through
+                the Funding Portal and an operator approves release; only server-side funding routes are authorized to invoke requestAirdrop.
               </div>
             </div>
           ) : (
@@ -168,12 +168,12 @@ export default function NetworkTools() {
             <h2 className="text-2xl font-bold">Developer flow</h2>
           </div>
           <p className="text-gray-400 mb-4">
-            Use the AEKO CLI for deterministic account funding, validator testing, and scripted SDK validation.
+            Use the AEKO CLI to select the active cluster, inspect balances, transfer AEKO, deploy programs, and run scripted validation. Public Testnet funding stays in the Funding Portal above.
           </p>
           <pre className="bg-black/40 rounded-xl p-4 overflow-x-auto text-sm text-gray-300">
             <code>{config.key === 'localnet'
-              ? `aeko config set --url ${config.rpcUrl}\naeko airdrop 10 <recipient-address>`
-              : `aeko config set --url ${config.rpcUrl}\ncurl -X POST ${config.fundingUrl}/api/funding/request \\\n  -H "Content-Type: application/json" \\\n  -d '{"address":"<recipient-address>"}'`}</code>
+              ? `aeko config set --url ${config.rpcUrl}\naeko airdrop 10 <recipient-address>\naeko balance <recipient-address>`
+              : `aeko config set --url ${config.rpcUrl}\naeko balance <wallet-address>\naeko transfer <recipient-address> <amount>`}</code>
           </pre>
           <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
             <Droplets size={13} /> Funding grants and test transactions link directly to Aeko Scan.

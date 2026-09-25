@@ -12,14 +12,16 @@ Use the repository's image-only Coolify Compose file:
 
 Coolify does not build the AEKO Rust or web applications from source. It pulls the published images selected by `AEKO_IMAGE_REPOSITORY` and `AEKO_IMAGE_TAG`.
 
-The default public services are below. `operations-web` serves both the public Funding Portal and authenticated Admin Console; `faucet` is the private Rust signer daemon:
+The default public services are below. The Compose file is intentionally ordered by lifecycle so Coolify's service list is easy to scan: one-shot jobs first, then long-running chain services, then long-running application services, then opt-in tools. `funding-gateway` serves the public Funding Portal/Test Console funding API, while `operations-web` is the authenticated Admin Console. `faucet` is the private Rust signer daemon.
 
 ```text
-key-bootstrap (one shot) -> faucet -> validator -> social-bootstrap
-                                      |-> protocol-bootstrap (mandatory one-shot initialize/verify)
-                                      |-> explorer-api
-explorer-ui + operations-web (independent liveness)
+One-shot (expected Exited 0): key-bootstrap, social-bootstrap, protocol-bootstrap
+Core running/healthy:         faucet, validator
+Application running/healthy:  explorer-api, explorer-ui, funding-gateway, operations-web
+Opt-in only:                   wallet-tools
 ```
+
+The dependency graph remains `key-bootstrap -> faucet -> validator -> social-bootstrap/protocol-bootstrap/explorer-api`; declaration order is only for operator readability.
 
 The validator owns public JSON-RPC/PubSub in this single-validator topology. The non-voting `rpc-node` remains an optional local/portable profile and is not part of the Coolify deployment.
 
@@ -34,15 +36,14 @@ AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended immutable 12-character main SHA>
 AEKO_PUBLIC_RPC_URL=<public JSON-RPC URL>
 AEKO_PUBLIC_WS_URL=<public PubSub WebSocket URL>
-AEKO_PUBLIC_EXPLORER_API_URL=<public Explorer REST API URL>
-AEKO_PUBLIC_EXPLORER_URL=<public Explorer UI URL>
-AEKO_PUBLIC_FUNDING_URL=<public Testnet Funding Portal URL>
-AEKO_PUBLIC_ADMIN_URL=<public operator-console URL>
-FUNDING_ALLOWED_ORIGINS=<comma-separated browser origins allowed to call funding>
+AEKO_PUBLIC_FUNDING_URL=<public Testnet Funding Gateway URL>
+FUNDING_ALLOWED_ORIGINS=<comma-separated Explorer UI origins allowed to call funding>
 ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
-FUNDING_GATEWAY_KEY=<server secret shared with validator>
-FUNDING_CLIENT_API_KEY=<optional trusted app-backend key sent as x-funding-key>
+AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=<private Admin-to-Explorer settings token>
+FUNDING_GATEWAY_KEY=<Funding Gateway secret shared with validator>
+FUNDING_ADMIN_API_KEY=<different private Admin-to-Funding service key>
+FUNDING_MAX_CONSOLE_AIRDROP_AEKO=25
 ```
 
 Use the full template in [`docker/env.public.example`](../../docker/env.public.example) for optional storage, Explorer, SocialFi and logging settings.
@@ -68,7 +69,7 @@ You do not need to set `AEKO_KEYS_DIR` in the Coolify dashboard and you do not n
 
 For a fresh chain, no host-side key command is required. After the first successful deployment, you may inspect `/data/aeko/keys` on the Coolify host if you want to back up the generated identities. Never commit keypairs or place them in a disposable Git checkout.
 
-The Coolify Compose mounts this directory with long-form bind syntax and the literal source `/data/aeko/keys`. Runtime services mount it read-only; the optional `wallet-tools` profile can mount it read-write for explicit operator work. This is intentional: the current Coolify volume validator rejects `${...}` interpolation in a bind source.
+The Coolify Compose uses long-form volume syntax for every bind and named volume. Every `source:` is literal, including the fixed `/data/aeko/keys` bind; no `source:` contains `${...}` interpolation or copied smart-quote characters. Runtime services mount it read-only; the optional `wallet-tools` profile can mount it read-write for explicit operator work. This is intentional: the current Coolify volume validator rejects `${...}` interpolation in a bind source.
 
 ## Persistent chain state
 
@@ -78,7 +79,7 @@ The Coolify contract declares five Docker-managed named volumes:
 - `social-state` for SocialFi state keypairs and `social-registry.env`.
 - `protocol-state` for the published `protocol-registry.env`.
 - `protocol-continuity` for canonical protocol state/custody keypairs and the independent registry continuity anchor.
-- `admin-state` for the funding policy and grant ledger of the operations web app (admin.aeko.online / fund.aeko.online).
+- `admin-state` for the Funding Gateway policy, pending approval queue and grant ledger. Admin does not mount this volume.
 
 Normal redeploys must preserve all five volumes. The two protocol volumes form one continuity boundary: losing `protocol-state` while retaining `protocol-continuity` requires explicit recovery and reuses the same canonical addresses; losing `protocol-continuity` must not be treated as a fresh bootstrap. Social and Protocol registries are bound to the live genesis and the bootstrap volumes also carry durable lifecycle metadata. Do not remove `.aeko-bootstrap-in-progress` or `.aeko-chain-binding` manually.
 
@@ -92,34 +93,32 @@ Configure Coolify domains against these internal services:
 | --- | --- | ---: |
 | `https://rpc.aeko.online` | `validator` | `8899` |
 | `wss://ws.aeko.online` | `validator` | `8900` |
-| `https://api.aeko.online` | `explorer-api` | `8088` |
 | `https://scan.aeko.online` | `explorer-ui` | `4000` |
-| `https://fund.aeko.online` | `operations-web` | `3001` (Testnet Funding Portal) |
+| `https://fund.aeko.online` | `funding-gateway` | `3001` (Testnet Funding Portal/API) |
 | `https://admin.aeko.online` | `operations-web` | `3001` (operator console) |
 
 Do not configure `gossip.aeko.online` as an HTTP route. Point that DNS record directly to `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050` at the host/cloud firewall. Gossip starts on `8001` inside that range.
 
 Keep the Faucet Daemon on TCP `9900` and PostgreSQL `5432` private.
 
-### Explorer API routing guard
+### Explorer backend privacy
 
-`AEKO_PUBLIC_EXPLORER_API_URL` must resolve to the public route for `explorer-api:8088`; it must not be the Explorer UI route. The UI and API are separate services even when Coolify or Dokploy manages both behind the same proxy.
+Do not configure a public domain for `explorer-api:8088`. The Explorer UI serves indexed reads from its own origin under `/api/explorer/testnet/*` and proxies them over the private Docker network using `AEKO_INTERNAL_EXPLORER_API_URL`.
 
-For the documented hostnames:
+For the documented hostname:
 
 ```text
-AEKO_PUBLIC_EXPLORER_API_URL=https://api.aeko.online   -> explorer-api:8088
-AEKO_PUBLIC_EXPLORER_URL=https://scan.aeko.online      -> explorer-ui:4000
+https://scan.aeko.online/api/explorer/testnet/* -> explorer-ui:4000 -> explorer-api:8088
 ```
 
-If the Explorer shows `Indexer returned non-JSON (200)` followed by the AEKO page title, the API hostname/path is serving the SPA HTML. Fix the Coolify/Dokploy domain target; do not add a JSON fallback in the frontend.
+The browser never receives the raw Explorer backend origin. The proxy accepts read-only methods and keeps backend routing inside the deployment network.
 
 ## First deployment
 
 1. Create a Git-based Docker Compose application in Coolify and select this repository/branch.
 2. Set the Compose path to `./docker/compose.coolify.yml`.
 3. Add the required environment variables above, without shell quotes. Do not add `AEKO_KEYS_DIR`.
-4. Configure the four HTTP/WebSocket domains.
+4. Configure RPC, WebSocket, Explorer UI, Funding Gateway and the authenticated Admin domain. Do not expose explorer-api directly.
 5. Open TCP+UDP `8000-8050` for validator transport.
 6. For a genuinely fresh chain only, temporarily set `AEKO_REQUIRE_EXISTING_LEDGER=0` and `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`. For an established chain, keep `AEKO_REQUIRE_EXISTING_LEDGER=1` and `AEKO_ALLOW_CHAIN_KEY_GENERATION=0`.
 7. Deploy. After a fresh-chain deployment has created the intended identities and genesis, return the one-time flags to their safe established-chain values.
@@ -143,20 +142,20 @@ The result must be `"ok"`, and repeated `getSlot` calls must advance.
 Then check the three Explorer health layers and both control planes:
 
 ```bash
-curl -s https://api.aeko.online/liveness
-curl -s https://api.aeko.online/readiness
-curl -s https://api.aeko.online/network/readiness
-curl -s https://api.aeko.online/registry/social
-curl -s https://api.aeko.online/social/status
-curl -s https://api.aeko.online/registry/protocol
-curl -s https://api.aeko.online/protocol/status
+curl -s https://scan.aeko.online/api/explorer/testnet/liveness
+curl -s https://scan.aeko.online/api/explorer/testnet/readiness
+curl -s https://scan.aeko.online/api/explorer/testnet/network/readiness
+curl -s https://scan.aeko.online/api/explorer/testnet/registry/social
+curl -s https://scan.aeko.online/api/explorer/testnet/social/status
+curl -s https://scan.aeko.online/api/explorer/testnet/registry/protocol
+curl -s https://scan.aeko.online/api/explorer/testnet/protocol/status
 ```
 
 Final acceptance requires `/network/readiness` HTTP 200, the registry genesis matching the live validator genesis, Social `5/5`, Protocol executable programs `11/11`, and Protocol canonical state `8/8`. For the full read-path smoke test:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://api.aeko.online \
+AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
 python3 scripts/smoke-aeko-social.py
 ```
 
@@ -166,7 +165,7 @@ The signed browser write path in the Explorer test console remains the final end
 
 If Coolify reports an error such as `Invalid Docker volume definition` or `Invalid volume source` before containers start:
 
-1. Confirm the application uses `./docker/compose.coolify.yml`, not the Dokploy or old legacy Compose path.
+1. Confirm the application uses `./docker/compose.coolify.yml`, not the Dokploy or retired Compose path.
 2. Confirm every key bind source in the selected Compose is the literal `/data/aeko/keys` path with no `${...}` interpolation.
 3. Reload the Compose definition in Coolify and redeploy. The `key-bootstrap` service owns first-boot creation of the persistent key directory and missing keypairs.
 
@@ -195,7 +194,7 @@ The shared key preflight creates `protocol-authority-keypair.json` automatically
 
 `AEKO_RESET_LEDGER=1` is a destructive new-chain operation. On that reset, SocialFi state and protocol state are cleared once for the new genesis, and Explorer purges the old PostgreSQL projection schema before binding to the replacement genesis. Return the reset variable to `0` after accepting the new chain.
 
-The feature-activation helper remains only for a history-preserving migration of a legacy chain whose genesis predates the AEKO Protocol builtins. It is not part of normal fresh deployment or reset-to-genesis deployment. The complete compatibility and acceptance procedure is consolidated in [`DEPLOYMENT.md`](../../DEPLOYMENT.md).
+The feature-activation helper remains only for a history-preserving migration of an older chain whose genesis predates the AEKO Protocol builtins. It is not part of normal fresh deployment or reset-to-genesis deployment. The complete compatibility and acceptance procedure is consolidated in [`DEPLOYMENT.md`](../../DEPLOYMENT.md).
 
 ## Established-chain continuity guard
 

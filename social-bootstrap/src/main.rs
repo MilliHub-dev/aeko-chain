@@ -54,7 +54,6 @@ fn main() -> Result<()> {
             .unwrap_or_else(|_| "./local-testnet/social-state".to_string()),
     );
     fs::create_dir_all(&out_dir).context("creating Social bootstrap state directory")?;
-    let operator_allow_missing_state = parse_bool_flag("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE")?;
     let platform_fee_bps = parse_platform_fee_bps()?;
 
     let client = RpcClient::new_with_commitment(rpc_url.clone(), CommitmentConfig::confirmed());
@@ -75,16 +74,14 @@ fn main() -> Result<()> {
         &live_genesis,
         reset_requested,
     )?;
-    let registry_preexisted = lifecycle_decision.strict_registry_guard();
-    let allow_missing_state =
-        operator_allow_missing_state || lifecycle_decision.allows_recreation();
+    let protect_existing_registry = lifecycle_decision.strict_registry_guard();
     eprintln!("    live-genesis: {live_genesis}");
     eprintln!(
         "    registry-genesis: {}",
         lifecycle_decision
             .registry_genesis
             .as_deref()
-            .unwrap_or("legacy-or-none")
+            .unwrap_or("not-published")
     );
     eprintln!("    reset-requested: {reset_requested}");
     eprintln!(
@@ -191,8 +188,7 @@ fn main() -> Result<()> {
         ),
         "social-posts",
         posts_state_initialized,
-        registry_preexisted,
-        allow_missing_state,
+        protect_existing_registry,
     )?;
 
     let rewards_data = aeko_social_rewards_program::state::SocialRewardsStateAccount::new(
@@ -221,8 +217,7 @@ fn main() -> Result<()> {
         ),
         "social-rewards",
         rewards_state_initialized,
-        registry_preexisted,
-        allow_missing_state,
+        protect_existing_registry,
     )?;
 
     let staking_data = aeko_social_staking_program::state::SocialStakingStateAccount::new(
@@ -251,8 +246,7 @@ fn main() -> Result<()> {
         ),
         "social-staking",
         staking_state_initialized,
-        registry_preexisted,
-        allow_missing_state,
+        protect_existing_registry,
     )?;
 
     let anti_spam_data = aeko_social_anti_spam_program::state::SocialAntiSpamStateAccount::new(
@@ -281,8 +275,7 @@ fn main() -> Result<()> {
         ),
         "social-anti-spam",
         anti_spam_state_initialized,
-        registry_preexisted,
-        allow_missing_state,
+        protect_existing_registry,
     )?;
 
     let monetization_data =
@@ -311,8 +304,7 @@ fn main() -> Result<()> {
         ),
         "social-monetization",
         monetization_state_initialized,
-        registry_preexisted,
-        allow_missing_state,
+        protect_existing_registry,
     )?;
 
     // Always run the idempotent migrations. Fresh state already has these values;
@@ -690,16 +682,17 @@ fn create_and_init(
     init_ix: Instruction,
     label: &str,
     state_initialized: fn(&[u8]) -> Result<bool>,
-    registry_preexisted: bool,
-    allow_missing_state: bool,
+    protect_existing_registry: bool,
 ) -> Result<()> {
     let state_pubkey = state.pubkey();
     if existing_state_is_initialized(client, &state_pubkey, program_id, label, state_initialized)? {
         eprintln!("[{label}] existing initialized state verified");
         return Ok(());
     }
-    if registry_preexisted && !allow_missing_state {
-        return Err(anyhow!("[{label}] state {state_pubkey} is missing while {REGISTRY_FILE_NAME} exists; set AEKO_BOOTSTRAP_ALLOW_MISSING_STATE=1 only for intentional recovery"));
+    if protect_existing_registry {
+        return Err(anyhow!(
+            "[{label}] state {state_pubkey} is missing while {REGISTRY_FILE_NAME} is bound to the current chain; restore the matching persistent state or set AEKO_RESET_LEDGER=1 for an intentional new chain"
+        ));
     }
     let instructions = vec![
         system_instruction::create_account(

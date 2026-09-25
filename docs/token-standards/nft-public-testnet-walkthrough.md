@@ -46,11 +46,10 @@ These should be derived from the chosen public base authority wallet so anyone c
 After publication, wire the canonical public addresses into the web app with these environment values:
 
 ```bash
-VITE_AEKO_DEMO_RPC=https://rpc.aeko.online
-VITE_AEKO_DEMO_COLLECTION=<published-collection-address>
-VITE_AEKO_DEMO_TOKEN=<published-token-address>
-VITE_AEKO_DEMO_COLLECTION_SEED=aeko-genesis-collection
-VITE_AEKO_DEMO_TOKEN_SEED=aeko-genesis-token-1
+AEKO_DEMO_RPC_URL=https://rpc.aeko.online
+AEKO_DEMO_COLLECTION=<published-collection-address>
+AEKO_DEMO_TOKEN=<published-token-address>
+AEKO_DEMO_METADATA_URI=<published-metadata-uri>
 ```
 
 With those values present, the NFT demo will mark the canonical example as `live` and expose one-click loading of the published accounts.

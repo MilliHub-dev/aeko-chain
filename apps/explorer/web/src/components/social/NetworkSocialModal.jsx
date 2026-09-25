@@ -138,8 +138,8 @@ function PostCard({ post, persona, counts = { comment: 0, repost: 0, like: 0, sh
 export default function NetworkSocialModal({ network = 'testnet', onClose }) {
   const [params, setParams] = useSearchParams();
   const config = getNetworkConfig(network);
-  const rpcUrl = import.meta.env.VITE_AEKO_LOCAL_RPC || config.rpcUrl;
-  const explorerApiUrl = import.meta.env.VITE_AEKO_LOCAL_EXPLORER_API || config.explorerApiUrl;
+  const rpcUrl = config.rpcUrl;
+  const explorerApiUrl = config.explorerApiUrl;
   const wallets = useMemo(() => loadWallets(), []);
   const requestedPersona = params.get('persona') || '';
   const persona = wallets.find((wallet) => wallet.address === requestedPersona) || wallets[0] || null;

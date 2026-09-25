@@ -32,6 +32,7 @@ EXPLORER_BACKEND_ENV = ROOT / "apps" / "explorer" / "backend" / ".env.example"
 EXPLORER_ENTRYPOINT = DOCKER_DIR / "explorer-ui-entrypoint.sh"
 NETWORK_CONFIG = ROOT / "apps" / "explorer" / "web" / "src" / "utils" / "networkConfig.js"
 PROMOTE_IMAGES = ROOT / ".github" / "actions" / "devops" / "promote-images" / "action.yml"
+LIVE_DIAGNOSTICS = ROOT / ".github" / "workflows" / "live-network-diagnostics.yml"
 
 
 class ContractFailure(RuntimeError):
@@ -52,10 +53,10 @@ def service_block(compose: str, service: str, next_service: str | None = None) -
     start = re.search(rf"^  {re.escape(service)}:\s*$", compose, re.MULTILINE)
     require(start is not None, f"missing service {service}")
     tail = compose[start.end() :]
-    if next_service:
-        stop = re.search(rf"^  {re.escape(next_service)}:\s*$", tail, re.MULTILINE)
-    else:
-        stop = re.search(r"^(?:networks|volumes):\s*$", tail, re.MULTILINE)
+    # Service declaration order is a presentation concern, not a dependency
+    # contract. Stop at whichever two-space service key appears next so Coolify
+    # can group one-shot and long-running services without weakening checks.
+    stop = re.search(r"^(?:  [A-Za-z0-9_.-]+:|networks:|volumes:)\s*$", tail, re.MULTILINE)
     return tail[: stop.start()] if stop else tail
 
 
@@ -84,6 +85,7 @@ def main() -> int:
     explorer_entrypoint = read(EXPLORER_ENTRYPOINT)
     network_config = read(NETWORK_CONFIG)
     promote_images = read(PROMOTE_IMAGES)
+    live_diagnostics = read(LIVE_DIAGNOSTICS)
 
     # The settings mutation credential is server-side control-plane state.
     # Explorer API and Operations Web must share it, while the browser runtime
@@ -95,6 +97,11 @@ def main() -> int:
     require(
         "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=" in public_env,
         "deployment env example must declare the Explorer settings admin token",
+    )
+    require(
+        "FUNDING_MAX_CONSOLE_AIRDROP_AEKO=25" in public_env
+        and "FUNDING_MAX_CONSOLE_AIRDROP_AEKO=25" in admin_env,
+        "deployment and Operations Web env examples must declare the Test Console airdrop cap",
     )
     require(
         "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=" in explorer_backend_env,
@@ -175,11 +182,11 @@ def main() -> int:
         "AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}" in coolify,
         "Coolify must require explicit opt-in before generating chain identity keys",
     )
-    for label, compose, service in (
-        ("Dokploy", dokploy, "key-preflight"),
-        ("Coolify", coolify, "key-bootstrap"),
+    for label, compose, service, next_service in (
+        ("Dokploy", dokploy, "key-preflight", "faucet"),
+        ("Coolify", coolify, "key-bootstrap", "social-bootstrap"),
     ):
-        block = service_block(compose, service, "faucet")
+        block = service_block(compose, service, next_service)
         require(
             'entrypoint: ["/usr/local/bin/aeko-key-preflight"]' in block,
             f"{label} must use the shared key preflight implementation from aeko-tools",
@@ -189,11 +196,21 @@ def main() -> int:
             and "AEKO_PROTOCOL_BOOTSTRAP_ENABLED" not in block,
             f"{label} must not expose protocol lifecycle toggles in normal deployment",
         )
-        require(
-            "protocol-state:/protocol-state:ro" in block
-            and "protocol-continuity:/protocol-continuity:ro" in block,
-            f"{label} key lifecycle must inspect both protocol continuity volumes",
-        )
+        if label == "Coolify":
+            require(
+                block.count("type: volume") >= 2
+                and "source: protocol-state" in block
+                and "target: /protocol-state" in block
+                and "source: protocol-continuity" in block
+                and "target: /protocol-continuity" in block,
+                "Coolify key lifecycle must inspect both protocol continuity volumes through literal long-form mounts",
+            )
+        else:
+            require(
+                "protocol-state:/protocol-state:ro" in block
+                and "protocol-continuity:/protocol-continuity:ro" in block,
+                f"{label} key lifecycle must inspect both protocol continuity volumes",
+            )
     require(
         "refusing to generate a replacement chain identity" in key_preflight
         and "AEKO_ALLOW_CHAIN_KEY_GENERATION=1 only for an intentional first boot" in key_preflight,
@@ -240,13 +257,22 @@ def main() -> int:
     # missing state on a previously completed chain. It must also own the
     # economic vault lifecycle so Social programs never need to debit arbitrary
     # system-owned user accounts directly.
+    for removed_recovery_flag in (
+        "AEKO_BOOTSTRAP_ALLOW_MISSING_STATE",
+        "AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE",
+        "AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY",
+    ):
+        require(
+            removed_recovery_flag not in social_bootstrap
+            and removed_recovery_flag not in protocol_bootstrap
+            and removed_recovery_flag not in protocol_integration
+            and removed_recovery_flag not in public_env,
+            f"bootstrap recovery bypass must stay removed: {removed_recovery_flag}",
+        )
     require(
-        'parse_bool_flag("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE")' in social_bootstrap,
-        "SocialFi bootstrap must consume AEKO_BOOTSTRAP_ALLOW_MISSING_STATE",
-    )
-    require(
-        "registry_preexisted && !allow_missing_state" in social_bootstrap,
-        "SocialFi bootstrap must fail closed when completed registry state disappears",
+        "protect_existing_registry" in social_bootstrap
+        and "AEKO_RESET_LEDGER=1" in social_bootstrap,
+        "SocialFi bootstrap must fail closed on missing established state and direct intentional recreation through the chain reset lifecycle",
     )
     require(
         "existing initialized state verified" in social_bootstrap,
@@ -297,7 +323,7 @@ def main() -> int:
     for required in (
         "require_feature_active",
         "require_executable_program",
-        "registry_preexisted && !allow_missing_state",
+        "protect_existing_registry",
         "protocol-registry.env",
         "AEKO_TOKENOMICS_PROGRAM_ID",
         "AEKO_FINALITY_ORACLE_PROGRAM_ID",
@@ -314,8 +340,6 @@ def main() -> int:
     require("smoke-aeko-protocol.py" in protocol_integration, "network integration must execute the read-only Protocol smoke")
     require("smoke-aeko-social.py" in protocol_integration, "network integration must execute the real all-five Social smoke")
     require("aeko-social-bootstrap" in protocol_integration, "network integration must execute the real Social bootstrap")
-    require("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE" in protocol_integration, "network integration must retain explicit Protocol disaster-recovery wiring")
-    require("AEKO_BOOTSTRAP_ALLOW_MISSING_STATE" in protocol_integration, "network integration must retain explicit Social disaster-recovery wiring")
     require("cmp" in protocol_integration and "protocol-registry.env" in protocol_integration and "social-registry.env" in protocol_integration, "network integration must prove idempotent Social and Protocol registry identity")
     require("getGenesisHash" in protocol_integration and "getTransaction" in protocol_integration, "network integration must prove ledger identity and historical transaction continuity across restart")
     require("GENESIS_TWO" in protocol_integration and "GENESIS_THREE" in protocol_integration, "network integration must exercise real replacement genesis and interrupted reset generations")
@@ -324,7 +348,12 @@ def main() -> int:
     require("unexpectedly accepted missing established same-genesis state" in protocol_integration, "network integration must prove same-genesis Social and Protocol corruption fails closed")
     require("/network/readiness" in protocol_integration, "network integration must require strict Social + Protocol readiness before acceptance")
     require("REGISTRY_SCHEMA_VERSION" in bootstrap_lifecycle and "CHAIN_GENESIS_KEY" in bootstrap_lifecycle, "shared bootstrap lifecycle must version and genesis-bind canonical registries")
-    require("ResumeReset" in bootstrap_lifecycle and "AdoptLegacy" in bootstrap_lifecycle, "shared bootstrap lifecycle must cover interrupted reset resumption and verified legacy adoption")
+    require(
+        "ResumeReset" in bootstrap_lifecycle
+        and "AdoptLegacy" not in bootstrap_lifecycle
+        and "Schema-less or unbound registries are unsupported" in bootstrap_lifecycle,
+        "shared bootstrap lifecycle must resume interrupted resets while rejecting schema-less registry adoption",
+    )
     require("aeko-keygen pubkey" in protocol_activate, "feature activation helper must verify offline keypair identities")
     require('FEATURE_SET_SOURCE="$REPO_ROOT/sdk/src/feature_set.rs"' in protocol_activate, "activation helper must resolve feature identities only from the canonical runtime feature set")
     require("aeko_token_programs_v1" in protocol_activate and "aeko_permission_layer_v1" in protocol_activate, "activation helper must resolve both AEKO protocol feature modules")
@@ -332,13 +361,25 @@ def main() -> int:
     require(permission_feature_id not in protocol_activate, "activation helper must not duplicate the permission feature id literal")
     require("promote aeko-protocol-bootstrap" in promote_images, "main release promotion must include the protocol-bootstrap image")
 
+    # Live diagnostics are deliberately separate from the image build/release workflow.
+    require("workflow_dispatch:" in live_diagnostics, "live diagnostics must be manually dispatchable")
+    require("pull_request:" not in live_diagnostics and "push:" not in live_diagnostics, "live diagnostics must not run automatically on code changes")
+    require(
+        "https://rpc.aeko.online" in live_diagnostics
+        and "https://scan.aeko.online/api/explorer/testnet" in live_diagnostics,
+        "live diagnostics must target public RPC and the Explorer UI same-origin read proxy",
+    )
+    for endpoint in ("/liveness", "/readiness", "/network/readiness", "/overview", "/registry/social", "/social/status", "/registry/protocol", "/protocol/status"):
+        require(endpoint in live_diagnostics, f"live diagnostics missing control-plane probe: {endpoint}")
+    require("smoke-aeko-social.py" in live_diagnostics and "smoke-aeko-protocol.py" in live_diagnostics, "live diagnostics must execute both repository smoke suites")
+
     # Dokploy is an image-pull deployment contract, never a second build system.
     require(re.search(r"^\s+build:\s*$", dokploy, re.MULTILINE) is None, "Dokploy compose must pull prebuilt images, not build source")
     require(
         re.search(r"^  rpc-node:\s*$", dokploy, re.MULTILINE) is None,
         "Dokploy must not make the non-voting RPC replica a mandatory/default service",
     )
-    ordered = ["faucet", "validator", "social-bootstrap", "protocol-bootstrap", "explorer-api", "explorer-ui", "operations-web", "wallet-tools"]
+    ordered = ["faucet", "validator", "social-bootstrap", "protocol-bootstrap", "explorer-api", "explorer-ui", "funding-gateway", "operations-web", "wallet-tools"]
     for index, service in enumerate(ordered):
         next_service = ordered[index + 1] if index + 1 < len(ordered) else None
         block = service_block(dokploy, service, next_service)
@@ -350,7 +391,8 @@ def main() -> int:
     bootstrap = service_block(dokploy, "social-bootstrap", "protocol-bootstrap")
     protocol_bootstrap_service = service_block(dokploy, "protocol-bootstrap", "explorer-api")
     explorer = service_block(dokploy, "explorer-api", "explorer-ui")
-    explorer_ui = service_block(dokploy, "explorer-ui", "operations-web")
+    explorer_ui = service_block(dokploy, "explorer-ui", "funding-gateway")
+    funding_gateway = service_block(dokploy, "funding-gateway", "operations-web")
     operations_web = service_block(dokploy, "operations-web", "wallet-tools")
     wallet_tools = service_block(dokploy, "wallet-tools")
 
@@ -413,7 +455,13 @@ def main() -> int:
     require('restart: "no"' in protocol_bootstrap_service, "Dokploy protocol bootstrap must be a one-shot service")
     require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in explorer, "Dokploy Explorer must consume protocol registry")
     require("protocol-state:/protocol-state:ro" in explorer, "Dokploy Explorer must mount protocol state read-only")
-    require("depends_on:" not in operations_web, "Dokploy Operations Web lifecycle must be independent of validator health")
+    require(
+        "funding-gateway:" in operations_web
+        and "condition: service_healthy" in operations_web
+        and "validator:" not in operations_web
+        and "explorer-api:" not in operations_web,
+        "Dokploy Admin may wait for its private Funding Gateway but must remain independent of validator/Explorer readiness",
+    )
 
     require(
         "AEKO_EXPLORER_RPC: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in explorer,
@@ -424,9 +472,22 @@ def main() -> int:
         "Dokploy operations web must talk to the validator through the internal Docker-network RPC",
     )
     require(
-        "AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in operations_web,
+        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in operations_web,
         "Dokploy operations web must talk to Explorer through the internal Docker-network API",
     )
+    require(
+        "AEKO_INTERNAL_FUNDING_URL: ${AEKO_INTERNAL_FUNDING_URL:-http://funding-gateway:3001}" in operations_web
+        and "FUNDING_ADMIN_API_KEY: ${FUNDING_ADMIN_API_KEY:?}" in operations_web,
+        "Dokploy Admin must reach Funding Gateway only through the private service API",
+    )
+    require(
+        "AEKO_OPERATIONS_ROLE: funding" in funding_gateway
+        and "FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in funding_gateway,
+        "Dokploy Funding Gateway must own public funding policy and protected airdrop authorization",
+    )
+    require("admin-state:/data" in funding_gateway, "Dokploy Funding Gateway must own the persisted funding state")
+    require("admin-state:/data" not in operations_web, "Dokploy Admin must not mount Funding Gateway state")
+    require("FUNDING_GATEWAY_KEY" not in operations_web, "Dokploy Admin must not receive protected airdrop authorization")
     require("EXPLORER_DATABASE_URL:?" in explorer, "public Explorer must require durable PostgreSQL")
     require("AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env" in explorer, "Explorer must consume generated SocialFi registry")
     for registry_key in (
@@ -448,8 +509,11 @@ def main() -> int:
     require('"/liveness"' in explorer_health and '"/readiness"' in explorer_health, "Explorer must expose explicit liveness and dependency readiness routes")
     require('"/network/readiness"' in explorer_health, "Explorer must expose strict mandatory-capability network readiness")
     require('"complete":true' not in explorer, "Explorer core health must not be coupled to SocialFi completeness")
-    require("explorer-api:" not in explorer_ui, "Dokploy Explorer UI startup must not depend on Explorer API health")
-    require("http://explorer-api:8088" not in explorer_ui, "Dokploy Explorer UI healthcheck must not probe Explorer API")
+    require("depends_on:" not in explorer_ui, "Dokploy Explorer UI startup must remain independent of Explorer API readiness")
+    require(
+        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in explorer_ui,
+        "Dokploy Explorer UI must proxy indexed reads to the private Explorer backend",
+    )
     require("http://127.0.0.1:4000/" in explorer_ui, "Dokploy Explorer UI healthcheck must prove only the UI server is serving")
     require('"complete":true' not in explorer_ui, "Explorer UI liveness must not be coupled to SocialFi completeness")
     require('profiles: ["ops"]' in wallet_tools, "wallet tools must be operator-only, not a public daemon")
@@ -462,32 +526,82 @@ def main() -> int:
     # the containers are created.
     require(re.search(r"^\s+build:\s*$", coolify, re.MULTILINE) is None, "Coolify compose must pull prebuilt images, not build source")
     require(re.search(r"^  rpc-node:\s*$", coolify, re.MULTILINE) is None, "Coolify must not make the optional RPC replica a default service")
-    for index, service in enumerate(ordered):
-        next_service = ordered[index + 1] if index + 1 < len(ordered) else None
+    coolify_ordered = [
+        "key-bootstrap",
+        "social-bootstrap",
+        "protocol-bootstrap",
+        "faucet",
+        "validator",
+        "explorer-api",
+        "explorer-ui",
+        "funding-gateway",
+        "operations-web",
+        "wallet-tools",
+    ]
+    coolify_service_positions = []
+    for service in coolify_ordered:
+        match = re.search(rf"^  {re.escape(service)}:\s*$", coolify, re.MULTILINE)
+        require(match is not None, f"Coolify compose missing top-level service {service}")
+        coolify_service_positions.append(match.start())
+    require(
+        coolify_service_positions == sorted(coolify_service_positions),
+        "Coolify services must stay grouped as one-shot lifecycle, core runtime, applications, then opt-in tooling",
+    )
+    for index, service in enumerate(coolify_ordered):
+        next_service = coolify_ordered[index + 1] if index + 1 < len(coolify_ordered) else None
         block = service_block(coolify, service, next_service)
         require("image:" in block, f"Coolify {service} must use a published image")
         require("pull_policy: always" in block, f"Coolify {service} must pull the selected Docker Hub tag")
 
-    coolify_key_bootstrap = service_block(coolify, "key-bootstrap", "faucet")
-    coolify_faucet = service_block(coolify, "faucet", "validator")
-    coolify_validator = service_block(coolify, "validator", "social-bootstrap")
+    coolify_key_bootstrap = service_block(coolify, "key-bootstrap", "social-bootstrap")
     coolify_bootstrap = service_block(coolify, "social-bootstrap", "protocol-bootstrap")
-    coolify_protocol_bootstrap = service_block(coolify, "protocol-bootstrap", "explorer-api")
+    coolify_protocol_bootstrap = service_block(coolify, "protocol-bootstrap", "faucet")
+    coolify_faucet = service_block(coolify, "faucet", "validator")
+    coolify_validator = service_block(coolify, "validator", "explorer-api")
     coolify_explorer = service_block(coolify, "explorer-api", "explorer-ui")
+    coolify_explorer_ui = service_block(coolify, "explorer-ui", "funding-gateway")
+    coolify_funding_gateway = service_block(coolify, "funding-gateway", "operations-web")
     coolify_operations_web = service_block(coolify, "operations-web", "wallet-tools")
     coolify_wallet_tools = service_block(coolify, "wallet-tools")
-    # The operations web app owns public Funding Gateway policy plus the operator
-    # console. The private Faucet Daemon is a separate TCP service.
+    # Public funding and Admin are isolated service roles. The Funding Gateway
+    # owns persistent policy/queue state and Faucet authorization; Admin is only
+    # a private authenticated client of that service.
+    require("AEKO_OPERATIONS_ROLE: funding" in coolify_funding_gateway, "Coolify Funding Gateway role must be explicit")
+    require("AEKO_OPERATIONS_ROLE: admin" in coolify_operations_web, "Coolify Admin role must be explicit")
     require("ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}" in coolify_operations_web, "Coolify operations web must require an operator password")
     require("ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}" in coolify_operations_web, "Coolify operations web must require a session secret")
-    require("- admin-state:/data" in coolify_operations_web, "Coolify operations web must persist funding policy/grants in the admin-state volume")
-    require("http://127.0.0.1:3001/api/funding/policy" in coolify_operations_web, "Coolify operations web healthcheck must probe the public funding policy endpoint")
+    require("source: admin-state" in coolify_funding_gateway and "target: /data" in coolify_funding_gateway, "Coolify Funding Gateway must persist policy/queue state")
+    require("source: admin-state" not in coolify_operations_web, "Coolify Admin must not mount Funding Gateway state")
+    require("http://127.0.0.1:3001/api/funding/policy" in coolify_funding_gateway, "Coolify Funding Gateway healthcheck must probe public funding policy")
+    require("http://127.0.0.1:3001/login" in coolify_operations_web, "Coolify Admin healthcheck must probe only the Admin process")
+    require(
+        "AEKO_INTERNAL_FUNDING_URL: ${AEKO_INTERNAL_FUNDING_URL:-http://funding-gateway:3001}" in coolify_operations_web
+        and "FUNDING_ADMIN_API_KEY: ${FUNDING_ADMIN_API_KEY:?}" in coolify_operations_web,
+        "Coolify Admin must use the private Funding Gateway API",
+    )
+    require("FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_funding_gateway, "Coolify Funding Gateway must own protected airdrop authorization")
+    require("FUNDING_GATEWAY_KEY" not in coolify_operations_web, "Coolify Admin must not receive protected airdrop authorization")
+    require(
+        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in coolify_explorer_ui,
+        "Coolify Explorer UI must proxy indexed reads to the private Explorer backend",
+    )
     require("--per-request-cap" in coolify_faucet, "Coolify faucet must enforce a per-request airdrop ceiling")
     require("AEKO_KEYS_DIR" not in coolify, "Coolify compose must not depend on interpolated key-path variables")
-    require("source: ${" not in coolify, "Coolify volume sources must not contain Compose interpolation")
+    coolify_volume_sources = re.findall(r"^\s+source:\s*(.+?)\s*$", coolify, re.MULTILINE)
+    require(coolify_volume_sources, "Coolify compose must declare explicit long-form volume sources")
+    require(
+        re.search(r"^\s+- [A-Za-z0-9_.-]+:/", coolify, re.MULTILINE) is None,
+        "Coolify named volumes must use long-form type/source/target syntax",
+    )
+    for source in coolify_volume_sources:
+        require("${" not in source, f"Coolify volume source must be literal, not interpolated: {source}")
+        require(
+            not any(character in source for character in "‘’“”"),
+            f"Coolify volume source contains a forbidden smart quote: {source}",
+        )
     require(coolify.count("source: /data/aeko/keys") >= 5, "Coolify runtime and key bootstrap services must share the fixed host key bind source")
     require(coolify.count("read_only: true") >= 3, "Coolify long-running runtime key mounts must remain read-only")
-    require(re.search(r"^  key-preflight:\\s*$", coolify, re.MULTILINE) is None, "Coolify must retain the key-bootstrap service name used by its dependency graph")
+    require(re.search(r"^  key-preflight:\s*$", coolify, re.MULTILINE) is None, "Coolify must retain the key-bootstrap service name used by its dependency graph")
     require('entrypoint: ["/usr/local/bin/aeko-key-preflight"]' in coolify_key_bootstrap, "Coolify key bootstrap must use the shared tools-image preflight")
     require("AEKO_KEYS_SOURCE: /data/aeko/keys" in coolify_key_bootstrap, "Coolify key bootstrap diagnostics must identify the fixed host key path")
     require("AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}" in coolify_key_bootstrap, "Coolify key bootstrap must preserve explicit first-chain-key generation")
@@ -499,24 +613,34 @@ def main() -> int:
     require("key-bootstrap:" in coolify_faucet and "condition: service_completed_successfully" in coolify_faucet, "Coolify faucet must wait for persistent key initialization")
     require('restart: "no"' in coolify_bootstrap, "Coolify SocialFi bootstrap must remain a one-shot initializer")
     require("protocol-authority-keypair.json" in coolify_protocol_bootstrap, "Coolify protocol bootstrap must use dedicated authority")
-    require("protocol-state:/state" in coolify_protocol_bootstrap, "Coolify protocol state must persist")
-    require("protocol-continuity:/continuity" in coolify_protocol_bootstrap, "Coolify protocol continuity anchor must persist separately")
+    require("source: protocol-state" in coolify_protocol_bootstrap and "target: /state" in coolify_protocol_bootstrap, "Coolify protocol state must persist")
+    require("source: protocol-continuity" in coolify_protocol_bootstrap and "target: /continuity" in coolify_protocol_bootstrap, "Coolify protocol continuity anchor must persist separately")
     require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in coolify_protocol_bootstrap, "Coolify protocol bootstrap must follow intentional chain resets")
     require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in coolify_explorer, "Coolify Explorer must purge stale projections on intentional chain resets")
     require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in coolify_explorer, "Coolify Explorer must consume protocol registry")
-    require("protocol-state:/protocol-state:ro" in coolify_explorer, "Coolify Explorer must mount protocol state read-only")
-    require("depends_on:" not in coolify_operations_web, "Coolify Operations Web lifecycle must be independent of validator health")
+    require("source: protocol-state" in coolify_explorer and "target: /protocol-state" in coolify_explorer and "read_only: true" in coolify_explorer, "Coolify Explorer must mount protocol state read-only")
+    require(
+        "funding-gateway:" in coolify_operations_web
+        and "condition: service_healthy" in coolify_operations_web
+        and "validator:" not in coolify_operations_web
+        and "explorer-api:" not in coolify_operations_web,
+        "Coolify Admin may wait for its private Funding Gateway but must remain independent of validator/Explorer readiness",
+    )
     require('profiles: ["ops"]' in coolify_wallet_tools, "Coolify wallet tools must remain operator-only and absent from default startup")
     require("exit 64" in key_preflight and "exit 65" in key_preflight, "reusable key preflight helper must preserve distinct missing/invalid key exit codes")
     require(
         'reset_ledger="$(parse_bool AEKO_RESET_LEDGER' in key_preflight,
         "reusable key preflight helper must understand the destructive chain-reset signal",
     )
-    require("validator-ledger:/ledger" in coolify_validator, "Coolify validator must use a Docker-managed ledger volume by default")
+    require("source: validator-ledger" in coolify_validator and "target: /ledger" in coolify_validator, "Coolify validator must use a Docker-managed ledger volume by default")
     require("AEKO_VALIDATOR_LEDGER_VOLUME" not in coolify, "Coolify ledger source must not use interpolated volume-source syntax")
     require("AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?}" in coolify_validator, "Coolify must require the public validator address")
     require("AEKO_FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_validator, "Coolify validator must protect requestAirdrop behind the Funding Gateway key")
-    require("FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_operations_web, "Coolify admin must receive the matching Funding Gateway key")
+    require("FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in coolify_funding_gateway, "Coolify Funding Gateway must receive the matching validator authorization key")
+    require(
+        "FUNDING_MAX_CONSOLE_AIRDROP_AEKO: ${FUNDING_MAX_CONSOLE_AIRDROP_AEKO:-25}" in coolify_funding_gateway,
+        "Coolify Funding Gateway must cap direct Test Console airdrops",
+    )
     require('"8000-8050:8000-8050/tcp"' in coolify_validator, "Coolify validator TCP transport range must be published")
     require('"8000-8050:8000-8050/udp"' in coolify_validator, "Coolify validator UDP transport range must be published")
     require(
@@ -532,7 +656,7 @@ def main() -> int:
         "Coolify operations web must use the internal validator RPC",
     )
     require(
-        "AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in coolify_operations_web,
+        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in coolify_operations_web,
         "Coolify operations web must use the internal Explorer API",
     )
     require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?}" in coolify_explorer, "Coolify Explorer must require durable PostgreSQL")
@@ -544,6 +668,8 @@ def main() -> int:
     portable_bootstrap = service_block(portable, "social-bootstrap", "protocol-bootstrap")
     portable_protocol_bootstrap = service_block(portable, "protocol-bootstrap", "explorer-api")
     portable_explorer = service_block(portable, "explorer-api", "explorer-ui")
+    portable_explorer_ui = service_block(portable, "explorer-ui", "funding-gateway")
+    portable_funding_gateway = service_block(portable, "funding-gateway", "operations-web")
     portable_operations_web = service_block(portable, "operations-web")
     require(
         "AEKO_BOOTSTRAP_ALLOW_MISSING_STATE" not in portable_bootstrap,
@@ -562,16 +688,38 @@ def main() -> int:
         "portable operations web must use the internal validator RPC",
     )
     require(
-        "AEKO_EXPLORER_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in portable_operations_web,
+        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in portable_operations_web,
         "portable operations web must use the internal Explorer API",
     )
+    require(
+        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in portable_explorer_ui,
+        "portable Explorer UI must proxy indexed reads to the private Explorer backend",
+    )
+    require(
+        "AEKO_OPERATIONS_ROLE: funding" in portable_funding_gateway
+        and "FUNDING_GATEWAY_KEY:" in portable_funding_gateway
+        and "admin-state:/data" in portable_funding_gateway,
+        "portable Funding Gateway must own public funding state and protected airdrop authorization",
+    )
+    require(
+        "AEKO_OPERATIONS_ROLE: admin" in portable_operations_web
+        and "AEKO_INTERNAL_FUNDING_URL: ${AEKO_INTERNAL_FUNDING_URL:-http://funding-gateway:3001}" in portable_operations_web
+        and "FUNDING_ADMIN_API_KEY:" in portable_operations_web,
+        "portable Admin must use the private Funding Gateway API",
+    )
+    require("FUNDING_GATEWAY_KEY" not in portable_operations_web, "portable Admin must not receive protected airdrop authorization")
     require("protocol-authority-keypair.json" in portable_protocol_bootstrap, "portable protocol bootstrap must use dedicated authority")
     require("protocol-continuity:/continuity" in portable_protocol_bootstrap, "portable protocol continuity anchor must persist separately")
     require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in portable_protocol_bootstrap, "portable protocol bootstrap must follow intentional chain resets")
     require("AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}" in portable_explorer, "portable Explorer must follow intentional chain resets")
     require("AEKO_PROTOCOL_REGISTRY_FILE: /protocol-state/protocol-registry.env" in portable_explorer, "portable Explorer must consume protocol registry")
     require("protocol-state:/protocol-state:ro" in portable_explorer, "portable Explorer must mount protocol state read-only")
-    require("depends_on:" not in portable_operations_web, "portable Operations Web lifecycle must be independent of validator health")
+    require(
+        "funding-gateway:" in portable_operations_web
+        and "validator:" not in portable_operations_web
+        and "explorer-api:" not in portable_operations_web,
+        "portable Admin may depend on Funding Gateway but must remain independent of validator/Explorer readiness",
+    )
     require("AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-localnet}" in portable_explorer, "portable Explorer must default to localnet identity rather than production testnet")
     require("http://127.0.0.1:8088/" in portable_explorer, "portable Explorer container health must use process liveness")
     require("http://127.0.0.1:8088/health" not in portable_explorer, "portable Explorer container health must not couple process liveness to readiness")
@@ -594,8 +742,8 @@ def main() -> int:
     for endpoint in (
         "https://rpc.aeko.online",
         "wss://ws.aeko.online",
-        "https://api.aeko.online",
         "https://scan.aeko.online",
+        "https://fund.aeko.online",
         "gossip.aeko.online:8001",
     ):
         require(endpoint in readme, f"README missing public endpoint {endpoint}")
@@ -608,7 +756,7 @@ def main() -> int:
     require("rpc.aeko.online` | `validator` | `8899" in deployment, "deployment guide must route public RPC to validator")
     require("ws.aeko.online` | `validator` | `8900" in deployment, "deployment guide must route public WebSocket to validator")
     require("public/Dokploy stack; uses prebuilt Docker Hub images and serves RPC/WS from the healthy voting validator" in deployment, "deployment guide must describe the single-validator Dokploy RPC topology")
-    require("Explorer API/UI remain available in a degraded state" in deployment, "deployment guide must document degraded Explorer behavior when SocialFi bootstrap fails")
+    require("Explorer UI remains available in a degraded state" in deployment, "deployment guide must document degraded Explorer behavior when SocialFi bootstrap fails")
     require("docker/compose.coolify.yml" in deployment, "deployment guide must document the Coolify Compose path")
 
     print("[PASS] AEKO local + Dokploy + Coolify deployment contracts are internally consistent")

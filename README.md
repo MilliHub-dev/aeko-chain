@@ -64,8 +64,8 @@ A **WebSocket node is not a separate daemon**. PubSub/WebSocket is served by the
 | --- | --- | --- |
 | JSON-RPC | `https://rpc.aeko.online` | validator `:8899` |
 | WebSocket / PubSub | `wss://ws.aeko.online` | validator `:8900` |
-| Explorer REST API | `https://api.aeko.online` | Explorer API `:8088` |
-| Explorer UI | `https://scan.aeko.online` | Explorer UI `:4000` |
+| Explorer UI + indexed-read proxy | `https://scan.aeko.online` | Explorer UI `:4000` -> private Explorer API `:8088` |
+| Testnet Funding Gateway | `https://fund.aeko.online` | funding-gateway `:3001` |
 | Validator gossip | `gossip.aeko.online:8001` | validator gossip entrypoint |
 
 The public validator publishes the public TCP+UDP transport range `8000-8050`; gossip starts at `8001`. `gossip.aeko.online` is **not an Explorer website** and must never be used as an Explorer fallback.
@@ -79,7 +79,7 @@ The public validator publishes the public TCP+UDP transport range `8000-8050`; g
 | `8899` | HTTP JSON-RPC | wallet/dApp/CLI RPC | `rpc.aeko.online` via validator |
 | `8900` | WebSocket | RPC PubSub | `ws.aeko.online` via validator |
 | `9900` | TCP | Faucet Daemon | internal only |
-| `8088` | HTTP | Explorer/indexer REST API | `api.aeko.online` |
+| `8088` | HTTP | Explorer/indexer REST API | internal Docker network only |
 | `4000` | HTTP | Explorer UI | `scan.aeko.online` |
 | `4101` | HTTP/Socket.IO | separate Aeko application backend | separate deployment |
 | `5432` | PostgreSQL | durable storage where configured | internal only |
@@ -112,7 +112,7 @@ Normal redeploy behavior is fail-closed and idempotent at the deployment boundar
 5. Bootstrap binds the canonical registry to the live validator with `AEKO_REGISTRY_SCHEMA_VERSION=2` and `AEKO_CHAIN_GENESIS_HASH=<getGenesisHash>`.
 6. Bootstrap writes an in-progress marker before first initialization/reset work and replaces it with a completed chain binding only after every canonical account verifies and the registry is published atomically.
 7. Bootstrap writes `/state/social-registry.env`; Explorer mounts the same volume read-only through `AEKO_SOCIAL_REGISTRY_FILE=/state/social-registry.env`.
-8. A legacy registry without genesis metadata is adopted only after its existing canonical accounts verify against the live chain. Ambiguous or partially missing established state fails closed.
+8. Existing registries must already be schema-v2 and bound to the live genesis. Schema-less or unbound registries fail closed; use `AEKO_RESET_LEDGER=1` only when intentionally creating a replacement chain.
 9. The default deployment always starts Social bootstrap; Explorer may remain routable for diagnostics while `/social/status` and `/network/readiness` report the incomplete lifecycle.
 
 Operator env vars can intentionally override registry values, but normal deployment no longer requires copying/renaming state addresses by hand.
@@ -258,8 +258,9 @@ Dokploy's native **Domains** UI can inject Traefik routing, so the repository Co
 ```text
 rpc.aeko.online   -> validator:8899
 ws.aeko.online    -> validator:8900
-api.aeko.online   -> explorer-api:8088
 scan.aeko.online  -> explorer-ui:4000
+fund.aeko.online  -> funding-gateway:3001
+admin.aeko.online -> operations-web:3001
 ```
 
 Set `AEKO_PUBLIC_IP` to the externally reachable node address. Point `gossip.aeko.online` DNS directly to it and allow inbound TCP+UDP `8000-8050`. Gossip/validator transport is not an HTTP route and must not go through the Explorer/Traefik domain path.
@@ -301,7 +302,6 @@ Configure Coolify domains against the internal service ports:
 ```text
 rpc.aeko.online   -> validator:8899
 ws.aeko.online    -> validator:8900
-api.aeko.online   -> explorer-api:8088
 scan.aeko.online  -> explorer-ui:4000
 ```
 
@@ -374,7 +374,7 @@ curl -s https://rpc.aeko.online \
   }'
 ```
 
-Public testnet funding is policy-controlled through the Funding Portal/Gateway; the Faucet Daemon on TCP `:9900` remains private and the deployed public RPC protects `requestAirdrop`:
+Public testnet funding is policy-controlled through the Funding Portal/Gateway; the Faucet Daemon on TCP `:9900` remains private and the deployed public RPC protects `requestAirdrop`. Public requests wait for operator approval before release:
 
 ```bash
 curl -X POST https://fund.aeko.online/api/funding/request \
@@ -396,12 +396,12 @@ for chain subscriptions such as account, signature, slot and log notifications. 
 
 ## Explorer and SocialFi registry
 
-Humans use `https://scan.aeko.online`; applications can use `https://api.aeko.online` for indexed resources including blocks, transactions, accounts, posts, engagement, stakes and search.
+Explorer users and browser clients use `https://scan.aeko.online`. Indexed reads stay on that origin under `/api/explorer/testnet/*` and are proxied internally to the private Explorer API; there is no separate public Explorer REST origin.
 
 Registry acceptance:
 
 ```bash
-curl -s https://api.aeko.online/registry/social
+curl -s https://scan.aeko.online/api/explorer/testnet/registry/social
 ```
 
 Explorer uses a common response envelope. A ready deployment has the logical shape:
@@ -441,7 +441,7 @@ Deployment acceptance requires `/network/readiness` to return HTTP 200 with Soci
 
 ## Aeko Social end-to-end acceptance
 
-The Explorer site's Network Tools/Test Console has a real browser path for signed social transactions. It creates test Ed25519 wallets, requests a policy-controlled funding grant, transfers AEKO, discovers SocialFi state, builds/signs an `AnchorPost`, submits it through RPC, creates a signed Like engagement transaction and reads state back from-chain.
+The Explorer site's Network Tools/Test Console has a real browser path for signed social transactions. It creates test Ed25519 wallets, requests a constrained direct Test Console airdrop with a chosen amount, transfers AEKO, discovers SocialFi state, builds/signs an `AnchorPost`, submits it through RPC, creates a signed Like engagement transaction and reads state back from-chain. This developer airdrop path is separate from public funding requests that require operator approval.
 
 Use this sequence before certifying a deployment:
 
@@ -451,7 +451,7 @@ Use this sequence before certifying a deployment:
 4. All five SocialFi state addresses are non-null.
 5. Each state account exists, is initialized and has the expected SocialFi program owner.
 6. Create a test wallet.
-7. Request a funding grant and verify balance.
+7. Request a Test Console airdrop and verify balance.
 8. Submit a signed `AnchorPost`.
 9. Confirm the transaction.
 10. Read the post back from Social Posts state.
@@ -463,7 +463,7 @@ Automated deployment/read-path verification:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://api.aeko.online \
+AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
 python3 scripts/smoke-aeko-social.py
 ```
 
@@ -476,8 +476,8 @@ A normal dApp/wallet developer primarily needs:
 ```text
 RPC          https://rpc.aeko.online
 WebSocket    wss://ws.aeko.online
-Explorer API https://api.aeko.online
 Explorer     https://scan.aeko.online
+Funding      https://fund.aeko.online
 ```
 
 A validator operator additionally needs:
@@ -563,5 +563,5 @@ MIT. See [`LICENSE`](./LICENSE).
 
 Aeko Social and AEKO Protocol are part of every default network deployment. Fresh and reset-to-genesis networks activate the mandatory Protocol runtime features at genesis, and both one-shot bootstraps initialize-or-verify their canonical state on every deployment. They are not operator feature toggles.
 
-Legacy history-preserving Protocol activation, reset behavior, recovery boundaries, and Social/Protocol acceptance checks are consolidated in [`DEPLOYMENT.md`](./DEPLOYMENT.md).
+Historical pre-builtin Protocol migration, reset behavior, recovery boundaries, and Social/Protocol acceptance checks are consolidated in [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 

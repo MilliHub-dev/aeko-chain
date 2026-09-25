@@ -50,9 +50,9 @@ Internet wallets / dApps / SDKs
                          |                    |
                   native SocialFi       PostgreSQL + registry
 
-scan.aeko.online -> explorer-ui :4000 -> explorer-api :8088
-fund.aeko.online -> operations-web :3001 (Testnet Funding Portal)      -> validator RPC
-admin.aeko.online -> operations-web :3001 (operator console, sign-in) -> validator RPC / explorer-api
+scan.aeko.online -> explorer-ui :4000 -> private explorer-api :8088 via /api/explorer/testnet
+fund.aeko.online -> funding-gateway :3001 (public funding request + Test Console airdrop API) -> validator RPC
+admin.aeko.online -> operations-web :3001 (operator approvals/console, sign-in) -> private funding-gateway / explorer-api
 
 gossip.aeko.online:8001 -> validator gossip entrypoint
 validator host TCP+UDP 8000-8050 -> public validator transport range
@@ -73,7 +73,7 @@ Persist:
 - `social-state` named volume;
 - `protocol-state` named volume;
 - `protocol-continuity` named volume;
-- `admin-state` named volume (funding policy and grant ledger);
+- `admin-state` named volume (Funding Gateway policy, approval queue and grant ledger);
 - validator identity key;
 - vote-account key;
 - stake key;
@@ -92,14 +92,14 @@ Do not copy the same value into multiple configuration surfaces merely because s
 | --- | --- | --- |
 | Validator/vote/stake/faucet identities | persistent key files | Preserve the existing files; generate only during an intentional first chain boot. |
 | Social state and vault addresses | generated `social-state/social-registry.env` | Leave Explorer per-address overrides unset. |
-| Protocol feature identities | compile-time feature IDs | Fresh/reset genesis activates the mandatory protocol runtime features automatically; only a legacy preserved chain uses the compatibility activation helper. |
+| Protocol feature identities | compile-time feature IDs | Fresh/reset genesis activates the mandatory protocol runtime features automatically; only an older preserved chain uses the compatibility activation helper. |
 | Protocol authority and canonical state addresses | persistent protocol authority plus generated `protocol-registry.env` / continuity anchor | Bootstrap automatically when no established protocol identity exists; preserve and verify thereafter. |
-| Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads the same public API resource. |
-| Public browser endpoints | deployment environment (`AEKO_PUBLIC_*`) | Configure once per deployment environment. |
-| Internal container endpoints | Compose service DNS defaults | Normally leave the `AEKO_INTERNAL_*` overrides unset. |
+| Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads it through the same-origin read proxy. |
+| Public browser endpoints | deployment environment (`AEKO_PUBLIC_RPC_URL`, `AEKO_PUBLIC_WS_URL`, `AEKO_PUBLIC_FUNDING_URL`) | Configure once per deployment environment. |
+| Internal service endpoints | Compose service DNS defaults | Keep Explorer, Funding Admin API and Faucet traffic on `AEKO_INTERNAL_*` / Docker DNS. |
 | Recovery address overrides | Explorer process environment | Use only for explicit recovery; never as a parallel normal source of truth. |
 
-Similar names are not automatically duplicates. For example, `AEKO_EXPLORER_URL` is the Operations Web server-to-server Explorer endpoint, while `AEKO_PUBLIC_EXPLORER_API_URL` is the browser-facing Explorer API endpoint. They may resolve to the same service through different network paths and must not be substituted blindly.
+The Explorer backend has one canonical server-side upstream name, `AEKO_INTERNAL_EXPLORER_API_URL`. Browsers never receive that origin; Explorer UI serves indexed reads from its own `/api/explorer/{network}` path. Funding follows the same rule: the browser knows only `AEKO_PUBLIC_FUNDING_URL`, while Admin uses `AEKO_INTERNAL_FUNDING_URL`.
 
 ## Required production environment
 
@@ -113,15 +113,13 @@ AEKO_REQUIRE_EXISTING_LEDGER=1
 AEKO_ALLOW_CHAIN_KEY_GENERATION=0   # Coolify; enable only for intentional first boot
 AEKO_PUBLIC_RPC_URL=<public JSON-RPC URL>
 AEKO_PUBLIC_WS_URL=<public PubSub WebSocket URL>
-AEKO_PUBLIC_EXPLORER_API_URL=<public Explorer REST API URL>
-AEKO_PUBLIC_EXPLORER_URL=<public Explorer UI URL>
-AEKO_PUBLIC_FUNDING_URL=<public Testnet Funding Portal URL>
-AEKO_PUBLIC_ADMIN_URL=<public operator-console URL>
-FUNDING_ALLOWED_ORIGINS=<comma-separated browser origins allowed to call funding>
+AEKO_PUBLIC_FUNDING_URL=<public Testnet Funding Gateway URL>
+FUNDING_ALLOWED_ORIGINS=<comma-separated Explorer UI origins allowed to call funding>
 ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
-FUNDING_GATEWAY_KEY=<server secret shared with validator requestAirdrop authorization>
-FUNDING_CLIENT_API_KEY=<optional trusted backend secret sent as x-funding-key>
+AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=<private Admin-to-Explorer settings token>
+FUNDING_GATEWAY_KEY=<Funding Gateway secret shared with validator requestAirdrop authorization>
+FUNDING_ADMIN_API_KEY=<different private Admin-to-Funding service key>
 ```
 
 Optional funding policy (initial values; editable in the admin console afterwards):
@@ -132,6 +130,7 @@ FUNDING_DEFAULT_AMOUNT_AEKO=5
 FUNDING_DEFAULT_COOLDOWN_HOURS=24
 FUNDING_DEFAULT_DAILY_BUDGET_AEKO=5000
 FUNDING_MAX_MANUAL_GRANT_AEKO=100
+FUNDING_MAX_CONSOLE_AIRDROP_AEKO=25
 ```
 
 Optional SocialFi bootstrap configuration:
@@ -192,7 +191,7 @@ key-bootstrap creates/validates persistent keys and exits 0
               -> explorer-ui healthy
 ```
 
-Explorer API/UI remain available in a degraded state for diagnostics if either mandatory bootstrap fails. The Explorer loads the generated Social and Protocol registries dynamically; `/social/status` and `/protocol/status` remain incomplete until their corresponding canonical on-chain state is valid. Routability therefore does not convert a failed Aeko Social or AEKO Protocol bootstrap into a successful network deployment.
+Explorer UI remains available in a degraded state for diagnostics if either mandatory bootstrap fails. The Explorer loads the generated Social and Protocol registries dynamically; `/social/status` and `/protocol/status` remain incomplete until their corresponding canonical on-chain state is valid. Routability therefore does not convert a failed Aeko Social or AEKO Protocol bootstrap into a successful network deployment.
 
 Bootstrap remains safe for a normal redeploy because it does not send another Initialize instruction when the persisted key resolves to an initialized account owned by the expected SocialFi program. Wrong-owner, malformed or unexpectedly missing state on an established chain fails closed.
 
@@ -222,7 +221,7 @@ AEKO_RESET_LEDGER=1
 
 The reset signal is propagated to the validator, SocialFi bootstrap, Protocol bootstrap, and Explorer. For the replacement genesis, SocialFi and Protocol bootstrap first persist a genesis-bound reset-in-progress marker, clear foreign-chain bootstrap artifacts once, recreate and verify canonical state, atomically publish schema-v2 registries, write a completed chain binding, and only then remove the progress marker. Explorer purges stale PostgreSQL projections before binding to the new genesis.
 
-After the replacement chain is accepted, return `AEKO_RESET_LEDGER=0`. If bootstrap was interrupted before completion, the durable progress marker makes the next deployment resume the same replacement genesis even with the flag already back at `0`. A completed same-genesis deployment that later loses an account still fails closed. Missing-state recovery overrides remain incident-recovery controls for damaged established deployments and are not part of normal Compose configuration.
+After the replacement chain is accepted, return `AEKO_RESET_LEDGER=0`. If bootstrap was interrupted before completion, the durable progress marker makes the next deployment resume the same replacement genesis even with the flag already back at `0`. A completed same-genesis deployment that later loses an account still fails closed. There is no missing-state bypass: restore the matching persistent state for the current chain, or use an explicit reset only when intentionally creating a replacement chain.
 
 ## Portable/local deployment
 
@@ -260,9 +259,8 @@ Dokploy's native Domains feature is preferred. Route:
 | --- | --- | ---: |
 | `rpc.aeko.online` | `validator` | `8899` |
 | `ws.aeko.online` | `validator` | `8900` |
-| `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
-| `fund.aeko.online` | `operations-web` | `3001` |
+| `fund.aeko.online` | `funding-gateway` | `3001` |
 | `admin.aeko.online` | `operations-web` | `3001` |
 
 Do not route `gossip.aeko.online` through Traefik. DNS should point it directly at `AEKO_PUBLIC_IP`. Gossip starts on `8001`, and the Compose publishes the full validator TCP+UDP `8000-8050` transport range with same-port host mappings so advertised peer addresses stay reachable.
@@ -297,9 +295,8 @@ Configure domains to the same internal services:
 | --- | --- | ---: |
 | `rpc.aeko.online` | `validator` | `8899` |
 | `ws.aeko.online` | `validator` | `8900` |
-| `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
-| `fund.aeko.online` | `operations-web` | `3001` |
+| `fund.aeko.online` | `funding-gateway` | `3001` |
 | `admin.aeko.online` | `operations-web` | `3001` |
 
 Keep `gossip.aeko.online` outside the HTTP proxy. Point its DNS directly to `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050`.
@@ -383,13 +380,13 @@ A normal redeploy preserves the validator ledger, chain keys, `social-state`, `p
 
 `AEKO_RESET_LEDGER=1` is the single explicit destructive new-chain signal. The validator creates a replacement genesis once; SocialFi state, Protocol state/continuity, and Explorer's chain-derived PostgreSQL projections follow that new genesis automatically. Social and Protocol canonical registries carry `AEKO_REGISTRY_SCHEMA_VERSION=2` plus `AEKO_CHAIN_GENESIS_HASH`, and their persistent roots retain a reset-in-progress marker until canonical initialization has completely verified. This makes an interrupted intentional reset resumable after the operator returns the reset variable to `0`, while same-genesis state loss remains fail-closed. Key preflight still validates all persistent chain keys and any protocol-authority key that is present, but it does not bind that authority to old Protocol registry/continuity files when an explicit replacement chain is requested.
 
-### Recovery controls
+### Recovery boundary
 
-Missing-state and continuity-anchor recovery overrides remain implemented for deliberate incident recovery, but are not normal Compose settings. A surviving Protocol continuity anchor with a missing registry, or an established registry with a missing continuity anchor, remains a fail-closed condition unless an operator deliberately invokes the appropriate recovery path after verifying canonical identity.
+Bootstrap recovery is lifecycle-driven. There are no missing-state or continuity-anchor bypass environment variables. If established state for the current genesis is missing or inconsistent, restore the matching persistent volumes. Use `AEKO_RESET_LEDGER=1` only when intentionally replacing the chain and its canonical bootstrap state.
 
-### Historical-chain compatibility
+### Historical pre-builtin migration
 
-Runtime feature gates and `scripts/activate-aeko-protocol-features.sh` remain only for a history-preserving migration of a legacy chain whose genesis predates the AEKO Protocol builtins. Do not reset the ledger or Explorer PostgreSQL when preserving such a chain. Back up the ledger, keys, Protocol state/continuity, Social state, and Explorer database first; activate the two protocol feature accounts with the original offline feature-authority keypairs; wait for the activation boundary; then allow the normal mandatory Protocol bootstrap to establish/verify canonical state.
+Runtime feature gates and `scripts/activate-aeko-protocol-features.sh` remain only for a history-preserving migration of an older chain whose genesis predates the AEKO Protocol builtins. Do not reset the ledger or Explorer PostgreSQL when preserving such a chain. Back up the ledger, keys, Protocol state/continuity, Social state, and Explorer database first; activate the two protocol feature accounts with the original offline feature-authority keypairs; wait for the activation boundary; then allow the normal mandatory Protocol bootstrap to establish/verify canonical state.
 
 The rollback boundary is the feature activation itself: before activation, restore the preserved deployment and state without initializing Protocol state; after activation has landed on the preserved chain, do not pretend the feature was never activated by changing deployment flags. Diagnose or roll forward while preserving chain identity.
 
@@ -398,11 +395,11 @@ The rollback boundary is the feature activation itself: before activation, resto
 Verify the live Protocol registry and state:
 
 ```bash
-curl -s https://api.aeko.online/registry/protocol
-curl -s https://api.aeko.online/protocol/status
+curl -s https://scan.aeko.online/api/explorer/testnet/registry/protocol
+curl -s https://scan.aeko.online/api/explorer/testnet/protocol/status
 
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://api.aeko.online \
+AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
 python3 scripts/smoke-aeko-protocol.py
 ```
 
@@ -415,9 +412,9 @@ Do not certify the public network merely because containers are `running` or bec
 First distinguish process and dependency health:
 
 ```bash
-curl -s https://api.aeko.online/liveness
-curl -s https://api.aeko.online/readiness
-curl -s https://api.aeko.online/network/readiness
+curl -s https://scan.aeko.online/api/explorer/testnet/liveness
+curl -s https://scan.aeko.online/api/explorer/testnet/readiness
+curl -s https://scan.aeko.online/api/explorer/testnet/network/readiness
 ```
 
 `/liveness` only proves the Explorer process is serving. `/readiness` proves PostgreSQL/RPC/indexer dependencies. Final network acceptance requires `/network/readiness` HTTP 200 with the registry genesis equal to the live validator genesis, Social `5/5`, Protocol executable programs `11/11`, and Protocol canonical states `8/8`.
@@ -435,7 +432,7 @@ It must return `result: "ok"`. Call `getSlot` twice and confirm it advances.
 ### SocialFi registry
 
 ```bash
-curl -s https://api.aeko.online/registry/social
+curl -s https://scan.aeko.online/api/explorer/testnet/registry/social
 ```
 
 The response is wrapped under `data`. Acceptance requires:
@@ -456,7 +453,7 @@ The response is wrapped under `data`. Acceptance requires:
 Also check live state verification:
 
 ```bash
-curl -s https://api.aeko.online/social/status
+curl -s https://scan.aeko.online/api/explorer/testnet/social/status
 ```
 
 Acceptance requires `data.complete == true`. A healthy Explorer with `complete: false` is intentionally a degraded/diagnostic state, not SocialFi success.
@@ -465,7 +462,7 @@ Acceptance requires `data.complete == true`. A healthy Explorer with `complete: 
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://api.aeko.online \
+AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
 python3 scripts/smoke-aeko-social.py
 ```
 
@@ -473,7 +470,7 @@ Also run the mandatory Protocol smoke:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://api.aeko.online \
+AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
 python3 scripts/smoke-aeko-protocol.py
 ```
 
@@ -484,7 +481,7 @@ Together these smokes verify RPC health, slot advancement, both mandatory regist
 Use `https://scan.aeko.online/network-tools` and open the Test Console:
 
 1. create a test wallet;
-2. request a policy-controlled funding grant;
+2. request a direct Test Console airdrop with the required amount;
 3. verify balance;
 4. submit a signed `AnchorPost`;
 5. confirm the transaction;
@@ -502,7 +499,7 @@ Use `https://scan.aeko.online/network-tools` and open the Test Console:
 - Route public RPC/WS through the selected deployment platform's HTTP/WebSocket proxy to the validator's exposed `8899`/`8900` ports for the current single-validator topology.
 - Keep node, SocialFi, protocol-authority and feature-authority key material out of Git.
 - Preserve ledger, SocialFi, protocol-state and protocol-continuity volumes on normal redeploys.
-- Treat missing-state and continuity-anchor recovery overrides as deliberate incident-recovery inputs to manual bootstrap execution, not normal Compose settings. Normal public deployment infers first initialization versus established-state verification from the persisted registry and continuity anchor.
+- Do not bypass missing or inconsistent established bootstrap state. Restore the matching persistent volumes for the current genesis, or use `AEKO_RESET_LEDGER=1` only for an intentional replacement chain. Normal public deployment infers first initialization versus established-state verification from the persisted registry and continuity anchor.
 
 ## Protocol maturity boundary
 

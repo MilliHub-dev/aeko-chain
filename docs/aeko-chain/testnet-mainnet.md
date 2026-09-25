@@ -8,8 +8,7 @@ The repository currently defines and deploys one canonical public network: **AEK
 | --- | --- |
 | JSON-RPC | `https://rpc.aeko.online` |
 | WebSocket PubSub | `wss://ws.aeko.online` |
-| Explorer API | `https://api.aeko.online` |
-| Explorer UI | `https://scan.aeko.online` |
+| Explorer UI + indexed reads | `https://scan.aeko.online` |
 | Testnet Funding Portal | `https://fund.aeko.online` |
 | Validator gossip | `gossip.aeko.online:8001` |
 

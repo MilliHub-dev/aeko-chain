@@ -7,6 +7,8 @@ use {
         response::{self, DataEnvelope},
         state::SharedState,
     },
+    aeko_sdk::signature::Signature,
+    anyhow::Context,
     axum::{
         extract::{Path, Query, State},
         routing::get,
@@ -100,10 +102,21 @@ async fn get_transaction(
     State(state): State<SharedState>,
     Path(signature): Path<String>,
 ) -> ApiResult<Json<DataEnvelope<TransactionRecord>>> {
-    state
-        .repository
-        .get_transaction(&signature)
-        .await?
-        .map(|transaction| response::data(&state.network, transaction))
+    signature
+        .parse::<Signature>()
+        .map_err(|_| ApiError::BadRequest("invalid AEKO transaction signature".to_string()))?;
+
+    if let Some(transaction) = state.repository.get_transaction(&signature).await? {
+        return Ok(response::data(&state.network, transaction));
+    }
+
+    let rpc = state.rpc.clone();
+    let requested = signature.clone();
+    let transaction = tokio::task::spawn_blocking(move || rpc.fetch_transaction(&requested))
+        .await
+        .context("live transaction RPC worker panicked")??;
+
+    transaction
+        .map(|item| response::data_from_source(&state.network, item, "rpc-live"))
         .ok_or(ApiError::NotFound("transaction"))
 }

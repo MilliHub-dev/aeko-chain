@@ -41,11 +41,13 @@ test('the production Explorer client is backend-first with a narrow RPC fallback
 });
 
 
-test('Explorer client diagnoses a public API route that serves the Explorer UI', async () => {
+test('Explorer client diagnoses a broken same-origin read proxy without exposing the backend origin', async () => {
   const source = await readFile(new URL('./explorerApi.js', import.meta.url), 'utf8');
+  const network = await readFile(new URL('./networkConfig.js', import.meta.url), 'utf8');
 
-  assert.match(source, /Explorer API is misrouted/);
-  assert.match(source, /AEKO_PUBLIC_EXPLORER_API_URL/);
-  assert.match(source, /explorer-api:8088/);
-  assert.match(source, /explorer-ui:4000/);
+  assert.match(source, /Explorer read proxy is misrouted/);
+  assert.match(source, /AEKO_INTERNAL_EXPLORER_API_URL/);
+  assert.doesNotMatch(source, /AEKO_PUBLIC_EXPLORER_API_URL/);
+  assert.match(network, /\/api\/explorer\/testnet/);
+  assert.doesNotMatch(network, /AEKO_PUBLIC_EXPLORER_API_URL|api\.aeko\.online/);
 });

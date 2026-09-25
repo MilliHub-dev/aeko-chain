@@ -83,11 +83,6 @@ fn main() -> Result<()> {
     fs::create_dir_all(&continuity_dir)
         .context("creating protocol bootstrap continuity directory")?;
 
-    let operator_allow_missing_state =
-        parse_bool_flag("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE")?;
-    let allow_continuity_anchor_recovery =
-        parse_bool_flag_with_default("AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY", false)?;
-
     let client = RpcClient::new_with_commitment(rpc_url.clone(), CommitmentConfig::confirmed());
     wait_for_rpc_ready(&client)?;
     let live_genesis = client
@@ -101,20 +96,10 @@ fn main() -> Result<()> {
         &live_genesis,
         reset_requested,
     )?;
-    let registry_preexisted = lifecycle_decision.strict_registry_guard();
-    let allow_missing_state =
-        operator_allow_missing_state || lifecycle_decision.allows_recreation();
-    let require_existing_protocol_state = registry_preexisted;
-    let allow_protocol_state_initialization = lifecycle_decision.allows_recreation();
+    let protect_existing_registry = lifecycle_decision.strict_registry_guard();
+    let allow_recreation = lifecycle_decision.allows_recreation();
 
-    prepare_protocol_state_continuity(
-        &out_dir,
-        &continuity_dir,
-        require_existing_protocol_state,
-        allow_protocol_state_initialization,
-        allow_continuity_anchor_recovery || lifecycle_decision.allows_recreation(),
-        allow_missing_state,
-    )?;
+    prepare_protocol_state_continuity(&out_dir, &continuity_dir, allow_recreation)?;
 
     eprintln!("==> aeko-protocol-bootstrap");
     eprintln!("    rpc:       {rpc_url}");
@@ -128,7 +113,7 @@ fn main() -> Result<()> {
         lifecycle_decision
             .registry_genesis
             .as_deref()
-            .unwrap_or("legacy-or-none")
+            .unwrap_or("not-published")
     );
     eprintln!("    reset-requested: {reset_requested}");
     eprintln!(
@@ -211,8 +196,7 @@ fn main() -> Result<()> {
             tokenomics_defaults,
         ),
         "tokenomics",
-        registry_preexisted,
-        allow_missing_state,
+        protect_existing_registry,
         move |data| {
             let state = TokenomicsStateAccount::deserialize_padded(data)
                 .map_err(|_| anyhow!("invalid tokenomics state"))?;
@@ -252,8 +236,7 @@ fn main() -> Result<()> {
             MintPolicy::PublicMintControlled,
         ),
         "aeko20-reference-mint",
-        registry_preexisted,
-        allow_missing_state,
+        protect_existing_registry,
         move |data| {
             let mint = Aeko20Mint::deserialize_padded(data)
                 .map_err(|_| anyhow!("invalid AEKO-20 reference mint"))?;
@@ -309,8 +292,7 @@ fn main() -> Result<()> {
             public_state,
         ),
         "public-mint",
-        registry_preexisted,
-        allow_missing_state,
+        protect_existing_registry,
         move |data| {
             let state = PublicMintState::deserialize_padded(data)
                 .map_err(|_| anyhow!("invalid public-mint state"))?;
@@ -336,8 +318,7 @@ fn main() -> Result<()> {
             current_slot,
         ),
         "permission-registry",
-        registry_preexisted,
-        allow_missing_state,
+        protect_existing_registry,
         move |data| {
             let state = RegistryConfig::deserialize_padded(data)
                 .map_err(|_| anyhow!("invalid permission-registry state"))?;
@@ -361,8 +342,7 @@ fn main() -> Result<()> {
             current_slot,
         ),
         "revocation-registry",
-        registry_preexisted,
-        allow_missing_state,
+        protect_existing_registry,
         move |data| {
             let state = RevRegistryConfig::deserialize_padded(data)
                 .map_err(|_| anyhow!("invalid revocation-registry state"))?;
@@ -386,8 +366,7 @@ fn main() -> Result<()> {
             current_slot,
         ),
         "subnet-registry",
-        registry_preexisted,
-        allow_missing_state,
+        protect_existing_registry,
         move |data| {
             let state = SubnetRegistryConfig::deserialize_padded(data)
                 .map_err(|_| anyhow!("invalid subnet-registry state"))?;
@@ -418,8 +397,7 @@ fn main() -> Result<()> {
             current_slot,
         ),
         "emergency-multisig",
-        registry_preexisted,
-        allow_missing_state,
+        protect_existing_registry,
         move |data| {
             let state = MultisigConfig::deserialize_padded(data)
                 .map_err(|_| anyhow!("invalid emergency-multisig state"))?;
@@ -448,8 +426,7 @@ fn main() -> Result<()> {
             current_slot,
         ),
         "finality-oracle",
-        registry_preexisted,
-        allow_missing_state,
+        protect_existing_registry,
         move |data| {
             let state = OracleConfig::deserialize_padded(data)
                 .map_err(|_| anyhow!("invalid finality-oracle state"))?;
@@ -848,8 +825,7 @@ fn create_and_init<F>(
     space: u64,
     init_ix: Instruction,
     label: &str,
-    registry_preexisted: bool,
-    allow_missing_state: bool,
+    protect_existing_registry: bool,
     verifier: F,
 ) -> Result<()>
 where
@@ -860,12 +836,7 @@ where
         eprintln!("[{label}] existing initialized state verified");
         return Ok(());
     }
-    require_missing_state_recovery_authorized(
-        registry_preexisted,
-        allow_missing_state,
-        &state_pubkey,
-        label,
-    )?;
+    require_state_creation_allowed(protect_existing_registry, &state_pubkey, label)?;
 
     let rent = with_retries(&format!("{label}:rent"), || {
         client
@@ -912,15 +883,14 @@ where
     Err(last_error.unwrap_or_else(|| anyhow!("[{label}] exhausted retries")))
 }
 
-fn require_missing_state_recovery_authorized(
-    registry_preexisted: bool,
-    allow_missing_state: bool,
+fn require_state_creation_allowed(
+    protect_existing_registry: bool,
     state_pubkey: &Pubkey,
     label: &str,
 ) -> Result<()> {
-    if registry_preexisted && !allow_missing_state {
+    if protect_existing_registry {
         return Err(anyhow!(
-            "[{label}] state {state_pubkey} is missing while {REGISTRY_FILE_NAME} exists; set AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1 only for intentional recovery"
+            "[{label}] state {state_pubkey} is missing while {REGISTRY_FILE_NAME} is bound to the current chain; restore the matching persistent state or set AEKO_RESET_LEDGER=1 for an intentional new chain"
         ));
     }
     Ok(())
@@ -1120,10 +1090,7 @@ fn read_optional_text(path: &Path) -> Result<Option<String>> {
 fn prepare_protocol_state_continuity(
     out_dir: &Path,
     continuity_dir: &Path,
-    require_existing: bool,
-    allow_initialization: bool,
-    allow_anchor_recovery: bool,
-    allow_missing_state: bool,
+    allow_recreation: bool,
 ) -> Result<()> {
     let registry_path = out_dir.join(REGISTRY_FILE_NAME);
     let anchor_path = continuity_dir.join(REGISTRY_ANCHOR_FILE_NAME);
@@ -1135,19 +1102,16 @@ fn prepare_protocol_state_continuity(
         (Some(_), Some(_)) => Err(anyhow!(
             "protocol registry and continuity anchor disagree; restore the correct persisted volumes before bootstrapping"
         )),
-        (Some(registry), None) if allow_anchor_recovery => {
+        (Some(registry), None) if allow_recreation => {
             write_continuity_anchor(continuity_dir, &registry)?;
             Ok(())
         }
         (Some(_), None) => Err(anyhow!(
-            "protocol registry exists but continuity anchor is missing; restore the continuity volume or set AEKO_PROTOCOL_CONTINUITY_ALLOW_ANCHOR_RECOVERY=1 only after independently verifying the existing registry"
+            "protocol registry exists but continuity anchor is missing; restore the matching continuity volume or set AEKO_RESET_LEDGER=1 for an intentional new chain"
         )),
-        (None, Some(_)) if allow_missing_state => Ok(()),
+        (None, Some(_)) if allow_recreation => Ok(()),
         (None, Some(_)) => Err(anyhow!(
-            "protocol continuity anchor exists but protocol-registry.env is missing; refusing to create replacement canonical state unless AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1 is explicitly set for intentional recovery"
-        )),
-        (None, None) if require_existing && !allow_initialization => Err(anyhow!(
-            "no established protocol state was found although existing state was required; restore the protocol-state/protocol-continuity volumes before bootstrapping"
+            "protocol continuity anchor exists but protocol-registry.env is missing; restore the matching protocol-state volume or set AEKO_RESET_LEDGER=1 for an intentional new chain"
         )),
         (None, None) => Ok(()),
     }
@@ -1303,32 +1267,11 @@ mod tests {
     }
 
     #[test]
-    fn continuity_fails_closed_when_required_state_disappears() {
+    fn continuity_accepts_empty_roots_during_lifecycle_initialization() {
         let state = TempDir::new().unwrap();
         let continuity = TempDir::new().unwrap();
 
-        let error = prepare_protocol_state_continuity(
-            state.path(),
-            continuity.path(),
-            true,
-            false,
-            false,
-            false,
-        )
-        .unwrap_err();
-        assert!(error
-            .to_string()
-            .contains("restore the protocol-state/protocol-continuity volumes"));
-
-        prepare_protocol_state_continuity(
-            state.path(),
-            continuity.path(),
-            true,
-            true,
-            false,
-            false,
-        )
-        .unwrap();
+        prepare_protocol_state_continuity(state.path(), continuity.path(), true).unwrap();
     }
 
     #[test]
@@ -1337,99 +1280,63 @@ mod tests {
         let continuity = TempDir::new().unwrap();
         write_continuity_anchor(continuity.path(), "registry-v1").unwrap();
 
-        assert!(prepare_protocol_state_continuity(
-            state.path(),
-            continuity.path(),
-            true,
-            false,
-            false,
-            false,
-        )
-        .unwrap_err()
-        .to_string()
-        .contains("protocol-registry.env is missing"));
+        assert!(
+            prepare_protocol_state_continuity(state.path(), continuity.path(), false)
+                .unwrap_err()
+                .to_string()
+                .contains("protocol-registry.env is missing")
+        );
 
         fs::write(state.path().join(REGISTRY_FILE_NAME), "registry-v2").unwrap();
-        assert!(prepare_protocol_state_continuity(
-            state.path(),
-            continuity.path(),
-            true,
-            false,
-            false,
-            false,
-        )
-        .unwrap_err()
-        .to_string()
-        .contains("disagree"));
+        assert!(
+            prepare_protocol_state_continuity(state.path(), continuity.path(), false)
+                .unwrap_err()
+                .to_string()
+                .contains("disagree")
+        );
     }
 
     #[test]
-    fn continuity_reuses_matching_state_and_requires_explicit_anchor_recovery() {
+    fn continuity_recreates_missing_anchor_only_during_lifecycle_recreation() {
         let state = TempDir::new().unwrap();
         let continuity = TempDir::new().unwrap();
         fs::write(state.path().join(REGISTRY_FILE_NAME), "registry-v1").unwrap();
 
-        assert!(prepare_protocol_state_continuity(
-            state.path(),
-            continuity.path(),
-            true,
-            false,
-            false,
-            false,
-        )
-        .is_err());
+        assert!(
+            prepare_protocol_state_continuity(state.path(), continuity.path(), false)
+                .unwrap_err()
+                .to_string()
+                .contains("AEKO_RESET_LEDGER=1")
+        );
 
-        prepare_protocol_state_continuity(
-            state.path(),
-            continuity.path(),
-            true,
-            false,
-            true,
-            false,
-        )
-        .unwrap();
-        prepare_protocol_state_continuity(
-            state.path(),
-            continuity.path(),
-            true,
-            false,
-            false,
-            false,
-        )
-        .unwrap();
+        prepare_protocol_state_continuity(state.path(), continuity.path(), true).unwrap();
+        prepare_protocol_state_continuity(state.path(), continuity.path(), false).unwrap();
     }
 
     #[test]
-    fn continuity_allows_missing_state_only_for_explicit_recovery() {
+    fn continuity_accepts_missing_registry_only_during_lifecycle_recreation() {
         let state = TempDir::new().unwrap();
         let continuity = TempDir::new().unwrap();
         write_continuity_anchor(continuity.path(), "registry-v1").unwrap();
 
-        prepare_protocol_state_continuity(
-            state.path(),
-            continuity.path(),
-            true,
-            false,
-            false,
-            true,
-        )
-        .unwrap();
+        assert!(
+            prepare_protocol_state_continuity(state.path(), continuity.path(), false)
+                .unwrap_err()
+                .to_string()
+                .contains("AEKO_RESET_LEDGER=1")
+        );
+
+        prepare_protocol_state_continuity(state.path(), continuity.path(), true).unwrap();
     }
 
     #[test]
-    fn missing_state_recovery_requires_explicit_override() {
+    fn state_creation_is_blocked_for_protected_registry() {
         let state_pubkey = Pubkey::new_unique();
 
-        require_missing_state_recovery_authorized(false, false, &state_pubkey, "test-state")
-            .unwrap();
-        require_missing_state_recovery_authorized(true, true, &state_pubkey, "test-state").unwrap();
+        require_state_creation_allowed(false, &state_pubkey, "test-state").unwrap();
 
-        let error =
-            require_missing_state_recovery_authorized(true, false, &state_pubkey, "test-state")
-                .unwrap_err();
-        assert!(error
-            .to_string()
-            .contains("AEKO_PROTOCOL_BOOTSTRAP_ALLOW_MISSING_STATE=1"));
+        let error = require_state_creation_allowed(true, &state_pubkey, "test-state").unwrap_err();
+        assert!(error.to_string().contains("AEKO_RESET_LEDGER=1"));
     }
 
     #[test]
@@ -1441,15 +1348,7 @@ mod tests {
         write_continuity_anchor(continuity.path(), "registry-v1").unwrap();
 
         fs::remove_file(state.path().join(REGISTRY_FILE_NAME)).unwrap();
-        prepare_protocol_state_continuity(
-            state.path(),
-            continuity.path(),
-            true,
-            false,
-            false,
-            true,
-        )
-        .unwrap();
+        prepare_protocol_state_continuity(state.path(), continuity.path(), true).unwrap();
 
         let recovered = ensure_keypair(continuity.path(), "tokenomics-state.json").unwrap();
         assert_eq!(first.pubkey(), recovered.pubkey());

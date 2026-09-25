@@ -5,13 +5,13 @@ import SearchBar from '@/components/search-bar'
 // /login before anything here renders.
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen min-h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-auto">
-        <header className="border-b border-[#1e2135] px-6 py-3 flex items-center gap-4 bg-[#0a0b12]">
+      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+        <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-4 border-b border-[#1e2135] bg-[#0a0b12]/95 px-4 backdrop-blur sm:px-6">
           <SearchBar />
         </header>
-        <main className="flex-1">{children}</main>
+        <main className="min-w-0 flex-1">{children}</main>
       </div>
     </div>
   )

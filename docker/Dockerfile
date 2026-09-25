@@ -127,26 +127,20 @@ WORKDIR /web
 COPY apps/explorer/web/package*.json ./
 RUN npm ci
 COPY apps/explorer/web/ ./
-# Vite endpoint values are build-time configuration. These optional args are
-# intentionally empty for normal production builds; PR validation supplies local
-# runner endpoints so the exact PR-built UI can target the local release stack.
-ARG VITE_AEKO_LOCAL_RPC=
-ARG VITE_AEKO_LOCAL_WS=
-ARG VITE_AEKO_LOCAL_EXPLORER_API=
-ENV VITE_AEKO_LOCAL_RPC=${VITE_AEKO_LOCAL_RPC} \
-    VITE_AEKO_LOCAL_WS=${VITE_AEKO_LOCAL_WS} \
-    VITE_AEKO_LOCAL_EXPLORER_API=${VITE_AEKO_LOCAL_EXPLORER_API}
+# Explorer endpoint configuration is runtime-only. The built Vite bundle is
+# deployment-neutral; docker/explorer-ui-entrypoint.sh writes AEKO_* values to
+# /runtime-config.js when the container starts.
 RUN npm run build
 
 FROM node:22-alpine AS explorer-ui
 WORKDIR /app
-RUN npm install -g serve@14
 COPY --from=explorer-ui-builder /web/dist /app/dist
+COPY docker/explorer-ui-server.mjs /app/explorer-ui-server.mjs
 COPY docker/explorer-ui-entrypoint.sh /usr/local/bin/explorer-ui-entrypoint.sh
 RUN chmod 0755 /usr/local/bin/explorer-ui-entrypoint.sh
 EXPOSE 4000/tcp
 ENTRYPOINT ["/usr/local/bin/explorer-ui-entrypoint.sh"]
-CMD ["serve", "-s", "/app/dist", "-l", "4000"]
+CMD ["node", "/app/explorer-ui-server.mjs"]
 
 # Operations Web is an independent off-chain application. Its target has no dependency
 # on any Rust/network builder, so an operations-web-only change cannot compile the chain.

@@ -13,19 +13,29 @@ use {
 const SETTINGS_ADMIN_HEADER: &str = "x-aeko-settings-token";
 const MIN_LIST_SIZE: u16 = 3;
 const MAX_LIST_SIZE: u16 = 12;
-const MIN_REFRESH_SECONDS: u64 = 10;
-const MAX_REFRESH_SECONDS: u64 = 300;
+const MIN_SEARCH_RESULT_LIMIT: u16 = 5;
+const MAX_SEARCH_RESULT_LIMIT: u16 = 50;
+const MIN_AUTO_REFRESH_SECONDS: u64 = 5;
+const MAX_AUTO_REFRESH_SECONDS: u64 = 300;
+const MIN_SETTINGS_REFRESH_SECONDS: u64 = 10;
+const MAX_SETTINGS_REFRESH_SECONDS: u64 = 300;
 const MIN_READY_LAG_SLOTS: u64 = 16;
 const MAX_READY_LAG_SLOTS: u64 = 4096;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ApplicationSettingsView {
+    network_tools_enabled: bool,
     network_console_enabled: bool,
+    docs_enabled: bool,
+    developers_enabled: bool,
+    bridge_enabled: bool,
     nft_demo_enabled: bool,
     nft_live_flow_enabled: bool,
     nft_advanced_tools_enabled: bool,
     explorer_list_size: u16,
+    explorer_search_result_limit: u16,
+    explorer_auto_refresh_seconds: u64,
     settings_refresh_seconds: u64,
 }
 
@@ -54,11 +64,17 @@ struct SettingsSnapshot {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct SettingsPatch {
     expected_revision: u64,
+    network_tools_enabled: Option<bool>,
     network_console_enabled: Option<bool>,
+    docs_enabled: Option<bool>,
+    developers_enabled: Option<bool>,
+    bridge_enabled: Option<bool>,
     nft_demo_enabled: Option<bool>,
     nft_live_flow_enabled: Option<bool>,
     nft_advanced_tools_enabled: Option<bool>,
     explorer_list_size: Option<u16>,
+    explorer_search_result_limit: Option<u16>,
+    explorer_auto_refresh_seconds: Option<u64>,
     settings_refresh_seconds: Option<u64>,
     max_ready_lag_slots: Option<u64>,
     social_readiness_required: Option<bool>,
@@ -72,11 +88,17 @@ impl SettingsPatch {
             ));
         }
 
-        let has_change = self.network_console_enabled.is_some()
+        let has_change = self.network_tools_enabled.is_some()
+            || self.network_console_enabled.is_some()
+            || self.docs_enabled.is_some()
+            || self.developers_enabled.is_some()
+            || self.bridge_enabled.is_some()
             || self.nft_demo_enabled.is_some()
             || self.nft_live_flow_enabled.is_some()
             || self.nft_advanced_tools_enabled.is_some()
             || self.explorer_list_size.is_some()
+            || self.explorer_search_result_limit.is_some()
+            || self.explorer_auto_refresh_seconds.is_some()
             || self.settings_refresh_seconds.is_some()
             || self.max_ready_lag_slots.is_some()
             || self.social_readiness_required.is_some();
@@ -94,10 +116,26 @@ impl SettingsPatch {
             }
         }
 
-        if let Some(value) = self.settings_refresh_seconds {
-            if !(MIN_REFRESH_SECONDS..=MAX_REFRESH_SECONDS).contains(&value) {
+        if let Some(value) = self.explorer_search_result_limit {
+            if !(MIN_SEARCH_RESULT_LIMIT..=MAX_SEARCH_RESULT_LIMIT).contains(&value) {
                 return Err(ApiError::BadRequest(format!(
-                    "settingsRefreshSeconds must be between {MIN_REFRESH_SECONDS} and {MAX_REFRESH_SECONDS}"
+                    "explorerSearchResultLimit must be between {MIN_SEARCH_RESULT_LIMIT} and {MAX_SEARCH_RESULT_LIMIT}"
+                )));
+            }
+        }
+
+        if let Some(value) = self.explorer_auto_refresh_seconds {
+            if !(MIN_AUTO_REFRESH_SECONDS..=MAX_AUTO_REFRESH_SECONDS).contains(&value) {
+                return Err(ApiError::BadRequest(format!(
+                    "explorerAutoRefreshSeconds must be between {MIN_AUTO_REFRESH_SECONDS} and {MAX_AUTO_REFRESH_SECONDS}"
+                )));
+            }
+        }
+
+        if let Some(value) = self.settings_refresh_seconds {
+            if !(MIN_SETTINGS_REFRESH_SECONDS..=MAX_SETTINGS_REFRESH_SECONDS).contains(&value) {
+                return Err(ApiError::BadRequest(format!(
+                    "settingsRefreshSeconds must be between {MIN_SETTINGS_REFRESH_SECONDS} and {MAX_SETTINGS_REFRESH_SECONDS}"
                 )));
             }
         }
@@ -115,11 +153,19 @@ impl SettingsPatch {
 
     fn into_update(self) -> AppSettingsUpdate {
         AppSettingsUpdate {
+            network_tools_enabled: self.network_tools_enabled,
             network_console_enabled: self.network_console_enabled,
+            docs_enabled: self.docs_enabled,
+            developers_enabled: self.developers_enabled,
+            bridge_enabled: self.bridge_enabled,
             nft_demo_enabled: self.nft_demo_enabled,
             nft_live_flow_enabled: self.nft_live_flow_enabled,
             nft_advanced_tools_enabled: self.nft_advanced_tools_enabled,
             explorer_list_size: self.explorer_list_size.map(i32::from),
+            explorer_search_result_limit: self.explorer_search_result_limit.map(i32::from),
+            explorer_auto_refresh_seconds: self
+                .explorer_auto_refresh_seconds
+                .map(|value| value as i32),
             settings_refresh_seconds: self.settings_refresh_seconds.map(|value| value as i32),
             max_ready_lag_slots_override: self.max_ready_lag_slots.map(|value| value as i64),
             social_readiness_required_override: self.social_readiness_required,
@@ -180,6 +226,16 @@ fn build_snapshot(
         .map_err(|_| ApiError::Internal(anyhow!("persisted settings revision is negative")))?;
     let explorer_list_size = u16::try_from(persisted.explorer_list_size)
         .map_err(|_| ApiError::Internal(anyhow!("persisted Explorer list size is invalid")))?;
+    let explorer_search_result_limit = u16::try_from(persisted.explorer_search_result_limit)
+        .map_err(|_| {
+            ApiError::Internal(anyhow!("persisted Explorer search result limit is invalid"))
+        })?;
+    let explorer_auto_refresh_seconds = u64::try_from(persisted.explorer_auto_refresh_seconds)
+        .map_err(|_| {
+            ApiError::Internal(anyhow!(
+                "persisted Explorer auto refresh interval is invalid"
+            ))
+        })?;
     let settings_refresh_seconds =
         u64::try_from(persisted.settings_refresh_seconds).map_err(|_| {
             ApiError::Internal(anyhow!("persisted settings refresh interval is invalid"))
@@ -206,11 +262,17 @@ fn build_snapshot(
         revision,
         updated_at: persisted.updated_at.to_rfc3339(),
         application: ApplicationSettingsView {
+            network_tools_enabled: persisted.network_tools_enabled,
             network_console_enabled: persisted.network_console_enabled,
+            docs_enabled: persisted.docs_enabled,
+            developers_enabled: persisted.developers_enabled,
+            bridge_enabled: persisted.bridge_enabled,
             nft_demo_enabled: persisted.nft_demo_enabled,
             nft_live_flow_enabled: persisted.nft_live_flow_enabled,
             nft_advanced_tools_enabled: persisted.nft_advanced_tools_enabled,
             explorer_list_size,
+            explorer_search_result_limit,
+            explorer_auto_refresh_seconds,
             settings_refresh_seconds,
         },
         blockchain: BlockchainSettingsView {
@@ -254,11 +316,17 @@ mod tests {
     fn base_patch() -> SettingsPatch {
         SettingsPatch {
             expected_revision: 1,
+            network_tools_enabled: None,
             network_console_enabled: None,
+            docs_enabled: None,
+            developers_enabled: None,
+            bridge_enabled: None,
             nft_demo_enabled: None,
             nft_live_flow_enabled: None,
             nft_advanced_tools_enabled: None,
             explorer_list_size: None,
+            explorer_search_result_limit: None,
+            explorer_auto_refresh_seconds: None,
             settings_refresh_seconds: None,
             max_ready_lag_slots: None,
             social_readiness_required: None,
@@ -271,12 +339,22 @@ mod tests {
 
         let mut valid = base_patch();
         valid.explorer_list_size = Some(6);
+        valid.explorer_search_result_limit = Some(12);
+        valid.explorer_auto_refresh_seconds = Some(15);
         valid.settings_refresh_seconds = Some(30);
         assert!(valid.validate().is_ok());
 
         let mut bad_list = base_patch();
         bad_list.explorer_list_size = Some(13);
         assert!(bad_list.validate().is_err());
+
+        let mut bad_search = base_patch();
+        bad_search.explorer_search_result_limit = Some(4);
+        assert!(bad_search.validate().is_err());
+
+        let mut bad_auto_refresh = base_patch();
+        bad_auto_refresh.explorer_auto_refresh_seconds = Some(4);
+        assert!(bad_auto_refresh.validate().is_err());
 
         let mut bad_refresh = base_patch();
         bad_refresh.settings_refresh_seconds = Some(9);

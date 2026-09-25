@@ -22,12 +22,10 @@ ADMIN_PASSWORD=ci-admin-password \
 ADMIN_SESSION_SECRET=ci-admin-session-secret \
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=ci-explorer-settings-admin-token-0001 \
 FUNDING_GATEWAY_KEY=ci-funding-gateway-key \
+FUNDING_ADMIN_API_KEY=ci-funding-admin-service-key \
 AEKO_PUBLIC_RPC_URL=https://rpc.ci.invalid \
 AEKO_PUBLIC_WS_URL=wss://ws.ci.invalid \
-AEKO_PUBLIC_EXPLORER_API_URL=https://api.ci.invalid \
-AEKO_PUBLIC_EXPLORER_URL=https://scan.ci.invalid \
 AEKO_PUBLIC_FUNDING_URL=https://fund.ci.invalid \
-AEKO_PUBLIC_ADMIN_URL=https://admin.ci.invalid \
 FUNDING_ALLOWED_ORIGINS=https://scan.ci.invalid \
 bash -c '
   set -euo pipefail

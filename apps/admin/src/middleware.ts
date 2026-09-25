@@ -1,22 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth'
 
-/**
- * One Operations Web deployment, two public roles:
- *   AEKO_PUBLIC_FUNDING_URL -> public Testnet Funding Portal.
- *   AEKO_PUBLIC_ADMIN_URL   -> operator Admin Console.
- *
- * The Rust Faucet Daemon is a separate private TCP service and has no public
- * route in this application.
- */
-const PUBLIC_PREFIXES = [
-  '/funding',
-  '/api/funding/',
-  '/login',
-  '/api/login',
-  '/api/logout',
-]
-const FUNDING_ONLY_PREFIXES = ['/funding', '/api/funding/']
+const ADMIN_PUBLIC_PREFIXES = ['/login', '/api/login', '/api/logout']
+const FUNDING_PUBLIC_PREFIXES = ['/funding', '/api/funding/']
+const FUNDING_INTERNAL_PREFIX = '/api/internal/funding/'
 
 const requestHost = (req: NextRequest) =>
   (req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '')
@@ -32,32 +19,55 @@ function configuredHost(value: string | undefined): string {
   }
 }
 
-const isPublic = (pathname: string, prefixes: string[]) =>
-  prefixes.some((p) => pathname === p || pathname.startsWith(p))
+const matchesPrefix = (pathname: string, prefixes: string[]) =>
+  prefixes.some((prefix) =>
+    pathname === prefix
+    || pathname.startsWith(prefix.endsWith('/') ? prefix : prefix + '/'),
+  )
 
-export async function middleware(req: NextRequest) {
+function notFound() {
+  return NextResponse.json({ error: { message: 'Not found' } }, { status: 404 })
+}
+
+function fundingRole(req: NextRequest) {
   const { pathname } = req.nextUrl
-  const fundingHost = configuredHost(process.env.AEKO_PUBLIC_FUNDING_URL)
-  const adminHost = configuredHost(process.env.AEKO_PUBLIC_ADMIN_URL)
   const host = requestHost(req)
+  const publicFundingHost = configuredHost(process.env.AEKO_PUBLIC_FUNDING_URL)
 
-  if (fundingHost && host === fundingHost && host !== adminHost) {
-    if (pathname === '/') {
-      const url = req.nextUrl.clone()
-      url.pathname = '/funding'
-      return NextResponse.rewrite(url)
-    }
-    if (isPublic(pathname, FUNDING_ONLY_PREFIXES)) return NextResponse.next()
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: { message: 'Not available on this host' } }, { status: 404 })
-    }
-    const url = req.nextUrl.clone()
-    url.pathname = '/funding'
-    url.search = ''
-    return NextResponse.redirect(url)
+  // Private operator routes are reachable only through the Docker-network
+  // service address. Even with the shared binary, the public funding origin
+  // never routes these paths.
+  if (pathname.startsWith(FUNDING_INTERNAL_PREFIX)) {
+    if (publicFundingHost && host === publicFundingHost) return notFound()
+    return NextResponse.next()
   }
 
-  if (isPublic(pathname, PUBLIC_PREFIXES)) return NextResponse.next()
+  if (pathname === '/') {
+    const url = req.nextUrl.clone()
+    url.pathname = '/funding'
+    return NextResponse.rewrite(url)
+  }
+
+  if (matchesPrefix(pathname, FUNDING_PUBLIC_PREFIXES)) return NextResponse.next()
+
+  if (pathname.startsWith('/api/')) return notFound()
+
+  const url = req.nextUrl.clone()
+  url.pathname = '/funding'
+  url.search = ''
+  return NextResponse.redirect(url)
+}
+
+async function adminRole(req: NextRequest) {
+  const { pathname } = req.nextUrl
+
+  // Funding has its own service instance. Do not make public funding routes
+  // available from the Admin origin, even to authenticated operators.
+  if (matchesPrefix(pathname, FUNDING_PUBLIC_PREFIXES) || pathname.startsWith(FUNDING_INTERNAL_PREFIX)) {
+    return notFound()
+  }
+
+  if (matchesPrefix(pathname, ADMIN_PUBLIC_PREFIXES)) return NextResponse.next()
 
   const ok = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value)
   if (ok) return NextResponse.next()
@@ -65,10 +75,16 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith('/api/')) {
     return NextResponse.json({ error: { message: 'Admin sign-in required' } }, { status: 401 })
   }
+
   const login = req.nextUrl.clone()
   login.pathname = '/login'
   login.search = pathname === '/' ? '' : `?next=${encodeURIComponent(pathname)}`
   return NextResponse.redirect(login)
+}
+
+export async function middleware(req: NextRequest) {
+  const role = (process.env.AEKO_OPERATIONS_ROLE ?? 'admin').trim().toLowerCase()
+  return role === 'funding' ? fundingRole(req) : adminRole(req)
 }
 
 export const config = {

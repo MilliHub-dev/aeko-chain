@@ -38,8 +38,8 @@ export default function BlocksPage() {
   const avgTxsPerBlock = blocks.length ? Math.round(totalTxs / blocks.length) : 0
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Blocks</h1>
           <p className="text-gray-500 text-sm mt-0.5">{lastUpdate ? `Updated ${lastUpdate}` : 'Loading…'}</p>
@@ -49,7 +49,7 @@ export default function BlocksPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
         <StatCard label="Latest Slot" value={blocks[0]?.slot.toLocaleString() ?? '—'} accent />
         <StatCard label="Total Txs (shown)" value={totalTxs.toLocaleString()} />
         <StatCard label="Avg Txs / Block" value={avgTxsPerBlock} />
@@ -59,6 +59,7 @@ export default function BlocksPage() {
         <div className="text-gray-600 text-sm py-12 text-center">Loading blocks…</div>
       ) : (
         <DataTable
+          paginationLabel="blocks"
           columns={['Slot', 'Blockhash', 'Parent', 'Txs', 'Producer', 'Time']}
           rows={blocks.map(b => [
             <span key={b.slot} className="text-emerald-400 font-semibold">{b.slot.toLocaleString()}</span>,

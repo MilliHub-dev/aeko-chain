@@ -169,7 +169,7 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
   const ensureFunded = async () => {
     if (!wallet) throw new Error('Create or select a browser-local test wallet in Network Tools first.');
     const current = await refreshBalance();
-    if (current <= 0) throw new Error('This test wallet is not funded on-chain yet. Request test AEKO before creating or updating NFTs.');
+    if (current <= 0) throw new Error('This test wallet is not funded on-chain yet. Use the Network Console airdrop before creating or updating NFTs.');
     return current;
   };
 
@@ -193,7 +193,7 @@ export default function NftLiveFlow({ rpcUrl, explorerApiUrl, onUseAccounts }) {
       await confirmSignature(rpcUrl, signature);
       const next = await refreshBalance();
       setLastSignature(signature);
-      appendLog(`Funding grant confirmed. Wallet balance is now ${formatAeko(next)}.`);
+      appendLog(`Test Console airdrop confirmed. Wallet balance is now ${formatAeko(next)}.`);
     } catch (fundError) {
       setError(fundError.message || String(fundError));
     } finally {

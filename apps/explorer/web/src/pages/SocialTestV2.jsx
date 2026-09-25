@@ -108,8 +108,8 @@ function ActionCard({ icon: Icon, title, description, state, disabled, onClick }
 
 export default function SocialTestV2() {
   const config = getNetworkConfig('testnet');
-  const rpcUrl = import.meta.env.VITE_AEKO_LOCAL_RPC || config.rpcUrl;
-  const explorerApiUrl = import.meta.env.VITE_AEKO_LOCAL_EXPLORER_API || config.explorerApiUrl;
+  const rpcUrl = config.rpcUrl;
+  const explorerApiUrl = config.explorerApiUrl;
   const [wallets, setWallets] = useState(() => loadWallets());
   const [walletId, setWalletId] = useState(() => loadWallets()[0]?.id || '');
   const [balance, setBalance] = useState(null);
@@ -162,11 +162,11 @@ export default function SocialTestV2() {
   async function ensureFunded(target) {
     const current = await refreshBalance(target);
     if (current >= MIN_TEST_BALANCE) return current;
-    updateStep('fund', 'running', 'Requesting a policy-controlled testnet funding grant for fees and economic custody checks.');
+    updateStep('fund', 'running', 'Requesting a direct Test Console airdrop for fees and economic custody checks.');
     const signature = await requestTestnetFunding(rpcUrl, target.address, aekoToLamports(2));
     await confirmSignature(rpcUrl, signature);
     const funded = await refreshBalance(target);
-    if (funded <= current) throw new Error('Funding grant confirmed but wallet balance did not increase.');
+    if (funded <= current) throw new Error('Test Console airdrop confirmed but wallet balance did not increase.');
     updateStep('fund', 'pass', `Wallet funded: ${formatAeko(funded)}`, signature);
     return funded;
   }

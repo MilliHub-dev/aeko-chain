@@ -299,6 +299,8 @@ pub enum SearchResultRecord {
     Block(BlockRecord),
     Transaction(TransactionRecord),
     Wallet(WalletProfileRecord),
+    TokenMint(TokenMintRecord),
+    Collection(NftCollectionRecord),
     TokenTransfer(TokenTransferRecord),
     Nft(NftRecord),
     SocialPost(SocialPostRecord),

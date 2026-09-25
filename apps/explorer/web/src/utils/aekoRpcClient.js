@@ -82,31 +82,66 @@ export function isConfiguredPublicTestnetRpc(rpcUrl) {
 }
 
 function fundingEndpoint(fundingUrl, path) {
-  const base = String(fundingUrl || '').trim().replace(/\/$/, '');
-  if (!base) throw new Error('Testnet Funding URL is not configured.');
-  return `${base}${path}`;
+  const configured = String(fundingUrl || '').trim();
+  if (!configured) throw new Error('Testnet Funding URL is not configured.');
+
+  let base;
+  try {
+    base = new URL(configured);
+  } catch {
+    throw new Error('Testnet Funding URL is invalid.');
+  }
+  if (!['http:', 'https:'].includes(base.protocol)) {
+    throw new Error('Testnet Funding URL must use http or https.');
+  }
+
+  // Funding URLs may point at the public /funding page. API routes always live
+  // at the deployment origin, so resolve absolute API paths from the origin
+  // instead of string-concatenating them onto an optional page pathname.
+  return new URL(path, `${base.origin}/`).toString();
 }
 
-export async function getFundingPolicy(fundingUrl) {
-  const response = await fetch(fundingEndpoint(fundingUrl, '/api/funding/policy'));
-  const body = await response.json().catch(() => ({}));
+async function readFundingResponse(response, label) {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.toLowerCase().includes('application/json')) {
+    const text = await response.text().catch(() => '');
+    throw new Error(
+      `${label} returned HTTP ${response.status} with ${contentType || 'non-JSON'} content. `
+        + `Check that the Funding URL routes to Operations Web, not an HTML page. ${text.slice(0, 100)}`,
+    );
+  }
+  const body = await response.json();
   if (!response.ok || !body?.data) {
-    throw new Error(body?.error?.message || `Funding policy request failed with HTTP ${response.status}`);
+    throw new Error(body?.error?.message || `${label} failed with HTTP ${response.status}`);
   }
   return body.data;
 }
 
-export async function requestFundingGrant(fundingUrl, address) {
+export async function getFundingPolicy(fundingUrl) {
+  const response = await fetch(fundingEndpoint(fundingUrl, '/api/funding/policy'));
+  return readFundingResponse(response, 'Funding policy request');
+}
+
+export async function requestFundingApproval(fundingUrl, address) {
   const response = await fetch(fundingEndpoint(fundingUrl, '/api/funding/request'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address }),
   });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok || !body?.data?.signature) {
-    throw new Error(body?.error?.message || `Funding request failed with HTTP ${response.status}`);
+  return readFundingResponse(response, 'Funding request');
+}
+
+export async function requestConsoleAirdrop(fundingUrl, address, amountAeko) {
+  const response = await fetch(fundingEndpoint(fundingUrl, '/api/funding/airdrop'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address, amountAeko }),
+  });
+  const data = await readFundingResponse(response, 'Test Console airdrop');
+  if (!data?.signature) {
+    throw new Error('Test Console airdrop completed without a transaction signature.');
   }
-  return body.data;
+  return data;
 }
 
 export async function requestTestnetFunding(rpcUrl, address, lamports) {
@@ -115,7 +150,7 @@ export async function requestTestnetFunding(rpcUrl, address, lamports) {
     return requestAirdrop(rpcUrl, address, lamports);
   }
 
-  const grant = await requestFundingGrant(config.fundingUrl, address);
+  const grant = await requestConsoleAirdrop(config.fundingUrl, address, lamportsToAeko(lamports));
   return grant.signature;
 }
 

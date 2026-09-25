@@ -67,7 +67,7 @@ The compose file spins up four containers on a private docker network, fronted b
 | `aeko-validator-1` | `aeko-validator:latest` | Produces blocks, serves RPC + pubsub + gossip | `rpc.aeko.online`, `ws.aeko.online` | `8899`, `8900`, `8001` |
 | `aeko-validator-2/3` | same image | **Disabled by default** (multi-validator profile) | — | `8899` each |
 | `aeko-faucet` | same image, different entrypoint | **Faucet Daemon**: private signer for policy-approved testnet funding | no public route | `9900` (TCP, Docker network only) |
-| `aeko-explorer-backend` | `aeko-explorer-backend:latest` | Indexes blocks from RPC, exposes REST API | `api.aeko.online` | `8088` |
+| `aeko-explorer-backend` | `aeko-explorer-backend:latest` | Indexes blocks from RPC, exposes private REST API | private Docker network | `8088` |
 | `aeko-explorer-ui` | `aeko-explorer-ui:latest` | Vite SPA, served by `serve` (no nginx) | `scan.aeko.online` | `3000` |
 
 The bootstrap flow on first boot:
@@ -77,8 +77,8 @@ The bootstrap flow on first boot:
 3. The PoH thread ticks ~3 slots per second. The banking stage processes any transactions in the mempool. The blockstore records the resulting shreds. With one validator, that's the entire pipeline — no network broadcast needed.
 4. `aeko-faucet` is independently listening on container port 9900 with the faucet keypair loaded. It is NOT exposed to the public internet — the validator reaches it on the docker bridge at `faucet:9900`.
 5. On the public testnet, the Funding Gateway first applies policy and calls the validator's protected `requestAirdrop` method with server authorization. The validator then opens a TCP connection to the private Faucet Daemon at `faucet:9900`, receives a signed transfer transaction, submits it through its banking pipeline, and returns the signature.
-6. `aeko-explorer-backend` hits the RPC every block, pulls `getBlock` data, persists into its in-memory store, and serves the REST API on `:8088`. The HTTP server binds immediately on startup so `api.aeko.online` answers right away — historical catch-up runs in a background task, so the API responds with growing data over the first few minutes rather than 502-ing.
-7. `aeko-explorer-ui` serves the built Vite SPA from `/app/dist` via `serve -s`. All API calls go directly to `https://api.aeko.online` (set at build time in `web/.env.production`).
+6. `aeko-explorer-backend` reads finalized chain data from validator RPC, persists durable Explorer projections in PostgreSQL, and serves the REST API on `:8088`. The HTTP server binds while historical catch-up runs in a background task, so indexed history grows toward the finalized chain tip without substituting in-memory production state.
+7. `aeko-explorer-ui` serves the deployment-neutral Vite SPA from `/app/dist` via `serve -s`. At container startup, `docker/explorer-ui-entrypoint.sh` injects the canonical `AEKO_*` endpoint values into `/runtime-config.js`; public API calls use that runtime configuration.
 
 ---
 
@@ -105,7 +105,7 @@ curl -X POST https://fund.aeko.online/api/funding/request \
 aeko balance <some-pubkey> --url https://rpc.aeko.online
 ```
 
-**Explorer is indexing.** `curl -s https://api.aeko.online/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `https://scan.aeko.online` should show a list of recent blocks and a slot counter that ticks up.
+**Explorer is indexing.** `curl -s https://scan.aeko.online/api/explorer/testnet/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `https://scan.aeko.online` should show a list of recent blocks and a slot counter that ticks up.
 
 **WebSocket reachable.** `wscat -c wss://ws.aeko.online` should connect.
 
@@ -160,7 +160,7 @@ conn.onSignature(sig, (notif) => { /* notif.err === null means success */ });
 
 ### 4.5 Browsing transactions
 
-Send users to `https://scan.aeko.online` for the web UI. For programmatic access, the explorer's REST API at `https://api.aeko.online` exposes `/blocks`, `/transactions`, `/tokens/transfers`, `/nfts`, `/posts`, `/engagement`, `/stakes`, `/search?q=<sig-or-address>`, and `/health`.
+Send users to `https://scan.aeko.online` for the web UI. The Explorer UI's same-origin read proxy at `https://scan.aeko.online/api/explorer/testnet` exposes `/blocks`, `/transactions`, `/tokens/transfers`, `/nfts`, `/posts`, `/engagement`, `/stakes`, `/search?q=<sig-or-address>`, and `/health`.
 
 ### 4.6 Joining as an external validator (advanced)
 
@@ -188,7 +188,7 @@ Coolify-proxy (Traefik) handles all TLS termination and HTTP routing. You do not
 |---|---|---|---|
 | `rpc.aeko.online` | validator-1:8899 | `https://` | JSON-RPC for wallets, dApps, CLIs |
 | `ws.aeko.online` | validator-1:8900 | `wss://` | Pubsub WebSocket |
-| `api.aeko.online` | explorer-backend:8088 | `https://` | Explorer REST API |
+| `scan.aeko.online/api/explorer/testnet/*` | explorer-ui:4000 -> explorer-backend:8088 | `https://` | Explorer UI read-only proxy |
 | `scan.aeko.online` | explorer-ui:3000 | `https://` | Explorer web UI (primary) |
 | `gossip.aeko.online` | validator gossip | raw TCP+UDP | validator discovery/peer entrypoint only |
 | `cloud.aeko.online` | Coolify dashboard (port 8000, managed by Coolify) | `http://`/`https://` | Operator UI |
@@ -240,7 +240,7 @@ With Coolify+Traefik in front, only HTTP/HTTPS and gossip need public ingress:
 
 3. **No panics in the validator log.** `docker logs aeko-validator-1 2>&1 | grep -c AEKO_PANIC` returns `0`.
 
-4. **Explorer indexed something recent.** `curl https://api.aeko.online/blocks?limit=1` should return a block whose `unixTimestamp` is within the last minute.
+4. **Explorer indexed something recent.** `curl https://scan.aeko.online/api/explorer/testnet/blocks?limit=1` should return a block whose `unixTimestamp` is within the last minute.
 
 5. **WebSocket reachable.** `wscat -c wss://ws.aeko.online` should connect.
 

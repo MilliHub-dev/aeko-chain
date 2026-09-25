@@ -10,10 +10,11 @@ use {
         models::{
             AntiSpamProfileRecord, AssetSnapshot, BlockRecord, ChainAccountRecord, CoreSlotRecord,
             CreatorRevenueRecord, CreatorRewardRecord, CreatorTipRecord, EngagementRecord,
-            NftRecord, PaidContentUnlockRecord, RewardSettlementRecord, SocialDomainSnapshotRecord,
-            SocialPostRecord, SocialRewardAccountRecord, SocialSnapshot, SocialStakeRecord,
-            StakeYieldRecord, SubscriptionRecord, TokenAccountRecord, TokenMintRecord,
-            TokenTransferRecord, TransactionAccountRecord, TransactionRecord,
+            NftCollectionRecord, NftRecord, PaidContentUnlockRecord, RewardSettlementRecord,
+            SearchResultRecord, SocialDomainSnapshotRecord, SocialPostRecord,
+            SocialRewardAccountRecord, SocialSnapshot, SocialStakeRecord, StakeYieldRecord,
+            SubscriptionRecord, TokenAccountRecord, TokenMintRecord, TokenTransferRecord,
+            TransactionAccountRecord, TransactionRecord,
         },
     },
     anyhow::{Context, Result},
@@ -232,6 +233,12 @@ async fn postgres_cursor_filters_assets_and_social_are_durable() -> Result<()> {
     assert_eq!(transfers.len(), 1);
     assert_eq!(transfers[0].amount, "25");
 
+    let account_search = repository.search(&signer, 8).await?;
+    assert!(account_search.iter().any(|item| matches!(
+        item,
+        SearchResultRecord::Wallet(profile) if profile.address == signer
+    )));
+
     repository
         .persist_asset_snapshot(AssetSnapshot {
             slot,
@@ -266,7 +273,15 @@ async fn postgres_cursor_filters_assets_and_social_are_durable() -> Result<()> {
                     last_seen_slot: slot,
                 },
             ],
-            nft_collections: Vec::new(),
+            nft_collections: vec![NftCollectionRecord {
+                collection_id: "integration-collection".to_string(),
+                authority: signer.clone(),
+                name: "Integration Collection".to_string(),
+                symbol: "ICOL".to_string(),
+                base_uri: None,
+                total_minted: 1,
+                last_seen_slot: slot,
+            }],
             nfts: vec![NftRecord {
                 token_id: "integration-nft".to_string(),
                 collection_id: None,
@@ -290,6 +305,18 @@ async fn postgres_cursor_filters_assets_and_social_are_durable() -> Result<()> {
         .context("token summary should exist")?;
     assert_eq!(summary.total_supply, "1000000");
     assert_eq!(summary.holder_count, 1);
+
+    let token_search = repository.search("ITEST", 8).await?;
+    assert!(token_search.iter().any(|item| matches!(
+        item,
+        SearchResultRecord::TokenMint(token) if token.mint == mint
+    )));
+    let collection_search = repository.search("ICOL", 8).await?;
+    assert!(collection_search.iter().any(|item| matches!(
+        item,
+        SearchResultRecord::Collection(collection)
+            if collection.collection_id == "integration-collection"
+    )));
 
     let social_slot = slot + 10;
     repository

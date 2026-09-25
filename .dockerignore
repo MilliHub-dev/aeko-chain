@@ -6,4 +6,3 @@ web/dist/
 *.md
 *.pem
 .env*
-!web/.env.production

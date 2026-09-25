@@ -63,12 +63,11 @@ Use this document as the single source of truth for the final Phase 2 deployment
 ## Web Demo Values
 
 ```bash
-VITE_AEKO_TESTNET_RPC=
-VITE_AEKO_DEMO_RPC=
-VITE_AEKO_DEMO_COLLECTION=
-VITE_AEKO_DEMO_TOKEN=
-VITE_AEKO_DEMO_COLLECTION_SEED=aeko-genesis-collection
-VITE_AEKO_DEMO_TOKEN_SEED=aeko-genesis-token-1
+AEKO_PUBLIC_RPC_URL=
+AEKO_DEMO_RPC_URL=
+AEKO_DEMO_COLLECTION=
+AEKO_DEMO_TOKEN=
+AEKO_DEMO_METADATA_URI=
 ```
 
 ## Final Closeout

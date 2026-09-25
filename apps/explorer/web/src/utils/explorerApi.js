@@ -63,8 +63,8 @@ async function fetchEnvelope(path, network) {
       message = `Indexer is unreachable (${response.status}). The explorer backend may be restarting or syncing — retry in a moment.`;
     } else if (looksLikeExplorerUi) {
       message =
-        `Explorer API is misrouted (${response.status}): the configured API endpoint returned the Explorer UI HTML. `
-        + 'Check AEKO_PUBLIC_EXPLORER_API_URL and route it to explorer-api:8088, not explorer-ui:4000.';
+        `Explorer read proxy is misrouted (${response.status}): the same-origin API path returned the Explorer UI HTML. `
+        + 'Check the Explorer UI internal upstream (AEKO_INTERNAL_EXPLORER_API_URL).';
     } else {
       message = `Indexer returned non-JSON (${response.status}). ${snippet}`;
     }
@@ -256,7 +256,11 @@ export async function fetchNftDetails(network, tokenId) {
   return fetchJson(`/nfts/${encodeURIComponent(tokenId)}`, network);
 }
 
-export async function searchExplorer(network, query) {
-  const payload = await fetchJson(`/search?q=${encodeURIComponent(query)}&limit=8`, network);
+export async function searchExplorer(network, query, limit = 12) {
+  const safeLimit = Math.min(50, Math.max(5, Number.isInteger(limit) ? limit : 12));
+  const payload = await fetchJson(
+    `/search?q=${encodeURIComponent(query)}&limit=${safeLimit}`,
+    network,
+  );
   return { matches: normalizeSearchMatches(payload) };
 }

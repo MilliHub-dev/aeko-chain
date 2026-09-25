@@ -43,8 +43,8 @@ export default function TransactionsPage() {
   const successRate = txs.length ? Math.round((successCount / txs.length) * 100) : 0
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Transactions</h1>
           <p className="text-gray-500 text-sm mt-0.5">{lastUpdate ? `Updated ${lastUpdate}` : 'Loading…'}</p>
@@ -54,7 +54,7 @@ export default function TransactionsPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
         <StatCard label="Shown" value={txs.length} />
         <StatCard label="Success" value={successCount} accent />
         <StatCard label="Success Rate" value={`${successRate}%`} />
@@ -79,6 +79,7 @@ export default function TransactionsPage() {
         <div className="text-gray-600 text-sm py-12 text-center">Loading transactions…</div>
       ) : (
         <DataTable
+          paginationLabel="transactions"
           columns={['Signature', 'Slot', 'Status', 'Fee', 'Program', 'Time']}
           rows={filtered.map(tx => [
             shortSig(tx.signature),
