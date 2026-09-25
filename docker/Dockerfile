@@ -12,7 +12,12 @@
 #   explorer-ui      Vite explorer frontend
 #   operations-web   Next.js Funding Gateway + operator Admin Console
 
-FROM rust:1.75 AS rust-build-base
+# Keep the container release builds on the same compiler selected by
+# rust-toolchain.toml and the GitHub Actions runner setup. A different image
+# toolchain makes the host checks green while the actual Docker build fails
+# on the runner when dependencies or workspace code require the pinned Rust
+# version.
+FROM rust:1.85.0 AS rust-build-base
 
 RUN curl -fsSL https://github.com/mozilla/sccache/releases/download/v0.8.2/sccache-v0.8.2-x86_64-unknown-linux-musl.tar.gz \
     | tar xzf - --strip-components=1 -C /usr/local/cargo/bin sccache-v0.8.2-x86_64-unknown-linux-musl/sccache
