@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { ArrowLeftRight, Wallet, ChevronDown, Info, ExternalLink, ShieldCheck, Clock, Zap } from 'lucide-react';
 
-const NetworkSelector = ({ label, selected, onSelect, options }) => (
+const NetworkSelector = ({ label, selected, options }) => (
   <div className="flex-1">
     <label className="block text-xs font-medium text-gray-400 mb-2 uppercase tracking-wider">{label}</label>
     <div className="relative group">
