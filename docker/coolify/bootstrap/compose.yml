@@ -9,7 +9,7 @@ x-logging: &default-logging
 
 services:
   key-bootstrap:
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:-latest}
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-tools:${AEKO_IMAGE_TAG:?Set an immutable published AEKO image tag}
     pull_policy: always
     restart: "no"
     environment:
@@ -32,7 +32,7 @@ services:
     logging: *default-logging
 
   social-bootstrap:
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:-latest}
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:?Set an immutable published AEKO image tag}
     pull_policy: always
     restart: "no"
     environment:
@@ -58,7 +58,7 @@ services:
     logging: *default-logging
 
   protocol-bootstrap:
-    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-protocol-bootstrap:${AEKO_IMAGE_TAG:-latest}
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-protocol-bootstrap:${AEKO_IMAGE_TAG:?Set an immutable published AEKO image tag}
     pull_policy: always
     restart: "no"
     environment:
