@@ -67,6 +67,60 @@ and Explorer API 8088 should remain private. If resources live on different
 servers, network reachability is an infrastructure prerequisite. These Compose
 files intentionally do not fabricate a cross-server Docker network.
 
+## Coolify deployment-trigger isolation
+
+Separate Compose resources prevent one deployment operation from recreating
+every service, but Git auto-deploy must also be configured per Coolify
+application.
+
+For the validator and lifecycle jobs, the production-safe default is:
+
+- Validator: disable Auto Deploy. Keep an immutable AEKO_IMAGE_TAG and deploy
+  only when a validated validator image/config change is intentionally released.
+- Key bootstrap, Social bootstrap, Protocol bootstrap and wallet-tools: disable
+  Auto Deploy. These are operator/lifecycle jobs, not commit-driven daemons.
+- Faucet: either disable Auto Deploy or use a Faucet-specific Watch Paths rule.
+- Explorer API, Explorer UI and Operations Web: Auto Deploy may remain enabled,
+  but configure Watch Paths so unrelated monorepo commits do not redeploy them.
+
+In Coolify, Watch Paths are configured under Configuration > General > Build.
+Auto Deploy is under Configuration > Advanced > Deployment & Git.
+
+A practical minimum Watch Paths policy for the stateless application surfaces
+is:
+
+    Explorer API:
+      docker/coolify/explorer-api/**
+      apps/explorer/backend/**
+
+    Explorer UI:
+      docker/coolify/explorer-ui/**
+      apps/explorer/web/**
+      docker/explorer-ui-entrypoint.sh
+
+    Operations Web:
+      docker/coolify/operations-web/**
+      apps/admin/**
+
+If image publication is controlled by CI and AEKO_IMAGE_TAG is an immutable
+commit tag, prefer a dedicated manual/deploy-webhook promotion after the image
+is published instead of racing a Git webhook against image publication.
+
+## Same-server versus cross-server networking
+
+Coolify gives each Docker Compose application a resource-specific network.
+Therefore separate resources must not assume bare service-name DNS.
+
+When dependent resources are on the same Coolify destination, the operator may
+enable Connect To Predefined Network for the applications that need to talk to
+one another. Even then, verify the generated/attached hostname in the deployed
+configuration and set the AEKO_INTERNAL_* variable explicitly; do not hard-code
+a guessed service name.
+
+When resources are on different servers, use a private routed address, private
+DNS, VPN/overlay network or another controlled internal route. Do not make
+Faucet 9900 or Explorer API 8088 public merely to make the split topology work.
+
 ## State and key affinity
 
 Independent deployment does not mean every service is safe on an arbitrary
