@@ -10,8 +10,14 @@ const TESTNET_UPSTREAM = String(
 const MAINNET_UPSTREAM = String(
   process.env.AEKO_INTERNAL_MAINNET_EXPLORER_API_URL || '',
 ).replace(/\/+$/, '')
+// Local deploys expose only localnet: default its upstream to the Compose
+// service name like testnet. Production without an explicit localnet
+// upstream correctly reports the backend as unconfigured.
+const DEPLOY_ENV = String(process.env.AEKO_ENV || process.env.NODE_ENV || 'production')
+  .trim().toLowerCase()
 const LOCALNET_UPSTREAM = String(
-  process.env.AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL || '',
+  process.env.AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL
+  || (['local', 'development', 'dev', 'localhost'].includes(DEPLOY_ENV) ? 'http://explorer-api:8088' : ''),
 ).replace(/\/+$/, '')
 const UPSTREAM_TIMEOUT_MS = Number(process.env.AEKO_EXPLORER_PROXY_TIMEOUT_MS || 20_000)
 

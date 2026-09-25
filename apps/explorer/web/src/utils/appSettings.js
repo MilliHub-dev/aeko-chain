@@ -77,14 +77,29 @@ export async function fetchPublicAppSettings() {
   const explorerApiUrl = getNetworkConfig(getDefaultExplorerNetwork()).explorerApiUrl;
   if (!explorerApiUrl) throw new Error('Explorer API is not configured for application settings');
 
-  const response = await fetch(`${explorerApiUrl}/settings`, {
-    headers: { Accept: 'application/json' },
-    cache: 'no-store',
-  });
+  const settingsUrl = `${explorerApiUrl}/settings`;
+  let response;
+  try {
+    response = await fetch(settingsUrl, {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    });
+  } catch (cause) {
+    // The same-origin path above is proxied (Vite dev proxy or the
+    // production Explorer UI server) to the private Explorer backend.
+    // A network failure here almost always means no Explorer backend is
+    // reachable at the configured upstream — not a settings problem.
+    throw new Error(
+      `Application settings are unreachable via ${settingsUrl}. Is the Explorer backend running and proxied? (${cause?.message || cause})`,
+    );
+  }
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(payload?.error?.message || `Settings request failed: ${response.status}`);
+    throw new Error(
+      payload?.error?.message
+        || `Settings request failed: ${response.status} via ${settingsUrl}. The Explorer backend answered with an error — check its logs (e.g. missing/unmigrated PostgreSQL makes /settings return 500).`,
+    );
   }
-  if (!payload?.data) throw new Error('Settings response is missing data');
+  if (!payload?.data) throw new Error(`Settings response from ${settingsUrl} is missing data`);
   return normalizeAppSettingsPayload(payload.data);
 }

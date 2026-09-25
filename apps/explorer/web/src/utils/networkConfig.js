@@ -3,22 +3,21 @@
 // same-origin Explorer read proxy. Explorer backend upstream origins remain
 // server/container configuration and are never injected into the browser.
 //
-// Network policy (single source of truth for apps/explorer/web):
-// - `mainnet` is production. Every production surface defaults to mainnet
-//   whenever it is configured. `getNetworkConfig()` with no argument and
-//   `getDefaultExplorerNetwork()` both resolve mainnet-first.
-// - `testnet` is the shared test server. It is pinned for test-only surfaces:
+// Network policy (single source of truth for apps/explorer/web). There are
+// exactly three networks — localnet, testnet, mainnet. Testnet is always
+// called just "testnet".
+// - Deploy env `local` exposes ONLY localnet (loopback validator).
+// - Deploy env `testnet` exposes ONLY testnet (configured endpoints; the Vite
+//   dev proxy falls back to loopback when nothing is configured).
+// - Deploy env `production` exposes testnet + mainnet.
+// Explicit env values always override hardcoded loopback defaults.
+// - `testnet` is the test server. It is pinned for test-only surfaces:
 //   Test Console / network console, nft-demo (AEKO-721 demo), Social E2E lab,
 //   and developer testing/simulation helpers. Use `getTestNetwork()` /
 //   `getTestNetworkConfig()` for those so they never silently follow mainnet.
-// - `localnet` means "running locally" (loopback validator). Hardcoded
-//   localhost defaults are a last-resort fallback ONLY. Any explicit
-//   `AEKO_LOCALNET_*` env value always overrides the hardcoded loopback —
-//   env variables are prioritized above hardcoded network config.
 // - `devnet` is accepted as a legacy alias and resolves to localnet when
 //   localnet is available, otherwise to testnet. There is no separate devnet
-//   deployment; the alias exists only to fix the historical devnet/testnet/
-//   localnet mix-up.
+//   deployment.
 
 const injectedRuntime = globalThis.__AEKO_RUNTIME_CONFIG__ || {};
 const devRuntime = globalThis.__AEKO_DEV_RUNTIME_CONFIG__ || {};
@@ -28,16 +27,37 @@ const runtime =
 const browserOrigin =
   typeof globalThis.location?.origin === 'string' ? globalThis.location.origin : '';
 
-// Last-resort loopback defaults. Used only when no AEKO_LOCALNET_* env is
-// set. Explicit env always wins over these values.
+function clean(value) {
+  return String(value || '').trim();
+}
+
+function normalizeDeployEnv(value) {
+  const normalized = clean(value).toLowerCase();
+  if (['local', 'development', 'dev', 'localhost'].includes(normalized)) return 'local';
+  if (normalized === 'testnet') return 'testnet';
+  if (['production', 'prod', 'preview', 'staging'].includes(normalized)) return 'production';
+  return '';
+}
+
+// Deploy environment resolution: explicit runtime env first (injected from
+// NODE_ENV/AEKO_ENV by the Vite dev proxy or the production container
+// entrypoint), then the Vite build mode as fallback.
+const viteDev = Boolean(import.meta.env?.DEV);
+export function getDeployEnv() {
+  return normalizeDeployEnv(runtime.env) || (viteDev ? 'local' : 'production');
+}
+
+const isLocalDeploy = getDeployEnv() === 'local';
+const isTestnetDeploy = getDeployEnv() === 'testnet';
+
+// Last-resort loopback defaults. Used only for localnet in a local deploy
+// when no AEKO_LOCALNET_* env is set. Explicit env always wins over these.
 const LOCALNET_HARDCODED_DEFAULTS = {
   rpcUrl: 'http://127.0.0.1:8899',
   websocketUrl: 'ws://127.0.0.1:8900',
   explorerApiUrl: '/api/explorer/localnet',
   fundingUrl: '',
 };
-
-const clean = (value) => String(value || '').trim();
 
 function normalizeNetwork(value, { funding = false } = {}) {
   const input = value && typeof value === 'object' ? value : {};
@@ -91,14 +111,13 @@ const configuredLocalnet = validateNetwork(
   normalizeNetwork(runtime.localnet, { funding: true }),
 );
 
-const isDev = Boolean(import.meta.env?.DEV);
-// Hardcoded loopback applies only as a last resort: local vite dev with
-// neither testnet nor mainnet nor explicit localnet env configured.
+// Local deploys expose ONLY localnet: loopback fallback applies when neither
+// explicit localnet env nor (unreachable-in-local) remote config exists.
+// Testnet deploys expose ONLY testnet. Production deploys expose testnet +
+// mainnet; localnet only when explicitly configured — the loopback fallback
+// never applies outside local deploys.
 const useBuiltInLocalFallback =
-  isDev &&
-  !configuredTestnet.configured &&
-  !configuredMainnet.configured &&
-  !configuredLocalnet.configured;
+  isLocalDeploy && !configuredLocalnet.configured;
 
 const localnetValue = configuredLocalnet.configured
   ? configuredLocalnet.value
@@ -111,12 +130,14 @@ const localnetFromEnv = configuredLocalnet.configured;
 
 const testnet = configuredTestnet.value;
 const mainnet = configuredMainnet.value;
+const testnetAvailable = !isLocalDeploy && configuredTestnet.configured;
+const mainnetAvailable = !isLocalDeploy && !isTestnetDeploy && configuredMainnet.configured;
 
 export const NETWORKS = {
   mainnet: {
     key: 'mainnet',
-    label: configuredMainnet.configured ? 'Mainnet' : 'Mainnet (not configured)',
-    available: configuredMainnet.configured,
+    label: mainnetAvailable ? 'Mainnet' : 'Mainnet (not configured)',
+    available: mainnetAvailable,
     rpcUrl: mainnet.rpcUrl,
     websocketUrl: mainnet.websocketUrl,
     explorerUrl: browserOrigin,
@@ -129,10 +150,10 @@ export const NETWORKS = {
   },
   testnet: {
     key: 'testnet',
-    label: configuredTestnet.configured
-      ? 'Public Testnet'
-      : 'Public Testnet (not configured)',
-    available: configuredTestnet.configured,
+    label: testnetAvailable
+      ? 'Testnet'
+      : 'Testnet (not configured)',
+    available: testnetAvailable,
     rpcUrl: testnet.rpcUrl,
     websocketUrl: testnet.websocketUrl,
     explorerUrl: browserOrigin || 'http://127.0.0.1:4000',
@@ -149,7 +170,7 @@ export const NETWORKS = {
       ? 'Localnet (not configured)'
       : localnetFromEnv
         ? 'Localnet (env)'
-        : 'Local AEKO Network',
+        : 'Localnet',
     available: localnetAvailable,
     rpcUrl: localnetValue.rpcUrl,
     websocketUrl: localnetValue.websocketUrl,
@@ -167,11 +188,8 @@ export const NETWORKS = {
   },
 };
 
-// Canonical network keys in priority order for production surfaces.
-const PRODUCTION_PRIORITY = ['mainnet', 'testnet', 'localnet'];
-
 function normalizeNetworkKey(value) {
-  const key = String(value || '').trim().toLowerCase();
+  const key = clean(value).toLowerCase();
   if (!key) return '';
   if (key === 'mainnet' || key === 'main') return 'mainnet';
   if (key === 'testnet' || key === 'test') return 'testnet';
@@ -184,13 +202,15 @@ function normalizeNetworkKey(value) {
   return '';
 }
 
-// Production default: mainnet whenever it is available, otherwise testnet,
-// otherwise localnet. This is the default for Explorer/admin-style reads and
-// for every generic `getNetworkConfig()` call without an argument.
+// Deploy default: localnet in local deploys, testnet in testnet deploys,
+// mainnet-first in production. This is the default for Explorer/admin-style
+// reads and for every generic `getNetworkConfig()` call without an argument.
 export function getDefaultExplorerNetwork() {
-  for (const key of PRODUCTION_PRIORITY) {
-    if (NETWORKS[key]?.available) return key;
-  }
+  if (isLocalDeploy) return 'localnet';
+  if (isTestnetDeploy) return 'testnet';
+  if (NETWORKS.mainnet.available) return 'mainnet';
+  if (NETWORKS.testnet.available) return 'testnet';
+  if (NETWORKS.localnet.available) return 'localnet';
   return 'mainnet';
 }
 
@@ -200,9 +220,9 @@ export function getDefaultNetwork() {
 
 // Test-only surfaces (Test Console / network console, nft-demo, Social E2E,
 // developer testing/simulation) must stay pinned to the test server and must
-// never silently follow mainnet. Localnet is the fallback so local `vite dev`
-// without testnet env still exercises the same code paths against loopback
-// (or explicit AEKO_LOCALNET_* env, which overrides hardcoded localhost).
+// never silently follow mainnet. Localnet is the fallback so local deploys
+// exercise the same code paths against loopback (or explicit AEKO_LOCALNET_*
+// env, which overrides hardcoded localhost).
 export function getTestNetwork() {
   if (NETWORKS.testnet.available) return 'testnet';
   if (NETWORKS.localnet.available) return 'localnet';
@@ -214,12 +234,13 @@ export function getTestNetworkConfig() {
 }
 
 export function isTestSurfaceNetwork(network) {
-  const key = normalizeNetworkKey(network) || String(network || '').toLowerCase();
+  const key = normalizeNetworkKey(network) || clean(network).toLowerCase();
   return key === 'testnet' || key === 'localnet' || key === 'devnet';
 }
 
 // Resolve a requested network honoring availability; unknown or unavailable
-// values fall back to the production default (mainnet-first).
+// values fall back to the deploy default (localnet in local, mainnet-first
+// in production).
 export function resolveExplorerNetwork(requested) {
   const key = normalizeNetworkKey(requested);
   if (key && NETWORKS[key]?.available) return key;
@@ -247,6 +268,10 @@ export function getDemoConfig() {
 
 export function isLocalNetworkConfig(config) {
   return config?.key === 'localnet';
+}
+
+export function isMainnetNetwork(network) {
+  return normalizeNetworkKey(network) === 'mainnet';
 }
 
 export function isMainnetConfig(config) {

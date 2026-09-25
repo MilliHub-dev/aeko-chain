@@ -1,18 +1,52 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// `vite build` / `vite preview` always produce production artifacts. An ambient
+// NODE_ENV=local (the local-deploy workflow) must not leak dev-mode defines
+// into built assets — Vite only supports development/production/test here.
+// The deploy env travels via injected runtime config, not NODE_ENV.
+const invokedCommand = process.argv[2]
+if (
+  (invokedCommand === 'build' || invokedCommand === 'preview')
+  && process.env.NODE_ENV
+  && !['production', 'development', 'test'].includes(process.env.NODE_ENV)
+) {
+  process.env.NODE_ENV = 'production'
+}
+
 const clean = (value) => String(value || '').trim()
 
 function hasAll(values) {
   return values.every(Boolean)
 }
 
+function normalizeDeployEnv(value) {
+  const normalized = clean(value).toLowerCase()
+  if (['local', 'development', 'dev', 'localhost'].includes(normalized)) return 'local'
+  if (normalized === 'testnet') return 'testnet'
+  if (['production', 'prod', 'preview', 'staging'].includes(normalized)) return 'production'
+  return ''
+}
+
 // Env priority rule: explicit AEKO_* env values always win over hardcoded
-// loopback defaults. Hardcoded localhost is a last resort for local `vite
-// dev` only, never a silent override for configured values.
+// loopback defaults. Hardcoded localhost is a last resort for local deploys
+// only, never a silent override for configured values.
+//
+// Deploy rule: local deploys expose ONLY localnet, testnet deploys expose
+// ONLY testnet, production deploys expose testnet + mainnet.
 
 export default defineConfig(({ command, mode }) => {
   const env = command === 'serve' ? loadEnv(mode, process.cwd(), '') : {}
+  // `vite` (serve) is a local deploy unless the env explicitly says
+  // otherwise. AEKO_ENV is the primary switch (it lives in .env files);
+  // NODE_ENV is honored as a fallback. `vite build` output is
+  // environment-neutral; the production container entrypoint injects the
+  // real deploy env at startup.
+  const deployEnv = command === 'serve'
+    ? normalizeDeployEnv(env.AEKO_ENV || process.env.NODE_ENV) || 'local'
+    : normalizeDeployEnv(env.AEKO_ENV || process.env.NODE_ENV) || 'production'
+  const isLocalDeploy = deployEnv === 'local'
+  const isTestnetDeploy = deployEnv === 'testnet'
 
   const publicRpc = clean(env.AEKO_PUBLIC_RPC_URL)
   const publicWs = clean(env.AEKO_PUBLIC_WS_URL)
@@ -24,7 +58,7 @@ export default defineConfig(({ command, mode }) => {
   const mainnetUpstream = clean(env.AEKO_INTERNAL_MAINNET_EXPLORER_API_URL)
   const mainnetConfigured = hasAll([mainnetRpc, mainnetWs, mainnetUpstream])
 
-  if ([mainnetRpc, mainnetWs, mainnetUpstream].some(Boolean) && !mainnetConfigured) {
+  if (!isLocalDeploy && [mainnetRpc, mainnetWs, mainnetUpstream].some(Boolean) && !mainnetConfigured) {
     throw new Error(
       'AEKO mainnet dev configuration is partial. Set AEKO_MAINNET_RPC_URL, '
         + 'AEKO_MAINNET_WS_URL and AEKO_INTERNAL_MAINNET_EXPLORER_API_URL together.',
@@ -46,12 +80,21 @@ export default defineConfig(({ command, mode }) => {
 
   const testnetValues = [publicRpc, publicWs]
   const testnetConfigured = hasAll(testnetValues)
-  if (testnetValues.some(Boolean) && !testnetConfigured) {
+  if (!isLocalDeploy && testnetValues.some(Boolean) && !testnetConfigured) {
     throw new Error(
       'AEKO testnet dev configuration is partial. Set AEKO_PUBLIC_RPC_URL and '
         + 'AEKO_PUBLIC_WS_URL together.',
     )
   }
+
+  // Testnet-mode dev fallback: with no testnet endpoints configured, point
+  // testnet at loopback so zero-config `vite dev` still works. Explicit env
+  // always wins; production containers never get this fallback.
+  const testnetLoopback = command === 'serve' && isTestnetDeploy && !testnetConfigured
+    ? { rpcUrl: 'http://127.0.0.1:8899', websocketUrl: 'ws://127.0.0.1:8900' }
+    : null
+  const testnetUpstreamTarget = testnetUpstream
+    || (testnetLoopback ? 'http://127.0.0.1:8088' : '')
 
   const localnetValues = localnetEnvConfigured ? [localnetRpc, localnetWs] : []
   const localnetConfigured = localnetEnvConfigured && hasAll(localnetValues)
@@ -59,17 +102,21 @@ export default defineConfig(({ command, mode }) => {
   const devRuntimeConfig =
     command === 'serve'
       ? {
-          ...(testnetConfigured
+          env: deployEnv,
+          // Local deploys expose only localnet; testnet deploys expose only
+          // testnet (loopback when unconfigured); production exposes
+          // testnet + mainnet.
+          ...(!isLocalDeploy && (testnetConfigured || testnetLoopback)
             ? {
                 testnet: {
-                  rpcUrl: publicRpc,
-                  websocketUrl: publicWs,
+                  rpcUrl: testnetLoopback?.rpcUrl || publicRpc,
+                  websocketUrl: testnetLoopback?.websocketUrl || publicWs,
                   explorerApiUrl: '/api/explorer/testnet',
                   fundingUrl: publicFunding,
                 },
               }
             : {}),
-          ...(mainnetConfigured
+          ...(!isLocalDeploy && !isTestnetDeploy && mainnetConfigured
             ? {
                 mainnet: {
                   rpcUrl: mainnetRpc,
@@ -78,7 +125,7 @@ export default defineConfig(({ command, mode }) => {
                 },
               }
             : {}),
-          ...(localnetConfigured
+          ...(isLocalDeploy && localnetConfigured
             ? {
                 localnet: {
                   rpcUrl: localnetRpc,
@@ -97,11 +144,14 @@ export default defineConfig(({ command, mode }) => {
         }
       : {}
 
-  // Dev proxy upstreams: explicit env wins. Testnet falls back to loopback
-  // only when nothing else is configured (preserves `vite dev` zero-config
-  // local boot); localnet proxy exists only when localnet env opted in.
-  const testnetProxyTarget =
-    testnetUpstream || (!mainnetConfigured && !localnetEnvConfigured ? 'http://127.0.0.1:8088' : '')
+  // Dev proxy upstreams: explicit env wins. In local deploys the localnet
+  // proxy falls back to loopback so zero-config `vite dev` works against a
+  // local backend; in testnet deploys the testnet proxy falls back the same
+  // way. Other networks have no loopback fallback.
+  const localnetProxyTarget =
+    localnetUpstream || (isLocalDeploy && !testnetUpstream && !mainnetUpstream
+      ? 'http://127.0.0.1:8088'
+      : '')
 
   return {
     plugins: [react()],
@@ -110,10 +160,10 @@ export default defineConfig(({ command, mode }) => {
     },
     server: {
       proxy: {
-        ...(testnetProxyTarget
+        ...(testnetUpstreamTarget
           ? {
               '/api/explorer/testnet': {
-                target: testnetProxyTarget,
+                target: testnetUpstreamTarget,
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/api\/explorer\/testnet/, '') || '/',
               },
@@ -128,10 +178,10 @@ export default defineConfig(({ command, mode }) => {
               },
             }
           : {}),
-        ...(localnetUpstream
+        ...(localnetProxyTarget
           ? {
               '/api/explorer/localnet': {
-                target: localnetUpstream,
+                target: localnetProxyTarget,
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/api\/explorer\/localnet/, '') || '/',
               },

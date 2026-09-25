@@ -3,13 +3,13 @@ import { Menu, X, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 import docsData from '../data/docs.json';
 import NetworkToggle from '../components/NetworkToggle';
+import { useNetwork } from '../components/NetworkContext';
 import NetworkToolsPanel from '../components/NetworkToolsPanel';
-import { getDefaultExplorerNetwork } from '../utils/networkConfig';
 
 export default function Docs() {
   const [activeTab, setActiveTab] = useState("Introduction to AEKO Chain");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [network, setNetwork] = useState(() => getDefaultExplorerNetwork());
+  const { network } = useNetwork();
 
   const sections = docsData.sections;
   const currentContent = docsData.content[activeTab];
@@ -79,7 +79,7 @@ export default function Docs() {
               <div className="text-sm font-medium text-aeko-accent mb-2">Network Surface</div>
               <h2 className="text-2xl font-bold">Explorer, Faucet & API Tools</h2>
             </div>
-            <NetworkToggle value={network} onChange={setNetwork} />
+            <NetworkToggle />
           </div>
           <NetworkToolsPanel network={network} />
         </div>

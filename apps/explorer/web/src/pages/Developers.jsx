@@ -1,16 +1,15 @@
-import { Terminal, Code, Cpu, ShieldCheck, Boxes, Wallet, ArrowRight } from 'lucide-react';
-import { useState } from 'react';
+import { Terminal, Code, Cpu, Boxes, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import NetworkToggle from '../components/NetworkToggle';
+import { useNetwork } from '../components/NetworkContext';
 import NetworkToolsPanel from '../components/NetworkToolsPanel';
-import { getNetworkConfig, getTestNetwork } from '../utils/networkConfig';
+import { getNetworkConfig } from '../utils/networkConfig';
 import { useAppSettings } from '../components/AppSettingsContext';
 
 export default function Developers() {
   const { settings } = useAppSettings();
-  // Developer testing/simulation surface: pinned to the test network
-  // (testnet, localnet fallback). Never defaults to mainnet.
-  const [network, setNetwork] = useState(() => getTestNetwork());
+  // Global selection: developer surfaces follow the shared toggle.
+  const { network, testSurfacesVisible } = useNetwork();
   const activeNetwork = getNetworkConfig(network);
   const sdkCards = [
     {
@@ -53,49 +52,8 @@ export default function Developers() {
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold mb-6">Developer Resources</h1>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            Tools, SDKs, validation flows, and network endpoints to accelerate real development on AEKO Chain.
+            SDKs, guides, and network endpoints to accelerate real development on AEKO Chain.
           </p>
-        </div>
-
-        <div className="mb-16 bg-aeko-accent/10 border border-aeko-accent/20 rounded-2xl p-8">
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-            <div>
-              <div className="text-sm font-medium text-aeko-accent mb-2">Phase 4 Status</div>
-              <h2 className="text-2xl font-bold mb-3">Implemented in repo, not fully closed out yet</h2>
-              <p className="text-gray-300 max-w-3xl">
-                The identity model, wallet core, wallet-permissions program, and all four SDK surfaces are now implemented and documented.
-                All four SDKs are now published. Phase 4 closes only after live wallet-core and wallet-permissions testnet validation is recorded with real on-chain signatures.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-full lg:min-w-[22rem]">
-              <div className="bg-black/20 rounded-xl p-4 border border-white/10">
-                <div className="text-xs text-gray-400 mb-1">Repo Build State</div>
-                <div className="text-white font-semibold">Implemented</div>
-              </div>
-              <div className="bg-black/20 rounded-xl p-4 border border-white/10">
-                <div className="text-xs text-gray-400 mb-1">Live Testnet Proof</div>
-                <div className="text-white font-semibold">Pending</div>
-              </div>
-              <div className="bg-black/20 rounded-xl p-4 border border-white/10">
-                <div className="text-xs text-gray-400 mb-1">SDK Publication</div>
-                <div className="text-white font-semibold">Complete</div>
-              </div>
-              <div className="bg-black/20 rounded-xl p-4 border border-white/10">
-                <div className="text-xs text-gray-400 mb-1">Closeout Record</div>
-                <div className="text-white font-semibold">Ready to Fill</div>
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-4 mt-6 text-sm">
-            <Link to="/docs" className="inline-flex items-center gap-2 text-aeko-accent hover:text-white transition-colors">
-              Open Wallet & SDK Docs <ArrowRight size={16} />
-            </Link>
-            {settings.nftDemoEnabled ? (
-              <Link to="/nft-demo" className="inline-flex items-center gap-2 text-aeko-accent hover:text-white transition-colors">
-                View Live AEKO-721 Demo <ArrowRight size={16} />
-              </Link>
-            ) : null}
-          </div>
         </div>
 
         {/* SDK Grid */}
@@ -128,55 +86,17 @@ export default function Developers() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-20">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
             <div className="flex items-center gap-3 mb-4">
-              <Wallet className="text-aeko-accent" />
-              <h2 className="text-2xl font-bold">Phase 4 Wallet Stack</h2>
-            </div>
-            <p className="text-gray-400 mb-6">
-              AEKO's wallet stack now has an identity model, wallet core implementation, wallet-permissions program, SDK surfaces, and closeout runbooks for live testnet validation.
-            </p>
-            <ul className="space-y-3 text-sm text-gray-300">
-              <li>Wallet core: mnemonic restore, encrypted keystore export/import, signing, stateless signing, Ledger path.</li>
-              <li>Wallet permissions: delegated roles, caps, allowlists, time windows, emergency freeze, audit logging.</li>
-              <li>Validation runbooks and command guides are now part of the docs set.</li>
-            </ul>
-            <Link to="/docs" className="inline-flex items-center gap-2 mt-6 text-aeko-accent hover:text-white transition-colors">
-              Read Wallet Docs <ArrowRight size={16} />
-            </Link>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
-            <div className="flex items-center gap-3 mb-4">
-              <ShieldCheck className="text-aeko-accent" />
-              <h2 className="text-2xl font-bold">Release Readiness</h2>
-            </div>
-            <p className="text-gray-400 mb-6">
-              The repo now includes SDK publication checklists, release steps, closeout records, and validation command guides. The remaining blocker is live wallet proof on AEKO testnet, not package release work.
-            </p>
-            <ul className="space-y-3 text-sm text-gray-300">
-              <li>JS, Node.js, Rust, and Python package surfaces are implemented and published.</li>
-              <li>Node now consumes JS through package exports instead of repo-local build paths.</li>
-              <li>Phase 4 completion now depends on live wallet validation and final closeout evidence.</li>
-            </ul>
-            <Link to="/docs" className="inline-flex items-center gap-2 mt-6 text-aeko-accent hover:text-white transition-colors">
-              Explore Developer Docs <ArrowRight size={16} />
-            </Link>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-20">
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
-            <div className="flex items-center gap-3 mb-4">
               <Code className="text-aeko-accent" />
               <h2 className="text-2xl font-bold">Build Smart Contracts</h2>
             </div>
             <p className="text-gray-400 mb-6">
-              External developers can now go from zero to first AEKO program with a starter contract,
-              a Rust toolchain path, and a full deploy-and-invoke walkthrough aimed at testnet.
+              Go from zero to first AEKO program with a starter contract,
+              a Rust toolchain path, and a full deploy-and-invoke walkthrough.
             </p>
             <ul className="space-y-3 text-sm text-gray-300">
               <li>Starter contract template under <span className="font-mono">contracts/hello-aeko-program</span>.</li>
               <li>Write-your-first-program docs for the AEKO program model and build flow.</li>
-              <li>Deploy-and-invoke guide for a first live testnet contract interaction.</li>
+              <li>Deploy-and-invoke guide for a first live contract interaction.</li>
             </ul>
             <Link to="/docs" className="inline-flex items-center gap-2 mt-6 text-aeko-accent hover:text-white transition-colors">
               Open Smart Contract Guides <ArrowRight size={16} />
@@ -189,7 +109,7 @@ export default function Developers() {
               <h2 className="text-2xl font-bold">Aeko Social Backend Flow</h2>
             </div>
             <p className="text-gray-400 mb-6">
-              The Node SDK now includes reusable backend helpers for deterministic post hashing,
+              The Node SDK includes reusable backend helpers for deterministic post hashing,
               Ed25519 signature verification, post anchor transaction preparation, and persisted
               verification state for Aeko Social integrations.
             </p>
@@ -204,6 +124,20 @@ export default function Developers() {
           </div>
         </div>
 
+        {settings.nftDemoEnabled && testSurfacesVisible ? (
+          <div className="mb-20 bg-white/5 border border-white/10 rounded-2xl p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">NTF Lifecycle</h2>
+              <p className="text-sm text-gray-400">
+                Create, mint, freeze, thaw, update, and transfer real on-chain assets, then verify state through RPC and the Explorer indexer.
+              </p>
+            </div>
+            <Link to="/ntf" className="inline-flex items-center gap-2 text-aeko-accent hover:text-white transition-colors shrink-0">
+              Open NTF <ArrowRight size={16} />
+            </Link>
+          </div>
+        ) : null}
+
         {/* Network Status */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
@@ -214,7 +148,7 @@ export default function Developers() {
                 the current environment.
               </p>
             </div>
-            <NetworkToggle value={network} onChange={setNetwork} />
+            <NetworkToggle />
           </div>
           <NetworkToolsPanel network={network} />
           <p className="text-sm text-gray-500 mt-6">

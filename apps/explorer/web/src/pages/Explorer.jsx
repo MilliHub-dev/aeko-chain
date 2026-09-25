@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Activity, Blocks, ChevronLeft, ChevronRight, Image, RotateCcw, Search, Sparkles, Wallet } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
+import { useNetwork } from '../components/NetworkContext';
 import { fetchExplorerHome, getExplorerAvailability, searchExplorer } from '../utils/explorerApi';
 import { formatExplorerMetric } from '../utils/explorerData';
 import {
@@ -15,7 +16,6 @@ import {
 import { StatusBannerStack } from '../components/StatusBanner';
 import { useToaster } from '../components/Toaster';
 import { useAppSettings } from '../components/AppSettingsContext';
-import { getDefaultExplorerNetwork } from '../utils/networkConfig';
 
 // Wait this long after the last filter change before firing a new fetch.
 // Removing three chips in quick succession should be ONE backend call, not
@@ -37,8 +37,8 @@ const INITIAL_HOME_STATE = { ...EMPTY_HOME_STATE, loading: true };
 
 export default function Explorer() {
   const { settings } = useAppSettings();
-  // Production default: mainnet whenever it is available.
-  const [network, setNetwork] = useState(() => getDefaultExplorerNetwork());
+  // Global selection: one toggle switches every page.
+  const { network } = useNetwork();
   const [searchParams, setSearchParams] = useSearchParams();
   const [homeRefreshTick, setHomeRefreshTick] = useState(0);
   const [homeState, setHomeState] = useState(INITIAL_HOME_STATE);
@@ -363,7 +363,7 @@ export default function Explorer() {
             Inspect live chain position and durable blocks, transactions, assets, accounts, and SocialFi state through the Explorer backend.
           </p>
         </div>
-        <NetworkToggle value={network} onChange={setNetwork} />
+        <NetworkToggle />
       </div>
 
       <form onSubmit={handleSearch} className="relative mb-8">

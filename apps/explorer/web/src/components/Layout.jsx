@@ -4,18 +4,21 @@ import { useState } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/icon.jpg';
 import { useAppSettings } from './AppSettingsContext';
+import { useNetwork } from './NetworkContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const { settings } = useAppSettings();
+  // NTF (test surface) hides on mainnet regardless of API visibility flags.
+  const { testSurfacesVisible } = useNetwork();
 
   const links = [
     { name: 'Home', path: '/' },
     ...(settings.docsEnabled ? [{ name: 'Docs', path: '/docs' }] : []),
     ...(settings.networkToolsEnabled ? [{ name: 'Network Tools', path: '/network-tools' }] : []),
     { name: 'Token', path: '/token' },
-    ...(settings.nftDemoEnabled ? [{ name: 'NFT Demo', path: '/nft-demo' }] : []),
+    ...(settings.nftDemoEnabled && testSurfacesVisible ? [{ name: 'NTF', path: '/ntf' }] : []),
     ...(settings.developersEnabled ? [{ name: 'Developers', path: '/developers' }] : []),
     ...(settings.bridgeEnabled ? [{ name: 'Bridge', path: '/bridge' }] : []),
     { name: 'Contact', path: '/contact' },
@@ -152,6 +155,7 @@ const Navbar = () => {
 
 const Footer = () => {
   const { settings } = useAppSettings();
+  const { testSurfacesVisible } = useNetwork();
 
   return (
     <footer className="bg-aeko-light border-t border-white/10 py-12 mt-20">
@@ -174,8 +178,8 @@ const Footer = () => {
               {settings.networkToolsEnabled ? (
                 <li><Link to="/network-tools" className="hover:text-aeko-accent">Network Tools</Link></li>
               ) : null}
-              {settings.nftDemoEnabled ? (
-                <li><Link to="/nft-demo" className="hover:text-aeko-accent">AEKO-721 Demo</Link></li>
+              {settings.nftDemoEnabled && testSurfacesVisible ? (
+                <li><Link to="/ntf" className="hover:text-aeko-accent">NTF</Link></li>
               ) : null}
               {settings.developersEnabled ? (
                 <li><Link to="/developers" className="hover:text-aeko-accent">Build on Aeko</Link></li>

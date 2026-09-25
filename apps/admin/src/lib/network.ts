@@ -23,11 +23,32 @@ export function isMainnetConfigured(): boolean {
 }
 
 // Admin RPC: mainnet > explicit localnet env > base env > hardcoded loopback.
+// Used for operator reads (read-only RPC relay, admin explorer proxy,
+// settings). Never used for funding.
 export function resolveAdminRpcUrl(): string {
   return (
     clean('AEKO_MAINNET_RPC_URL') ||
     clean('AEKO_LOCALNET_RPC_URL') ||
     clean('AEKO_RPC_URL') ||
+    HARDCODED_LOCAL_RPC
+  )
+}
+
+// Funding chain RPC: testnet-pinned, NEVER mainnet.
+//
+// Funding grants test AEKO on the test network (approval queue, manual
+// grants, Test Console airdrops). Submitting requestAirdrop — or polling
+// getSignatureStatuses — against mainnet would mint test funds on production
+// and poll the wrong chain for testnet signatures.
+// Priority: explicit AEKO_TESTNET_RPC_URL pin > AEKO_RPC_URL (all Compose
+// files point this at the testnet validator; behavior is unchanged when the
+// pin is unset) > explicit AEKO_LOCALNET_RPC_URL for local runs > hardcoded
+// loopback. Env values always beat hardcoded defaults.
+export function resolveFundingRpcUrl(): string {
+  return (
+    clean('AEKO_TESTNET_RPC_URL') ||
+    clean('AEKO_RPC_URL') ||
+    clean('AEKO_LOCALNET_RPC_URL') ||
     HARDCODED_LOCAL_RPC
   )
 }

@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Activity, ArrowLeft, CheckCircle2, Wallet, XCircle } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
+import { useNetwork } from '../components/NetworkContext';
 import { fetchTransactionDetails, getExplorerAvailability } from '../utils/explorerApi';
-import { getDefaultExplorerNetwork } from '../utils/networkConfig';
 
 export default function TransactionDetails() {
   const { hash } = useParams();
-  const [network, setNetwork] = useState(() => getDefaultExplorerNetwork());
+  const { network } = useNetwork();
   const requestKey = `${network}:${hash}`;
   const [state, setState] = useState({ requestKey: '', error: '', data: null });
 
@@ -42,7 +42,7 @@ export default function TransactionDetails() {
         <Link to="/explorer" className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Explorer
         </Link>
-        <NetworkToggle value={network} onChange={setNetwork} />
+        <NetworkToggle />
       </div>
 
       {unavailable ? (

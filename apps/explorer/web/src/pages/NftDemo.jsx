@@ -649,7 +649,7 @@ export default function NftDemo() {
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-aeko-accent/10 text-aeko-accent border border-aeko-accent/20 text-sm font-medium mb-6"
           >
             <GalleryVerticalEnd size={14} />
-            <span>AEKO-721 Demo Flow</span>
+            <span>NTF Flow</span>
           </Motion.div>
 
           <Motion.h1
@@ -657,11 +657,81 @@ export default function NftDemo() {
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl md:text-6xl font-bold mb-6"
           >
-            NFT Lifecycle <span className="text-gradient">In Public</span>
+            NTF Lifecycle <span className="text-gradient">In Public</span>
           </Motion.h1>
           <p className="text-xl text-gray-400 max-w-3xl mx-auto">
             Create, mint, freeze, thaw, update, and transfer real AEKO-721 testnet assets, then verify the resulting state through RPC and the Explorer indexer.
           </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-20">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center gap-3 text-gray-400 mb-3">
+              <Database className="h-5 w-5 text-aeko-accent" />
+              <span className="text-sm">Collections</span>
+            </div>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              A collection groups related assets under one authority with a shared symbol and base URI, and tracks how many assets were minted.
+            </p>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center gap-3 text-gray-400 mb-3">
+              <Sparkles className="h-5 w-5 text-aeko-accent" />
+              <span className="text-sm">Ownership & Royalties</span>
+            </div>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              Every asset records its owner and creator plus a royalty in basis points, so creators keep earning as assets change hands.
+            </p>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center gap-3 text-gray-400 mb-3">
+              <Wallet className="h-5 w-5 text-aeko-accent" />
+              <span className="text-sm">Freeze & Thaw</span>
+            </div>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              Creator authorities can freeze assets for moderation and thaw them back into circulation without moving ownership.
+            </p>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center gap-3 text-gray-400 mb-3">
+              <Send className="h-5 w-5 text-aeko-accent" />
+              <span className="text-sm">Transfers & Metadata</span>
+            </div>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              Owners transfer assets directly, and metadata names and URIs stay updatable so collections can evolve after mint.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-20">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+            <h2 className="text-2xl font-bold mb-3">Explore Live NTFs</h2>
+            <p className="text-sm text-gray-400 mb-6">
+              Every minted asset is indexed and searchable. Look up collections, token accounts, and owners without submitting anything.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Link to="/explorer" className="flex items-center gap-2 text-aeko-accent hover:text-white transition-colors font-medium">
+                Open Aeko Scan <ArrowRight size={16} />
+              </Link>
+              <Link to="/token" className="flex items-center gap-2 text-aeko-accent hover:text-white transition-colors font-medium">
+                Token Standards <ArrowRight size={16} />
+              </Link>
+            </div>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+            <h2 className="text-2xl font-bold mb-3">Build With NTFs</h2>
+            <p className="text-sm text-gray-400 mb-6">
+              Wallets and backends integrate through the published SDKs and the wallet adapter. Guides cover setup, reads, and write flows.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Link to="/docs" className="flex items-center gap-2 text-aeko-accent hover:text-white transition-colors font-medium">
+                Read Docs <ArrowRight size={16} />
+              </Link>
+              <Link to="/developers" className="flex items-center gap-2 text-aeko-accent hover:text-white transition-colors font-medium">
+                Developer Resources <ArrowRight size={16} />
+              </Link>
+            </div>
+          </div>
         </div>
 
         {settings.nftLiveFlowEnabled ? (
@@ -1164,7 +1234,7 @@ export default function NftDemo() {
         <div className="border-t border-white/10 pt-16 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
             <h2 className="text-2xl font-bold mb-2">Verified AEKO-721 Workflow</h2>
-            <p className="text-gray-400">Use the live flow above for browser-local test wallets. The lower-level read, setup, builder, and wallet-adapter panels remain available for protocol debugging and external wallet integration.</p>
+            <p className="text-gray-400">When enabled, the live flow above runs against browser-local test wallets. The lower-level read, setup, builder, and wallet-adapter panels remain available for protocol debugging and external wallet integration.</p>
           </div>
           <div className="flex flex-wrap gap-4">
             <Link to="/docs" className="flex items-center gap-2 text-aeko-accent hover:text-white transition-colors font-medium">

@@ -1,14 +1,44 @@
 #!/bin/sh
 set -eu
 
-: "${AEKO_PUBLIC_RPC_URL:?AEKO_PUBLIC_RPC_URL is required}"
-: "${AEKO_PUBLIC_WS_URL:?AEKO_PUBLIC_WS_URL is required}"
-: "${AEKO_PUBLIC_FUNDING_URL:?AEKO_PUBLIC_FUNDING_URL is required}"
+normalizeDeployEnv() {
+  case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
+    local|development|dev|localhost) printf 'local' ;;
+    testnet) printf 'testnet' ;;
+    *) printf 'production' ;;
+  esac
+}
+
+# Deploy rule: local deploys expose ONLY localnet (testnet env not required);
+# testnet deploys expose ONLY testnet; production deploys expose testnet +
+# mainnet.
+AEKO_DEPLOY_ENV="$(normalizeDeployEnv "${AEKO_ENV:-${NODE_ENV:-}}")"
+export AEKO_DEPLOY_ENV
+
+if [ "$AEKO_DEPLOY_ENV" != "local" ]; then
+  : "${AEKO_PUBLIC_RPC_URL:?AEKO_PUBLIC_RPC_URL is required}"
+  : "${AEKO_PUBLIC_WS_URL:?AEKO_PUBLIC_WS_URL is required}"
+  : "${AEKO_PUBLIC_FUNDING_URL:?AEKO_PUBLIC_FUNDING_URL is required}"
+fi
 
 node <<'NODE'
 const fs = require('fs');
 
 const optional = (name) => String(process.env[name] || '').trim();
+
+function normalizeDeployEnv(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['local', 'development', 'dev', 'localhost'].includes(normalized)) return 'local';
+  if (normalized === 'testnet') return 'testnet';
+  return 'production';
+}
+
+// Deploy rule: local deploys expose ONLY localnet; testnet deploys expose
+// ONLY testnet; production deploys expose testnet + mainnet.
+// AEKO_DEPLOY_ENV is exported by the shell wrapper above.
+const deployEnv = normalizeDeployEnv(optional('AEKO_ENV') || process.env.AEKO_DEPLOY_ENV || process.env.NODE_ENV);
+const isLocalDeploy = deployEnv === 'local';
+const isTestnetDeploy = deployEnv === 'testnet';
 
 const testnet = {
   rpcUrl: optional('AEKO_PUBLIC_RPC_URL'),
@@ -62,7 +92,20 @@ const demo = {
   metadataUri: optional('AEKO_DEMO_METADATA_URI'),
 };
 
-const config = { testnet, mainnet, localnet, demo };
+const config = {
+  env: deployEnv,
+  // Local deploys expose ONLY localnet, testnet deploys ONLY testnet;
+  // production deploys expose testnet + mainnet. The browser enforces the
+  // same rule, this keeps the injected payload honest too.
+  testnet: isLocalDeploy
+    ? { rpcUrl: '', websocketUrl: '', explorerApiUrl: '', fundingUrl: '' }
+    : testnet,
+  mainnet: isLocalDeploy || isTestnetDeploy
+    ? { rpcUrl: '', websocketUrl: '', explorerApiUrl: '' }
+    : mainnet,
+  localnet,
+  demo,
+};
 
 fs.writeFileSync(
   '/app/dist/runtime-config.js',

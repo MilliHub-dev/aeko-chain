@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Boxes, Image, Users } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
+import { useNetwork } from '../components/NetworkContext';
 import { fetchCollectionDetails, getExplorerAvailability } from '../utils/explorerApi';
-import { getDefaultExplorerNetwork } from '../utils/networkConfig';
 
 export default function ExplorerCollection() {
   const { collectionId } = useParams();
-  const [network, setNetwork] = useState(() => getDefaultExplorerNetwork());
+  const { network } = useNetwork();
   const [state, setState] = useState({ loading: true, error: '', data: null });
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export default function ExplorerCollection() {
         <Link to="/explorer" className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Explorer
         </Link>
-        <NetworkToggle value={network} onChange={setNetwork} />
+        <NetworkToggle />
       </div>
 
       {unavailable ? (

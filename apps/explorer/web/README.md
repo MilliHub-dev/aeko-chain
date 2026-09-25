@@ -31,28 +31,27 @@ The additive `/overview` endpoint combines live validator position with real Pos
 
 Configuration ownership is single-source:
 
-- [`docker/env.public.example`](../../../docker/env.public.example) is the only endpoint configuration reference for `AEKO_PUBLIC_*` (testnet), optional `AEKO_MAINNET_*`, optional `AEKO_LOCALNET_*`, and optional `AEKO_DEMO_*` runtime values;
-- [`.env.example`](./.env.example) documents the local-development Testnet/Mainnet/Localnet endpoint keys using the same deployment key families; copy it to `.env.local` and point those values at localhost or any remote AEKO deployment;
-- remote previews and production remain build-neutral: the container entrypoint translates deployment env into the same normalized `testnet/mainnet/localnet/demo` runtime object. Endpoint-specific `VITE_AEKO_*` variables remain unsupported.
+- [`docker/env.public.example`](../../../docker/env.public.example) is the only endpoint configuration reference for `AEKO_ENV`, `AEKO_PUBLIC_*` (testnet), optional `AEKO_MAINNET_*`, optional `AEKO_LOCALNET_*`, and optional `AEKO_DEMO_*` runtime values;
+- [`.env.example`](./.env.example) documents the same key families for local development; copy it to `.env.local` and adjust values for your loopback or remote deployment;
+- remote previews and production remain build-neutral: the container entrypoint translates deployment env into the same normalized `{env,testnet,mainnet,localnet,demo}` runtime object. Endpoint-specific `VITE_AEKO_*` variables remain unsupported.
 
 ## Network policy
 
-Single source of truth: `src/utils/networkConfig.js`.
+Single source of truth: `src/utils/networkConfig.js`. There are exactly
+three networks — localnet, testnet, mainnet.
 
-- `mainnet` is production. Every production surface (Explorer pages, docs
-  network panel, app settings, Admin) defaults to mainnet whenever it is
-  configured. `getNetworkConfig()` with no argument and
-  `getDefaultExplorerNetwork()` both resolve mainnet-first.
-- `testnet` is the shared test server. Test-only surfaces stay pinned to it
-  via `getTestNetwork()` / `getTestNetworkConfig()` and never silently follow
-  mainnet: Test Console / network console, `nft-demo` (AEKO-721 demo), the
-  Social E2E lab (`/network-tools/social-e2e`), and developer
-  testing/simulation helpers (`Developers` page, `requestTestnetFunding`).
-- `localnet` means "running locally" (loopback validator). Explicit
-  `AEKO_LOCALNET_*` env values always override the hardcoded `127.0.0.1`
-  loopback defaults — env variables are prioritized above hardcoded network
-  config. `devnet` is accepted as a legacy alias (localnet when available,
-  otherwise testnet); there is no separate devnet deployment.
+- Deploy env `local` (`AEKO_ENV=local`, `NODE_ENV=local/development/dev`)
+  exposes **only localnet** (loopback validator). Explicit `AEKO_LOCALNET_*`
+  values always override the hardcoded `127.0.0.1` defaults.
+- Deploy env `testnet` (`AEKO_ENV=testnet`) exposes **only testnet**
+  (configured endpoints, loopback fallback in Vite dev when unconfigured).
+- Deploy env `production` (`AEKO_ENV=production`, `NODE_ENV=production`)
+  exposes **testnet + mainnet**. Production surfaces default to mainnet
+  whenever it is configured; otherwise mainnet renders as a disabled
+  "coming soon" entry. Admin always uses mainnet.
+- `testnet` is pinned for test-only surfaces via `getTestNetwork()` /
+  `getTestNetworkConfig()`: Test Console / network console, `nft-demo`,
+  Social E2E lab, and developer testing/simulation. They never follow mainnet.
 
 The raw `explorer-api:8088` service stays on the private deployment network. The public Explorer origin is only `explorer-ui:4000`, which proxies read-only indexed requests internally.
 
@@ -61,7 +60,7 @@ The raw `explorer-api:8088` service stays on the private deployment network. The
 Direct JSON-RPC from the browser is intentional only for consumer-style operations that cannot be delegated to the read-only Explorer backend, including:
 
 - wallet/network test tools;
-- policy-controlled funding on the public testnet, with raw `requestAirdrop` reserved for local/custom test networks;
+- policy-controlled funding on the testnet, with raw `requestAirdrop` reserved for local/custom test networks;
 - signing/submitting transactions;
 - explicit Social/NFT end-to-end test consoles;
 - the temporary `/overview` compatibility fallback described above.

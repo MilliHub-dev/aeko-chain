@@ -1,7 +1,16 @@
-import { resolveAdminRpcUrl } from './network'
+import { resolveFundingRpcUrl } from './network'
 
+// Funding chain client — testnet-pinned, NEVER mainnet.
+//
+// This module is imported only by lib/funding-store.ts (grant approvals,
+// manual grants, Test Console airdrops, confirmation polling). All of those
+// move test AEKO on the test network, so this client resolves via
+// resolveFundingRpcUrl(): explicit AEKO_TESTNET_RPC_URL > AEKO_RPC_URL
+// (testnet validator in every Compose file) > AEKO_LOCALNET_RPC_URL >
+// hardcoded localhost. AEKO_MAINNET_RPC_URL is deliberately ignored here;
+// admin/operator reads use resolveAdminRpcUrl() instead.
 function rpcUrl(): string {
-  return resolveAdminRpcUrl()
+  return resolveFundingRpcUrl()
 }
 
 let requestId = 1

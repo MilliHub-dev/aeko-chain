@@ -19,7 +19,7 @@ const Hero = () => {
           transition={{ duration: 0.8 }}
         >
           <span className="inline-block py-1 px-3 rounded-full bg-white/5 border border-white/10 text-aeko-accent text-sm font-medium mb-6">
-            Public Testnet Deployed
+            Testnet Live
           </span>
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8">
             The First <span className="text-gradient">Permissioned Layer-1</span><br />
@@ -95,7 +95,7 @@ export default function Home() {
     },
     {
       icon: Users,
-      title: "Public Testnet Interfaces",
+      title: "Network Interfaces",
       description: "JSON-RPC, WebSocket, Explorer and policy-controlled Testnet Funding endpoints are separated by role and documented explicitly."
     }
   ];

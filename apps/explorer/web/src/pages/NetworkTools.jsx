@@ -5,19 +5,83 @@ import NetworkToolsPanel from '../components/NetworkToolsPanel';
 import TestnetFundingRequest from '../components/TestnetFundingRequest';
 import NetworkConsoleModal from '../components/NetworkConsoleModal';
 import NetworkSocialModal from '../components/social/NetworkSocialModal';
-import { getDefaultExplorerNetwork, getNetworkConfig, isTestSurfaceNetwork, resolveExplorerNetwork } from '../utils/networkConfig';
+import { getNetworkConfig, isTestSurfaceNetwork } from '../utils/networkConfig';
 import { useAppSettings } from '../components/AppSettingsContext';
+import { useNetwork } from '../components/NetworkContext';
 
 const CONSOLE_TABS = new Set(['accounts', 'programs', 'social']);
 const SOCIAL_QUERY_KEYS = ['social', 'profile', 'post', 'dialog', 'target', 'persona'];
 
+function isLoopbackUrl(url) {
+  try {
+    const host = new URL(url).hostname;
+    return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+  } catch {
+    return false;
+  }
+}
+
+// Essential CLI quick commands for the selected network. Cluster selection
+// always shows the exact endpoint first: monikers exist only where the CLI
+// defines them (`localhost` for loopback, `testnet` resolved by the CLI via
+// AEKO_TESTNET_RPC_URL) — mainnet has no moniker and needs the explicit URL.
+function developerQuickCommands(config) {
+  const rpc = config.rpcUrl || '<rpc-url>';
+  const cluster = [];
+  if (config.key === 'localnet' && isLoopbackUrl(config.rpcUrl)) {
+    cluster.push('aeko config set --url localhost');
+  } else {
+    cluster.push(`aeko config set --url ${rpc}`);
+  }
+  if (config.key === 'testnet') {
+    cluster.push('# alias (CLI resolves it via AEKO_TESTNET_RPC_URL): aeko config set --url testnet');
+  }
+  if (config.key === 'mainnet') {
+    cluster.push('# mainnet has no moniker — always use the explicit URL above');
+  }
+
+  const wallets = [
+    'aeko-keygen new --outfile ~/.config/aeko/id.json',
+    'aeko balance <wallet-address>',
+    'aeko transfer <recipient-address> <amount>',
+  ];
+
+  // Airdrops always go through the CLI, which talks to the validator RPC
+  // directly — no API involved, no approval step. The Funding Portal is only
+  // for special cases that need operator approval — never the default path.
+  let funding;
+  if (config.key === 'localnet') {
+    funding = [
+      'aeko airdrop 10 <recipient-address>',
+    ];
+  } else if (config.key === 'testnet') {
+    funding = [
+      'aeko airdrop <amount> <recipient-address>',
+    ];
+  } else {
+    funding = ['# no airdrops on mainnet — use treasury or exchange distribution'];
+  }
+
+  const programs = [
+    'aeko program deploy <program-binary>',
+    'aeko program close <program-id>',
+  ];
+
+  return [
+    { title: 'Select cluster', lines: cluster },
+    { title: 'Wallets', lines: wallets },
+    { title: 'Funding', lines: funding },
+    { title: 'Programs', lines: programs },
+  ];
+}
+
 export default function NetworkTools() {
   const { settings } = useAppSettings();
+  const { network } = useNetwork();
   const [searchParams, setSearchParams] = useSearchParams();
-  const requestedNetwork = searchParams.get('network');
-  // Production default: mainnet whenever it is available. The Test Console
-  // below stays pinned to test-only networks (testnet/localnet).
-  const network = resolveExplorerNetwork(requestedNetwork);
+  // Global selection: the Test Console below stays pinned to test-only
+  // networks (testnet/localnet) and never renders on mainnet, regardless of
+  // API visibility flags.
   const config = getNetworkConfig(network);
   const isTestNetwork = isTestSurfaceNetwork(network);
   const consoleOpen = isTestNetwork && settings.networkConsoleEnabled && searchParams.get('console') === '1';
@@ -34,13 +98,6 @@ export default function NetworkTools() {
       else next.set(key, value);
     });
     setSearchParams(next, { replace });
-  };
-
-  const setNetwork = (nextNetwork) => {
-    updateParams(
-      { network: nextNetwork === getDefaultExplorerNetwork() ? null : nextNetwork },
-      { remove: SOCIAL_QUERY_KEYS },
-    );
   };
 
   const openConsole = (tab = 'accounts') => {
@@ -74,7 +131,7 @@ export default function NetworkTools() {
             verify native SocialFi state, and exercise the on-chain social timeline from one place.
           </p>
         </div>
-        <NetworkToggle value={network} onChange={setNetwork} />
+        <NetworkToggle />
       </div>
 
       <div className="mb-10">
@@ -170,13 +227,18 @@ export default function NetworkTools() {
             <h2 className="text-2xl font-bold">Developer flow</h2>
           </div>
           <p className="text-gray-400 mb-4">
-            Use the AEKO CLI to select the active cluster, inspect balances, transfer AEKO, deploy programs, and run scripted validation. Public Testnet funding stays in the Funding Portal above.
+            Use the AEKO CLI to select the active cluster, inspect balances, transfer AEKO, deploy programs, and run scripted validation. Testnet funding stays in the Funding Portal above.
           </p>
-          <pre className="bg-black/40 rounded-xl p-4 overflow-x-auto text-sm text-gray-300">
-            <code>{config.key === 'localnet'
-              ? `aeko config set --url ${config.rpcUrl}\naeko airdrop 10 <recipient-address>\naeko balance <recipient-address>`
-              : `aeko config set --url ${config.rpcUrl}\naeko balance <wallet-address>\naeko transfer <recipient-address> <amount>`}</code>
-          </pre>
+          <div className="space-y-3">
+            {developerQuickCommands(config).map((section) => (
+              <div key={section.title}>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500 mb-1.5">{section.title}</div>
+                <pre className="bg-black/40 rounded-xl p-4 overflow-x-auto text-sm text-gray-300">
+                  <code>{section.lines.join('\n')}</code>
+                </pre>
+              </div>
+            ))}
+          </div>
           <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
             <Droplets size={13} /> Funding grants and test transactions link directly to Aeko Scan.
           </div>

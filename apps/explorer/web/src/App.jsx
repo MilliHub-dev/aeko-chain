@@ -22,9 +22,14 @@ import SocialTest from './pages/SocialTestV2';
 import ScrollToTop from './components/ScrollToTop';
 import { AppSettingsProvider } from './components/AppSettingsProvider';
 import { useAppSettings } from './components/AppSettingsContext';
+import { useNetwork } from './components/NetworkContext';
 
 function ConfiguredApp() {
   const { settings, loading } = useAppSettings();
+  // Mainnet hides every test surface regardless of API visibility flags:
+  // test console, NTF demo and the Social E2E lab never render on mainnet,
+  // even when the backend enables them.
+  const { testSurfacesVisible } = useNetwork();
 
   const optionalRoute = (enabled, element) => {
     if (loading) {
@@ -59,15 +64,16 @@ function ConfiguredApp() {
           <Route
             path="/network-tools/social-e2e"
             element={optionalRoute(
-              settings.networkToolsEnabled && settings.networkConsoleEnabled,
+              settings.networkToolsEnabled && settings.networkConsoleEnabled && testSurfacesVisible,
               <SocialTest />,
             )}
           />
           <Route path="/faucet" element={<Navigate to="/network-tools" replace />} />
           <Route
-            path="/nft-demo"
-            element={optionalRoute(settings.nftDemoEnabled, <NftDemo />)}
+            path="/ntf"
+            element={optionalRoute(settings.nftDemoEnabled && testSurfacesVisible, <NftDemo />)}
           />
+          <Route path="/nft-demo" element={<Navigate to="/ntf" replace />} />
         </Routes>
       </Layout>
   );

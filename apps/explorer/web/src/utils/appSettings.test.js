@@ -57,6 +57,7 @@ test('application settings normalize public surfaces and Explorer behavior with 
 test('settings are wired to routes, navigation, search and refresh behavior', async () => {
   const app = await source('App.jsx');
   const layout = await source('components/Layout.jsx');
+  const main = await source('main.jsx');
   const networkTools = await source('pages/NetworkTools.jsx');
   const nftDemo = await source('pages/NftDemo.jsx');
   const explorer = await source('pages/Explorer.jsx');
@@ -68,12 +69,19 @@ test('settings are wired to routes, navigation, search and refresh behavior', as
   assert.match(app, /settings\.developersEnabled/);
   assert.match(app, /settings\.bridgeEnabled/);
   assert.match(app, /settings\.nftDemoEnabled/);
+  // Mainnet hides every test surface regardless of API visibility flags.
+  assert.match(app, /testSurfacesVisible/);
+  assert.match(app, /path="\/ntf"/);
+  assert.match(app, /path="\/nft-demo"/);
+
+  assert.match(main, /NetworkProvider/);
 
   assert.match(layout, /settings\.networkToolsEnabled/);
   assert.match(layout, /settings\.docsEnabled/);
   assert.match(layout, /settings\.developersEnabled/);
   assert.match(layout, /settings\.bridgeEnabled/);
   assert.match(layout, /settings\.nftDemoEnabled/);
+  assert.match(layout, /testSurfacesVisible/);
 
   assert.match(networkTools, /settings\.networkConsoleEnabled/);
   assert.match(nftDemo, /settings\.nftLiveFlowEnabled/);

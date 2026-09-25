@@ -249,6 +249,7 @@ test('Explorer web keeps public browser endpoints separate from private Explorer
   const demo = await source('data/nftDemoExamples.js');
 
   for (const key of [
+    'AEKO_ENV',
     'AEKO_PUBLIC_RPC_URL',
     'AEKO_PUBLIC_WS_URL',
     'AEKO_PUBLIC_FUNDING_URL',
@@ -276,6 +277,7 @@ test('Explorer web keeps public browser endpoints separate from private Explorer
 
   assert.match(viteConfig, /AEKO_INTERNAL_EXPLORER_API_URL/);
   assert.match(viteConfig, /AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL/);
+  assert.match(viteConfig, /normalizeDeployEnv/);
   assert.match(viteConfig, /\/api\/explorer\/testnet/);
   assert.match(viteConfig, /\/api\/explorer\/localnet/);
   assert.match(viteConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
@@ -288,19 +290,31 @@ test('Explorer web keeps public browser endpoints separate from private Explorer
   assert.match(networkConfig, /runtime\.testnet/);
   assert.match(networkConfig, /runtime\.mainnet/);
   assert.match(networkConfig, /runtime\.localnet/);
+  assert.match(networkConfig, /runtime\.env/);
+  assert.match(networkConfig, /getDeployEnv/);
   assert.match(networkConfig, /getDefaultExplorerNetwork/);
   assert.match(networkConfig, /getTestNetwork/);
   assert.match(networkConfig, /explorerApiUrl: '\/api\/explorer\/localnet'/);
   assert.match(networkConfig, /explorerApiUrl: testnet\.explorerApiUrl/);
   assert.match(networkConfig, /explorerApiUrl: mainnet\.explorerApiUrl/);
-  assert.match(networkConfig, /explorerApiUrl: '\/api\/explorer\/localnet'/);
+  // There is no "public testnet": testnet is testnet.
+  assert.doesNotMatch(networkConfig, /Public Testnet/);
+  assert.doesNotMatch(networkConfig, /public testnet/);
+  assert.doesNotMatch(networkConfig, /public-testnet/);
   assert.match(networkToggle, /'mainnet', 'testnet', 'localnet'/);
+  assert.match(networkToggle, /Coming soon/);
+  assert.match(networkToggle, /showMainnetComingSoon/);
+  assert.match(networkToggle, /useNetwork/);
   assert.match(explorer, /NetworkToggle/);
-  assert.match(explorer, /getDefaultExplorerNetwork/);
+  assert.match(explorer, /useNetwork/);
   assert.match(networkTools, /NetworkToggle/);
+  assert.match(networkTools, /useNetwork/);
   assert.match(networkTools, /isTestNetwork && settings\.networkConsoleEnabled/);
 
-  assert.match(entrypoint, /const config = \{ testnet, mainnet, localnet, demo \}/);
+  assert.match(entrypoint, /env: deployEnv/);
+  assert.match(entrypoint, /isLocalDeploy/);
+  assert.match(entrypoint, /isTestnetDeploy/);
+  assert.match(entrypoint, /AEKO_ENV/);
   assert.match(entrypoint, /explorerApiUrl: '\/api\/explorer\/testnet'/);
   assert.doesNotMatch(entrypoint, /AEKO_PUBLIC_EXPLORER_API_URL|AEKO_PUBLIC_EXPLORER_URL/);
 

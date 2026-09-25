@@ -1,10 +1,23 @@
-import { getNetworkConfig } from '../utils/networkConfig';
+import { getDeployEnv, getNetworkConfig } from '../utils/networkConfig';
+import { useNetwork } from './NetworkContext';
 
-// Production order: mainnet first whenever it is available. Test-only
-// networks (testnet/localnet) follow for console, demo and developer flows.
+// Global toggle: reads and writes the shared network selection, so one
+// switch applies to every page. Production order is mainnet first whenever
+// it is available; test-only networks follow for console, demo and
+// developer flows.
+//
+// When mainnet is not configured in a production or testnet deploy, it still
+// renders as a disabled "coming soon" entry so the UI shows the normal
+// testnet + mainnet switch instead of silently hiding mainnet. Local deploys
+// expose only localnet.
 const NETWORK_ORDER = ['mainnet', 'testnet', 'localnet'];
 
-export default function NetworkToggle({ value, onChange }) {
+export default function NetworkToggle() {
+  const { network: value, setNetwork: onChange } = useNetwork();
+  const deployEnv = getDeployEnv();
+  const showMainnetComingSoon =
+    (deployEnv === 'production' || deployEnv === 'testnet')
+    && !getNetworkConfig('mainnet').available;
   const options = NETWORK_ORDER.filter((option) => getNetworkConfig(option).available);
 
   return (
@@ -26,6 +39,15 @@ export default function NetworkToggle({ value, onChange }) {
           </button>
         );
       })}
+      {showMainnetComingSoon ? (
+        <span
+          aria-disabled="true"
+          title="Mainnet is coming soon"
+          className="cursor-not-allowed rounded-full px-4 py-2 text-sm font-medium text-gray-600"
+        >
+          Mainnet · Coming soon
+        </span>
+      ) : null}
     </div>
   );
 }
