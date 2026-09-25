@@ -31,7 +31,7 @@ for compose in docker/coolify/*/compose.yml; do docker compose -f "$compose" con
 python3 scripts/validate-deployment-contract.py
 ```
 
-The Dokploy and legacy Coolify files preserve the original all-in-one topology. The split Coolify tree intentionally changes only the deployment boundary: images and runtime contracts remain the same, but each role is its own Coolify resource and cross-resource endpoints are explicit environment values.
+The Dokploy and legacy Coolify files preserve the original all-in-one topology. The split Coolify tree changes only the deployment boundary: bootstrap lifecycle jobs share one resource, Faucet and opt-in wallet tools share another, and Validator/Explorer/Admin remain independent. Cross-resource endpoints are explicit environment values.
 
 Dokploy keeps `AEKO_KEYS_DIR` configurable as an absolute host path. Coolify deliberately does not parameterize bind sources. The legacy file fixes `/data/aeko/keys`; the split resources additionally fix validator ledger, Social state and Protocol state/continuity under `/data/aeko/**` so changing a Coolify Compose project name cannot allocate empty replacement named volumes. On public deployments, normal redeploys fail closed if established ledger/key/continuity material is missing. Coolify chain-key generation still requires the explicit first-boot flag `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`.
 
