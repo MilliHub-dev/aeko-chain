@@ -177,13 +177,15 @@ required files deliberately through the operator's secure storage/custody
 process. Do not assume `/data/aeko/keys` magically synchronizes across
 instances.
 
-The current Validator bootstrap contract still mounts the established chain key
-directory, including the Faucet key used by genesis/bootstrap safeguards.
-Separating the Faucet daemon changes network lifecycle, not that persisted
-first-genesis/key continuity contract.
+The established split Validator requires its validator identity and vote key
+plus the existing ledger. Stake and Faucet keypairs are genesis-only inputs and
+are no longer required on an established Validator restart. They are still
+required if that Validator host intentionally creates/replaces genesis.
 
-Copying private keys to more hosts increases risk. Prefer the smallest possible
-number of key-custody hosts.
+The bootstrap/key-custody host still carries the canonical key set needed by
+key preflight and the Social/Protocol payer/authority lifecycle. Copying private
+keys to more hosts increases risk, so provision only the keys each host
+actually requires.
 
 ## Explorer API registry handoff
 
