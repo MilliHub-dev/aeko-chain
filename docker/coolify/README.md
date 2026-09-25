@@ -190,21 +190,52 @@ Export the canonical values from the actual bootstrap registries. Do not invent
 addresses, mix values from different genesis hashes, or copy writable bootstrap
 state just to make Explorer start.
 
-## Coolify auto-deploy isolation
+## Coolify deploy-trigger isolation
 
-Separate Compose files solve deployment coupling only if Coolify is also
-configured not to redeploy unrelated resources on every repository push.
+Separate Compose files solve deployment coupling only when the release trigger
+is split as well.
 
-Recommended production policy:
+The repository supports two release modes:
 
-- `validator`: disable Auto Deploy; promote an immutable `AEKO_IMAGE_TAG`
-  only for intentional Validator releases.
-- `bootstrap`: disable Auto Deploy; it is a lifecycle job.
-- `faucet-tools`: normally disable Auto Deploy; update Faucet intentionally.
-- `explorer-api`, `explorer-ui`, `operations-web`: either use explicit
-  release promotion or configure Watch Paths for their own surface.
+- default/legacy: the existing single `WEBHOOK_URL` + `WEBHOOK_API_KEY`
+  behavior remains unchanged;
+- split: set the GitHub repository variable
+  `COOLIFY_DEPLOYMENT_MODE=split`.
 
-Example Watch Paths:
+In split mode, post-promotion CI may automatically trigger only these
+application resources:
+
+- Explorer API
+- Explorer UI
+- Operations Web
+
+Configure their independent secrets:
+
+    COOLIFY_EXPLORER_API_WEBHOOK_URL
+    COOLIFY_EXPLORER_API_WEBHOOK_API_KEY
+    COOLIFY_EXPLORER_UI_WEBHOOK_URL
+    COOLIFY_EXPLORER_UI_WEBHOOK_API_KEY
+    COOLIFY_OPERATIONS_WEB_WEBHOOK_URL
+    COOLIFY_OPERATIONS_WEB_WEBHOOK_API_KEY
+
+Each selected deployment fails closed if its URL or API key is missing. One
+resource may point to a completely different Coolify instance from another.
+
+Validator, bootstrap, and faucet-tools are never auto-triggered by split CI.
+They are stateful/security-sensitive and require an intentional operator
+promotion. A core build may validate and publish their new images without
+restarting those resources.
+
+For the three automatically triggered application resources, the adjacent
+`.env.example` uses `AEKO_IMAGE_TAG=latest`. CI first promotes only the
+validated selected image(s) to `latest`, then calls that resource's webhook.
+If you pin an application resource to an immutable SHA instead, the webhook
+cannot rewrite the tag; update the Coolify environment value as part of that
+manual release.
+
+Disable Coolify Git Auto Deploy on webhook-managed resources to avoid racing a
+Git push against image publication. If you intentionally do not use the CI
+webhook mode, Watch Paths remain an alternative for application resources:
 
     Explorer API:
       docker/coolify/explorer-api/**
@@ -219,8 +250,8 @@ Example Watch Paths:
       docker/coolify/operations-web/**
       apps/admin/**
 
-This is what prevents a UI/Admin-only Git change from redeploying Validator even
-though everything still lives in one monorepo.
+This separation is what prevents a UI/Admin-only Git change from redeploying
+Validator even though everything remains in one monorepo.
 
 ## Established-chain migration
 
