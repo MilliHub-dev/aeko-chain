@@ -136,7 +136,7 @@ const mainnetAvailable = !isLocalDeploy && !isTestnetDeploy && configuredMainnet
 export const NETWORKS = {
   mainnet: {
     key: 'mainnet',
-    label: mainnetAvailable ? 'Mainnet' : 'Mainnet (not configured)',
+    label: mainnetAvailable ? 'Mainnet · Live' : 'Mainnet (not configured)',
     available: mainnetAvailable,
     rpcUrl: mainnet.rpcUrl,
     websocketUrl: mainnet.websocketUrl,
@@ -144,14 +144,14 @@ export const NETWORKS = {
     explorerApiUrl: mainnet.explorerApiUrl,
     explorerLabel: explorerLabel(),
     fundingUrl: '',
-    fundingLabel: 'No test funding on mainnet',
+    fundingLabel: 'No test funding on the live network',
     fundingEnabled: false,
     cliCluster: mainnet.rpcUrl,
   },
   testnet: {
     key: 'testnet',
     label: testnetAvailable
-      ? 'Testnet'
+      ? 'Testnet · Test'
       : 'Testnet (not configured)',
     available: testnetAvailable,
     rpcUrl: testnet.rpcUrl,
@@ -160,7 +160,7 @@ export const NETWORKS = {
     explorerApiUrl: testnet.explorerApiUrl,
     explorerLabel: explorerLabel(),
     fundingUrl: testnet.fundingUrl || '',
-    fundingLabel: 'Policy-controlled Testnet Funding Portal',
+    fundingLabel: 'Managed Testnet Funding Portal',
     fundingEnabled: Boolean(testnet.fundingUrl),
     cliCluster: testnet.rpcUrl,
   },
@@ -168,9 +168,7 @@ export const NETWORKS = {
     key: 'localnet',
     label: !localnetAvailable
       ? 'Localnet (not configured)'
-      : localnetFromEnv
-        ? 'Localnet (env)'
-        : 'Localnet',
+      : 'Localnet · Local',
     available: localnetAvailable,
     rpcUrl: localnetValue.rpcUrl,
     websocketUrl: localnetValue.websocketUrl,
@@ -179,7 +177,7 @@ export const NETWORKS = {
     explorerLabel: explorerLabel(),
     fundingUrl: localnetValue.fundingUrl || '',
     fundingLabel: localnetAvailable
-      ? 'Local funding uses requestAirdrop on the local RPC'
+      ? 'Local funding uses direct airdrops on the local network'
       : 'Localnet is not configured',
     fundingEnabled: Boolean(localnetValue.fundingUrl),
     cliCluster: localnetValue.rpcUrl,

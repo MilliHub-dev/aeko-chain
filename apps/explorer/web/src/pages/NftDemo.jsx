@@ -190,7 +190,7 @@ export default function NftDemo() {
     } catch (error) {
       setLiveReadState({
         loading: false,
-        error: error.message || 'Unable to load AEKO-721 accounts from the selected RPC endpoint.',
+        error: error.message || 'Unable to load AEKO-721 accounts from the selected connection.',
         collection: null,
         token: null,
         collectionOwnerMatch: null,
@@ -203,7 +203,7 @@ export default function NftDemo() {
     if (!signedTransactionBase64.trim()) {
       setSubmissionState({
         loading: false,
-        error: 'Paste a signed base64 transaction before submitting.',
+        error: 'Paste a signed transaction before submitting.',
         signature: '',
         status: null,
       });
@@ -749,10 +749,10 @@ export default function NftDemo() {
             <div className="bg-white/5 border border-white/10 rounded-3xl p-8 mb-20">
           <div className="flex items-center gap-3 mb-6">
             <Radio className="text-aeko-accent" />
-            <h2 className="text-2xl font-bold">Live Testnet Read Panel</h2>
+            <h2 className="text-2xl font-bold">Live Account Lookup</h2>
           </div>
           <p className="text-sm text-gray-400 mb-6">
-            Point this panel at an AEKO testnet RPC and load a real collection account plus NFT token account. The decoder expects the current AEKO-721 Borsh layout from the on-chain reference program.
+            Enter a collection account plus an NFT account to look up their live on-chain details.
           </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
@@ -760,7 +760,7 @@ export default function NftDemo() {
               value={liveReadForm.rpcEndpoint}
               onChange={(event) => handleLiveFieldChange('rpcEndpoint', event.target.value)}
               className="bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-aeko-accent"
-              placeholder="RPC endpoint"
+              placeholder="Connection URL"
             />
             <input
               value={liveReadForm.collectionAddress}
@@ -786,7 +786,7 @@ export default function NftDemo() {
               {liveReadState.loading ? 'Loading Accounts...' : 'Load Live Accounts'}
             </button>
             <span className="text-xs text-gray-500">
-              Default RPC: <span className="text-gray-300">{networkConfig.rpcUrl}</span>
+              Default connection: <span className="text-gray-300">{networkConfig.rpcUrl}</span>
             </span>
           </div>
 
@@ -808,12 +808,12 @@ export default function NftDemo() {
                   <StatRow label="Total Minted" value={String(liveReadState.collection.totalMinted)} />
                   <StatRow label="Initialized" value={liveReadState.collection.isInitialized ? 'Yes' : 'No'} />
                   <StatRow
-                    label="Program Owner Check"
+                    label="Owner Check"
                     value={liveReadState.collectionOwnerMatch?.matches ? 'Matches AEKO-721' : 'Owner mismatch'}
                   />
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">Load a collection account to inspect real testnet state.</p>
+                <p className="text-sm text-gray-400">Load a collection account to inspect its live details.</p>
               )}
             </div>
 
@@ -829,12 +829,12 @@ export default function NftDemo() {
                   <StatRow label="Metadata Name" value={liveReadState.token.metadata.name} />
                   <StatRow label="Metadata URI" value={liveReadState.token.metadata.uri} subtle />
                   <StatRow
-                    label="Program Owner Check"
+                    label="Owner Check"
                     value={liveReadState.tokenOwnerMatch?.matches ? 'Matches AEKO-721' : 'Owner mismatch'}
                   />
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">Load an NFT token account to inspect real testnet state.</p>
+                <p className="text-sm text-gray-400">Load an NFT token account to inspect its live details.</p>
               )}
             </div>
           </div>
@@ -846,13 +846,13 @@ export default function NftDemo() {
             <h2 className="text-2xl font-bold">Collection And Account Setup</h2>
           </div>
           <p className="text-sm text-gray-400 mb-6">
-            This helper derives AEKO-721 collection and token account addresses from a base signer plus seeds, fetches rent-exempt balances, and builds the two setup transactions you need for a fresh testnet demo: create plus initialize collection, then create token account plus mint NFT.
+            This helper works out the collection and token addresses from your signer plus short names, checks the required deposit for each, and builds the two setup transactions you need for a fresh demo: create plus initialize collection, then create token account plus mint NFT.
           </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Base Authority / Fee Payer</label>
+                <label className="block text-sm text-gray-400 mb-2">Base Authority / Payer</label>
                 <input
                   value={setupForm.baseAuthority}
                   onChange={(event) => handleSetupFieldChange('baseAuthority', event.target.value)}
@@ -929,11 +929,11 @@ export default function NftDemo() {
                 <StatRow label="AEKO-721 Program" value={token721ProgramId()} subtle />
                 <StatRow label="Collection Address" value={setupState.collectionAddress || 'Not built yet'} subtle />
                 <StatRow label="Token Address" value={setupState.tokenAddress || 'Not built yet'} subtle />
-                <StatRow label="Recent Blockhash" value={setupState.blockhash || 'Not fetched yet'} subtle />
+                <StatRow label="Fresh Reference" value={setupState.blockhash || 'Not fetched yet'} subtle />
                 <StatRow label="Collection Space" value={setupState.collectionSpace ? `${setupState.collectionSpace} bytes` : 'Pending'} />
                 <StatRow label="Token Space" value={setupState.tokenSpace ? `${setupState.tokenSpace} bytes` : 'Pending'} />
-                <StatRow label="Collection Rent" value={setupState.collectionLamports ? `${setupState.collectionLamports} lamports` : 'Pending'} />
-                <StatRow label="Token Rent" value={setupState.tokenLamports ? `${setupState.tokenLamports} lamports` : 'Pending'} />
+                <StatRow label="Collection Deposit" value={setupState.collectionLamports ? `${setupState.collectionLamports} lamports` : 'Pending'} />
+                <StatRow label="Token Deposit" value={setupState.tokenLamports ? `${setupState.tokenLamports} lamports` : 'Pending'} />
               </div>
               {setupState.error && (
                 <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200 mb-4">
@@ -967,10 +967,10 @@ export default function NftDemo() {
         <div className="bg-white/5 border border-white/10 rounded-3xl p-8 mb-20">
           <div className="flex items-center gap-3 mb-6">
             <FileCode2 className="text-aeko-accent" />
-            <h2 className="text-2xl font-bold">Testnet Write Builder</h2>
+            <h2 className="text-2xl font-bold">Write Builder</h2>
           </div>
           <p className="text-sm text-gray-400 mb-6">
-            This panel now does two things from the same AEKO-721 action form: it shows the exact instruction/account plan, and it can build a real unsigned legacy transaction payload against a fresh testnet blockhash for wallet signing.
+            This panel turns the same action form into two things: the exact step-by-step plan, and a ready-to-sign transaction built against a fresh network reference for wallet signing.
           </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1065,11 +1065,11 @@ export default function NftDemo() {
             </div>
 
             <div className="bg-[#0f0f16] border border-white/10 rounded-2xl p-6">
-              <h3 className="text-xl font-bold mb-4">Wallet Action Plan</h3>
+              <h3 className="text-xl font-bold mb-4">Action Plan</h3>
               <div className="space-y-1 mb-6">
                 <StatRow label="Instruction" value={writePayload.instruction} />
-                <StatRow label="Required Signer" value={writePayload.requiredSigner || 'Unknown'} />
-                <StatRow label="RPC Endpoint" value={writePayload.rpcEndpoint} subtle />
+                <StatRow label="Signed By" value={writePayload.requiredSigner || 'Unknown'} />
+                <StatRow label="Connection" value={writePayload.rpcEndpoint} subtle />
               </div>
               <pre className="bg-black/40 p-4 rounded-xl overflow-x-auto text-xs text-gray-300 whitespace-pre-wrap break-all">
                 {JSON.stringify(writePayload, null, 2)}
@@ -1090,8 +1090,8 @@ export default function NftDemo() {
               {preparedTransactionState.base64 && (
                 <div className="mt-6 space-y-4">
                   <div className="space-y-1">
-                    <StatRow label="Fee Payer" value={preparedTransactionState.payer} subtle />
-                    <StatRow label="Recent Blockhash" value={preparedTransactionState.blockhash} subtle />
+                    <StatRow label="Payer" value={preparedTransactionState.payer} subtle />
+                    <StatRow label="Fresh Reference" value={preparedTransactionState.blockhash} subtle />
                   </div>
                   <textarea
                     readOnly
@@ -1167,7 +1167,7 @@ export default function NftDemo() {
             <h2 className="text-2xl font-bold">Signed Transaction Submission</h2>
           </div>
           <p className="text-sm text-gray-400 mb-6">
-            If you sign an AEKO-721 transaction externally, you can paste the base64-encoded signed transaction here and broadcast it to testnet through the selected RPC endpoint. The builder above produces an unsigned payload for wallets, not a directly broadcastable signed transaction.
+            If you signed a transaction somewhere else, paste it here to send it to the network through the selected connection. The builder above produces an unsigned payload for wallets, not a directly sendable signed transaction.
           </p>
 
           <textarea
@@ -1187,7 +1187,7 @@ export default function NftDemo() {
               {submissionState.loading ? 'Submitting...' : 'Submit Signed Transaction'}
             </button>
             <span className="text-xs text-gray-500">
-              Uses RPC endpoint: <span className="text-gray-300">{liveReadForm.rpcEndpoint}</span>
+              Uses connection: <span className="text-gray-300">{liveReadForm.rpcEndpoint}</span>
             </span>
             <button
               onClick={handleWalletNativeSubmit}

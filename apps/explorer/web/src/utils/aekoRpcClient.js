@@ -83,16 +83,16 @@ export function isConfiguredPublicTestnetRpc(rpcUrl) {
 
 function fundingEndpoint(fundingUrl, path) {
   const configured = String(fundingUrl || '').trim();
-  if (!configured) throw new Error('Testnet Funding URL is not configured.');
+  if (!configured) throw new Error('Test funding is not set up for this network.');
 
   let base;
   try {
     base = new URL(configured);
   } catch {
-    throw new Error('Testnet Funding URL is invalid.');
+    throw new Error('Test funding address is invalid.');
   }
   if (!['http:', 'https:'].includes(base.protocol)) {
-    throw new Error('Testnet Funding URL must use http or https.');
+    throw new Error('Test funding address must use http or https.');
   }
 
   // Funding URLs may point at the public /funding page. API routes always live
@@ -107,7 +107,7 @@ async function readFundingResponse(response, label) {
     const text = await response.text().catch(() => '');
     throw new Error(
       `${label} returned HTTP ${response.status} with ${contentType || 'non-JSON'} content. `
-        + `Check that the Funding URL routes to Operations Web, not an HTML page. ${text.slice(0, 100)}`,
+        + `Check that the funding address points at the funding service, not a web page. ${text.slice(0, 100)}`,
     );
   }
   const body = await response.json();
@@ -139,7 +139,7 @@ export async function requestConsoleAirdrop(fundingUrl, address, amountAeko) {
   });
   const data = await readFundingResponse(response, 'Test Console airdrop');
   if (!data?.signature) {
-    throw new Error('Test Console airdrop completed without a transaction signature.');
+    throw new Error('Test airdrop finished without a transaction signature.');
   }
   return data;
 }

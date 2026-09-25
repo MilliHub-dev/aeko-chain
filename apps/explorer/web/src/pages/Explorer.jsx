@@ -360,7 +360,7 @@ export default function Explorer() {
           <div className="text-sm uppercase tracking-[0.3em] text-aeko-accent mb-3">Explorer</div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Aeko Scan</h1>
           <p className="text-lg text-gray-400 max-w-3xl">
-            Inspect live chain position and durable blocks, transactions, assets, accounts, and SocialFi state through the Explorer backend.
+            Browse blocks, transactions, assets, accounts, and social activity — live and saved.
           </p>
         </div>
         <NetworkToggle />
@@ -412,8 +412,8 @@ export default function Explorer() {
           unavailable && {
             id: 'unavailable',
             kind: 'info',
-            title: 'Explorer API not configured',
-            children: `The ${networkLabel} network has no Explorer API endpoint configured. Deployed and remote-preview builds use the canonical AEKO_* runtime configuration; local Vite development uses the loopback resolver.`,
+            title: 'Explorer data is not connected',
+            children: `The ${networkLabel} network has no data connection set up. Deployed and remote-preview builds use the standard AEKO runtime configuration; local development uses the loopback setup.`,
           },
           !unavailable && searchState.error && {
             id: 'search-error',
@@ -426,7 +426,7 @@ export default function Explorer() {
           !unavailable && overview?.overviewError && {
             id: 'overview-warning',
             kind: 'info',
-            title: 'Explorer overview is degraded',
+            title: 'Summary data is limited',
             children: overview.overviewError,
           },
         ].filter(Boolean)}
@@ -452,7 +452,7 @@ export default function Explorer() {
             </div>
           ) : !searchState.error ? (
             <div className="rounded-xl border border-white/10 bg-black/10 px-4 py-6 text-sm text-gray-400">
-              No matching indexed or live chain record was found for this query.
+              No matching saved or live record was found for this query.
             </div>
           ) : null}
         </div>
@@ -465,7 +465,7 @@ export default function Explorer() {
               {
                 id: 'home-error',
                 kind: 'error',
-                title: 'Couldn’t load explorer data',
+                title: 'Couldn’t load network data',
                 children: homeState.error,
                 onDismiss: () =>
                   setHomeState((s) => ({ ...s, error: '' })),
@@ -476,32 +476,32 @@ export default function Explorer() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
-        <StatCard icon={Blocks} label="Live Chain Slot" value={formatExplorerMetric(overview?.latestChainSlot)} />
-        <StatCard icon={Blocks} label="Indexed Blocks" value={formatExplorerMetric(overview?.indexedBlocks)} />
-        <StatCard icon={Activity} label="Indexed Transactions" value={formatExplorerMetric(overview?.indexedTransactions)} />
-        <StatCard icon={Sparkles} label="Indexed Posts" value={formatExplorerMetric(overview?.indexedPosts)} />
-        <StatCard icon={Wallet} label="Stake Positions" value={formatExplorerMetric(overview?.indexedStakes)} />
-        <StatCard icon={Image} label="Indexed NFTs" value={formatExplorerMetric(overview?.indexedNfts)} />
-        <StatCard icon={Sparkles} label="Indexed Tokens" value={formatExplorerMetric(overview?.indexedTokens)} />
+        <StatCard icon={Blocks} label="Latest block" value={formatExplorerMetric(overview?.latestChainSlot)} />
+        <StatCard icon={Blocks} label="Blocks saved" value={formatExplorerMetric(overview?.indexedBlocks)} />
+        <StatCard icon={Activity} label="Transactions saved" value={formatExplorerMetric(overview?.indexedTransactions)} />
+        <StatCard icon={Sparkles} label="Posts saved" value={formatExplorerMetric(overview?.indexedPosts)} />
+        <StatCard icon={Wallet} label="Stakes" value={formatExplorerMetric(overview?.indexedStakes)} />
+        <StatCard icon={Image} label="NFTs saved" value={formatExplorerMetric(overview?.indexedNfts)} />
+        <StatCard icon={Sparkles} label="Tokens saved" value={formatExplorerMetric(overview?.indexedTokens)} />
       </div>
 
       {overview ? (
         <div className="mb-10 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm text-gray-400">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <span>
-              Source: <strong className="text-white font-medium">{overview.dataSource}</strong>
+              Data from: <strong className="text-white font-medium">{overview.dataSource}</strong>
             </span>
             <span>
-              Core: <strong className="text-white font-medium">{formatExplorerMetric(overview.latestIndexedSlot)}</strong>
-              {overview.indexLagSlots != null ? ` (${formatExplorerMetric(overview.indexLagSlots)} slot lag)` : ''}
+              Blocks: <strong className="text-white font-medium">{formatExplorerMetric(overview.latestIndexedSlot)}</strong>
+              {overview.indexLagSlots != null ? ` (${formatExplorerMetric(overview.indexLagSlots)} behind)` : ''}
             </span>
             <span>
               Assets: <strong className="text-white font-medium">{formatExplorerMetric(overview.latestAssetSlot)}</strong>
-              {overview.assetLagSlots != null ? ` (${formatExplorerMetric(overview.assetLagSlots)} slot lag)` : ''}
+              {overview.assetLagSlots != null ? ` (${formatExplorerMetric(overview.assetLagSlots)} behind)` : ''}
             </span>
             <span>
               Social: <strong className="text-white font-medium">{formatExplorerMetric(overview.latestSocialSlot)}</strong>
-              {overview.socialLagSlots != null ? ` (${formatExplorerMetric(overview.socialLagSlots)} slot lag)` : ''}
+              {overview.socialLagSlots != null ? ` (${formatExplorerMetric(overview.socialLagSlots)} behind)` : ''}
             </span>
           </div>
         </div>

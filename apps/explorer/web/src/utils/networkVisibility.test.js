@@ -91,6 +91,51 @@ test('demo surface is branded NTF', async () => {
   assert.match(demo, /NTF Lifecycle/);
 });
 
+test('toggle and surfaces use consumer wording, not core-dev jargon', async () => {
+  const toggle = await source('components/NetworkToggle.jsx');
+  const config = await source('utils/networkConfig.js');
+  // Toggle renders config labels plus a disabled coming-soon entry.
+  assert.match(toggle, /getNetworkConfig\(option\)\.label/);
+  assert.match(toggle, /Mainnet · Coming soon/);
+  assert.match(toggle, /showMainnetComingSoon/);
+  // Config labels pair each network with a plain-word hint.
+  assert.match(config, /Mainnet · Live/);
+  assert.match(config, /Testnet · Test/);
+  assert.match(config, /Localnet · Local/);
+
+  // User-facing surfaces must not leak core chain-developer vocabulary.
+  // (RPC method names and codec internals stay in utils, not in UI copy.)
+  const surfaces = [
+    'pages/Explorer.jsx',
+    'pages/NetworkTools.jsx',
+    'pages/NftDemo.jsx',
+    'pages/Docs.jsx',
+    'pages/Developers.jsx',
+    'components/NetworkToolsPanel.jsx',
+    'components/TestnetFundingRequest.jsx',
+  ];
+  const jargon = [
+    'JSON-RPC',
+    'WebSocket PubSub',
+    'Faucet Daemon',
+    'requestAirdrop',
+    'Borsh layout',
+    'rent-exempt',
+    'Live Chain Slot',
+    'slot lag',
+    'Program Owner Check',
+    'Testnet Funding URL',
+    'Public Testnet',
+    'public testnet',
+  ];
+  for (const page of surfaces) {
+    const body = await source(page);
+    for (const term of jargon) {
+      assert.doesNotMatch(body, new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${page} must not show "${term}"`);
+    }
+  }
+});
+
 test('developer flow shows cluster selection and quick commands per network', async () => {
   const tools = await source('pages/NetworkTools.jsx');
   assert.match(tools, /developerQuickCommands/);

@@ -20,7 +20,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
 
     if (!fundingUrl) {
       setPolicy(null);
-      setPolicyError('The Testnet Funding endpoint is not configured for this deployment.');
+      setPolicyError('Test funding is not set up for this network.');
       return () => {
         cancelled = true;
       };
@@ -137,7 +137,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
         <aside className="border-t border-white/10 bg-black/20 p-6 sm:p-8 lg:border-l lg:border-t-0">
           <div className="text-sm font-semibold text-white">Funding policy</div>
           <p className="mt-1 text-xs leading-relaxed text-gray-500">
-            The public Funding Gateway controls request size and abuse limits. Requests remain pending until an operator approves them; only the server can reach the private Faucet Daemon.
+            The funding service controls request size and abuse limits. Requests remain pending until an operator approves them; only the server can release funds.
           </p>
           <div className="mt-5 grid gap-3">
             <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">

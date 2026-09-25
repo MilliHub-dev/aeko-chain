@@ -328,7 +328,7 @@ test('Explorer search is URL-driven, retryable and exposes a no-results state', 
 
   assert.match(explorer, /urlSearchQuery/);
   assert.match(explorer, /setSearchRetry/);
-  assert.match(explorer, /No matching indexed or live chain record/);
+  assert.match(explorer, /No matching saved or live record/);
   assert.match(explorer, /match\.kind === 'tokenMint'/);
   assert.match(explorer, /match\.kind === 'collection'/);
   assert.match(transaction, /Failed/);

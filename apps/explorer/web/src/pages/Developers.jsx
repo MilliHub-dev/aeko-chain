@@ -144,7 +144,7 @@ export default function Developers() {
             <div>
               <h2 className="text-2xl font-bold mb-2">Network Endpoints</h2>
               <p className="text-sm text-gray-400">
-                Switch between clusters to view the right explorer, faucet, and API endpoints for
+                Switch between clusters to view the right explorer, funding, and API endpoints for
                 the current environment.
               </p>
             </div>

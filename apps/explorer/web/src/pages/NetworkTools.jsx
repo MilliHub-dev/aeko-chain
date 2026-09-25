@@ -152,8 +152,8 @@ export default function NetworkTools() {
               <div>
                 <h2 className="text-xl font-semibold mb-1">AEKO Network Console</h2>
                 <p className="text-sm text-gray-400 max-w-2xl">
-                  A URL-addressable testnet workspace for wallet management, transfers, live
-                  SocialFi bootstrap verification, real signed Social actions, and end-to-end acceptance checks.
+                  A test workspace for managing wallets, sending transfers,
+                  and trying the social features end to end.
                 </p>
               </div>
             </div>
@@ -174,7 +174,7 @@ export default function NetworkTools() {
             </button>
             <button type="button" onClick={() => openConsole('programs')} className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-left hover:bg-white/5 transition">
               <div className="text-sm font-medium text-white">Programs</div>
-              <div className="mt-1 text-xs text-gray-500">Live status for all five native SocialFi states</div>
+              <div className="mt-1 text-xs text-gray-500">Live status for posts, rewards, staking, spam protection, and monetization</div>
             </button>
             <button type="button" onClick={() => openConsole('social')} className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-left hover:bg-white/5 transition">
               <div className="text-sm font-medium text-white">Social</div>
@@ -182,7 +182,7 @@ export default function NetworkTools() {
             </button>
             <Link to="/network-tools/social-e2e" className="rounded-xl border border-aeko-accent/25 bg-aeko-accent/[0.06] px-4 py-3 text-left hover:bg-aeko-accent/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent/70">
               <div className="text-sm font-medium text-aeko-accent">Social E2E</div>
-              <div className="mt-1 text-xs text-gray-500">Sign, submit, confirm, index, and read the full SocialFi flow</div>
+              <div className="mt-1 text-xs text-gray-500">Try the full social flow: post, mint, like, stake, and tip</div>
             </Link>
           </div>
         </div>
@@ -197,21 +197,21 @@ export default function NetworkTools() {
           <p className="text-gray-400 mb-6">
             {isTestNetwork
               ? config.key === 'localnet'
-                ? 'Local development can use requestAirdrop directly on the local validator RPC.'
-                : 'Use the Testnet Funding Portal to submit a public funding request for operator approval. The Network Console has a separate constrained developer airdrop flow. The private Faucet Daemon remains internal infrastructure, and the public RPC does not accept unauthenticated requestAirdrop calls.'
-              : 'Mainnet does not expose test funding. Use your normal treasury, exchange, or operational distribution flow.'}
+                ? 'Local development can add test funds directly with the airdrop command below.'
+                : 'Use the Testnet Funding Portal to request test funds for operator approval. The Network Console has its own separate airdrop for developers. New funds are issued by the funding service — apps never create them directly.'
+              : 'The live network has no test funding. Use your normal treasury, exchange, or operational distribution flow.'}
           </p>
 
           {isTestNetwork ? (
             <div className="rounded-xl border border-white/15 bg-black/20 p-5">
-              <div className="text-sm font-medium text-white mb-1">Public funding path</div>
+              <div className="text-sm font-medium text-white mb-1">Funding path</div>
               <div className="text-sm text-green-400 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                Policy-controlled Funding Gateway
+                Managed funding service
               </div>
               <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-white/10">
-                The Faucet Daemon is a private TCP service. Public users submit funding requests through
-                the Funding Portal and an operator approves release; only server-side funding routes are authorized to invoke requestAirdrop.
+                The funding service is private. Public users submit funding requests through
+                the Funding Portal and an operator approves release; only the server can release funds.
               </div>
             </div>
           ) : (

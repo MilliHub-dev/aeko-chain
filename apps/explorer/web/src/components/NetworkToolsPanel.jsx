@@ -11,11 +11,11 @@ export default function NetworkToolsPanel({ network }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
       <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">JSON-RPC</div>
+        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">App connection</div>
         <EndpointValue value={config.rpcUrl} />
       </div>
       <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">WebSocket PubSub</div>
+        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Live updates</div>
         <EndpointValue value={config.websocketUrl} />
       </div>
       <div className="bg-white/5 border border-white/10 rounded-xl p-5">
@@ -35,7 +35,7 @@ export default function NetworkToolsPanel({ network }) {
         )}
       </div>
       <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Testnet Funding</div>
+        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Test funding</div>
         {config.fundingEnabled ? (
           <a
             href={config.fundingUrl}

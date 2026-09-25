@@ -77,7 +77,7 @@ export default function Docs() {
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-5">
             <div>
               <div className="text-sm font-medium text-aeko-accent mb-2">Network Surface</div>
-              <h2 className="text-2xl font-bold">Explorer, Faucet & API Tools</h2>
+              <h2 className="text-2xl font-bold">Explorer & Funding Tools</h2>
             </div>
             <NetworkToggle />
           </div>

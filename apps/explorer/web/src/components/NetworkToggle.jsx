@@ -21,7 +21,7 @@ export default function NetworkToggle() {
   const options = NETWORK_ORDER.filter((option) => getNetworkConfig(option).available);
 
   return (
-    <div className="inline-flex items-center rounded-full border border-white/10 bg-white/5 p-1">
+    <div className="flex items-center rounded-full border border-white/10 bg-white/5 p-1">
       {options.map((option) => {
         const active = value === option;
         return (
@@ -29,7 +29,7 @@ export default function NetworkToggle() {
             key={option}
             type="button"
             onClick={() => onChange(option)}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-full px-4 text-nowrap py-2 text-sm font-medium transition-colors ${
               active
                 ? 'bg-aeko-accent text-black'
                 : 'text-gray-400 hover:bg-white/10 hover:text-white'
@@ -43,7 +43,7 @@ export default function NetworkToggle() {
         <span
           aria-disabled="true"
           title="Mainnet is coming soon"
-          className="cursor-not-allowed rounded-full px-4 py-2 text-sm font-medium text-gray-600"
+          className="cursor-not-allowed  text-nowrap rounded-full px-4 py-2 text-sm font-medium text-gray-600"
         >
           Mainnet · Coming soon
         </span>
