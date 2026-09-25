@@ -121,7 +121,8 @@ start.
 
 Coolify uses the fixed host directory `/data/aeko/keys` wherever a resource needs chain key material. In the split topology the one-shot `key-bootstrap` service lives inside `docker/coolify/bootstrap/compose.yml`; it is no longer a startup dependency of the Faucet or Validator resources. On an intentional first boot it may generate missing chain keypairs only when `AEKO_ALLOW_CHAIN_KEY_GENERATION=1`; normal established-chain runs keep that flag at `0`. Existing non-empty keypair files are preserved and validated rather than replaced.
 
-After the initial chain deployment, the persistent directory contains the four chain identities:
+The canonical key-custody/bootstrap directory contains the four chain
+identities:
 
 ```text
 validator-1-keypair.json
@@ -129,6 +130,11 @@ vote-1-keypair.json
 stake-keypair.json
 faucet-keypair.json
 ```
+
+A split **established Validator host** only needs
+`validator-1-keypair.json` and `vote-1-keypair.json` locally. The stake and
+Faucet keypairs are checked only when that host actually creates/replaces
+genesis. Faucet uses its own `faucet-keypair.json` on the faucet-tools host.
 
 `protocol-authority-keypair.json` is created automatically when no established protocol registry or continuity identity exists. On established deployments the same authority is required and verified rather than replaced.
 
