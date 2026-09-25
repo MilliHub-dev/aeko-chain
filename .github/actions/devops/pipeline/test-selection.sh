@@ -145,6 +145,8 @@ EOF
   STATEFUL_COOLIFY_RELEASE=true \
   COOLIFY_EXPLORER_API_WEBHOOK_URL=https://api.coolify.invalid/deploy/api \
   COOLIFY_EXPLORER_API_WEBHOOK_API_KEY=api-token \
+  COOLIFY_EXPLORER_UI_WEBHOOK_URL=https://ui.coolify.invalid/deploy/ui \
+  COOLIFY_EXPLORER_UI_WEBHOOK_API_KEY=ui-token \
   COOLIFY_OPERATIONS_WEB_WEBHOOK_URL=https://ops.coolify.invalid/deploy/ops \
   COOLIFY_OPERATIONS_WEB_WEBHOOK_API_KEY=ops-token \
     bash "$PIPELINE_DIR/deploy-coolify-split.sh"
@@ -153,7 +155,7 @@ EOF
   grep -Fq "Authorization: Bearer api-token" "$log"
   grep -Fq "https://ops.coolify.invalid/deploy/ops" "$log"
   grep -Fq "Authorization: Bearer ops-token" "$log"
-  if grep -Fq "Explorer UI" "$log"; then
+  if grep -Fq "https://ui.coolify.invalid/deploy/ui" "$log"; then
     echo "Disabled Explorer UI deployment unexpectedly called curl." >&2
     exit 1
   fi
@@ -171,7 +173,36 @@ EOF
   echo "[ok] split Coolify deployment triggers only selected resources and fails closed on missing credentials"
 }
 
+assert_split_coolify_workflow_contract() {
+  local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+  local classifier="$PIPELINE_DIR/../detect-changes/action.yml"
+
+  for path in \
+    "docker/coolify/bootstrap/*" \
+    "docker/coolify/faucet-tools/*" \
+    "docker/coolify/validator/*" \
+    "docker/coolify/explorer-api/*" \
+    "docker/coolify/explorer-ui/*" \
+    "docker/coolify/operations-web/*"; do
+    grep -Fq "$path" "$classifier"
+  done
+
+  grep -Fq "COOLIFY_DEPLOYMENT_MODE" "$workflow"
+  grep -Fq "deploy-coolify-split.sh" "$workflow"
+  grep -Fq "COOLIFY_EXPLORER_API_WEBHOOK_URL" "$workflow"
+  grep -Fq "COOLIFY_EXPLORER_UI_WEBHOOK_URL" "$workflow"
+  grep -Fq "COOLIFY_OPERATIONS_WEB_WEBHOOK_URL" "$workflow"
+
+  if grep -Eq 'COOLIFY_(VALIDATOR|BOOTSTRAP|FAUCET_TOOLS)_WEBHOOK_URL' "$workflow"; then
+    echo "Stateful Coolify resource gained an automatic deploy webhook." >&2
+    exit 1
+  fi
+
+  echo "[ok] split Coolify workflow keeps stateful resources manual and app hooks independent"
+}
+
 assert_node24_action_majors
+assert_split_coolify_workflow_contract
 
 run_plan_case "CI-only pull request runs images and all external SDK validation" pull_request true false true
 run_plan_case "CI-only main push runs images and all external SDK validation" push true false true
