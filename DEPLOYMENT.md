@@ -4,7 +4,7 @@ This document is the operator contract for building and deploying the AEKO publi
 
 ## Compose contracts
 
-AEKO keeps three Compose contracts so local convenience and each public deployment platform can use storage/routing syntax that fits its runtime without duplicating application images.
+AEKO keeps platform-specific Compose contracts so local convenience and public deployment runtimes can use appropriate storage/routing syntax without duplicating application images.
 
 | File | Purpose |
 | --- | --- |
