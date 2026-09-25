@@ -185,23 +185,25 @@ first-genesis/key continuity contract.
 Copying private keys to more hosts increases risk. Prefer the smallest possible
 number of key-custody hosts.
 
-## Explorer API on another host
+## Explorer API registry handoff
 
-When Explorer API is co-located with canonical bootstrap state, it reads these
-files read-only:
+The split Explorer API intentionally has **no** Social/Protocol filesystem
+mounts. This keeps it portable across hosts/providers and prevents a remote
+Explorer deployment from failing because `/data/aeko/social-state` or
+`/data/aeko/protocol-state` exists only on the bootstrap machine.
 
-    /data/aeko/social-state/social-registry.env
-    /data/aeko/protocol-state/protocol-registry.env
+After a successful bootstrap, export the complete canonical values from:
 
-When Explorer API is on another server, those local paths do not refer to the
-bootstrap host. The backend already supports non-empty environment registry
-values taking precedence over registry files. Its `.env.example` therefore
-contains the complete Social/Protocol override surface needed for a remote
-Explorer host.
+    social-registry.env
+    protocol-registry.env
 
-Export the canonical values from the actual bootstrap registries. Do not invent
-addresses, mix values from different genesis hashes, or copy writable bootstrap
-state just to make Explorer start.
+into the Explorer API Coolify environment. Its adjacent `.env.example` lists
+the full registry surface consumed by the backend.
+
+This is a data handoff, not a shared-volume contract. Do not invent addresses,
+mix values from different genesis hashes, or copy writable bootstrap state just
+to make Explorer start. Re-export the values after an intentional replacement
+genesis.
 
 ## Coolify deploy-trigger isolation
 
