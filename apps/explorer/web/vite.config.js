@@ -50,7 +50,6 @@ export default defineConfig(({ command, mode }) => {
 
   const publicRpc = clean(env.AEKO_PUBLIC_RPC_URL)
   const publicWs = clean(env.AEKO_PUBLIC_WS_URL)
-  const publicFunding = clean(env.AEKO_PUBLIC_FUNDING_URL)
   const testnetUpstream = clean(env.AEKO_INTERNAL_EXPLORER_API_URL)
 
   const mainnetRpc = clean(env.AEKO_MAINNET_RPC_URL)
@@ -70,9 +69,8 @@ export default defineConfig(({ command, mode }) => {
   // that are not explicitly set.
   const localnetRpcEnv = clean(env.AEKO_LOCALNET_RPC_URL)
   const localnetWsEnv = clean(env.AEKO_LOCALNET_WS_URL)
-  const localnetFundingEnv = clean(env.AEKO_LOCALNET_FUNDING_URL)
   const localnetUpstreamEnv = clean(env.AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL)
-  const localnetEnvConfigured = [localnetRpcEnv, localnetWsEnv, localnetFundingEnv, localnetUpstreamEnv]
+  const localnetEnvConfigured = [localnetRpcEnv, localnetWsEnv, localnetUpstreamEnv]
     .some(Boolean)
   const localnetRpc = localnetRpcEnv || (localnetEnvConfigured ? 'http://127.0.0.1:8899' : '')
   const localnetWs = localnetWsEnv || (localnetEnvConfigured ? 'ws://127.0.0.1:8900' : '')
@@ -112,7 +110,7 @@ export default defineConfig(({ command, mode }) => {
                   rpcUrl: testnetLoopback?.rpcUrl || publicRpc,
                   websocketUrl: testnetLoopback?.websocketUrl || publicWs,
                   explorerApiUrl: '/api/explorer/testnet',
-                  fundingUrl: publicFunding,
+                  fundingUrl: '/api/explorer/testnet/funding',
                 },
               }
             : {}),
@@ -131,7 +129,7 @@ export default defineConfig(({ command, mode }) => {
                   rpcUrl: localnetRpc,
                   websocketUrl: localnetWs,
                   explorerApiUrl: '/api/explorer/localnet',
-                  fundingUrl: localnetFundingEnv,
+                  fundingUrl: '/api/explorer/localnet/funding',
                 },
               }
             : {}),

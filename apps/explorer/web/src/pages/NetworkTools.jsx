@@ -47,8 +47,8 @@ function developerQuickCommands(config) {
   ];
 
   // Airdrops always go through the CLI, which talks to the validator RPC
-  // directly — no API involved, no approval step. The Funding Portal is only
-  // for special cases that need operator approval — never the default path.
+  // directly — no API involved, no approval step. The testnet funding request
+  // form is only for special cases that need operator approval — never the default path.
   let funding;
   if (config.key === 'localnet') {
     funding = [
@@ -198,7 +198,7 @@ export default function NetworkTools() {
             {isTestNetwork
               ? config.key === 'localnet'
                 ? 'Local development can add test funds directly with the airdrop command below.'
-                : 'Use the Testnet Funding Portal to request test funds for operator approval. The Network Console has its own separate airdrop for developers. New funds are issued by the funding service — apps never create them directly.'
+                : 'Use the testnet funding request form to request test funds for operator approval. The Scan Test Console has its own separate airdrop for developers. New funds are issued by the funding role — apps never create them directly.'
               : 'The live network has no test funding. Use your normal treasury, exchange, or operational distribution flow.'}
           </p>
 
@@ -211,7 +211,7 @@ export default function NetworkTools() {
               </div>
               <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-white/10">
                 The funding service is private. Public users submit funding requests through
-                the Funding Portal and an operator approves release; only the server can release funds.
+                the testnet funding form and an operator approves release; only the server can release funds.
               </div>
             </div>
           ) : (
@@ -227,7 +227,7 @@ export default function NetworkTools() {
             <h2 className="text-2xl font-bold">Developer flow</h2>
           </div>
           <p className="text-gray-400 mb-4">
-            Use the AEKO CLI to select the active cluster, inspect balances, transfer AEKO, deploy programs, and run scripted validation. Testnet funding stays in the Funding Portal above.
+            Use the AEKO CLI to select the active cluster, inspect balances, transfer AEKO, deploy programs, and run scripted validation. Testnet funding stays in the funding form above.
           </p>
           <div className="space-y-3">
             {developerQuickCommands(config).map((section) => (

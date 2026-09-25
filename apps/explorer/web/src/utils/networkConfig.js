@@ -160,7 +160,7 @@ export const NETWORKS = {
     explorerApiUrl: testnet.explorerApiUrl,
     explorerLabel: explorerLabel(),
     fundingUrl: testnet.fundingUrl || '',
-    fundingLabel: 'Managed Testnet Funding Portal',
+    fundingLabel: 'Managed testnet funding (Operations Web role)',
     fundingEnabled: Boolean(testnet.fundingUrl),
     cliCluster: testnet.rpcUrl,
   },

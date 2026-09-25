@@ -12,7 +12,7 @@ Use the repository's image-only Coolify Compose file:
 
 Coolify does not build the AEKO Rust or web applications from source. It pulls the published images selected by `AEKO_IMAGE_REPOSITORY` and `AEKO_IMAGE_TAG`.
 
-The default public services are below. The Compose file is intentionally ordered by lifecycle so Coolify's service list is easy to scan: one-shot jobs first, then long-running chain services, then long-running application services, then opt-in tools. `funding-gateway` serves the public Funding Portal/Test Console funding API, while `operations-web` is the authenticated Admin Console. `faucet` is the private Rust signer daemon.
+The default public services are below. The Compose file is intentionally ordered by lifecycle so Coolify's service list is easy to scan: one-shot jobs first, then long-running chain services, then long-running application services, then opt-in tools. `funding-gateway` is the funding role of the single `aeko-operations-web` image (same source as Admin, separate deployment; not a separate app repo) serving the public funding/Test Console funding API, while `operations-web` is the authenticated Admin Console. `faucet` is the private Rust signer daemon.
 
 ```text
 One-shot (expected Exited 0): key-bootstrap, social-bootstrap, protocol-bootstrap
@@ -36,13 +36,13 @@ AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended immutable 12-character main SHA>
 AEKO_PUBLIC_RPC_URL=<public JSON-RPC URL>
 AEKO_PUBLIC_WS_URL=<public PubSub WebSocket URL>
-AEKO_PUBLIC_FUNDING_URL=<public Testnet Funding Gateway URL>
-FUNDING_ALLOWED_ORIGINS=<comma-separated Explorer UI origins allowed to call funding>
+AEKO_PUBLIC_FUNDING_URL=<public Testnet funding-role URL>
+FUNDING_ALLOWED_ORIGINS=<comma-separated Scan UI origins allowed to call funding>
 ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=<private Admin-to-Explorer settings token>
-FUNDING_GATEWAY_KEY=<Funding Gateway secret shared with validator>
-FUNDING_ADMIN_API_KEY=<different private Admin-to-Funding service key>
+FUNDING_GATEWAY_KEY=<funding-role secret authorizing server-side airdrops>
+FUNDING_ADMIN_API_KEY=<different private Admin-to-funding-role service key>
 FUNDING_MAX_CONSOLE_AIRDROP_AEKO=25
 ```
 

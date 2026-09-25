@@ -421,7 +421,6 @@ Governable fields:
 - inflation curve: `8% -> 1%`
 - base fee target: `0.00025 AEKO`
 - fee split: `40% burn / 40% treasury / 20% validator tip`
-- signed-off team vesting default: `24 months` with `12-month cliff`
 - signed-off team vesting default: `12 months` with `12-month cliff`, unlocking at cliff
 - slashing destination: treasury
 - social app fee subsidies: treasury-funded and governance-controlled

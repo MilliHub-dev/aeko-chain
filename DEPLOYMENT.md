@@ -99,7 +99,7 @@ Do not copy the same value into multiple configuration surfaces merely because s
 | Internal service endpoints | Compose service DNS defaults | Keep Explorer, Funding Admin API and Faucet traffic on `AEKO_INTERNAL_*` / Docker DNS. |
 | Recovery address overrides | Explorer process environment | Use only for explicit recovery; never as a parallel normal source of truth. |
 
-The Explorer backend has one canonical server-side upstream name, `AEKO_INTERNAL_EXPLORER_API_URL`. Browsers never receive that origin; Explorer UI serves indexed reads from its own `/api/explorer/{network}` path. Funding follows the same rule: the browser knows only `AEKO_PUBLIC_FUNDING_URL`, while Admin uses `AEKO_INTERNAL_FUNDING_URL`.
+The Explorer backend has one canonical server-side upstream name, `AEKO_INTERNAL_EXPLORER_API_URL`. Browsers never receive that origin; Scan UI (Aeko Scan) serves indexed reads from its own `/api/explorer/{network}` path. Funding currently follows the same split-role rule: the browser knows only the funding-role origin (`AEKO_PUBLIC_FUNDING_URL`, today `fund.aeko.online`), while Admin uses `AEKO_INTERNAL_FUNDING_URL`. Both are roles of the single `aeko-operations-web` image, not separate apps. Approved direction is Scan same-origin funding under `/api/explorer/testnet/funding/*` owned by the Scan backend.
 
 ## Required production environment
 
@@ -113,13 +113,13 @@ AEKO_REQUIRE_EXISTING_LEDGER=1
 AEKO_ALLOW_CHAIN_KEY_GENERATION=0   # Coolify; enable only for intentional first boot
 AEKO_PUBLIC_RPC_URL=<public JSON-RPC URL>
 AEKO_PUBLIC_WS_URL=<public PubSub WebSocket URL>
-AEKO_PUBLIC_FUNDING_URL=<public Testnet Funding Gateway URL>
-FUNDING_ALLOWED_ORIGINS=<comma-separated Explorer UI origins allowed to call funding>
+AEKO_PUBLIC_FUNDING_URL=<public Testnet funding-role URL, today fund.aeko.online>
+FUNDING_ALLOWED_ORIGINS=<comma-separated Scan UI origins allowed to call funding>
 ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=<private Admin-to-Explorer settings token>
-FUNDING_GATEWAY_KEY=<Funding Gateway secret shared with validator requestAirdrop authorization>
-FUNDING_ADMIN_API_KEY=<different private Admin-to-Funding service key>
+FUNDING_GATEWAY_KEY=<funding-role secret authorizing server-side requestAirdrop>
+FUNDING_ADMIN_API_KEY=<different private Admin-to-funding-role service key>
 ```
 
 Optional funding policy (initial values; editable in the admin console afterwards):

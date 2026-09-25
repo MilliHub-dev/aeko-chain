@@ -5,6 +5,7 @@ use {crate::state::SharedState, axum::Router};
 
 pub mod accounts;
 pub mod assets;
+pub mod funding;
 pub mod health;
 pub mod ledger;
 pub mod protocol;
@@ -31,4 +32,5 @@ pub fn router() -> Router<SharedState> {
         .merge(social_feed::router())
         .merge(search::router())
         .merge(settings::router())
+        .merge(funding::router())
 }

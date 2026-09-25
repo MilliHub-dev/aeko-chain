@@ -1,15 +1,18 @@
 # AEKO Operations Web
 
-`apps/admin` builds one Next.js image that is deployed as two isolated service
+`apps/admin` builds one Next.js image (`aeko-operations-web`) that is deployed as two isolated service
 roles. They share source code but do not share public routes or runtime secrets.
+There is no separate `apps/funding` repo: "funding" is a deployment role of this image, currently served
+from the `fund.aeko.online` origin pending the approved move to Scan same-origin funding
+(`scan.aeko.online/api/explorer/testnet/funding/*` owned by the Scan backend).
 
 ## Service roles
 
-### Funding Gateway
+### Funding role (current origin `fund.aeko.online`)
 
 Set `AEKO_OPERATIONS_ROLE=funding`.
 
-The Funding Gateway is the only public funding service. It owns:
+The funding role is the only public funding service. It owns:
 
 - `/funding`;
 - `GET /api/funding/policy`;
@@ -21,7 +24,9 @@ The Funding Gateway is the only public funding service. It owns:
 Its private `/api/internal/funding/*` routes are authenticated with
 `FUNDING_ADMIN_API_KEY` and are intended only for same-network calls from the
 Admin service. Requests for Admin pages or Admin APIs return 404 on the public
-funding origin.
+funding origin. Funding queue state here is off-chain policy accounting only;
+chain settlement is server-side `requestAirdrop`/private faucet, and supply
+accounting follows `tokenomics.md`, not this ledger.
 
 ### Admin Console
 
@@ -29,7 +34,7 @@ Set `AEKO_OPERATIONS_ROLE=admin`.
 
 The Admin service owns authenticated operator pages and APIs. It does not mount
 funding state and does not receive `FUNDING_GATEWAY_KEY`. Funding controls call
-the private Funding Gateway over `AEKO_INTERNAL_FUNDING_URL` using
+the private funding role over `AEKO_INTERNAL_FUNDING_URL` using
 `FUNDING_ADMIN_API_KEY`.
 
 Admin also talks server-to-server to Explorer through
@@ -38,11 +43,11 @@ origin or the Explorer settings mutation token.
 
 ## Trust boundaries
 
-- `FUNDING_GATEWAY_KEY`: Funding Gateway only; authorizes protected low-level airdrops.
-- `FUNDING_ADMIN_API_KEY`: shared only between the private Admin service and Funding Gateway.
+- `FUNDING_GATEWAY_KEY`: funding role only; authorizes protected low-level airdrops.
+- `FUNDING_ADMIN_API_KEY`: shared only between the private Admin service and funding role.
 - `AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN`: Admin service only; authorizes Explorer settings mutations.
 - `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET`: Admin service only.
-- `FUNDING_ALLOWED_ORIGINS`: Funding Gateway CORS allowlist for the Explorer UI.
+- `FUNDING_ALLOWED_ORIGINS`: funding role CORS allowlist for the Scan UI (`scan.aeko.online`).
 - `AEKO_FAUCET_PER_REQUEST_CAP`: private Faucet Daemon hard ceiling.
 
 The Rust Faucet Daemon remains private TCP infrastructure, normally
@@ -72,7 +77,7 @@ The Rust Faucet Daemon remains private TCP infrastructure, normally
 Compose runs the roles separately:
 
 - Admin: `http://localhost:3001`
-- Funding Gateway: `http://localhost:3002`
+- Funding role: `http://localhost:3002`
 
 For direct source work:
 

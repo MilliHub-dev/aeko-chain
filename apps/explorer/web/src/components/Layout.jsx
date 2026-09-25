@@ -184,7 +184,7 @@ const Footer = () => {
               {settings.developersEnabled ? (
                 <li><Link to="/developers" className="hover:text-aeko-accent">Build on Aeko</Link></li>
               ) : null}
-              <li><Link to="/explorer" className="hover:text-aeko-accent">Explorer/Aeko Scan</Link></li>
+              <li><Link to="/explorer" className="hover:text-aeko-accent">Aeko Scan</Link></li>
               {settings.bridgeEnabled ? (
                 <li><Link to="/bridge" className="hover:text-aeko-accent">Bridge</Link></li>
               ) : null}

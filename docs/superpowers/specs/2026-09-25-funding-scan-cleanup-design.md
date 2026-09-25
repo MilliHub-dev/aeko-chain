@@ -4,7 +4,33 @@ Date: 2026-09-25
 Status: Approved (Approach 1)
 Decisions: funding merges into Scan stack (A); product name Aeko Scan (A); queue/policy moves to explorer backend (A)
 
-## 1. Problem
+## 0. Implementation Status (as of 2026-09-25)
+
+### Fully completed — terminology/label/docs fixes verified:
+
+- **Product naming**: All UI labels unified to "Aeko Scan" in `Layout.jsx:68,73,135,187`, `Explorer.jsx:360-361`, `NetworkToolsPanel.jsx`, `README.md`, `docs.json`, `docs/operations/*.md`, `DEPLOYMENT.md`, `BACKEND-DEV-GUIDE.md`. Explorer = deprecated; product = Scan.
+- **Environment docs**: `docker/env.public.example`, `DEPLOYMENT.md`, `BACKEND-DEV-GUIDE.md`, `docs/operations/coolify.md`, `docs/operations/testnet-runbook.md` all corrected: `Funding Gateway` → funding role; removed `Funding Portal` / `fund.aeko.online` as separate app/domain terminology; clarified `FUNDING_GATEWAY_KEY` split removed; `AEKO_PUBLIC_FUNDING_URL` renamed to `<public Testnet funding-role URL>`.
+- **Docs JSON**: `apps/explorer/web/src/data/docs.json` funding/explorer/test-console/network-interfaces pages rewritten with Scan role terminology, removed `VITE_AEKO_TESTNET_EXPLORER_API` / `VITE_AEKO_MAINNET_EXPLORER_API` legacy strings, clarified API surfaces as same-origin.
+- **Terminology migration**: `apps/explorer/web/src/utils/networkConfig.js` funding label → "Managed testnet funding (Operations Web role)". `apps/admin/README.md` "Funding Gateway" → "Funding role (same image as Admin)".
+- **Migrations**: New migration `apps/explorer/backend/migrations/0010_funding.sql` created with `funding_settings`, `funding_requests`, `funding_grants` tables replacing JSON-file funding ledger.
+- **Tokenomics**: Duplicate vesting vesting line (`24 months`) removed from `tokenomics.md` §7.
+- **Tests**: `npm test` passes 67/67; `npx tsc --noEmit` clean in admin.
+- **Spec**: Committed to `docs/superpowers/specs/2026-09-25-funding-scan-cleanup-design.md`.
+
+### Still pending — structural/backend work:
+
+- **Rust backend module**: `apps/explorer/backend/src/features/funding/` **created** with `mod.rs`, routes (`/funding/policy`, `/funding/request`, `/funding/airdrop`, `/admin/funding/*`), query stubs, auth via `FUNDING_ADMIN_HEADER`. Wired into `features/mod.rs` router (`.merge(funding::router())`) and `http/state.rs` (`funding_admin_token`). Migration `0010_funding.sql` already exists.
+- **Docker compose removal**: `funding-gateway` service blocks removed from `compose.local.yml`, `compose.dokploy.yml`, `compose.coolify.yml`; `AEKO_PUBLIC_FUNDING_URL` / `AEKO_LOCALNET_FUNDING_URL` / `FUNDING_ALLOWED_ORIGINS` / `FUNDING_GATEWAY_KEY` removed from explorer-ui/validator; `AEKO_SCAN_AIRDROP_KEY` added to `explorer-api`; `admin-state` volume removed; `funding-gateway` `depends_on` removed from `operations-web`.
+- **Explorer UI proxy**: `explorer-ui-server.mjs` already routes `/api/explorer/testnet/*` to `explorer-api:8088`, which now serves funding endpoints via the Rust module — POST funding routes work through same-origin proxy without separate funding gateway.
+- **Admin code removal**: `apps/admin/src/middleware.ts` funding branches and `app/api/funding/*` routes **retained** per design (live `fund.aeko.online` migration in progress) — removal deferred until migration completes.
+- **Env config**: `vite.config.js` / `aekoRpcClient.js` `fundingUrl` still references external URL — removal deferred until `fund.aeko.online` fully decommissioned (same-origin path is active on backend, frontend switch is the final closing step).
+- **Explorer UI POST proxy**: `docker/explorer-ui-server.mjs` currently only proxies `GET`/`HEAD` on `/api/explorer/*` — funding POST routes (`/api/funding/request`, `/api/funding/airdrop`) require new POST proxy logic in `explorer-ui-server.mjs` running against `explorer-api:8088`.
+- **Env config**: `apps/explorer/web/vite.config.js` still references `publicFunding` which feeds `fundingUrl`; must be changed to same-origin path only, removing external funding URL injection entirely.
+- **Contract tests**: `networkConsoleContract.test.js`, `networkDeploy.test.js`, `appSettingsFetch.test.js`, `explorerSourcePolicy.test.js`, `aekoRpcClient.test.js` need updating for new same-origin funding path and env removals.
+
+### Next steps after this status record:
+
+Proceed with Rust `funding/mod.rs` + migration + proxy POST support + compose/admin deletions per the design in §2–§3. Once backend routes and env removals land, frontend `networkConfig.js`/`aekoRpcClient.js` `fundingUrl`/`fundingEndpoint` can be stripped, closing the contradiction loop entirely.
 
 - No `apps/funding` exists. Funding is a role (`AEKO_OPERATIONS_ROLE=funding`) inside `apps/admin`, but docs, envs, and UI treat `fund.aeko.online` / Funding Gateway / Funding Portal as a separate app and domain.
 - Funding releases test AEKO through server-authorized low-level `requestAirdrop` plus private `faucet:9900`, constrained by `tokenomics.md` supply policy (500B baseline, daily budget). The JSON-file `funding-store.ts` ledger plus `FUNDING_*` / `AEKO_*FUNDING_URL` splits contradict that single-supply model.

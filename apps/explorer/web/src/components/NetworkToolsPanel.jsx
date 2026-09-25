@@ -19,7 +19,7 @@ export default function NetworkToolsPanel({ network }) {
         <EndpointValue value={config.websocketUrl} />
       </div>
       <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Block Explorer</div>
+        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Aeko Scan</div>
         {config.explorerUrl ? (
           <a
             href={config.explorerUrl}

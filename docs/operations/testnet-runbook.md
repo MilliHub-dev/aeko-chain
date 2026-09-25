@@ -68,17 +68,17 @@ The compose file spins up four containers on a private docker network, fronted b
 | `aeko-validator-2/3` | same image | **Disabled by default** (multi-validator profile) | — | `8899` each |
 | `aeko-faucet` | same image, different entrypoint | **Faucet Daemon**: private signer for policy-approved testnet funding | no public route | `9900` (TCP, Docker network only) |
 | `aeko-explorer-backend` | `aeko-explorer-backend:latest` | Indexes blocks from RPC, exposes private REST API | private Docker network | `8088` |
-| `aeko-explorer-ui` | `aeko-explorer-ui:latest` | Vite SPA, served by `serve` (no nginx) | `scan.aeko.online` | `3000` |
+| `aeko-explorer-ui` | `aeko-explorer-ui:latest` | Aeko Scan UI plus same-origin Scan API proxy (`node explorer-ui-server.mjs`) | `scan.aeko.online` | `4000` |
 
 The bootstrap flow on first boot:
 
-1. `validator-entrypoint.sh` sees `AEKO_BOOTSTRAP=1` and no existing `/ledger/genesis.bin`, so it runs `aeko-genesis` to create the genesis block with the bootstrap validator's identity, vote, and stake keypairs, plus the faucet keypair with 500 million AEKO seed lamports.
+1. `validator-entrypoint.sh` sees `AEKO_BOOTSTRAP=1` and no existing `/ledger/genesis.bin`, so it runs `aeko-genesis` to create the genesis block with the bootstrap validator's identity, vote, and stake keypairs, plus the faucet keypair with 500 million AEKO test seed lamports. This test faucet seed is bootstrap liquidity only and is not the `tokenomics.md` 500B governed supply baseline.
 2. `aeko-validator` starts, loads from genesis, immediately begins producing slots because `--no-wait-for-vote-to-start-leader` is set.
 3. The PoH thread ticks ~3 slots per second. The banking stage processes any transactions in the mempool. The blockstore records the resulting shreds. With one validator, that's the entire pipeline — no network broadcast needed.
 4. `aeko-faucet` is independently listening on container port 9900 with the faucet keypair loaded. It is NOT exposed to the public internet — the validator reaches it on the docker bridge at `faucet:9900`.
-5. On the public testnet, the Funding Gateway first applies policy and calls the validator's protected `requestAirdrop` method with server authorization. The validator then opens a TCP connection to the private Faucet Daemon at `faucet:9900`, receives a signed transfer transaction, submits it through its banking pipeline, and returns the signature.
+5. On the public testnet, the Operations Web funding role (same image as Admin, served today from `fund.aeko.online`) first applies off-chain queue policy and calls the validator's protected `requestAirdrop` method with server authorization. The validator then opens a TCP connection to the private Faucet Daemon at `faucet:9900`, receives a signed transfer transaction, submits it through its banking pipeline, and returns the signature. Funding queue state is policy accounting only; supply accounting follows `tokenomics.md`.
 6. `aeko-explorer-backend` reads finalized chain data from validator RPC, persists durable Explorer projections in PostgreSQL, and serves the REST API on `:8088`. The HTTP server binds while historical catch-up runs in a background task, so indexed history grows toward the finalized chain tip without substituting in-memory production state.
-7. `aeko-explorer-ui` serves the deployment-neutral Vite SPA from `/app/dist` via `serve -s`. At container startup, `docker/explorer-ui-entrypoint.sh` injects the canonical `AEKO_*` endpoint values into `/runtime-config.js`; public API calls use that runtime configuration.
+7. `aeko-explorer-ui` serves the deployment-neutral Vite SPA from `/app/dist` via `node /app/explorer-ui-server.mjs` (same-origin Scan API proxy, not `serve -s`). At container startup, `docker/explorer-ui-entrypoint.sh` injects the canonical `AEKO_*` endpoint values into `/app/dist/runtime-config.js`; public API calls use that runtime configuration.
 
 ---
 

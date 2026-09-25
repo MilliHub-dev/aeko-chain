@@ -357,7 +357,7 @@ export default function Explorer() {
     <div className="pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-12">
         <div>
-          <div className="text-sm uppercase tracking-[0.3em] text-aeko-accent mb-3">Explorer</div>
+          <div className="text-sm uppercase tracking-[0.3em] text-aeko-accent mb-3">Aeko Scan</div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Aeko Scan</h1>
           <p className="text-lg text-gray-400 max-w-3xl">
             Browse blocks, transactions, assets, accounts, and social activity — live and saved.
