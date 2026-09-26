@@ -226,16 +226,15 @@ test('Explorer web keeps public browser endpoints separate from private Explorer
 
   for (const key of [
     'AEKO_ENV',
-    'AEKO_PUBLIC_RPC_URL',
-    'AEKO_PUBLIC_WS_URL',
-    'AEKO_PUBLIC_FUNDING_URL',
-    'AEKO_INTERNAL_EXPLORER_API_URL',
+    'AEKO_TESTNET_RPC_URL',
+    'AEKO_TESTNET_WS_URL',
+    'AEKO_TESTNET_EXPLORER_API_URL',
     'AEKO_MAINNET_RPC_URL',
     'AEKO_MAINNET_WS_URL',
-    'AEKO_INTERNAL_MAINNET_EXPLORER_API_URL',
+    'AEKO_PUBLIC_EXPLORER_API_URL',
     'AEKO_LOCALNET_RPC_URL',
     'AEKO_LOCALNET_WS_URL',
-    'AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL',
+    'AEKO_LOCALNET_EXPLORER_API_URL',
   ]) {
     assert.match(example, new RegExp('^' + key + '=', 'm'));
     assert.match(deploymentEnv, new RegExp(key));
@@ -251,14 +250,14 @@ test('Explorer web keeps public browser endpoints separate from private Explorer
     assert.doesNotMatch(networkConfig, new RegExp(retired));
   }
 
-  assert.match(viteConfig, /AEKO_INTERNAL_EXPLORER_API_URL/);
-  assert.match(viteConfig, /AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL/);
+  assert.match(viteConfig, /AEKO_TESTNET_EXPLORER_API_URL/);
+  assert.match(viteConfig, /AEKO_LOCALNET_EXPLORER_API_URL/);
   assert.match(viteConfig, /normalizeDeployEnv/);
   assert.match(viteConfig, /\/api\/explorer\/testnet/);
   assert.match(viteConfig, /\/api\/explorer\/localnet/);
   assert.match(viteConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
-  assert.match(server, /AEKO_INTERNAL_EXPLORER_API_URL/);
-  assert.match(server, /AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL/);
+  assert.match(server, /AEKO_TESTNET_EXPLORER_API_URL/);
+  assert.match(server, /AEKO_LOCALNET_EXPLORER_API_URL/);
   assert.match(server, /\/api\/explorer\/testnet/);
   assert.match(server, /\/api\/explorer\/localnet/);
   assert.match(server, /Explorer UI proxy is read-only/);
