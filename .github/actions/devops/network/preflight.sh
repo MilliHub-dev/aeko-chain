@@ -14,7 +14,7 @@ if [ "${PUBLISH}" = "true" ]; then
   fi
 fi
 
-AEKO_PUBLIC_IP=203.0.113.10 \
+AEKO_GOSSIP_HOST=gossip.ci.invalid \
 AEKO_KEYS_DIR=/tmp/aeko-keys \
 AEKO_NETWORK=testnet \
 AEKO_FAUCET_ADDRESS=faucet.ci.invalid:9900 \
