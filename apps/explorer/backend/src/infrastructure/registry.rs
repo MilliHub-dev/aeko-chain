@@ -10,11 +10,27 @@ use {
         collections::{BTreeMap, HashMap},
         env, fs,
         io::ErrorKind,
+        sync::{Mutex, OnceLock},
+        time::{Duration, Instant},
     },
+    url::Url,
 };
 
 const SOCIAL_REGISTRY_FILE_ENV: &str = "AEKO_SOCIAL_REGISTRY_FILE";
 const PROTOCOL_REGISTRY_FILE_ENV: &str = "AEKO_PROTOCOL_REGISTRY_FILE";
+const REGISTRY_FETCH_TIMEOUT_ENV: &str = "AEKO_REGISTRY_FETCH_TIMEOUT_SECS";
+const REGISTRY_CACHE_TTL_ENV: &str = "AEKO_REGISTRY_CACHE_TTL_SECS";
+const DEFAULT_REGISTRY_FETCH_TIMEOUT_SECS: u64 = 5;
+const DEFAULT_REGISTRY_CACHE_TTL_SECS: u64 = 30;
+const MAX_REGISTRY_BYTES: usize = 64 * 1024;
+
+#[derive(Clone)]
+struct CachedRegistry {
+    values: HashMap<String, String>,
+    refreshed_at: Instant,
+}
+
+static REMOTE_REGISTRY_CACHE: OnceLock<Mutex<HashMap<String, CachedRegistry>>> = OnceLock::new();
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,7 +70,7 @@ pub struct ProtocolRegistry {
 }
 
 pub fn resolve_social_registry() -> SocialRegistry {
-    let file_values = load_registry_file(SOCIAL_REGISTRY_FILE_ENV, "SocialFi");
+    let file_values = load_registry_source(SOCIAL_REGISTRY_FILE_ENV, RegistryKind::Social, "SocialFi");
     let read = |key: &str| read_value(key, &file_values);
     let schema_version = read("AEKO_REGISTRY_SCHEMA_VERSION").and_then(|value| value.parse().ok());
     let genesis_hash = read("AEKO_CHAIN_GENESIS_HASH");
@@ -99,7 +115,7 @@ pub fn resolve_social_registry() -> SocialRegistry {
 }
 
 pub fn resolve_protocol_registry() -> ProtocolRegistry {
-    let file_values = load_registry_file(PROTOCOL_REGISTRY_FILE_ENV, "protocol");
+    let file_values = load_registry_source(PROTOCOL_REGISTRY_FILE_ENV, RegistryKind::Protocol, "protocol");
     let read = |key: &str| read_value(key, &file_values);
 
     let schema_version = read("AEKO_REGISTRY_SCHEMA_VERSION").and_then(|value| value.parse().ok());
@@ -186,6 +202,174 @@ where
         .collect()
 }
 
+#[derive(Clone, Copy)]
+enum RegistryKind {
+    Social,
+    Protocol,
+}
+
+impl RegistryKind {
+    fn suffix(self) -> &'static str {
+        match self {
+            Self::Social => "SOCIAL_REGISTRY_URL",
+            Self::Protocol => "PROTOCOL_REGISTRY_URL",
+        }
+    }
+}
+
+fn registry_url_env_name(network: &str, kind: RegistryKind) -> Option<String> {
+    let prefix = match network {
+        "testnet" => "AEKO_TESTNET",
+        "mainnet" => "AEKO_MAINNET",
+        "localnet" => "AEKO_LOCALNET",
+        _ => return None,
+    };
+    Some(format!("{prefix}_{}", kind.suffix()))
+}
+
+fn configured_registry_url(kind: RegistryKind) -> Option<(String, String)> {
+    let network = env::var("AEKO_EXPLORER_NETWORK")
+        .ok()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty())?;
+    let env_name = registry_url_env_name(&network, kind)?;
+    let url = env::var(&env_name)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())?;
+    Some((network, url))
+}
+
+fn load_registry_source(
+    file_env_name: &str,
+    kind: RegistryKind,
+    label: &str,
+) -> HashMap<String, String> {
+    if let Some((network, url)) = configured_registry_url(kind) {
+        return load_registry_url(&network, &url, label);
+    }
+    load_registry_file(file_env_name, label)
+}
+
+fn load_registry_url(network: &str, url: &str, label: &str) -> HashMap<String, String> {
+    if let Err(error) = validate_registry_url(network, url) {
+        tracing::warn!(network, url, label, error = %error, "invalid bootstrap registry URL");
+        return HashMap::new();
+    }
+
+    let ttl = duration_env(
+        REGISTRY_CACHE_TTL_ENV,
+        DEFAULT_REGISTRY_CACHE_TTL_SECS,
+    );
+    let timeout = duration_env(
+        REGISTRY_FETCH_TIMEOUT_ENV,
+        DEFAULT_REGISTRY_FETCH_TIMEOUT_SECS,
+    );
+
+    let cache = REMOTE_REGISTRY_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let stale = {
+        let cache = cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        cache.get(url).cloned()
+    };
+    if let Some(entry) = stale.as_ref() {
+        if entry.refreshed_at.elapsed() < ttl {
+            return entry.values.clone();
+        }
+    }
+
+    match fetch_registry_url(url, timeout) {
+        Ok(values) => {
+            let mut cache = cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            cache.insert(
+                url.to_string(),
+                CachedRegistry {
+                    values: values.clone(),
+                    refreshed_at: Instant::now(),
+                },
+            );
+            values
+        }
+        Err(error) => {
+            tracing::warn!(
+                network,
+                url,
+                label,
+                error = %error,
+                "unable to refresh bootstrap registry URL"
+            );
+            if let Some(mut entry) = stale {
+                // Keep a known-good registry available through transient network
+                // failures without retrying on every indexed slot.
+                entry.refreshed_at = Instant::now();
+                let values = entry.values.clone();
+                let mut cache = cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                cache.insert(url.to_string(), entry);
+                values
+            } else {
+                let mut cache = cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                cache.insert(
+                    url.to_string(),
+                    CachedRegistry {
+                        values: HashMap::new(),
+                        refreshed_at: Instant::now(),
+                    },
+                );
+                HashMap::new()
+            }
+        }
+    }
+}
+
+fn validate_registry_url(network: &str, value: &str) -> Result<(), String> {
+    let parsed = Url::parse(value).map_err(|error| error.to_string())?;
+    match (network, parsed.scheme()) {
+        ("testnet" | "mainnet", "https") => Ok(()),
+        ("localnet", "http" | "https") => Ok(()),
+        ("testnet" | "mainnet", scheme) => Err(format!(
+            "{network} bootstrap registry URL must use https, got {scheme}"
+        )),
+        ("localnet", scheme) => Err(format!(
+            "localnet bootstrap registry URL must use http or https, got {scheme}"
+        )),
+        _ => Err(format!("unsupported AEKO Explorer network {network:?}")),
+    }
+}
+
+fn fetch_registry_url(url: &str, timeout: Duration) -> Result<HashMap<String, String>, String> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(timeout)
+        .build()
+        .map_err(|error| error.to_string())?;
+    let response = client
+        .get(url)
+        .send()
+        .and_then(reqwest::blocking::Response::error_for_status)
+        .map_err(|error| error.to_string())?;
+    if let Some(length) = response.content_length() {
+        if length > MAX_REGISTRY_BYTES as u64 {
+            return Err(format!("bootstrap registry response is too large: {length} bytes"));
+        }
+    }
+    let body = response.bytes().map_err(|error| error.to_string())?;
+    if body.len() > MAX_REGISTRY_BYTES {
+        return Err(format!(
+            "bootstrap registry response is too large: {} bytes",
+            body.len()
+        ));
+    }
+    let text = std::str::from_utf8(&body).map_err(|error| error.to_string())?;
+    Ok(parse_registry_env(text))
+}
+
+fn duration_env(name: &str, default_secs: u64) -> Duration {
+    let seconds = env::var(name)
+        .ok()
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(default_secs);
+    Duration::from_secs(seconds)
+}
+
 fn read_value(key: &str, file_values: &HashMap<String, String>) -> Option<String> {
     env::var(key)
         .ok()
@@ -195,6 +379,16 @@ fn read_value(key: &str, file_values: &HashMap<String, String>) -> Option<String
 }
 
 fn bootstrap_marker_exists(env_name: &str) -> bool {
+    let kind = match env_name {
+        SOCIAL_REGISTRY_FILE_ENV => RegistryKind::Social,
+        PROTOCOL_REGISTRY_FILE_ENV => RegistryKind::Protocol,
+        _ => return false,
+    };
+    // The remote registry service only starts after both one-shot bootstraps
+    // complete, so an active URL source cannot represent an in-progress marker.
+    if configured_registry_url(kind).is_some() {
+        return false;
+    }
     let Some(path) = env::var(env_name)
         .ok()
         .map(|value| value.trim().to_string())
@@ -262,10 +456,16 @@ fn parse_registry_env(content: &str) -> HashMap<String, String> {
 mod tests {
     use {
         super::{
-            expected_missing_registry, parse_registry_env, PROTOCOL_REGISTRY_FILE_ENV,
-            SOCIAL_REGISTRY_FILE_ENV,
+            expected_missing_registry, fetch_registry_url, parse_registry_env,
+            registry_url_env_name, validate_registry_url, RegistryKind,
+            PROTOCOL_REGISTRY_FILE_ENV, SOCIAL_REGISTRY_FILE_ENV,
         },
-        std::io::{Error, ErrorKind},
+        std::{
+            io::{Error, ErrorKind, Read, Write},
+            net::TcpListener,
+            thread,
+            time::Duration,
+        },
     };
 
     #[test]
@@ -285,6 +485,73 @@ mod tests {
             PROTOCOL_REGISTRY_FILE_ENV,
             &denied
         ));
+    }
+
+    #[test]
+    fn registry_url_names_are_network_scoped() {
+        assert_eq!(
+            registry_url_env_name("testnet", RegistryKind::Social).as_deref(),
+            Some("AEKO_TESTNET_SOCIAL_REGISTRY_URL")
+        );
+        assert_eq!(
+            registry_url_env_name("mainnet", RegistryKind::Protocol).as_deref(),
+            Some("AEKO_MAINNET_PROTOCOL_REGISTRY_URL")
+        );
+        assert_eq!(
+            registry_url_env_name("localnet", RegistryKind::Social).as_deref(),
+            Some("AEKO_LOCALNET_SOCIAL_REGISTRY_URL")
+        );
+        assert!(registry_url_env_name("devnet", RegistryKind::Social).is_none());
+    }
+
+    #[test]
+    fn public_registry_urls_require_https() {
+        assert!(validate_registry_url(
+            "testnet",
+            "https://bootstrap.aeko.online/social-registry.env"
+        )
+        .is_ok());
+        assert!(validate_registry_url(
+            "testnet",
+            "http://bootstrap.aeko.online/social-registry.env"
+        )
+        .is_err());
+        assert!(validate_registry_url(
+            "localnet",
+            "http://127.0.0.1:8080/social-registry.env"
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn remote_registry_fetch_reads_env_payload() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0u8; 1024];
+            let _ = stream.read(&mut request).unwrap();
+            let body = "AEKO_REGISTRY_SCHEMA_VERSION=2\nAEKO_CHAIN_GENESIS_HASH=genesis-remote\n";
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        });
+
+        let values = fetch_registry_url(
+            &format!("http://{address}/social-registry.env"),
+            Duration::from_secs(2),
+        )
+        .unwrap();
+        server.join().unwrap();
+
+        assert_eq!(
+            values.get("AEKO_CHAIN_GENESIS_HASH").map(String::as_str),
+            Some("genesis-remote")
+        );
     }
 
     #[test]
