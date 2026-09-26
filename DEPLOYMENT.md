@@ -58,8 +58,8 @@ registry.aeko.online <--- social-registry.env              +--> registry.aeko.on
                      <--- protocol-registry.env
 
 scan.aeko.online  -> explorer-ui :4000 -> api.aeko.online via /api/explorer/testnet
+                    -> /api/explorer/testnet/funding/* for testnet funding
 admin.aeko.online -> operations-web :3001 -> api.aeko.online + rpc.aeko.online
-fund.aeko.online  -> funding-gateway :3001 -> validator RPC
 
 gossip.aeko.online:8001 -> validator gossip entrypoint
 validator host TCP+UDP 8000-8050 -> public validator transport range
@@ -69,6 +69,12 @@ faucet.aeko.online:9900 -> raw TCP Faucet; firewall to Validator sources
 The Dokploy public testnet routes RPC/PubSub directly to the healthy block-producing validator. The separate non-voting replica added another genesis/snapshot/gossip bootstrap lifecycle without adding required functionality to the single-validator deployment, and a failed replica could block Explorer even while the validator remained healthy. The validator advertises `AEKO_GOSSIP_HOST=gossip.aeko.online` with `--gossip-host` and uses `8000-8050` as its public dynamic transport range.
 
 A wallet is not a network daemon. Use `aeko-tools`, SDKs or wallet adapters to sign client transactions. WebSocket is RPC PubSub on port `8900`, not a separate service image.
+
+The authoritative port/domain/default-upstream matrix is
+[docs/operations/network-ports-and-domains.md](./docs/operations/network-ports-and-domains.md).
+That document distinguishes Coolify HTTP/WSS domain routing from raw Faucet/
+validator transport, and records every same-Compose Docker-DNS default that can
+be overridden through environment variables.
 
 ## Persistent state
 
