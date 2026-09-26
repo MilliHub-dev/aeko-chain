@@ -5,10 +5,10 @@ import { extname, resolve } from 'node:path'
 const PORT = Number(process.env.PORT || 4000)
 const ROOT = resolve('/app/dist')
 const TESTNET_UPSTREAM = String(
-  process.env.AEKO_INTERNAL_EXPLORER_API_URL || 'http://explorer-api:8088',
+  process.env.AEKO_TESTNET_EXPLORER_API_URL || '',
 ).replace(/\/+$/, '')
 const MAINNET_UPSTREAM = String(
-  process.env.AEKO_INTERNAL_MAINNET_EXPLORER_API_URL || '',
+  process.env.AEKO_MAINNET_EXPLORER_API_URL || '',
 ).replace(/\/+$/, '')
 // Local deploys expose only localnet: default its upstream to the Compose
 // service name like testnet. Production without an explicit localnet
@@ -16,7 +16,7 @@ const MAINNET_UPSTREAM = String(
 const DEPLOY_ENV = String(process.env.AEKO_ENV || process.env.NODE_ENV || 'production')
   .trim().toLowerCase()
 const LOCALNET_UPSTREAM = String(
-  process.env.AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL
+  process.env.AEKO_LOCALNET_EXPLORER_API_URL
   || (['local', 'development', 'dev', 'localhost'].includes(DEPLOY_ENV) ? 'http://explorer-api:8088' : ''),
 ).replace(/\/+$/, '')
 const UPSTREAM_TIMEOUT_MS = Number(process.env.AEKO_EXPLORER_PROXY_TIMEOUT_MS || 20_000)
