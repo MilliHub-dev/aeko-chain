@@ -191,8 +191,8 @@ def main() -> int:
     require("AEKO_RPC_BIND_IP" not in validator and "AEKO_WS_BIND_IP" not in validator, "RPC/WS must use Coolify domains")
     require('"8899"' in validator and '"8900"' in validator, "Validator must expose RPC/WS container ports")
     require(
-        "AEKO_PUBLIC_IP=<validator-public-ip>" in envs["validator"],
-        "raw gossip must keep its explicit advertised IP until the validator CLI supports DNS there",
+        "AEKO_GOSSIP_HOST=gossip.aeko.online" in envs["validator"],
+        "Validator env example must advertise the canonical gossip DNS hostname",
     )
 
     explorer_api = loaded["explorer-api"]
