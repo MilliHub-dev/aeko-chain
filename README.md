@@ -273,8 +273,8 @@ Dokploy's native **Domains** UI can inject Traefik routing, so the repository Co
 ```text
 rpc.aeko.online   -> validator:8899
 ws.aeko.online    -> validator:8900
+api.aeko.online   -> explorer-api:8088
 scan.aeko.online  -> explorer-ui:4000
-fund.aeko.online  -> funding-gateway:3001
 admin.aeko.online -> operations-web:3001
 ```
 
@@ -422,15 +422,15 @@ curl -s https://rpc.aeko.online \
   }'
 ```
 
-Public testnet funding is policy-controlled through the Funding Portal/Gateway; the Faucet Daemon on TCP `:9900` remains private and the deployed public RPC protects `requestAirdrop`. Public requests wait for operator approval before release:
+Public testnet funding is policy-controlled by the Explorer API funding module; the Faucet Daemon on TCP `:9900` remains private and the deployed public RPC protects low-level `requestAirdrop`. Browser/client requests use the same Aeko Scan origin:
 
 ```bash
-curl -X POST https://fund.aeko.online/api/funding/request \
+curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
   -H 'Content-Type: application/json' \
   -d '{"address":"<WALLET_ADDRESS>"}'
 ```
 
-Local/custom test validators may still expose the low-level `aeko airdrop` flow when no Funding Gateway key is configured.
+Local/custom test validators may still expose a direct development airdrop flow when explicitly configured for local testing.
 
 ## WebSocket / PubSub
 
@@ -524,8 +524,9 @@ A normal dApp/wallet developer primarily needs:
 ```text
 RPC          https://rpc.aeko.online
 WebSocket    wss://ws.aeko.online
-Explorer     https://scan.aeko.online
-Funding      https://fund.aeko.online
+Explorer API https://api.aeko.online
+Explorer UI  https://scan.aeko.online
+Funding      https://scan.aeko.online/api/explorer/testnet/funding/*
 ```
 
 A validator operator additionally needs:
