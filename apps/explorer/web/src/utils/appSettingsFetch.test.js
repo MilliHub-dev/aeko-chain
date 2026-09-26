@@ -51,7 +51,11 @@ test('settings fetch failure names the backend URL instead of a bare status', as
 });
 
 test('settings fetch network failure says the backend is unreachable', async () => {
-  const { fetchPublicAppSettings } = await loadAppSettings({ testnet: TESTNET, demo: {} });
+  const { fetchPublicAppSettings } = await loadAppSettings({
+    network: 'testnet',
+    networks: { testnet: TESTNET },
+    demo: {},
+  });
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => {
     throw new TypeError('fetch failed');
