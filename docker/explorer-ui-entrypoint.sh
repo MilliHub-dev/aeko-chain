@@ -1,86 +1,68 @@
 #!/bin/sh
 set -eu
 
-normalizeDeployEnv() {
+normalize_network() {
   case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
-    local|development|dev|localhost) printf 'local' ;;
-    testnet) printf 'testnet' ;;
-    *) printf 'production' ;;
+    mainnet|testnet|devnet|localnet) printf '%s' "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" ;;
+    *) return 1 ;;
   esac
 }
 
-# Deploy rule: local deploys expose ONLY localnet (testnet env not required);
-# testnet deploys expose ONLY testnet; production deploys expose testnet +
-# mainnet.
-AEKO_DEPLOY_ENV="$(normalizeDeployEnv "${AEKO_ENV:-${NODE_ENV:-}}")"
-export AEKO_DEPLOY_ENV
+AEKO_ACTIVE_NETWORK="$(normalize_network "${AEKO_NETWORK:-}")" || {
+  echo "error: AEKO_NETWORK must be mainnet, testnet, devnet, or localnet" >&2
+  exit 64
+}
+export AEKO_ACTIVE_NETWORK
 
-if [ "$AEKO_DEPLOY_ENV" != "local" ]; then
-  : "${AEKO_TESTNET_RPC_URL:?AEKO_TESTNET_RPC_URL is required}"
-  : "${AEKO_TESTNET_WS_URL:?AEKO_TESTNET_WS_URL is required}"
-fi
+: "${AEKO_RPC_URL:?AEKO_RPC_URL is required for the active Scan network}"
+: "${AEKO_WS_URL:?AEKO_WS_URL is required for the active Scan network}"
+: "${AEKO_EXPLORER_API_URL:?AEKO_EXPLORER_API_URL is required for the active Scan network}"
 
 node <<'NODE'
 const fs = require('fs');
 
 const optional = (name) => String(process.env[name] || '').trim();
+const activeNetwork = optional('AEKO_ACTIVE_NETWORK');
 
-function normalizeDeployEnv(value) {
-  const normalized = String(value || '').trim().toLowerCase();
-  if (['local', 'development', 'dev', 'localhost'].includes(normalized)) return 'local';
-  if (normalized === 'testnet') return 'testnet';
-  return 'production';
+function readAlternative(network) {
+  const prefix = `AEKO_${network.toUpperCase()}`;
+  const rpcUrl = optional(`${prefix}_RPC_URL`);
+  const websocketUrl = optional(`${prefix}_WS_URL`);
+  const upstream = optional(`${prefix}_EXPLORER_API_URL`);
+  const values = [rpcUrl, websocketUrl, upstream];
+  if (values.some(Boolean) && !values.every(Boolean)) {
+    const missing = [
+      [`${prefix}_RPC_URL`, rpcUrl],
+      [`${prefix}_WS_URL`, websocketUrl],
+      [`${prefix}_EXPLORER_API_URL`, upstream],
+    ].filter(([, value]) => !value).map(([name]) => name).join(', ');
+    throw new Error(`${network} Scan configuration is partial. Missing: ${missing}.`);
+  }
+  if (!values.every(Boolean)) return null;
+  return {
+    rpcUrl,
+    websocketUrl,
+    explorerApiUrl: `/api/explorer/${network}`,
+    ...(network === 'mainnet' ? {} : { fundingUrl: `/api/explorer/${network}` }),
+  };
 }
 
-// Deploy rule: local deploys expose ONLY localnet; testnet deploys expose
-// ONLY testnet; production deploys expose testnet + mainnet.
-// AEKO_DEPLOY_ENV is exported by the shell wrapper above.
-const deployEnv = normalizeDeployEnv(optional('AEKO_ENV') || process.env.AEKO_DEPLOY_ENV || process.env.NODE_ENV);
-const isLocalDeploy = deployEnv === 'local';
-const isTestnetDeploy = deployEnv === 'testnet';
-
-const testnet = {
-  rpcUrl: optional('AEKO_TESTNET_RPC_URL'),
-  websocketUrl: optional('AEKO_TESTNET_WS_URL'),
-  explorerApiUrl: '/api/explorer/testnet',
-  fundingUrl: '/api/explorer/testnet',
-};
-
-const mainnetRpcUrl = optional('AEKO_MAINNET_RPC_URL');
-const mainnetWebsocketUrl = optional('AEKO_MAINNET_WS_URL');
-const mainnetExplorerUpstream = optional('AEKO_MAINNET_EXPLORER_API_URL');
-const mainnetValues = [mainnetRpcUrl, mainnetWebsocketUrl, mainnetExplorerUpstream];
-
-if (mainnetValues.some(Boolean) && !mainnetValues.every(Boolean)) {
-  const missing = [
-    ['AEKO_MAINNET_RPC_URL', mainnetRpcUrl],
-    ['AEKO_MAINNET_WS_URL', mainnetWebsocketUrl],
-    ['AEKO_MAINNET_EXPLORER_API_URL', mainnetExplorerUpstream],
-  ]
-    .filter(([, value]) => !value)
-    .map(([name]) => name)
-    .join(', ');
-  throw new Error(`AEKO mainnet Explorer configuration is partial. Missing: ${missing}.`);
+const networks = {};
+for (const network of ['mainnet', 'testnet', 'devnet', 'localnet']) {
+  const alternative = readAlternative(network);
+  if (alternative) networks[network] = alternative;
 }
 
-const mainnet = {
-  rpcUrl: mainnetRpcUrl,
-  websocketUrl: mainnetWebsocketUrl,
-  explorerApiUrl: mainnetValues.every(Boolean) ? '/api/explorer/mainnet' : '',
-};
-
-// Localnet: explicit env always overrides hardcoded loopback. Any single
-// AEKO_LOCALNET_* value opts into localnet; unset RPC/WS pieces fall back to
-// loopback for local Compose runs.
-const localnetRpcEnv = optional('AEKO_LOCALNET_RPC_URL');
-const localnetWsEnv = optional('AEKO_LOCALNET_WS_URL');
-const localnetUpstreamEnv = optional('AEKO_LOCALNET_EXPLORER_API_URL');
-const localnetEnvSet = [localnetRpcEnv, localnetWsEnv, localnetUpstreamEnv].some(Boolean);
-const localnet = {
-  rpcUrl: localnetRpcEnv || (localnetEnvSet ? 'http://127.0.0.1:8899' : ''),
-  websocketUrl: localnetWsEnv || (localnetEnvSet ? 'ws://127.0.0.1:8900' : ''),
-  explorerApiUrl: localnetEnvSet ? '/api/explorer/localnet' : '',
-  fundingUrl: localnetUpstreamEnv ? '/api/explorer/localnet' : '',
+// Generic endpoints always own the currently active/default network. This
+// avoids requiring network-prefixed variables on the server that hosts that
+// chain while still allowing Scan to reach other independently deployed nets.
+networks[activeNetwork] = {
+  rpcUrl: optional('AEKO_RPC_URL'),
+  websocketUrl: optional('AEKO_WS_URL'),
+  explorerApiUrl: `/api/explorer/${activeNetwork}`,
+  ...(activeNetwork === 'mainnet'
+    ? {}
+    : { fundingUrl: `/api/explorer/${activeNetwork}` }),
 };
 
 const demo = {
@@ -90,24 +72,13 @@ const demo = {
   metadataUri: optional('AEKO_DEMO_METADATA_URI'),
 };
 
-const config = {
-  env: deployEnv,
-  // Local deploys expose ONLY localnet, testnet deploys ONLY testnet;
-  // production deploys expose testnet + mainnet. The browser enforces the
-  // same rule, this keeps the injected payload honest too.
-  testnet: isLocalDeploy
-    ? { rpcUrl: '', websocketUrl: '', explorerApiUrl: '', fundingUrl: '' }
-    : testnet,
-  mainnet: isLocalDeploy || isTestnetDeploy
-    ? { rpcUrl: '', websocketUrl: '', explorerApiUrl: '' }
-    : mainnet,
-  localnet,
-  demo,
-};
-
 fs.writeFileSync(
   '/app/dist/runtime-config.js',
-  `window.__AEKO_RUNTIME_CONFIG__ = ${JSON.stringify(config)};\n`,
+  `window.__AEKO_RUNTIME_CONFIG__ = ${JSON.stringify({
+    network: activeNetwork,
+    networks,
+    demo,
+  })};\n`,
   'utf8',
 );
 NODE
