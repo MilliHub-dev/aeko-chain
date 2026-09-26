@@ -106,42 +106,43 @@ Do not copy the same value into multiple configuration surfaces merely because s
 | Protocol feature identities | compile-time feature IDs | Fresh/reset genesis activates the mandatory protocol runtime features automatically; only an older preserved chain uses the compatibility activation helper. |
 | Protocol authority and canonical state addresses | persistent protocol authority plus generated `protocol-registry.env` / continuity anchor | Bootstrap automatically when no established protocol identity exists; preserve and verify thereafter. |
 | Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads it through the same-origin read proxy. |
-| Blockchain service endpoints | deployment environment, named by network + service | Configure `AEKO_TESTNET_*`, optional `AEKO_MAINNET_*`, and local-development `AEKO_LOCALNET_*` values. Do not encode same-host/cross-host topology as "public" or "internal" in endpoint names. |
+| Blockchain service endpoints | active deployment environment | Every chain server uses `AEKO_NETWORK` plus generic `AEKO_RPC_URL`, `AEKO_WS_URL`, `AEKO_EXPLORER_API_URL`, `AEKO_REGISTRY_URL`, and `AEKO_FAUCET_ADDRESS` as applicable. Only Aeko Scan carries optional network-prefixed RPC/WS/Explorer-API triplets for remote network switching. |
 | Bootstrap registry | generated `social-registry.env` + `protocol-registry.env`, served read-only by `registry.aeko.online` | Explorer API fetches the pair and verifies schema/genesis before use; Scan/Admin consume Explorer API instead of bootstrap storage. |
 | Recovery address overrides | Explorer process environment | Use only for explicit recovery; never as a parallel normal source of truth. |
 
-For split testnet deployments the canonical service names are
-`AEKO_TESTNET_RPC_URL=https://rpc.aeko.online`,
-`AEKO_TESTNET_WS_URL=wss://ws.aeko.online`,
-`AEKO_TESTNET_EXPLORER_API_URL=https://api.aeko.online`,
-`AEKO_TESTNET_REGISTRY_URL=https://registry.aeko.online`, and
-`AEKO_TESTNET_FAUCET_ADDRESS=faucet.aeko.online:9900`.
-Scan browser reads remain same-origin under `/api/explorer/{network}`; the
-Scan server proxies to the configured Explorer API domain. Operations Web uses
-the Explorer API domain server-to-server.
+For the currently deployed testnet, the active-environment values are
+`AEKO_NETWORK=testnet`, `AEKO_RPC_URL=https://rpc.aeko.online`,
+`AEKO_WS_URL=wss://ws.aeko.online`,
+`AEKO_EXPLORER_API_URL=https://api.aeko.online`,
+`AEKO_REGISTRY_URL=https://registry.aeko.online`, and
+`AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900`.
+
+A future mainnet or devnet deployment uses the same variable names on its own
+servers with that network's domains. Aeko Scan is the exception: its generic
+values define the default network, and optional `AEKO_MAINNET_*`,
+`AEKO_TESTNET_*`, and `AEKO_DEVNET_*` RPC/WS/Explorer-API triplets let the
+UI switch to other independent deployments. Browser indexed reads remain
+same-origin under `/api/explorer/{network}`.
 
 ## Required production environment
 
 ```text
-AEKO_PUBLIC_IP=<deployment host public IP>
+AEKO_NETWORK=testnet
+AEKO_RPC_URL=https://rpc.aeko.online
+AEKO_WS_URL=wss://ws.aeko.online
+AEKO_EXPLORER_API_URL=https://api.aeko.online
+AEKO_REGISTRY_URL=https://registry.aeko.online
+AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900
+AEKO_PUBLIC_IP=<validator gossip/transport public IP>
 AEKO_KEYS_DIR=<Dokploy/local persistent host directory; Coolify uses fixed /data/aeko/keys>
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
 AEKO_REQUIRE_EXISTING_LEDGER=1
-AEKO_ALLOW_CHAIN_KEY_GENERATION=0   # Coolify; enable only for intentional first boot
-AEKO_TESTNET_RPC_URL=https://rpc.aeko.online
-AEKO_TESTNET_WS_URL=wss://ws.aeko.online
-AEKO_TESTNET_EXPLORER_API_URL=https://api.aeko.online
-AEKO_TESTNET_REGISTRY_URL=https://registry.aeko.online
-AEKO_TESTNET_FAUCET_ADDRESS=faucet.aeko.online:9900
-AEKO_PUBLIC_FUNDING_URL=<public Testnet funding-role URL, today fund.aeko.online>
-FUNDING_ALLOWED_ORIGINS=<comma-separated Scan UI origins allowed to call funding>
+AEKO_ALLOW_CHAIN_KEY_GENERATION=0
 ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=<private Admin-to-Explorer settings token>
-FUNDING_GATEWAY_KEY=<funding-role secret authorizing server-side requestAirdrop>
-FUNDING_ADMIN_API_KEY=<different private Admin-to-funding-role service key>
 ```
 
 Optional funding policy (initial values; editable in the admin console afterwards):
