@@ -30,9 +30,10 @@ pub struct ExplorerBackendConfig {
 
 impl ExplorerBackendConfig {
     pub fn from_env() -> Result<Self> {
-        let rpc_url = required_env("AEKO_EXPLORER_RPC")?;
-        let websocket_url = optional_env("AEKO_EXPLORER_WS");
-        let network = required_env("AEKO_EXPLORER_NETWORK")?;
+        let network = required_env("AEKO_EXPLORER_NETWORK")?.to_ascii_lowercase();
+        let (rpc_env, websocket_env) = network_endpoint_names(&network)?;
+        let rpc_url = required_env(rpc_env)?;
+        let websocket_url = optional_env(websocket_env);
         let start_slot = required_parse_env::<u64>("AEKO_EXPLORER_START_SLOT")?;
         let max_batch_size = required_nonzero::<usize>("AEKO_EXPLORER_MAX_BATCH_SIZE")?;
         let persist_socialfi_views =
@@ -115,6 +116,17 @@ impl ServerConfig {
     }
 }
 
+fn network_endpoint_names(network: &str) -> Result<(&'static str, &'static str)> {
+    match network {
+        "testnet" => Ok(("AEKO_TESTNET_RPC_URL", "AEKO_TESTNET_WS_URL")),
+        "mainnet" => Ok(("AEKO_MAINNET_RPC_URL", "AEKO_MAINNET_WS_URL")),
+        "localnet" => Ok(("AEKO_LOCALNET_RPC_URL", "AEKO_LOCALNET_WS_URL")),
+        other => Err(anyhow!(
+            "AEKO_EXPLORER_NETWORK={other:?} is unsupported; expected testnet, mainnet, or localnet"
+        )),
+    }
+}
+
 fn required_env(key: &str) -> Result<String> {
     optional_env(key)
         .ok_or_else(|| anyhow!("required environment variable {key} is missing or empty"))
@@ -161,12 +173,34 @@ fn optional_bool_env(key: &str) -> Result<bool> {
 }
 
 #[cfg(test)]
+mod endpoint_tests {
+    use super::network_endpoint_names;
+
+    #[test]
+    fn network_endpoint_names_are_explicit_and_chain_scoped() {
+        assert_eq!(
+            network_endpoint_names("testnet").unwrap(),
+            ("AEKO_TESTNET_RPC_URL", "AEKO_TESTNET_WS_URL")
+        );
+        assert_eq!(
+            network_endpoint_names("mainnet").unwrap(),
+            ("AEKO_MAINNET_RPC_URL", "AEKO_MAINNET_WS_URL")
+        );
+        assert_eq!(
+            network_endpoint_names("localnet").unwrap(),
+            ("AEKO_LOCALNET_RPC_URL", "AEKO_LOCALNET_WS_URL")
+        );
+        assert!(network_endpoint_names("devnet").is_err());
+    }
+}
+
+#[cfg(test)]
 impl Default for ExplorerBackendConfig {
     fn default() -> Self {
         Self {
             rpc_url: "http://127.0.0.1:8899".to_string(),
             websocket_url: None,
-            network: "test".to_string(),
+            network: "localnet".to_string(),
             start_slot: 0,
             max_batch_size: 256,
             persist_socialfi_views: true,
