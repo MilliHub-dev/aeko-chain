@@ -33,9 +33,9 @@ accounting follows `tokenomics.md`, not this ledger.
 Set `AEKO_OPERATIONS_ROLE=admin`.
 
 The Admin service owns authenticated operator pages and APIs. It does not mount
-funding state and does not receive `FUNDING_GATEWAY_KEY`. Funding controls call
-the private funding role over `AEKO_INTERNAL_FUNDING_URL` using
-`FUNDING_ADMIN_API_KEY`.
+funding state and does not receive `FUNDING_GATEWAY_KEY`. Funding controls belong behind the active environment's Explorer API
+funding-admin boundary; Admin does not need a second network-specific funding
+endpoint set.
 
 Admin belongs to one active chain environment. It uses `AEKO_NETWORK`,
 `AEKO_RPC_URL`, and server-side `AEKO_EXPLORER_API_URL` for that environment.
