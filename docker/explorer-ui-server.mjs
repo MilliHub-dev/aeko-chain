@@ -205,8 +205,8 @@ async function proxyExplorer(req, res, url, target) {
       res.end()
       return
     }
-    const body = Buffer.from(await upstream.arrayBuffer())
-    res.end(body)
+    const responseBody = Buffer.from(await upstream.arrayBuffer())
+    res.end(responseBody)
   } catch (error) {
     const timeout = error instanceof Error && error.name === 'AbortError'
     json(res, timeout ? 504 : 502, {
