@@ -48,19 +48,23 @@ export default defineConfig(({ command, mode }) => {
   const isLocalDeploy = deployEnv === 'local'
   const isTestnetDeploy = deployEnv === 'testnet'
 
-  const publicRpc = clean(env.AEKO_PUBLIC_RPC_URL)
-  const publicWs = clean(env.AEKO_PUBLIC_WS_URL)
-  const testnetUpstream = clean(env.AEKO_INTERNAL_EXPLORER_API_URL)
+  const testnetRpc = clean(env.AEKO_TESTNET_RPC_URL || env.AEKO_PUBLIC_RPC_URL)
+  const testnetWs = clean(env.AEKO_TESTNET_WS_URL || env.AEKO_PUBLIC_WS_URL)
+  const testnetUpstream = clean(
+    env.AEKO_TESTNET_EXPLORER_API_URL || env.AEKO_INTERNAL_EXPLORER_API_URL,
+  )
 
   const mainnetRpc = clean(env.AEKO_MAINNET_RPC_URL)
   const mainnetWs = clean(env.AEKO_MAINNET_WS_URL)
-  const mainnetUpstream = clean(env.AEKO_INTERNAL_MAINNET_EXPLORER_API_URL)
+  const mainnetUpstream = clean(
+    env.AEKO_MAINNET_EXPLORER_API_URL || env.AEKO_INTERNAL_MAINNET_EXPLORER_API_URL,
+  )
   const mainnetConfigured = hasAll([mainnetRpc, mainnetWs, mainnetUpstream])
 
   if (!isLocalDeploy && [mainnetRpc, mainnetWs, mainnetUpstream].some(Boolean) && !mainnetConfigured) {
     throw new Error(
       'AEKO mainnet dev configuration is partial. Set AEKO_MAINNET_RPC_URL, '
-        + 'AEKO_MAINNET_WS_URL and AEKO_INTERNAL_MAINNET_EXPLORER_API_URL together.',
+        + 'AEKO_MAINNET_WS_URL and AEKO_MAINNET_EXPLORER_API_URL together.',
     )
   }
 
@@ -69,19 +73,21 @@ export default defineConfig(({ command, mode }) => {
   // that are not explicitly set.
   const localnetRpcEnv = clean(env.AEKO_LOCALNET_RPC_URL)
   const localnetWsEnv = clean(env.AEKO_LOCALNET_WS_URL)
-  const localnetUpstreamEnv = clean(env.AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL)
+  const localnetUpstreamEnv = clean(
+    env.AEKO_LOCALNET_EXPLORER_API_URL || env.AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL,
+  )
   const localnetEnvConfigured = [localnetRpcEnv, localnetWsEnv, localnetUpstreamEnv]
     .some(Boolean)
   const localnetRpc = localnetRpcEnv || (localnetEnvConfigured ? 'http://127.0.0.1:8899' : '')
   const localnetWs = localnetWsEnv || (localnetEnvConfigured ? 'ws://127.0.0.1:8900' : '')
   const localnetUpstream = localnetUpstreamEnv || (localnetEnvConfigured ? 'http://127.0.0.1:8088' : '')
 
-  const testnetValues = [publicRpc, publicWs]
+  const testnetValues = [testnetRpc, testnetWs]
   const testnetConfigured = hasAll(testnetValues)
   if (!isLocalDeploy && testnetValues.some(Boolean) && !testnetConfigured) {
     throw new Error(
-      'AEKO testnet dev configuration is partial. Set AEKO_PUBLIC_RPC_URL and '
-        + 'AEKO_PUBLIC_WS_URL together.',
+      'AEKO testnet dev configuration is partial. Set AEKO_TESTNET_RPC_URL and '
+        + 'AEKO_TESTNET_WS_URL together.',
     )
   }
 
@@ -107,8 +113,8 @@ export default defineConfig(({ command, mode }) => {
           ...(!isLocalDeploy && (testnetConfigured || testnetLoopback)
             ? {
                 testnet: {
-                  rpcUrl: testnetLoopback?.rpcUrl || publicRpc,
-                  websocketUrl: testnetLoopback?.websocketUrl || publicWs,
+                  rpcUrl: testnetLoopback?.rpcUrl || testnetRpc,
+                  websocketUrl: testnetLoopback?.websocketUrl || testnetWs,
                   explorerApiUrl: '/api/explorer/testnet',
                   fundingUrl: '/api/explorer/testnet',
                 },
