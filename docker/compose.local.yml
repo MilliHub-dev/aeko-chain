@@ -256,6 +256,7 @@ services:
     restart: unless-stopped
     environment:
       AEKO_OPERATIONS_ROLE: admin
+      AEKO_NETWORK: ${AEKO_NETWORK:-localnet}
       AEKO_RPC_URL: ${AEKO_RPC_URL:-http://validator:8899}
       AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-http://explorer-api:8088}
       AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:-local-dev-settings-admin-token-32-characters}
