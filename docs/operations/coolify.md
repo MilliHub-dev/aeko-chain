@@ -182,6 +182,12 @@ For the complete migration sequence and registry discovery contract, use
 
 ## Domains and ports
 
+The canonical cross-platform matrix, including local host-port overrides and
+same-Compose Docker-DNS defaults, is
+[network-ports-and-domains.md](./network-ports-and-domains.md). This section is
+the Coolify-specific routing subset.
+
+
 Configure these Coolify domains against the listed services/container ports:
 
 | Testnet endpoint | Service | Container port |
