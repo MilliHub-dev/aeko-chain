@@ -13,9 +13,9 @@ services:
     pull_policy: always
     restart: unless-stopped
     environment:
-      AEKO_EXPLORER_RPC: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}
-      AEKO_EXPLORER_WS: ${AEKO_TESTNET_WS_URL:-wss://ws.aeko.online}
       AEKO_EXPLORER_NETWORK: testnet
+      AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}
+      AEKO_TESTNET_WS_URL: ${AEKO_TESTNET_WS_URL:-wss://ws.aeko.online}
       AEKO_EXPLORER_BIND: 0.0.0.0:8088
       AEKO_TESTNET_REGISTRY_URL: ${AEKO_TESTNET_REGISTRY_URL:-https://registry.aeko.online}
       AEKO_REGISTRY_REFRESH_SECONDS: ${AEKO_REGISTRY_REFRESH_SECONDS:-30}
