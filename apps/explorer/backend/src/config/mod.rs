@@ -30,15 +30,10 @@ pub struct ExplorerBackendConfig {
 
 impl ExplorerBackendConfig {
     pub fn from_env() -> Result<Self> {
-        let network = optional_env("AEKO_NETWORK")
-            .or_else(|| optional_env("AEKO_EXPLORER_NETWORK"))
-            .ok_or_else(|| anyhow!("required environment variable AEKO_NETWORK is missing or empty"))?;
+        let network = required_env("AEKO_NETWORK")?;
         validate_network(&network)?;
-        let rpc_url = optional_env("AEKO_RPC_URL")
-            .or_else(|| optional_env("AEKO_EXPLORER_RPC"))
-            .ok_or_else(|| anyhow!("Explorer RPC is required: set AEKO_RPC_URL"))?;
-        let websocket_url =
-            optional_env("AEKO_WS_URL").or_else(|| optional_env("AEKO_EXPLORER_WS"));
+        let rpc_url = required_env("AEKO_RPC_URL")?;
+        let websocket_url = optional_env("AEKO_WS_URL");
         let start_slot = required_parse_env::<u64>("AEKO_EXPLORER_START_SLOT")?;
         let max_batch_size = required_nonzero::<usize>("AEKO_EXPLORER_MAX_BATCH_SIZE")?;
         let persist_socialfi_views =
