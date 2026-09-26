@@ -31,16 +31,11 @@ pub struct ExplorerBackendConfig {
 impl ExplorerBackendConfig {
     pub fn from_env() -> Result<Self> {
         let network = required_env("AEKO_EXPLORER_NETWORK")?;
-        let rpc_url = network_endpoint(&network, "RPC_URL")?
-            .or_else(|| optional_env("AEKO_EXPLORER_RPC"))
-            .ok_or_else(|| {
-                anyhow!(
-                    "Explorer RPC is required: set {} (preferred) or AEKO_EXPLORER_RPC",
-                    network_endpoint_key(&network, "RPC_URL").unwrap_or_else(|_| "the network RPC URL".to_string())
-                )
-            })?;
-        let websocket_url = network_endpoint(&network, "WS_URL")?
-            .or_else(|| optional_env("AEKO_EXPLORER_WS"));
+        let rpc_key = network_endpoint_key(&network, "RPC_URL")?;
+        let ws_key = network_endpoint_key(&network, "WS_URL")?;
+        let rpc_url = optional_env(&rpc_key)
+            .ok_or_else(|| anyhow!("Explorer RPC is required: set {rpc_key}"))?;
+        let websocket_url = optional_env(&ws_key);
         let start_slot = required_parse_env::<u64>("AEKO_EXPLORER_START_SLOT")?;
         let max_batch_size = required_nonzero::<usize>("AEKO_EXPLORER_MAX_BATCH_SIZE")?;
         let persist_socialfi_views =
@@ -136,11 +131,6 @@ fn network_endpoint_key(network: &str, suffix: &str) -> Result<String> {
         }
     };
     Ok(format!("{prefix}_{suffix}"))
-}
-
-fn network_endpoint(network: &str, suffix: &str) -> Result<Option<String>> {
-    let key = network_endpoint_key(network, suffix)?;
-    Ok(optional_env(&key))
 }
 
 fn required_env(key: &str) -> Result<String> {
