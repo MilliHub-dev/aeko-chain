@@ -30,9 +30,17 @@ pub struct ExplorerBackendConfig {
 
 impl ExplorerBackendConfig {
     pub fn from_env() -> Result<Self> {
-        let rpc_url = required_env("AEKO_EXPLORER_RPC")?;
-        let websocket_url = optional_env("AEKO_EXPLORER_WS");
         let network = required_env("AEKO_EXPLORER_NETWORK")?;
+        let rpc_url = network_endpoint(&network, "RPC_URL")?
+            .or_else(|| optional_env("AEKO_EXPLORER_RPC"))
+            .ok_or_else(|| {
+                anyhow!(
+                    "Explorer RPC is required: set {} (preferred) or AEKO_EXPLORER_RPC",
+                    network_endpoint_key(&network, "RPC_URL").unwrap_or_else(|_| "the network RPC URL".to_string())
+                )
+            })?;
+        let websocket_url = network_endpoint(&network, "WS_URL")?
+            .or_else(|| optional_env("AEKO_EXPLORER_WS"));
         let start_slot = required_parse_env::<u64>("AEKO_EXPLORER_START_SLOT")?;
         let max_batch_size = required_nonzero::<usize>("AEKO_EXPLORER_MAX_BATCH_SIZE")?;
         let persist_socialfi_views =
@@ -115,6 +123,26 @@ impl ServerConfig {
     }
 }
 
+fn network_endpoint_key(network: &str, suffix: &str) -> Result<String> {
+    let prefix = match network.trim().to_ascii_lowercase().as_str() {
+        "testnet" => "AEKO_TESTNET",
+        "mainnet" => "AEKO_MAINNET",
+        "localnet" => "AEKO_LOCALNET",
+        "devnet" => "AEKO_DEVNET",
+        other => {
+            return Err(anyhow!(
+                "AEKO_EXPLORER_NETWORK={other:?} must be testnet, mainnet, localnet, or devnet"
+            ))
+        }
+    };
+    Ok(format!("{prefix}_{suffix}"))
+}
+
+fn network_endpoint(network: &str, suffix: &str) -> Result<Option<String>> {
+    let key = network_endpoint_key(network, suffix)?;
+    Ok(optional_env(&key))
+}
+
 fn required_env(key: &str) -> Result<String> {
     optional_env(key)
         .ok_or_else(|| anyhow!("required environment variable {key} is missing or empty"))
@@ -157,6 +185,32 @@ fn optional_bool_env(key: &str) -> Result<bool> {
         "1" | "true" | "yes" | "on" => Ok(true),
         "0" | "false" | "no" | "off" => Ok(false),
         _ => Err(anyhow!("{key}={value:?} must be a boolean")),
+    }
+}
+
+#[cfg(test)]
+mod config_tests {
+    use super::network_endpoint_key;
+
+    #[test]
+    fn network_endpoint_names_are_explicit() {
+        assert_eq!(
+            network_endpoint_key("testnet", "RPC_URL").unwrap(),
+            "AEKO_TESTNET_RPC_URL"
+        );
+        assert_eq!(
+            network_endpoint_key("mainnet", "WS_URL").unwrap(),
+            "AEKO_MAINNET_WS_URL"
+        );
+        assert_eq!(
+            network_endpoint_key("localnet", "RPC_URL").unwrap(),
+            "AEKO_LOCALNET_RPC_URL"
+        );
+        assert_eq!(
+            network_endpoint_key("devnet", "RPC_URL").unwrap(),
+            "AEKO_DEVNET_RPC_URL"
+        );
+        assert!(network_endpoint_key("production", "RPC_URL").is_err());
     }
 }
 
