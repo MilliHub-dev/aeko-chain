@@ -2,9 +2,20 @@
 set -eu
 
 # Split deployments can resolve the canonical bootstrap registries over HTTPS.
-# Local/legacy deployments may continue to mount the files directly and leave
-# AEKO_TESTNET_REGISTRY_URL unset.
-REGISTRY_BASE_URL="${AEKO_TESTNET_REGISTRY_URL:-}"
+# Registry discovery follows the Explorer blockchain network. Local/legacy
+# deployments may keep mounted registry files and leave the matching URL unset.
+NETWORK="$(printf '%s' "${AEKO_EXPLORER_NETWORK:-testnet}" | tr '[:upper:]' '[:lower:]')"
+case "$NETWORK" in
+  testnet) REGISTRY_BASE_URL="${AEKO_TESTNET_REGISTRY_URL:-}" ;;
+  mainnet) REGISTRY_BASE_URL="${AEKO_MAINNET_REGISTRY_URL:-}" ;;
+  localnet) REGISTRY_BASE_URL="${AEKO_LOCALNET_REGISTRY_URL:-}" ;;
+  devnet) REGISTRY_BASE_URL="${AEKO_DEVNET_REGISTRY_URL:-}" ;;
+  *)
+    echo "error: AEKO_EXPLORER_NETWORK must be testnet, mainnet, localnet, or devnet" >&2
+    exit 64
+    ;;
+esac
+
 REGISTRY_DIR="${AEKO_REGISTRY_CACHE_DIR:-/tmp/aeko-registry}"
 REFRESH_SECONDS="${AEKO_REGISTRY_REFRESH_SECONDS:-30}"
 FETCH_TIMEOUT_SECONDS="${AEKO_REGISTRY_FETCH_TIMEOUT_SECONDS:-10}"
@@ -15,13 +26,22 @@ fi
 
 positive_integer() {
   case "$2" in
-    *[!0-9]*|"") echo "error: $1 must be a positive integer" >&2; exit 64 ;;
-    0) echo "error: $1 must be greater than zero" >&2; exit 64 ;;
+    *[!0-9]*|"")
+      echo "error: $1 must be a positive integer" >&2
+      exit 64
+      ;;
+    0)
+      echo "error: $1 must be greater than zero" >&2
+      exit 64
+      ;;
   esac
 }
 
 case "$REFRESH_SECONDS" in
-  *[!0-9]*|"") echo "error: AEKO_REGISTRY_REFRESH_SECONDS must be a non-negative integer" >&2; exit 64 ;;
+  *[!0-9]*|"")
+    echo "error: AEKO_REGISTRY_REFRESH_SECONDS must be a non-negative integer" >&2
+    exit 64
+    ;;
 esac
 positive_integer AEKO_REGISTRY_FETCH_TIMEOUT_SECONDS "$FETCH_TIMEOUT_SECONDS"
 
@@ -36,7 +56,11 @@ fetch_registry() {
   tmp="${target}.tmp"
 
   rm -f "$tmp"
-  if ! curl --fail --silent --show-error --location     --max-time "$FETCH_TIMEOUT_SECONDS"     --header 'Accept: text/plain'     --output "$tmp"     "$url"; then
+  if ! curl --fail --silent --show-error --location \
+    --max-time "$FETCH_TIMEOUT_SECONDS" \
+    --header 'Accept: text/plain' \
+    --output "$tmp" \
+    "$url"; then
     rm -f "$tmp"
     return 1
   fi
@@ -77,7 +101,7 @@ publish_registry_pair() {
   mv "$protocol_tmp" "$PROTOCOL_FILE"
 }
 
-echo "==> Fetching testnet bootstrap registries from $REGISTRY_BASE_URL"
+echo "==> Fetching $NETWORK bootstrap registries from $REGISTRY_BASE_URL"
 publish_registry_pair || {
   echo "error: unable to fetch a complete matching registry pair before Explorer startup" >&2
   exit 69
@@ -90,7 +114,7 @@ if [ "$REFRESH_SECONDS" -gt 0 ]; then
   (
     while sleep "$REFRESH_SECONDS"; do
       if publish_registry_pair; then
-        echo "==> Refreshed testnet bootstrap registries"
+        echo "==> Refreshed $NETWORK bootstrap registries"
       else
         echo "warning: registry refresh failed; preserving the last verified pair" >&2
         rm -f "${SOCIAL_FILE}.tmp" "${PROTOCOL_FILE}.tmp"
