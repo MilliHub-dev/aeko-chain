@@ -24,10 +24,10 @@ AEKO_DOMAIN=${AEKO_DOMAIN:-localhost}
 AEKO_KEYDIR=${AEKO_KEYDIR:-local-testnet}
 AEKO_IMAGE_REPOSITORY=${AEKO_IMAGE_REPOSITORY:-surdma}
 AEKO_IMAGE_TAG=${AEKO_IMAGE_TAG:-latest}
-AEKO_PUBLIC_RPC_URL=${AEKO_PUBLIC_RPC_URL:-}
-AEKO_PUBLIC_WS_URL=${AEKO_PUBLIC_WS_URL:-}
+AEKO_TESTNET_RPC_URL=${AEKO_TESTNET_RPC_URL:-${AEKO_PUBLIC_RPC_URL:-}}
+AEKO_TESTNET_WS_URL=${AEKO_TESTNET_WS_URL:-${AEKO_PUBLIC_WS_URL:-}}
 AEKO_PUBLIC_FUNDING_URL=${AEKO_PUBLIC_FUNDING_URL:-}
-AEKO_PUBLIC_GOSSIP_ADDRESS=${AEKO_PUBLIC_GOSSIP_ADDRESS:-}
+AEKO_TESTNET_GOSSIP_HOST=${AEKO_TESTNET_GOSSIP_HOST:-}
 FORCE_REBUILD=${FORCE_REBUILD:-0}
 RESET_CHAIN=0
 
@@ -208,10 +208,10 @@ cat <<EOF2
     Admin        http://${AEKO_DOMAIN}:3001
 
   Configured public browser endpoints:
-    RPC          ${AEKO_PUBLIC_RPC_URL:-<not configured>}
-    PubSub WS    ${AEKO_PUBLIC_WS_URL:-<not configured>}
+    RPC          ${AEKO_TESTNET_RPC_URL:-<not configured>}
+    PubSub WS    ${AEKO_TESTNET_WS_URL:-<not configured>}
     Funding      ${AEKO_PUBLIC_FUNDING_URL:-<not configured>}
-    Gossip       ${AEKO_PUBLIC_GOSSIP_ADDRESS:-<not configured>} (raw TCP/UDP, not HTTP)
+    Gossip       ${AEKO_TESTNET_GOSSIP_HOST:-<not configured>} (raw TCP/UDP, not HTTP)
 
   Explorer indexed reads are served through the Explorer UI same-origin
   /api/explorer/testnet proxy. The explorer-api container is not a public
