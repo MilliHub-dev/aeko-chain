@@ -5,16 +5,32 @@
 //! on-chain addresses; they are configuration discovery, not application state.
 
 use {
+    reqwest::blocking::Client,
     serde::Serialize,
     std::{
         collections::{BTreeMap, HashMap},
         env, fs,
         io::ErrorKind,
+        sync::{Mutex, OnceLock},
+        time::{Duration, Instant},
     },
 };
 
 const SOCIAL_REGISTRY_FILE_ENV: &str = "AEKO_SOCIAL_REGISTRY_FILE";
 const PROTOCOL_REGISTRY_FILE_ENV: &str = "AEKO_PROTOCOL_REGISTRY_FILE";
+const SOCIAL_REGISTRY_URL_ENV: &str = "AEKO_SOCIAL_REGISTRY_URL";
+const PROTOCOL_REGISTRY_URL_ENV: &str = "AEKO_PROTOCOL_REGISTRY_URL";
+const REGISTRY_HTTP_TIMEOUT: Duration = Duration::from_secs(5);
+const REGISTRY_CACHE_TTL: Duration = Duration::from_secs(30);
+
+#[derive(Clone)]
+struct CachedRegistry {
+    fetched_at: Instant,
+    values: HashMap<String, String>,
+}
+
+static REGISTRY_HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
+static REMOTE_REGISTRY_CACHE: OnceLock<Mutex<HashMap<String, CachedRegistry>>> = OnceLock::new();
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,11 +70,16 @@ pub struct ProtocolRegistry {
 }
 
 pub fn resolve_social_registry() -> SocialRegistry {
-    let file_values = load_registry_file(SOCIAL_REGISTRY_FILE_ENV, "SocialFi");
-    let read = |key: &str| read_value(key, &file_values);
+    let registry_values = load_registry_values(
+        SOCIAL_REGISTRY_URL_ENV,
+        SOCIAL_REGISTRY_FILE_ENV,
+        "SocialFi",
+    );
+    let read = |key: &str| read_value(key, &registry_values);
     let schema_version = read("AEKO_REGISTRY_SCHEMA_VERSION").and_then(|value| value.parse().ok());
     let genesis_hash = read("AEKO_CHAIN_GENESIS_HASH");
-    let bootstrap_in_progress = bootstrap_marker_exists(SOCIAL_REGISTRY_FILE_ENV);
+    let bootstrap_in_progress =
+        registry_url(SOCIAL_REGISTRY_URL_ENV).is_none() && bootstrap_marker_exists(SOCIAL_REGISTRY_FILE_ENV);
     let posts = read("AEKO_SOCIAL_POSTS_STATE");
     let rewards = read("AEKO_SOCIAL_REWARDS_STATE");
     let staking = read("AEKO_SOCIAL_STAKING_STATE");
@@ -99,12 +120,17 @@ pub fn resolve_social_registry() -> SocialRegistry {
 }
 
 pub fn resolve_protocol_registry() -> ProtocolRegistry {
-    let file_values = load_registry_file(PROTOCOL_REGISTRY_FILE_ENV, "protocol");
-    let read = |key: &str| read_value(key, &file_values);
+    let registry_values = load_registry_values(
+        PROTOCOL_REGISTRY_URL_ENV,
+        PROTOCOL_REGISTRY_FILE_ENV,
+        "protocol",
+    );
+    let read = |key: &str| read_value(key, &registry_values);
 
     let schema_version = read("AEKO_REGISTRY_SCHEMA_VERSION").and_then(|value| value.parse().ok());
     let genesis_hash = read("AEKO_CHAIN_GENESIS_HASH");
-    let bootstrap_in_progress = bootstrap_marker_exists(PROTOCOL_REGISTRY_FILE_ENV);
+    let bootstrap_in_progress =
+        registry_url(PROTOCOL_REGISTRY_URL_ENV).is_none() && bootstrap_marker_exists(PROTOCOL_REGISTRY_FILE_ENV);
     let authority = read("AEKO_PROTOCOL_AUTHORITY");
     let token_programs_feature = read("AEKO_TOKEN_PROGRAMS_FEATURE");
     let token_programs_feature_activated_at = read("AEKO_TOKEN_PROGRAMS_FEATURE_ACTIVATED_AT")
@@ -186,12 +212,111 @@ where
         .collect()
 }
 
-fn read_value(key: &str, file_values: &HashMap<String, String>) -> Option<String> {
+fn read_value(key: &str, registry_values: &HashMap<String, String>) -> Option<String> {
     env::var(key)
         .ok()
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
-        .or_else(|| file_values.get(key).cloned())
+        .or_else(|| registry_values.get(key).cloned())
+}
+
+fn registry_url(env_name: &str) -> Option<String> {
+    env::var(env_name)
+        .ok()
+        .map(|value| value.trim().trim_end_matches('/').to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn load_registry_values(
+    url_env_name: &str,
+    file_env_name: &str,
+    label: &str,
+) -> HashMap<String, String> {
+    if let Some(url) = registry_url(url_env_name) {
+        return load_registry_url(&url, url_env_name, label);
+    }
+    load_registry_file(file_env_name, label)
+}
+
+fn registry_http_client() -> &'static Client {
+    REGISTRY_HTTP_CLIENT.get_or_init(|| {
+        Client::builder()
+            .connect_timeout(REGISTRY_HTTP_TIMEOUT)
+            .timeout(REGISTRY_HTTP_TIMEOUT)
+            .build()
+            .expect("building bootstrap registry HTTP client")
+    })
+}
+
+fn registry_cache() -> &'static Mutex<HashMap<String, CachedRegistry>> {
+    REMOTE_REGISTRY_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn cached_registry(url: &str, fresh_only: bool) -> Option<HashMap<String, String>> {
+    let cache = registry_cache().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let cached = cache.get(url)?;
+    if fresh_only && cached.fetched_at.elapsed() >= REGISTRY_CACHE_TTL {
+        return None;
+    }
+    Some(cached.values.clone())
+}
+
+fn load_registry_url(url: &str, env_name: &str, label: &str) -> HashMap<String, String> {
+    if let Some(values) = cached_registry(url, true) {
+        return values;
+    }
+
+    let fetched = registry_http_client()
+        .get(url)
+        .header(reqwest::header::ACCEPT, "text/plain")
+        .send()
+        .and_then(reqwest::blocking::Response::error_for_status)
+        .and_then(reqwest::blocking::Response::text);
+
+    match fetched {
+        Ok(content) => {
+            let values = parse_registry_env(&content);
+            if !valid_registry_document(&values) {
+                tracing::warn!(
+                    url,
+                    env_name,
+                    label,
+                    "remote bootstrap registry is missing schema/genesis identity"
+                );
+                return cached_registry(url, false).unwrap_or_default();
+            }
+            registry_cache()
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .insert(
+                    url.to_string(),
+                    CachedRegistry {
+                        fetched_at: Instant::now(),
+                        values: values.clone(),
+                    },
+                );
+            values
+        }
+        Err(error) => {
+            tracing::warn!(
+                url,
+                env_name,
+                label,
+                error = %error,
+                "unable to fetch remote bootstrap registry"
+            );
+            cached_registry(url, false).unwrap_or_default()
+        }
+    }
+}
+
+fn valid_registry_document(values: &HashMap<String, String>) -> bool {
+    values
+        .get("AEKO_REGISTRY_SCHEMA_VERSION")
+        .is_some_and(|value| !value.trim().is_empty())
+        && values
+            .get("AEKO_CHAIN_GENESIS_HASH")
+            .is_some_and(|value| !value.trim().is_empty())
 }
 
 fn bootstrap_marker_exists(env_name: &str) -> bool {
@@ -262,8 +387,8 @@ fn parse_registry_env(content: &str) -> HashMap<String, String> {
 mod tests {
     use {
         super::{
-            expected_missing_registry, parse_registry_env, PROTOCOL_REGISTRY_FILE_ENV,
-            SOCIAL_REGISTRY_FILE_ENV,
+            expected_missing_registry, parse_registry_env, valid_registry_document,
+            PROTOCOL_REGISTRY_FILE_ENV, SOCIAL_REGISTRY_FILE_ENV,
         },
         std::io::{Error, ErrorKind},
     };
@@ -311,5 +436,19 @@ mod tests {
             Some("tokenomics111")
         );
         assert!(!values.contains_key("EMPTY"));
+        assert!(valid_registry_document(&values));
+    }
+
+    #[test]
+    fn registry_document_requires_schema_and_genesis_identity() {
+        assert!(!valid_registry_document(&parse_registry_env(
+            "AEKO_SOCIAL_POSTS_STATE=posts111\n"
+        )));
+        assert!(!valid_registry_document(&parse_registry_env(
+            "AEKO_REGISTRY_SCHEMA_VERSION=2\n"
+        )));
+        assert!(valid_registry_document(&parse_registry_env(
+            "AEKO_REGISTRY_SCHEMA_VERSION=2\nAEKO_CHAIN_GENESIS_HASH=genesis111\n"
+        )));
     }
 }
