@@ -314,13 +314,13 @@ the validator ledger is /data/aeko/validator-ledger and chain keys remain
 /data/aeko/keys. This avoids a new Coolify/Compose project name silently
 creating an empty replacement named volume.
 
-Cross-resource dependencies use blockchain-network service names rather than
-deployment-topology names. The split testnet contract uses
-`AEKO_TESTNET_FAUCET_ADDRESS`, `AEKO_TESTNET_RPC_URL`,
-`AEKO_TESTNET_WS_URL`, `AEKO_TESTNET_EXPLORER_API_URL`, and
-`AEKO_TESTNET_REGISTRY_URL`. Their default values are the canonical AEKO
-domains, so resources can live on different Ubuntu/Coolify instances without
-Docker service-name DNS.
+Each deployed chain environment uses one `AEKO_NETWORK` plus generic
+service endpoints such as `AEKO_RPC_URL`, `AEKO_WS_URL`,
+`AEKO_EXPLORER_API_URL`, `AEKO_REGISTRY_URL`, and
+`AEKO_FAUCET_ADDRESS`. Mainnet, testnet and devnet are separate deployments;
+their servers do not carry one another's endpoint sets. Aeko Scan is the
+exception: it may additionally receive complete network-prefixed endpoint
+triplets so users can switch between independently deployed networks.
 
 For an established chain, migrate current named-volume data into the fixed
 /data/aeko paths before switching Compose paths. Keep
