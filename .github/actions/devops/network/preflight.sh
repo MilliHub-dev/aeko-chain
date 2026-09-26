@@ -16,9 +16,11 @@ fi
 
 AEKO_PUBLIC_IP=203.0.113.10 \
 AEKO_KEYS_DIR=/tmp/aeko-keys \
-AEKO_INTERNAL_FAUCET_ADDRESS=10.0.0.12:9900 \
-AEKO_INTERNAL_RPC_URL=http://10.0.0.10:8899 \
-AEKO_INTERNAL_EXPLORER_API_URL=http://10.0.0.20:8088 \
+AEKO_TESTNET_FAUCET_ADDRESS=faucet.ci.invalid:9900 \
+AEKO_TESTNET_RPC_URL=https://rpc.ci.invalid \
+AEKO_TESTNET_WS_URL=wss://ws.ci.invalid \
+AEKO_TESTNET_EXPLORER_API_URL=https://api.ci.invalid \
+AEKO_TESTNET_REGISTRY_URL=https://registry.ci.invalid \
 EXPLORER_DATABASE_URL=postgres://aeko:aeko@postgres:5432/aeko_explorer \
 AEKO_IMAGE_TAG=ci \
 ADMIN_PASSWORD=ci-admin-password \
@@ -26,13 +28,14 @@ ADMIN_SESSION_SECRET=ci-admin-session-secret \
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=ci-explorer-settings-admin-token-0001 \
 FUNDING_GATEWAY_KEY=ci-funding-gateway-key \
 FUNDING_ADMIN_API_KEY=ci-funding-admin-service-key \
-AEKO_PUBLIC_RPC_URL=https://rpc.ci.invalid \
-AEKO_PUBLIC_WS_URL=wss://ws.ci.invalid \
 AEKO_PUBLIC_FUNDING_URL=https://fund.ci.invalid \
 FUNDING_ALLOWED_ORIGINS=https://scan.ci.invalid \
 bash -c '
   set -euo pipefail
   bash -n docker/validator-entrypoint.sh
+  sh -n docker/explorer-api-entrypoint.sh
+  bash -n scripts/test-explorer-api-entrypoint.sh
+  bash scripts/test-explorer-api-entrypoint.sh
   bash -n scripts/test-validator-entrypoint.sh
   bash scripts/test-validator-entrypoint.sh
   sh -n docker/key-preflight.sh
