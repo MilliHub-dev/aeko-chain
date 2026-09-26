@@ -105,10 +105,19 @@ services:
     command:
       - sh
       - -ec
-      - >-
-        mkdir -p /www/testnet &&
-        ln -sf /social/social-registry.env /www/testnet/social.env &&
-        ln -sf /protocol/protocol-registry.env /www/testnet/protocol.env &&
+      - |
+        mkdir -p /www/testnet
+        while true; do
+          if [ -s /social/social-registry.env ]; then
+            cp /social/social-registry.env /www/testnet/social.env.tmp
+            mv /www/testnet/social.env.tmp /www/testnet/social.env
+          fi
+          if [ -s /protocol/protocol-registry.env ]; then
+            cp /protocol/protocol-registry.env /www/testnet/protocol.env.tmp
+            mv /www/testnet/protocol.env.tmp /www/testnet/protocol.env
+          fi
+          sleep 5
+        done &
         exec httpd -f -p 8080 -h /www
     expose:
       - "8080"
@@ -130,5 +139,5 @@ services:
       interval: 30s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 210s
     logging: *default-logging
