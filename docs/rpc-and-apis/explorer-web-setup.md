@@ -21,49 +21,64 @@ PostgreSQL
 (finalized blocks, transactions, assets, Social projections)
 ```
 
-## Production runtime configuration
+## Runtime configuration
 
-Production images are deployment-neutral. `docker/explorer-ui-entrypoint.sh` reads these required variables when the container starts and writes `/runtime-config.js`:
+Each Explorer API instance belongs to one chain deployment and uses:
 
-```bash
-AEKO_TESTNET_RPC_URL=
-AEKO_TESTNET_WS_URL=
-AEKO_PUBLIC_EXPLORER_API_URL=
-AEKO_PUBLIC_EXPLORER_URL=
-AEKO_PUBLIC_FUNDING_URL=
+```text
+AEKO_NETWORK=<mainnet|testnet|devnet|localnet>
+AEKO_RPC_URL=<that network's RPC URL>
+AEKO_WS_URL=<that network's WebSocket URL>
+AEKO_REGISTRY_URL=<that network's registry URL>
 ```
 
-The API URL must route to `explorer-api:8088`. The UI URL must route to `explorer-ui:4000`; the entrypoint rejects an API/UI endpoint collision.
+Aeko Scan is different because one `scan.aeko.online` UI can view multiple
+independent chain deployments. Its generic values describe the active/default
+network:
 
-Optional mainnet and AEKO-721 demo runtime values live in the same canonical deployment template: `docker/env.public.example`.
+```text
+AEKO_NETWORK=testnet
+AEKO_RPC_URL=https://rpc.aeko.online
+AEKO_WS_URL=wss://ws.aeko.online
+AEKO_EXPLORER_API_URL=https://api.aeko.online
+```
+
+Optional complete `AEKO_MAINNET_*`, `AEKO_TESTNET_*` and
+`AEKO_DEVNET_*` RPC/WS/Explorer-API triplets make those remote networks
+selectable. Devnet is a real network when configured; it is not an alias for
+localnet or testnet.
+
+The Scan container injects a normalized `{network, networks, demo}` runtime
+object. Browser indexed reads remain same-origin under
+`/api/explorer/{network}`; the Scan server proxies each path to that
+network's Explorer API.
 
 ## Local Vite development
 
-Local Vite development can target either localhost or a remote AEKO deployment. Copy `apps/explorer/web/.env.example` to `.env.local` and set the explicit `AEKO_PUBLIC_*` and optional `AEKO_MAINNET_*` endpoint groups. If no testnet group is supplied, the client falls back to:
+Copy `apps/explorer/web/.env.example` to `.env.local`. The default local
+configuration uses:
 
 ```text
-RPC          http://127.0.0.1:8899
-WebSocket    ws://127.0.0.1:8900
-Explorer API http://127.0.0.1:8088
-Explorer UI  http://127.0.0.1:4000
+AEKO_NETWORK=localnet
+AEKO_RPC_URL=http://127.0.0.1:8899
+AEKO_WS_URL=ws://127.0.0.1:8900
+AEKO_EXPLORER_API_URL=http://127.0.0.1:8088
 ```
 
-`apps/explorer/web/.env.example` documents both local-development networks. Vite reads only those whitelisted endpoint keys during `npm run dev`; production builds do not bake them. Remote previews and production continue to use `docker/env.public.example`, and the container entrypoint normalizes those deployment variables into the same browser `testnet/mainnet/demo` runtime shape. Endpoint-specific `VITE_AEKO_*` variables are unsupported.
-
-## Boot the Explorer backend locally
-
-The backend requires PostgreSQL and validator RPC:
+The backend requires PostgreSQL and the same active-network variables:
 
 ```bash
 EXPLORER_DATABASE_URL=postgres://aeko:change-me@127.0.0.1:5432/aeko_explorer \
-AEKO_LOCALNET_RPC_URL=http://127.0.0.1:8899 \
-AEKO_LOCALNET_WS_URL=ws://127.0.0.1:8900 \
-AEKO_EXPLORER_NETWORK=localnet \
+AEKO_NETWORK=localnet \
+AEKO_RPC_URL=http://127.0.0.1:8899 \
+AEKO_WS_URL=ws://127.0.0.1:8900 \
 AEKO_EXPLORER_BIND=127.0.0.1:8088 \
 cargo run -p aeko-explorer-backend
 ```
 
-Useful indexing controls include `AEKO_EXPLORER_START_SLOT`, `AEKO_EXPLORER_MAX_BATCH_SIZE`, and `AEKO_EXPLORER_SYNC_INTERVAL_SECS`. See `docker/env.public.example` for the deployment-wide Explorer backend settings.
+Useful indexing controls include `AEKO_EXPLORER_START_SLOT`,
+`AEKO_EXPLORER_MAX_BATCH_SIZE`, and
+`AEKO_EXPLORER_SYNC_INTERVAL_SECS`.
 
 ## Run Explorer Web locally
 
