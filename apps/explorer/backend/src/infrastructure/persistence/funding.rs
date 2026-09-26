@@ -1,0 +1,627 @@
+use {
+    super::PostgresRepository,
+    chrono::{DateTime, Utc},
+    sqlx::FromRow,
+};
+
+#[derive(Clone, Debug, FromRow)]
+pub struct PersistedFundingSettings {
+    pub enabled: bool,
+    pub amount_aeko: f64,
+    pub cooldown_hours: f64,
+    pub daily_budget_aeko: f64,
+    pub max_manual_grant_aeko: f64,
+    pub console_airdrop_cap_aeko: f64,
+    pub revision: i64,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct FundingSettingsUpdate {
+    pub enabled: Option<bool>,
+    pub amount_aeko: Option<f64>,
+    pub cooldown_hours: Option<f64>,
+    pub daily_budget_aeko: Option<f64>,
+    pub max_manual_grant_aeko: Option<f64>,
+    pub console_airdrop_cap_aeko: Option<f64>,
+}
+
+#[derive(Clone, Debug, FromRow)]
+pub struct FundingRequestRecord {
+    pub id: String,
+    pub address: String,
+    pub amount_aeko: f64,
+    pub requested_at: DateTime<Utc>,
+    pub source: String,
+    pub status: String,
+    pub decided_at: Option<DateTime<Utc>>,
+    pub signature: Option<String>,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+}
+
+#[derive(Clone, Debug, FromRow)]
+pub struct FundingGrantRecord {
+    pub id: String,
+    pub address: String,
+    pub amount_aeko: f64,
+    pub signature: Option<String>,
+    pub granted_at: DateTime<Utc>,
+    pub source: String,
+    pub confirmed: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct FundingPolicySnapshot {
+    pub settings: PersistedFundingSettings,
+    pub public_spent_aeko: f64,
+    pub public_reserved_aeko: f64,
+}
+
+impl FundingPolicySnapshot {
+    pub fn daily_remaining_aeko(&self) -> f64 {
+        (self.settings.daily_budget_aeko - self.public_spent_aeko - self.public_reserved_aeko)
+            .max(0.0)
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum FundingStoreError {
+    #[error("test funding is paused")]
+    Disabled,
+    #[error("wallet is still in funding cooldown")]
+    Cooldown { retry_after_seconds: u64 },
+    #[error("wallet already has an active funding request")]
+    RequestPending { request_id: String },
+    #[error("the public funding budget is exhausted")]
+    BudgetExhausted,
+    #[error("funding request not found")]
+    RequestNotFound,
+    #[error("funding request is already {status}")]
+    RequestAlreadyDecided { status: String },
+    #[error("funding settings revision conflict")]
+    RevisionConflict,
+    #[error("funding request rate limit exceeded")]
+    RateLimited { retry_after_seconds: u64 },
+    #[error(transparent)]
+    Database(#[from] sqlx::Error),
+}
+
+const SETTINGS_COLUMNS: &str = r#"
+    enabled,
+    amount_aeko::double precision AS amount_aeko,
+    cooldown_hours::double precision AS cooldown_hours,
+    daily_budget_aeko::double precision AS daily_budget_aeko,
+    max_manual_grant_aeko::double precision AS max_manual_grant_aeko,
+    console_airdrop_cap_aeko::double precision AS console_airdrop_cap_aeko,
+    revision,
+    updated_at
+"#;
+
+const REQUEST_COLUMNS: &str = r#"
+    id::text AS id,
+    address,
+    amount_aeko::double precision AS amount_aeko,
+    requested_at,
+    source,
+    status,
+    decided_at,
+    signature,
+    error_code,
+    error_message
+"#;
+
+const GRANT_COLUMNS: &str = r#"
+    id::text AS id,
+    address,
+    amount_aeko::double precision AS amount_aeko,
+    signature,
+    granted_at,
+    source,
+    confirmed
+"#;
+
+impl PostgresRepository {
+    pub async fn funding_policy_snapshot(&self) -> Result<FundingPolicySnapshot, sqlx::Error> {
+        let settings = self.funding_settings().await?;
+        let public_spent_aeko: f64 = sqlx::query_scalar(
+            r#"
+            SELECT COALESCE(SUM(amount_aeko), 0)::double precision
+            FROM funding_grants
+            WHERE source = 'public'
+              AND granted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+            "#,
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        let public_reserved_aeko: f64 = sqlx::query_scalar(
+            r#"
+            SELECT COALESCE(SUM(amount_aeko), 0)::double precision
+            FROM funding_requests
+            WHERE source = 'public'
+              AND status = 'processing'
+              AND decided_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+            "#,
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(FundingPolicySnapshot {
+            settings,
+            public_spent_aeko,
+            public_reserved_aeko,
+        })
+    }
+
+    pub async fn funding_settings(&self) -> Result<PersistedFundingSettings, sqlx::Error> {
+        let sql = format!(
+            "SELECT {SETTINGS_COLUMNS} FROM funding_settings WHERE singleton = TRUE"
+        );
+        sqlx::query_as::<_, PersistedFundingSettings>(&sql)
+            .fetch_one(&self.pool)
+            .await
+    }
+
+    pub async fn update_funding_settings(
+        &self,
+        expected_revision: i64,
+        update: &FundingSettingsUpdate,
+    ) -> Result<PersistedFundingSettings, FundingStoreError> {
+        let sql = format!(
+            r#"
+            UPDATE funding_settings
+            SET
+                enabled = COALESCE($1, enabled),
+                amount_aeko = CASE WHEN $2::double precision IS NULL THEN amount_aeko ELSE $2::double precision::numeric END,
+                cooldown_hours = CASE WHEN $3::double precision IS NULL THEN cooldown_hours ELSE $3::double precision::numeric END,
+                daily_budget_aeko = CASE WHEN $4::double precision IS NULL THEN daily_budget_aeko ELSE $4::double precision::numeric END,
+                max_manual_grant_aeko = CASE WHEN $5::double precision IS NULL THEN max_manual_grant_aeko ELSE $5::double precision::numeric END,
+                console_airdrop_cap_aeko = CASE WHEN $6::double precision IS NULL THEN console_airdrop_cap_aeko ELSE $6::double precision::numeric END,
+                revision = revision + 1,
+                updated_at = NOW()
+            WHERE singleton = TRUE AND revision = $7
+            RETURNING {SETTINGS_COLUMNS}
+            "#
+        );
+        sqlx::query_as::<_, PersistedFundingSettings>(&sql)
+            .bind(update.enabled)
+            .bind(update.amount_aeko)
+            .bind(update.cooldown_hours)
+            .bind(update.daily_budget_aeko)
+            .bind(update.max_manual_grant_aeko)
+            .bind(update.console_airdrop_cap_aeko)
+            .bind(expected_revision)
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or(FundingStoreError::RevisionConflict)
+    }
+
+    pub async fn record_funding_rate_event(
+        &self,
+        scope: &str,
+        subject: &str,
+        max_requests: i64,
+        window_seconds: i32,
+    ) -> Result<(), FundingStoreError> {
+        let mut tx = self.pool.begin().await?;
+        let lock_key = format!("{scope}:{subject}");
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1))")
+            .bind(&lock_key)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query(
+            "DELETE FROM funding_rate_events WHERE occurred_at < NOW() - INTERVAL '1 day'",
+        )
+        .execute(&mut *tx)
+        .await?;
+        let count: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)::bigint
+            FROM funding_rate_events
+            WHERE scope = $1
+              AND subject = $2
+              AND occurred_at >= NOW() - make_interval(secs => $3)
+            "#,
+        )
+        .bind(scope)
+        .bind(subject)
+        .bind(window_seconds)
+        .fetch_one(&mut *tx)
+        .await?;
+        if count >= max_requests {
+            return Err(FundingStoreError::RateLimited {
+                retry_after_seconds: u64::try_from(window_seconds).unwrap_or(600),
+            });
+        }
+        sqlx::query("INSERT INTO funding_rate_events (scope, subject) VALUES ($1, $2)")
+            .bind(scope)
+            .bind(subject)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn create_public_funding_request(
+        &self,
+        address: &str,
+    ) -> Result<FundingRequestRecord, FundingStoreError> {
+        let mut tx = self.pool.begin().await?;
+        let settings_sql = format!(
+            "SELECT {SETTINGS_COLUMNS} FROM funding_settings WHERE singleton = TRUE FOR UPDATE"
+        );
+        let settings = sqlx::query_as::<_, PersistedFundingSettings>(&settings_sql)
+            .fetch_one(&mut *tx)
+            .await?;
+        if !settings.enabled {
+            return Err(FundingStoreError::Disabled);
+        }
+
+        let pending: Option<String> = sqlx::query_scalar(
+            r#"
+            SELECT id::text
+            FROM funding_requests
+            WHERE address = $1 AND source = 'public' AND status IN ('pending', 'processing')
+            ORDER BY requested_at DESC
+            LIMIT 1
+            "#,
+        )
+        .bind(address)
+        .fetch_optional(&mut *tx)
+        .await?;
+        if let Some(request_id) = pending {
+            return Err(FundingStoreError::RequestPending { request_id });
+        }
+
+        let seconds_since_last: Option<f64> = sqlx::query_scalar(
+            r#"
+            SELECT EXTRACT(EPOCH FROM (NOW() - MAX(granted_at)))::double precision
+            FROM funding_grants
+            WHERE address = $1 AND source = 'public'
+            "#,
+        )
+        .bind(address)
+        .fetch_one(&mut *tx)
+        .await?;
+        if let Some(elapsed) = seconds_since_last {
+            let cooldown_seconds = settings.cooldown_hours * 3600.0;
+            if elapsed < cooldown_seconds {
+                return Err(FundingStoreError::Cooldown {
+                    retry_after_seconds: (cooldown_seconds - elapsed).ceil().max(1.0) as u64,
+                });
+            }
+        }
+
+        let spent: f64 = sqlx::query_scalar(
+            r#"
+            SELECT COALESCE(SUM(amount_aeko), 0)::double precision
+            FROM funding_grants
+            WHERE source = 'public'
+              AND granted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+            "#,
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        let reserved: f64 = sqlx::query_scalar(
+            r#"
+            SELECT COALESCE(SUM(amount_aeko), 0)::double precision
+            FROM funding_requests
+            WHERE source = 'public' AND status = 'processing'
+              AND decided_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+            "#,
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        if spent + reserved + settings.amount_aeko > settings.daily_budget_aeko {
+            return Err(FundingStoreError::BudgetExhausted);
+        }
+
+        let sql = format!(
+            r#"
+            INSERT INTO funding_requests (address, amount_aeko, source, status)
+            VALUES ($1, $2::double precision::numeric, 'public', 'pending')
+            RETURNING {REQUEST_COLUMNS}
+            "#
+        );
+        let request = sqlx::query_as::<_, FundingRequestRecord>(&sql)
+            .bind(address)
+            .bind(settings.amount_aeko)
+            .fetch_one(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(request)
+    }
+
+    pub async fn create_immediate_funding_request(
+        &self,
+        address: &str,
+        amount_aeko: f64,
+        source: &str,
+    ) -> Result<FundingRequestRecord, FundingStoreError> {
+        let sql = format!(
+            r#"
+            INSERT INTO funding_requests (address, amount_aeko, source, status, decided_at)
+            VALUES ($1, $2::double precision::numeric, $3, 'processing', NOW())
+            RETURNING {REQUEST_COLUMNS}
+            "#
+        );
+        Ok(sqlx::query_as::<_, FundingRequestRecord>(&sql)
+            .bind(address)
+            .bind(amount_aeko)
+            .bind(source)
+            .fetch_one(&self.pool)
+            .await?)
+    }
+
+    pub async fn reserve_public_funding_request(
+        &self,
+        id: &str,
+    ) -> Result<FundingRequestRecord, FundingStoreError> {
+        let mut tx = self.pool.begin().await?;
+        let request_sql = format!(
+            "SELECT {REQUEST_COLUMNS} FROM funding_requests WHERE id = $1::uuid FOR UPDATE"
+        );
+        let request = sqlx::query_as::<_, FundingRequestRecord>(&request_sql)
+            .bind(id)
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or(FundingStoreError::RequestNotFound)?;
+        if request.status != "pending" || request.source != "public" {
+            return Err(FundingStoreError::RequestAlreadyDecided {
+                status: request.status,
+            });
+        }
+
+        let settings_sql = format!(
+            "SELECT {SETTINGS_COLUMNS} FROM funding_settings WHERE singleton = TRUE FOR UPDATE"
+        );
+        let settings = sqlx::query_as::<_, PersistedFundingSettings>(&settings_sql)
+            .fetch_one(&mut *tx)
+            .await?;
+        if !settings.enabled {
+            return Err(FundingStoreError::Disabled);
+        }
+
+        let seconds_since_last: Option<f64> = sqlx::query_scalar(
+            r#"
+            SELECT EXTRACT(EPOCH FROM (NOW() - MAX(granted_at)))::double precision
+            FROM funding_grants
+            WHERE address = $1 AND source = 'public'
+            "#,
+        )
+        .bind(&request.address)
+        .fetch_one(&mut *tx)
+        .await?;
+        if let Some(elapsed) = seconds_since_last {
+            let cooldown_seconds = settings.cooldown_hours * 3600.0;
+            if elapsed < cooldown_seconds {
+                return Err(FundingStoreError::Cooldown {
+                    retry_after_seconds: (cooldown_seconds - elapsed).ceil().max(1.0) as u64,
+                });
+            }
+        }
+
+        let spent: f64 = sqlx::query_scalar(
+            r#"
+            SELECT COALESCE(SUM(amount_aeko), 0)::double precision
+            FROM funding_grants
+            WHERE source = 'public'
+              AND granted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+            "#,
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        let reserved: f64 = sqlx::query_scalar(
+            r#"
+            SELECT COALESCE(SUM(amount_aeko), 0)::double precision
+            FROM funding_requests
+            WHERE source = 'public' AND status = 'processing'
+              AND decided_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+            "#,
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        if spent + reserved + request.amount_aeko > settings.daily_budget_aeko {
+            return Err(FundingStoreError::BudgetExhausted);
+        }
+
+        let update_sql = format!(
+            r#"
+            UPDATE funding_requests
+            SET status = 'processing', decided_at = NOW(), error_code = NULL, error_message = NULL
+            WHERE id = $1::uuid
+            RETURNING {REQUEST_COLUMNS}
+            "#
+        );
+        let reserved_request = sqlx::query_as::<_, FundingRequestRecord>(&update_sql)
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(reserved_request)
+    }
+
+    pub async fn set_funding_request_signature(
+        &self,
+        id: &str,
+        signature: &str,
+    ) -> Result<FundingRequestRecord, FundingStoreError> {
+        let sql = format!(
+            r#"
+            UPDATE funding_requests
+            SET signature = $2, error_code = NULL, error_message = NULL
+            WHERE id = $1::uuid AND status = 'processing'
+            RETURNING {REQUEST_COLUMNS}
+            "#
+        );
+        sqlx::query_as::<_, FundingRequestRecord>(&sql)
+            .bind(id)
+            .bind(signature)
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or(FundingStoreError::RequestNotFound)
+    }
+
+    pub async fn reset_funding_request_after_transfer_failure(
+        &self,
+        id: &str,
+        code: &str,
+        message: &str,
+    ) -> Result<(), FundingStoreError> {
+        sqlx::query(
+            r#"
+            UPDATE funding_requests
+            SET status = 'pending', decided_at = NULL, signature = NULL,
+                error_code = $2, error_message = $3
+            WHERE id = $1::uuid AND status = 'processing'
+            "#,
+        )
+        .bind(id)
+        .bind(code)
+        .bind(message)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn reject_funding_request(
+        &self,
+        id: &str,
+        code: Option<&str>,
+        message: Option<&str>,
+    ) -> Result<FundingRequestRecord, FundingStoreError> {
+        let sql = format!(
+            r#"
+            UPDATE funding_requests
+            SET status = 'rejected', decided_at = NOW(), error_code = $2, error_message = $3
+            WHERE id = $1::uuid AND status IN ('pending', 'processing')
+            RETURNING {REQUEST_COLUMNS}
+            "#
+        );
+        if let Some(request) = sqlx::query_as::<_, FundingRequestRecord>(&sql)
+            .bind(id)
+            .bind(code)
+            .bind(message)
+            .fetch_optional(&self.pool)
+            .await?
+        {
+            return Ok(request);
+        }
+        let existing = self.funding_request(id).await?;
+        match existing {
+            Some(request) => Err(FundingStoreError::RequestAlreadyDecided {
+                status: request.status,
+            }),
+            None => Err(FundingStoreError::RequestNotFound),
+        }
+    }
+
+    pub async fn finalize_funding_request(
+        &self,
+        id: &str,
+        confirmed: bool,
+    ) -> Result<FundingRequestRecord, FundingStoreError> {
+        let mut tx = self.pool.begin().await?;
+        let request_sql = format!(
+            "SELECT {REQUEST_COLUMNS} FROM funding_requests WHERE id = $1::uuid FOR UPDATE"
+        );
+        let request = sqlx::query_as::<_, FundingRequestRecord>(&request_sql)
+            .bind(id)
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or(FundingStoreError::RequestNotFound)?;
+        if request.status == "approved" {
+            return Ok(request);
+        }
+        if request.status != "processing" {
+            return Err(FundingStoreError::RequestAlreadyDecided {
+                status: request.status,
+            });
+        }
+        let signature = request
+            .signature
+            .as_deref()
+            .ok_or(FundingStoreError::RequestAlreadyDecided {
+                status: "processing-without-signature".to_string(),
+            })?;
+
+        sqlx::query(
+            r#"
+            INSERT INTO funding_grants (address, amount_aeko, signature, granted_at, source, confirmed)
+            VALUES ($1, $2::double precision::numeric, $3, NOW(), $4, $5)
+            ON CONFLICT (signature) WHERE signature IS NOT NULL
+            DO UPDATE SET confirmed = EXCLUDED.confirmed
+            "#,
+        )
+        .bind(&request.address)
+        .bind(request.amount_aeko)
+        .bind(signature)
+        .bind(&request.source)
+        .bind(confirmed)
+        .execute(&mut *tx)
+        .await?;
+
+        let update_sql = format!(
+            r#"
+            UPDATE funding_requests
+            SET status = 'approved', decided_at = NOW(), error_code = NULL, error_message = NULL
+            WHERE id = $1::uuid
+            RETURNING {REQUEST_COLUMNS}
+            "#
+        );
+        let approved = sqlx::query_as::<_, FundingRequestRecord>(&update_sql)
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(approved)
+    }
+
+    pub async fn funding_request(
+        &self,
+        id: &str,
+    ) -> Result<Option<FundingRequestRecord>, FundingStoreError> {
+        let sql = format!(
+            "SELECT {REQUEST_COLUMNS} FROM funding_requests WHERE id = $1::uuid"
+        );
+        Ok(sqlx::query_as::<_, FundingRequestRecord>(&sql)
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await?)
+    }
+
+    pub async fn list_funding_requests(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<FundingRequestRecord>, FundingStoreError> {
+        let sql = format!(
+            r#"
+            SELECT {REQUEST_COLUMNS}
+            FROM funding_requests
+            ORDER BY requested_at DESC
+            LIMIT $1
+            "#
+        );
+        Ok(sqlx::query_as::<_, FundingRequestRecord>(&sql)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?)
+    }
+
+    pub async fn list_funding_grants(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<FundingGrantRecord>, FundingStoreError> {
+        let sql = format!(
+            r#"
+            SELECT {GRANT_COLUMNS}
+            FROM funding_grants
+            ORDER BY granted_at DESC
+            LIMIT $1
+            "#
+        );
+        Ok(sqlx::query_as::<_, FundingGrantRecord>(&sql)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?)
+    }
+}
