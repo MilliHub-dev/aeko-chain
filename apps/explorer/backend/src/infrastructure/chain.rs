@@ -53,6 +53,20 @@ struct RpcContextResponse<T> {
     value: T,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FundingTransferStatus {
+    Pending,
+    Confirmed,
+    Failed(String),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RpcFundingSignatureStatus {
+    err: Option<Value>,
+    confirmation_status: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct JsonRpcError {
     code: i64,
@@ -486,6 +500,63 @@ impl RpcChainClient {
             });
         }
         Ok(transfers)
+    }
+
+    pub fn request_funding_airdrop(
+        &self,
+        address: &str,
+        lamports: u64,
+        funding_authorization: Option<&str>,
+    ) -> Result<String> {
+        let _: Pubkey = address
+            .parse()
+            .with_context(|| format!("invalid AEKO funding address {address:?}"))?;
+        if lamports == 0 {
+            bail!("funding amount must be greater than zero");
+        }
+        let config = match funding_authorization {
+            Some(value) => json!({ "fundingAuthorization": value }),
+            None => json!({}),
+        };
+        self.rpc_request("requestAirdrop", json!([address, lamports, config]))
+    }
+
+    pub fn funding_transfer_status(&self, signature: &str) -> Result<FundingTransferStatus> {
+        let _: Signature = signature
+            .parse()
+            .with_context(|| format!("invalid AEKO funding signature {signature:?}"))?;
+        let statuses: Vec<Option<RpcFundingSignatureStatus>> = self.rpc_context_value_request(
+            "getSignatureStatuses",
+            json!([[signature], { "searchTransactionHistory": true }]),
+        )?;
+        let Some(status) = statuses.into_iter().next().flatten() else {
+            return Ok(FundingTransferStatus::Pending);
+        };
+        if let Some(error) = status.err {
+            return Ok(FundingTransferStatus::Failed(error.to_string()));
+        }
+        match status.confirmation_status.as_deref() {
+            Some("confirmed" | "finalized") => Ok(FundingTransferStatus::Confirmed),
+            _ => Ok(FundingTransferStatus::Pending),
+        }
+    }
+
+    pub fn wait_for_funding_transfer(
+        &self,
+        signature: &str,
+        attempts: u32,
+        interval: std::time::Duration,
+    ) -> Result<FundingTransferStatus> {
+        for attempt in 0..attempts {
+            let status = self.funding_transfer_status(signature)?;
+            if status != FundingTransferStatus::Pending {
+                return Ok(status);
+            }
+            if attempt + 1 < attempts {
+                std::thread::sleep(interval);
+            }
+        }
+        Ok(FundingTransferStatus::Pending)
     }
 
     fn rpc_context_value_request<T: DeserializeOwned>(
