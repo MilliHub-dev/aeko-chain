@@ -23,7 +23,11 @@ const TESTNET = {
 };
 
 test('settings fetch failure names the backend URL instead of a bare status', async () => {
-  const { fetchPublicAppSettings } = await loadAppSettings({ testnet: TESTNET, demo: {} });
+  const { fetchPublicAppSettings } = await loadAppSettings({
+    network: 'testnet',
+    networks: { testnet: TESTNET },
+    demo: {},
+  });
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => ({
     ok: false,
