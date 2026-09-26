@@ -179,6 +179,29 @@ fn optional_bool_env(key: &str) -> Result<bool> {
 }
 
 #[cfg(test)]
+impl Default for ExplorerBackendConfig {
+    fn default() -> Self {
+        Self {
+            rpc_url: "http://127.0.0.1:8899".to_string(),
+            websocket_url: None,
+            network: "test".to_string(),
+            start_slot: 0,
+            max_batch_size: 256,
+            persist_socialfi_views: true,
+            database_url: "postgres://test:test@127.0.0.1:5432/aeko_explorer_test".to_string(),
+            db_max_connections: 4,
+            db_min_connections: 1,
+            db_acquire_timeout: Duration::from_secs(5),
+            rpc_timeout: Duration::from_secs(5),
+            asset_refresh_slots: 64,
+            social_refresh_slots: 16,
+            max_ready_lag_slots: 128,
+            reset_chain_on_start: false,
+        }
+    }
+}
+
+#[cfg(test)]
 mod config_tests {
     use super::network_endpoint_key;
 
@@ -204,25 +227,3 @@ mod config_tests {
     }
 }
 
-#[cfg(test)]
-impl Default for ExplorerBackendConfig {
-    fn default() -> Self {
-        Self {
-            rpc_url: "http://127.0.0.1:8899".to_string(),
-            websocket_url: None,
-            network: "test".to_string(),
-            start_slot: 0,
-            max_batch_size: 256,
-            persist_socialfi_views: true,
-            database_url: "postgres://test:test@127.0.0.1:5432/aeko_explorer_test".to_string(),
-            db_max_connections: 4,
-            db_min_connections: 1,
-            db_acquire_timeout: Duration::from_secs(5),
-            rpc_timeout: Duration::from_secs(5),
-            asset_refresh_slots: 64,
-            social_refresh_slots: 16,
-            max_ready_lag_slots: 128,
-            reset_chain_on_start: false,
-        }
-    }
-}
