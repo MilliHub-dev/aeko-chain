@@ -36,6 +36,13 @@ def require_empty_assignment(text: str, name: str, where: str) -> None:
     )
 
 
+def require_assignment(text: str, name: str, value: str, where: str) -> None:
+    require(
+        re.search(rf"^{re.escape(name)}={re.escape(value)}$", text, re.MULTILINE) is not None,
+        f"{where} must set {name}={value}",
+    )
+
+
 def main() -> int:
     admin_env = read("apps/admin/.env.local.example")
     public_env = read("docker/env.public.example")
@@ -79,20 +86,16 @@ def main() -> int:
     docs = json.loads(docs_text)
     require(isinstance(docs.get("content"), dict), "Explorer docs.json must contain a content object")
 
-    public_vars = (
-        "AEKO_TESTNET_RPC_URL",
-        "AEKO_TESTNET_WS_URL",
-        "AEKO_PUBLIC_FUNDING_URL",
-        "FUNDING_ALLOWED_ORIGINS",
-    )
-    for name in public_vars:
+    require_assignment(public_env, "AEKO_TESTNET_RPC_URL", "https://rpc.aeko.online", "docker/env.public.example")
+    require_assignment(public_env, "AEKO_TESTNET_WS_URL", "wss://ws.aeko.online", "docker/env.public.example")
+    require_assignment(public_env, "AEKO_TESTNET_EXPLORER_API_URL", "https://api.aeko.online", "docker/env.public.example")
+    for name in ("AEKO_PUBLIC_FUNDING_URL", "FUNDING_ALLOWED_ORIGINS"):
         require_empty_assignment(public_env, name, "docker/env.public.example")
 
     for retired in (
         "AEKO_PUBLIC_EXPLORER_API_URL",
         "AEKO_PUBLIC_EXPLORER_URL",
         "AEKO_PUBLIC_ADMIN_URL",
-        "AEKO_MAINNET_EXPLORER_API_URL",
         "AEKO_MAINNET_EXPLORER_URL",
         "FUNDING_CLIENT_API_KEY",
     ):
@@ -100,6 +103,7 @@ def main() -> int:
 
     require(
         "AEKO_OPERATIONS_ROLE=admin" in admin_env
+        and "AEKO_TESTNET_RPC_URL=" in admin_env
         and "AEKO_TESTNET_EXPLORER_API_URL=" in admin_env
         and "AEKO_INTERNAL_FUNDING_URL=" in admin_env
         and "FUNDING_ADMIN_API_KEY=" in admin_env,
@@ -132,7 +136,6 @@ def main() -> int:
         "AEKO_TESTNET_EXPLORER_API_URL",
         "AEKO_MAINNET_RPC_URL",
         "AEKO_MAINNET_WS_URL",
-        "AEKO_MAINNET_EXPLORER_API_URL",
         "AEKO_DEMO_RPC_URL",
         "AEKO_DEMO_COLLECTION",
         "AEKO_DEMO_TOKEN",
@@ -147,7 +150,6 @@ def main() -> int:
         "AEKO_PUBLIC_EXPLORER_API_URL",
         "AEKO_PUBLIC_EXPLORER_URL",
         "AEKO_PUBLIC_ADMIN_URL",
-        "AEKO_MAINNET_EXPLORER_API_URL",
         "AEKO_MAINNET_EXPLORER_URL",
     ):
         reject(explorer_example, retired, "Explorer web env example")
@@ -164,7 +166,7 @@ def main() -> int:
     require(
         "loadEnv" in explorer_vite
         and "command === 'serve'" in explorer_vite
-        and "AEKO_PUBLIC" in explorer_vite
+        and "AEKO_TESTNET" in explorer_vite
         and "AEKO_MAINNET" in explorer_vite
         and "__AEKO_DEV_RUNTIME_CONFIG__" in explorer_vite,
         "Explorer local Vite mode must read whitelisted public-testnet/mainnet env endpoints only during dev",
@@ -183,16 +185,11 @@ def main() -> int:
         "Explorer local mode must retain loopback chain defaults and same-origin indexed reads",
     )
 
-    for name in (
-        "AEKO_TESTNET_RPC_URL",
-        "AEKO_TESTNET_WS_URL",
-        "AEKO_PUBLIC_FUNDING_URL",
-    ):
+    for name in ("AEKO_TESTNET_RPC_URL", "AEKO_TESTNET_WS_URL"):
         require((': "${' + name + ':?') in explorer_entrypoint, f"Explorer runtime entrypoint must require {name}")
     for retired in (
         "AEKO_PUBLIC_EXPLORER_API_URL",
         "AEKO_PUBLIC_EXPLORER_URL",
-        "AEKO_MAINNET_EXPLORER_API_URL",
         "AEKO_MAINNET_EXPLORER_URL",
     ):
         reject(explorer_entrypoint, retired, "Explorer runtime entrypoint")
@@ -218,26 +215,31 @@ def main() -> int:
         require(compose.count("aeko-operations-web:") >= 2, f"{label} must run isolated funding and Admin instances from the validated Operations image")
         require("AEKO_OPERATIONS_ROLE: funding" in compose, f"{label} funding gateway must run in funding role")
         require("AEKO_OPERATIONS_ROLE: admin" in compose, f"{label} operations web must run in admin role")
-        require("AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in compose, f"{label} services must use internal validator DNS")
-        require("AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-http://explorer-api:8088}" in compose, f"{label} Explorer consumers must use private Docker DNS")
+        require(
+            "AEKO_RPC_URL: ${AEKO_TESTNET_RPC_URL:-${AEKO_INTERNAL_RPC_URL:-http://validator:8899}}" in compose,
+            f"{label} internal binaries must resolve the canonical testnet RPC variable first",
+        )
+        require(
+            "AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}}" in compose,
+            f"{label} Explorer consumers must resolve the canonical testnet Explorer API variable first",
+        )
         require("AEKO_INTERNAL_FUNDING_URL: ${AEKO_INTERNAL_FUNDING_URL:-http://funding-gateway:3001}" in compose, f"{label} Admin must use private Funding Gateway DNS")
         require("FUNDING_ADMIN_API_KEY: ${FUNDING_ADMIN_API_KEY:?}" in compose, f"{label} must authenticate private Admin-to-funding calls")
         require("FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in compose, f"{label} Funding Gateway must own protected airdrop authorization")
         require("FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:?}" in compose, f"{label} Funding Gateway must receive browser CORS origins explicitly")
-        require("AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-faucet:9900}" in compose, f"{label} validator must reach the private Faucet Daemon by Docker DNS")
-        for name in (
-            "AEKO_TESTNET_RPC_URL",
-            "AEKO_TESTNET_WS_URL",
-            "AEKO_PUBLIC_FUNDING_URL",
-        ):
-            require((name + ": ${" + name + ":?}") in compose, f"{label} Explorer/Funding runtime must receive {name}")
-        require("AEKO_MAINNET_EXPLORER_API_URL: ${AEKO_MAINNET_EXPLORER_API_URL:-}" in compose, f"{label} Explorer UI must accept optional private mainnet Explorer upstream")
+        require(
+            "AEKO_FAUCET_ADDRESS: ${AEKO_TESTNET_FAUCET_ADDRESS:-${AEKO_INTERNAL_FAUCET_ADDRESS:-faucet:9900}}" in compose,
+            f"{label} validator must resolve the canonical testnet Faucet address first",
+        )
+        for name in ("AEKO_TESTNET_RPC_URL", "AEKO_TESTNET_WS_URL"):
+            require((name + ": ${" + name + ":-") in compose, f"{label} Explorer runtime must receive {name}")
+        require("AEKO_PUBLIC_FUNDING_URL: ${AEKO_PUBLIC_FUNDING_URL:?}" in compose, f"{label} funding runtime must receive AEKO_PUBLIC_FUNDING_URL")
+        require("AEKO_MAINNET_EXPLORER_API_URL: ${AEKO_MAINNET_EXPLORER_API_URL:-${AEKO_INTERNAL_MAINNET_EXPLORER_API_URL:-}}" in compose, f"{label} Explorer UI must accept an optional mainnet Explorer origin")
         for retired in (
             "AEKO_PUBLIC_EXPLORER_API_URL",
             "AEKO_PUBLIC_EXPLORER_URL",
             "AEKO_PUBLIC_ADMIN_URL",
-            "AEKO_MAINNET_EXPLORER_API_URL",
-            "AEKO_MAINNET_EXPLORER_URL",
+                "AEKO_MAINNET_EXPLORER_URL",
             "FUNDING_CLIENT_API_KEY",
             "AEKO_EXPLORER_URL:",
         ):
@@ -286,7 +288,7 @@ def main() -> int:
     )
     require(
         "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" in settings_route
-        and "AEKO_TESTNET_EXPLORER_API_URL" in settings_route,
+        and "resolveAdminExplorerUrl" in settings_route,
         "private Explorer settings token must remain server-side in the Next.js route",
     )
     require(
