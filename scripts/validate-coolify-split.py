@@ -194,6 +194,10 @@ def main() -> int:
         "AEKO_GOSSIP_HOST=gossip.aeko.online" in envs["validator"],
         "Validator env example must advertise the canonical gossip DNS hostname",
     )
+    require(
+        "AEKO_FUNDING_AUTHORIZATION_KEY:" in validator,
+        "Validator must accept the server-side funding authorization key",
+    )
 
     explorer_api = loaded["explorer-api"]
     for expected in (
@@ -206,6 +210,19 @@ def main() -> int:
     require("volumes:" not in explorer_api, "Explorer API must not require bootstrap-host filesystem mounts")
     require("ports:" not in explorer_api, "Explorer API HTTP ingress must be routed by its domain")
     require("AEKO_REGISTRY_SCHEMA_VERSION" not in explorer_api, "Explorer API must not require copied registry values")
+    for funding_name in (
+        "AEKO_FUNDING_AUTHORIZATION_KEY",
+        "AEKO_FUNDING_REQUESTS_PER_10_MIN",
+        "AEKO_FAUCET_PER_REQUEST_CAP",
+    ):
+        require(
+            f"{funding_name}:" in explorer_api,
+            f"Explorer API missing funding control {funding_name}",
+        )
+    require(
+        "AEKO_SCAN_AIRDROP_KEY" not in explorer_api,
+        "Explorer API must not retain the retired Scan-only airdrop key",
+    )
     for name in ("AEKO_NETWORK", "AEKO_RPC_URL", "AEKO_EXPLORER_API_URL", "AEKO_REGISTRY_URL"):
         require(f"{name}=" in envs["explorer-api"], f"Explorer API env example missing {name}")
 
