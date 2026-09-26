@@ -43,11 +43,11 @@ bash -c '
   bash scripts/test-key-preflight.sh
   bash -n scripts/deploy-testnet.sh
   bash -n scripts/audit-validator-storage.sh
-  # These validators describe the retired Funding Gateway deployment contract
-  # and funding API routes. Funding is now owned by the Explorer/Scan backend,
-  # so running them here makes every network image build fail before Rust or
-  # Docker work starts.
+  # Network topology is enforced by the focused current contract validators
+  # below. Older broad validators still contain unrelated historical assertions
+  # and are not used as the source of truth for service discovery.
   python3 scripts/validate-program-ids.py
+  python3 scripts/validate-network-ports.py
   python3 scripts/validate-coolify-split.py
   for compose in docker/coolify/*/compose.yml; do
     docker compose -f "$compose" config >/dev/null
