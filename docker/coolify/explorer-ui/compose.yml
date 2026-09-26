@@ -1,4 +1,6 @@
-# Coolify split resource: Aeko Scan UI only.
+# Coolify split resource: global Aeko Scan UI.
+# Scan has one active/default network plus optional endpoint sets for other
+# independently deployed networks that users may switch to.
 x-logging: &default-logging
   driver: json-file
   options:
@@ -11,16 +13,26 @@ services:
     pull_policy: always
     restart: unless-stopped
     environment:
-      AEKO_ENV: ${AEKO_ENV:-production}
-      AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}
-      AEKO_TESTNET_WS_URL: ${AEKO_TESTNET_WS_URL:-wss://ws.aeko.online}
-      AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-https://api.aeko.online}
+      AEKO_NETWORK: ${AEKO_NETWORK:?Set the default Scan network}
+      AEKO_RPC_URL: ${AEKO_RPC_URL:?Set the active network RPC URL}
+      AEKO_WS_URL: ${AEKO_WS_URL:?Set the active network WebSocket URL}
+      AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?Set the active network Explorer API URL}
+
+      # Optional alternate networks. Configure each triplet completely or
+      # leave it empty. The active network does not need its prefixed triplet.
       AEKO_MAINNET_RPC_URL: ${AEKO_MAINNET_RPC_URL:-}
       AEKO_MAINNET_WS_URL: ${AEKO_MAINNET_WS_URL:-}
       AEKO_MAINNET_EXPLORER_API_URL: ${AEKO_MAINNET_EXPLORER_API_URL:-}
+      AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:-}
+      AEKO_TESTNET_WS_URL: ${AEKO_TESTNET_WS_URL:-}
+      AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-}
+      AEKO_DEVNET_RPC_URL: ${AEKO_DEVNET_RPC_URL:-}
+      AEKO_DEVNET_WS_URL: ${AEKO_DEVNET_WS_URL:-}
+      AEKO_DEVNET_EXPLORER_API_URL: ${AEKO_DEVNET_EXPLORER_API_URL:-}
       AEKO_LOCALNET_RPC_URL: ${AEKO_LOCALNET_RPC_URL:-}
       AEKO_LOCALNET_WS_URL: ${AEKO_LOCALNET_WS_URL:-}
       AEKO_LOCALNET_EXPLORER_API_URL: ${AEKO_LOCALNET_EXPLORER_API_URL:-}
+
       AEKO_DEMO_RPC_URL: ${AEKO_DEMO_RPC_URL:-}
       AEKO_DEMO_COLLECTION: ${AEKO_DEMO_COLLECTION:-}
       AEKO_DEMO_TOKEN: ${AEKO_DEMO_TOKEN:-}
