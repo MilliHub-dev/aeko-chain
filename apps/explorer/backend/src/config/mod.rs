@@ -30,12 +30,15 @@ pub struct ExplorerBackendConfig {
 
 impl ExplorerBackendConfig {
     pub fn from_env() -> Result<Self> {
-        let network = required_env("AEKO_EXPLORER_NETWORK")?;
-        let rpc_key = network_endpoint_key(&network, "RPC_URL")?;
-        let ws_key = network_endpoint_key(&network, "WS_URL")?;
-        let rpc_url = optional_env(&rpc_key)
-            .ok_or_else(|| anyhow!("Explorer RPC is required: set {rpc_key}"))?;
-        let websocket_url = optional_env(&ws_key);
+        let network = optional_env("AEKO_NETWORK")
+            .or_else(|| optional_env("AEKO_EXPLORER_NETWORK"))
+            .ok_or_else(|| anyhow!("required environment variable AEKO_NETWORK is missing or empty"))?;
+        validate_network(&network)?;
+        let rpc_url = optional_env("AEKO_RPC_URL")
+            .or_else(|| optional_env("AEKO_EXPLORER_RPC"))
+            .ok_or_else(|| anyhow!("Explorer RPC is required: set AEKO_RPC_URL"))?;
+        let websocket_url =
+            optional_env("AEKO_WS_URL").or_else(|| optional_env("AEKO_EXPLORER_WS"));
         let start_slot = required_parse_env::<u64>("AEKO_EXPLORER_START_SLOT")?;
         let max_batch_size = required_nonzero::<usize>("AEKO_EXPLORER_MAX_BATCH_SIZE")?;
         let persist_socialfi_views =
@@ -118,19 +121,13 @@ impl ServerConfig {
     }
 }
 
-fn network_endpoint_key(network: &str, suffix: &str) -> Result<String> {
-    let prefix = match network.trim().to_ascii_lowercase().as_str() {
-        "testnet" => "AEKO_TESTNET",
-        "mainnet" => "AEKO_MAINNET",
-        "localnet" => "AEKO_LOCALNET",
-        "devnet" => "AEKO_DEVNET",
-        other => {
-            return Err(anyhow!(
-                "AEKO_EXPLORER_NETWORK={other:?} must be testnet, mainnet, localnet, or devnet"
-            ))
-        }
-    };
-    Ok(format!("{prefix}_{suffix}"))
+fn validate_network(network: &str) -> Result<()> {
+    match network.trim().to_ascii_lowercase().as_str() {
+        "testnet" | "mainnet" | "devnet" | "localnet" => Ok(()),
+        other => Err(anyhow!(
+            "AEKO_NETWORK={other:?} must be testnet, mainnet, devnet, or localnet"
+        )),
+    }
 }
 
 fn required_env(key: &str) -> Result<String> {
