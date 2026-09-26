@@ -4,7 +4,7 @@
 `admin.aeko.online` on container port `3001`.
 
 The current deployment has **one Admin role**. Public testnet funding is not a
-second Operations Web deployment and there is no `fund.aeko.online` runtime.
+second Operations Web deployment and there is no separate funding origin/runtime.
 Funding policy, approval requests, manual grants, and constrained Test Console
 airdrops are owned by the Explorer API funding module. Browser clients reach
 those routes through Aeko Scan's same-origin
