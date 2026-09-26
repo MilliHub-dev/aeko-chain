@@ -202,7 +202,7 @@ directly.
 `/social-registry.env`, and `/protocol-registry.env`; all other paths
 return 404.
 
-Do not configure `gossip.aeko.online` as an HTTP route. Point that DNS record
+Do not configure `gossip.aeko.online` as an HTTP route. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record
 directly to the Validator host and allow inbound TCP+UDP `8000-8050`.
 Gossip starts on `8001`.
 
