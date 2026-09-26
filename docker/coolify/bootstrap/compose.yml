@@ -1,6 +1,6 @@
-# Coolify split resource: one-shot chain bootstrap lifecycle.
-# Only dependencies inside this resource use Compose service ordering. Validator
-# RPC is always an explicit reachable endpoint and may live on another host.
+# Coolify resource: chain/bootstrap lifecycle plus read-only registry publication.
+# Testnet RPC is addressed by its network domain, so Validator may live on a
+# different Coolify instance or Ubuntu host.
 x-logging: &default-logging
   driver: json-file
   options:
@@ -36,7 +36,7 @@ services:
     pull_policy: always
     restart: "no"
     environment:
-      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?Set a reachable validator RPC endpoint}
+      AEKO_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_BOOTSTRAP_OUT_DIR: /state
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
@@ -62,7 +62,7 @@ services:
     pull_policy: always
     restart: "no"
     environment:
-      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?Set a reachable validator RPC endpoint}
+      AEKO_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_PROTOCOL_AUTHORITY_KEYPAIR: /keys/protocol-authority-keypair.json
       AEKO_PROTOCOL_OUT_DIR: /state
@@ -96,4 +96,39 @@ services:
     depends_on:
       key-bootstrap:
         condition: service_completed_successfully
+    logging: *default-logging
+
+  bootstrap-registry:
+    image: busybox:1.37.0
+    pull_policy: always
+    restart: unless-stopped
+    command:
+      - sh
+      - -ec
+      - >-
+        mkdir -p /www/testnet &&
+        ln -sf /social/social-registry.env /www/testnet/social.env &&
+        ln -sf /protocol/protocol-registry.env /www/testnet/protocol.env &&
+        exec httpd -f -p 8080 -h /www
+    expose:
+      - "8080"
+    volumes:
+      - type: bind
+        source: /data/aeko/social-state
+        target: /social
+        read_only: true
+      - type: bind
+        source: /data/aeko/protocol-state
+        target: /protocol
+        read_only: true
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          wget -qO- http://127.0.0.1:8080/testnet/social.env | grep -q '^AEKO_CHAIN_GENESIS_HASH=' &&
+          wget -qO- http://127.0.0.1:8080/testnet/protocol.env | grep -q '^AEKO_CHAIN_GENESIS_HASH='
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     logging: *default-logging
