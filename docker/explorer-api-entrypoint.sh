@@ -20,7 +20,9 @@ positive_integer() {
   esac
 }
 
-positive_integer AEKO_REGISTRY_REFRESH_SECONDS "$REFRESH_SECONDS"
+case "$REFRESH_SECONDS" in
+  *[!0-9]*|"") echo "error: AEKO_REGISTRY_REFRESH_SECONDS must be a non-negative integer" >&2; exit 64 ;;
+esac
 positive_integer AEKO_REGISTRY_FETCH_TIMEOUT_SECONDS "$FETCH_TIMEOUT_SECONDS"
 
 REGISTRY_BASE_URL="${REGISTRY_BASE_URL%/}"
@@ -84,15 +86,17 @@ publish_registry_pair || {
 export AEKO_SOCIAL_REGISTRY_FILE="$SOCIAL_FILE"
 export AEKO_PROTOCOL_REGISTRY_FILE="$PROTOCOL_FILE"
 
-(
-  while sleep "$REFRESH_SECONDS"; do
-    if publish_registry_pair; then
-      echo "==> Refreshed testnet bootstrap registries"
-    else
-      echo "warning: registry refresh failed; preserving the last verified pair" >&2
-      rm -f "${SOCIAL_FILE}.tmp" "${PROTOCOL_FILE}.tmp"
-    fi
-  done
-) &
+if [ "$REFRESH_SECONDS" -gt 0 ]; then
+  (
+    while sleep "$REFRESH_SECONDS"; do
+      if publish_registry_pair; then
+        echo "==> Refreshed testnet bootstrap registries"
+      else
+        echo "warning: registry refresh failed; preserving the last verified pair" >&2
+        rm -f "${SOCIAL_FILE}.tmp" "${PROTOCOL_FILE}.tmp"
+      fi
+    done
+  ) &
+fi
 
 exec aeko-explorer-backend "$@"
