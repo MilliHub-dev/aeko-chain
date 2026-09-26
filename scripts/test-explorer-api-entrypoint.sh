@@ -58,13 +58,13 @@ printf '%s\n' ok > "$AEKO_TEST_BACKEND_MARKER"
 EOF
 chmod +x "$BIN/aeko-explorer-backend"
 
-PATH="$BIN:$PATH" AEKO_TESTNET_REGISTRY_URL=https://registry.aeko.online AEKO_REGISTRY_CACHE_DIR="$CACHE" AEKO_REGISTRY_REFRESH_SECONDS=3600 AEKO_TEST_BACKEND_MARKER="$TMP/backend.ok"   "$ENTRYPOINT"
+PATH="$BIN:$PATH" AEKO_TESTNET_REGISTRY_URL=https://registry.aeko.online AEKO_REGISTRY_CACHE_DIR="$CACHE" AEKO_REGISTRY_REFRESH_SECONDS=3600 AEKO_TEST_BACKEND_MARKER="$TMP/backend.ok"   sh "$ENTRYPOINT"
 
 test -s "$TMP/backend.ok"
 echo "[ok] Explorer entrypoint fetches a matching registry pair before startup"
 
 # No remote registry URL preserves the mounted-file/local deployment contract.
-PATH="$BIN:$PATH" AEKO_TEST_BACKEND_MARKER="$TMP/backend-local.ok" AEKO_SOCIAL_REGISTRY_FILE="$CACHE/social-registry.env" AEKO_PROTOCOL_REGISTRY_FILE="$CACHE/protocol-registry.env"   "$ENTRYPOINT"
+PATH="$BIN:$PATH" AEKO_TEST_BACKEND_MARKER="$TMP/backend-local.ok" AEKO_SOCIAL_REGISTRY_FILE="$CACHE/social-registry.env" AEKO_PROTOCOL_REGISTRY_FILE="$CACHE/protocol-registry.env"   sh "$ENTRYPOINT"
 
 test -s "$TMP/backend-local.ok"
 echo "[ok] Explorer entrypoint preserves local mounted-file deployments"
