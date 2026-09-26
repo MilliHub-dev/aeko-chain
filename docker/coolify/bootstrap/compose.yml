@@ -36,7 +36,7 @@ services:
     pull_policy: always
     restart: "no"
     environment:
-      AEKO_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}
+      AEKO_RPC_URL: ${AEKO_RPC_URL:?Set the active chain RPC URL}
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_BOOTSTRAP_OUT_DIR: /state
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
@@ -62,7 +62,7 @@ services:
     pull_policy: always
     restart: "no"
     environment:
-      AEKO_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}
+      AEKO_RPC_URL: ${AEKO_RPC_URL:?Set the active chain RPC URL}
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_PROTOCOL_AUTHORITY_KEYPAIR: /keys/protocol-authority-keypair.json
       AEKO_PROTOCOL_OUT_DIR: /state
