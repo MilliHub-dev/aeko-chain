@@ -51,7 +51,7 @@ services:
     pull_policy: always
     restart: "no"
     environment:
-      AEKO_RPC_URL: ${AEKO_TESTNET_RPC_URL:-http://validator:8899}
+      AEKO_RPC_URL: ${AEKO_RPC_URL:-http://validator:8899}
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_BOOTSTRAP_OUT_DIR: /state
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
@@ -80,7 +80,7 @@ services:
     pull_policy: always
     restart: "no"
     environment:
-      AEKO_RPC_URL: ${AEKO_TESTNET_RPC_URL:-http://validator:8899}
+      AEKO_RPC_URL: ${AEKO_RPC_URL:-http://validator:8899}
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_PROTOCOL_AUTHORITY_KEYPAIR: /keys/protocol-authority-keypair.json
       AEKO_PROTOCOL_OUT_DIR: /state
@@ -157,7 +157,7 @@ services:
       AEKO_FAUCET_FILE: /keys/faucet-keypair.json
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-1}
-      AEKO_FAUCET_ADDRESS: ${AEKO_TESTNET_FAUCET_ADDRESS:-faucet:9900}
+      AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet:9900}
       AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?}
       AEKO_GOSSIP_PORT: "8001"
       AEKO_DYNAMIC_PORT_RANGE: 8000-8050
@@ -217,9 +217,9 @@ services:
     pull_policy: always
     restart: unless-stopped
     environment:
-      AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:-http://validator:8899}
-      AEKO_TESTNET_WS_URL: ${AEKO_TESTNET_WS_URL:-ws://validator:8900}
-      AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-testnet}
+      AEKO_RPC_URL: ${AEKO_RPC_URL:-http://validator:8899}
+      AEKO_WS_URL: ${AEKO_WS_URL:-ws://validator:8900}
+      AEKO_NETWORK: ${AEKO_NETWORK:-testnet}
       AEKO_EXPLORER_BIND: 0.0.0.0:8088
       AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?}
       AEKO_EXPLORER_START_SLOT: ${AEKO_EXPLORER_START_SLOT:-0}
@@ -281,15 +281,21 @@ services:
     pull_policy: always
     restart: unless-stopped
     environment:
-      AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:?}
-      AEKO_TESTNET_WS_URL: ${AEKO_TESTNET_WS_URL:?}
+      AEKO_RPC_URL: ${AEKO_RPC_URL:?}
+      AEKO_WS_URL: ${AEKO_WS_URL:?}
       # Deploy rule: local exposes ONLY localnet, testnet exposes ONLY testnet,
       # production exposes testnet + mainnet.
-      AEKO_ENV: ${AEKO_ENV:-production}
-      AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-http://explorer-api:8088}
+      AEKO_NETWORK: ${AEKO_NETWORK:-testnet}
+      AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-http://explorer-api:8088}
       AEKO_MAINNET_RPC_URL: ${AEKO_MAINNET_RPC_URL:-}
       AEKO_MAINNET_WS_URL: ${AEKO_MAINNET_WS_URL:-}
       AEKO_MAINNET_EXPLORER_API_URL: ${AEKO_MAINNET_EXPLORER_API_URL:-}
+      AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:-}
+      AEKO_TESTNET_WS_URL: ${AEKO_TESTNET_WS_URL:-}
+      AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-}
+      AEKO_DEVNET_RPC_URL: ${AEKO_DEVNET_RPC_URL:-}
+      AEKO_DEVNET_WS_URL: ${AEKO_DEVNET_WS_URL:-}
+      AEKO_DEVNET_EXPLORER_API_URL: ${AEKO_DEVNET_EXPLORER_API_URL:-}
       AEKO_DEMO_RPC_URL: ${AEKO_DEMO_RPC_URL:-}
       AEKO_DEMO_COLLECTION: ${AEKO_DEMO_COLLECTION:-}
       AEKO_DEMO_TOKEN: ${AEKO_DEMO_TOKEN:-}
@@ -314,10 +320,8 @@ services:
     restart: unless-stopped
     environment:
       AEKO_OPERATIONS_ROLE: admin
-      AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:-http://validator:8899}
-      AEKO_MAINNET_RPC_URL: ${AEKO_MAINNET_RPC_URL:-}
-      AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-http://explorer-api:8088}
-      AEKO_MAINNET_EXPLORER_API_URL: ${AEKO_MAINNET_EXPLORER_API_URL:-}
+      AEKO_RPC_URL: ${AEKO_RPC_URL:-http://validator:8899}
+      AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-http://explorer-api:8088}
       AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?}
