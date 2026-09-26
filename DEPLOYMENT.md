@@ -2,15 +2,18 @@
 
 This document is the operator contract for building and deploying the AEKO public network. For the developer-facing mental model and SocialFi acceptance flow, start with [`README.md`](./README.md).
 
-## Three Compose contracts
+## Compose contracts
 
-AEKO keeps three Compose contracts so local convenience and each public deployment platform can use storage/routing syntax that fits its runtime without duplicating application images.
+AEKO keeps platform-specific Compose contracts so local convenience and public deployment runtimes can use appropriate storage/routing syntax without duplicating application images.
 
 | File | Purpose |
 | --- | --- |
 | `docker/compose.local.yml` | portable local/testnet stack; validator RPC/WS are host-published and `rpc-node` is optional |
 | `docker/compose.dokploy.yml` | public/Dokploy stack; uses prebuilt Docker Hub images and serves RPC/WS from the healthy voting validator |
-| `docker/compose.coolify.yml` | public/Coolify stack; same public topology with Coolify-safe storage parsing |
+| `docker/compose.coolify.yml` | legacy public/Coolify all-in-one compatibility stack |
+| `docker/coolify/*/compose.yml` | preferred Coolify split resources; independent failure/lifecycle boundaries with related bootstrap and operator roles grouped together |
+
+Coolify split resources are additive. The existing `docker/compose.coolify.yml` remains the rollback/compatibility path and is not rewritten by the split migration. An established chain must migrate the current named-volume contents into the fixed `/data/aeko/**` paths before switching the configured Coolify Compose paths. See [`docker/coolify/README.md`](./docker/coolify/README.md).
 
 `docker/Dockerfile` remains the single canonical image build definition. The deployment platforms consume published targets from that file rather than maintaining platform-specific Dockerfiles.
 
@@ -67,13 +70,17 @@ A wallet is not a network daemon. Use `aeko-tools`, SDKs or wallet adapters to s
 
 Never treat a normal redeploy as a fresh chain.
 
-Persist:
+Persist the logical state boundaries regardless of deployment platform:
 
-- `validator-ledger` named volume;
-- `social-state` named volume;
-- `protocol-state` named volume;
-- `protocol-continuity` named volume;
-- `admin-state` named volume (Funding Gateway policy, approval queue and grant ledger);
+- validator ledger;
+- Social state/registry;
+- Protocol state;
+- Protocol continuity;
+- chain and Protocol authority keys;
+
+The legacy public Compose contracts use Docker-managed named volumes for the first four state boundaries. The split Coolify topology instead pins them to `/data/aeko/validator-ledger`, `/data/aeko/social-state`, `/data/aeko/protocol-state`, and `/data/aeko/protocol-continuity` so a new Coolify resource/project name cannot silently allocate empty replacement state. `/data/aeko/keys` remains the fixed Coolify key path.
+
+Also preserve:
 - validator identity key;
 - vote-account key;
 - stake key;
@@ -96,7 +103,7 @@ Do not copy the same value into multiple configuration surfaces merely because s
 | Protocol authority and canonical state addresses | persistent protocol authority plus generated `protocol-registry.env` / continuity anchor | Bootstrap automatically when no established protocol identity exists; preserve and verify thereafter. |
 | Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads it through the same-origin read proxy. |
 | Public browser endpoints | deployment environment (`AEKO_PUBLIC_RPC_URL`, `AEKO_PUBLIC_WS_URL`, `AEKO_PUBLIC_FUNDING_URL`) | Configure once per deployment environment. |
-| Internal service endpoints | Compose service DNS defaults | Keep Explorer, Funding Admin API and Faucet traffic on `AEKO_INTERNAL_*` / Docker DNS. |
+| Internal service endpoints | deployment environment/private service network | The legacy monolith may use Compose DNS. Split Coolify resources must set explicit `AEKO_INTERNAL_*` endpoints because they do not share service-name DNS. |
 | Recovery address overrides | Explorer process environment | Use only for explicit recovery; never as a parallel normal source of truth. |
 
 The Explorer backend has one canonical server-side upstream name, `AEKO_INTERNAL_EXPLORER_API_URL`. Browsers never receive that origin; Scan UI (Aeko Scan) serves indexed reads from its own `/api/explorer/{network}` path. Funding currently follows the same split-role rule: the browser knows only the funding-role origin (`AEKO_PUBLIC_FUNDING_URL`, today `fund.aeko.online`), while Admin uses `AEKO_INTERNAL_FUNDING_URL`. Both are roles of the single `aeko-operations-web` image, not separate apps. Approved direction is Scan same-origin funding under `/api/explorer/testnet/funding/*` owned by the Scan backend.
@@ -171,7 +178,7 @@ docker run --rm \
 
 Keep key files in persistent restricted storage. Do not rely on keys living inside an AutoDeploy Git checkout and never commit them.
 
-On Coolify, `AEKO_KEYS_DIR` is not a dashboard variable. The literal `/data/aeko/keys` mount is intentional because this deployment environment rejects interpolated volume sources. `key-bootstrap` preserves existing non-empty keys, generates only missing ones, validates each resulting keypair, and exits successfully before faucet startup.
+On Coolify, `AEKO_KEYS_DIR` is not a dashboard variable. The literal `/data/aeko/keys` mount is intentional because this deployment environment rejects interpolated volume sources. `key-bootstrap` preserves existing non-empty keys, generates only missing ones, and validates each resulting keypair. In the split topology it is an independent one-shot resource rather than a Compose startup dependency; deploy it before Faucet/Validator only when the key lifecycle actually needs to run.
 
 ## SocialFi bootstrap lifecycle
 
@@ -335,20 +342,62 @@ docker compose -f docker/compose.coolify.yml up -d
 docker compose -f docker/compose.coolify.yml ps
 ```
 
-The GitHub `AEKO DevOps (single runner)` workflow validates the selected release surfaces, publishes and promotes validated images on `main`, then runs `Trigger production deployment after successful promotion`.
+The GitHub `AEKO DevOps (single runner)` workflow validates selected release surfaces and promotes validated images on `main`. Deployment behavior is deliberately separated from the build/validation DAG.
 
-The production deployment trigger is deliberately platform-neutral and uses two GitHub Actions secrets:
+### Legacy single-resource deployment
+
+Until the split Coolify migration is deliberately enabled, the existing production trigger remains backward-compatible:
 
 ```text
 WEBHOOK_URL=<authenticated production deploy webhook>
 WEBHOOK_API_KEY=<deployment API token>
 ```
 
-For the current Coolify deployment, `WEBHOOK_URL` is the Coolify authenticated deploy webhook and `WEBHOOK_API_KEY` is the corresponding deploy-capable API token. CI sends the token as `Authorization: Bearer <token>`. Dokploy and Coolify remain separate deployment platforms with separate Compose contracts; this generic CI trigger does not make their configuration interchangeable.
+This triggers the one preconfigured legacy production resource after promotion.
 
-The webhook only triggers the preconfigured production resource. It does not rewrite deployment-platform environment variables. In particular, if `AEKO_IMAGE_TAG` is pinned to an immutable SHA, update that environment value to the newly published 12-character main SHA before/with the deployment. Otherwise the platform can read the newest Compose while still pulling older runtime binaries. Use `latest` only when intentional automatic roll-forward is preferred over immutable releases.
+### Split Coolify deployment
 
-The webhook also does not choose the Compose path. A Coolify resource must point to `docker/compose.coolify.yml`; a Dokploy resource must point to `docker/compose.dokploy.yml`.
+After the six split Coolify resources are created and validated, set the GitHub repository variable:
+
+```text
+COOLIFY_DEPLOYMENT_MODE=split
+```
+
+Split mode never auto-deploys `validator`, `bootstrap`, or `faucet-tools`.
+Those resources remain explicit operator releases even when a core/network image
+was rebuilt and promoted.
+
+The three application resources use independent deploy credentials so they may
+live on different Coolify instances:
+
+```text
+COOLIFY_EXPLORER_API_WEBHOOK_URL=<Explorer API deploy webhook>
+COOLIFY_EXPLORER_API_WEBHOOK_API_KEY=<Explorer API deploy token>
+
+COOLIFY_EXPLORER_UI_WEBHOOK_URL=<Explorer UI deploy webhook>
+COOLIFY_EXPLORER_UI_WEBHOOK_API_KEY=<Explorer UI deploy token>
+
+COOLIFY_OPERATIONS_WEB_WEBHOOK_URL=<Operations Web deploy webhook>
+COOLIFY_OPERATIONS_WEB_WEBHOOK_API_KEY=<Operations Web deploy token>
+```
+
+CI only triggers an application resource when its own source or split Compose
+configuration selected that deployment. Broad packaging/core validation does
+not imply a broad production redeploy.
+
+For webhook-managed application resources, `AEKO_IMAGE_TAG=latest` is the
+supported automatic flow: CI promotes the validated selected image to
+`latest` before invoking that resource's webhook. If an application resource
+is pinned to an immutable SHA, update the Coolify environment tag as part of
+the release because a webhook cannot rewrite it.
+
+Validator/bootstrap/faucet-tools should remain pinned to immutable validated
+tags. Their promotion/deployment is intentional and independent of Explorer or
+Admin releases.
+
+A webhook never chooses a Compose path. Each Coolify split resource must already
+point at its matching `docker/coolify/<resource>/compose.yml`; the legacy
+resource remains on `docker/compose.coolify.yml`.
 
 ## Mandatory Aeko Social and AEKO Protocol lifecycle
 
