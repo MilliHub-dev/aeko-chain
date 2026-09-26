@@ -288,8 +288,8 @@ Dokploy's native Domains feature is preferred. Route:
 | --- | --- | ---: |
 | `rpc.aeko.online` | `validator` | `8899` |
 | `ws.aeko.online` | `validator` | `8900` |
+| `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
-| `fund.aeko.online` | `funding-gateway` | `3001` |
 | `admin.aeko.online` | `operations-web` | `3001` |
 
 Do not route `gossip.aeko.online` through Traefik. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record directly at the Validator host. Gossip starts on `8001`, and the Compose publishes the full validator TCP+UDP `8000-8050` transport range with same-port host mappings so advertised peer addresses stay reachable.
