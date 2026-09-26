@@ -20,8 +20,8 @@ services:
       AEKO_FAUCET_FILE: /keys/faucet-keypair.json
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-1}
-      AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:?Set the private Faucet TCP endpoint}
-      AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?Set the validator public IP}
+      AEKO_FAUCET_ADDRESS: ${AEKO_TESTNET_FAUCET_ADDRESS:-faucet.aeko.online:9900}
+      AEKO_GOSSIP_HOST: ${AEKO_TESTNET_GOSSIP_HOST:-gossip.aeko.online}
       AEKO_GOSSIP_PORT: "8001"
       AEKO_DYNAMIC_PORT_RANGE: 8000-8050
       AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-127.0.0.1:8009}
@@ -39,11 +39,6 @@ services:
     ports:
       - "8000-8050:8000-8050/tcp"
       - "8000-8050:8000-8050/udp"
-      # Coolify domains still route to the container ports. These loopback
-      # bindings additionally support explicit private cross-server routing
-      # without exposing RPC/WS on every host interface.
-      - "${AEKO_RPC_BIND_IP:-127.0.0.1}:${AEKO_RPC_HOST_PORT:-8899}:8899"
-      - "${AEKO_WS_BIND_IP:-127.0.0.1}:${AEKO_WS_HOST_PORT:-8900}:8900"
     expose:
       - "8899"
       - "8900"
