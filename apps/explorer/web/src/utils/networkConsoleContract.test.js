@@ -261,7 +261,7 @@ test('Explorer web is the multi-network boundary while services use one active e
   assert.match(viteConfig, /AEKO_EXPLORER_API_URL/);
   assert.match(viteConfig, /network\.toUpperCase\(\)/);
   assert.match(viteConfig, /'mainnet', 'testnet', 'devnet', 'localnet'/);
-  assert.match(viteConfig, /\/api\/explorer\/devnet/);
+  assert.match(viteConfig, /`\/api\/explorer\/\$\{network\}`/);
   assert.match(viteConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
 
   assert.match(server, /AEKO_NETWORK/);
