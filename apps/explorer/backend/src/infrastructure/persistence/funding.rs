@@ -36,6 +36,7 @@ pub struct FundingRequestRecord {
     pub status: String,
     pub decided_at: Option<DateTime<Utc>>,
     pub signature: Option<String>,
+    pub confirmed: bool,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
 }
@@ -107,6 +108,7 @@ const REQUEST_COLUMNS: &str = r#"
     status,
     decided_at,
     signature,
+    confirmed,
     error_code,
     error_message
 "#;
@@ -434,6 +436,7 @@ impl PostgresRepository {
         );
         let reserved_request = sqlx::query_as::<_, FundingRequestRecord>(&update_sql)
             .bind(id)
+            .bind(confirmed)
             .fetch_one(&mut *tx)
             .await?;
         tx.commit().await?;
@@ -448,7 +451,7 @@ impl PostgresRepository {
         let sql = format!(
             r#"
             UPDATE funding_requests
-            SET signature = $2, error_code = NULL, error_message = NULL
+            SET signature = $2, confirmed = FALSE, error_code = NULL, error_message = NULL
             WHERE id = $1::uuid AND status = 'processing'
             RETURNING {REQUEST_COLUMNS}
             "#
@@ -470,7 +473,7 @@ impl PostgresRepository {
         sqlx::query(
             r#"
             UPDATE funding_requests
-            SET status = 'pending', decided_at = NULL, signature = NULL,
+            SET status = 'pending', decided_at = NULL, signature = NULL, confirmed = FALSE,
                 error_code = $2, error_message = $3
             WHERE id = $1::uuid AND status = 'processing'
             "#,
@@ -492,7 +495,7 @@ impl PostgresRepository {
         let sql = format!(
             r#"
             UPDATE funding_requests
-            SET status = 'rejected', decided_at = NOW(), error_code = $2, error_message = $3
+            SET status = 'rejected', decided_at = NOW(), confirmed = FALSE, error_code = $2, error_message = $3
             WHERE id = $1::uuid AND status IN ('pending', 'processing')
             RETURNING {REQUEST_COLUMNS}
             "#
@@ -563,7 +566,7 @@ impl PostgresRepository {
         let update_sql = format!(
             r#"
             UPDATE funding_requests
-            SET status = 'approved', decided_at = NOW(), error_code = NULL, error_message = NULL
+            SET status = 'approved', decided_at = NOW(), confirmed = $2, error_code = NULL, error_message = NULL
             WHERE id = $1::uuid
             RETURNING {REQUEST_COLUMNS}
             "#
