@@ -66,7 +66,7 @@ validator host TCP+UDP 8000-8050 -> public validator transport range
 faucet.aeko.online:9900 -> raw TCP Faucet; firewall to Validator sources
 ```
 
-The Dokploy public testnet routes RPC/PubSub directly to the healthy block-producing validator. The separate non-voting replica added another genesis/snapshot/gossip bootstrap lifecycle without adding required functionality to the single-validator deployment, and a failed replica could block Explorer even while the validator remained healthy. The validator advertises `AEKO_PUBLIC_IP` with `--gossip-host` and uses `8000-8050` as its public dynamic transport range.
+The Dokploy public testnet routes RPC/PubSub directly to the healthy block-producing validator. The separate non-voting replica added another genesis/snapshot/gossip bootstrap lifecycle without adding required functionality to the single-validator deployment, and a failed replica could block Explorer even while the validator remained healthy. The validator advertises `AEKO_GOSSIP_HOST=gossip.aeko.online` with `--gossip-host` and uses `8000-8050` as its public dynamic transport range.
 
 A wallet is not a network daemon. Use `aeko-tools`, SDKs or wallet adapters to sign client transactions. WebSocket is RPC PubSub on port `8900`, not a separate service image.
 
@@ -133,7 +133,7 @@ AEKO_WS_URL=wss://ws.aeko.online
 AEKO_EXPLORER_API_URL=https://api.aeko.online
 AEKO_REGISTRY_URL=https://registry.aeko.online
 AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900
-AEKO_PUBLIC_IP=<validator gossip/transport public IP>
+AEKO_GOSSIP_HOST=gossip.aeko.online
 AEKO_KEYS_DIR=<Dokploy/local persistent host directory; Coolify uses fixed /data/aeko/keys>
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
@@ -167,7 +167,7 @@ AEKO_PLATFORM_FEE_BPS=200
 
 Normal public deployments do not configure Social/Protocol state addresses by hand. The bootstrap jobs publish `social-registry.env` and `protocol-registry.env`; the read-only registry service exposes those generated files at `registry.aeko.online`. Split Explorer API fetches the complete matching pair before startup and periodically refreshes it. Private keypair JSON files are never served by the registry.
 
-`AEKO_PUBLIC_IP` must be the address external validators can reach. Allow inbound TCP+UDP `8000-8050` at the host/cloud firewall. `EXPLORER_DATABASE_URL` is intentionally required by both public Compose contracts. In-memory indexing is useful for disposable local runs but is not a public-network storage contract.
+`AEKO_GOSSIP_HOST` must resolve to the address external validators can reach. Allow inbound TCP+UDP `8000-8050` at the host/cloud firewall. `EXPLORER_DATABASE_URL` is intentionally required by both public Compose contracts. In-memory indexing is useful for disposable local runs but is not a public-network storage contract.
 
 ## Required key files
 
@@ -286,7 +286,7 @@ Dokploy's native Domains feature is preferred. Route:
 | `fund.aeko.online` | `funding-gateway` | `3001` |
 | `admin.aeko.online` | `operations-web` | `3001` |
 
-Do not route `gossip.aeko.online` through Traefik. DNS should point it directly at `AEKO_PUBLIC_IP`. Gossip starts on `8001`, and the Compose publishes the full validator TCP+UDP `8000-8050` transport range with same-port host mappings so advertised peer addresses stay reachable.
+Do not route `gossip.aeko.online` through Traefik. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record directly at the Validator host. Gossip starts on `8001`, and the Compose publishes the full validator TCP+UDP `8000-8050` transport range with same-port host mappings so advertised peer addresses stay reachable.
 
 The services share the private `aeko` Docker network. Internal RPC, Explorer and Faucet traffic uses Docker service DNS and container ports; public URLs are only ingress/client configuration. The optional `wallet-tools` service is an `ops` profile for CLI/key generation and is not a public daemon. If Dokploy Isolated Deployments is enabled, Dokploy can add its routing network to domain-selected services while the private AEKO network remains intact.
 
@@ -304,7 +304,7 @@ The Coolify contract uses the same published AEKO images and public service topo
 Set these Coolify variables without surrounding shell quotes:
 
 ```text
-AEKO_PUBLIC_IP=<Coolify host public IP>
+AEKO_GOSSIP_HOST=gossip.aeko.online
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
@@ -322,7 +322,7 @@ Configure domains to the same internal services:
 | `fund.aeko.online` | `funding-gateway` | `3001` |
 | `admin.aeko.online` | `operations-web` | `3001` |
 
-Keep `gossip.aeko.online` outside the HTTP proxy. Point its DNS directly to `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050`.
+Keep `gossip.aeko.online` outside the HTTP proxy. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record directly to the Validator host and allow inbound TCP+UDP `8000-8050`.
 
 ### Established-chain storage identity
 
