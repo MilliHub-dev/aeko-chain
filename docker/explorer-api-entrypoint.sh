@@ -4,7 +4,7 @@ set -eu
 # Each Explorer API instance belongs to exactly one chain environment. The
 # registry URL therefore describes that active environment directly; it is
 # not selected from a set of cross-network endpoint variables.
-NETWORK="$(printf '%s' "${AEKO_NETWORK:-${AEKO_EXPLORER_NETWORK:-}}" | tr '[:upper:]' '[:lower:]')"
+NETWORK="$(printf '%s' "${AEKO_NETWORK:-}" | tr '[:upper:]' '[:lower:]')"
 case "$NETWORK" in
   testnet|mainnet|devnet|localnet) ;;
   *)
