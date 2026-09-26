@@ -387,10 +387,14 @@ fn parse_registry_env(content: &str) -> HashMap<String, String> {
 mod tests {
     use {
         super::{
-            expected_missing_registry, parse_registry_env, valid_registry_document,
-            PROTOCOL_REGISTRY_FILE_ENV, SOCIAL_REGISTRY_FILE_ENV,
+            expected_missing_registry, load_registry_url, parse_registry_env,
+            valid_registry_document, PROTOCOL_REGISTRY_FILE_ENV, SOCIAL_REGISTRY_FILE_ENV,
         },
-        std::io::{Error, ErrorKind},
+        std::{
+            io::{Error, ErrorKind, Read, Write},
+            net::TcpListener,
+            thread,
+        },
     };
 
     #[test]
@@ -437,6 +441,41 @@ mod tests {
         );
         assert!(!values.contains_key("EMPTY"));
         assert!(valid_registry_document(&values));
+    }
+
+    #[test]
+    fn remote_registry_loader_fetches_and_parses_env_document() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 1024];
+            let _ = stream.read(&mut request).unwrap();
+            let body = "AEKO_REGISTRY_SCHEMA_VERSION=2\nAEKO_CHAIN_GENESIS_HASH=remote111\nAEKO_SOCIAL_POSTS_STATE=posts111\n";
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        });
+
+        let values = load_registry_url(
+            &format!("http://{address}/testnet/social.env"),
+            "AEKO_SOCIAL_REGISTRY_URL",
+            "SocialFi",
+        );
+        server.join().unwrap();
+
+        assert_eq!(
+            values.get("AEKO_CHAIN_GENESIS_HASH").map(String::as_str),
+            Some("remote111")
+        );
+        assert_eq!(
+            values.get("AEKO_SOCIAL_POSTS_STATE").map(String::as_str),
+            Some("posts111")
+        );
     }
 
     #[test]
