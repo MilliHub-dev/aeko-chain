@@ -3,12 +3,11 @@
 //
 // Policy:
 // - Admin always uses mainnet whenever mainnet is available. Set
-//   AEKO_MAINNET_RPC_URL / AEKO_INTERNAL_MAINNET_EXPLORER_API_URL and they win.
+//   AEKO_MAINNET_RPC_URL / AEKO_MAINNET_EXPLORER_API_URL and they win.
 // - Localnet means "running locally". Explicit AEKO_LOCALNET_* env values
 //   always override the hardcoded loopback defaults below; env variables are
 //   prioritized above hardcoded network config.
-// - Otherwise the existing AEKO_RPC_URL / AEKO_INTERNAL_EXPLORER_API_URL apply
-//   (current deployments point these at testnet).
+// - Otherwise the explicit AEKO_TESTNET_* endpoints apply.
 // - Hardcoded localhost is a last resort only.
 
 const HARDCODED_LOCAL_RPC = 'http://localhost:8899'
@@ -19,7 +18,7 @@ function clean(name: string): string {
 }
 
 export function isMainnetConfigured(): boolean {
-  return Boolean(clean('AEKO_MAINNET_RPC_URL') || clean('AEKO_INTERNAL_MAINNET_EXPLORER_API_URL'))
+  return Boolean(clean('AEKO_MAINNET_RPC_URL') || clean('AEKO_MAINNET_EXPLORER_API_URL'))
 }
 
 // Admin RPC: mainnet > explicit localnet env > base env > hardcoded loopback.
@@ -29,7 +28,7 @@ export function resolveAdminRpcUrl(): string {
   return (
     clean('AEKO_MAINNET_RPC_URL') ||
     clean('AEKO_LOCALNET_RPC_URL') ||
-    clean('AEKO_RPC_URL') ||
+    clean('AEKO_TESTNET_RPC_URL') ||
     HARDCODED_LOCAL_RPC
   )
 }
@@ -40,14 +39,11 @@ export function resolveAdminRpcUrl(): string {
 // grants, Test Console airdrops). Submitting requestAirdrop — or polling
 // getSignatureStatuses — against mainnet would mint test funds on production
 // and poll the wrong chain for testnet signatures.
-// Priority: explicit AEKO_TESTNET_RPC_URL pin > AEKO_RPC_URL (all Compose
-// files point this at the testnet validator; behavior is unchanged when the
-// pin is unset) > explicit AEKO_LOCALNET_RPC_URL for local runs > hardcoded
-// loopback. Env values always beat hardcoded defaults.
+// Priority: AEKO_TESTNET_RPC_URL > AEKO_LOCALNET_RPC_URL for local runs >
+// hardcoded loopback. Env values always beat hardcoded defaults.
 export function resolveFundingRpcUrl(): string {
   return (
     clean('AEKO_TESTNET_RPC_URL') ||
-    clean('AEKO_RPC_URL') ||
     clean('AEKO_LOCALNET_RPC_URL') ||
     HARDCODED_LOCAL_RPC
   )
@@ -57,15 +53,15 @@ export function resolveFundingRpcUrl(): string {
 // hardcoded loopback.
 export function resolveAdminExplorerUrl(): string {
   return (
-    clean('AEKO_INTERNAL_MAINNET_EXPLORER_API_URL') ||
-    clean('AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL') ||
-    clean('AEKO_INTERNAL_EXPLORER_API_URL') ||
+    clean('AEKO_MAINNET_EXPLORER_API_URL') ||
+    clean('AEKO_LOCALNET_EXPLORER_API_URL') ||
+    clean('AEKO_TESTNET_EXPLORER_API_URL') ||
     HARDCODED_LOCAL_EXPLORER
   )
 }
 
 export function describeAdminNetwork(): 'mainnet' | 'localnet' | 'testnet' {
-  if (clean('AEKO_MAINNET_RPC_URL') || clean('AEKO_INTERNAL_MAINNET_EXPLORER_API_URL')) {
+  if (clean('AEKO_MAINNET_RPC_URL') || clean('AEKO_MAINNET_EXPLORER_API_URL')) {
     return 'mainnet'
   }
   const rpc = resolveAdminRpcUrl()
