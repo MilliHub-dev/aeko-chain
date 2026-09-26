@@ -56,7 +56,8 @@ The backend requires PostgreSQL and validator RPC:
 
 ```bash
 EXPLORER_DATABASE_URL=postgres://aeko:change-me@127.0.0.1:5432/aeko_explorer \
-AEKO_EXPLORER_RPC=http://127.0.0.1:8899 \
+AEKO_LOCALNET_RPC_URL=http://127.0.0.1:8899 \
+AEKO_LOCALNET_WS_URL=ws://127.0.0.1:8900 \
 AEKO_EXPLORER_NETWORK=localnet \
 AEKO_EXPLORER_BIND=127.0.0.1:8088 \
 cargo run -p aeko-explorer-backend
