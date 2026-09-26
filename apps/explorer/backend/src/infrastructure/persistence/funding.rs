@@ -436,7 +436,6 @@ impl PostgresRepository {
         );
         let reserved_request = sqlx::query_as::<_, FundingRequestRecord>(&update_sql)
             .bind(id)
-            .bind(confirmed)
             .fetch_one(&mut *tx)
             .await?;
         tx.commit().await?;
@@ -573,6 +572,7 @@ impl PostgresRepository {
         );
         let approved = sqlx::query_as::<_, FundingRequestRecord>(&update_sql)
             .bind(id)
+            .bind(confirmed)
             .fetch_one(&mut *tx)
             .await?;
         tx.commit().await?;
