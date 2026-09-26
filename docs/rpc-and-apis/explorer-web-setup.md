@@ -26,8 +26,8 @@ PostgreSQL
 Production images are deployment-neutral. `docker/explorer-ui-entrypoint.sh` reads these required variables when the container starts and writes `/runtime-config.js`:
 
 ```bash
-AEKO_PUBLIC_RPC_URL=
-AEKO_PUBLIC_WS_URL=
+AEKO_TESTNET_RPC_URL=
+AEKO_TESTNET_WS_URL=
 AEKO_PUBLIC_EXPLORER_API_URL=
 AEKO_PUBLIC_EXPLORER_URL=
 AEKO_PUBLIC_FUNDING_URL=
