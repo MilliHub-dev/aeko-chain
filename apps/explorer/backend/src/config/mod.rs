@@ -176,7 +176,7 @@ impl Default for ExplorerBackendConfig {
         Self {
             rpc_url: "http://127.0.0.1:8899".to_string(),
             websocket_url: None,
-            network: "test".to_string(),
+            network: "localnet".to_string(),
             start_slot: 0,
             max_batch_size: 256,
             persist_socialfi_views: true,
@@ -195,26 +195,13 @@ impl Default for ExplorerBackendConfig {
 
 #[cfg(test)]
 mod config_tests {
-    use super::network_endpoint_key;
+    use super::validate_network;
 
     #[test]
-    fn network_endpoint_names_are_explicit() {
-        assert_eq!(
-            network_endpoint_key("testnet", "RPC_URL").unwrap(),
-            "AEKO_TESTNET_RPC_URL"
-        );
-        assert_eq!(
-            network_endpoint_key("mainnet", "WS_URL").unwrap(),
-            "AEKO_MAINNET_WS_URL"
-        );
-        assert_eq!(
-            network_endpoint_key("localnet", "RPC_URL").unwrap(),
-            "AEKO_LOCALNET_RPC_URL"
-        );
-        assert_eq!(
-            network_endpoint_key("devnet", "RPC_URL").unwrap(),
-            "AEKO_DEVNET_RPC_URL"
-        );
-        assert!(network_endpoint_key("production", "RPC_URL").is_err());
+    fn accepted_networks_match_deployable_chain_environments() {
+        for network in ["testnet", "mainnet", "devnet", "localnet"] {
+            validate_network(network).unwrap();
+        }
+        assert!(validate_network("production").is_err());
     }
 }
