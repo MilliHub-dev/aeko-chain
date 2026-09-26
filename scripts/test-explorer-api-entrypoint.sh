@@ -58,7 +58,7 @@ printf '%s\n' ok > "$AEKO_TEST_BACKEND_MARKER"
 EOF
 chmod +x "$BIN/aeko-explorer-backend"
 
-PATH="$BIN:$PATH" AEKO_TESTNET_REGISTRY_URL=https://registry.aeko.online AEKO_REGISTRY_CACHE_DIR="$CACHE" AEKO_REGISTRY_REFRESH_SECONDS=3600 AEKO_TEST_BACKEND_MARKER="$TMP/backend.ok"   sh "$ENTRYPOINT"
+PATH="$BIN:$PATH" AEKO_REGISTRY_URL=https://registry.aeko.online AEKO_REGISTRY_CACHE_DIR="$CACHE" AEKO_REGISTRY_REFRESH_SECONDS=3600 AEKO_TEST_BACKEND_MARKER="$TMP/backend.ok"   sh "$ENTRYPOINT"
 
 test -s "$TMP/backend.ok"
 echo "[ok] Explorer entrypoint fetches a matching registry pair before startup"
