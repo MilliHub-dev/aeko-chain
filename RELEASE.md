@@ -75,8 +75,8 @@ ports, for example:
 
 Public domains belong only at the ingress/browser boundary and are deployment
 configuration. Coolify/Dokploy receive them through environment variables such
-as `AEKO_PUBLIC_RPC_URL`, `AEKO_PUBLIC_WS_URL`,
-`AEKO_PUBLIC_FUNDING_URL`. Explorer indexed-read upstreams are private service configuration (`AEKO_INTERNAL_EXPLORER_API_URL`) and are never injected into browser runtime state.
+as `AEKO_TESTNET_RPC_URL`, `AEKO_TESTNET_WS_URL`,
+`AEKO_PUBLIC_FUNDING_URL`. Explorer indexed-read upstreams are private service configuration (`AEKO_TESTNET_EXPLORER_API_URL`) and are never injected into browser runtime state.
 
 The Explorer UI is deployment-neutral at build time. Its container entrypoint
 writes runtime public endpoint configuration when the container starts.
