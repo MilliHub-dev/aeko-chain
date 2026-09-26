@@ -226,4 +226,3 @@ mod config_tests {
         assert!(network_endpoint_key("production", "RPC_URL").is_err());
     }
 }
-
