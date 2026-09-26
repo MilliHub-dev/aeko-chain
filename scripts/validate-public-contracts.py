@@ -80,8 +80,8 @@ def main() -> int:
     require(isinstance(docs.get("content"), dict), "Explorer docs.json must contain a content object")
 
     public_vars = (
-        "AEKO_PUBLIC_RPC_URL",
-        "AEKO_PUBLIC_WS_URL",
+        "AEKO_TESTNET_RPC_URL",
+        "AEKO_TESTNET_WS_URL",
         "AEKO_PUBLIC_FUNDING_URL",
         "FUNDING_ALLOWED_ORIGINS",
     )
@@ -100,7 +100,7 @@ def main() -> int:
 
     require(
         "AEKO_OPERATIONS_ROLE=admin" in admin_env
-        and "AEKO_INTERNAL_EXPLORER_API_URL=" in admin_env
+        and "AEKO_TESTNET_EXPLORER_API_URL=" in admin_env
         and "AEKO_INTERNAL_FUNDING_URL=" in admin_env
         and "FUNDING_ADMIN_API_KEY=" in admin_env,
         "Operations Web env example must document the private Admin role and service dependencies",
@@ -126,13 +126,13 @@ def main() -> int:
         require_empty_assignment(public_env, name, "docker/env.public.example")
 
     for name in (
-        "AEKO_PUBLIC_RPC_URL",
-        "AEKO_PUBLIC_WS_URL",
+        "AEKO_TESTNET_RPC_URL",
+        "AEKO_TESTNET_WS_URL",
         "AEKO_PUBLIC_FUNDING_URL",
-        "AEKO_INTERNAL_EXPLORER_API_URL",
+        "AEKO_TESTNET_EXPLORER_API_URL",
         "AEKO_MAINNET_RPC_URL",
         "AEKO_MAINNET_WS_URL",
-        "AEKO_INTERNAL_MAINNET_EXPLORER_API_URL",
+        "AEKO_MAINNET_EXPLORER_API_URL",
         "AEKO_DEMO_RPC_URL",
         "AEKO_DEMO_COLLECTION",
         "AEKO_DEMO_TOKEN",
@@ -184,8 +184,8 @@ def main() -> int:
     )
 
     for name in (
-        "AEKO_PUBLIC_RPC_URL",
-        "AEKO_PUBLIC_WS_URL",
+        "AEKO_TESTNET_RPC_URL",
+        "AEKO_TESTNET_WS_URL",
         "AEKO_PUBLIC_FUNDING_URL",
     ):
         require((': "${' + name + ':?') in explorer_entrypoint, f"Explorer runtime entrypoint must require {name}")
@@ -197,7 +197,7 @@ def main() -> int:
     ):
         reject(explorer_entrypoint, retired, "Explorer runtime entrypoint")
     require(
-        "AEKO_INTERNAL_EXPLORER_API_URL" in explorer_server
+        "AEKO_TESTNET_EXPLORER_API_URL" in explorer_server
         and "/api/explorer/testnet" in explorer_server
         and "Explorer UI proxy is read-only" in explorer_server,
         "Explorer UI server must own a read-only same-origin proxy to the private Explorer backend",
@@ -219,19 +219,19 @@ def main() -> int:
         require("AEKO_OPERATIONS_ROLE: funding" in compose, f"{label} funding gateway must run in funding role")
         require("AEKO_OPERATIONS_ROLE: admin" in compose, f"{label} operations web must run in admin role")
         require("AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}" in compose, f"{label} services must use internal validator DNS")
-        require("AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in compose, f"{label} Explorer consumers must use private Docker DNS")
+        require("AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-http://explorer-api:8088}" in compose, f"{label} Explorer consumers must use private Docker DNS")
         require("AEKO_INTERNAL_FUNDING_URL: ${AEKO_INTERNAL_FUNDING_URL:-http://funding-gateway:3001}" in compose, f"{label} Admin must use private Funding Gateway DNS")
         require("FUNDING_ADMIN_API_KEY: ${FUNDING_ADMIN_API_KEY:?}" in compose, f"{label} must authenticate private Admin-to-funding calls")
         require("FUNDING_GATEWAY_KEY: ${FUNDING_GATEWAY_KEY:?}" in compose, f"{label} Funding Gateway must own protected airdrop authorization")
         require("FUNDING_ALLOWED_ORIGINS: ${FUNDING_ALLOWED_ORIGINS:?}" in compose, f"{label} Funding Gateway must receive browser CORS origins explicitly")
         require("AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-faucet:9900}" in compose, f"{label} validator must reach the private Faucet Daemon by Docker DNS")
         for name in (
-            "AEKO_PUBLIC_RPC_URL",
-            "AEKO_PUBLIC_WS_URL",
+            "AEKO_TESTNET_RPC_URL",
+            "AEKO_TESTNET_WS_URL",
             "AEKO_PUBLIC_FUNDING_URL",
         ):
             require((name + ": ${" + name + ":?}") in compose, f"{label} Explorer/Funding runtime must receive {name}")
-        require("AEKO_INTERNAL_MAINNET_EXPLORER_API_URL: ${AEKO_INTERNAL_MAINNET_EXPLORER_API_URL:-}" in compose, f"{label} Explorer UI must accept optional private mainnet Explorer upstream")
+        require("AEKO_MAINNET_EXPLORER_API_URL: ${AEKO_MAINNET_EXPLORER_API_URL:-}" in compose, f"{label} Explorer UI must accept optional private mainnet Explorer upstream")
         for retired in (
             "AEKO_PUBLIC_EXPLORER_API_URL",
             "AEKO_PUBLIC_EXPLORER_URL",
@@ -286,7 +286,7 @@ def main() -> int:
     )
     require(
         "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN" in settings_route
-        and "AEKO_INTERNAL_EXPLORER_API_URL" in settings_route,
+        and "AEKO_TESTNET_EXPLORER_API_URL" in settings_route,
         "private Explorer settings token must remain server-side in the Next.js route",
     )
     require(
@@ -404,8 +404,8 @@ def main() -> int:
         "deploy helper must start isolated Funding Gateway and Admin services",
     )
     for name in (
-        "AEKO_PUBLIC_RPC_URL",
-        "AEKO_PUBLIC_WS_URL",
+        "AEKO_TESTNET_RPC_URL",
+        "AEKO_TESTNET_WS_URL",
         "AEKO_PUBLIC_FUNDING_URL",
     ):
         require(name in deploy_script, f"deploy helper must expose public browser endpoint {name}")
