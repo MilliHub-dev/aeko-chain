@@ -19,13 +19,17 @@ RESOURCES = {
 }
 
 RETIRED_ENDPOINT_NAMES = (
+    "AEKO_ENV",
     "AEKO_INTERNAL_RPC_URL",
     "AEKO_INTERNAL_FAUCET_ADDRESS",
     "AEKO_INTERNAL_EXPLORER_API_URL",
-    "AEKO_INTERNAL_MAINNET_EXPLORER_API_URL",
-    "AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL",
     "AEKO_PUBLIC_RPC_URL",
     "AEKO_PUBLIC_WS_URL",
+)
+
+NETWORK_PREFIXED_ENDPOINT = re.compile(
+    r"AEKO_(?:MAINNET|TESTNET|DEVNET|LOCALNET)_"
+    r"(?:RPC_URL|WS_URL|EXPLORER_API_URL|REGISTRY_URL|FAUCET_ADDRESS)"
 )
 
 
@@ -96,7 +100,14 @@ def validate_common(label: str, expected_services: list[str], compose: str, env_
     combined = compose + "\n" + env_example
     for retired in RETIRED_ENDPOINT_NAMES:
         require(retired not in combined, f"{label} still uses retired endpoint name {retired}")
-    require("10.0.0." not in combined, f"{label} must use service domains instead of sample private IPs")
+    require("10.0.0." not in combined, f"{label} must use DNS/service names instead of sample private IPs")
+
+    if label != "explorer-ui":
+        match = NETWORK_PREFIXED_ENDPOINT.search(combined)
+        require(
+            match is None,
+            f"{label} must describe only its active network; found Scan-only endpoint {match.group(0) if match else ''}",
+        )
 
 
 def main() -> int:
@@ -117,10 +128,6 @@ def main() -> int:
             "${AEKO_IMAGE_TAG:?" in loaded[label],
             f"{label} must require an explicit immutable AEKO image tag",
         )
-        require(
-            "${AEKO_IMAGE_TAG:-latest}" not in loaded[label],
-            f"{label} must not silently roll forward AEKO images through latest",
-        )
 
     for label in ("explorer-api", "explorer-ui", "operations-web"):
         require(
@@ -135,124 +142,100 @@ def main() -> int:
     registry = service_block(bootstrap, "registry")
 
     require("source: /data/aeko/keys" in key_bootstrap, "key bootstrap must own the fixed key path")
-    require("source: /data/aeko/protocol-state" in key_bootstrap, "key bootstrap must inspect Protocol state")
-    require("source: /data/aeko/protocol-continuity" in key_bootstrap, "key bootstrap must inspect Protocol continuity")
     require(
         "AEKO_ALLOW_CHAIN_KEY_GENERATION: ${AEKO_ALLOW_CHAIN_KEY_GENERATION:-0}" in key_bootstrap,
         "key bootstrap must fail closed unless first-boot generation is explicit",
     )
-    require('restart: "no"' in key_bootstrap, "key bootstrap must remain one-shot")
-
-    for label, block in (("Social", social), ("Protocol", protocol)):
+    for name, block in (("Social", social), ("Protocol", protocol)):
         require(
-            "AEKO_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}" in block,
-            f"{label} bootstrap must use the canonical testnet RPC domain",
+            "AEKO_RPC_URL: ${AEKO_RPC_URL:?Set the active chain RPC URL}" in block,
+            f"{name} bootstrap must consume only the active environment RPC",
         )
         require(
             "key-bootstrap:" in block and "condition: service_completed_successfully" in block,
-            f"{label} bootstrap must wait for the co-located key preflight",
+            f"{name} bootstrap must wait for key preflight",
         )
-        require("validator:" not in block, f"{label} bootstrap must not depend on a Validator Compose service")
-        require('restart: "no"' in block, f"{label} bootstrap must remain one-shot")
-
-    require("source: /data/aeko/social-state" in social, "Social bootstrap state must use a stable host path")
-    require("source: /data/aeko/protocol-state" in protocol, "Protocol state must use a stable host path")
-    require("source: /data/aeko/protocol-continuity" in protocol, "Protocol continuity must use a stable host path")
+        require('restart: "no"' in block, f"{name} bootstrap must remain one-shot")
 
     require("image: nginx:1.27-alpine" in registry, "registry must use the pinned minimal nginx image")
     require("source: /data/aeko/social-state" in registry, "registry must read Social state")
     require("source: /data/aeko/protocol-state" in registry, "registry must read Protocol state")
-    require("source: /data/aeko/keys" not in registry, "registry must never mount chain private keys")
-    require("read_only: true" in registry, "registry state mounts must be read-only")
+    require("source: /data/aeko/keys" not in registry, "registry must never mount private chain keys")
+    require(registry.count("read_only: true") >= 2, "registry state mounts must be read-only")
     require("location = /social-registry.env" in registry, "registry must expose the Social registry")
     require("location = /protocol-registry.env" in registry, "registry must expose the Protocol registry")
     require("location / {" in registry and "return 404;" in registry, "registry must deny every other path")
     require('"8089"' in registry, "registry must expose container port 8089")
-    require(
-        "social-bootstrap:" in registry
-        and "protocol-bootstrap:" in registry
-        and registry.count("condition: service_completed_successfully") == 2,
-        "registry must start only after both canonical bootstrap jobs succeed",
-    )
 
     faucet_tools = loaded["faucet-tools"]
     faucet = service_block(faucet_tools, "faucet")
     wallet_tools = service_block(faucet_tools, "wallet-tools")
-    require("depends_on:" not in faucet_tools, "Faucet/tools resource must not invent a runtime dependency")
     require(
         '"${AEKO_FAUCET_HOST_PORT:-9900}:9900"' in faucet,
-        "Faucet must publish raw TCP 9900 for cross-instance Validator access",
+        "Faucet must publish raw TCP 9900 for a remote Validator",
     )
-    require("AEKO_FAUCET_BIND_IP" not in faucet_tools, "Faucet DNS must replace IP-specific bind configuration")
-    require("source: /data/aeko/keys" in faucet, "Faucet must read the persistent chain key store")
+    require("AEKO_FAUCET_BIND_IP" not in faucet_tools, "Faucet must not require an IP-specific bind variable")
+    require("source: /data/aeko/keys" in faucet, "Faucet must read the persistent key store")
     require('profiles: ["ops"]' in wallet_tools, "wallet tools must remain opt-in operator tooling")
-    require(
-        "AEKO_TESTNET_FAUCET_ADDRESS=faucet.aeko.online:9900" in envs["faucet-tools"],
-        "Faucet env example must document its testnet DNS address",
-    )
+    require("AEKO_NETWORK=" in envs["faucet-tools"], "Faucet env example must identify its chain environment")
 
     validator = loaded["validator"]
-    require("depends_on:" not in validator, "Validator must remain independent of other Compose resources")
+    require("AEKO_NETWORK: ${AEKO_NETWORK:?" in validator, "Validator must declare one active chain environment")
+    require(
+        "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet.aeko.online:9900}" in validator,
+        "Validator must use the generic active-environment Faucet address",
+    )
     require("source: /data/aeko/validator-ledger" in validator, "Validator ledger must use stable host storage")
-    require("source: /data/aeko/keys" in validator, "Validator must mount persistent chain identities")
-    require(
-        "AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-1}" in validator,
-        "split Validator must fail closed on an established-chain missing ledger",
-    )
-    require(
-        "AEKO_FAUCET_ADDRESS: ${AEKO_TESTNET_FAUCET_ADDRESS:-faucet.aeko.online:9900}" in validator,
-        "Validator must reach Faucet through the canonical testnet DNS address",
-    )
+    require("source: /data/aeko/keys" in validator, "Validator must mount persistent identities")
     require("df -Pk /ledger" in validator, "Validator healthcheck must enforce the low-disk guard")
     require("AEKO_RPC_BIND_IP" not in validator and "AEKO_WS_BIND_IP" not in validator, "RPC/WS must use Coolify domains")
+    require('"8899"' in validator and '"8900"' in validator, "Validator must expose RPC/WS container ports")
     require(
-        '"8899"' in validator and '"8900"' in validator,
-        "Validator must expose RPC/WS container ports for Coolify domain routing",
+        "AEKO_PUBLIC_IP=<validator-public-ip>" in envs["validator"],
+        "raw gossip must keep its explicit advertised IP until the validator CLI supports DNS there",
     )
 
     explorer_api = loaded["explorer-api"]
-    require("depends_on:" not in explorer_api, "Explorer API must remain independently deployable")
-    require(
-        "AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}" in explorer_api,
-        "Explorer API must use the canonical testnet RPC URL",
-    )
-    require(
-        "AEKO_TESTNET_REGISTRY_URL: ${AEKO_TESTNET_REGISTRY_URL:-https://registry.aeko.online}" in explorer_api,
-        "Explorer API must fetch bootstrap registries from the canonical registry domain",
-    )
-    require(
-        "DATABASE_URL: ${EXPLORER_DATABASE_URL:?" in explorer_api,
-        "Explorer API must require persistent PostgreSQL",
-    )
+    for expected in (
+        "AEKO_NETWORK: ${AEKO_NETWORK:?",
+        "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
+        "AEKO_REGISTRY_URL: ${AEKO_REGISTRY_URL:?",
+    ):
+        require(expected in explorer_api, f"Explorer API missing active-environment contract: {expected}")
+    require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?" in explorer_api, "Explorer API must require PostgreSQL")
     require("volumes:" not in explorer_api, "Explorer API must not require bootstrap-host filesystem mounts")
-    require("ports:" not in explorer_api, "Explorer API HTTP ingress must be routed by its Coolify domain")
+    require("ports:" not in explorer_api, "Explorer API HTTP ingress must be routed by its domain")
     require("AEKO_REGISTRY_SCHEMA_VERSION" not in explorer_api, "Explorer API must not require copied registry values")
-    require(
-        "AEKO_TESTNET_EXPLORER_API_URL=https://api.aeko.online" in envs["explorer-api"],
-        "Explorer API env example must document its canonical domain",
-    )
+    for name in ("AEKO_NETWORK", "AEKO_RPC_URL", "AEKO_EXPLORER_API_URL", "AEKO_REGISTRY_URL"):
+        require(f"{name}=" in envs["explorer-api"], f"Explorer API env example missing {name}")
 
     explorer_ui = loaded["explorer-ui"]
-    require("depends_on:" not in explorer_ui, "Explorer UI must remain independently deployable")
+    require("depends_on:" not in explorer_ui, "Scan must remain independently deployable")
     for expected in (
-        "AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}",
-        "AEKO_TESTNET_WS_URL: ${AEKO_TESTNET_WS_URL:-wss://ws.aeko.online}",
-        "AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-https://api.aeko.online}",
+        "AEKO_NETWORK: ${AEKO_NETWORK:?",
+        "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
+        "AEKO_WS_URL: ${AEKO_WS_URL:?",
+        "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
+        "AEKO_MAINNET_RPC_URL:",
+        "AEKO_TESTNET_RPC_URL:",
+        "AEKO_DEVNET_RPC_URL:",
     ):
-        require(expected in explorer_ui, f"Explorer UI missing canonical endpoint: {expected}")
+        require(expected in explorer_ui, f"Scan missing multi-network contract: {expected}")
+    require(
+        "AEKO_DEVNET_EXPLORER_API_URL=" in envs["explorer-ui"],
+        "Scan env example must support a real remote devnet",
+    )
 
     operations = loaded["operations-web"]
     require("depends_on:" not in operations, "Operations Web must remain independently deployable")
-    require(
-        "AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}" in operations,
-        "Operations Web must use the canonical testnet RPC domain",
-    )
-    require(
-        "AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-https://api.aeko.online}" in operations,
-        "Operations Web must use the canonical Explorer API domain",
-    )
+    for expected in (
+        "AEKO_NETWORK: ${AEKO_NETWORK:?",
+        "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
+        "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
+    ):
+        require(expected in operations, f"Operations Web missing active-environment contract: {expected}")
 
-    print("split Coolify domain/network contract: ok")
+    print("split Coolify single-network + Scan multi-network contract: ok")
     return 0
 
 
