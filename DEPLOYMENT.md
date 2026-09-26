@@ -47,24 +47,34 @@ Internet wallets / dApps / SDKs
        |                    |
  rpc.aeko.online       ws.aeko.online
        |                    |
-       +------ validator (:8899/:8900) ------+
-                         |                    |
-                  ledger / consensus    Explorer API :8088
-                         |                    |
-                  native SocialFi       PostgreSQL + registry
+       +------ validator (:8899/:8900) ---------------------+
+                         |                                  |
+                  ledger / consensus                 Explorer API
+                         |                          api.aeko.online
+                  native SocialFi                         |
+                                                         +--> PostgreSQL
+Bootstrap host                                             |
+registry.aeko.online <--- social-registry.env              +--> registry.aeko.online
+                     <--- protocol-registry.env
 
-scan.aeko.online -> explorer-ui :4000 -> private explorer-api :8088 via /api/explorer/testnet
-fund.aeko.online -> funding-gateway :3001 (public funding request + Test Console airdrop API) -> validator RPC
-admin.aeko.online -> operations-web :3001 (operator approvals/console, sign-in) -> private funding-gateway / explorer-api
+scan.aeko.online  -> explorer-ui :4000 -> api.aeko.online via /api/explorer/testnet
+                    -> /api/explorer/testnet/funding/* for testnet funding
+admin.aeko.online -> operations-web :3001 -> api.aeko.online + rpc.aeko.online
 
 gossip.aeko.online:8001 -> validator gossip entrypoint
 validator host TCP+UDP 8000-8050 -> public validator transport range
-faucet :9900 -> internal only
+faucet.aeko.online:9900 -> raw TCP Faucet; firewall to Validator sources
 ```
 
-The Dokploy public testnet routes RPC/PubSub directly to the healthy block-producing validator. The separate non-voting replica added another genesis/snapshot/gossip bootstrap lifecycle without adding required functionality to the single-validator deployment, and a failed replica could block Explorer even while the validator remained healthy. The validator advertises `AEKO_PUBLIC_IP` with `--gossip-host` and uses `8000-8050` as its public dynamic transport range.
+The Dokploy public testnet routes RPC/PubSub directly to the healthy block-producing validator. The separate non-voting replica added another genesis/snapshot/gossip bootstrap lifecycle without adding required functionality to the single-validator deployment, and a failed replica could block Explorer even while the validator remained healthy. The validator advertises `AEKO_GOSSIP_HOST=gossip.aeko.online` with `--gossip-host` and uses `8000-8050` as its public dynamic transport range.
 
 A wallet is not a network daemon. Use `aeko-tools`, SDKs or wallet adapters to sign client transactions. WebSocket is RPC PubSub on port `8900`, not a separate service image.
+
+The authoritative port/domain/default-upstream matrix is
+[docs/operations/network-ports-and-domains.md](./docs/operations/network-ports-and-domains.md).
+That document distinguishes Coolify HTTP/WSS domain routing from raw Faucet/
+validator transport, and records every same-Compose Docker-DNS default that can
+be overridden through environment variables.
 
 ## Persistent state
 
@@ -102,31 +112,43 @@ Do not copy the same value into multiple configuration surfaces merely because s
 | Protocol feature identities | compile-time feature IDs | Fresh/reset genesis activates the mandatory protocol runtime features automatically; only an older preserved chain uses the compatibility activation helper. |
 | Protocol authority and canonical state addresses | persistent protocol authority plus generated `protocol-registry.env` / continuity anchor | Bootstrap automatically when no established protocol identity exists; preserve and verify thereafter. |
 | Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads it through the same-origin read proxy. |
-| Public browser endpoints | deployment environment (`AEKO_PUBLIC_RPC_URL`, `AEKO_PUBLIC_WS_URL`, `AEKO_PUBLIC_FUNDING_URL`) | Configure once per deployment environment. |
-| Internal service endpoints | deployment environment/private service network | The legacy monolith may use Compose DNS. Split Coolify resources must set explicit `AEKO_INTERNAL_*` endpoints because they do not share service-name DNS. |
+| Blockchain service endpoints | active deployment environment | Every chain server uses `AEKO_NETWORK` plus generic `AEKO_RPC_URL`, `AEKO_WS_URL`, `AEKO_EXPLORER_API_URL`, `AEKO_REGISTRY_URL`, and `AEKO_FAUCET_ADDRESS` as applicable. Only Aeko Scan carries optional network-prefixed RPC/WS/Explorer-API triplets for remote network switching. |
+| Bootstrap registry | generated `social-registry.env` + `protocol-registry.env`, served read-only by `registry.aeko.online` | Explorer API fetches the pair and verifies schema/genesis before use; Scan/Admin consume Explorer API instead of bootstrap storage. |
 | Recovery address overrides | Explorer process environment | Use only for explicit recovery; never as a parallel normal source of truth. |
 
-The Explorer backend has one canonical server-side upstream name, `AEKO_INTERNAL_EXPLORER_API_URL`. Browsers never receive that origin; Scan UI (Aeko Scan) serves indexed reads from its own `/api/explorer/{network}` path. Funding currently follows the same split-role rule: the browser knows only the funding-role origin (`AEKO_PUBLIC_FUNDING_URL`, today `fund.aeko.online`), while Admin uses `AEKO_INTERNAL_FUNDING_URL`. Both are roles of the single `aeko-operations-web` image, not separate apps. Approved direction is Scan same-origin funding under `/api/explorer/testnet/funding/*` owned by the Scan backend.
+For the currently deployed testnet, the active-environment values are
+`AEKO_NETWORK=testnet`, `AEKO_RPC_URL=https://rpc.aeko.online`,
+`AEKO_WS_URL=wss://ws.aeko.online`,
+`AEKO_EXPLORER_API_URL=https://api.aeko.online`,
+`AEKO_REGISTRY_URL=https://registry.aeko.online`, and
+`AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900`.
+
+A future mainnet or devnet deployment uses the same variable names on its own
+servers with that network's domains. Aeko Scan is the exception: its generic
+values define the default network, and optional `AEKO_MAINNET_*`,
+`AEKO_TESTNET_*`, and `AEKO_DEVNET_*` RPC/WS/Explorer-API triplets let the
+UI switch to other independent deployments. Browser indexed reads remain
+same-origin under `/api/explorer/{network}`.
 
 ## Required production environment
 
 ```text
-AEKO_PUBLIC_IP=<deployment host public IP>
+AEKO_NETWORK=testnet
+AEKO_RPC_URL=https://rpc.aeko.online
+AEKO_WS_URL=wss://ws.aeko.online
+AEKO_EXPLORER_API_URL=https://api.aeko.online
+AEKO_REGISTRY_URL=https://registry.aeko.online
+AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900
+AEKO_GOSSIP_HOST=gossip.aeko.online
 AEKO_KEYS_DIR=<Dokploy/local persistent host directory; Coolify uses fixed /data/aeko/keys>
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
 AEKO_REQUIRE_EXISTING_LEDGER=1
-AEKO_ALLOW_CHAIN_KEY_GENERATION=0   # Coolify; enable only for intentional first boot
-AEKO_PUBLIC_RPC_URL=<public JSON-RPC URL>
-AEKO_PUBLIC_WS_URL=<public PubSub WebSocket URL>
-AEKO_PUBLIC_FUNDING_URL=<public Testnet funding-role URL, today fund.aeko.online>
-FUNDING_ALLOWED_ORIGINS=<comma-separated Scan UI origins allowed to call funding>
+AEKO_ALLOW_CHAIN_KEY_GENERATION=0
 ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=<private Admin-to-Explorer settings token>
-FUNDING_GATEWAY_KEY=<funding-role secret authorizing server-side requestAirdrop>
-FUNDING_ADMIN_API_KEY=<different private Admin-to-funding-role service key>
 ```
 
 Optional funding policy (initial values; editable in the admin console afterwards):
@@ -149,9 +171,9 @@ AEKO_STAKE_REWARD_VAULT_SEED_LAMPORTS=0
 AEKO_PLATFORM_FEE_BPS=200
 ```
 
-Normal public deployments do not configure Social state or vault addresses by hand. `social-bootstrap` creates the canonical accounts and publishes them in `social-registry.env`; the Explorer's per-address environment variables are recovery overrides and should normally remain unset.
+Normal public deployments do not configure Social/Protocol state addresses by hand. The bootstrap jobs publish `social-registry.env` and `protocol-registry.env`; the read-only registry service exposes those generated files at `registry.aeko.online`. Split Explorer API fetches the complete matching pair before startup and periodically refreshes it. Private keypair JSON files are never served by the registry.
 
-`AEKO_PUBLIC_IP` must be the address external validators can reach. Allow inbound TCP+UDP `8000-8050` at the host/cloud firewall. `EXPLORER_DATABASE_URL` is intentionally required by both public Compose contracts. In-memory indexing is useful for disposable local runs but is not a public-network storage contract.
+`AEKO_GOSSIP_HOST` must resolve to the address external validators can reach. Allow inbound TCP+UDP `8000-8050` at the host/cloud firewall. `EXPLORER_DATABASE_URL` is intentionally required by both public Compose contracts. In-memory indexing is useful for disposable local runs but is not a public-network storage contract.
 
 ## Required key files
 
@@ -266,11 +288,11 @@ Dokploy's native Domains feature is preferred. Route:
 | --- | --- | ---: |
 | `rpc.aeko.online` | `validator` | `8899` |
 | `ws.aeko.online` | `validator` | `8900` |
+| `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
-| `fund.aeko.online` | `funding-gateway` | `3001` |
 | `admin.aeko.online` | `operations-web` | `3001` |
 
-Do not route `gossip.aeko.online` through Traefik. DNS should point it directly at `AEKO_PUBLIC_IP`. Gossip starts on `8001`, and the Compose publishes the full validator TCP+UDP `8000-8050` transport range with same-port host mappings so advertised peer addresses stay reachable.
+Do not route `gossip.aeko.online` through Traefik. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record directly at the Validator host. Gossip starts on `8001`, and the Compose publishes the full validator TCP+UDP `8000-8050` transport range with same-port host mappings so advertised peer addresses stay reachable.
 
 The services share the private `aeko` Docker network. Internal RPC, Explorer and Faucet traffic uses Docker service DNS and container ports; public URLs are only ingress/client configuration. The optional `wallet-tools` service is an `ops` profile for CLI/key generation and is not a public daemon. If Dokploy Isolated Deployments is enabled, Dokploy can add its routing network to domain-selected services while the private AEKO network remains intact.
 
@@ -288,7 +310,7 @@ The Coolify contract uses the same published AEKO images and public service topo
 Set these Coolify variables without surrounding shell quotes:
 
 ```text
-AEKO_PUBLIC_IP=<Coolify host public IP>
+AEKO_GOSSIP_HOST=gossip.aeko.online
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
 AEKO_IMAGE_TAG=<recommended 12-character published main commit SHA>
@@ -302,11 +324,11 @@ Configure domains to the same internal services:
 | --- | --- | ---: |
 | `rpc.aeko.online` | `validator` | `8899` |
 | `ws.aeko.online` | `validator` | `8900` |
+| `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
-| `fund.aeko.online` | `funding-gateway` | `3001` |
 | `admin.aeko.online` | `operations-web` | `3001` |
 
-Keep `gossip.aeko.online` outside the HTTP proxy. Point its DNS directly to `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050`.
+Keep `gossip.aeko.online` outside the HTTP proxy. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record directly to the Validator host and allow inbound TCP+UDP `8000-8050`.
 
 ### Established-chain storage identity
 

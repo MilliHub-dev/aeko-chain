@@ -94,10 +94,12 @@ test('demo surface is branded NTF', async () => {
 test('toggle and surfaces use consumer wording, not core-dev jargon', async () => {
   const toggle = await source('components/NetworkToggle.jsx');
   const config = await source('utils/networkConfig.js');
-  // Toggle renders config labels plus a disabled coming-soon entry.
-  assert.match(toggle, /getNetworkConfig\(option\)\.label/);
-  assert.match(toggle, /Mainnet · Coming soon/);
-  assert.match(toggle, /showMainnetComingSoon/);
+  // Toggle renders normalized network labels and clearly marks any network
+  // whose endpoint triplet has not been configured.
+  assert.match(toggle, /const config = getNetworkConfig\(option\)/);
+  assert.match(toggle, /config\.label/);
+  assert.match(toggle, /Not configured/);
+  assert.match(toggle, /'mainnet', 'testnet', 'devnet', 'localnet'/);
   // Config labels pair each network with a plain-word hint.
   assert.match(config, /Mainnet · Live/);
   assert.match(config, /Testnet · Test/);

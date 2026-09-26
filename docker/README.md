@@ -26,10 +26,13 @@ Validate the deployment contracts from the repository root:
 docker compose -f docker/compose.local.yml config
 docker compose -f docker/compose.dokploy.yml config
 docker compose -f docker/compose.coolify.yml config
+python3 scripts/validate-network-ports.py
 python3 scripts/validate-coolify-split.py
 for compose in docker/coolify/*/compose.yml; do docker compose -f "$compose" config; done
-python3 scripts/validate-deployment-contract.py
 ```
+
+The authoritative domain/port and environment-override contract is documented
+in [../docs/operations/network-ports-and-domains.md](../docs/operations/network-ports-and-domains.md).
 
 The Dokploy and legacy Coolify files preserve the original all-in-one topology. The split Coolify tree changes only the deployment boundary: bootstrap lifecycle jobs share one resource, Faucet and opt-in wallet tools share another, and Validator/Explorer/Admin remain independent. Cross-resource endpoints are explicit environment values.
 

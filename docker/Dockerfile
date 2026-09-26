@@ -121,11 +121,13 @@ CMD ["aeko", "--help"]
 
 FROM rust-runtime AS explorer-api
 COPY --from=explorer-api-builder /binaries/aeko-explorer-backend /usr/local/bin/aeko-explorer-backend
+COPY docker/explorer-api-entrypoint.sh /usr/local/bin/explorer-api-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/explorer-api-entrypoint.sh
 EXPOSE 8088/tcp
-# Fail closed. Docker/Dokploy owns restart policy; the image must not hide a
-# missing database, bad migration, or invalid RPC configuration in an internal
-# shell retry loop.
-ENTRYPOINT ["aeko-explorer-backend"]
+# Split deployments fetch the generated Social/Protocol registries through the
+# configured network registry endpoint before the backend starts. Local/legacy
+# deployments can keep using mounted registry files when no registry URL is set.
+ENTRYPOINT ["/usr/local/bin/explorer-api-entrypoint.sh"]
 
 FROM node:22-alpine AS explorer-ui-builder
 WORKDIR /web

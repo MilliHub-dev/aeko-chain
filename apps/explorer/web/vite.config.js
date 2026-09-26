@@ -1,10 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// `vite build` / `vite preview` always produce production artifacts. An ambient
-// NODE_ENV=local (the local-deploy workflow) must not leak dev-mode defines
-// into built assets — Vite only supports development/production/test here.
-// The deploy env travels via injected runtime config, not NODE_ENV.
 const invokedCommand = process.argv[2]
 if (
   (invokedCommand === 'build' || invokedCommand === 'preview')
@@ -15,177 +11,106 @@ if (
 }
 
 const clean = (value) => String(value || '').trim()
+const NETWORKS = ['mainnet', 'testnet', 'devnet', 'localnet']
 
-function hasAll(values) {
-  return values.every(Boolean)
+function normalizeNetwork(value) {
+  const network = clean(value).toLowerCase()
+  return NETWORKS.includes(network) ? network : ''
 }
 
-function normalizeDeployEnv(value) {
-  const normalized = clean(value).toLowerCase()
-  if (['local', 'development', 'dev', 'localhost'].includes(normalized)) return 'local'
-  if (normalized === 'testnet') return 'testnet'
-  if (['production', 'prod', 'preview', 'staging'].includes(normalized)) return 'production'
-  return ''
-}
+function readAlternative(env, network) {
+  const prefix = `AEKO_${network.toUpperCase()}`
+  const rpcUrl = clean(env[`${prefix}_RPC_URL`])
+  const websocketUrl = clean(env[`${prefix}_WS_URL`])
+  const upstream = clean(env[`${prefix}_EXPLORER_API_URL`])
+  const values = [rpcUrl, websocketUrl, upstream]
 
-// Env priority rule: explicit AEKO_* env values always win over hardcoded
-// loopback defaults. Hardcoded localhost is a last resort for local deploys
-// only, never a silent override for configured values.
-//
-// Deploy rule: local deploys expose ONLY localnet, testnet deploys expose
-// ONLY testnet, production deploys expose testnet + mainnet.
+  if (values.some(Boolean) && !values.every(Boolean)) {
+    throw new Error(
+      `${network} Scan configuration is partial. Set ${prefix}_RPC_URL, `
+      + `${prefix}_WS_URL and ${prefix}_EXPLORER_API_URL together.`,
+    )
+  }
+
+  if (!values.every(Boolean)) return null
+  return { rpcUrl, websocketUrl, upstream }
+}
 
 export default defineConfig(({ command, mode }) => {
   const env = command === 'serve' ? loadEnv(mode, process.cwd(), '') : {}
-  // `vite` (serve) is a local deploy unless the env explicitly says
-  // otherwise. AEKO_ENV is the primary switch (it lives in .env files);
-  // NODE_ENV is honored as a fallback. `vite build` output is
-  // environment-neutral; the production container entrypoint injects the
-  // real deploy env at startup.
-  const deployEnv = command === 'serve'
-    ? normalizeDeployEnv(env.AEKO_ENV || process.env.NODE_ENV) || 'local'
-    : normalizeDeployEnv(env.AEKO_ENV || process.env.NODE_ENV) || 'production'
-  const isLocalDeploy = deployEnv === 'local'
-  const isTestnetDeploy = deployEnv === 'testnet'
+  const activeNetwork = normalizeNetwork(env.AEKO_NETWORK) || 'localnet'
 
-  const publicRpc = clean(env.AEKO_PUBLIC_RPC_URL)
-  const publicWs = clean(env.AEKO_PUBLIC_WS_URL)
-  const testnetUpstream = clean(env.AEKO_INTERNAL_EXPLORER_API_URL)
+  let activeRpc = clean(env.AEKO_RPC_URL)
+  let activeWs = clean(env.AEKO_WS_URL)
+  let activeUpstream = clean(env.AEKO_EXPLORER_API_URL)
 
-  const mainnetRpc = clean(env.AEKO_MAINNET_RPC_URL)
-  const mainnetWs = clean(env.AEKO_MAINNET_WS_URL)
-  const mainnetUpstream = clean(env.AEKO_INTERNAL_MAINNET_EXPLORER_API_URL)
-  const mainnetConfigured = hasAll([mainnetRpc, mainnetWs, mainnetUpstream])
+  if (command === 'serve' && activeNetwork === 'localnet') {
+    activeRpc ||= 'http://127.0.0.1:8899'
+    activeWs ||= 'ws://127.0.0.1:8900'
+    activeUpstream ||= 'http://127.0.0.1:8088'
+  }
 
-  if (!isLocalDeploy && [mainnetRpc, mainnetWs, mainnetUpstream].some(Boolean) && !mainnetConfigured) {
+  const activeValues = [activeRpc, activeWs, activeUpstream]
+  if (command === 'serve' && !activeValues.every(Boolean)) {
     throw new Error(
-      'AEKO mainnet dev configuration is partial. Set AEKO_MAINNET_RPC_URL, '
-        + 'AEKO_MAINNET_WS_URL and AEKO_INTERNAL_MAINNET_EXPLORER_API_URL together.',
+      'Active Scan network is incomplete. Set AEKO_RPC_URL, AEKO_WS_URL and '
+      + 'AEKO_EXPLORER_API_URL together.',
     )
   }
 
-  // Explicit localnet env overrides hardcoded loopback. Any single value
-  // opts into localnet; RPC/WS/API fall back to loopback only for the pieces
-  // that are not explicitly set.
-  const localnetRpcEnv = clean(env.AEKO_LOCALNET_RPC_URL)
-  const localnetWsEnv = clean(env.AEKO_LOCALNET_WS_URL)
-  const localnetUpstreamEnv = clean(env.AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL)
-  const localnetEnvConfigured = [localnetRpcEnv, localnetWsEnv, localnetUpstreamEnv]
-    .some(Boolean)
-  const localnetRpc = localnetRpcEnv || (localnetEnvConfigured ? 'http://127.0.0.1:8899' : '')
-  const localnetWs = localnetWsEnv || (localnetEnvConfigured ? 'ws://127.0.0.1:8900' : '')
-  const localnetUpstream = localnetUpstreamEnv || (localnetEnvConfigured ? 'http://127.0.0.1:8088' : '')
-
-  const testnetValues = [publicRpc, publicWs]
-  const testnetConfigured = hasAll(testnetValues)
-  if (!isLocalDeploy && testnetValues.some(Boolean) && !testnetConfigured) {
-    throw new Error(
-      'AEKO testnet dev configuration is partial. Set AEKO_PUBLIC_RPC_URL and '
-        + 'AEKO_PUBLIC_WS_URL together.',
-    )
+  const alternatives = Object.fromEntries(
+    NETWORKS.map((network) => [network, readAlternative(env, network)]),
+  )
+  alternatives[activeNetwork] = {
+    rpcUrl: activeRpc,
+    websocketUrl: activeWs,
+    upstream: activeUpstream,
   }
 
-  // Testnet-mode dev fallback: with no testnet endpoints configured, point
-  // testnet at loopback so zero-config `vite dev` still works. Explicit env
-  // always wins; production containers never get this fallback.
-  const testnetLoopback = command === 'serve' && isTestnetDeploy && !testnetConfigured
-    ? { rpcUrl: 'http://127.0.0.1:8899', websocketUrl: 'ws://127.0.0.1:8900' }
-    : null
-  const testnetUpstreamTarget = testnetUpstream
-    || (testnetLoopback ? 'http://127.0.0.1:8088' : '')
+  const devRuntimeConfig = command === 'serve'
+    ? {
+        network: activeNetwork,
+        networks: Object.fromEntries(
+          NETWORKS
+            .filter((network) => alternatives[network])
+            .map((network) => [
+              network,
+              {
+                rpcUrl: alternatives[network].rpcUrl,
+                websocketUrl: alternatives[network].websocketUrl,
+                explorerApiUrl: `/api/explorer/${network}`,
+                ...(network === 'mainnet'
+                  ? {}
+                  : { fundingUrl: `/api/explorer/${network}` }),
+              },
+            ]),
+        ),
+        demo: {
+          rpcUrl: clean(env.AEKO_DEMO_RPC_URL),
+          collection: clean(env.AEKO_DEMO_COLLECTION),
+          token: clean(env.AEKO_DEMO_TOKEN),
+          metadataUri: clean(env.AEKO_DEMO_METADATA_URI),
+        },
+      }
+    : {}
 
-  const localnetValues = localnetEnvConfigured ? [localnetRpc, localnetWs] : []
-  const localnetConfigured = localnetEnvConfigured && hasAll(localnetValues)
-
-  const devRuntimeConfig =
-    command === 'serve'
-      ? {
-          env: deployEnv,
-          // Local deploys expose only localnet; testnet deploys expose only
-          // testnet (loopback when unconfigured); production exposes
-          // testnet + mainnet.
-          ...(!isLocalDeploy && (testnetConfigured || testnetLoopback)
-            ? {
-                testnet: {
-                  rpcUrl: testnetLoopback?.rpcUrl || publicRpc,
-                  websocketUrl: testnetLoopback?.websocketUrl || publicWs,
-                  explorerApiUrl: '/api/explorer/testnet',
-                  fundingUrl: '/api/explorer/testnet',
-                },
-              }
-            : {}),
-          ...(!isLocalDeploy && !isTestnetDeploy && mainnetConfigured
-            ? {
-                mainnet: {
-                  rpcUrl: mainnetRpc,
-                  websocketUrl: mainnetWs,
-                  explorerApiUrl: '/api/explorer/mainnet',
-                },
-              }
-            : {}),
-          ...(isLocalDeploy && localnetConfigured
-            ? {
-                localnet: {
-                  rpcUrl: localnetRpc,
-                  websocketUrl: localnetWs,
-                  explorerApiUrl: '/api/explorer/localnet',
-                  fundingUrl: '/api/explorer/localnet',
-                },
-              }
-            : {}),
-          demo: {
-            rpcUrl: clean(env.AEKO_DEMO_RPC_URL),
-            collection: clean(env.AEKO_DEMO_COLLECTION),
-            token: clean(env.AEKO_DEMO_TOKEN),
-            metadataUri: clean(env.AEKO_DEMO_METADATA_URI),
-          },
-        }
-      : {}
-
-  // Dev proxy upstreams: explicit env wins. In local deploys the localnet
-  // proxy falls back to loopback so zero-config `vite dev` works against a
-  // local backend; in testnet deploys the testnet proxy falls back the same
-  // way. Other networks have no loopback fallback.
-  const localnetProxyTarget =
-    localnetUpstream || (isLocalDeploy && !testnetUpstream && !mainnetUpstream
-      ? 'http://127.0.0.1:8088'
-      : '')
+  const proxy = {}
+  for (const network of NETWORKS) {
+    const target = alternatives[network]?.upstream
+    if (!target) continue
+    const prefix = `/api/explorer/${network}`
+    proxy[prefix] = {
+      target,
+      changeOrigin: true,
+      rewrite: (path) => path.replace(new RegExp(`^${prefix}`), '') || '/',
+    }
+  }
 
   return {
     plugins: [react()],
     define: {
       'globalThis.__AEKO_DEV_RUNTIME_CONFIG__': JSON.stringify(devRuntimeConfig),
     },
-    server: {
-      proxy: {
-        ...(testnetUpstreamTarget
-          ? {
-              '/api/explorer/testnet': {
-                target: testnetUpstreamTarget,
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api\/explorer\/testnet/, '') || '/',
-              },
-            }
-          : {}),
-        ...(mainnetUpstream
-          ? {
-              '/api/explorer/mainnet': {
-                target: mainnetUpstream,
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api\/explorer\/mainnet/, '') || '/',
-              },
-            }
-          : {}),
-        ...(localnetProxyTarget
-          ? {
-              '/api/explorer/localnet': {
-                target: localnetProxyTarget,
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api\/explorer\/localnet/, '') || '/',
-              },
-            }
-          : {}),
-      },
-    },
+    server: { proxy },
   }
 })

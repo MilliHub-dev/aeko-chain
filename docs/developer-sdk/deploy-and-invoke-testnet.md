@@ -72,7 +72,7 @@ cargo run --bin aeko -- config set --url https://rpc.aeko.online
 Use the wallet public key from your keypair and submit a policy-controlled funding request:
 
 ```bash
-curl -X POST https://fund.aeko.online/api/funding/request \
+curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
   -H 'Content-Type: application/json' \
   -d '{"address":"<YOUR_WALLET_PUBKEY>"}'
 ```

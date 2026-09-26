@@ -11,7 +11,7 @@ Backend integration guide for the currently deployed AEKO public testnet. Verify
 | JSON-RPC | `https://rpc.aeko.online` | Direct chain reads, transactions, program deployment |
 | WebSocket PubSub | `wss://ws.aeko.online` | Live subscriptions |
 | Explorer UI/read proxy | `https://scan.aeko.online` | Human-readable Aeko Scan; browser-indexed reads stay same-origin |
-| Testnet Funding API | `https://fund.aeko.online/api/funding` | Operations Web funding role (same image as Admin, not a separate app); public funding requests and constrained Scan Test Console airdrops |
+| Testnet Funding API | `https://scan.aeko.online/api/explorer/testnet/funding/*` | Explorer API funding module through the Scan same-origin proxy; public approval requests and constrained Test Console airdrops |
 | Faucet Daemon | **private only**, TCP `faucet:9900` | Signs low-level funding transfers for the validator |
 
 Application backends must not connect directly to TCP `9900`.
@@ -203,7 +203,7 @@ All SDK builder functions return a **base64-encoded unsigned transaction**. The 
 Public applications use the Funding Gateway, not the private Faucet Daemon and not unauthenticated public `requestAirdrop`:
 
 ```bash
-curl -X POST https://fund.aeko.online/api/funding/request \
+curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
   -H 'Content-Type: application/json' \
   -d '{"address":"<pubkey>"}'
 ```

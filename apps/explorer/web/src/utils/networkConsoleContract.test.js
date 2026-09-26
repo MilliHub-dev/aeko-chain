@@ -212,7 +212,7 @@ test('Admin section switches keep descriptions outside non-wrapping tab buttons'
 });
 
 
-test('Explorer web keeps public browser endpoints separate from private Explorer upstreams', async () => {
+test('Explorer web is the multi-network boundary while services use one active environment', async () => {
   const example = await source('../.env.example');
   const deploymentEnv = await source('../../../../docker/env.public.example');
   const viteConfig = await source('../vite.config.js');
@@ -225,74 +225,78 @@ test('Explorer web keeps public browser endpoints separate from private Explorer
   const demo = await source('data/nftDemoExamples.js');
 
   for (const key of [
-    'AEKO_ENV',
-    'AEKO_PUBLIC_RPC_URL',
-    'AEKO_PUBLIC_WS_URL',
-    'AEKO_PUBLIC_FUNDING_URL',
-    'AEKO_INTERNAL_EXPLORER_API_URL',
+    'AEKO_NETWORK',
+    'AEKO_RPC_URL',
+    'AEKO_WS_URL',
+    'AEKO_EXPLORER_API_URL',
     'AEKO_MAINNET_RPC_URL',
     'AEKO_MAINNET_WS_URL',
-    'AEKO_INTERNAL_MAINNET_EXPLORER_API_URL',
-    'AEKO_LOCALNET_RPC_URL',
-    'AEKO_LOCALNET_WS_URL',
-    'AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL',
+    'AEKO_MAINNET_EXPLORER_API_URL',
+    'AEKO_TESTNET_RPC_URL',
+    'AEKO_TESTNET_WS_URL',
+    'AEKO_TESTNET_EXPLORER_API_URL',
+    'AEKO_DEVNET_RPC_URL',
+    'AEKO_DEVNET_WS_URL',
+    'AEKO_DEVNET_EXPLORER_API_URL',
   ]) {
     assert.match(example, new RegExp('^' + key + '=', 'm'));
     assert.match(deploymentEnv, new RegExp(key));
   }
 
   for (const retired of [
+    'AEKO_ENV',
+    'AEKO_PUBLIC_RPC_URL',
+    'AEKO_PUBLIC_WS_URL',
+    'AEKO_INTERNAL_RPC_URL',
+    'AEKO_INTERNAL_EXPLORER_API_URL',
     'AEKO_PUBLIC_EXPLORER_API_URL',
-    'AEKO_MAINNET_EXPLORER_API_URL',
-    'AEKO_PUBLIC_ADMIN_URL',
     'VITE_AEKO_',
   ]) {
     assert.doesNotMatch(example, new RegExp(retired));
     assert.doesNotMatch(networkConfig, new RegExp(retired));
   }
 
-  assert.match(viteConfig, /AEKO_INTERNAL_EXPLORER_API_URL/);
-  assert.match(viteConfig, /AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL/);
-  assert.match(viteConfig, /normalizeDeployEnv/);
-  assert.match(viteConfig, /\/api\/explorer\/testnet/);
-  assert.match(viteConfig, /\/api\/explorer\/localnet/);
+  assert.match(viteConfig, /AEKO_NETWORK/);
+  assert.match(viteConfig, /AEKO_RPC_URL/);
+  assert.match(viteConfig, /AEKO_EXPLORER_API_URL/);
+  assert.match(viteConfig, /network\.toUpperCase\(\)/);
+  assert.match(viteConfig, /'mainnet', 'testnet', 'devnet', 'localnet'/);
+  assert.match(viteConfig, /`\/api\/explorer\/\$\{network\}`/);
   assert.match(viteConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
-  assert.match(server, /AEKO_INTERNAL_EXPLORER_API_URL/);
-  assert.match(server, /AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL/);
-  assert.match(server, /\/api\/explorer\/testnet/);
-  assert.match(server, /\/api\/explorer\/localnet/);
+
+  assert.match(server, /AEKO_NETWORK/);
+  assert.match(server, /AEKO_EXPLORER_API_URL/);
+  assert.match(server, /AEKO_DEVNET_EXPLORER_API_URL/);
+  assert.match(server, /'mainnet', 'testnet', 'devnet', 'localnet'/);
   assert.match(server, /Explorer UI proxy is read-only/);
 
-  assert.match(networkConfig, /runtime\.testnet/);
-  assert.match(networkConfig, /runtime\.mainnet/);
-  assert.match(networkConfig, /runtime\.localnet/);
-  assert.match(networkConfig, /runtime\.env/);
-  assert.match(networkConfig, /getDeployEnv/);
+  assert.match(networkConfig, /runtime\.networks/);
+  assert.match(networkConfig, /runtime\.network/);
+  assert.match(networkConfig, /getActiveNetwork/);
   assert.match(networkConfig, /getDefaultExplorerNetwork/);
   assert.match(networkConfig, /getTestNetwork/);
-  assert.match(networkConfig, /explorerApiUrl: '\/api\/explorer\/localnet'/);
-  assert.match(networkConfig, /explorerApiUrl: testnet\.explorerApiUrl/);
-  assert.match(networkConfig, /explorerApiUrl: mainnet\.explorerApiUrl/);
-  // There is no "public testnet": testnet is testnet.
-  assert.doesNotMatch(networkConfig, /Public Testnet/);
-  assert.doesNotMatch(networkConfig, /public testnet/);
-  assert.doesNotMatch(networkConfig, /public-testnet/);
-  assert.match(networkToggle, /'mainnet', 'testnet', 'localnet'/);
-  assert.match(networkToggle, /Coming soon/);
-  assert.match(networkToggle, /showMainnetComingSoon/);
+  assert.match(networkConfig, /key === 'devnet'/);
+  assert.doesNotMatch(networkConfig, /Legacy alias/);
+  assert.doesNotMatch(networkConfig, /devnet.*localnet.*testnet/i);
+
+  assert.match(networkToggle, /'mainnet', 'testnet', 'devnet', 'localnet'/);
+  assert.match(networkToggle, /config\.rpcUrl/);
+  assert.match(networkToggle, /Not configured/);
   assert.match(networkToggle, /useNetwork/);
+
   assert.match(explorer, /NetworkToggle/);
   assert.match(explorer, /useNetwork/);
   assert.match(networkTools, /NetworkToggle/);
   assert.match(networkTools, /useNetwork/);
   assert.match(networkTools, /isTestNetwork && settings\.networkConsoleEnabled/);
 
-  assert.match(entrypoint, /env: deployEnv/);
-  assert.match(entrypoint, /isLocalDeploy/);
-  assert.match(entrypoint, /isTestnetDeploy/);
-  assert.match(entrypoint, /AEKO_ENV/);
-  assert.match(entrypoint, /explorerApiUrl: '\/api\/explorer\/testnet'/);
-  assert.doesNotMatch(entrypoint, /AEKO_PUBLIC_EXPLORER_API_URL|AEKO_PUBLIC_EXPLORER_URL/);
+  assert.match(entrypoint, /AEKO_ACTIVE_NETWORK/);
+  assert.match(entrypoint, /AEKO_RPC_URL/);
+  assert.match(entrypoint, /AEKO_EXPLORER_API_URL/);
+  assert.match(entrypoint, /networks\[activeNetwork\]/);
+  assert.match(entrypoint, /network\.toUpperCase\(\)/);
+  assert.match(entrypoint, /'mainnet', 'testnet', 'devnet', 'localnet'/);
+  assert.doesNotMatch(entrypoint, /AEKO_ENV/);
 
   assert.match(demo, /getDemoConfig/);
   assert.doesNotMatch(demo, /AEKO_DEMO_/);

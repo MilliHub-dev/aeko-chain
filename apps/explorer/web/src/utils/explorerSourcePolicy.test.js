@@ -46,11 +46,11 @@ test('Explorer client diagnoses a broken same-origin read proxy without exposing
   const network = await readFile(new URL('./networkConfig.js', import.meta.url), 'utf8');
 
   assert.match(source, /Explorer read proxy is misrouted/);
-  assert.match(source, /AEKO_INTERNAL_EXPLORER_API_URL/);
+  assert.match(source, /AEKO_EXPLORER_API_URL/);
   assert.doesNotMatch(source, /AEKO_PUBLIC_EXPLORER_API_URL/);
   assert.match(network, /\/api\/explorer\/(testnet|mainnet|localnet)/);
-  assert.match(network, /runtime\.testnet/);
-  assert.match(network, /runtime\.mainnet/);
-  assert.match(network, /runtime\.localnet/);
+  assert.match(network, /runtime\.networks/);
+  assert.match(network, /runtime\.network/);
+  assert.match(network, /devnet/);
   assert.doesNotMatch(network, /AEKO_PUBLIC_EXPLORER_API_URL|api\.aeko\.online/);
 });
