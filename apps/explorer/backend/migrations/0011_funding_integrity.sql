@@ -5,6 +5,9 @@
 -- transfer remains bounded by the configured per-request safety ceiling and
 -- by the finite testnet Faucet account.
 
+ALTER TABLE funding_requests
+    ADD COLUMN IF NOT EXISTS confirmed BOOLEAN NOT NULL DEFAULT FALSE;
+
 CREATE UNIQUE INDEX IF NOT EXISTS funding_grants_signature_unique
     ON funding_grants (signature)
     WHERE signature IS NOT NULL;
