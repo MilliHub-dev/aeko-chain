@@ -68,10 +68,43 @@ function upstreamFor(pathname) {
   return null
 }
 
+const FUNDING_WRITE_PATHS = new Set(['/funding/request', '/funding/airdrop'])
+const MAX_PROXY_BODY_BYTES = 64 * 1024
+
+function explorerProxyMethodAllowed(method, target, pathname) {
+  if (method === 'GET' || method === 'HEAD') return true
+  if (method !== 'POST' || target.network === 'mainnet') return false
+  const suffix = pathname.slice(target.prefix.length) || '/'
+  return FUNDING_WRITE_PATHS.has(suffix)
+}
+
+function readProxyBody(req) {
+  return new Promise((resolveBody, rejectBody) => {
+    const chunks = []
+    let size = 0
+
+    req.on('data', (chunk) => {
+      size += chunk.length
+      if (size > MAX_PROXY_BODY_BYTES) {
+        rejectBody(Object.assign(new Error('request body too large'), { code: 'BODY_TOO_LARGE' }))
+        req.destroy()
+        return
+      }
+      chunks.push(chunk)
+    })
+    req.on('end', () => resolveBody(Buffer.concat(chunks)))
+    req.on('error', rejectBody)
+  })
+}
+
 async function proxyExplorer(req, res, url, target) {
-  if (!['GET', 'HEAD'].includes(req.method || 'GET')) {
+  const method = req.method || 'GET'
+  if (!explorerProxyMethodAllowed(method, target, url.pathname)) {
     json(res, 405, {
-      error: { code: 'METHOD_NOT_ALLOWED', message: 'Explorer UI proxy is read-only' },
+      error: {
+        code: 'METHOD_NOT_ALLOWED',
+        message: 'Scan only proxies Explorer reads and the explicit test-network funding request/airdrop writes',
+      },
     })
     return
   }
@@ -94,9 +127,47 @@ async function proxyExplorer(req, res, url, target) {
   const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS)
 
   try {
+    let body
+    const headers = new Headers({
+      Accept: req.headers.accept || 'application/json',
+    })
+
+    if (method === 'POST') {
+      const contentType = String(req.headers['content-type'] || '').toLowerCase()
+      if (!contentType.startsWith('application/json')) {
+        json(res, 415, {
+          error: {
+            code: 'UNSUPPORTED_MEDIA_TYPE',
+            message: 'Funding writes require application/json',
+          },
+        })
+        return
+      }
+      headers.set('Content-Type', 'application/json')
+      for (const name of ['cf-connecting-ip', 'x-real-ip', 'x-forwarded-for']) {
+        const value = req.headers[name]
+        if (typeof value === 'string' && value.trim()) headers.set(name, value)
+      }
+      try {
+        body = await readProxyBody(req)
+      } catch (error) {
+        if (error?.code === 'BODY_TOO_LARGE') {
+          json(res, 413, {
+            error: {
+              code: 'BODY_TOO_LARGE',
+              message: 'Funding request body exceeds the Scan proxy limit',
+            },
+          })
+          return
+        }
+        throw error
+      }
+    }
+
     const upstream = await fetch(upstreamUrl, {
-      method: req.method,
-      headers: { Accept: req.headers.accept || 'application/json' },
+      method,
+      headers,
+      body,
       signal: controller.signal,
       redirect: 'manual',
     })
@@ -111,7 +182,7 @@ async function proxyExplorer(req, res, url, target) {
       return
     }
 
-    const headers = new Headers(upstream.headers)
+    const responseHeaders = new Headers(upstream.headers)
     for (const name of [
       'connection',
       'content-encoding',
@@ -124,12 +195,12 @@ async function proxyExplorer(req, res, url, target) {
       'transfer-encoding',
       'upgrade',
     ]) {
-      headers.delete(name)
+      responseHeaders.delete(name)
     }
-    headers.set('Cache-Control', 'no-store')
-    headers.set('X-AEKO-Explorer-Proxy', 'same-origin')
+    responseHeaders.set('Cache-Control', 'no-store')
+    responseHeaders.set('X-AEKO-Explorer-Proxy', 'same-origin')
 
-    res.writeHead(upstream.status, Object.fromEntries(headers.entries()))
+    res.writeHead(upstream.status, Object.fromEntries(responseHeaders.entries()))
     if (req.method === 'HEAD') {
       res.end()
       return
@@ -184,15 +255,15 @@ function serveStatic(req, res, pathname) {
 
 createServer(async (req, res) => {
   const method = req.method || 'GET'
-  if (!['GET', 'HEAD'].includes(method)) {
-    json(res, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } })
-    return
-  }
-
   const url = new URL(req.url || '/', 'http://explorer-ui.local')
   const target = upstreamFor(url.pathname)
   if (target) {
     await proxyExplorer(req, res, url, target)
+    return
+  }
+
+  if (!['GET', 'HEAD'].includes(method)) {
+    json(res, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } })
     return
   }
 
