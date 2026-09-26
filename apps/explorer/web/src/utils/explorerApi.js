@@ -64,7 +64,7 @@ async function fetchEnvelope(path, network) {
     } else if (looksLikeExplorerUi) {
       message =
         `Explorer read proxy is misrouted (${response.status}): the same-origin API path returned the Explorer UI HTML. `
-        + 'Check the Explorer UI internal upstream (AEKO_INTERNAL_EXPLORER_API_URL).';
+        + 'Check the Explorer UI internal upstream (AEKO_TESTNET_EXPLORER_API_URL).';
     } else {
       message = `Indexer returned non-JSON (${response.status}). ${snippet}`;
     }
