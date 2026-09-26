@@ -37,9 +37,10 @@ funding state and does not receive `FUNDING_GATEWAY_KEY`. Funding controls call
 the private funding role over `AEKO_INTERNAL_FUNDING_URL` using
 `FUNDING_ADMIN_API_KEY`.
 
-Admin also talks server-to-server to Explorer through
-`AEKO_INTERNAL_EXPLORER_API_URL`. Browser clients never receive that upstream
-origin or the Explorer settings mutation token.
+Admin talks server-to-server to Explorer through
+`AEKO_TESTNET_EXPLORER_API_URL` (default `https://api.aeko.online`) or the
+matching mainnet/localnet variable. Browser clients never receive the Explorer
+settings mutation token.
 
 ## Trust boundaries
 
@@ -50,8 +51,9 @@ origin or the Explorer settings mutation token.
 - `FUNDING_ALLOWED_ORIGINS`: funding role CORS allowlist for the Scan UI (`scan.aeko.online`).
 - `AEKO_FAUCET_PER_REQUEST_CAP`: private Faucet Daemon hard ceiling.
 
-The Rust Faucet Daemon remains private TCP infrastructure, normally
-`faucet:9900`, and has no public web route.
+The Rust Faucet Daemon is raw TCP infrastructure, not an HTTP route. In the
+split testnet it is addressed as `faucet.aeko.online:9900`; access to TCP
+9900 should be restricted to Validator source addresses.
 
 ## Operator routes
 
