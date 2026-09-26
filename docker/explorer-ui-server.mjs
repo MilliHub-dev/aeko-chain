@@ -4,22 +4,34 @@ import { extname, resolve } from 'node:path'
 
 const PORT = Number(process.env.PORT || 4000)
 const ROOT = resolve('/app/dist')
-const TESTNET_UPSTREAM = String(
-  process.env.AEKO_TESTNET_EXPLORER_API_URL || 'http://explorer-api:8088',
-).replace(/\/+$/, '')
-const MAINNET_UPSTREAM = String(
-  process.env.AEKO_MAINNET_EXPLORER_API_URL || '',
-).replace(/\/+$/, '')
-// Local deploys expose only localnet: default its upstream to the Compose
-// service name like testnet. Production without an explicit localnet
-// upstream correctly reports the backend as unconfigured.
-const DEPLOY_ENV = String(process.env.AEKO_ENV || process.env.NODE_ENV || 'production')
-  .trim().toLowerCase()
-const LOCALNET_UPSTREAM = String(
-  process.env.AEKO_LOCALNET_EXPLORER_API_URL
-  || (['local', 'development', 'dev', 'localhost'].includes(DEPLOY_ENV) ? 'http://explorer-api:8088' : ''),
-).replace(/\/+$/, '')
 const UPSTREAM_TIMEOUT_MS = Number(process.env.AEKO_EXPLORER_PROXY_TIMEOUT_MS || 20_000)
+
+function clean(name) {
+  return String(process.env[name] || '').trim().replace(/\/+$/, '')
+}
+
+function normalizeNetwork(value) {
+  const network = String(value || '').trim().toLowerCase()
+  return ['mainnet', 'testnet', 'devnet', 'localnet'].includes(network) ? network : ''
+}
+
+const ACTIVE_NETWORK = normalizeNetwork(process.env.AEKO_NETWORK)
+if (!ACTIVE_NETWORK) {
+  throw new Error('AEKO_NETWORK must be mainnet, testnet, devnet, or localnet')
+}
+
+const ACTIVE_UPSTREAM = clean('AEKO_EXPLORER_API_URL')
+if (!ACTIVE_UPSTREAM) {
+  throw new Error('AEKO_EXPLORER_API_URL is required for the active Scan network')
+}
+
+const UPSTREAMS = {
+  mainnet: clean('AEKO_MAINNET_EXPLORER_API_URL'),
+  testnet: clean('AEKO_TESTNET_EXPLORER_API_URL'),
+  devnet: clean('AEKO_DEVNET_EXPLORER_API_URL'),
+  localnet: clean('AEKO_LOCALNET_EXPLORER_API_URL'),
+}
+UPSTREAMS[ACTIVE_NETWORK] = ACTIVE_UPSTREAM
 
 const MIME = {
   '.css': 'text/css; charset=utf-8',
@@ -47,14 +59,10 @@ function json(res, status, body) {
 }
 
 function upstreamFor(pathname) {
-  const prefixes = [
-    ['/api/explorer/testnet', TESTNET_UPSTREAM],
-    ['/api/explorer/mainnet', MAINNET_UPSTREAM],
-    ['/api/explorer/localnet', LOCALNET_UPSTREAM],
-  ]
-  for (const [prefix, upstream] of prefixes) {
+  for (const network of ['mainnet', 'testnet', 'devnet', 'localnet']) {
+    const prefix = `/api/explorer/${network}`
     if (pathname === prefix || pathname.startsWith(prefix + '/')) {
-      return { prefix, upstream }
+      return { prefix, upstream: UPSTREAMS[network], network }
     }
   }
   return null
@@ -62,11 +70,18 @@ function upstreamFor(pathname) {
 
 async function proxyExplorer(req, res, url, target) {
   if (!['GET', 'HEAD'].includes(req.method || 'GET')) {
-    json(res, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Explorer UI proxy is read-only' } })
+    json(res, 405, {
+      error: { code: 'METHOD_NOT_ALLOWED', message: 'Explorer UI proxy is read-only' },
+    })
     return
   }
   if (!target.upstream) {
-    json(res, 503, { error: { code: 'EXPLORER_UPSTREAM_UNAVAILABLE', message: 'Selected Explorer backend is not configured' } })
+    json(res, 503, {
+      error: {
+        code: 'EXPLORER_UPSTREAM_UNAVAILABLE',
+        message: `${target.network} Explorer backend is not configured`,
+      },
+    })
     return
   }
 
@@ -126,9 +141,7 @@ async function proxyExplorer(req, res, url, target) {
     json(res, timeout ? 504 : 502, {
       error: {
         code: timeout ? 'EXPLORER_UPSTREAM_TIMEOUT' : 'EXPLORER_UPSTREAM_UNAVAILABLE',
-        message: timeout
-          ? 'Explorer backend timed out'
-          : 'Explorer backend is unavailable',
+        message: timeout ? 'Explorer backend timed out' : 'Explorer backend is unavailable',
       },
     })
   } finally {
