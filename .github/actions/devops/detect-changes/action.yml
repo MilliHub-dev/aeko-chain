@@ -271,7 +271,7 @@ runs:
                 packaging=true
                 coolify_operations_web=true
                 ;;
-              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/audit-validator-storage.sh|scripts/validate-deployment-contract.py|scripts/validate-coolify-split.py|scripts/test-validator-entrypoint.sh)
+              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/audit-validator-storage.sh|scripts/validate-deployment-contract.py|scripts/validate-coolify-split.py|scripts/test-validator-entrypoint.sh|scripts/test-explorer-api-entrypoint.sh)
                 # Real packaging/deployment changes must prove the selected
                 # container targets still build. CI implementation paths are
                 # classified separately above and do not rebuild product images.
