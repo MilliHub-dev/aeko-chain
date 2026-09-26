@@ -159,7 +159,8 @@ services:
     container_name: aeko-explorer-api
     restart: unless-stopped
     environment:
-      AEKO_EXPLORER_RPC: ${AEKO_TESTNET_RPC_URL:-http://validator:8899}
+      AEKO_LOCALNET_RPC_URL: ${AEKO_LOCALNET_RPC_URL:-http://validator:8899}
+      AEKO_LOCALNET_WS_URL: ${AEKO_LOCALNET_WS_URL:-ws://validator:8900}
       AEKO_EXPLORER_NETWORK: ${AEKO_EXPLORER_NETWORK:-localnet}
       AEKO_EXPLORER_BIND: 0.0.0.0:8088
       AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:-local-dev-settings-admin-token-32-characters}
