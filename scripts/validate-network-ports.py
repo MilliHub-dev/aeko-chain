@@ -272,9 +272,12 @@ def main() -> int:
     scan_entrypoint = read(ROOT / "docker" / "explorer-ui-entrypoint.sh")
     scan_server = read(ROOT / "docker" / "explorer-ui-server.mjs")
     scan_vite = read(ROOT / "apps" / "explorer" / "web" / "vite.config.js")
+
+    # Runtime config generation and Vite dev mode consume chain RPC/WS plus the
+    # Explorer API. The production proxy server only needs network identity and
+    # Explorer API upstreams; it must not require RPC/WS it never calls.
     for label, text in (
         ("Scan entrypoint", scan_entrypoint),
-        ("Scan proxy server", scan_server),
         ("Scan Vite config", scan_vite),
     ):
         require_contains_all(
@@ -283,9 +286,18 @@ def main() -> int:
             (
                 "AEKO_NETWORK",
                 "AEKO_RPC_URL",
+                "AEKO_WS_URL",
                 "AEKO_EXPLORER_API_URL",
             ),
         )
+    require_contains_all(
+        "Scan proxy server",
+        scan_server,
+        (
+            "AEKO_NETWORK",
+            "AEKO_EXPLORER_API_URL",
+        ),
+    )
 
     for name in (
         "AEKO_MAINNET_EXPLORER_API_URL",
