@@ -85,20 +85,27 @@ Keep Validator/bootstrap/faucet-tools on an immutable validated image tag.
 Explorer API/UI and Operations Web may use the promoted `latest` tag when
 their independent deployment webhook runs only after image promotion.
 
-Canonical testnet service discovery is:
+Each chain deployment has one active network and one set of generic service
+endpoints. The currently deployed testnet uses:
 
 ~~~text
-AEKO_TESTNET_RPC_URL=https://rpc.aeko.online
-AEKO_TESTNET_WS_URL=wss://ws.aeko.online
-AEKO_TESTNET_EXPLORER_API_URL=https://api.aeko.online
-AEKO_TESTNET_REGISTRY_URL=https://registry.aeko.online
-AEKO_TESTNET_FAUCET_ADDRESS=faucet.aeko.online:9900
+AEKO_NETWORK=testnet
+AEKO_RPC_URL=https://rpc.aeko.online
+AEKO_WS_URL=wss://ws.aeko.online
+AEKO_EXPLORER_API_URL=https://api.aeko.online
+AEKO_REGISTRY_URL=https://registry.aeko.online
+AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900
 ~~~
 
-The names describe **blockchain network + service**, not whether two containers
-share a Docker network. Optional mainnet/localnet values follow the same
-pattern. A future devnet should use `AEKO_DEVNET_*` only after a real devnet
-exists.
+A mainnet or devnet resource set uses the same variable names on different
+servers with that network's domains. Do not load all network endpoints into
+Validator, bootstrap, Explorer API, Faucet or Operations Web.
+
+Aeko Scan is the only multi-network boundary. Its generic values define the
+active/default network; optional complete `AEKO_MAINNET_*`,
+`AEKO_TESTNET_*` and `AEKO_DEVNET_*` RPC/WS/Explorer-API triplets describe
+other independently deployed networks available in the UI toggle. Localnet is
+for local development.
 
 Explorer API additionally owns `EXPLORER_DATABASE_URL` and the Explorer
 settings token. Operations Web owns its admin credentials. Bootstrap and
@@ -226,7 +233,7 @@ For an established chain:
 3. deploy `faucet-tools`;
 4. deploy `validator` and verify RPC health/slot advancement;
 5. deploy `bootstrap`; key preflight runs first, then Social and Protocol may
-   run in parallel against `AEKO_TESTNET_RPC_URL`; require the registry
+   run in parallel against `AEKO_RPC_URL`; require the registry
    service to become healthy at `https://registry.aeko.online/healthz`;
 6. deploy Explorer API and verify it can fetch both registry files;
 7. deploy Explorer UI and Operations Web independently.
