@@ -219,7 +219,7 @@ explorer-ui
 ### Required Dokploy environment
 
 ```text
-AEKO_PUBLIC_IP=<public IP of Dokploy host>
+AEKO_GOSSIP_HOST=gossip.aeko.online
 AEKO_KEYS_DIR=../files/aeko-keys
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
 AEKO_IMAGE_REPOSITORY=surdma
@@ -268,7 +268,7 @@ fund.aeko.online  -> funding-gateway:3001
 admin.aeko.online -> operations-web:3001
 ```
 
-Set `AEKO_PUBLIC_IP` to the externally reachable node address. Point `gossip.aeko.online` DNS directly to it and allow inbound TCP+UDP `8000-8050`. Gossip/validator transport is not an HTTP route and must not go through the Explorer/Traefik domain path.
+Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record to the externally reachable Validator host and allow inbound TCP+UDP `8000-8050`. Gossip/validator transport is not an HTTP route and must not go through the Explorer/Traefik domain path.
 
 Equivalent host-side Compose behavior:
 
@@ -342,7 +342,7 @@ admin.aeko.online     -> operations-web:3001
 faucet.aeko.online    -> Faucet host TCP 9900
 ```
 
-gossip.aeko.online still points directly to AEKO_PUBLIC_IP. Allow inbound
+AEKO_GOSSIP_HOST remains gossip.aeko.online, whose DNS points directly to the Validator host. Allow inbound
 TCP+UDP 8000-8050 and do not route gossip through the HTTP proxy.
 
 ## Create and use a wallet
