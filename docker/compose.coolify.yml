@@ -1,7 +1,7 @@
 # Coolify production/testnet deployment contract.
 # Images are pulled from Docker Hub; no service builds locally.
 # Required Coolify values:
-#   AEKO_PUBLIC_IP=<public address advertised by validator>
+#   AEKO_GOSSIP_HOST=gossip.aeko.online
 #   EXPLORER_DATABASE_URL=postgres://...
 #
 # Low-resource public defaults target small test servers. The validator keeps
@@ -158,7 +158,7 @@ services:
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-1}
       AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet:9900}
-      AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?}
+      AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-gossip.aeko.online}
       AEKO_GOSSIP_PORT: "8001"
       AEKO_DYNAMIC_PORT_RANGE: 8000-8050
       AEKO_RPC_SEND_TRANSACTION_TPU_PEER: ${AEKO_VALIDATOR_TPU_QUIC_PEER:-validator:8009}
