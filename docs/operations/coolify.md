@@ -17,14 +17,15 @@ every resource at docker/compose.coolify.yml.
 
 The split files pull the same published images as the legacy contract. They do
 not build Rust or web source on the Coolify host. Each resource has its own
-.env.example. Cross-resource lifecycle is independent; only the three services
-inside the bootstrap resource use Compose ordering, so Social/Protocol wait for
-the co-located key preflight.
+.env.example. The Bootstrap resource contains four services: key preflight,
+Social bootstrap, Protocol bootstrap, and the read-only registry HTTP service.
 
-Cross-resource traffic must use explicit private endpoints. Service-name
-defaults such as validator:8899, faucet:9900 and explorer-api:8088 only work
-inside the old monolithic Compose project and are intentionally absent from the
-split contracts.
+Cross-resource traffic uses canonical network service names rather than Docker
+service DNS or sample private IPs. Testnet consumers use
+`rpc.aeko.online`, `ws.aeko.online`, `api.aeko.online`,
+`registry.aeko.online`, and `faucet.aeko.online:9900`. The resources may
+therefore live on different Ubuntu instances or different Coolify
+installations.
 
 The validator is now a true independent deployment unit. Updating Aeko Scan,
 the Explorer API or Operations Web does not require Coolify to recreate the
@@ -53,17 +54,16 @@ examples so the post-promotion webhook actually pulls the newly promoted image.
 If you pin them to immutable SHA tags, update the environment tag as part of
 the deployment because a webhook alone cannot change it.
 
-When split resources on the same Coolify destination need private
-cross-resource communication, Connect To Predefined Network can attach them to
-the destination network. Continue to set AEKO_INTERNAL_* endpoints explicitly
-after verifying the actual attached hostname.
+Coolify domains are the normal cross-resource contract for HTTP/WebSocket
+services. Configure the domains listed below against each service's container
+port. A resource does not need a host `ports:` mapping merely because its
+consumer lives on another instance.
 
-For resources on different servers, use private routed networking or a
-VPN/overlay. Faucet, Validator RPC/WS and Explorer API default their host-port
-bindings to 127.0.0.1. Change the corresponding *_BIND_IP only to a private/VPN
-interface when cross-server access is required, and restrict those ports with
-host/cloud firewall rules. Do not expose Faucet 9900 or Explorer API 8088 to the
-public Internet.
+Faucet and validator gossip are the exceptions because they are raw TCP/UDP,
+not HTTP. `faucet.aeko.online` identifies the Faucet host, but TCP `:9900`
+must still be published and restricted by host/cloud firewall to Validator
+source addresses. Gossip/validator transport likewise uses direct TCP+UDP
+`8000-8050`.
 
 The recommended resource settings and Watch Paths examples are in
 docker/coolify/README.md.
@@ -71,7 +71,7 @@ docker/coolify/README.md.
 ## Required Coolify variables
 
 Do not use one giant shared Coolify environment for the split topology. Each
-resource owns only the variables documented in its adjacent .env.example.
+resource owns only the variables documented in its adjacent `.env.example`.
 
 Common image/logging variables are:
 
@@ -81,41 +81,39 @@ AEKO_LOG_MAX_SIZE=10m
 AEKO_LOG_MAX_FILES=3
 ~~~
 
-Image-tag policy is resource-specific: keep Validator/bootstrap/faucet-tools on
-an immutable validated SHA. Explorer API/UI and Operations Web default to
-`latest` when using the split post-promotion webhooks; pinning them to a SHA
-requires updating that value during release.
+Keep Validator/bootstrap/faucet-tools on an immutable validated image tag.
+Explorer API/UI and Operations Web may use the promoted `latest` tag when
+their independent deployment webhook runs only after image promotion.
 
-Important cross-resource values are configured only on consumers:
+Each chain deployment has one active network and one set of generic service
+endpoints. The currently deployed testnet uses:
 
 ~~~text
-# validator
-AEKO_PUBLIC_IP=<validator public IP>
-AEKO_INTERNAL_FAUCET_ADDRESS=<reachable-faucet-host>:9900
-
-# bootstrap / Explorer API / Operations Web
-AEKO_INTERNAL_RPC_URL=<reachable-validator-http-or-https-url>
-
-# Explorer UI / Operations Web
-AEKO_INTERNAL_EXPLORER_API_URL=<reachable-explorer-api-http-or-https-url>
+AEKO_NETWORK=testnet
+AEKO_RPC_URL=https://rpc.aeko.online
+AEKO_WS_URL=wss://ws.aeko.online
+AEKO_EXPLORER_API_URL=https://api.aeko.online
+AEKO_REGISTRY_URL=https://registry.aeko.online
+AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900
 ~~~
 
-The `INTERNAL` prefix means server-side configuration, not same-host Docker
-DNS. When two instances or providers have no shared private network, HTTP
-consumers may use a controlled HTTPS endpoint. Faucet is raw TCP and should be
-restricted to Validator source addresses when it crosses hosts.
+A mainnet or devnet resource set uses the same variable names on different
+servers with that network's domains. Do not load all network endpoints into
+Validator, bootstrap, Explorer API, Faucet or Operations Web.
 
-Explorer API additionally owns EXPLORER_DATABASE_URL and its Explorer settings
-token. Explorer UI owns public browser RPC/WS URLs. Operations Web owns its
-admin credentials. Bootstrap and validator tunables remain local to their
-corresponding resources.
+Aeko Scan is the only multi-network boundary. Its generic values define the
+active/default network; optional complete `AEKO_MAINNET_*`,
+`AEKO_TESTNET_*` and `AEKO_DEVNET_*` RPC/WS/Explorer-API triplets describe
+other independently deployed networks available in the UI toggle. Localnet is
+for local development.
+
+Explorer API additionally owns `EXPLORER_DATABASE_URL` and the Explorer
+settings token. Operations Web owns its admin credentials. Bootstrap and
+Validator tunables remain local to their corresponding resources.
 
 Coolify values should be entered without shell quotes. The split contracts do
-not use env_file, so an uncommitted .env file is never a runtime dependency.
-
-The persistent host paths are also not environment variables. They are literal
-/data/aeko/** bind sources so Coolify can validate storage before containers
-start.
+not use `env_file:`, so an uncommitted `.env` file is never a runtime
+dependency. Persistent host paths remain literal `/data/aeko/**` bind sources.
 
 ## Persistent keys
 
@@ -171,40 +169,52 @@ An operator may mount dedicated block storage at
 definition: the validator only requires that the host path is durable and
 contains the established ledger.
 
-The split Explorer API does not mount either bootstrap state directory. After
-bootstrap succeeds, copy the canonical Social/Protocol registry values into the
-Explorer API resource environment. This keeps Explorer independent of the
-bootstrap host while preserving the same genesis-bound identities.
+The split Explorer API does not mount either bootstrap state directory and does
+not require dozens of copied registry environment variables. After Social and
+Protocol bootstrap succeed, the co-located `registry` service serves only the
+generated `social-registry.env` and `protocol-registry.env` files read-only
+at `registry.aeko.online`. Explorer API fetches a matching schema/genesis pair
+before startup and refreshes it periodically. The registry service never mounts
+or exposes `/data/aeko/keys`.
 
-For the complete migration sequence and registry handoff contract, use
-docker/coolify/README.md.
+For the complete migration sequence and registry discovery contract, use
+`docker/coolify/README.md`.
 
 ## Domains and ports
 
-Configure Coolify domains against these internal services:
+The canonical cross-platform matrix, including local host-port overrides and
+same-Compose Docker-DNS defaults, is
+[network-ports-and-domains.md](./network-ports-and-domains.md). This section is
+the Coolify-specific routing subset.
 
-| Public endpoint | Service | Container port |
+
+Configure these Coolify domains against the listed services/container ports:
+
+| Testnet endpoint | Service | Container port |
 | --- | --- | ---: |
 | `https://rpc.aeko.online` | `validator` | `8899` |
 | `wss://ws.aeko.online` | `validator` | `8900` |
+| `https://registry.aeko.online` | `registry` in Bootstrap | `8089` |
+| `https://api.aeko.online` | `explorer-api` | `8088` |
 | `https://scan.aeko.online` | `explorer-ui` | `4000` |
-| `https://admin.aeko.online` | `operations-web` | `3001` (operator console) |
+| `https://admin.aeko.online` | `operations-web` | `3001` |
 
-Do not configure `gossip.aeko.online` as an HTTP route. Point that DNS record directly to `AEKO_PUBLIC_IP` and allow inbound TCP+UDP `8000-8050` at the host/cloud firewall. Gossip starts on `8001` inside that range.
+`api.aeko.online` is the server-side Explorer API origin used by Scan's
+same-origin read proxy and Operations Web. Browser navigation still uses
+`scan.aeko.online`; the browser is not required to call the API origin
+directly.
 
-Keep the Faucet Daemon on TCP `9900` and PostgreSQL `5432` private.
+`registry.aeko.online` exposes only `/healthz`,
+`/social-registry.env`, and `/protocol-registry.env`; all other paths
+return 404.
 
-### Explorer backend privacy
+Do not configure `gossip.aeko.online` as an HTTP route. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record
+directly to the Validator host and allow inbound TCP+UDP `8000-8050`.
+Gossip starts on `8001`.
 
-Do not configure a public domain for `explorer-api:8088`. The Explorer UI serves indexed reads from its own origin under `/api/explorer/testnet/*` and proxies them to the server-side endpoint configured by `AEKO_INTERNAL_EXPLORER_API_URL`. That endpoint may be on the same Coolify network or on another private/VPN-reachable host.
-
-For the documented hostname:
-
-```text
-https://scan.aeko.online/api/explorer/testnet/* -> explorer-ui:4000 -> explorer-api:8088
-```
-
-The browser never receives the raw Explorer backend origin. The proxy accepts read-only methods; the server-side route may cross hosts, but it should remain private rather than being exposed as a browser-facing Explorer API origin.
+Faucet is also not an HTTP Coolify Domain. Point `faucet.aeko.online` to the
+Faucet host, publish TCP `9900`, and firewall it to Validator source
+addresses. PostgreSQL `5432` should remain private.
 
 ## First deployment
 
@@ -229,8 +239,10 @@ For an established chain:
 3. deploy `faucet-tools`;
 4. deploy `validator` and verify RPC health/slot advancement;
 5. deploy `bootstrap`; key preflight runs first, then Social and Protocol may
-   run in parallel against the explicit `AEKO_INTERNAL_RPC_URL`;
-6. deploy Explorer API, Explorer UI and Operations Web independently.
+   run in parallel against `AEKO_RPC_URL`; require the registry
+   service to become healthy at `https://registry.aeko.online/healthz`;
+6. deploy Explorer API and verify it can fetch both registry files;
+7. deploy Explorer UI and Operations Web independently.
 
 For a genuinely new chain, provision/generate the intended keys before first
 Validator genesis, then start Faucet and Validator with

@@ -76,7 +76,7 @@ The bootstrap flow on first boot:
 2. `aeko-validator` starts, loads from genesis, immediately begins producing slots because `--no-wait-for-vote-to-start-leader` is set.
 3. The PoH thread ticks ~3 slots per second. The banking stage processes any transactions in the mempool. The blockstore records the resulting shreds. With one validator, that's the entire pipeline — no network broadcast needed.
 4. `aeko-faucet` is independently listening on container port 9900 with the faucet keypair loaded. It is NOT exposed to the public internet — the validator reaches it on the docker bridge at `faucet:9900`.
-5. On the public testnet, the Operations Web funding role (same image as Admin, served today from `fund.aeko.online`) first applies off-chain queue policy and calls the validator's protected `requestAirdrop` method with server authorization. The validator then opens a TCP connection to the private Faucet Daemon at `faucet:9900`, receives a signed transfer transaction, submits it through its banking pipeline, and returns the signature. Funding queue state is policy accounting only; supply accounting follows `tokenomics.md`.
+5. On the public testnet, the Explorer API funding module applies the off-chain queue policy. Approved or constrained developer funding flows call the Validator's protected low-level `requestAirdrop` path, and the Validator connects to the private Faucet Daemon on TCP `9900` to obtain the signed transfer transaction. Funding queue state is policy accounting only; supply accounting follows `tokenomics.md`.
 6. `aeko-explorer-backend` reads finalized chain data from validator RPC, persists durable Explorer projections in PostgreSQL, and serves the REST API on `:8088`. The HTTP server binds while historical catch-up runs in a background task, so indexed history grows toward the finalized chain tip without substituting in-memory production state.
 7. `aeko-explorer-ui` serves the deployment-neutral Vite SPA from `/app/dist` via `node /app/explorer-ui-server.mjs` (same-origin Scan API proxy, not `serve -s`). At container startup, `docker/explorer-ui-entrypoint.sh` injects the canonical `AEKO_*` endpoint values into `/app/dist/runtime-config.js`; public API calls use that runtime configuration.
 
@@ -99,7 +99,7 @@ If it says `Node is unhealthy`, the chain isn't advancing — see Part 6 diagnos
 
 **Testnet funding works end-to-end.**
 ```bash
-curl -X POST https://fund.aeko.online/api/funding/request \
+curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
   -H 'Content-Type: application/json' \
   -d '{"address":"<some-pubkey>"}'
 aeko balance <some-pubkey> --url https://rpc.aeko.online

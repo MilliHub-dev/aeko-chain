@@ -1,92 +1,70 @@
 # AEKO Operations Web
 
-`apps/admin` builds one Next.js image (`aeko-operations-web`) that is deployed as two isolated service
-roles. They share source code but do not share public routes or runtime secrets.
-There is no separate `apps/funding` repo: "funding" is a deployment role of this image, currently served
-from the `fund.aeko.online` origin pending the approved move to Scan same-origin funding
-(`scan.aeko.online/api/explorer/testnet/funding/*` owned by the Scan backend).
+`apps/admin` builds the authenticated Operations Web / Admin console served by
+`admin.aeko.online` on container port `3001`.
 
-## Service roles
+The current deployment has **one Admin role**. Public testnet funding is not a
+second Operations Web deployment and there is no separate funding origin/runtime.
+Funding policy, approval requests, manual grants, and constrained Test Console
+airdrops are owned by the Explorer API funding module. Browser clients reach
+those routes through Aeko Scan's same-origin
+`/api/explorer/testnet/funding/*` boundary.
 
-### Funding role (current origin `fund.aeko.online`)
+## Network contract
 
-Set `AEKO_OPERATIONS_ROLE=funding`.
+One Operations Web deployment administers one blockchain environment:
 
-The funding role is the only public funding service. It owns:
+```text
+AEKO_OPERATIONS_ROLE=admin
+AEKO_NETWORK=testnet
+AEKO_RPC_URL=https://rpc.aeko.online
+AEKO_EXPLORER_API_URL=https://api.aeko.online
+```
 
-- `/funding`;
-- `GET /api/funding/policy`;
-- `POST /api/funding/request` for the operator-approval queue;
-- `POST /api/funding/airdrop` for the separately constrained Test Console flow;
-- persistent funding state;
-- `FUNDING_GATEWAY_KEY`, which authorizes low-level `requestAirdrop`.
+For local development the same variables may point to loopback. In the
+all-in-one Compose topology the RPC/API variables can default to
+`http://validator:8899` and `http://explorer-api:8088`. Explicit environment
+values always override those Docker-DNS defaults.
 
-Its private `/api/internal/funding/*` routes are authenticated with
-`FUNDING_ADMIN_API_KEY` and are intended only for same-network calls from the
-Admin service. Requests for Admin pages or Admin APIs return 404 on the public
-funding origin. Funding queue state here is off-chain policy accounting only;
-chain settlement is server-side `requestAirdrop`/private faucet, and supply
-accounting follows `tokenomics.md`, not this ledger.
-
-### Admin Console
-
-Set `AEKO_OPERATIONS_ROLE=admin`.
-
-The Admin service owns authenticated operator pages and APIs. It does not mount
-funding state and does not receive `FUNDING_GATEWAY_KEY`. Funding controls call
-the private funding role over `AEKO_INTERNAL_FUNDING_URL` using
-`FUNDING_ADMIN_API_KEY`.
-
-Admin also talks server-to-server to Explorer through
-`AEKO_INTERNAL_EXPLORER_API_URL`. Browser clients never receive that upstream
-origin or the Explorer settings mutation token.
+Admin does not load endpoint matrices for other networks. Cross-network
+selection belongs to Aeko Scan.
 
 ## Trust boundaries
 
-- `FUNDING_GATEWAY_KEY`: funding role only; authorizes protected low-level airdrops.
-- `FUNDING_ADMIN_API_KEY`: shared only between the private Admin service and funding role.
-- `AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN`: Admin service only; authorizes Explorer settings mutations.
-- `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET`: Admin service only.
-- `FUNDING_ALLOWED_ORIGINS`: funding role CORS allowlist for the Scan UI (`scan.aeko.online`).
-- `AEKO_FAUCET_PER_REQUEST_CAP`: private Faucet Daemon hard ceiling.
-
-The Rust Faucet Daemon remains private TCP infrastructure, normally
-`faucet:9900`, and has no public web route.
+- `AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN`: server-side Operations Web -> Explorer
+  API control-plane credential. It must never be exposed to browser runtime.
+- `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET`: Admin authentication/session
+  secrets.
+- `AEKO_RPC_URL`: server-side RPC used for operator chain reads.
+- `AEKO_EXPLORER_API_URL`: server-side Explorer API used for indexed reads and
+  authenticated control-plane operations.
+- The Faucet Daemon is separate raw TCP infrastructure on port `9900`; Admin
+  and browsers do not connect to it directly.
 
 ## Operator routes
 
 | Path | Audience | Purpose |
 | --- | --- | --- |
 | `/login` | operator | Admin sign-in |
-| `/funding-grants` | operator | Approval queue, policy, manual grants and history |
+| `/funding-grants` | operator | Funding approval queue, policy, manual grants, and history |
 | `/`, `/blocks`, `/transactions`, `/tokens`, `/nfts`, `/marketplace` | operator | Chain and asset monitoring |
 | `/social` | operator | Indexed Social activity and canonical live state |
-| `/protocol` | operator | Protocol features, programs and canonical state |
+| `/protocol` | operator | Protocol features, programs, and canonical state |
+| `/settings` | operator | Durable Explorer/application settings |
 
-## Public funding routes
-
-| Path | Audience | Purpose |
-| --- | --- | --- |
-| `/funding` | public | Submit a policy-sized request for operator approval |
-| `GET /api/funding/policy` | public | Read funding policy/status |
-| `POST /api/funding/request` | public | Create a pending request |
-| `POST /api/funding/airdrop` | Explorer Test Console | Constrained developer-only direct airdrop |
+Public funding routes live on Explorer API, not on the Admin origin.
 
 ## Local development
-
-Compose runs the roles separately:
-
-- Admin: `http://localhost:3001`
-- Funding role: `http://localhost:3002`
-
-For direct source work:
 
 ```bash
 npm ci
 cp .env.local.example .env.local
 npm run dev
-npx tsc --noEmit && npm run build
+npx tsc --noEmit
+npm run build
 ```
 
-A single direct `npm run dev` process uses the role selected by
-`AEKO_OPERATIONS_ROLE`. Use Compose when both roles are required together.
+The local server listens on `http://localhost:3001`.
+
+For the complete domain/port map, see
+[`docs/operations/network-ports-and-domains.md`](../../docs/operations/network-ports-and-domains.md).

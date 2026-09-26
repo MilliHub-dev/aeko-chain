@@ -9,7 +9,7 @@ The repository currently defines and deploys one canonical public network: **AEK
 | JSON-RPC | `https://rpc.aeko.online` |
 | WebSocket PubSub | `wss://ws.aeko.online` |
 | Explorer UI + indexed reads | `https://scan.aeko.online` |
-| Testnet Funding Portal | `https://fund.aeko.online` |
+| Testnet funding | `https://scan.aeko.online/api/explorer/testnet/funding/*` |
 | Validator gossip | `gossip.aeko.online:8001` |
 
 Testnet AEKO has no asserted monetary value. Public funding is policy-controlled through the Funding Portal. The Faucet Daemon on TCP `9900` is private infrastructure.

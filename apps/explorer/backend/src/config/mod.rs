@@ -30,9 +30,10 @@ pub struct ExplorerBackendConfig {
 
 impl ExplorerBackendConfig {
     pub fn from_env() -> Result<Self> {
-        let rpc_url = required_env("AEKO_EXPLORER_RPC")?;
-        let websocket_url = optional_env("AEKO_EXPLORER_WS");
-        let network = required_env("AEKO_EXPLORER_NETWORK")?;
+        let network = required_env("AEKO_NETWORK")?;
+        validate_network(&network)?;
+        let rpc_url = required_env("AEKO_RPC_URL")?;
+        let websocket_url = optional_env("AEKO_WS_URL");
         let start_slot = required_parse_env::<u64>("AEKO_EXPLORER_START_SLOT")?;
         let max_batch_size = required_nonzero::<usize>("AEKO_EXPLORER_MAX_BATCH_SIZE")?;
         let persist_socialfi_views =
@@ -115,6 +116,15 @@ impl ServerConfig {
     }
 }
 
+fn validate_network(network: &str) -> Result<()> {
+    match network.trim().to_ascii_lowercase().as_str() {
+        "testnet" | "mainnet" | "devnet" | "localnet" => Ok(()),
+        other => Err(anyhow!(
+            "AEKO_NETWORK={other:?} must be testnet, mainnet, devnet, or localnet"
+        )),
+    }
+}
+
 fn required_env(key: &str) -> Result<String> {
     optional_env(key)
         .ok_or_else(|| anyhow!("required environment variable {key} is missing or empty"))
@@ -166,7 +176,7 @@ impl Default for ExplorerBackendConfig {
         Self {
             rpc_url: "http://127.0.0.1:8899".to_string(),
             websocket_url: None,
-            network: "test".to_string(),
+            network: "localnet".to_string(),
             start_slot: 0,
             max_batch_size: 256,
             persist_socialfi_views: true,
@@ -180,5 +190,18 @@ impl Default for ExplorerBackendConfig {
             max_ready_lag_slots: 128,
             reset_chain_on_start: false,
         }
+    }
+}
+
+#[cfg(test)]
+mod config_tests {
+    use super::validate_network;
+
+    #[test]
+    fn accepted_networks_match_deployable_chain_environments() {
+        for network in ["testnet", "mainnet", "devnet", "localnet"] {
+            validate_network(network).unwrap();
+        }
+        assert!(validate_network("production").is_err());
     }
 }
