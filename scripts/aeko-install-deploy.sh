@@ -77,7 +77,7 @@ if [[ $balance = "0 lamports" ]]; then
     aeko $maybeKeypair --url "$URL" airdrop 0.000000042
   else
     echo "Payer account is empty. Fund it through the network's approved funding flow before deploying the update manifest." >&2
-    echo "AEKO public testnet funding: https://fund.aeko.online" >&2
+    echo "AEKO public testnet funding: https://scan.aeko.online/api/explorer/testnet/funding/request" >&2
     exit 1
   fi
 fi
