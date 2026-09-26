@@ -16,11 +16,12 @@ fi
 
 AEKO_PUBLIC_IP=203.0.113.10 \
 AEKO_KEYS_DIR=/tmp/aeko-keys \
-AEKO_TESTNET_FAUCET_ADDRESS=faucet.ci.invalid:9900 \
-AEKO_TESTNET_RPC_URL=https://rpc.ci.invalid \
-AEKO_TESTNET_WS_URL=wss://ws.ci.invalid \
-AEKO_TESTNET_EXPLORER_API_URL=https://api.ci.invalid \
-AEKO_TESTNET_REGISTRY_URL=https://registry.ci.invalid \
+AEKO_NETWORK=testnet \
+AEKO_FAUCET_ADDRESS=faucet.ci.invalid:9900 \
+AEKO_RPC_URL=https://rpc.ci.invalid \
+AEKO_WS_URL=wss://ws.ci.invalid \
+AEKO_EXPLORER_API_URL=https://api.ci.invalid \
+AEKO_REGISTRY_URL=https://registry.ci.invalid \
 EXPLORER_DATABASE_URL=postgres://aeko:aeko@postgres:5432/aeko_explorer \
 AEKO_IMAGE_TAG=ci \
 ADMIN_PASSWORD=ci-admin-password \
@@ -28,7 +29,6 @@ ADMIN_SESSION_SECRET=ci-admin-session-secret \
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=ci-explorer-settings-admin-token-0001 \
 FUNDING_GATEWAY_KEY=ci-funding-gateway-key \
 FUNDING_ADMIN_API_KEY=ci-funding-admin-service-key \
-AEKO_PUBLIC_FUNDING_URL=https://fund.ci.invalid \
 FUNDING_ALLOWED_ORIGINS=https://scan.ci.invalid \
 bash -c '
   set -euo pipefail
