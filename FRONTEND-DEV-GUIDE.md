@@ -91,7 +91,7 @@ import { AekoConnection, AekoExplorer, PROGRAM_IDS } from "@aeko/sdk";
 
 const RPC_URL = process.env.AEKO_RPC_URL ?? "http://localhost:8899";
 const EXPLORER_URL =
-  process.env.AEKO_INTERNAL_EXPLORER_API_URL ?? "http://localhost:8088";
+  process.env.AEKO_TESTNET_EXPLORER_API_URL ?? "http://localhost:8088";
 
 export const connection = new AekoConnection(RPC_URL);
 export const explorer = new AekoExplorer(EXPLORER_URL);
@@ -100,7 +100,7 @@ export const explorer = new AekoExplorer(EXPLORER_URL);
 Add to the **server/backend** `.env`. The Explorer upstream is private; do not expose it through a `NEXT_PUBLIC_*` variable:
 ```
 AEKO_RPC_URL=https://rpc.aeko.online
-AEKO_INTERNAL_EXPLORER_API_URL=http://explorer-api:8088
+AEKO_TESTNET_EXPLORER_API_URL=http://explorer-api:8088
 ```
 
 ---
@@ -1224,7 +1224,7 @@ export async function hasWallet(): Promise<boolean> {
 
 ```env
 AEKO_RPC_URL=https://rpc.aeko.online
-AEKO_INTERNAL_EXPLORER_API_URL=http://explorer-api:8088
+AEKO_TESTNET_EXPLORER_API_URL=http://explorer-api:8088
 AEKO_SERVICE_KEYPAIR=[1,2,3,...]    # byte array of service wallet secret key
 AEKO_TREASURY_ADDRESS=...           # platform fee destination
 AEKO_PLATFORM_FEE_BPS=200           # 2% platform fee on marketplace sales
