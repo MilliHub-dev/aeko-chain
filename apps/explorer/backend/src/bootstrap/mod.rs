@@ -1,6 +1,6 @@
 use {
     crate::{
-        config::{ServerConfig, SettingsControlConfig},
+        config::{FundingControlConfig, ServerConfig, SettingsControlConfig},
         http::{self, state::AppState},
         indexing::service::IndexerService,
         infrastructure::{
@@ -105,6 +105,9 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
         backend.max_ready_lag_slots,
         backend.persist_socialfi_views,
         settings_control.admin_token,
+        funding_control.authorization_key,
+        funding_control.requests_per_10_min,
+        funding_control.faucet_per_request_cap_aeko,
     )
     .shared();
     let router = http::build_router(state, &server);
