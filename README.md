@@ -64,7 +64,11 @@ A **WebSocket node is not a separate daemon**. PubSub/WebSocket is served by the
 | --- | --- | --- |
 | JSON-RPC | `https://rpc.aeko.online` | validator `:8899` |
 | WebSocket / PubSub | `wss://ws.aeko.online` | validator `:8900` |
-| Explorer UI + indexed-read proxy | `https://scan.aeko.online` | Explorer UI `:4000` -> private Explorer API `:8088` |
+| Explorer API | `https://api.aeko.online` | Explorer API `:8088`; server-to-server upstream for Scan/Admin |
+| Bootstrap registry | `https://registry.aeko.online` | read-only registry `:8089`; exposes generated Social/Protocol registry files only |
+| Explorer UI + indexed-read proxy | `https://scan.aeko.online` | Explorer UI `:4000` -> `api.aeko.online` |
+| Operations Web | `https://admin.aeko.online` | Operations Web `:3001` |
+| Faucet TCP | `faucet.aeko.online:9900` | Faucet daemon raw TCP; firewall to Validator sources |
 | Testnet Funding Gateway | `https://fund.aeko.online` | funding-gateway `:3001` |
 | Validator gossip | `gossip.aeko.online:8001` | validator gossip entrypoint |
 
@@ -78,8 +82,9 @@ The public validator publishes the public TCP+UDP transport range `8000-8050`; g
 | `8001` | TCP + UDP | gossip entrypoint inside the range | direct node-to-node |
 | `8899` | HTTP JSON-RPC | wallet/dApp/CLI RPC | `rpc.aeko.online` via validator |
 | `8900` | WebSocket | RPC PubSub | `ws.aeko.online` via validator |
-| `9900` | TCP | Faucet Daemon | internal only |
-| `8088` | HTTP | Explorer/indexer REST API | internal Docker network only |
+| `9900` | TCP | Faucet Daemon | `faucet.aeko.online:9900`; firewall to Validator sources |
+| `8088` | HTTP | Explorer/indexer REST API | `api.aeko.online` via Coolify domain |
+| `8089` | HTTP | read-only bootstrap registry | `registry.aeko.online` via Coolify domain |
 | `4000` | HTTP | Explorer UI | `scan.aeko.online` |
 | `4101` | HTTP/Socket.IO | separate Aeko application backend | separate deployment |
 | `5432` | PostgreSQL | durable storage where configured | internal only |
@@ -309,11 +314,13 @@ the validator ledger is /data/aeko/validator-ledger and chain keys remain
 /data/aeko/keys. This avoids a new Coolify/Compose project name silently
 creating an empty replacement named volume.
 
-Cross-resource dependencies are explicit environment endpoints rather than
-Compose service DNS. For example, validator requires
-AEKO_INTERNAL_FAUCET_ADDRESS, while Explorer API/bootstrap jobs require
-AEKO_INTERNAL_RPC_URL and Explorer UI requires
-AEKO_INTERNAL_EXPLORER_API_URL.
+Cross-resource dependencies use blockchain-network service names rather than
+deployment-topology names. The split testnet contract uses
+`AEKO_TESTNET_FAUCET_ADDRESS`, `AEKO_TESTNET_RPC_URL`,
+`AEKO_TESTNET_WS_URL`, `AEKO_TESTNET_EXPLORER_API_URL`, and
+`AEKO_TESTNET_REGISTRY_URL`. Their default values are the canonical AEKO
+domains, so resources can live on different Ubuntu/Coolify instances without
+Docker service-name DNS.
 
 For an established chain, migrate current named-volume data into the fixed
 /data/aeko paths before switching Compose paths. Keep
@@ -323,12 +330,16 @@ contract, and resource-specific variables are documented in
 [docker/coolify/README.md](./docker/coolify/README.md) and
 [docs/operations/coolify.md](./docs/operations/coolify.md).
 
-Public routing remains:
+Testnet service routing is:
 
 ```text
-rpc.aeko.online   -> validator:8899
-ws.aeko.online    -> validator:8900
-scan.aeko.online  -> explorer-ui:4000
+rpc.aeko.online       -> validator:8899
+ws.aeko.online        -> validator:8900
+registry.aeko.online  -> registry:8089
+api.aeko.online       -> explorer-api:8088
+scan.aeko.online      -> explorer-ui:4000
+admin.aeko.online     -> operations-web:3001
+faucet.aeko.online    -> Faucet host TCP 9900
 ```
 
 gossip.aeko.online still points directly to AEKO_PUBLIC_IP. Allow inbound
@@ -423,7 +434,7 @@ for chain subscriptions such as account, signature, slot and log notifications. 
 
 ## Explorer and SocialFi registry
 
-Explorer users and browser clients use `https://scan.aeko.online`. Indexed reads stay on that origin under `/api/explorer/testnet/*` and are proxied internally to the private Explorer API; there is no separate public Explorer REST origin.
+Explorer users and browser clients use `https://scan.aeko.online`. Indexed reads stay same-origin under `/api/explorer/testnet/*`; the Scan server proxies those reads to the server-side Explorer API domain `https://api.aeko.online`. Operations Web uses the same API domain directly for authenticated operator/server actions.
 
 Registry acceptance:
 
