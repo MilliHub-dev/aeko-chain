@@ -1,5 +1,6 @@
-# Coolify split resource: private Faucet daemon plus opt-in wallet/operator tools.
-# These services share chain key custody, but only Faucet is a long-running daemon.
+# Coolify resource: private Faucet daemon plus opt-in wallet/operator tools.
+# Faucet is raw TCP. DNS names the host, but TCP 9900 still needs an
+# operator-controlled route/firewall from the Validator host.
 x-logging: &default-logging
   driver: json-file
   options:
@@ -23,10 +24,8 @@ services:
       - ${AEKO_FAUCET_PER_REQUEST_CAP:-100}
     expose:
       - "9900"
-    # Loopback is the safe default. For a validator on another server, bind
-    # only to a VPN/private interface and restrict the port to validator peers.
     ports:
-      - "${AEKO_FAUCET_BIND_IP:-127.0.0.1}:${AEKO_FAUCET_HOST_PORT:-9900}:9900"
+      - "${AEKO_TESTNET_FAUCET_PORT:-9900}:9900"
     healthcheck:
       test: ["CMD-SHELL", "test -s /keys/faucet-keypair.json"]
       interval: 30s
