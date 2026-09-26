@@ -66,20 +66,19 @@ mirror is required.
 
 ## Docker deployment configuration
 
-Container-to-container traffic must use the Docker network and internal service
-ports, for example:
+Every deployed chain resource set has one active network. Service code uses
+generic environment names such as `AEKO_RPC_URL`, `AEKO_WS_URL`,
+`AEKO_EXPLORER_API_URL`, `AEKO_REGISTRY_URL`, and
+`AEKO_FAUCET_ADDRESS`. Those values may be same-network Docker names or
+cross-instance domains; topology is not encoded as `PUBLIC` or `INTERNAL`.
 
-- validator RPC: `http://validator:8899`
-- Explorer API: `http://explorer-api:8088`
-- Faucet Daemon: `faucet:9900`
+Aeko Scan is the exception because it is the global multi-network UI. Its
+generic endpoints identify the active/default network, while optional
+network-prefixed RPC/WS/Explorer-API triplets describe other independent
+mainnet/testnet/devnet deployments.
 
-Public domains belong only at the ingress/browser boundary and are deployment
-configuration. Coolify/Dokploy receive them through environment variables such
-as `AEKO_TESTNET_RPC_URL`, `AEKO_TESTNET_WS_URL`,
-`AEKO_PUBLIC_FUNDING_URL`. Explorer indexed-read upstreams are private service configuration (`AEKO_TESTNET_EXPLORER_API_URL`) and are never injected into browser runtime state.
-
-The Explorer UI is deployment-neutral at build time. Its container entrypoint
-writes runtime public endpoint configuration when the container starts.
+The Scan build remains deployment-neutral. Its container entrypoint writes
+runtime endpoint configuration when the container starts.
 
 ## Historical release pipelines
 
