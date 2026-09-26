@@ -37,10 +37,10 @@ funding state and does not receive `FUNDING_GATEWAY_KEY`. Funding controls call
 the private funding role over `AEKO_INTERNAL_FUNDING_URL` using
 `FUNDING_ADMIN_API_KEY`.
 
-Admin talks server-to-server to Explorer through
-`AEKO_TESTNET_EXPLORER_API_URL` (default `https://api.aeko.online`) or the
-matching mainnet/localnet variable. Browser clients never receive the Explorer
-settings mutation token.
+Admin belongs to one active chain environment. It uses `AEKO_NETWORK`,
+`AEKO_RPC_URL`, and server-side `AEKO_EXPLORER_API_URL` for that environment.
+It never loads endpoint sets for other networks; cross-network selection belongs
+to Aeko Scan. Browser clients never receive the Explorer settings mutation token.
 
 ## Trust boundaries
 
