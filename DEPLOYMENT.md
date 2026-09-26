@@ -324,8 +324,8 @@ Configure domains to the same internal services:
 | --- | --- | ---: |
 | `rpc.aeko.online` | `validator` | `8899` |
 | `ws.aeko.online` | `validator` | `8900` |
+| `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
-| `fund.aeko.online` | `funding-gateway` | `3001` |
 | `admin.aeko.online` | `operations-web` | `3001` |
 
 Keep `gossip.aeko.online` outside the HTTP proxy. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record directly to the Validator host and allow inbound TCP+UDP `8000-8050`.
