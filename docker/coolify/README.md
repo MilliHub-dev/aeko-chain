@@ -55,36 +55,35 @@ with the host/cloud firewall.
 
 ## Environment naming
 
-Do not encode deployment topology in endpoint variable names.
+Every chain deployment is one blockchain environment. A mainnet server does
+not carry testnet/devnet service URLs, and a testnet server does not carry
+mainnet/devnet service URLs.
 
-Use:
-
-```text
-AEKO_TESTNET_RPC_URL=https://rpc.aeko.online
-AEKO_TESTNET_WS_URL=wss://ws.aeko.online
-AEKO_TESTNET_EXPLORER_API_URL=https://api.aeko.online
-AEKO_TESTNET_REGISTRY_URL=https://registry.aeko.online
-AEKO_TESTNET_FAUCET_ADDRESS=faucet.aeko.online:9900
-```
-
-Optional live-network equivalents follow the same pattern:
+Use generic active-environment names on Validator, bootstrap, Explorer API,
+Faucet and Operations Web:
 
 ```text
-AEKO_MAINNET_RPC_URL=
-AEKO_MAINNET_WS_URL=
-AEKO_MAINNET_EXPLORER_API_URL=
-
-AEKO_LOCALNET_RPC_URL=http://127.0.0.1:8899
-AEKO_LOCALNET_WS_URL=ws://127.0.0.1:8900
-AEKO_LOCALNET_EXPLORER_API_URL=http://127.0.0.1:8088
+AEKO_NETWORK=testnet
+AEKO_RPC_URL=https://rpc.aeko.online
+AEKO_WS_URL=wss://ws.aeko.online
+AEKO_EXPLORER_API_URL=https://api.aeko.online
+AEKO_REGISTRY_URL=https://registry.aeko.online
+AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900
 ```
 
-A future devnet uses `AEKO_DEVNET_*` names only when an actual devnet is
-deployed. There is no fake devnet default.
+Deploying the same resource set for mainnet or devnet means changing
+`AEKO_NETWORK` and those generic URLs to that network's domains. It does not
+mean adding the other networks to the server.
 
-The application does not care whether a URL resolves to the same Docker
-network, another Ubuntu machine, a VPN address behind DNS, or another provider.
-That is deployment topology, not blockchain network identity.
+**Aeko Scan is the exception.** It is the global multi-network presentation
+layer. Its generic URLs describe the active/default network, while optional
+complete `AEKO_MAINNET_*`, `AEKO_TESTNET_*` and `AEKO_DEVNET_*` RPC/WS/
+Explorer-API triplets describe other independently deployed networks that the
+user can select. Localnet remains a local-development option.
+
+Whether an active URL resolves to the same Docker network, another Ubuntu
+machine, or another provider is deployment topology. That is not encoded as
+`PUBLIC` or `INTERNAL` in the variable name.
 
 ## Who consumes the bootstrap registry?
 
@@ -127,7 +126,7 @@ and slots, and policy values. They do not contain private keypair bytes.
 
 The split Explorer API starts through `docker/explorer-api-entrypoint.sh`.
 
-When `AEKO_TESTNET_REGISTRY_URL` is set, startup is fail-closed:
+When `AEKO_REGISTRY_URL` is set, startup is fail-closed:
 
 1. fetch `/social-registry.env`;
 2. fetch `/protocol-registry.env`;
@@ -142,7 +141,7 @@ keeps the last verified files; an initial failure prevents Explorer startup.
 
 Local/legacy deployments can continue to mount
 `AEKO_SOCIAL_REGISTRY_FILE` and `AEKO_PROTOCOL_REGISTRY_FILE` directly and
-leave `AEKO_TESTNET_REGISTRY_URL` unset.
+leave `AEKO_REGISTRY_URL` unset.
 
 ## Persistent state is host-local
 
