@@ -1,20 +1,18 @@
 #!/bin/sh
 set -eu
 
-# Split deployments can resolve the canonical bootstrap registries over HTTPS.
-# Registry discovery follows the Explorer blockchain network. Local/legacy
-# deployments may keep mounted registry files and leave the matching URL unset.
-NETWORK="$(printf '%s' "${AEKO_EXPLORER_NETWORK:-testnet}" | tr '[:upper:]' '[:lower:]')"
+# Each Explorer API instance belongs to exactly one chain environment. The
+# registry URL therefore describes that active environment directly; it is
+# not selected from a set of cross-network endpoint variables.
+NETWORK="$(printf '%s' "${AEKO_NETWORK:-${AEKO_EXPLORER_NETWORK:-}}" | tr '[:upper:]' '[:lower:]')"
 case "$NETWORK" in
-  testnet) REGISTRY_BASE_URL="${AEKO_TESTNET_REGISTRY_URL:-}" ;;
-  mainnet) REGISTRY_BASE_URL="${AEKO_MAINNET_REGISTRY_URL:-}" ;;
-  localnet) REGISTRY_BASE_URL="${AEKO_LOCALNET_REGISTRY_URL:-}" ;;
-  devnet) REGISTRY_BASE_URL="${AEKO_DEVNET_REGISTRY_URL:-}" ;;
+  testnet|mainnet|devnet|localnet) ;;
   *)
-    echo "error: AEKO_EXPLORER_NETWORK must be testnet, mainnet, localnet, or devnet" >&2
+    echo "error: AEKO_NETWORK must be testnet, mainnet, devnet, or localnet" >&2
     exit 64
     ;;
 esac
+REGISTRY_BASE_URL="${AEKO_REGISTRY_URL:-}"
 
 REGISTRY_DIR="${AEKO_REGISTRY_CACHE_DIR:-/tmp/aeko-registry}"
 REFRESH_SECONDS="${AEKO_REGISTRY_REFRESH_SECONDS:-30}"
