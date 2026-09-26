@@ -31,6 +31,10 @@ profile and does not start with the normal Faucet daemon.
 
 ## Canonical testnet service names
 
+For the full cross-platform port map and the exact environment override rules,
+see [../../docs/operations/network-ports-and-domains.md](../../docs/operations/network-ports-and-domains.md).
+
+
 Use these names in Coolify and DNS:
 
 | Service | Canonical endpoint | Coolify/container target |
