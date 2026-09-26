@@ -16,8 +16,8 @@ AEKO_DEPLOY_ENV="$(normalizeDeployEnv "${AEKO_ENV:-${NODE_ENV:-}}")"
 export AEKO_DEPLOY_ENV
 
 if [ "$AEKO_DEPLOY_ENV" != "local" ]; then
-  : "${AEKO_PUBLIC_RPC_URL:?AEKO_PUBLIC_RPC_URL is required}"
-  : "${AEKO_PUBLIC_WS_URL:?AEKO_PUBLIC_WS_URL is required}"
+  : "${AEKO_TESTNET_RPC_URL:?AEKO_TESTNET_RPC_URL is required}"
+  : "${AEKO_TESTNET_WS_URL:?AEKO_TESTNET_WS_URL is required}"
 fi
 
 node <<'NODE'
@@ -40,22 +40,22 @@ const isLocalDeploy = deployEnv === 'local';
 const isTestnetDeploy = deployEnv === 'testnet';
 
 const testnet = {
-  rpcUrl: optional('AEKO_PUBLIC_RPC_URL'),
-  websocketUrl: optional('AEKO_PUBLIC_WS_URL'),
+  rpcUrl: optional('AEKO_TESTNET_RPC_URL'),
+  websocketUrl: optional('AEKO_TESTNET_WS_URL'),
   explorerApiUrl: '/api/explorer/testnet',
   fundingUrl: '/api/explorer/testnet',
 };
 
 const mainnetRpcUrl = optional('AEKO_MAINNET_RPC_URL');
 const mainnetWebsocketUrl = optional('AEKO_MAINNET_WS_URL');
-const mainnetExplorerUpstream = optional('AEKO_INTERNAL_MAINNET_EXPLORER_API_URL');
+const mainnetExplorerUpstream = optional('AEKO_MAINNET_EXPLORER_API_URL');
 const mainnetValues = [mainnetRpcUrl, mainnetWebsocketUrl, mainnetExplorerUpstream];
 
 if (mainnetValues.some(Boolean) && !mainnetValues.every(Boolean)) {
   const missing = [
     ['AEKO_MAINNET_RPC_URL', mainnetRpcUrl],
     ['AEKO_MAINNET_WS_URL', mainnetWebsocketUrl],
-    ['AEKO_INTERNAL_MAINNET_EXPLORER_API_URL', mainnetExplorerUpstream],
+    ['AEKO_MAINNET_EXPLORER_API_URL', mainnetExplorerUpstream],
   ]
     .filter(([, value]) => !value)
     .map(([name]) => name)
@@ -74,7 +74,7 @@ const mainnet = {
 // loopback for local Compose runs.
 const localnetRpcEnv = optional('AEKO_LOCALNET_RPC_URL');
 const localnetWsEnv = optional('AEKO_LOCALNET_WS_URL');
-const localnetUpstreamEnv = optional('AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL');
+const localnetUpstreamEnv = optional('AEKO_LOCALNET_EXPLORER_API_URL');
 const localnetEnvSet = [localnetRpcEnv, localnetWsEnv, localnetUpstreamEnv].some(Boolean);
 const localnet = {
   rpcUrl: localnetRpcEnv || (localnetEnvSet ? 'http://127.0.0.1:8899' : ''),
