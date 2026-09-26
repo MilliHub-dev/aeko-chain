@@ -13,6 +13,7 @@ services:
     restart: unless-stopped
     environment:
       AEKO_NODE_ROLE: validator
+      AEKO_NETWORK: ${AEKO_NETWORK:?Set mainnet, testnet, devnet, or localnet}
       AEKO_BOOTSTRAP: "1"
       AEKO_IDENTITY_FILE: /keys/validator-1-keypair.json
       AEKO_VOTE_FILE: /keys/vote-1-keypair.json
@@ -20,7 +21,7 @@ services:
       AEKO_FAUCET_FILE: /keys/faucet-keypair.json
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-1}
-      AEKO_FAUCET_ADDRESS: ${AEKO_TESTNET_FAUCET_ADDRESS:-faucet.aeko.online:9900}
+      AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet.aeko.online:9900}
       AEKO_GOSSIP_HOST: ${AEKO_PUBLIC_IP:?Set the validator public IP}
       AEKO_GOSSIP_PORT: "8001"
       AEKO_DYNAMIC_PORT_RANGE: 8000-8050
