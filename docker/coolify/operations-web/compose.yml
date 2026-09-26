@@ -12,12 +12,9 @@ services:
     restart: unless-stopped
     environment:
       AEKO_OPERATIONS_ROLE: admin
-      AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}
-      AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-https://api.aeko.online}
-      AEKO_MAINNET_RPC_URL: ${AEKO_MAINNET_RPC_URL:-}
-      AEKO_MAINNET_EXPLORER_API_URL: ${AEKO_MAINNET_EXPLORER_API_URL:-}
-      AEKO_LOCALNET_RPC_URL: ${AEKO_LOCALNET_RPC_URL:-}
-      AEKO_LOCALNET_EXPLORER_API_URL: ${AEKO_LOCALNET_EXPLORER_API_URL:-}
+      AEKO_NETWORK: ${AEKO_NETWORK:?Set mainnet, testnet, devnet, or localnet}
+      AEKO_RPC_URL: ${AEKO_RPC_URL:?Set the active chain RPC URL}
+      AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?Set the active Explorer API URL}
       AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?Set the Explorer settings admin token}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set the Admin password}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?Set a strong Admin session secret}
