@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COOLIFY = ROOT / "docker" / "coolify"
 
 RESOURCES = {
-    "bootstrap": ["key-bootstrap", "social-bootstrap", "protocol-bootstrap"],
+    "bootstrap": ["key-bootstrap", "social-bootstrap", "protocol-bootstrap", "bootstrap-registry"],
     "faucet-tools": ["faucet", "wallet-tools"],
     "validator": ["validator"],
     "explorer-api": ["explorer-api"],
@@ -80,8 +80,17 @@ def validate_common(label: str, expected_services: list[str], compose: str, env_
     undocumented = interpolated_names(compose) - documented_names(env_example)
     require(not undocumented, f"{label} .env.example is missing Compose variables: {sorted(undocumented)}")
 
-    for forbidden in ("http://validator:8899", "faucet:9900", "http://explorer-api:8088"):
-        require(forbidden not in compose, f"{label} still depends on monolithic Docker DNS: {forbidden}")
+    for retired in (
+        "AEKO_INTERNAL_RPC_URL",
+        "AEKO_PUBLIC_RPC_URL",
+        "AEKO_PUBLIC_WS_URL",
+        "AEKO_INTERNAL_EXPLORER_API_URL",
+        "AEKO_INTERNAL_MAINNET_EXPLORER_API_URL",
+        "AEKO_INTERNAL_LOCALNET_EXPLORER_API_URL",
+        "AEKO_INTERNAL_FAUCET_ADDRESS",
+        "AEKO_PUBLIC_IP",
+    ):
+        require(retired not in compose, f"{label} still uses retired endpoint name: {retired}")
 
 
 def main() -> int:
@@ -115,6 +124,7 @@ def main() -> int:
     key_bootstrap = service_block(bootstrap, "key-bootstrap")
     social = service_block(bootstrap, "social-bootstrap")
     protocol = service_block(bootstrap, "protocol-bootstrap")
+    registry = service_block(bootstrap, "bootstrap-registry")
 
     require("source: /data/aeko/keys" in key_bootstrap, "key bootstrap must own the fixed key path")
     require("source: /data/aeko/protocol-state" in key_bootstrap, "key bootstrap must inspect Protocol state")
@@ -127,8 +137,8 @@ def main() -> int:
 
     for label, block in (("Social", social), ("Protocol", protocol)):
         require(
-            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?" in block,
-            f"{label} bootstrap must require an explicit reachable validator RPC endpoint",
+            "AEKO_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}" in block,
+            f"{label} bootstrap must use the canonical testnet RPC contract",
         )
         require(
             "key-bootstrap:" in block and "condition: service_completed_successfully" in block,
@@ -140,6 +150,18 @@ def main() -> int:
     require("source: /data/aeko/social-state" in social, "Social bootstrap state must use a stable host path")
     require("source: /data/aeko/protocol-state" in protocol, "Protocol state must use a stable host path")
     require("source: /data/aeko/protocol-continuity" in protocol, "Protocol continuity must use a stable host path")
+
+    require("image: nginx:1.27-alpine" in registry, "Bootstrap registry must use the pinned read-only HTTP image")
+    require("source: /data/aeko/social-state" in registry, "Bootstrap registry must read Social registry state")
+    require("source: /data/aeko/protocol-state" in registry, "Bootstrap registry must read Protocol registry state")
+    require("source: /data/aeko/keys" not in registry, "Bootstrap registry must never mount private chain key material")
+    require("location = /social-registry.env" in registry, "Bootstrap registry must expose the Social registry file")
+    require("location = /protocol-registry.env" in registry, "Bootstrap registry must expose the Protocol registry file")
+    require("location /" in registry and "return 404" in registry, "Bootstrap registry must deny all unspecified paths")
+    require(
+        registry.count("condition: service_completed_successfully") == 2,
+        "Bootstrap registry must wait for both canonical registry producers",
+    )
 
     faucet_tools = loaded["faucet-tools"]
     faucet = service_block(faucet_tools, "faucet")
@@ -162,70 +184,51 @@ def main() -> int:
         "split validator must fail closed on an established-chain missing ledger",
     )
     require(
-        "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:?" in validator,
-        "split validator must require an explicit reachable Faucet endpoint",
+        "AEKO_FAUCET_ADDRESS: ${AEKO_TESTNET_FAUCET_ADDRESS:-faucet.aeko.online:9900}" in validator,
+        "split validator must use the testnet Faucet DNS contract",
     )
     require("df -Pk /ledger" in validator, "split validator healthcheck must enforce the low-disk guard")
-    require(
-        '"${AEKO_RPC_BIND_IP:-127.0.0.1}:${AEKO_RPC_HOST_PORT:-8899}:8899"' in validator,
-        "Validator RPC host binding must default to loopback",
-    )
-    require(
-        '"${AEKO_WS_BIND_IP:-127.0.0.1}:${AEKO_WS_HOST_PORT:-8900}:8900"' in validator,
-        "Validator WebSocket host binding must default to loopback",
-    )
+    require("AEKO_TESTNET_GOSSIP_HOST:-gossip.aeko.online" in validator, "Validator must advertise the testnet gossip DNS name")
+    require(":8899:8899" not in validator and ":8900:8900" not in validator, "Validator RPC/WS must route through Coolify domains, not host-port bindings")
 
     explorer_api = loaded["explorer-api"]
     require("depends_on:" not in explorer_api, "Explorer API must remain independent of validator Compose lifecycle")
     require(
-        "AEKO_EXPLORER_RPC: ${AEKO_INTERNAL_RPC_URL:?" in explorer_api,
-        "Explorer API must require an explicit reachable validator RPC endpoint",
+        "AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}" in explorer_api,
+        "Explorer API must use the canonical testnet RPC endpoint",
     )
     require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?" in explorer_api, "Explorer API must require persistent PostgreSQL")
     require("volumes:" not in explorer_api, "Explorer API split resource must not require bootstrap-host filesystem mounts")
     require(
         "AEKO_SOCIAL_REGISTRY_FILE" not in explorer_api and "AEKO_PROTOCOL_REGISTRY_FILE" not in explorer_api,
-        "Explorer API split resource must use exported registry environment values, not local registry files",
+        "Explorer API split resource must not depend on bootstrap-host registry files",
     )
     require(
-        '"${AEKO_EXPLORER_API_BIND_IP:-127.0.0.1}:${AEKO_EXPLORER_API_HOST_PORT:-8088}:8088"' in explorer_api,
-        "Explorer API cross-server host binding must default to loopback",
+        "AEKO_TESTNET_SOCIAL_REGISTRY_URL: ${AEKO_TESTNET_SOCIAL_REGISTRY_URL:-https://bootstrap.aeko.online/social-registry.env}" in explorer_api,
+        "Explorer API must discover the Social registry through the bootstrap domain",
     )
-    for registry_key in (
-        "AEKO_REGISTRY_SCHEMA_VERSION",
-        "AEKO_CHAIN_GENESIS_HASH",
-        "AEKO_SOCIAL_POSTS_STATE",
-        "AEKO_SOCIAL_REWARDS_STATE",
-        "AEKO_SOCIAL_STAKING_STATE",
-        "AEKO_SOCIAL_ANTI_SPAM_STATE",
-        "AEKO_SOCIAL_MONETIZATION_STATE",
-        "AEKO_PROTOCOL_AUTHORITY",
-        "AEKO_TOKENOMICS_PROGRAM_ID",
-        "AEKO_FINALITY_ORACLE_PROGRAM_ID",
-        "AEKO_TOKENOMICS_STATE",
-        "AEKO_FINALITY_ORACLE_STATE",
-    ):
-        require(
-            f"{registry_key}: ${{{registry_key}:-}}" in explorer_api,
-            f"Explorer API must expose cross-host registry override {registry_key}",
-        )
+    require(
+        "AEKO_TESTNET_PROTOCOL_REGISTRY_URL: ${AEKO_TESTNET_PROTOCOL_REGISTRY_URL:-https://bootstrap.aeko.online/protocol-registry.env}" in explorer_api,
+        "Explorer API must discover the Protocol registry through the bootstrap domain",
+    )
+    require("ports:" not in explorer_api, "Explorer API must rely on Coolify domain routing instead of a host port")
 
     explorer_ui = loaded["explorer-ui"]
     require("depends_on:" not in explorer_ui, "Explorer UI must remain independently deployable")
     require(
-        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?" in explorer_ui,
-        "Explorer UI must require an explicit server-side Explorer API upstream",
+        "AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-https://api.aeko.online}" in explorer_ui,
+        "Explorer UI must use the canonical testnet Explorer API domain",
     )
 
     operations = loaded["operations-web"]
     require("depends_on:" not in operations, "Operations Web must remain independently deployable")
     require(
-        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?" in operations,
-        "Operations Web must require an explicit reachable validator RPC endpoint",
+        "AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:-https://rpc.aeko.online}" in operations,
+        "Operations Web must use the canonical testnet RPC domain",
     )
     require(
-        "AEKO_INTERNAL_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?" in operations,
-        "Operations Web must require an explicit server-side Explorer API upstream",
+        "AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-https://api.aeko.online}" in operations,
+        "Operations Web must use the canonical testnet Explorer API domain",
     )
 
     print("split Coolify deployment contract: ok")
