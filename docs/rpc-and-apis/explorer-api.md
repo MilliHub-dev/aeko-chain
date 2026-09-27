@@ -29,6 +29,7 @@ Representative live routes include:
   - `GET /engagement`
   - `GET /stakes`
   - `GET /search`
+  - `GET /registry`
   - `GET /registry/social`
   - `GET /registry/protocol`
   - `GET /social/status`
@@ -303,6 +304,11 @@ Suggested query params:
 Returns reputation score and, if policy allows, a score breakdown.
 
 ## Bootstrap registry discovery
+
+### `GET /registry`
+
+Returns only the canonical Explorer registry API paths. It does not expose
+registry values, the remote registry origin, credentials, or key material.
 
 ### `GET /registry/social`
 
