@@ -97,13 +97,24 @@ If it says `Node is unhealthy`, the chain isn't advancing — see Part 6 diagnos
 
 **Chain is advancing.** Same URL, replace method with `getSlot`. Run it twice ten seconds apart; the second number should be ~30 higher. If both numbers are `0`, the leader-stall bug came back (check the `--no-wait-for-vote-to-start-leader` flag is still on the command line in compose).
 
-**Testnet funding works end-to-end.**
+**Testnet grant funding works end-to-end.** A public request by itself does not
+move AEKO. It must be approved by an authenticated Admin and confirmed on-chain.
+Use a dedicated smoke-test wallet and run the repository acceptance script:
+
 ```bash
-curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
-  -H 'Content-Type: application/json' \
-  -d '{"address":"<some-pubkey>"}'
-aeko balance <some-pubkey> --url https://rpc.aeko.online
+AEKO_NETWORK=testnet \
+AEKO_SCAN_URL=https://scan.aeko.online \
+AEKO_OPERATIONS_URL=https://admin.aeko.online \
+AEKO_RPC_URL=https://rpc.aeko.online \
+AEKO_FUNDING_SMOKE_ADDRESS=<dedicated-test-wallet> \
+ADMIN_PASSWORD='<operator-password>' \
+python3 scripts/smoke-funding-e2e.py
 ```
+
+The script proves Scan can submit but cannot approve, Admin approves through its
+authenticated route, the protected Validator/Faucet settlement confirms,
+the wallet balance increases, exactly one confirmed grant is persisted, and the
+grant does not appear in the developer-airdrop ledger.
 
 **Explorer is indexing.** `curl -s https://scan.aeko.online/api/explorer/testnet/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `https://scan.aeko.online` should show a list of recent blocks and a slot counter that ticks up.
 
