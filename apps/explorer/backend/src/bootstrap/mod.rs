@@ -1,6 +1,7 @@
 use {
     crate::{
         config::{FundingControlConfig, ServerConfig, SettingsControlConfig},
+        features::funding,
         http::{self, state::AppState},
         indexing::service::IndexerService,
         infrastructure::{
@@ -99,6 +100,7 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
         indexer.run(sync_interval).await;
     });
 
+    let reconcile_interval = funding_control.reconcile_interval;
     let state = AppState::new(
         repository,
         Arc::new(rpc),
@@ -112,6 +114,14 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
         funding_control.faucet_per_request_cap_aeko,
     )
     .shared();
+
+    if state.is_test_environment() {
+        let reconciliation_state = state.clone();
+        tokio::spawn(async move {
+            funding::run_settlement_reconciler(reconciliation_state, reconcile_interval).await;
+        });
+    }
+
     let router = http::build_router(state, &server);
     let listener = TcpListener::bind(server.bind_addr)
         .await
