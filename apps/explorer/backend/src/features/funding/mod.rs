@@ -499,7 +499,8 @@ async fn create_request(
 ) -> FundingResult<(StatusCode, Json<DataEnvelope<FundingRequestView>>)> {
     ensure_test_environment(&state)?;
     let address = validate_address(&body.address)?;
-    apply_rate_limit(&state, &headers, "public-request").await?;
+    apply_rate_limit(&state, &headers, "public-request-origin").await?;
+    apply_subject_rate_limit(&state, "public-request-wallet", &address).await?;
     let request = state
         .repository
         .create_public_funding_request(&address)
@@ -537,7 +538,8 @@ async fn create_airdrop(
 ) -> FundingResult<Json<DataEnvelope<FundingAirdropView>>> {
     ensure_test_environment(&state)?;
     let address = validate_address(&body.address)?;
-    apply_rate_limit(&state, &headers, "console-airdrop").await?;
+    apply_rate_limit(&state, &headers, "console-airdrop-origin").await?;
+    apply_subject_rate_limit(&state, "console-airdrop-wallet", &address).await?;
     let settings = state
         .repository
         .funding_settings()
@@ -1160,6 +1162,23 @@ async fn apply_rate_limit(
         .record_funding_rate_event(
             scope,
             &subject,
+            i64::from(state.funding_requests_per_10_min),
+            FUNDING_RATE_WINDOW_SECONDS,
+        )
+        .await?;
+    Ok(())
+}
+
+async fn apply_subject_rate_limit(
+    state: &SharedState,
+    scope: &str,
+    subject: &str,
+) -> FundingResult<()> {
+    state
+        .repository
+        .record_funding_rate_event(
+            scope,
+            subject,
             i64::from(state.funding_requests_per_10_min),
             FUNDING_RATE_WINDOW_SECONDS,
         )
