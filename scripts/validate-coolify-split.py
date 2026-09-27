@@ -213,6 +213,7 @@ def main() -> int:
     for funding_name in (
         "AEKO_FUNDING_AUTHORIZATION_KEY",
         "AEKO_FUNDING_REQUESTS_PER_10_MIN",
+        "AEKO_FUNDING_RECONCILE_INTERVAL_SECS",
         "AEKO_FAUCET_PER_REQUEST_CAP",
     ):
         require(
