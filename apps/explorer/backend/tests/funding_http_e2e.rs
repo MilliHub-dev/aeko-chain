@@ -1,5 +1,6 @@
 use {
     aeko_explorer_backend::{
+        features::funding,
         http::{build_router, state::AppState},
         ExplorerBackendConfig, PostgresRepository, RpcChainClient, ServerConfig,
     },
@@ -31,6 +32,7 @@ struct FakeRpcState {
     authorization: String,
     saw_authorized_airdrop: Arc<AtomicBool>,
     airdrop_calls: Arc<AtomicUsize>,
+    pending_signature_statuses: Arc<AtomicUsize>,
 }
 
 async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>) -> Json<Value> {
@@ -60,17 +62,33 @@ async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>)
                 "result": Signature::new_unique().to_string()
             }))
         }
-        "getSignatureStatuses" => Json(json!({
-            "jsonrpc": "2.0",
-            "id": id,
-            "result": {
-                "context": {"slot": 42},
-                "value": [{
-                    "err": null,
-                    "confirmationStatus": "confirmed"
-                }]
+        "getSignatureStatuses" => {
+            let remaining = state.pending_signature_statuses.load(Ordering::SeqCst);
+            if remaining > 0 {
+                state
+                    .pending_signature_statuses
+                    .fetch_sub(1, Ordering::SeqCst);
+                return Json(json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "result": {
+                        "context": {"slot": 42},
+                        "value": [null]
+                    }
+                }));
             }
-        })),
+            Json(json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "result": {
+                    "context": {"slot": 42},
+                    "value": [{
+                        "err": null,
+                        "confirmationStatus": "confirmed"
+                    }]
+                }
+            }))
+        },
         _ => Json(json!({
             "jsonrpc": "2.0",
             "id": id,
@@ -147,6 +165,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         authorization: authorization.clone(),
         saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
         airdrop_calls: Arc::new(AtomicUsize::new(0)),
+        pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
     };
     let rpc_observer = fake_state.clone();
 
@@ -333,6 +352,131 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
 }
 
 #[tokio::test]
+async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
+    let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
+        .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
+
+    let authorization = "test-funding-authorization-key-0002".to_string();
+    let fake_state = FakeRpcState {
+        authorization: authorization.clone(),
+        saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
+        airdrop_calls: Arc::new(AtomicUsize::new(0)),
+        pending_signature_statuses: Arc::new(AtomicUsize::new(12)),
+    };
+    let rpc_observer = fake_state.clone();
+
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let rpc_addr = listener.local_addr()?;
+    let fake_server = Router::new()
+        .route("/", post(fake_rpc))
+        .with_state(fake_state);
+    tokio::spawn(async move {
+        axum::serve(listener, fake_server).await.unwrap();
+    });
+
+    let config = backend_config(database_url, format!("http://{rpc_addr}"));
+    let repository = PostgresRepository::connect(&config).await?;
+    let settings = repository.funding_settings().await?;
+    repository
+        .update_funding_settings(
+            settings.revision,
+            &aeko_explorer_backend::infrastructure::persistence::funding::FundingSettingsUpdate {
+                enabled: Some(true),
+                amount_aeko: Some(5.0),
+                cooldown_hours: Some(0.0),
+                daily_budget_aeko: Some(1_000_000.0),
+                max_manual_grant_aeko: Some(100.0),
+                console_airdrop_cap_aeko: Some(25.0),
+            },
+        )
+        .await?;
+
+    let admin_token = "test-settings-admin-token-0000000003";
+    let state = AppState::new(
+        repository,
+        Arc::new(RpcChainClient::new(config)?),
+        "testnet",
+        "test-genesis",
+        128,
+        true,
+        admin_token,
+        Some(authorization),
+        100,
+        100.0,
+    )
+    .shared();
+    let app = build_router(state.clone(), &server_config());
+
+    let address = Pubkey::new_unique().to_string();
+    let (status, created) = request_json(
+        &app,
+        Method::POST,
+        "/funding/request",
+        Some(json!({"address": address})),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{created}");
+    let request_id = created["data"]["id"]
+        .as_str()
+        .expect("request id")
+        .to_string();
+
+    let (status, approved) = request_json(
+        &app,
+        Method::POST,
+        &format!("/admin/funding/requests/{request_id}/decide"),
+        Some(json!({"approved": true})),
+        Some(admin_token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{approved}");
+    assert_eq!(approved["data"]["status"], "submitted");
+    assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 1);
+
+    let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
+    assert_eq!(transitioned, 1);
+    assert_eq!(
+        rpc_observer.airdrop_calls.load(Ordering::SeqCst),
+        1,
+        "reconciliation must observe the stored signature without resubmitting"
+    );
+
+    let (status, reconciled) = request_json(
+        &app,
+        Method::GET,
+        &format!("/funding/request/{request_id}"),
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{reconciled}");
+    assert_eq!(reconciled["data"]["status"], "confirmed");
+    assert_eq!(reconciled["data"]["confirmed"], true);
+
+    let (status, grants) = request_json(
+        &app,
+        Method::GET,
+        "/admin/funding/grants?limit=500",
+        None,
+        Some(admin_token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{grants}");
+    assert_eq!(
+        grants["data"]
+            .as_array()
+            .expect("grant list")
+            .iter()
+            .filter(|grant| grant["requestId"].as_str() == Some(request_id.as_str()))
+            .count(),
+        1
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn mainnet_funding_and_airdrop_routes_fail_closed() -> Result<()> {
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
@@ -346,6 +490,7 @@ async fn mainnet_funding_and_airdrop_routes_fail_closed() -> Result<()> {
             authorization: authorization.clone(),
             saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
             airdrop_calls: Arc::new(AtomicUsize::new(0)),
+            pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
         });
     tokio::spawn(async move {
         axum::serve(listener, fake_server).await.unwrap();
