@@ -35,7 +35,10 @@ pub fn router() -> Router<SharedState> {
 async fn get_registry(
     State(state): State<SharedState>,
 ) -> ApiResult<Json<DataEnvelope<ProtocolRegistry>>> {
-    Ok(response::data(&state.network, resolve_protocol_registry()))
+    let registry = tokio::task::spawn_blocking(resolve_protocol_registry)
+        .await
+        .context("protocol registry resolution worker panicked")?;
+    Ok(response::data(&state.network, registry))
 }
 
 #[derive(Debug, Serialize)]
