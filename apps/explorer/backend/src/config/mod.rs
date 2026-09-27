@@ -83,6 +83,7 @@ pub struct FundingControlConfig {
     pub authorization_key: Option<String>,
     pub requests_per_10_min: u32,
     pub faucet_per_request_cap_aeko: f64,
+    pub reconcile_interval: Duration,
 }
 
 impl FundingControlConfig {
@@ -117,10 +118,19 @@ impl FundingControlConfig {
             ));
         }
 
+        let reconcile_interval_secs =
+            optional_parse_env::<u64>("AEKO_FUNDING_RECONCILE_INTERVAL_SECS")?.unwrap_or(10);
+        if reconcile_interval_secs == 0 {
+            return Err(anyhow!(
+                "AEKO_FUNDING_RECONCILE_INTERVAL_SECS must be greater than zero"
+            ));
+        }
+
         Ok(Self {
             authorization_key,
             requests_per_10_min,
             faucet_per_request_cap_aeko,
+            reconcile_interval: Duration::from_secs(reconcile_interval_secs),
         })
     }
 }

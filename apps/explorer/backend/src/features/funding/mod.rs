@@ -208,6 +208,9 @@ struct FundingRequestView {
     decided_at: Option<String>,
     signature: Option<String>,
     confirmed: bool,
+    submitted_at: Option<String>,
+    confirmed_at: Option<String>,
+    last_checked_at: Option<String>,
     error_code: Option<String>,
     error_message: Option<String>,
 }
@@ -224,6 +227,9 @@ impl From<FundingRequestRecord> for FundingRequestView {
             decided_at: value.decided_at.map(|value| value.to_rfc3339()),
             signature: value.signature,
             confirmed: value.confirmed,
+            submitted_at: value.submitted_at.map(|value| value.to_rfc3339()),
+            confirmed_at: value.confirmed_at.map(|value| value.to_rfc3339()),
+            last_checked_at: value.last_checked_at.map(|value| value.to_rfc3339()),
             error_code: value.error_code,
             error_message: value.error_message,
         }
@@ -364,6 +370,7 @@ pub fn router() -> Router<SharedState> {
     Router::new()
         .route("/funding/policy", get(get_policy))
         .route("/funding/request", post(create_request))
+        .route("/funding/requests/:id/status", get(get_public_request_status))
         .route("/funding/airdrop", post(create_airdrop))
         .route(
             "/admin/funding/settings",
@@ -460,6 +467,24 @@ async fn create_airdrop(
     ))
 }
 
+async fn get_public_request_status(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+) -> FundingResult<Json<DataEnvelope<FundingRequestView>>> {
+    ensure_test_environment(&state)?;
+    let request = state
+        .repository
+        .funding_request(&id)
+        .await?
+        .filter(|request| request.source == "public")
+        .ok_or_else(|| FundingHttpError::from(FundingStoreError::RequestNotFound))?;
+    Ok(response::data_from_source(
+        &state.network,
+        request.into(),
+        "funding-status",
+    ))
+}
+
 async fn get_admin_settings(
     State(state): State<SharedState>,
     headers: HeaderMap,
@@ -470,7 +495,7 @@ async fn get_admin_settings(
             &state.network,
             AdminFundingSnapshot {
                 network: state.network.clone(),
-                mode: "mainnet-governed",
+                mode: "mainnet-disabled",
                 settings: None,
                 daily_remaining_aeko: None,
                 public_spent_aeko: None,
@@ -599,10 +624,27 @@ async fn decide_request(
         .funding_request(&id)
         .await?
         .ok_or_else(|| FundingHttpError::from(FundingStoreError::RequestNotFound))?;
-    let request = match existing.status.as_str() {
-        "approved" => existing,
-        "processing" => existing,
-        "pending" => state.repository.reserve_public_funding_request(&id).await?,
+    let settled = match existing.status.as_str() {
+        "confirmed" => existing,
+        "submitted" => settle_request(&state, existing, true).await?,
+        "pending" => {
+            let request = state.repository.reserve_public_funding_request(&id).await?;
+            settle_request(&state, request, true).await?
+        }
+        "processing" => {
+            return Err(FundingHttpError::new(
+                StatusCode::CONFLICT,
+                "SETTLEMENT_IN_PROGRESS",
+                "This funding request is already being submitted",
+            ))
+        }
+        "reconciliation_required" => {
+            return Err(FundingHttpError::new(
+                StatusCode::CONFLICT,
+                "RECONCILIATION_REQUIRED",
+                "Settlement was interrupted before its signature was durably recorded; automatic resubmission is disabled",
+            ))
+        }
         status => {
             return Err(FundingHttpError::from(
                 FundingStoreError::RequestAlreadyDecided {
@@ -610,11 +652,6 @@ async fn decide_request(
                 },
             ))
         }
-    };
-    let settled = if request.status == "approved" {
-        request
-    } else {
-        settle_request(&state, request, true).await?
     };
     Ok(response::data_from_source(
         &state.network,
@@ -705,10 +742,10 @@ async fn settle_request(
                 } else {
                     let _ = state
                         .repository
-                        .reject_funding_request(
+                        .fail_funding_request(
                             &request.id,
-                            Some("FUNDING_TRANSFER_FAILED"),
-                            Some(&error.to_string()),
+                            "FUNDING_TRANSFER_FAILED",
+                            &error.to_string(),
                         )
                         .await;
                 }
@@ -743,15 +780,15 @@ async fn settle_request(
     match status {
         Ok(FundingTransferStatus::Confirmed) => Ok(state
             .repository
-            .finalize_funding_request(&request.id, true)
+            .confirm_funding_request(&request.id)
             .await?),
         Ok(FundingTransferStatus::Failed(error)) => {
-            let rejected = state
+            let failed = state
                 .repository
-                .reject_funding_request(
+                .fail_funding_request(
                     &request.id,
-                    Some("FUNDING_TRANSACTION_FAILED"),
-                    Some(&error),
+                    "FUNDING_TRANSACTION_FAILED",
+                    &error,
                 )
                 .await?;
             Err(FundingHttpError::new(
@@ -759,13 +796,13 @@ async fn settle_request(
                 "FUNDING_TRANSACTION_FAILED",
                 format!(
                     "Funding transaction {} failed on-chain; request {} is {}",
-                    signature, rejected.id, rejected.status
+                    signature, failed.id, failed.status
                 ),
             ))
         }
         Ok(FundingTransferStatus::Pending) => Ok(state
             .repository
-            .finalize_funding_request(&request.id, false)
+            .note_funding_request_pending(&request.id, None, None)
             .await?),
         Err(error) => {
             tracing::warn!(
@@ -776,10 +813,45 @@ async fn settle_request(
             );
             Ok(state
                 .repository
-                .finalize_funding_request(&request.id, false)
+                .note_funding_request_pending(
+                    &request.id,
+                    Some("CONFIRMATION_CHECK_FAILED"),
+                    Some(&error.to_string()),
+                )
                 .await?)
         }
     }
+}
+
+pub fn spawn_reconciler(state: SharedState) {
+    if !state.is_test_environment() {
+        return;
+    }
+    tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(state.funding_reconcile_interval);
+        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            ticker.tick().await;
+            let requests = match state.repository.list_submitted_funding_requests(100).await {
+                Ok(requests) => requests,
+                Err(error) => {
+                    tracing::error!(error = %error, "funding reconciliation query failed");
+                    continue;
+                }
+            };
+            for request in requests {
+                let request_id = request.id.clone();
+                if let Err(error) = settle_request(&state, request, false).await {
+                    tracing::warn!(
+                        request_id = %request_id,
+                        code = error.code,
+                        error = %error.message,
+                        "funding reconciliation attempt did not complete"
+                    );
+                }
+            }
+        }
+    });
 }
 
 async fn apply_rate_limit(

@@ -102,14 +102,22 @@ async fn funding_policy_queue_and_grants_are_durable_and_separated() -> Result<(
     );
 
     let public_signature = format!("integration-public-signature-{suffix}");
-    repository
+    let submitted = repository
         .set_funding_request_signature(&pending.id, &public_signature)
         .await?;
-    let approved = repository
-        .finalize_funding_request(&pending.id, true)
+    assert_eq!(submitted.status, "submitted");
+
+    let reserved_after_submit = repository.funding_policy_snapshot().await?;
+    assert!(
+        reserved_after_submit.public_reserved_aeko
+            >= before_reservation.public_reserved_aeko + 5.0
+    );
+
+    let confirmed = repository
+        .confirm_funding_request(&pending.id)
         .await?;
-    assert_eq!(approved.status, "approved");
-    assert!(approved.confirmed);
+    assert_eq!(confirmed.status, "confirmed");
+    assert!(confirmed.confirmed);
 
     let grants = repository.list_funding_grants(500).await?;
     let public_grant = grants
@@ -131,7 +139,7 @@ async fn funding_policy_queue_and_grants_are_durable_and_separated() -> Result<(
         .set_funding_request_signature(&console_request.id, &console_signature)
         .await?;
     repository
-        .finalize_funding_request(&console_request.id, true)
+        .confirm_funding_request(&console_request.id)
         .await?;
 
     let after_console = repository.funding_policy_snapshot().await?;
@@ -140,6 +148,66 @@ async fn funding_policy_queue_and_grants_are_durable_and_separated() -> Result<(
         after_console.public_reserved_aeko,
         after_public.public_reserved_aeko
     );
+
+    Ok(())
+}
+
+
+#[tokio::test]
+async fn submitted_funding_stays_reserved_and_cannot_be_rejected() -> Result<()> {
+    let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
+        .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
+    let repository = PostgresRepository::connect(&test_config(database_url)).await?;
+
+    let initial = repository.funding_settings().await?;
+    repository
+        .update_funding_settings(
+            initial.revision,
+            &FundingSettingsUpdate {
+                enabled: Some(true),
+                amount_aeko: Some(7.0),
+                cooldown_hours: Some(0.0),
+                daily_budget_aeko: Some(5_000.0),
+                ..FundingSettingsUpdate::default()
+            },
+        )
+        .await?;
+
+    let suffix = unique_suffix();
+    let address = format!("integration-submitted-{suffix}");
+    let pending = repository.create_public_funding_request(&address).await?;
+    let processing = repository.reserve_public_funding_request(&pending.id).await?;
+    assert_eq!(processing.status, "processing");
+
+    let signature = format!("integration-submitted-signature-{suffix}");
+    let submitted = repository
+        .set_funding_request_signature(&pending.id, &signature)
+        .await?;
+    assert_eq!(submitted.status, "submitted");
+    assert!(!submitted.confirmed);
+
+    let rejection = repository
+        .reject_funding_request(&pending.id, Some("OPERATOR_REJECTED"), Some("too late"))
+        .await;
+    assert!(matches!(
+        rejection,
+        Err(FundingStoreError::RequestAlreadyDecided { ref status }) if status == "submitted"
+    ));
+
+    let grants = repository.list_funding_grants(500).await?;
+    assert!(
+        grants
+            .iter()
+            .all(|grant| grant.signature.as_deref() != Some(signature.as_str())),
+        "submitted transfers must not appear in the grant ledger before confirmation"
+    );
+
+    let snapshot = repository.funding_policy_snapshot().await?;
+    assert!(snapshot.public_reserved_aeko >= 7.0);
+
+    let confirmed = repository.confirm_funding_request(&pending.id).await?;
+    assert_eq!(confirmed.status, "confirmed");
+    assert!(confirmed.confirmed);
 
     Ok(())
 }

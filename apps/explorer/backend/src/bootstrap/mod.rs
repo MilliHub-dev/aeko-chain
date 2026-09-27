@@ -22,6 +22,8 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
     let server = ServerConfig::from_env().context("loading Explorer server environment")?;
     let settings_control = SettingsControlConfig::from_env()
         .context("loading Explorer settings control environment")?;
+    let funding_control = FundingControlConfig::from_env(&backend.network)
+        .context("loading Explorer funding control environment")?;
 
     let startup_rpc = rpc.clone();
     tokio::task::spawn_blocking(move || startup_rpc.health())
@@ -81,6 +83,19 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
         .await
         .context("verifying Explorer PostgreSQL belongs to this validator chain")?;
 
+    if matches!(backend.network.as_str(), "testnet" | "devnet" | "localnet") {
+        let recovered = repository
+            .recover_interrupted_funding_requests()
+            .await
+            .context("recovering interrupted funding settlements")?;
+        if recovered > 0 {
+            tracing::warn!(
+                recovered,
+                "funding requests interrupted before signature persistence require reconciliation"
+            );
+        }
+    }
+
     tracing::info!(
         rpc = %backend.rpc_url,
         network = %backend.network,
@@ -108,8 +123,10 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
         funding_control.authorization_key,
         funding_control.requests_per_10_min,
         funding_control.faucet_per_request_cap_aeko,
+        funding_control.reconcile_interval,
     )
     .shared();
+    crate::features::funding::spawn_reconciler(state.clone());
     let router = http::build_router(state, &server);
     let listener = TcpListener::bind(server.bind_addr)
         .await

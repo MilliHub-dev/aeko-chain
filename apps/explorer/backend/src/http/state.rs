@@ -16,6 +16,7 @@ pub struct AppState {
     pub funding_authorization_key: Option<String>,
     pub funding_requests_per_10_min: u32,
     pub faucet_per_request_cap_aeko: f64,
+    pub funding_reconcile_interval: std::time::Duration,
 }
 
 impl AppState {
@@ -31,6 +32,7 @@ impl AppState {
         funding_authorization_key: Option<String>,
         funding_requests_per_10_min: u32,
         faucet_per_request_cap_aeko: f64,
+        funding_reconcile_interval: std::time::Duration,
     ) -> Self {
         Self {
             repository,
@@ -43,6 +45,7 @@ impl AppState {
             funding_authorization_key,
             funding_requests_per_10_min,
             faucet_per_request_cap_aeko,
+            funding_reconcile_interval,
         }
     }
 

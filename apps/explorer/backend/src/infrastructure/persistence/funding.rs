@@ -37,6 +37,9 @@ pub struct FundingRequestRecord {
     pub decided_at: Option<DateTime<Utc>>,
     pub signature: Option<String>,
     pub confirmed: bool,
+    pub submitted_at: Option<DateTime<Utc>>,
+    pub confirmed_at: Option<DateTime<Utc>>,
+    pub last_checked_at: Option<DateTime<Utc>>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
 }
@@ -109,6 +112,9 @@ const REQUEST_COLUMNS: &str = r#"
     decided_at,
     signature,
     confirmed,
+    submitted_at,
+    confirmed_at,
+    last_checked_at,
     error_code,
     error_message
 "#;
@@ -131,6 +137,7 @@ impl PostgresRepository {
             SELECT COALESCE(SUM(amount_aeko), 0)::double precision
             FROM funding_grants
             WHERE source = 'public'
+              AND confirmed = TRUE
               AND granted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
             "#,
         )
@@ -141,7 +148,7 @@ impl PostgresRepository {
             SELECT COALESCE(SUM(amount_aeko), 0)::double precision
             FROM funding_requests
             WHERE source = 'public'
-              AND status = 'processing'
+              AND status IN ('processing', 'submitted', 'reconciliation_required')
               AND decided_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
             "#,
         )
@@ -262,7 +269,9 @@ impl PostgresRepository {
             r#"
             SELECT id::text
             FROM funding_requests
-            WHERE address = $1 AND source = 'public' AND status IN ('pending', 'processing')
+            WHERE address = $1
+              AND source = 'public'
+              AND status IN ('pending', 'processing', 'submitted', 'reconciliation_required')
             ORDER BY requested_at DESC
             LIMIT 1
             "#,
@@ -278,7 +287,7 @@ impl PostgresRepository {
             r#"
             SELECT EXTRACT(EPOCH FROM (NOW() - MAX(granted_at)))::double precision
             FROM funding_grants
-            WHERE address = $1 AND source = 'public'
+            WHERE address = $1 AND source = 'public' AND confirmed = TRUE
             "#,
         )
         .bind(address)
@@ -298,6 +307,7 @@ impl PostgresRepository {
             SELECT COALESCE(SUM(amount_aeko), 0)::double precision
             FROM funding_grants
             WHERE source = 'public'
+              AND confirmed = TRUE
               AND granted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
             "#,
         )
@@ -307,7 +317,7 @@ impl PostgresRepository {
             r#"
             SELECT COALESCE(SUM(amount_aeko), 0)::double precision
             FROM funding_requests
-            WHERE source = 'public' AND status = 'processing'
+            WHERE source = 'public' AND status IN ('processing', 'submitted', 'reconciliation_required')
               AND decided_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
             "#,
         )
@@ -387,7 +397,7 @@ impl PostgresRepository {
             r#"
             SELECT EXTRACT(EPOCH FROM (NOW() - MAX(granted_at)))::double precision
             FROM funding_grants
-            WHERE address = $1 AND source = 'public'
+            WHERE address = $1 AND source = 'public' AND confirmed = TRUE
             "#,
         )
         .bind(&request.address)
@@ -407,6 +417,7 @@ impl PostgresRepository {
             SELECT COALESCE(SUM(amount_aeko), 0)::double precision
             FROM funding_grants
             WHERE source = 'public'
+              AND confirmed = TRUE
               AND granted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
             "#,
         )
@@ -416,7 +427,7 @@ impl PostgresRepository {
             r#"
             SELECT COALESCE(SUM(amount_aeko), 0)::double precision
             FROM funding_requests
-            WHERE source = 'public' AND status = 'processing'
+            WHERE source = 'public' AND status IN ('processing', 'submitted', 'reconciliation_required')
               AND decided_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
             "#,
         )
@@ -450,8 +461,14 @@ impl PostgresRepository {
         let sql = format!(
             r#"
             UPDATE funding_requests
-            SET signature = $2, confirmed = FALSE, error_code = NULL, error_message = NULL
-            WHERE id = $1::uuid AND status = 'processing'
+            SET signature = $2,
+                status = 'submitted',
+                submitted_at = COALESCE(submitted_at, NOW()),
+                last_checked_at = NOW(),
+                confirmed = FALSE,
+                error_code = NULL,
+                error_message = NULL
+            WHERE id = $1::uuid AND status = 'processing' AND signature IS NULL
             RETURNING {REQUEST_COLUMNS}
             "#
         );
@@ -494,8 +511,12 @@ impl PostgresRepository {
         let sql = format!(
             r#"
             UPDATE funding_requests
-            SET status = 'rejected', decided_at = NOW(), confirmed = FALSE, error_code = $2, error_message = $3
-            WHERE id = $1::uuid AND status IN ('pending', 'processing')
+            SET status = 'rejected',
+                decided_at = NOW(),
+                confirmed = FALSE,
+                error_code = $2,
+                error_message = $3
+            WHERE id = $1::uuid AND status = 'pending'
             RETURNING {REQUEST_COLUMNS}
             "#
         );
@@ -517,10 +538,9 @@ impl PostgresRepository {
         }
     }
 
-    pub async fn finalize_funding_request(
+    pub async fn confirm_funding_request(
         &self,
         id: &str,
-        confirmed: bool,
     ) -> Result<FundingRequestRecord, FundingStoreError> {
         let mut tx = self.pool.begin().await?;
         let request_sql = format!(
@@ -531,10 +551,10 @@ impl PostgresRepository {
             .fetch_optional(&mut *tx)
             .await?
             .ok_or(FundingStoreError::RequestNotFound)?;
-        if request.status == "approved" {
+        if request.status == "confirmed" {
             return Ok(request);
         }
-        if request.status != "processing" {
+        if request.status != "submitted" {
             return Err(FundingStoreError::RequestAlreadyDecided {
                 status: request.status,
             });
@@ -543,40 +563,137 @@ impl PostgresRepository {
             .signature
             .as_deref()
             .ok_or(FundingStoreError::RequestAlreadyDecided {
-                status: "processing-without-signature".to_string(),
+                status: "submitted-without-signature".to_string(),
             })?;
 
         sqlx::query(
             r#"
             INSERT INTO funding_grants (address, amount_aeko, signature, granted_at, source, confirmed)
-            VALUES ($1, $2::double precision::numeric, $3, NOW(), $4, $5)
+            VALUES ($1, $2::double precision::numeric, $3, NOW(), $4, TRUE)
             ON CONFLICT (signature) WHERE signature IS NOT NULL
-            DO UPDATE SET confirmed = EXCLUDED.confirmed
+            DO UPDATE SET confirmed = TRUE
             "#,
         )
         .bind(&request.address)
         .bind(request.amount_aeko)
         .bind(signature)
         .bind(&request.source)
-        .bind(confirmed)
         .execute(&mut *tx)
         .await?;
 
         let update_sql = format!(
             r#"
             UPDATE funding_requests
-            SET status = 'approved', decided_at = NOW(), confirmed = $2, error_code = NULL, error_message = NULL
+            SET status = 'confirmed',
+                confirmed = TRUE,
+                confirmed_at = NOW(),
+                last_checked_at = NOW(),
+                error_code = NULL,
+                error_message = NULL
             WHERE id = $1::uuid
             RETURNING {REQUEST_COLUMNS}
             "#
         );
-        let approved = sqlx::query_as::<_, FundingRequestRecord>(&update_sql)
+        let confirmed = sqlx::query_as::<_, FundingRequestRecord>(&update_sql)
             .bind(id)
-            .bind(confirmed)
             .fetch_one(&mut *tx)
             .await?;
         tx.commit().await?;
-        Ok(approved)
+        Ok(confirmed)
+    }
+
+    pub async fn note_funding_request_pending(
+        &self,
+        id: &str,
+        code: Option<&str>,
+        message: Option<&str>,
+    ) -> Result<FundingRequestRecord, FundingStoreError> {
+        let sql = format!(
+            r#"
+            UPDATE funding_requests
+            SET last_checked_at = NOW(), error_code = $2, error_message = $3
+            WHERE id = $1::uuid AND status = 'submitted'
+            RETURNING {REQUEST_COLUMNS}
+            "#
+        );
+        sqlx::query_as::<_, FundingRequestRecord>(&sql)
+            .bind(id)
+            .bind(code)
+            .bind(message)
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or(FundingStoreError::RequestNotFound)
+    }
+
+    pub async fn fail_funding_request(
+        &self,
+        id: &str,
+        code: &str,
+        message: &str,
+    ) -> Result<FundingRequestRecord, FundingStoreError> {
+        let sql = format!(
+            r#"
+            UPDATE funding_requests
+            SET status = 'failed',
+                confirmed = FALSE,
+                last_checked_at = NOW(),
+                error_code = $2,
+                error_message = $3
+            WHERE id = $1::uuid AND status IN ('processing', 'submitted')
+            RETURNING {REQUEST_COLUMNS}
+            "#
+        );
+        if let Some(request) = sqlx::query_as::<_, FundingRequestRecord>(&sql)
+            .bind(id)
+            .bind(code)
+            .bind(message)
+            .fetch_optional(&self.pool)
+            .await?
+        {
+            return Ok(request);
+        }
+        let existing = self.funding_request(id).await?;
+        match existing {
+            Some(request) => Err(FundingStoreError::RequestAlreadyDecided {
+                status: request.status,
+            }),
+            None => Err(FundingStoreError::RequestNotFound),
+        }
+    }
+
+    pub async fn recover_interrupted_funding_requests(&self) -> Result<u64, FundingStoreError> {
+        let result = sqlx::query(
+            r#"
+            UPDATE funding_requests
+            SET status = 'reconciliation_required',
+                last_checked_at = NOW(),
+                error_code = 'SUBMISSION_INTERRUPTED',
+                error_message = 'Settlement was interrupted before a transaction signature was durably recorded; automatic resubmission is disabled to prevent duplicate funding'
+            WHERE status = 'processing' AND signature IS NULL
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn list_submitted_funding_requests(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<FundingRequestRecord>, FundingStoreError> {
+        let sql = format!(
+            r#"
+            SELECT {REQUEST_COLUMNS}
+            FROM funding_requests
+            WHERE status = 'submitted' AND signature IS NOT NULL
+            ORDER BY COALESCE(last_checked_at, submitted_at, decided_at, requested_at) ASC
+            LIMIT $1
+            "#
+        );
+        Ok(sqlx::query_as::<_, FundingRequestRecord>(&sql)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?)
     }
 
     pub async fn funding_request(
