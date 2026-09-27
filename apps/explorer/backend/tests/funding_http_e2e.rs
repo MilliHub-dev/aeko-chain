@@ -514,7 +514,10 @@ async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() 
     )
     .await;
     assert_eq!(status, StatusCode::BAD_GATEWAY, "{failed_response}");
-    assert_eq!(failed_response["error"]["code"], "FUNDING_TRANSACTION_FAILED");
+    assert_eq!(
+        failed_response["error"]["code"],
+        "FUNDING_TRANSACTION_FAILED"
+    );
     assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 1);
     assert_eq!(rpc_observer.blockhash_calls.load(Ordering::SeqCst), 1);
 
@@ -545,7 +548,8 @@ async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() 
 }
 
 #[tokio::test]
-async fn processing_grant_replays_only_persisted_intent_after_submission_response_failure() -> Result<()> {
+async fn processing_grant_replays_only_persisted_intent_after_submission_response_failure(
+) -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().await;
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
@@ -646,7 +650,10 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
         .await?
         .expect("persisted request");
     assert_eq!(persisted.status, "processing");
-    assert_eq!(persisted.submission_blockhash.as_deref(), Some(blockhash.as_str()));
+    assert_eq!(
+        persisted.submission_blockhash.as_deref(),
+        Some(blockhash.as_str())
+    );
     assert!(persisted.signature.is_none());
 
     let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
