@@ -1,10 +1,10 @@
 # Tokenomics Config and State Spec
 
-Status: Stage A design complete
+Status: Stage A model implemented in part; runtime/governance integration incomplete
 
-Purpose: This document defines the canonical config, state, and governance storage model for AEKO tokenomics. It is the implementation bridge between [`tokenomics.md`](/Users/ok/Documents/projects/aeko-chain/tokenomics.md) and the Phase 2 contracts/programs that depend on it.
+Purpose: This document defines the canonical config, state, and governance storage model for AEKO tokenomics. It is the implementation bridge between [`tokenomics.md`](../../tokenomics.md) and the Phase 2 programs that depend on it.
 
-This spec does not implement the tokenomics program. It defines the data model and storage responsibilities that implementation must follow.
+The repository now contains a tokenomics program, bootstrap state, epoch-emission accounting and validator-reward calculations. That is not equivalent to complete economic execution: runtime transaction-fee distribution still does not consume this tokenomics state, the documented allocation buckets are not yet provisioned as governed spendable reserves, and the two-house proposal/timelock executor described in `docs/governance/` does not yet exist. Mainnet treasury/grant execution must therefore remain fail-closed.
 
 ## 1. Design Goals
 
@@ -476,7 +476,10 @@ Implementation must enforce:
 - [x] Canonical subsidy registry model defined
 - [x] Governable fields mapped into explicit update state
 - [x] Validator reward settlement model defined
-- [ ] Tokenomics program/module implemented
-- [ ] Genesis/bootstrap initialization path implemented
-- [ ] Epoch settlement path implemented
-- [ ] Governance update execution path implemented
+- [x] Tokenomics program/module scaffold and state processing implemented
+- [x] Protocol bootstrap initializes canonical tokenomics state
+- [x] Epoch emission accounting path implemented
+- [ ] Runtime fee routing wired to tokenomics state
+- [ ] Governed allocation reserves provisioned and spendable through protocol rules
+- [ ] Validator/delegator reward accounting wired to actual balance settlement
+- [ ] Two-house governance proposal/timelock execution path implemented
