@@ -36,6 +36,7 @@ NETWORK_PORTS = ROOT / "docs" / "operations" / "network-ports-and-domains.md"
 TESTNET_ENVIRONMENT = ROOT / "docs" / "aeko-chain" / "testnet-mainnet.md"
 SDK_TESTNET_GUIDE = ROOT / "docs" / "developer-sdk" / "deploy-and-invoke-testnet.md"
 WRITE_FIRST_PROGRAM = ROOT / "docs" / "developer-sdk" / "write-your-first-program.md"
+RUST_SDK_GUIDE = ROOT / "docs" / "developer-sdk" / "rust-sdk.md"
 HELLO_PROGRAM_MANIFEST = ROOT / "contracts" / "hello-aeko-program" / "Cargo.toml"
 ADMIN_README = ROOT / "apps" / "admin" / "README.md"
 SCAN_README = ROOT / "apps" / "explorer" / "web" / "README.md"
@@ -113,6 +114,7 @@ def main() -> int:
     testnet_environment = read(TESTNET_ENVIRONMENT)
     sdk_testnet_guide = read(SDK_TESTNET_GUIDE)
     write_first_program = read(WRITE_FIRST_PROGRAM)
+    rust_sdk_guide = read(RUST_SDK_GUIDE)
     hello_program_manifest = read(HELLO_PROGRAM_MANIFEST)
     admin_readme = read(ADMIN_README)
     scan_readme = read(SCAN_README)
@@ -486,6 +488,8 @@ def main() -> int:
     reject(sdk_testnet_guide, "cargo build-bpf", "SDK testnet guide")
     reject(write_first_program, "cargo build-bpf", "write-first-program guide")
     reject(write_first_program, "/Users/ok/Documents/projects/aeko-chain", "write-first-program guide")
+    reject(rust_sdk_guide, "cargo build-bpf", "Rust SDK guide")
+    reject(rust_sdk_guide, "/Users/ok/Documents/projects/aeko-chain", "Rust SDK guide")
     reject(scan_readme, "Operations Web funding role", "Scan README")
     reject(sdk_testnet_guide, "/Users/ok/Documents/projects/aeko-chain", "SDK testnet guide")
     reject(admin_login, 'href="/funding"', "Admin login")
@@ -534,6 +538,12 @@ def main() -> int:
         and "ci-protocol-stack-integration.sh" in write_first_program
         and "Hello from AEKO!" in write_first_program,
         "write-first-program guide must match the live Hello World compatibility gate",
+    )
+    require(
+        "./cargo-build-sbf" in rust_sdk_guide
+        and "contracts/hello-aeko-program" in rust_sdk_guide
+        and "aeko-test-validator" in rust_sdk_guide,
+        "Rust SDK guide must use the same SBF/deploy contract proven by CI",
     )
     require(
         "Smart-contract build/deploy/invoke works in CI." in testnet_runbook
