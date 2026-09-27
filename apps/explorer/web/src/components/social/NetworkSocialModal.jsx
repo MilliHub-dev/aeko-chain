@@ -6,7 +6,7 @@ import {
   MoreHorizontal, PenLine, RefreshCw, Repeat2, Reply, Send, Share2, ShieldCheck,
   Sparkles, UserRound, Users, Wallet, X,
 } from 'lucide-react';
-import { getNetworkConfig } from '../../utils/networkConfig';
+import { getNetworkConfig, getNetworkPresentation } from '../../utils/networkConfig';
 import { aekoToLamports, confirmSignature, formatAeko, getEpochInfo, getLatestBlockhash, sendTransaction } from '../../utils/aekoRpcClient';
 import { loadWallets, shortAddress } from '../../utils/aekoTestKeypair';
 import { buildSignedAnchorPostTx, randomBytes32, sha256 } from '../../utils/aekoSocial';
@@ -138,6 +138,7 @@ function PostCard({ post, persona, counts = { comment: 0, repost: 0, like: 0, sh
 export default function NetworkSocialModal({ network = 'testnet', onClose }) {
   const [params, setParams] = useSearchParams();
   const config = getNetworkConfig(network);
+  const presentation = getNetworkPresentation(network);
   const rpcUrl = config.rpcUrl;
   const explorerApiUrl = config.explorerApiUrl;
   const wallets = useMemo(() => loadWallets(), []);
@@ -298,7 +299,7 @@ export default function NetworkSocialModal({ network = 'testnet', onClose }) {
     const vault = await fetchWalletProfile(explorerApiUrl, address);
     const available = Number(vault?.nativeBalance ?? 0);
     if (available < Number(amountLamports)) {
-      throw new Error(`${label} does not have enough AEKO for this payout. Available: ${formatAeko(available)}; required: ${formatAeko(amountLamports)}. The testnet operator must seed the payout vault before claims can succeed.`);
+      throw new Error(`${label} does not have enough AEKO for this payout. Available: ${formatAeko(available)}; required: ${formatAeko(amountLamports)}. The ${presentation.name} operator must seed the payout vault before claims can succeed.`);
     }
     return available;
   };
@@ -411,7 +412,7 @@ export default function NetworkSocialModal({ network = 'testnet', onClose }) {
 
       {['reply','quote'].includes(dialog)?<ActionDialog title={dialog==='reply'?'Reply to post':'Quote post'} description="Signed by the selected owned persona and anchored directly in AEKO Social Posts." onClose={closeDialog} onSubmit={submitPost} submitLabel={dialog==='reply'?'Reply':'Quote'} busy={Boolean(busy)}><textarea autoFocus value={composerText} onChange={(e)=>setComposerText(e.target.value.slice(0,512))} placeholder="What is happening on AEKO?" className="min-h-40 w-full resize-none rounded-2xl border border-white/10 bg-black/30 p-4 text-[15px] leading-6 text-white outline-none focus:border-aeko-accent/50"/><div className="mt-2 flex justify-between text-[11px] text-gray-600"><span>{persona?.name} · {shortAddress(persona?.address||'')}</span><span>{composerText.length}/512</span></div></ActionDialog>:null}
       {dialog==='edit'?<ActionDialog title="Edit post" description="Only the original creator can sign this edit." onClose={closeDialog} onSubmit={submitEdit} submitLabel="Save edit" busy={Boolean(busy)}><textarea autoFocus value={composerText} onChange={(e)=>setComposerText(e.target.value.slice(0,512))} className="min-h-36 w-full resize-none rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white outline-none focus:border-aeko-accent/50"/></ActionDialog>:null}
-      {['tip','stake','subscribe','unlock'].includes(dialog)?<ActionDialog title={dialog==='tip'?'Tip creator':dialog==='stake'?'Stake on creator':dialog==='subscribe'?'Subscribe to creator':'Unlock paid post'} description="This action moves testnet AEKO through the canonical program-owned Social vault." onClose={closeDialog} onSubmit={submitEconomic} submitLabel={dialog==='stake'?'Open stake':'Confirm'} busy={Boolean(busy)}><div className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-gray-400">Signer <span className="font-mono text-white">{shortAddress(persona?.address||'')}</span></div><label className="mt-4 block text-xs text-gray-500">AEKO amount<input type="number" min="0.000000001" step="0.000000001" value={amount} onChange={(e)=>setAmount(e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-aeko-accent/50"/></label>{dialog==='subscribe'?<label className="mt-4 block text-xs text-gray-500">Period (days)<input type="number" min="1" value={periodDays} onChange={(e)=>setPeriodDays(e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white"/></label>:null}</ActionDialog>:null}
+      {['tip','stake','subscribe','unlock'].includes(dialog)?<ActionDialog title={dialog==='tip'?'Tip creator':dialog==='stake'?'Stake on creator':dialog==='subscribe'?'Subscribe to creator':'Unlock paid post'} description={`This action moves ${presentation.name} AEKO through the canonical program-owned Social vault.`} onClose={closeDialog} onSubmit={submitEconomic} submitLabel={dialog==='stake'?'Open stake':'Confirm'} busy={Boolean(busy)}><div className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-gray-400">Signer <span className="font-mono text-white">{shortAddress(persona?.address||'')}</span></div><label className="mt-4 block text-xs text-gray-500">AEKO amount<input type="number" min="0.000000001" step="0.000000001" value={amount} onChange={(e)=>setAmount(e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-aeko-accent/50"/></label>{dialog==='subscribe'?<label className="mt-4 block text-xs text-gray-500">Period (days)<input type="number" min="1" value={periodDays} onChange={(e)=>setPeriodDays(e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white"/></label>:null}</ActionDialog>:null}
       {dialog==='mint'?<ActionDialog title="Mint post as AEKO-721" description="Creates or reuses your deterministic AEKO Social collection, mints this post, confirms it on RPC, then waits for the Explorer asset indexer." onClose={closeDialog} onSubmit={submitMint} submitLabel="Mint NFT" busy={Boolean(busy)}><div className="rounded-2xl border border-aeko-accent/20 bg-aeko-accent/[0.05] p-4"><div className="text-xs text-aeko-accent">Creator ownership check</div><div className="mt-2 font-mono text-[11px] text-gray-400">{dialogPost?.creator}</div><div className="mt-3 text-sm leading-6 text-gray-200">{content(dialogPost)}</div></div></ActionDialog>:null}
     </div>
   </div>;
