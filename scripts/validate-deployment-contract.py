@@ -499,11 +499,16 @@ def main() -> int:
         and "assert_eq!(first.signatures, replay.signatures)" in faucet_replay_test,
         "Faucet tests must prove identical funding intent has a deterministic signature",
     )
+    funding_design_flat = " ".join(funding_design.split())
     require(
-        "FUNDING_SUBMISSION_RETRY_PENDING" in funding_design
-        and "same destination, amount, funding authorization and recent blockhash" in funding_design
-        and "Neither Scan nor Admin may manually retry it" in funding_design
-        and "never substitutes a fresh blockhash" in funding_design,
+        "FUNDING_SUBMISSION_RETRY_PENDING" in funding_design_flat
+        and "persisted transaction intent" in funding_design_flat
+        and "same destination, amount, funding authorization and recent blockhash" in funding_design_flat
+        and "same transaction signature" in funding_design_flat
+        and "after that blockhash expires" in funding_design_flat
+        and "searches transaction history" in funding_design_flat
+        and "Neither Scan nor Admin may manually retry it" in funding_design_flat
+        and "never substitutes a fresh blockhash" in funding_design_flat,
         "funding design must document backend-owned deterministic replay",
     )
 
