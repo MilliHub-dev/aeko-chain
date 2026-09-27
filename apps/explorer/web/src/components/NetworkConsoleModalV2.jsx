@@ -28,6 +28,7 @@ import {
   sendTransaction,
 } from '../utils/aekoRpcClient';
 import { AekoWsClient } from '../utils/aekoWsClient';
+import { getNetworkPresentation } from '../utils/networkConfig';
 import {
   buildSignedAnchorPostTx,
   buildSignedLikeTx,
@@ -150,7 +151,7 @@ function AccountsWorkspace({
   const runAirdrop = async () => {
     if (!wallet) return;
     if (!fundingUrl) {
-      setResult({ kind: 'error', message: 'The Testnet Funding service is not configured for this deployment.' });
+      setResult({ kind: 'error', message: '${presentation.name} test funding is not configured for this deployment.' });
       return;
     }
     const value = Number(airdropAmount);
@@ -269,7 +270,7 @@ function AccountsWorkspace({
             <div className="grid gap-4 lg:grid-cols-2">
               <section className="rounded-2xl border border-aeko-accent/20 bg-aeko-accent/[0.04] p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-white"><Droplets size={14} className="text-aeko-accent" /> Test Console airdrop</div>
-                <p className="mt-1 text-[11px] leading-relaxed text-gray-600">This developer-only flow is separate from public funding approval. Choose an amount and the server submits a constrained testnet airdrop without exposing the private Funding Gateway credential.</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-gray-600">This developer-only flow is separate from public grant approval. Choose an amount and the server submits a constrained ${presentation.name} airdrop without exposing the server-only funding authorization secret.</p>
                 <AmountInput value={airdropAmount} onChange={setAirdropAmount} />
                 <button type="button" onClick={runAirdrop} disabled={Boolean(busy) || !fundingUrl || !wallet} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-aeko-accent/30 bg-aeko-accent/10 px-4 text-xs font-semibold text-aeko-accent disabled:opacity-40">
                   {busy === 'airdrop' ? <Loader2 size={13} className="animate-spin" /> : <Droplets size={13} />}
@@ -443,6 +444,7 @@ function SocialWorkspace({ rpcUrl, explorerApiUrl, explorerUrl, wallets, balance
 }
 
 export default function NetworkConsoleModalV2({ open, onClose, tab, onTabChange, rpcUrl, websocketUrl, network, explorerApiUrl, explorerUrl, fundingUrl }) {
+  const presentation = getNetworkPresentation(network);
   const [wallets, setWallets] = useState(() => loadWallets());
   const [balances, setBalances] = useState({});
   const [walletProfiles, setWalletProfiles] = useState({});
