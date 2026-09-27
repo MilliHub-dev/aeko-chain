@@ -328,7 +328,10 @@ async fn list_social_domains(
 async fn get_registry(
     State(state): State<SharedState>,
 ) -> ApiResult<Json<DataEnvelope<SocialRegistry>>> {
-    Ok(response::data(&state.network, resolve_social_registry()))
+    let registry = tokio::task::spawn_blocking(resolve_social_registry)
+        .await
+        .context("Social registry resolution worker panicked")?;
+    Ok(response::data(&state.network, registry))
 }
 
 #[derive(Debug, Serialize)]
