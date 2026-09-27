@@ -90,7 +90,7 @@ async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>)
                     }]
                 }
             }))
-        },
+        }
         _ => Json(json!({
             "jsonrpc": "2.0",
             "id": id,
