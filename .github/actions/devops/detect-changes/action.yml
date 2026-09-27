@@ -175,6 +175,21 @@ runs:
 
           for file in "${changed_files[@]}"; do
             case "$file" in
+              apps/admin/compose.coolify.yml|apps/admin/.env.coolify.example)
+                packaging=true
+                admin=true
+                coolify_operations_web=true
+                ;;
+              apps/explorer/backend/compose.coolify.yml|apps/explorer/backend/.env.coolify.example)
+                packaging=true
+                explorer_backend=true
+                coolify_explorer_api=true
+                ;;
+              apps/explorer/web/compose.coolify.yml|apps/explorer/web/.env.coolify.example)
+                packaging=true
+                explorer_web=true
+                coolify_explorer_ui=true
+                ;;
               apps/admin/*)
                 admin=true
                 ;;
@@ -259,19 +274,7 @@ runs:
                 packaging=true
                 coolify_validator=true
                 ;;
-              docker/coolify/explorer-api/*)
-                packaging=true
-                coolify_explorer_api=true
-                ;;
-              docker/coolify/explorer-ui/*)
-                packaging=true
-                coolify_explorer_ui=true
-                ;;
-              docker/coolify/operations-web/*)
-                packaging=true
-                coolify_operations_web=true
-                ;;
-              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/audit-validator-storage.sh|scripts/validate-deployment-contract.py|scripts/validate-coolify-split.py|scripts/validate-network-ports.py|scripts/test-validator-entrypoint.sh|scripts/test-explorer-api-entrypoint.sh)
+              docker/*|.dockerignore|scripts/deploy-testnet.sh|scripts/audit-validator-storage.sh|scripts/validate-deployment-contract.py|scripts/validate-coolify-split.py|scripts/validate-network-ports.py|scripts/validate-app-observability.py|scripts/test-validator-entrypoint.sh|scripts/test-explorer-api-entrypoint.sh)
                 # Real packaging/deployment changes must prove the selected
                 # container targets still build. CI implementation paths are
                 # classified separately above and do not rebuild product images.

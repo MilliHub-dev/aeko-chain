@@ -4,13 +4,13 @@ use {
         features::funding,
         http::{self, state::AppState},
         indexing::service::IndexerService,
+        observability,
         infrastructure::{
             chain::RpcChainClient,
             chain_identity::{fetch_finalized_blockhash, fetch_genesis_hash},
             persistence::PostgresRepository,
             social::CanonicalChainDataSource,
         },
-        observability,
     },
     anyhow::{anyhow, Context, Result},
     std::sync::Arc,
@@ -18,7 +18,6 @@ use {
 };
 
 pub async fn run(rpc: RpcChainClient) -> Result<()> {
-    observability::init();
     let backend = rpc.config.clone();
     let server = ServerConfig::from_env().context("loading Explorer server environment")?;
     let settings_control = SettingsControlConfig::from_env()
@@ -85,7 +84,7 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
         .context("verifying Explorer PostgreSQL belongs to this validator chain")?;
 
     tracing::info!(
-        rpc = %backend.rpc_url,
+        rpc_origin = %observability::endpoint_origin(&backend.rpc_url),
         network = %backend.network,
         genesis_hash = %genesis_hash,
         bind = %server.bind_addr,

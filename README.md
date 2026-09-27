@@ -314,16 +314,17 @@ Coolify supports independent resource deployments under
 validator, Explorer API, Explorer UI and Operations Web can be updated without
 recreating one another.
 
-The preferred topology has six Coolify resources, each with its own Compose
-path and .env.example:
+The preferred topology has six Coolify resources. Stateful infrastructure
+keeps its deployment files under `docker/coolify/**`; deployable applications
+own `compose.coolify.yml` and `.env.coolify.example` beside their source:
 
 ```text
 docker/coolify/bootstrap/compose.yml
 docker/coolify/faucet-tools/compose.yml
 docker/coolify/validator/compose.yml
-docker/coolify/explorer-api/compose.yml
-docker/coolify/explorer-ui/compose.yml
-docker/coolify/operations-web/compose.yml
+apps/explorer/backend/compose.coolify.yml
+apps/explorer/web/compose.coolify.yml
+apps/admin/compose.coolify.yml
 ```
 
 The bootstrap resource contains key, Social and Protocol one-shot jobs.

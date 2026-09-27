@@ -1,6 +1,5 @@
-# Coolify split resource: Aeko Scan/Explorer API.
-# Network dependencies use canonical network-specific URLs so this service may
-# run on a different Ubuntu instance without Docker service-name DNS.
+# Coolify split resource owned by apps/explorer/backend.
+# Network dependencies use reachable URLs so Explorer API may run on a separate host.
 x-logging: &default-logging
   driver: json-file
   options:
@@ -34,6 +33,8 @@ services:
       AEKO_EXPLORER_REQUEST_TIMEOUT_SECS: ${AEKO_EXPLORER_REQUEST_TIMEOUT_SECS:-30}
       AEKO_EXPLORER_MAX_BODY_BYTES: ${AEKO_EXPLORER_MAX_BODY_BYTES:-1048576}
       AEKO_EXPLORER_SYNC_INTERVAL_SECS: ${AEKO_EXPLORER_SYNC_INTERVAL_SECS:-2}
+      AEKO_EXPLORER_LOG_FORMAT: ${AEKO_EXPLORER_LOG_FORMAT:-json}
+      AEKO_EXPLORER_LOG_FILTER: ${AEKO_EXPLORER_LOG_FILTER:-info,tower_http=info,hyper=warn,reqwest=warn,sqlx=warn}
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       AEKO_FUNDING_AUTHORIZATION_KEY: ${AEKO_FUNDING_AUTHORIZATION_KEY:-}
       AEKO_FUNDING_REQUESTS_PER_10_MIN: ${AEKO_FUNDING_REQUESTS_PER_10_MIN:-5}

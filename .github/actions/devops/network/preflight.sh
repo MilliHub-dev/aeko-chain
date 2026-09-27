@@ -49,8 +49,16 @@ bash -c '
   python3 scripts/validate-program-ids.py
   python3 scripts/validate-network-ports.py
   python3 scripts/validate-coolify-split.py
+  python3 scripts/validate-app-observability.py
   python3 scripts/validate-deployment-contract.py
-  for compose in docker/coolify/*/compose.yml; do
+  for compose in \
+    docker/coolify/bootstrap/compose.yml \
+    docker/coolify/faucet-tools/compose.yml \
+    docker/coolify/validator/compose.yml \
+    apps/explorer/backend/compose.coolify.yml \
+    apps/explorer/web/compose.coolify.yml \
+    apps/admin/compose.coolify.yml
+  do
     docker compose -f "$compose" config >/dev/null
   done
   docker compose -f docker/compose.local.yml config >/dev/null

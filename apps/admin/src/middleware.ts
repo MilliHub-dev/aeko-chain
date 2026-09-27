@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth'
+import { logger, requestIdFromHeaders } from '@/lib/logger'
 
-const ADMIN_PUBLIC_PREFIXES = ['/login', '/api/login', '/api/logout']
+const ADMIN_PUBLIC_PREFIXES = ['/login', '/api/login', '/api/logout', '/api/telemetry/client']
 
 const matchesPrefix = (pathname: string, prefixes: string[]) =>
   prefixes.some((prefix) =>
@@ -9,30 +10,64 @@ const matchesPrefix = (pathname: string, prefixes: string[]) =>
     || pathname.startsWith(prefix.endsWith('/') ? prefix : prefix + '/'),
   )
 
-function notFound() {
-  return NextResponse.json({ error: { message: 'Not found' } }, { status: 404 })
+function withRequestId(response: NextResponse, requestId: string) {
+  response.headers.set('x-request-id', requestId)
+  return response
 }
 
-async function adminRole(req: NextRequest) {
+function nextWithRequestId(req: NextRequest, requestId: string) {
+  const headers = new Headers(req.headers)
+  headers.set('x-request-id', requestId)
+  return withRequestId(NextResponse.next({ request: { headers } }), requestId)
+}
+
+async function adminRole(req: NextRequest, requestId: string) {
   const { pathname } = req.nextUrl
 
-  if (matchesPrefix(pathname, ADMIN_PUBLIC_PREFIXES)) return NextResponse.next()
+  if (matchesPrefix(pathname, ADMIN_PUBLIC_PREFIXES)) {
+    logger.info('http_request_accepted', {
+      request_id: requestId,
+      method: req.method,
+      path: pathname,
+      auth: 'public',
+    })
+    return nextWithRequestId(req, requestId)
+  }
 
   const ok = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value)
-  if (ok) return NextResponse.next()
+  if (ok) {
+    logger.info('http_request_accepted', {
+      request_id: requestId,
+      method: req.method,
+      path: pathname,
+      auth: 'admin_session',
+    })
+    return nextWithRequestId(req, requestId)
+  }
+
+  logger.warn('http_request_rejected', {
+    request_id: requestId,
+    method: req.method,
+    path: pathname,
+    reason: 'admin_sign_in_required',
+  })
 
   if (pathname.startsWith('/api/')) {
-    return NextResponse.json({ error: { message: 'Admin sign-in required' } }, { status: 401 })
+    return withRequestId(
+      NextResponse.json({ error: { message: 'Admin sign-in required' } }, { status: 401 }),
+      requestId,
+    )
   }
 
   const login = req.nextUrl.clone()
   login.pathname = '/login'
   login.search = pathname === '/' ? '' : `?next=${encodeURIComponent(pathname)}`
-  return NextResponse.redirect(login)
+  return withRequestId(NextResponse.redirect(login), requestId)
 }
 
 export async function middleware(req: NextRequest) {
-  return adminRole(req)
+  const requestId = requestIdFromHeaders(req.headers)
+  return adminRole(req, requestId)
 }
 
 export const config = {

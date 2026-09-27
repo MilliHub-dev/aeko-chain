@@ -8,11 +8,13 @@ Coolify now has two deployment contracts:
 
 | Contract | Purpose |
 | --- | --- |
-| docker/coolify/*/compose.yml | preferred split resources; validator, Explorer API/UI and Operations Web can be deployed independently |
+| infrastructure `docker/coolify/*/compose.yml` plus app-owned `apps/**/compose.coolify.yml` | preferred split resources; each deployable application owns its Compose and `.env.coolify.example` beside its source |
 | docker/compose.coolify.yml | compatibility contract for the existing all-in-one resource and rollback during migration |
 
 For new Coolify resources, create one Git-based Docker Compose application per
-folder under docker/coolify and select that folder's compose.yml. Do not point
+resource. Infrastructure uses `docker/coolify/<resource>/compose.yml`; Explorer
+API, Scan, and Operations Web use the app-owned paths below and the adjacent
+`.env.coolify.example`. Do not point
 every resource at docker/compose.coolify.yml.
 
 The split files pull the same published images as the legacy contract. They do
@@ -227,9 +229,9 @@ For the split topology, create six separate Coolify applications:
 1. `docker/coolify/bootstrap/compose.yml`
 2. `docker/coolify/faucet-tools/compose.yml`
 3. `docker/coolify/validator/compose.yml`
-4. `docker/coolify/explorer-api/compose.yml`
-5. `docker/coolify/explorer-ui/compose.yml`
-6. `docker/coolify/operations-web/compose.yml`
+4. `apps/explorer/backend/compose.coolify.yml`
+5. `apps/explorer/web/compose.coolify.yml`
+6. `apps/admin/compose.coolify.yml`
 
 `wallet-tools` is already inside `faucet-tools` under the `ops` profile, so
 it does not need another Coolify application.
@@ -305,7 +307,7 @@ The signed browser write path in the Explorer test console remains the final end
 
 If Coolify reports an error such as `Invalid Docker volume definition` or `Invalid volume source` before containers start:
 
-1. Confirm the application uses the intended docker/coolify/<resource>/compose.yml path, or the legacy docker/compose.coolify.yml only when intentionally using the monolith.
+1. Confirm the application uses its intended split Compose path (`docker/coolify/<resource>/compose.yml` for infrastructure or `apps/**/compose.coolify.yml` for deployable apps), or the legacy `docker/compose.coolify.yml` only when intentionally using the monolith.
 2. Confirm every bind source is a literal /data/aeko/** path with no environment interpolation.
 3. Verify the required host directory/state exists before redeploying. Key bootstrap owns first-boot chain-key creation; it does not recreate an established ledger or bootstrap registry.
 

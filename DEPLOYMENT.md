@@ -11,7 +11,7 @@ AEKO keeps platform-specific Compose contracts so local convenience and public d
 | `docker/compose.local.yml` | portable local/testnet stack; validator RPC/WS are host-published and `rpc-node` is optional |
 | `docker/compose.dokploy.yml` | public/Dokploy stack; uses prebuilt Docker Hub images and serves RPC/WS from the healthy voting validator |
 | `docker/compose.coolify.yml` | legacy public/Coolify all-in-one compatibility stack |
-| `docker/coolify/*/compose.yml` | preferred Coolify split resources; independent failure/lifecycle boundaries with related bootstrap and operator roles grouped together |
+| `docker/coolify/{bootstrap,faucet-tools,validator}/compose.yml` and app-local `apps/**/compose.coolify.yml` | preferred Coolify split resources; stateful infrastructure stays deployment-owned while each Explorer/Admin application owns its Compose and `.env.coolify.example` beside source |
 
 Coolify split resources are additive. The existing `docker/compose.coolify.yml` remains the rollback/compatibility path and is not rewritten by the split migration. An established chain must migrate the current named-volume contents into the fixed `/data/aeko/**` paths before switching the configured Coolify Compose paths. See [`docker/coolify/README.md`](./docker/coolify/README.md).
 
@@ -424,8 +424,10 @@ Validator/bootstrap/faucet-tools should remain pinned to immutable validated
 tags. Their promotion/deployment is intentional and independent of Explorer or
 Admin releases.
 
-A webhook never chooses a Compose path. Each Coolify split resource must already
-point at its matching `docker/coolify/<resource>/compose.yml`; the legacy
+A webhook never chooses a Compose path. Each Coolify split resource must already point at its matching Compose file:
+`docker/coolify/<resource>/compose.yml` for infrastructure, or the app-local
+`compose.coolify.yml` for Explorer API, Scan, and Operations Web. Their app-local
+`.env.coolify.example` documents the matching deployment environment. The legacy
 resource remains on `docker/compose.coolify.yml`.
 
 ## Mandatory Aeko Social and AEKO Protocol lifecycle
