@@ -10,11 +10,28 @@ use {
         collections::{BTreeMap, HashMap},
         env, fs,
         io::ErrorKind,
+        sync::{Mutex, OnceLock},
+        time::{Duration, Instant},
     },
+    url::Url,
 };
 
 const SOCIAL_REGISTRY_FILE_ENV: &str = "AEKO_SOCIAL_REGISTRY_FILE";
 const PROTOCOL_REGISTRY_FILE_ENV: &str = "AEKO_PROTOCOL_REGISTRY_FILE";
+const REGISTRY_URL_ENV: &str = "AEKO_REGISTRY_URL";
+const REGISTRY_REFRESH_SECONDS_ENV: &str = "AEKO_REGISTRY_REFRESH_SECONDS";
+const REGISTRY_FETCH_TIMEOUT_SECONDS_ENV: &str = "AEKO_REGISTRY_FETCH_TIMEOUT_SECONDS";
+const DEFAULT_REGISTRY_REFRESH_SECONDS: u64 = 30;
+const DEFAULT_REGISTRY_FETCH_TIMEOUT_SECONDS: u64 = 10;
+
+#[derive(Clone)]
+struct CachedRemoteRegistry {
+    fetched_at: Instant,
+    values: HashMap<String, String>,
+}
+
+static REMOTE_REGISTRY_CACHE: OnceLock<Mutex<HashMap<String, CachedRemoteRegistry>>> =
+    OnceLock::new();
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -209,29 +226,177 @@ fn bootstrap_marker_exists(env_name: &str) -> bool {
 }
 
 fn load_registry_file(env_name: &str, label: &str) -> HashMap<String, String> {
-    let Some(path) = env::var(env_name)
+    if let Some(path) = env::var(env_name)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+    {
+        match fs::read_to_string(&path) {
+            Ok(content) => {
+                let values = parse_registry_env(&content);
+                if !values.is_empty() {
+                    return values;
+                }
+                tracing::warn!(
+                    path,
+                    env_name,
+                    label,
+                    "bootstrap registry file is empty; trying configured remote registry"
+                );
+            }
+            Err(error) if expected_missing_registry(env_name, &error) => {
+                tracing::debug!(
+                    path,
+                    env_name,
+                    label,
+                    "bootstrap registry file is not present yet; trying configured remote registry"
+                );
+            }
+            Err(error) => {
+                tracing::warn!(
+                    path,
+                    env_name,
+                    label,
+                    error = %error,
+                    "unable to read bootstrap registry file; trying configured remote registry"
+                );
+            }
+        }
+    }
+
+    load_remote_registry(env_name, label)
+}
+
+fn load_remote_registry(env_name: &str, label: &str) -> HashMap<String, String> {
+    let Some(base_url) = env::var(REGISTRY_URL_ENV)
         .ok()
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
     else {
         return HashMap::new();
     };
-    match fs::read_to_string(&path) {
-        Ok(content) => parse_registry_env(&content),
-        Err(error) if expected_missing_registry(env_name, &error) => {
-            tracing::debug!(
-                path,
+
+    let filename = match env_name {
+        SOCIAL_REGISTRY_FILE_ENV => "social-registry.env",
+        PROTOCOL_REGISTRY_FILE_ENV => "protocol-registry.env",
+        _ => return HashMap::new(),
+    };
+
+    let url = match registry_document_url(&base_url, filename) {
+        Ok(url) => url,
+        Err(error) => {
+            tracing::warn!(
+                base_url,
                 env_name,
                 label,
-                "protocol registry file is not present yet"
+                error,
+                "configured bootstrap registry URL is invalid"
             );
-            HashMap::new()
+            return HashMap::new();
+        }
+    };
+
+    let refresh = env_seconds(
+        REGISTRY_REFRESH_SECONDS_ENV,
+        DEFAULT_REGISTRY_REFRESH_SECONDS,
+    );
+    let timeout = env_seconds(
+        REGISTRY_FETCH_TIMEOUT_SECONDS_ENV,
+        DEFAULT_REGISTRY_FETCH_TIMEOUT_SECONDS,
+    );
+    let cache = REMOTE_REGISTRY_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+
+    if let Ok(guard) = cache.lock() {
+        if let Some(entry) = guard.get(&url) {
+            if entry.fetched_at.elapsed() < Duration::from_secs(refresh) {
+                return entry.values.clone();
+            }
+        }
+    }
+
+    match fetch_registry_document(&url, Duration::from_secs(timeout)) {
+        Ok(values) => {
+            if let Ok(mut guard) = cache.lock() {
+                guard.insert(
+                    url.clone(),
+                    CachedRemoteRegistry {
+                        fetched_at: Instant::now(),
+                        values: values.clone(),
+                    },
+                );
+            }
+            values
         }
         Err(error) => {
-            tracing::warn!(path, env_name, label, error = %error, "unable to read bootstrap registry file");
+            tracing::warn!(
+                url,
+                env_name,
+                label,
+                error,
+                "unable to refresh remote bootstrap registry"
+            );
+            if let Ok(guard) = cache.lock() {
+                if let Some(entry) = guard.get(&url) {
+                    tracing::warn!(
+                        url,
+                        label,
+                        "using stale cached bootstrap registry after refresh failure"
+                    );
+                    return entry.values.clone();
+                }
+            }
             HashMap::new()
         }
     }
+}
+
+fn registry_document_url(base_url: &str, filename: &str) -> Result<String, String> {
+    let mut url = Url::parse(base_url).map_err(|error| error.to_string())?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err("AEKO_REGISTRY_URL must use http or https".to_string());
+    }
+    if url.host_str().is_none() {
+        return Err("AEKO_REGISTRY_URL must include a host".to_string());
+    }
+    url.set_query(None);
+    url.set_fragment(None);
+    let mut path = url.path().trim_end_matches('/').to_string();
+    path.push('/');
+    path.push_str(filename);
+    url.set_path(&path);
+    Ok(url.to_string())
+}
+
+fn fetch_registry_document(
+    url: &str,
+    timeout: Duration,
+) -> Result<HashMap<String, String>, String> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(timeout)
+        .redirect(reqwest::redirect::Policy::limited(3))
+        .build()
+        .map_err(|error| error.to_string())?;
+    let response = client
+        .get(url)
+        .header(reqwest::header::ACCEPT, "text/plain")
+        .send()
+        .map_err(|error| error.to_string())?
+        .error_for_status()
+        .map_err(|error| error.to_string())?;
+    let body = response.text().map_err(|error| error.to_string())?;
+    let values = parse_registry_env(&body);
+    if values.is_empty() {
+        return Err("remote bootstrap registry contained no key/value entries".to_string());
+    }
+    Ok(values)
+}
+
+fn env_seconds(name: &str, default: u64) -> u64 {
+    env::var(name)
+        .ok()
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(default)
 }
 
 fn expected_missing_registry(env_name: &str, error: &std::io::Error) -> bool {
@@ -262,10 +427,15 @@ fn parse_registry_env(content: &str) -> HashMap<String, String> {
 mod tests {
     use {
         super::{
-            expected_missing_registry, parse_registry_env, PROTOCOL_REGISTRY_FILE_ENV,
-            SOCIAL_REGISTRY_FILE_ENV,
+            expected_missing_registry, fetch_registry_document, parse_registry_env,
+            registry_document_url, PROTOCOL_REGISTRY_FILE_ENV, SOCIAL_REGISTRY_FILE_ENV,
         },
-        std::io::{Error, ErrorKind},
+        std::{
+            io::{Error, ErrorKind, Read, Write},
+            net::TcpListener,
+            thread,
+            time::Duration,
+        },
     };
 
     #[test]
@@ -311,5 +481,47 @@ mod tests {
             Some("tokenomics111")
         );
         assert!(!values.contains_key("EMPTY"));
+    }
+
+    #[test]
+    fn registry_document_url_joins_known_documents_and_rejects_non_http() {
+        assert_eq!(
+            registry_document_url("https://registry.example/aeko/", "social-registry.env").unwrap(),
+            "https://registry.example/aeko/social-registry.env"
+        );
+        assert!(registry_document_url("file:///tmp/registry", "protocol-registry.env").is_err());
+    }
+
+    #[test]
+    fn remote_registry_fetch_requires_successful_non_empty_env_document() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 2048];
+            let read = stream.read(&mut request).unwrap();
+            let request = String::from_utf8_lossy(&request[..read]);
+            assert!(request.starts_with("GET /social-registry.env "));
+            let body =
+                "AEKO_REGISTRY_SCHEMA_VERSION=2\nAEKO_CHAIN_GENESIS_HASH=remote-genesis\n";
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        });
+
+        let values = fetch_registry_document(
+            &format!("http://{address}/social-registry.env"),
+            Duration::from_secs(2),
+        )
+        .unwrap();
+        server.join().unwrap();
+        assert_eq!(
+            values.get("AEKO_CHAIN_GENESIS_HASH").map(String::as_str),
+            Some("remote-genesis")
+        );
     }
 }
