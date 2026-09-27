@@ -27,6 +27,9 @@ FAUCET_REPLAY_TEST = ROOT / "faucet" / "tests" / "local-faucet.rs"
 ADMIN_FUNDING_CLIENT = ROOT / "apps" / "admin" / "src" / "lib" / "funding-api.ts"
 ADMIN_FUNDING_ROUTE = ROOT / "apps" / "admin" / "src" / "app" / "api" / "admin" / "funding" / "requests" / "route.ts"
 NETWORK_CONFIG = ROOT / "apps" / "explorer" / "web" / "src" / "utils" / "networkConfig.js"
+NETWORK_TOGGLE = ROOT / "apps" / "explorer" / "web" / "src" / "components" / "NetworkToggle.jsx"
+REGISTRY_RESOLVER = ROOT / "apps" / "explorer" / "backend" / "src" / "infrastructure" / "registry.rs"
+SPLIT_BOOTSTRAP = ROOT / "docker" / "coolify" / "bootstrap" / "compose.yml"
 PROTOCOL_INTEGRATION = ROOT / "scripts" / "ci-protocol-stack-integration.sh"
 FUNDING_SMOKE = ROOT / "scripts" / "smoke-funding-e2e.py"
 HELLO_PROGRAM_SMOKE = ROOT / "scripts" / "smoke-hello-program.py"
@@ -108,6 +111,9 @@ def main() -> int:
     admin_funding_client = read(ADMIN_FUNDING_CLIENT)
     admin_funding_route = read(ADMIN_FUNDING_ROUTE)
     network_config = read(NETWORK_CONFIG)
+    network_toggle = read(NETWORK_TOGGLE)
+    registry_resolver = read(REGISTRY_RESOLVER)
+    split_bootstrap = read(SPLIT_BOOTSTRAP)
     protocol_integration = read(PROTOCOL_INTEGRATION)
     funding_smoke = read(FUNDING_SMOKE)
     hello_program_smoke = read(HELLO_PROGRAM_SMOKE)
@@ -264,6 +270,44 @@ def main() -> int:
         "protect_existing_registry" in social_bootstrap
         and "protect_existing_registry" in protocol_bootstrap,
         "Social/Protocol bootstrap must protect established registry state",
+    )
+
+    # Split registry discovery must be real wiring, not only environment
+    # variables in Compose. Explorer consumes the remote documents and the
+    # public registry root exposes only a non-secret discovery manifest.
+    for required in (
+        "AEKO_REGISTRY_URL",
+        "social-registry.env",
+        "protocol-registry.env",
+        "fetch_registry_document",
+        "using stale cached bootstrap registry",
+    ):
+        require(required in registry_resolver, f"Explorer registry resolver missing {required}")
+    require(
+        "location = /" in split_bootstrap
+        and "aeko-bootstrap-registry" in split_bootstrap
+        and "social-registry.env" in split_bootstrap
+        and "protocol-registry.env" in split_bootstrap,
+        "split Bootstrap registry must expose a safe root discovery manifest",
+    )
+    require(
+        'AEKO_REGISTRY_URL="$REGISTRY_URL"' in protocol_integration
+        and '"/registry/social"' in protocol_integration
+        and '"/registry/protocol"' in protocol_integration
+        and "Explorer consumed Social and Protocol registries over AEKO_REGISTRY_URL"
+        in protocol_integration,
+        "live protocol-stack integration must exercise remote registry discovery",
+    )
+
+    # Public Scan selection is a product surface, not a list of every
+    # deployable development environment.
+    require(
+        "PUBLIC_NETWORK_ORDER = ['mainnet', 'testnet']" in network_toggle,
+        "Aeko Scan public selector must expose Mainnet and Testnet only",
+    )
+    require(
+        "devnet" in network_config and "localnet" in network_config,
+        "Devnet/Localnet must remain valid independently configured development environments",
     )
 
     # Native token and permission programs stay feature-gated.
