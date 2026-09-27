@@ -2,7 +2,7 @@
 
 Integrate AEKO wallets into your dApp using the standard **Wallet Adapter** interface.
 
-Identity behavior should align to [`docs/wallet/identity.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/identity.md).
+Identity behavior should align to [`docs/wallet/identity.md`](./identity.md).
 
 ## Standard Interface
 
@@ -60,4 +60,4 @@ Supported wallet-side actions now include:
 - record delegate usage
 - read effective delegate permissions
 
-These flows should align with [`docs/wallet/permission-controls-spec.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/permission-controls-spec.md).
+These flows should align with [`docs/wallet/permission-controls-spec.md`](./permission-controls-spec.md).
