@@ -153,7 +153,7 @@ impl From<Endianness> for u64 {
     }
 }
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(not(target_arch = "sbf"))]
 impl From<light_poseidon::PoseidonError> for PoseidonSyscallError {
     fn from(error: light_poseidon::PoseidonError) -> Self {
         match error {
@@ -235,7 +235,7 @@ pub fn hashv(
 ) -> Result<PoseidonHash, PoseidonSyscallError> {
     // Perform the calculation inline, calling this from within a program is
     // not supported.
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(not(target_arch = "sbf"))]
     {
         use {
             ark_bn254::Fr,
@@ -253,7 +253,7 @@ pub fn hashv(
         Ok(PoseidonHash(res))
     }
     // Call via a system call to perform the calculation.
-    #[cfg(target_os = "solana")]
+    #[cfg(target_arch = "sbf")]
     {
         let mut hash_result = [0; HASH_BYTES];
         let result = unsafe {
