@@ -243,6 +243,42 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
     assert!(after_public.public_spent_aeko >= before_reservation.public_spent_aeko + 5.0);
     assert!(after_public.public_reserved_aeko <= while_submitted.public_reserved_aeko - 5.0);
 
+    // Daily budget attribution follows the Admin decision day, not the later
+    // confirmation timestamp. A delayed confirmation after UTC midnight must
+    // not migrate yesterday's reservation into today's budget.
+    let rollover_before = repository.funding_policy_snapshot().await?;
+    let rollover_address = format!("integration-rollover-{suffix}");
+    let rollover_pending = repository
+        .create_public_funding_request(&rollover_address)
+        .await?;
+    repository
+        .reserve_public_funding_request(&rollover_pending.id)
+        .await?;
+    let rollover_signature = format!("integration-rollover-signature-{suffix}");
+    repository
+        .set_funding_request_signature(&rollover_pending.id, &rollover_signature)
+        .await?;
+    repository
+        .confirm_funding_request(&rollover_pending.id)
+        .await?;
+    let rollover_confirmed_today = repository.funding_policy_snapshot().await?;
+    assert!(
+        rollover_confirmed_today.public_spent_aeko
+            >= rollover_before.public_spent_aeko + rollover_pending.amount_aeko
+    );
+
+    sqlx::query(
+        "UPDATE funding_requests SET decided_at = NOW() - INTERVAL '1 day' WHERE id = $1::uuid",
+    )
+    .bind(&rollover_pending.id)
+    .execute(&legacy_pool)
+    .await?;
+    let rollover_backdated = repository.funding_policy_snapshot().await?;
+    assert!(
+        rollover_backdated.public_spent_aeko
+            <= rollover_confirmed_today.public_spent_aeko - rollover_pending.amount_aeko
+    );
+
     // Developer airdrops are a separate ledger and never enter grant accounting.
     let airdrop_address = format!("integration-airdrop-{suffix}");
     let airdrop = repository
