@@ -124,9 +124,14 @@ Rules:
   signs that identical intent deterministically, so the replay has the same
   transaction signature. Neither Scan nor Admin may manually retry it or choose
   a fresh blockhash.
+- If a signature is known but absent from transaction history, the backend
+  checks the persisted submission blockhash. While that blockhash is valid the
+  request remains pending; once it is invalid, the exact transaction can no
+  longer land and the request becomes terminal `failed`. The backend never
+  substitutes a fresh blockhash for that logical grant.
 - A confirmed grant is inserted exactly once and linked to its request id.
-- A terminal on-chain failure releases the reservation and does not create a
-  grant row.
+- A terminal on-chain failure or expired unobserved transaction releases the
+  reservation and does not create a grant row.
 
 ## 4. Developer airdrop lifecycle
 
