@@ -6,9 +6,9 @@ This document defines the Phase 5 reward contract or reward module that calculat
 
 It should stay aligned with:
 
-- [`docs/socialfi/socialfi.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi.md)
-- [`docs/tokenomics.md`](/Users/ok/Documents/projects/aeko-chain/tokenomics.md)
-- [`docs/socialfi/reward-model.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/reward-model.md)
+- [`docs/socialfi/socialfi.md`](./socialfi.md)
+- [`docs/tokenomics.md`](../../tokenomics.md)
+- [`docs/socialfi/reward-model.md`](./reward-model.md)
 
 ## Responsibilities
 
@@ -165,7 +165,7 @@ This contract spec is required before SocialFi reward RPC endpoints can be treat
 
 Current implementation progress:
 
-- reward program scaffold added in [`programs/social-rewards`](/Users/ok/Documents/projects/aeko-chain/programs/social-rewards)
+- reward program scaffold added in [`programs/social-rewards`](../../programs/social-rewards)
 - deterministic epoch settlement flow added
 - creator claimable balance accounting added
 - processor tests added for settlement math and duplicate-epoch rejection
