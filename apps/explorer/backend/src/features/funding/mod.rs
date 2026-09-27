@@ -21,7 +21,7 @@ use {
     },
     serde::{Deserialize, Serialize},
     serde_json::{json, Value},
-    std::{str::FromStr, time::Duration},
+    std::time::Duration,
 };
 
 const ADMIN_HEADER: &str = "x-aeko-settings-token";
