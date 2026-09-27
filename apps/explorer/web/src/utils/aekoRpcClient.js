@@ -132,6 +132,16 @@ export async function requestFundingApproval(fundingUrl, address) {
   return readFundingResponse(response, 'Funding request');
 }
 
+export async function getFundingRequestStatus(fundingUrl, requestId) {
+  const id = String(requestId || '').trim();
+  if (!id) throw new Error('Funding request id is required.');
+  const response = await fetch(
+    fundingEndpoint(fundingUrl, `/funding/request/${encodeURIComponent(id)}`),
+    { cache: 'no-store' },
+  );
+  return readFundingResponse(response, 'Funding request status');
+}
+
 export async function requestConsoleAirdrop(fundingUrl, address, amountAeko) {
   const response = await fetch(fundingEndpoint(fundingUrl, '/funding/airdrop'), {
     method: 'POST',
