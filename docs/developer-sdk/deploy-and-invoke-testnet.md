@@ -4,11 +4,11 @@ This guide takes an external developer from zero to first live AEKO program invo
 
 It uses the minimal starter at:
 
-- [`contracts/hello-aeko-program`](/Users/ok/Documents/projects/aeko-chain/contracts/hello-aeko-program)
+- [`contracts/hello-aeko-program`](../../contracts/hello-aeko-program/)
 
 And the invoke example at:
 
-- [`contracts/hello-aeko-program/examples/invoke_hello.rs`](/Users/ok/Documents/projects/aeko-chain/contracts/hello-aeko-program/examples/invoke_hello.rs)
+- [`contracts/hello-aeko-program/examples/invoke_hello.rs`](../../contracts/hello-aeko-program/examples/invoke_hello.rs)
 
 ## Goal
 
@@ -32,8 +32,8 @@ You need:
 
 Related docs:
 
-- [`docs/developer-sdk/cli-tools.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/cli-tools.md)
-- [`docs/developer-sdk/write-your-first-program.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/write-your-first-program.md)
+- [`cli-tools.md`](./cli-tools.md)
+- [`write-your-first-program.md`](./write-your-first-program.md)
 
 ## Step 1. Create A Wallet
 
@@ -77,12 +77,14 @@ curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
   -d '{"address":"<YOUR_WALLET_PUBKEY>"}'
 ```
 
-The public request is queued for operator approval. After an operator approves it in the Admin Console, Operations Web releases the requested policy amount through the protected low-level `requestAirdrop` RPC. The CLI `aeko airdrop` command remains appropriate for local/custom test validators that do not configure that protection.
+The public request is queued for operator approval. Operations Web authenticates the operator decision and forwards it to the active Explorer backend. The Explorer backend owns settlement: it submits the approved policy amount through the Validator's protected low-level `requestAirdrop` path, and the Validator obtains the signed transfer from the Faucet.
 
-If the CLI is not global:
+The public testnet does not expose browser/CLI direct airdrops as the managed funding path. The `aeko airdrop` command is appropriate only for local/custom test validators that are explicitly configured without the managed funding authorization requirement.
+
+Use the request id returned above to check settlement status:
 
 ```bash
-cargo run --bin aeko -- airdrop 10 <YOUR_WALLET_PUBKEY> --url testnet
+curl https://scan.aeko.online/api/explorer/testnet/funding/request/<REQUEST_ID>
 ```
 
 Then confirm balance:
@@ -96,7 +98,7 @@ aeko balance <YOUR_WALLET_PUBKEY> --url testnet
 From the starter contract directory:
 
 ```bash
-cd /Users/ok/Documents/projects/aeko-chain/contracts/hello-aeko-program
+cd contracts/hello-aeko-program
 cargo build-bpf
 ```
 
