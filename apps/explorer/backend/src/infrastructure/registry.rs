@@ -9,7 +9,7 @@ use {
     std::{
         collections::{BTreeMap, HashMap},
         env, fs,
-        io::ErrorKind,
+        io::{ErrorKind, Read},
         sync::{Mutex, OnceLock},
         time::{Duration, Instant},
     },
@@ -23,6 +23,7 @@ const REGISTRY_REFRESH_SECONDS_ENV: &str = "AEKO_REGISTRY_REFRESH_SECONDS";
 const REGISTRY_FETCH_TIMEOUT_SECONDS_ENV: &str = "AEKO_REGISTRY_FETCH_TIMEOUT_SECONDS";
 const DEFAULT_REGISTRY_REFRESH_SECONDS: u64 = 30;
 const DEFAULT_REGISTRY_FETCH_TIMEOUT_SECONDS: u64 = 10;
+const MAX_REGISTRY_DOCUMENT_BYTES: u64 = 256 * 1024;
 
 #[derive(Clone)]
 struct CachedRemoteRegistry {
@@ -373,17 +374,25 @@ fn fetch_registry_document(
 ) -> Result<HashMap<String, String>, String> {
     let client = reqwest::blocking::Client::builder()
         .timeout(timeout)
-        .redirect(reqwest::redirect::Policy::limited(3))
+        .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|error| error.to_string())?;
-    let response = client
+    let mut response = client
         .get(url)
         .header(reqwest::header::ACCEPT, "text/plain")
         .send()
         .map_err(|error| error.to_string())?
         .error_for_status()
         .map_err(|error| error.to_string())?;
-    let body = response.text().map_err(|error| error.to_string())?;
+    let mut body = String::new();
+    response
+        .by_ref()
+        .take(MAX_REGISTRY_DOCUMENT_BYTES + 1)
+        .read_to_string(&mut body)
+        .map_err(|error| error.to_string())?;
+    if body.len() as u64 > MAX_REGISTRY_DOCUMENT_BYTES {
+        return Err("remote bootstrap registry exceeds 256 KiB".to_string());
+    }
     let values = parse_registry_env(&body);
     if values.is_empty() {
         return Err("remote bootstrap registry contained no key/value entries".to_string());
@@ -431,7 +440,7 @@ mod tests {
             registry_document_url, PROTOCOL_REGISTRY_FILE_ENV, SOCIAL_REGISTRY_FILE_ENV,
         },
         std::{
-            io::{Error, ErrorKind, Read, Write},
+            io::{Error, ErrorKind, Read as _, Write},
             net::TcpListener,
             thread,
             time::Duration,
