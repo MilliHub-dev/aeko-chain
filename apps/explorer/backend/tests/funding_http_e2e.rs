@@ -35,6 +35,7 @@ struct FakeRpcState {
     saw_authorized_airdrop: Arc<AtomicBool>,
     airdrop_calls: Arc<AtomicUsize>,
     pending_signature_statuses: Arc<AtomicUsize>,
+    blockhash: String,
 }
 
 async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>) -> Json<Value> {
@@ -45,11 +46,27 @@ async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>)
     let id = request.get("id").cloned().unwrap_or(json!(1));
 
     match method {
+        "getLatestBlockhash" => Json(json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": {
+                "context": {"slot": 42},
+                "value": {
+                    "blockhash": state.blockhash,
+                    "lastValidBlockHeight": 500
+                }
+            }
+        })),
         "requestAirdrop" => {
             let authorization = request
                 .pointer("/params/2/fundingAuthorization")
                 .and_then(Value::as_str);
-            if authorization != Some(state.authorization.as_str()) {
+            let recent_blockhash = request
+                .pointer("/params/2/recentBlockhash")
+                .and_then(Value::as_str);
+            if authorization != Some(state.authorization.as_str())
+                || recent_blockhash != Some(state.blockhash.as_str())
+            {
                 return Json(json!({
                     "jsonrpc": "2.0",
                     "id": id,
@@ -183,6 +200,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
         airdrop_calls: Arc::new(AtomicUsize::new(0)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
+        blockhash: Pubkey::new_unique().to_string(),
     };
     let rpc_observer = fake_state.clone();
 
@@ -383,6 +401,7 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
         saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
         airdrop_calls: Arc::new(AtomicUsize::new(0)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(12)),
+        blockhash: Pubkey::new_unique().to_string(),
     };
     let rpc_observer = fake_state.clone();
 
@@ -517,6 +536,7 @@ async fn mainnet_funding_and_airdrop_routes_fail_closed() -> Result<()> {
             saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
             airdrop_calls: Arc::new(AtomicUsize::new(0)),
             pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
+            blockhash: Pubkey::new_unique().to_string(),
         });
     tokio::spawn(async move {
         axum::serve(listener, fake_server).await.unwrap();
