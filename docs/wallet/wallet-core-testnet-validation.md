@@ -4,8 +4,8 @@ This document defines the live validation flow required to close Ticket 4.1 for 
 
 It should be used together with:
 
-- [`docs/wallet/wallet-core-api.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/wallet-core-api.md)
-- [`docs/wallet/phase4-closeout-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-closeout-record.md)
+- [`docs/wallet/wallet-core-api.md`](./wallet-core-api.md)
+- [`docs/wallet/phase4-closeout-record.md`](./phase4-closeout-record.md)
 
 ## Goal
 
@@ -33,8 +33,8 @@ Recommended baseline:
 
 Helpful starting point:
 
-- [`wallet-core/examples/keystore_validation.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/keystore_validation.rs)
-- [`docs/wallet/phase4-validation-commands.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-validation-commands.md)
+- [`wallet-core/examples/keystore_validation.rs`](../../wallet-core/examples/keystore_validation.rs)
+- [`docs/wallet/phase4-validation-commands.md`](./phase4-validation-commands.md)
 
 ### 1. Local Wallet Creation
 
@@ -153,7 +153,7 @@ Wallet core validation is complete when:
 
 - all non-hardware checks pass on testnet
 - hardware checks pass if Ledger support is part of the release scope
-- final tx signatures and verification notes are recorded in [`docs/wallet/phase4-closeout-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-closeout-record.md)
+- final tx signatures and verification notes are recorded in [`docs/wallet/phase4-closeout-record.md`](./phase4-closeout-record.md)
 
 ## Output To Record
 
