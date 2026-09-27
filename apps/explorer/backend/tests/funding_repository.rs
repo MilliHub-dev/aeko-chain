@@ -41,7 +41,7 @@ fn unique_suffix() -> u128 {
 }
 
 #[tokio::test]
-async fn funding_policy_queue_and_grants_are_durable_and_separated() -> Result<()> {
+async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Result<()> {
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
     let repository = PostgresRepository::connect(&test_config(database_url)).await?;
@@ -96,50 +96,132 @@ async fn funding_policy_queue_and_grants_are_durable_and_separated() -> Result<(
         .await?;
     assert_eq!(processing.status, "processing");
 
+    let reject_processing = repository
+        .reject_funding_request(
+            &pending.id,
+            Some("SHOULD_NOT_APPLY"),
+            Some("processing requests cannot be rejected"),
+        )
+        .await;
+    assert!(matches!(
+        reject_processing,
+        Err(FundingStoreError::RequestAlreadyDecided { .. })
+    ));
+
     let reserved = repository.funding_policy_snapshot().await?;
     assert!(
         reserved.public_reserved_aeko >= before_reservation.public_reserved_aeko + 5.0
     );
 
     let public_signature = format!("integration-public-signature-{suffix}");
-    repository
+    let submitted = repository
         .set_funding_request_signature(&pending.id, &public_signature)
         .await?;
-    let approved = repository
-        .finalize_funding_request(&pending.id, true)
+    assert_eq!(submitted.status, "submitted");
+    assert_eq!(submitted.signature.as_deref(), Some(public_signature.as_str()));
+
+    repository
+        .mark_funding_request_observation_error(
+            &pending.id,
+            "FUNDING_CONFIRMATION_PENDING",
+            "still pending",
+        )
         .await?;
-    assert_eq!(approved.status, "approved");
-    assert!(approved.confirmed);
+    let while_submitted = repository.funding_policy_snapshot().await?;
+    assert!(
+        while_submitted.public_reserved_aeko
+            >= before_reservation.public_reserved_aeko + 5.0
+    );
+
+    let confirmed = repository.confirm_funding_request(&pending.id).await?;
+    assert_eq!(confirmed.status, "confirmed");
+    assert!(confirmed.confirmed);
+    assert!(confirmed.confirmed_at.is_some());
+
+    // Confirmation is idempotent and never creates a second grant.
+    let confirmed_again = repository.confirm_funding_request(&pending.id).await?;
+    assert_eq!(confirmed_again.status, "confirmed");
 
     let grants = repository.list_funding_grants(500).await?;
-    let public_grant = grants
+    let public_grants: Vec<_> = grants
         .iter()
-        .find(|grant| grant.signature.as_deref() == Some(public_signature.as_str()))
-        .context("public funding grant should be persisted")?;
-    assert_eq!(public_grant.source, "public");
-    assert!(public_grant.confirmed);
+        .filter(|grant| grant.request_id.as_deref() == Some(pending.id.as_str()))
+        .collect();
+    assert_eq!(public_grants.len(), 1);
+    assert_eq!(public_grants[0].source, "public");
+    assert!(public_grants[0].confirmed);
 
     let after_public = repository.funding_policy_snapshot().await?;
     assert!(after_public.public_spent_aeko >= before_reservation.public_spent_aeko + 5.0);
+    assert!(
+        after_public.public_reserved_aeko
+            <= while_submitted.public_reserved_aeko - 5.0
+    );
 
-    let console_address = format!("integration-console-{suffix}");
-    let console_request = repository
-        .create_immediate_funding_request(&console_address, 3.0, "console")
+    // Developer airdrops are a separate ledger and never enter grant accounting.
+    let airdrop_address = format!("integration-airdrop-{suffix}");
+    let airdrop = repository
+        .create_funding_airdrop(&airdrop_address, 3.0)
         .await?;
-    let console_signature = format!("integration-console-signature-{suffix}");
-    repository
-        .set_funding_request_signature(&console_request.id, &console_signature)
-        .await?;
-    repository
-        .finalize_funding_request(&console_request.id, true)
-        .await?;
+    assert_eq!(airdrop.status, "processing");
 
-    let after_console = repository.funding_policy_snapshot().await?;
-    assert_eq!(after_console.public_spent_aeko, after_public.public_spent_aeko);
+    let airdrop_signature = format!("integration-airdrop-signature-{suffix}");
+    let submitted_airdrop = repository
+        .set_funding_airdrop_signature(&airdrop.id, &airdrop_signature)
+        .await?;
+    assert_eq!(submitted_airdrop.status, "submitted");
+
+    let confirmed_airdrop = repository.confirm_funding_airdrop(&airdrop.id).await?;
+    assert_eq!(confirmed_airdrop.status, "confirmed");
+
+    let airdrops = repository.list_funding_airdrops(500).await?;
+    assert!(airdrops
+        .iter()
+        .any(|entry| entry.signature.as_deref() == Some(airdrop_signature.as_str())));
+
+    let grants_after_airdrop = repository.list_funding_grants(500).await?;
+    assert!(!grants_after_airdrop
+        .iter()
+        .any(|grant| grant.signature.as_deref() == Some(airdrop_signature.as_str())));
+
+    let after_airdrop = repository.funding_policy_snapshot().await?;
+    assert_eq!(after_airdrop.public_spent_aeko, after_public.public_spent_aeko);
     assert_eq!(
-        after_console.public_reserved_aeko,
+        after_airdrop.public_reserved_aeko,
         after_public.public_reserved_aeko
     );
+
+    // A terminal failed grant releases the reservation and never records a grant.
+    let failed_address = format!("integration-failed-{suffix}");
+    let failed_pending = repository
+        .create_public_funding_request(&failed_address)
+        .await?;
+    repository
+        .reserve_public_funding_request(&failed_pending.id)
+        .await?;
+    let failed_signature = format!("integration-failed-signature-{suffix}");
+    repository
+        .set_funding_request_signature(&failed_pending.id, &failed_signature)
+        .await?;
+    let before_failure = repository.funding_policy_snapshot().await?;
+    let failed = repository
+        .mark_funding_request_failed(
+            &failed_pending.id,
+            "FUNDING_TRANSACTION_FAILED",
+            "test failure",
+        )
+        .await?;
+    assert_eq!(failed.status, "failed");
+
+    let after_failure = repository.funding_policy_snapshot().await?;
+    assert!(
+        after_failure.public_reserved_aeko
+            <= before_failure.public_reserved_aeko - failed.amount_aeko
+    );
+    let grants_after_failure = repository.list_funding_grants(500).await?;
+    assert!(!grants_after_failure
+        .iter()
+        .any(|grant| grant.signature.as_deref() == Some(failed_signature.as_str())));
 
     Ok(())
 }
