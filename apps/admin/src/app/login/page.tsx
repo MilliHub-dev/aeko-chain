@@ -1,7 +1,6 @@
 'use client'
 import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 
 function LoginForm() {
   const router = useRouter()
