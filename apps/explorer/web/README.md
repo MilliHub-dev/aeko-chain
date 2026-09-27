@@ -70,7 +70,7 @@ server/domain; Scan proxies those APIs through its same-origin routes.
 Direct JSON-RPC from the browser is intentional only for consumer-style operations that cannot be delegated to the read-only Explorer backend, including:
 
 - wallet/network test tools;
-- policy-controlled testnet funding via the Operations Web funding role (same image as Admin, not a separate app), with raw `requestAirdrop` reserved for local/custom test networks;
+- raw `requestAirdrop` only on local/custom test validators that are explicitly configured without managed funding protection; public testnet funding uses the same-origin Explorer funding API instead;
 - signing/submitting transactions;
 - explicit Social/NFT end-to-end test consoles;
 - the temporary `/overview` compatibility fallback described above.
