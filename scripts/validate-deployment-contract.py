@@ -487,6 +487,19 @@ def main() -> int:
         "deploy-testnet helper must advertise the same-origin Scan funding route",
     )
 
+    # Repository documentation must be portable. A checked-in link to one
+    # contributor's workstation is never a valid source reference.
+    for doc_path in (ROOT / "docs").rglob("*"):
+        if not doc_path.is_file() or doc_path.suffix.lower() not in {".md", ".mdx", ".txt"}:
+            continue
+        doc_text = read(doc_path)
+        require(
+            "/Users/" not in doc_text
+            and "/home/" not in doc_text
+            and "Documents/projects/aeko-chain" not in doc_text,
+            f"{doc_path.relative_to(ROOT)} contains a machine-specific local repository path",
+        )
+
     # Documentation and user-facing navigation must match the running
     # architecture. The Faucet may have a raw TCP hostname in split deployment,
     # but it is never a browser/application funding endpoint.
