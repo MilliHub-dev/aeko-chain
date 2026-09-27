@@ -111,7 +111,8 @@ test('social payout actions preflight live program-owned vault liquidity', async
   assert.match(social, /Creator reward vault/);
   assert.match(social, /Stake reward vault/);
   assert.match(social, /Monetization treasury/);
-  assert.match(social, /testnet operator must seed the payout vault/i);
+  assert.match(social, /presentation\.name/);
+  assert.doesNotMatch(social, /testnet operator must seed the payout vault/i);
 });
 
 
@@ -316,7 +317,8 @@ test('Explorer web is the multi-network boundary while services use one active e
   assert.doesNotMatch(networkConfig, /Legacy alias/);
   assert.doesNotMatch(networkConfig, /devnet.*localnet.*testnet/i);
 
-  assert.match(networkToggle, /'mainnet', 'testnet', 'devnet', 'localnet'/);
+  assert.match(networkToggle, /PUBLIC_NETWORK_ORDER = \['mainnet', 'testnet'\]/);
+  assert.doesNotMatch(networkToggle, /PUBLIC_NETWORK_ORDER = .*devnet|PUBLIC_NETWORK_ORDER = .*localnet/);
   assert.match(networkToggle, /config\.rpcUrl/);
   assert.match(networkToggle, /Not configured/);
   assert.match(networkToggle, /useNetwork/);
@@ -326,6 +328,8 @@ test('Explorer web is the multi-network boundary while services use one active e
   assert.match(networkTools, /NetworkToggle/);
   assert.match(networkTools, /useNetwork/);
   assert.match(networkTools, /isTestNetwork && settings\.networkConsoleEnabled/);
+  assert.match(networkTools, /authenticated Admin approves grants/);
+  assert.doesNotMatch(networkTools, /config\.key === 'testnet'[\s\S]{0,180}aeko airdrop/);
 
   assert.match(entrypoint, /AEKO_ACTIVE_NETWORK/);
   assert.match(entrypoint, /AEKO_RPC_URL/);
