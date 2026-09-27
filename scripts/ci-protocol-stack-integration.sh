@@ -616,12 +616,20 @@ import sys
 import urllib.request
 
 base = sys.argv[1]
+with urllib.request.urlopen(base + "/registry", timeout=15) as response:
+    discovery = json.load(response)["data"]
+if discovery != {
+    "social": "/registry/social",
+    "protocol": "/registry/protocol",
+}:
+    raise RuntimeError(f"unexpected Explorer registry discovery payload: {discovery}")
+
 for path in ("/registry/social", "/registry/protocol"):
     with urllib.request.urlopen(base + path, timeout=15) as response:
         payload = json.load(response)["data"]
     if payload.get("complete") is not True:
         raise RuntimeError(f"remote registry-backed {path} is incomplete: {payload}")
-print("[ok] Explorer consumed Social and Protocol registries over AEKO_REGISTRY_URL")
+print("[ok] Explorer registry discovery and remote Social/Protocol registry consumption passed")
 PY
 
 RPC_URL="$RPC_URL" EXPLORER_URL="$EXPLORER_URL" \
