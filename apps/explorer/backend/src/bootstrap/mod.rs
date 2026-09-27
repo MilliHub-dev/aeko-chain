@@ -22,6 +22,8 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
     let server = ServerConfig::from_env().context("loading Explorer server environment")?;
     let settings_control = SettingsControlConfig::from_env()
         .context("loading Explorer settings control environment")?;
+    let funding_control = FundingControlConfig::from_env(&backend.network)
+        .context("loading Explorer funding control environment")?;
 
     let startup_rpc = rpc.clone();
     tokio::task::spawn_blocking(move || startup_rpc.health())
