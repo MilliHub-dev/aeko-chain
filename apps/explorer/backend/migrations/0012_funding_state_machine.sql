@@ -90,6 +90,48 @@ ON CONFLICT (signature) WHERE signature IS NOT NULL DO NOTHING;
 
 DELETE FROM funding_grants WHERE source = 'console';
 
+-- Any historical Console request rows are also moved out of the grant queue.
+-- Confirmed rows with a signature already migrated from funding_grants are
+-- deduplicated by the signature index.
+INSERT INTO funding_airdrops (
+    address,
+    amount_aeko,
+    signature,
+    status,
+    requested_at,
+    submitted_at,
+    confirmed_at,
+    error_code,
+    error_message
+)
+SELECT
+    address,
+    amount_aeko,
+    signature,
+    CASE status
+        WHEN 'confirmed' THEN 'confirmed'
+        WHEN 'submitted' THEN 'submitted'
+        WHEN 'failed' THEN 'failed'
+        ELSE 'processing'
+    END,
+    requested_at,
+    submitted_at,
+    confirmed_at,
+    error_code,
+    error_message
+FROM funding_requests
+WHERE source = 'console'
+ON CONFLICT (signature) WHERE signature IS NOT NULL DO NOTHING;
+
+DELETE FROM funding_requests WHERE source = 'console';
+
+ALTER TABLE funding_requests
+    DROP CONSTRAINT IF EXISTS funding_requests_source_check;
+
+ALTER TABLE funding_requests
+    ADD CONSTRAINT funding_requests_source_check
+    CHECK (source IN ('public', 'admin'));
+
 ALTER TABLE funding_grants
     DROP CONSTRAINT IF EXISTS funding_grants_source_check;
 
