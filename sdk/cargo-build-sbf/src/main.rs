@@ -1,12 +1,12 @@
 use {
+    aeko_download_utils::download_file,
+    aeko_sdk::signature::{write_keypair_file, Keypair},
     bzip2::bufread::BzDecoder,
     cargo_metadata::camino::Utf8PathBuf,
     clap::{crate_description, crate_name, crate_version, Arg},
     itertools::Itertools,
     log::*,
     regex::Regex,
-    aeko_download_utils::download_file,
-    aeko_sdk::signature::{write_keypair_file, Keypair},
     std::{
         borrow::Cow,
         collections::{HashMap, HashSet},
@@ -532,11 +532,7 @@ fn link_aeko_toolchain(config: &Config) {
     }
 }
 
-fn build_aeko_package(
-    config: &Config,
-    target_directory: &Path,
-    package: &cargo_metadata::Package,
-) {
+fn build_aeko_package(config: &Config, target_directory: &Path, package: &cargo_metadata::Package) {
     let program_name = {
         let cdylib_targets = package
             .targets
@@ -696,13 +692,7 @@ fn build_aeko_package(
     }
 
     let cargo_build = PathBuf::from("cargo");
-    let mut cargo_build_args = vec![
-        "+aeko",
-        "build",
-        "--release",
-        "--target",
-        "sbf-aeko-aeko",
-    ];
+    let mut cargo_build_args = vec!["+aeko", "build", "--release", "--target", "sbf-aeko-aeko"];
     if config.arch == "sbfv2" {
         cargo_build_args.push("-Zbuild-std=std,panic_abort");
     }
