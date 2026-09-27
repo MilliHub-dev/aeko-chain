@@ -43,9 +43,10 @@ AEKO_EXPLORER_API_URL=https://api.aeko.online
 
 Optional complete `AEKO_MAINNET_*`, `AEKO_TESTNET_*` and
 `AEKO_DEVNET_*` RPC/WS/Explorer-API triplets describe other independently
-deployed chains that the user may select. The active network does not need its
-prefixed triplet because the generic values already describe it. Localnet is
-the local-development network.
+deployed chains. The standard public selector exposes Mainnet and Testnet only.
+Devnet and Localnet remain valid explicit development environments but are not
+public selector choices. The active network does not need its prefixed triplet
+because the generic values already describe it.
 
 The container entrypoint normalizes this into
 `{network, networks, demo}`. Browser indexed reads remain same-origin
