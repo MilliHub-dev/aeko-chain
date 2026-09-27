@@ -80,6 +80,7 @@ services:
     pull_policy: always
     restart: "no"
     environment:
+      AEKO_NETWORK: ${AEKO_NETWORK:-testnet}
       AEKO_RPC_URL: ${AEKO_RPC_URL:-http://validator:8899}
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_PROTOCOL_AUTHORITY_KEYPAIR: /keys/protocol-authority-keypair.json
