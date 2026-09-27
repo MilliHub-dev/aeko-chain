@@ -197,9 +197,35 @@ pub enum GovernableField {
 
 These match the signed-off governable set in [`tokenomics.md`](../../tokenomics.md).
 
-## 4. Canonical Values
+## 4. Native Representation Gate
 
-### 4.1 Supply Baseline
+The tokenomics state uses `u128` policy/accounting fields, but native AEKO
+account balances in the chain runtime are currently `u64` lamports with
+`LAMPORTS_PER_AEKO = 1,000,000,000`. Those are not interchangeable
+capabilities.
+
+At the current native precision:
+
+```text
+max whole native AEKO in u64 = floor(18,446,744,073,709,551,615 / 1,000,000,000)
+                             = 18,446,744,073 AEKO
+signed-off supply target     = 500,000,000,000 AEKO
+```
+
+Therefore the current `SupplyState` can describe the signed-off policy, but it
+cannot by itself prove that the corresponding native reserves exist or can be
+settled as balances. `aeko-protocol-bootstrap` intentionally refuses
+`AEKO_NETWORK=mainnet` while this invariant is unresolved.
+
+This gate must be resolved before implementing governed reserve provisioning,
+treasury payouts, validator-reserve settlement, or mainnet Token House voting
+that assumes the full 500B native supply exists. Testnet/devnet/localnet may
+continue using their test liquidity and reference policy state; that does not
+make those Faucet balances a mainnet allocation.
+
+## 6. Canonical Values
+
+### 5.1 Supply Baseline
 
 ```text
 total_supply_target      = 500,000,000,000 AEKO
@@ -212,7 +238,7 @@ ecosystem_bucket         =  40,000,000,000 AEKO
 public_sale_bucket       =  25,000,000,000 AEKO
 ```
 
-### 4.2 Epoch and Fee Baseline
+### 5.2 Epoch and Fee Baseline
 
 ```text
 epoch_duration_seconds   = 86,400
@@ -225,7 +251,7 @@ social_subsidy_enabled   = true
 social_subsidy_monthly_cap = 1,000,000 AEKO per registered app
 ```
 
-### 4.3 Validator Baseline
+### 5.3 Validator Baseline
 
 ```text
 min_commission           = 5%
@@ -236,7 +262,7 @@ slash_double_sign        = 5%
 slash_destination        = treasury
 ```
 
-## 5. Account Relationships
+## 6. Account Relationships
 
 The following logical ownership model is recommended:
 
@@ -263,7 +289,7 @@ Public minting should read:
 - subsidy configuration
 - supply state if public mints consume governed reserves
 
-## 6. Required Instruction Surface
+## 7. Required Instruction Surface
 
 Minimum tokenomics-layer instructions:
 
@@ -279,7 +305,7 @@ Minimum tokenomics-layer instructions:
 - `QueueGovernanceUpdate`
 - `ExecuteGovernanceUpdate`
 
-## 7. Emission Processing Rules
+## 8. Emission Processing Rules
 
 Each epoch settlement must:
 
@@ -297,7 +323,7 @@ Required invariants:
 - reserve depletion must be monotonic
 - floor inflation minting must be tracked separately from reserve emissions
 
-## 8. Validator Reward Settlement Rules
+## 9. Validator Reward Settlement Rules
 
 The signed-off validator reward model is:
 
@@ -366,7 +392,7 @@ Recommended basis point representation:
 - `0.80` multiplier -> `8000 bps`
 - `0.00` multiplier -> `0 bps`
 
-## 9. Fee Routing Rules
+## 10. Fee Routing Rules
 
 A fee-routing helper or policy reader should expose:
 
@@ -385,7 +411,7 @@ For each fee-bearing transaction:
 - route atomically
 - record accounting event
 
-## 10. Team Vesting State
+## 11. Team Vesting State
 
 The tokenomics layer should not directly manage every vesting wallet, but it should define the canonical team vesting policy consumed by any vesting program.
 
@@ -411,7 +437,7 @@ Signed-off team vesting policy:
 - `total_vesting_months = 12`
 - `unlock_mode = CliffUnlock`
 
-## 11. Governance Update Rules
+## 12. Governance Update Rules
 
 The following fields are governable:
 
@@ -429,7 +455,7 @@ Recommended governance execution rules:
 - timelock period applied
 - update executed and event emitted
 
-## 12. Events
+## 13. Events
 
 The tokenomics layer should emit:
 
@@ -444,7 +470,7 @@ The tokenomics layer should emit:
 - `GovernanceUpdateQueued`
 - `GovernanceUpdateExecuted`
 
-## 13. Invariants
+## 14. Invariants
 
 Implementation must enforce:
 
@@ -458,7 +484,7 @@ Implementation must enforce:
 - slashed epochs distribute no validator reward
 - validator plus delegator distributions never exceed gross reward
 
-## 14. Recommended Build Order
+## 15. Recommended Build Order
 
 1. define structs and serialization
 2. initialize tokenomics accounts at genesis or network bootstrap
@@ -468,7 +494,7 @@ Implementation must enforce:
 6. implement governance update queue and execution flow
 7. integrate AEKO-20 and validator reward distribution against this state
 
-## 15. Completion Status
+## 16. Completion Status
 
 - [x] Canonical tokenomics config model defined
 - [x] Canonical supply and reserve accounting model defined
