@@ -6,9 +6,9 @@ The WebSocket layer is the live event channel for wallets, explorers, backend se
 
 It should stay aligned with:
 
-- [`docs/rpc-and-apis/rpc-reference.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/rpc-reference.md)
-- [`docs/rpc-and-apis/rate-limits.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/rate-limits.md)
-- [`docs/socialfi/socialfi.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi.md)
+- [`docs/rpc-and-apis/rpc-reference.md`](./rpc-reference.md)
+- [`docs/rpc-and-apis/rate-limits.md`](./rate-limits.md)
+- [`docs/socialfi/socialfi.md`](../socialfi/socialfi.md)
 
 ## Goals
 
@@ -230,7 +230,7 @@ ws.onmessage = (event) => {
 
 ## Operational Requirements
 
-- connection limits must follow [`docs/rpc-and-apis/rate-limits.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/rate-limits.md)
+- connection limits must follow [`docs/rpc-and-apis/rate-limits.md`](./rate-limits.md)
 - idle timeout behavior should be documented by environment
 - server-side heartbeat or ping expectations should be documented by environment
 - subscription failures must return structured error payloads
