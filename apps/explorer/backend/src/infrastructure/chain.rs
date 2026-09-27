@@ -508,10 +508,8 @@ impl RpcChainClient {
     }
 
     pub fn latest_funding_blockhash(&self) -> Result<String> {
-        let response: RpcContextResponse<RpcFundingBlockhash> = self.rpc_request(
-            "getLatestBlockhash",
-            json!([{ "commitment": "confirmed" }]),
-        )?;
+        let response: RpcContextResponse<RpcFundingBlockhash> =
+            self.rpc_request("getLatestBlockhash", json!([{ "commitment": "confirmed" }]))?;
         if response.value.blockhash.trim().is_empty() {
             bail!("getLatestBlockhash returned an empty blockhash");
         }
