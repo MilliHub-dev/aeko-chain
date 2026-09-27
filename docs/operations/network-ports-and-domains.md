@@ -60,7 +60,7 @@ active/default network. Optional complete alternate triplets use:
 `AEKO_<NETWORK>_EXPLORER_API_URL` for `MAINNET`, `TESTNET`, `DEVNET`,
 or `LOCALNET`.
 
-## Monolithic/local Compose defaults and overrides
+## All-in-one/local Compose defaults and overrides
 
 The all-in-one Compose files keep Docker service DNS as **server-side defaults**
 where that is correct, but every dependency remains operator-overridable.
