@@ -1,5 +1,11 @@
 # Governance Overview
 
+> **Implementation status:** this document defines the target governance model.
+> The repository does not currently contain the two-house governance
+> program/executor described below. Tokenomics parameter mutation or mainnet
+> treasury spending must not be presented as governed execution until proposal,
+> voting and timelock enforcement exist on-chain.
+
 AEKO Chain uses a **Two-House Governance System** to balance financial interests with community values.
 
 ## 1. The Token House (AEKO Holders)
