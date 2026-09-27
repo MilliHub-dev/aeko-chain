@@ -112,7 +112,7 @@
 //! and off-chain execution, the environments of which are significantly
 //! different, it extensively uses [conditional compilation][cc] to tailor its
 //! implementation to the environment. The `cfg` predicate used for identifying
-//! compilation for on-chain programs is `target_os = "aeko"`, as in this
+//! compilation for on-chain programs is `target_os = "solana"`, as in this
 //! example from the `aeko-program` codebase that logs a message via a
 //! syscall when run on-chain, and via a library call when offchain:
 //!
@@ -122,12 +122,12 @@
 //!
 //! ```
 //! pub fn sol_log(message: &str) {
-//!     #[cfg(target_os = "aeko")]
+//!     #[cfg(target_os = "solana")]
 //!     unsafe {
 //!         sol_log_(message.as_ptr(), message.len() as u64);
 //!     }
 //!
-//!     #[cfg(not(target_os = "aeko"))]
+//!     #[cfg(not(target_os = "solana"))]
 //!     program_stubs::sol_log(message);
 //! }
 //! # mod program_stubs {
@@ -543,12 +543,12 @@ pub mod address_lookup_table_account {
     pub use crate::address_lookup_table::AddressLookupTableAccount;
 }
 
-#[cfg(target_os = "aeko")]
+#[cfg(target_os = "solana")]
 pub use aeko_sdk_macro::wasm_bindgen_stub as wasm_bindgen;
 /// Re-export of [wasm-bindgen].
 ///
 /// [wasm-bindgen]: https://rustwasm.github.io/docs/wasm-bindgen/
-#[cfg(not(target_os = "aeko"))]
+#[cfg(not(target_os = "solana"))]
 pub use wasm_bindgen::prelude::wasm_bindgen;
 
 /// The [config native program][np].
@@ -767,7 +767,7 @@ macro_rules! unchecked_div_by_const {
 // `aeko_program`'s top-level modules, if this module is not lexically last
 // rustdoc fails to generate documentation for the re-exports within
 // `aeko_sdk`.
-#[cfg(not(target_os = "aeko"))]
+#[cfg(not(target_os = "solana"))]
 pub mod example_mocks;
 
 #[cfg(test)]

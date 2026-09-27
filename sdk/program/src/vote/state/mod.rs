@@ -1,6 +1,6 @@
 //! Vote state
 
-#[cfg(not(target_os = "aeko"))]
+#[cfg(not(target_os = "solana"))]
 use bincode::deserialize;
 #[cfg(test)]
 use {
@@ -395,16 +395,16 @@ impl VoteState {
         3762 // see test_vote_state_size_of.
     }
 
-    // we retain bincode deserialize for not(target_os = "aeko")
+    // we retain bincode deserialize for not(target_os = "solana")
     // because the hand-written parser does not support V0_23_5
     pub fn deserialize(input: &[u8]) -> Result<Self, InstructionError> {
-        #[cfg(not(target_os = "aeko"))]
+        #[cfg(not(target_os = "solana"))]
         {
             deserialize::<VoteStateVersions>(input)
                 .map(|versioned| versioned.convert_to_current())
                 .map_err(|_| InstructionError::InvalidAccountData)
         }
-        #[cfg(target_os = "aeko")]
+        #[cfg(target_os = "solana")]
         {
             let mut vote_state = Self::default();
             Self::deserialize_into(input, &mut vote_state)?;
