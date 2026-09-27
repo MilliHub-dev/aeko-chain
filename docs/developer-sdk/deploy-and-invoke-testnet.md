@@ -95,18 +95,25 @@ aeko balance <YOUR_WALLET_PUBKEY> --url testnet
 
 ## Step 4. Build The Starter Program
 
-From the starter contract directory:
+From the repository root, use the repository's AEKO SBF wrapper. This is the
+same build path exercised by the network integration pipeline:
 
 ```bash
-cd contracts/hello-aeko-program
-cargo build-bpf
+./cargo-build-sbf \
+  --manifest-path contracts/hello-aeko-program/Cargo.toml \
+  --sbf-out-dir contracts/hello-aeko-program/target/deploy
 ```
 
-Depending on your AEKO toolchain, the final artifact is expected at:
+The build must produce both the deployable program and its generated program-id
+keypair:
 
-```bash
-target/deploy/hello_aeko_program.so
+```text
+contracts/hello-aeko-program/target/deploy/hello_aeko_program.so
+contracts/hello-aeko-program/target/deploy/hello_aeko_program-keypair.json
 ```
+
+Do not substitute a normal host `cargo build`; that does not produce an AEKO
+SBF program artifact.
 
 ## Step 5. Deploy The Program
 
@@ -119,7 +126,8 @@ aeko program deploy target/deploy/hello_aeko_program.so
 Or from the repo root:
 
 ```bash
-cargo run --bin aeko -- program deploy contracts/hello-aeko-program/target/deploy/hello_aeko_program.so
+cargo run -p aeko-cli --bin aeko -- \
+  program deploy contracts/hello-aeko-program/target/deploy/hello_aeko_program.so
 ```
 
 Record the resulting program id.
@@ -162,6 +170,31 @@ Capture:
 Then verify the transaction through your explorer or RPC tooling.
 
 If you have an explorer backend live, search the signature there. Otherwise use standard RPC transaction lookup against your testnet endpoint.
+
+A successful upload alone is not enough. The invocation transaction must have
+`meta.err = null`, and its logs should include `Hello from AEKO!`.
+
+## Repository CI Acceptance
+
+The network integration pipeline runs this same starter against a real
+`aeko-test-validator`:
+
+```text
+contracts/hello-aeko-program
+  -> cargo-build-sbf
+  -> aeko program deploy
+  -> executable on-chain program account
+  -> examples/invoke_hello.rs
+  -> confirmed transaction
+  -> "Hello from AEKO!" program log
+```
+
+The gate lives in
+[`scripts/ci-protocol-stack-integration.sh`](../../scripts/ci-protocol-stack-integration.sh)
+and delegates the deployment/invocation assertions to
+[`scripts/smoke-hello-program.py`](../../scripts/smoke-hello-program.py).
+This CI test uses an isolated TestValidator; it does not deploy the starter to
+the public testnet automatically.
 
 ## Expected Output
 
