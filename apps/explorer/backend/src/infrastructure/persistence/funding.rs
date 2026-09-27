@@ -167,11 +167,13 @@ impl PostgresRepository {
         let settings = self.funding_settings().await?;
         let public_spent_aeko: f64 = sqlx::query_scalar(
             r#"
-            SELECT COALESCE(SUM(amount_aeko), 0)::double precision
-            FROM funding_grants
-            WHERE source = 'public'
-              AND confirmed = TRUE
-              AND granted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+            SELECT COALESCE(SUM(fg.amount_aeko), 0)::double precision
+            FROM funding_grants AS fg
+            LEFT JOIN funding_requests AS fr ON fr.id = fg.request_id
+            WHERE fg.source = 'public'
+              AND fg.confirmed = TRUE
+              AND COALESCE(fr.decided_at, fg.granted_at)
+                    >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
             "#,
         )
         .fetch_one(&self.pool)
@@ -1118,11 +1120,13 @@ async fn public_spent_today(
 ) -> Result<f64, sqlx::Error> {
     sqlx::query_scalar(
         r#"
-        SELECT COALESCE(SUM(amount_aeko), 0)::double precision
-        FROM funding_grants
-        WHERE source = 'public'
-          AND confirmed = TRUE
-          AND granted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+        SELECT COALESCE(SUM(fg.amount_aeko), 0)::double precision
+        FROM funding_grants AS fg
+        LEFT JOIN funding_requests AS fr ON fr.id = fg.request_id
+        WHERE fg.source = 'public'
+          AND fg.confirmed = TRUE
+          AND COALESCE(fr.decided_at, fg.granted_at)
+                >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
         "#,
     )
     .fetch_one(&mut **tx)
