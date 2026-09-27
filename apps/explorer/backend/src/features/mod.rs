@@ -9,6 +9,7 @@ pub mod funding;
 pub mod health;
 pub mod ledger;
 pub mod protocol;
+pub mod registry;
 pub mod search;
 pub mod settings;
 pub mod social;
@@ -26,6 +27,7 @@ pub fn router() -> Router<SharedState> {
         .merge(health::router())
         .merge(ledger::router())
         .merge(protocol::router())
+        .merge(registry::router())
         .merge(accounts::router())
         .merge(assets::router())
         .merge(funding::router())
