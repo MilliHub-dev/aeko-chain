@@ -9,7 +9,6 @@ use {
 const DEFAULT_FILTER: &str = "info,tower_http=info,hyper=warn,reqwest=warn,sqlx=warn";
 const SERVICE: &str = "aeko-explorer-api";
 
-
 pub fn endpoint_origin(value: &str) -> String {
     url::Url::parse(value)
         .map(|parsed| parsed.origin().ascii_serialization())
@@ -52,9 +51,7 @@ pub fn init() -> Result<()> {
             .with(fmt::layer().compact().with_target(true))
             .try_init()
             .context("installing Explorer text tracing subscriber")?,
-        other => anyhow::bail!(
-            "AEKO_EXPLORER_LOG_FORMAT={other:?} must be json, text, or compact"
-        ),
+        other => anyhow::bail!("AEKO_EXPLORER_LOG_FORMAT={other:?} must be json, text, or compact"),
     }
 
     std::panic::set_hook(Box::new(|info| {
@@ -102,6 +99,9 @@ mod tests {
 
     #[test]
     fn endpoint_origin_does_not_echo_invalid_configuration() {
-        assert_eq!(endpoint_origin("not a valid rpc url with secret=abc"), "[invalid endpoint]");
+        assert_eq!(
+            endpoint_origin("not a valid rpc url with secret=abc"),
+            "[invalid endpoint]"
+        );
     }
 }
