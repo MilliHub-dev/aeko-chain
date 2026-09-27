@@ -46,6 +46,34 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
     let repository = PostgresRepository::connect(&test_config(database_url)).await?;
 
+    for scope in [
+        "public-request-origin",
+        "public-request-wallet",
+        "console-airdrop-origin",
+        "console-airdrop-wallet",
+    ] {
+        repository
+            .record_funding_rate_event(
+                scope,
+                &format!("integration-rate-{scope}-{}", unique_suffix()),
+                5,
+                600,
+            )
+            .await?;
+    }
+
+    let limited_subject = format!("integration-rate-limit-{}", unique_suffix());
+    repository
+        .record_funding_rate_event("public-request-wallet", &limited_subject, 1, 600)
+        .await?;
+    let rate_limited = repository
+        .record_funding_rate_event("public-request-wallet", &limited_subject, 1, 600)
+        .await;
+    assert!(matches!(
+        rate_limited,
+        Err(FundingStoreError::RateLimited { .. })
+    ));
+
     let initial = repository.funding_settings().await?;
     let updated = repository
         .update_funding_settings(
