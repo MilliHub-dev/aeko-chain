@@ -528,9 +528,9 @@ These decisions should be signed off before contract and RPC freeze:
 
 After this spec is signed off, the next docs to update are:
 
-- [`docs/rpc-and-apis/rpc-reference.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/rpc-reference.md)
-- [`docs/rpc-and-apis/websocket.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/websocket.md)
-- [`docs/rpc-and-apis/explorer-api.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/explorer-api.md)
+- [`docs/rpc-and-apis/rpc-reference.md`](../rpc-and-apis/rpc-reference.md)
+- [`docs/rpc-and-apis/websocket.md`](../rpc-and-apis/websocket.md)
+- [`docs/rpc-and-apis/explorer-api.md`](../rpc-and-apis/explorer-api.md)
 - any reward, staking, and monetization contract implementation specs created for Phase 5
 
 ## Status
