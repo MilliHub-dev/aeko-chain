@@ -288,7 +288,11 @@ def main() -> int:
         print(f"[info] starting balance={before} lamports; request={amount} AEKO")
 
         created = envelope_data(
-            http_json(funding_url("/request"), payload={"address": ADDRESS})
+            http_json(
+                funding_url("/request"),
+                payload={"address": ADDRESS},
+                expected_status=202,
+            )
         )
         if not isinstance(created, dict) or created.get("status") != "pending":
             raise SmokeFailure(f"public request was not created pending: {created!r}")
