@@ -520,7 +520,7 @@ impl PostgresRepository {
             .ok_or(FundingStoreError::RequestNotFound)
     }
 
-    pub async fn reset_public_request_after_explicit_submit_rejection(
+    pub async fn reset_public_request_before_submission(
         &self,
         id: &str,
         code: &str,
