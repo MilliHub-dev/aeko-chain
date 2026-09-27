@@ -5,7 +5,11 @@ import NetworkToolsPanel from '../components/NetworkToolsPanel';
 import TestnetFundingRequest from '../components/TestnetFundingRequest';
 import NetworkConsoleModal from '../components/NetworkConsoleModal';
 import NetworkSocialModal from '../components/social/NetworkSocialModal';
-import { getNetworkConfig, isTestSurfaceNetwork } from '../utils/networkConfig';
+import {
+  getNetworkConfig,
+  getNetworkPresentation,
+  isTestSurfaceNetwork,
+} from '../utils/networkConfig';
 import { useAppSettings } from '../components/AppSettingsContext';
 import { useNetwork } from '../components/NetworkContext';
 
@@ -46,20 +50,16 @@ function developerQuickCommands(config) {
     'aeko transfer <recipient-address> <amount>',
   ];
 
-  // Airdrops always go through the CLI, which talks to the validator RPC
-  // directly — no API involved, no approval step. The testnet funding request
-  // form is only for special cases that need operator approval — never the default path.
   let funding;
   if (config.key === 'localnet') {
+    funding = ['aeko airdrop 10 <recipient-address>'];
+  } else if (config.key === 'testnet' || config.key === 'devnet') {
     funding = [
-      'aeko airdrop 10 <recipient-address>',
-    ];
-  } else if (config.key === 'testnet') {
-    funding = [
-      'aeko airdrop <amount> <recipient-address>',
+      '# use the funding request form above; an authenticated Admin approves grants',
+      '# developer Test Console airdrops are a separate capped utility',
     ];
   } else {
-    funding = ['# no airdrops on mainnet — use treasury or exchange distribution'];
+    funding = ['# Mainnet has no test funding or developer airdrop path'];
   }
 
   const programs = [
@@ -83,6 +83,7 @@ export default function NetworkTools() {
   // networks (testnet/localnet) and never renders on mainnet, regardless of
   // API visibility flags.
   const config = getNetworkConfig(network);
+  const presentation = getNetworkPresentation(network);
   const isTestNetwork = isTestSurfaceNetwork(network);
   const consoleOpen = isTestNetwork && settings.networkConsoleEnabled && searchParams.get('console') === '1';
   const requestedTab = searchParams.get('tab');
@@ -127,8 +128,8 @@ export default function NetworkTools() {
           <div className="text-sm font-medium text-aeko-accent mb-2">Developer Network Workspace</div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Network Tools</h1>
           <p className="text-xl text-gray-400 max-w-3xl">
-            Inspect AEKO endpoints, request testnet funding, manage test wallets, send transactions,
-            verify native SocialFi state, and exercise the on-chain social timeline from one place.
+            {presentation.developerSummary} Inspect endpoints, wallets, programs, and indexed
+            network state from one place.
           </p>
         </div>
         <NetworkToggle />
@@ -210,8 +211,8 @@ export default function NetworkTools() {
                 Managed funding service
               </div>
               <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-white/10">
-                The funding service is private. Public users submit funding requests through
-                the testnet funding form and an operator approves release; only the server can release funds.
+                Public users submit grant requests through Aeko Scan. Only authenticated Admin
+                can approve them, and the active Explorer backend owns settlement.
               </div>
             </div>
           ) : (
@@ -227,7 +228,8 @@ export default function NetworkTools() {
             <h2 className="text-2xl font-bold">Developer flow</h2>
           </div>
           <p className="text-gray-400 mb-4">
-            Use the AEKO CLI to select the active cluster, inspect balances, transfer AEKO, deploy programs, and run scripted validation. Testnet funding stays in the funding form above.
+            Use the AEKO CLI against {presentation.name} to inspect balances, transfer AEKO,
+            deploy programs, and run scripted validation. {presentation.fundingSummary}
           </p>
           <div className="space-y-3">
             {developerQuickCommands(config).map((section) => (
