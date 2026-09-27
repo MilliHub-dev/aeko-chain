@@ -206,6 +206,28 @@ def main() -> int:
         "public single-validator topologies must not require the optional RPC replica",
     )
 
+    # Protocol bootstrap belongs to exactly one chain environment and
+    # must refuse an economically impossible mainnet tokenomics state.
+    for label, compose in (
+        ("portable", portable),
+        ("Dokploy", dokploy),
+        ("Coolify", coolify),
+    ):
+        protocol = service_block(compose, "protocol-bootstrap")
+        require(
+            "AEKO_NETWORK:" in protocol,
+            f"{label} protocol bootstrap must receive the active network identity",
+        )
+    require(
+        "AEKO_NETWORK=localnet" in protocol_integration,
+        "live protocol integration must identify its bootstrap network",
+    )
+    require(
+        "mainnet protocol bootstrap is blocked" in protocol_bootstrap
+        and "governed_supply_fits_native_balance" in protocol_bootstrap,
+        "protocol bootstrap must fail closed when signed-off mainnet supply cannot fit native balances",
+    )
+
     # Persistent identity and bootstrap lifecycle remain fail-closed.
     require(
         'REQUIRE_EXISTING_LEDGER=${AEKO_REQUIRE_EXISTING_LEDGER:-0}' in validator_entrypoint,
