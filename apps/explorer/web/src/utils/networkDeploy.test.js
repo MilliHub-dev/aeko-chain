@@ -41,6 +41,26 @@ test('active network is the default while alternate deployments remain selectabl
   assert.equal(m.getTestNetwork(), 'testnet');
 });
 
+test('public network presentation changes terminology with the selected environment', async () => {
+  const m = await load({
+    network: 'testnet',
+    networks: { mainnet: MAINNET, testnet: TESTNET },
+    demo: {},
+  });
+
+  const testnet = m.getNetworkPresentation('testnet');
+  const mainnet = m.getNetworkPresentation('mainnet');
+
+  assert.equal(testnet.name, 'Testnet');
+  assert.equal(mainnet.name, 'Mainnet');
+  assert.match(testnet.stateLabel, /test network/i);
+  assert.match(testnet.fundingSummary, /Admin approval/i);
+  assert.match(mainnet.stateLabel, /production network/i);
+  assert.match(mainnet.fundingSummary, /does not expose test funding/i);
+  assert.notEqual(testnet.explorerSummary, mainnet.explorerSummary);
+  assert.notEqual(testnet.developerSummary, mainnet.developerSummary);
+});
+
 test('testnet deployment defaults to testnet without pretending other networks share its server', async () => {
   const m = await load({
     network: 'testnet',
