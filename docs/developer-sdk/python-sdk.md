@@ -4,7 +4,7 @@ The Python SDK is intended for scripting, analytics, monitoring, governance tool
 
 ## Current Repo Status
 
-- the in-repo Python SDK scaffold now lives in [`sdk/python`](/Users/ok/Documents/projects/aeko-chain/sdk/python)
+- the in-repo Python SDK scaffold now lives in [`sdk/python`](../../sdk/python)
 - it currently covers:
   - JSON-RPC access through `AekoClient`
   - blockhash, balance, account, and program-account queries
@@ -48,5 +48,5 @@ print(blockhash)
 
 See:
 
-- [`sdk/python/examples/basic_usage.py`](/Users/ok/Documents/projects/aeko-chain/sdk/python/examples/basic_usage.py)
-- [`sdk/python/examples/account_watch.py`](/Users/ok/Documents/projects/aeko-chain/sdk/python/examples/account_watch.py)
+- [`sdk/python/examples/basic_usage.py`](../../sdk/python/examples/basic_usage.py)
+- [`sdk/python/examples/account_watch.py`](../../sdk/python/examples/account_watch.py)
