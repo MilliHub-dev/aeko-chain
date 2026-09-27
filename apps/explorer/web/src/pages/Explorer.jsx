@@ -5,6 +5,7 @@ import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
 import { fetchExplorerHome, getExplorerAvailability, searchExplorer } from '../utils/explorerApi';
 import { formatExplorerMetric } from '../utils/explorerData';
+import { getNetworkPresentation } from '../utils/networkConfig';
 import {
   ActiveFiltersBar,
   ExplorerFiltersModal,
@@ -39,6 +40,7 @@ export default function Explorer() {
   const { settings } = useAppSettings();
   // Global selection: one toggle switches every page.
   const { network } = useNetwork();
+  const presentation = getNetworkPresentation(network);
   const [searchParams, setSearchParams] = useSearchParams();
   const [homeRefreshTick, setHomeRefreshTick] = useState(0);
   const [homeState, setHomeState] = useState(INITIAL_HOME_STATE);
@@ -55,10 +57,7 @@ export default function Explorer() {
   const toaster = useToaster();
 
   const unavailable = !getExplorerAvailability(network);
-  const networkLabel = useMemo(
-    () => network.charAt(0).toUpperCase() + network.slice(1),
-    [network],
-  );
+  const networkLabel = presentation.name;
 
   useEffect(() => {
     const interval = window.setInterval(
@@ -360,7 +359,7 @@ export default function Explorer() {
           <div className="text-sm uppercase tracking-[0.3em] text-aeko-accent mb-3">Aeko Scan</div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Aeko Scan</h1>
           <p className="text-lg text-gray-400 max-w-3xl">
-            Browse blocks, transactions, assets, accounts, and social activity — live and saved.
+            {presentation.explorerSummary}
           </p>
         </div>
         <NetworkToggle />
