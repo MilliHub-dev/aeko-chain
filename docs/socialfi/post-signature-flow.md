@@ -8,7 +8,7 @@ It exists because the current `social-posts` program already anchors immutable p
 
 What exists today:
 
-- the chain stores canonical post anchors in [`programs/social-posts`](/Users/ok/Documents/projects/aeko-chain/programs/social-posts)
+- the chain stores canonical post anchors in [`programs/social-posts`](../../programs/social-posts)
 - each anchor stores:
   - `content_hash`
   - `metadata_hash`
