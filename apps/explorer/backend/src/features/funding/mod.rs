@@ -1147,6 +1147,242 @@ async fn observe_airdrop(
     }
 }
 
+pub async fn run_settlement_reconciler(state: SharedState, interval: Duration) {
+    if !state.is_test_environment() {
+        return;
+    }
+
+    let mut ticker = tokio::time::interval(interval);
+    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+    loop {
+        ticker.tick().await;
+        let transitioned = reconcile_submitted_settlements_once(&state).await;
+        if transitioned > 0 {
+            tracing::info!(
+                transitioned,
+                network = %state.network,
+                "reconciled submitted funding settlements"
+            );
+        }
+    }
+}
+
+pub async fn reconcile_submitted_settlements_once(state: &SharedState) -> usize {
+    if !state.is_test_environment() {
+        return 0;
+    }
+
+    let mut transitioned = 0usize;
+
+    let requests = match state
+        .repository
+        .list_submitted_funding_requests(500)
+        .await
+    {
+        Ok(requests) => requests,
+        Err(error) => {
+            tracing::error!(
+                error = %error,
+                network = %state.network,
+                "failed to load submitted grant settlements for reconciliation"
+            );
+            Vec::new()
+        }
+    };
+
+    for request in requests {
+        if reconcile_submitted_grant(state, request).await {
+            transitioned += 1;
+        }
+    }
+
+    let airdrops = match state
+        .repository
+        .list_submitted_funding_airdrops(500)
+        .await
+    {
+        Ok(airdrops) => airdrops,
+        Err(error) => {
+            tracing::error!(
+                error = %error,
+                network = %state.network,
+                "failed to load submitted developer airdrops for reconciliation"
+            );
+            Vec::new()
+        }
+    };
+
+    for airdrop in airdrops {
+        if reconcile_submitted_airdrop(state, airdrop).await {
+            transitioned += 1;
+        }
+    }
+
+    transitioned
+}
+
+async fn reconcile_submitted_grant(
+    state: &SharedState,
+    request: FundingRequestRecord,
+) -> bool {
+    let Some(signature) = request.signature.clone() else {
+        tracing::error!(
+            request_id = %request.id,
+            "submitted grant has no signature and cannot be reconciled"
+        );
+        return false;
+    };
+
+    match funding_transfer_status_once(state, &signature).await {
+        Ok(FundingTransferStatus::Confirmed) => {
+            match state.repository.confirm_funding_request(&request.id).await {
+                Ok(_) => true,
+                Err(FundingStoreError::RequestAlreadyDecided { .. }) => false,
+                Err(error) => {
+                    tracing::error!(
+                        request_id = %request.id,
+                        signature = %signature,
+                        error = %error,
+                        "failed to persist confirmed grant settlement"
+                    );
+                    false
+                }
+            }
+        }
+        Ok(FundingTransferStatus::Failed(error)) => {
+            match state
+                .repository
+                .mark_funding_request_failed(
+                    &request.id,
+                    "FUNDING_TRANSACTION_FAILED",
+                    &error,
+                )
+                .await
+            {
+                Ok(_) => true,
+                Err(FundingStoreError::RequestAlreadyDecided { .. }) => false,
+                Err(store_error) => {
+                    tracing::error!(
+                        request_id = %request.id,
+                        signature = %signature,
+                        error = %store_error,
+                        "failed to persist failed grant settlement"
+                    );
+                    false
+                }
+            }
+        }
+        Ok(FundingTransferStatus::Pending) => false,
+        Err(error) => {
+            if let Err(store_error) = state
+                .repository
+                .mark_funding_request_observation_error(
+                    &request.id,
+                    "FUNDING_CONFIRMATION_UNAVAILABLE",
+                    &error,
+                )
+                .await
+            {
+                tracing::warn!(
+                    request_id = %request.id,
+                    signature = %signature,
+                    error = %store_error,
+                    "failed to persist grant reconciliation observation error"
+                );
+            }
+            false
+        }
+    }
+}
+
+async fn reconcile_submitted_airdrop(
+    state: &SharedState,
+    airdrop: FundingAirdropRecord,
+) -> bool {
+    let Some(signature) = airdrop.signature.clone() else {
+        tracing::error!(
+            airdrop_id = %airdrop.id,
+            "submitted developer airdrop has no signature and cannot be reconciled"
+        );
+        return false;
+    };
+
+    match funding_transfer_status_once(state, &signature).await {
+        Ok(FundingTransferStatus::Confirmed) => {
+            match state.repository.confirm_funding_airdrop(&airdrop.id).await {
+                Ok(_) => true,
+                Err(FundingStoreError::RequestAlreadyDecided { .. }) => false,
+                Err(error) => {
+                    tracing::error!(
+                        airdrop_id = %airdrop.id,
+                        signature = %signature,
+                        error = %error,
+                        "failed to persist confirmed developer airdrop"
+                    );
+                    false
+                }
+            }
+        }
+        Ok(FundingTransferStatus::Failed(error)) => {
+            match state
+                .repository
+                .mark_funding_airdrop_failed(
+                    &airdrop.id,
+                    "AIRDROP_TRANSACTION_FAILED",
+                    &error,
+                )
+                .await
+            {
+                Ok(_) => true,
+                Err(FundingStoreError::RequestAlreadyDecided { .. }) => false,
+                Err(store_error) => {
+                    tracing::error!(
+                        airdrop_id = %airdrop.id,
+                        signature = %signature,
+                        error = %store_error,
+                        "failed to persist failed developer airdrop"
+                    );
+                    false
+                }
+            }
+        }
+        Ok(FundingTransferStatus::Pending) => false,
+        Err(error) => {
+            if let Err(store_error) = state
+                .repository
+                .mark_funding_airdrop_error(
+                    &airdrop.id,
+                    "AIRDROP_CONFIRMATION_UNAVAILABLE",
+                    &error,
+                )
+                .await
+            {
+                tracing::warn!(
+                    airdrop_id = %airdrop.id,
+                    signature = %signature,
+                    error = %store_error,
+                    "failed to persist developer-airdrop reconciliation observation error"
+                );
+            }
+            false
+        }
+    }
+}
+
+async fn funding_transfer_status_once(
+    state: &SharedState,
+    signature: &str,
+) -> Result<FundingTransferStatus, String> {
+    let rpc = state.rpc.clone();
+    let signature = signature.to_string();
+    match tokio::task::spawn_blocking(move || rpc.funding_transfer_status(&signature)).await {
+        Ok(Ok(status)) => Ok(status),
+        Ok(Err(error)) => Err(error.to_string()),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
 fn is_explicit_rpc_rejection(error: &anyhow::Error) -> bool {
     error.downcast_ref::<RpcRequestError>().is_some()
 }
