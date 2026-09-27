@@ -254,6 +254,10 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
     repository
         .reserve_public_funding_request(&rollover_pending.id)
         .await?;
+    let rollover_blockhash = format!("integration-rollover-blockhash-{suffix}");
+    repository
+        .set_funding_request_submission_blockhash(&rollover_pending.id, &rollover_blockhash)
+        .await?;
     let rollover_signature = format!("integration-rollover-signature-{suffix}");
     repository
         .set_funding_request_signature(&rollover_pending.id, &rollover_signature)
