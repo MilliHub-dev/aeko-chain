@@ -1,8 +1,6 @@
 use {
     crate::{
-        error::TokenomicsError,
-        instruction::TokenomicsInstruction,
-        rewards,
+        error::TokenomicsError, instruction::TokenomicsInstruction, rewards,
         state::TokenomicsStateAccount,
     },
     aeko_program_runtime::invoke_context::InvokeContext,
@@ -191,8 +189,8 @@ impl Processor {
                 .ensure_can_update(&governance_authority_key)
                 .map_err(Self::map_program_error)?;
 
-            let settlement =
-                rewards::settle_epoch_emission(&mut state, epoch).map_err(Self::map_program_error)?;
+            let settlement = rewards::settle_epoch_emission(&mut state, epoch)
+                .map_err(Self::map_program_error)?;
 
             let serialized = to_vec(&state).map_err(|_| InstructionError::InvalidAccountData)?;
             if serialized.len() > state_account.get_data().len() {
@@ -316,7 +314,7 @@ impl Processor {
 mod tests {
     use {
         super::*,
-        crate::{instruction, state::TokenomicsStateAccount, id},
+        crate::{id, instruction, state::TokenomicsStateAccount},
         aeko_program_runtime::invoke_context::mock_process_instruction,
         aeko_sdk::{
             account::{AccountSharedData, ReadableAccount},
@@ -379,8 +377,14 @@ mod tests {
         let accounts = process_instruction(
             &instruction.data,
             vec![
-                (state_pubkey, AccountSharedData::new(1, STATE_ACCOUNT_SPACE, &id())),
-                (payer.pubkey(), AccountSharedData::new(1, 0, &Pubkey::new_unique())),
+                (
+                    state_pubkey,
+                    AccountSharedData::new(1, STATE_ACCOUNT_SPACE, &id()),
+                ),
+                (
+                    payer.pubkey(),
+                    AccountSharedData::new(1, 0, &Pubkey::new_unique()),
+                ),
                 (
                     governance_pubkey,
                     AccountSharedData::new(1, 0, &Pubkey::new_unique()),
