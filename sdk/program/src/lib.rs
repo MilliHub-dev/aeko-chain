@@ -564,9 +564,9 @@ pub mod config {
 pub mod sdk_ids {
     use {
         crate::{
-            address_lookup_table, bpf_loader, bpf_loader_deprecated, bpf_loader_upgradeable,
-            config, ed25519_program, feature, incinerator, loader_v4, secp256k1_program,
-            aeko_program::pubkey::Pubkey, stake, system_program, sysvar, vote,
+            address_lookup_table, aeko_program::pubkey::Pubkey, bpf_loader, bpf_loader_deprecated,
+            bpf_loader_upgradeable, config, ed25519_program, feature, incinerator, loader_v4,
+            secp256k1_program, stake, system_program, sysvar, vote,
         },
         lazy_static::lazy_static,
     };
