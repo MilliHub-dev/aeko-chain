@@ -130,6 +130,12 @@ services:
             add_header Cache-Control "no-store" always;
           }
 
+          location = / {
+            default_type application/json;
+            add_header Cache-Control "no-store" always;
+            return 200 '{"service":"aeko-bootstrap-registry","health":"/healthz","social":"/social-registry.env","protocol":"/protocol-registry.env"}\n';
+          }
+
           location / {
             return 404;
           }
