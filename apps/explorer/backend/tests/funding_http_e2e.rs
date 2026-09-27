@@ -383,9 +383,13 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         .as_str()
         .expect("airdrop signature")
         .to_string();
-    assert_ne!(airdrop_signature, grant_signature);
     assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 2);
 
+    // This fake RPC deliberately returns one deterministic signature for every
+    // accepted submission so response-loss replay tests can prove idempotency.
+    // Ledger separation must therefore be asserted by the durable domain
+    // identity/address, not by assuming the fake signer manufactures a unique
+    // signature for unrelated requests.
     let (status, grants_after_airdrop) = request_json(
         &app,
         Method::GET,
@@ -395,11 +399,17 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{grants_after_airdrop}");
-    assert!(!grants_after_airdrop["data"]
-        .as_array()
-        .expect("grant list")
+    let grant_rows = grants_after_airdrop["data"].as_array().expect("grant list");
+    assert_eq!(
+        grant_rows
+            .iter()
+            .filter(|grant| grant["requestId"].as_str() == Some(request_id.as_str()))
+            .count(),
+        1
+    );
+    assert!(!grant_rows
         .iter()
-        .any(|grant| grant["signature"].as_str() == Some(airdrop_signature.as_str())));
+        .any(|grant| grant["address"].as_str() == Some(airdrop_address.as_str())));
 
     let (status, airdrops) = request_json(
         &app,
@@ -410,16 +420,14 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{airdrops}");
-    assert!(airdrops["data"]
-        .as_array()
-        .expect("airdrop list")
+    let airdrop_rows = airdrops["data"].as_array().expect("airdrop list");
+    assert!(airdrop_rows.iter().any(|entry| {
+        entry["address"].as_str() == Some(airdrop_address.as_str())
+            && entry["signature"].as_str() == Some(airdrop_signature.as_str())
+    }));
+    assert!(!airdrop_rows
         .iter()
-        .any(|entry| entry["signature"].as_str() == Some(airdrop_signature.as_str())));
-    assert!(!airdrops["data"]
-        .as_array()
-        .expect("airdrop list")
-        .iter()
-        .any(|entry| entry["signature"].as_str() == Some(grant_signature.as_str())));
+        .any(|entry| entry["address"].as_str() == Some(address.as_str())));
 
     drop(app);
     drop_rpc_owner(rpc_owner).await?;
