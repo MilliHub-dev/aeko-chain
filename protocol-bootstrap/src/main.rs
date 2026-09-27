@@ -58,6 +58,21 @@ const REGISTRY_FILE_NAME: &str = "protocol-registry.env";
 const REGISTRY_ANCHOR_FILE_NAME: &str = "protocol-registry.anchor";
 
 fn main() -> Result<()> {
+    let network = env::var("AEKO_NETWORK").unwrap_or_else(|_| "localnet".to_string());
+    if !matches!(network.as_str(), "mainnet" | "testnet" | "devnet" | "localnet") {
+        return Err(anyhow!(
+            "AEKO_NETWORK must be one of mainnet, testnet, devnet, or localnet"
+        ));
+    }
+    if network == "mainnet" && !aeko_tokenomics_program::governed_supply_fits_native_balance() {
+        return Err(anyhow!(
+            "mainnet protocol bootstrap is blocked: the signed-off {} AEKO supply target exceeds the current u64 native-balance capacity of {} AEKO at {} lamports per AEKO; choose and implement a compatible native precision, supply target, or balance representation before mainnet bootstrap",
+            aeko_tokenomics_program::GOVERNED_SUPPLY_TARGET_AEKO,
+            aeko_tokenomics_program::MAX_NATIVE_AEKO_AT_CURRENT_PRECISION,
+            aeko_sdk::native_token::LAMPORTS_PER_AEKO,
+        ));
+    }
+
     let rpc_url = env::var("AEKO_RPC_URL").unwrap_or_else(|_| "http://localhost:8899".to_string());
     let payer_path = env::var("AEKO_PAYER_KEYPAIR")
         .context("AEKO_PAYER_KEYPAIR must point at a funded keypair file")?;
@@ -102,6 +117,7 @@ fn main() -> Result<()> {
     prepare_protocol_state_continuity(&out_dir, &continuity_dir, allow_recreation)?;
 
     eprintln!("==> aeko-protocol-bootstrap");
+    eprintln!("    network:   {network}");
     eprintln!("    rpc:       {rpc_url}");
     eprintln!("    payer:     {}", payer.pubkey());
     eprintln!("    authority: {}", authority.pubkey());
