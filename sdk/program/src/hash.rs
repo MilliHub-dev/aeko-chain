@@ -150,14 +150,14 @@ impl Hash {
 pub fn hashv(vals: &[&[u8]]) -> Hash {
     // Perform the calculation inline, calling this from within a program is
     // not supported
-    #[cfg(not(target_os = "aeko"))]
+    #[cfg(not(target_arch = "sbf"))]
     {
         let mut hasher = Hasher::default();
         hasher.hashv(vals);
         hasher.result()
     }
     // Call via a system call to perform the calculation
-    #[cfg(target_os = "aeko")]
+    #[cfg(target_arch = "sbf")]
     {
         let mut hash_result = [0; HASH_BYTES];
         unsafe {

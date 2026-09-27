@@ -1,6 +1,6 @@
 //! Implementations of syscalls used when `aeko-program` is built for non-SBF targets.
 
-#![cfg(not(target_os = "aeko"))]
+#![cfg(not(target_arch = "sbf"))]
 
 use {
     crate::{

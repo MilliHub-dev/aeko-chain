@@ -84,7 +84,7 @@ Examples:
 
 - maintainer email updated from `maintainers@solana.com` to `maintainers@aeko.chain`
 - verifier comment changed to refer to Aeko programs
-- [rbpf/tests/elfs/elfs.sh](../rbpf/tests/elfs/elfs.sh) updated to use `sbf-aeko-aeko`
+- [rbpf/tests/elfs/elfs.sh](../rbpf/tests/elfs/elfs.sh) retains the upstream `sbf-solana-solana` compiler target because that target triple is defined by `platform-tools`; Aeko branding remains at the project/user-facing layer
 
 ## Problems We Solved
 
@@ -212,6 +212,7 @@ If the repo is to remain honest and stable, the correct boundary is this:
 2. Do not blindly rename upstream dependency identifiers, lockfile package names, or module paths that are exported by external crates.
 3. Keep compatibility imports like `spl_token::solana_program` and `spl_token_2022::solana_program` until those upstream crates are explicitly forked and renamed.
 4. Only remove those remaining upstream `solana` names if the team decides to fork the SPL ecosystem and accept the maintenance burden.
+5. Keep toolchain ABI identifiers such as `sbf-solana-solana` while consuming upstream `platform-tools`; renaming that target requires maintaining a compatible forked Rust/SBF toolchain.
 
 This is the correct boundary because otherwise the code becomes less stable, not more branded.
 

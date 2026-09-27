@@ -27,6 +27,7 @@ members = [
     "client",
     "client-test",
     "connection-cache",
+    "contracts/hello-aeko-program",
     "core",
     "cost-model",
     "dos",

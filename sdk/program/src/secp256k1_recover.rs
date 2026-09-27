@@ -404,7 +404,7 @@ pub fn secp256k1_recover(
     recovery_id: u8,
     signature: &[u8],
 ) -> Result<Secp256k1Pubkey, Secp256k1RecoverError> {
-    #[cfg(target_os = "aeko")]
+    #[cfg(target_arch = "sbf")]
     {
         let mut pubkey_buffer = [0u8; SECP256K1_PUBLIC_KEY_LENGTH];
         let result = unsafe {
@@ -422,7 +422,7 @@ pub fn secp256k1_recover(
         }
     }
 
-    #[cfg(not(target_os = "aeko"))]
+    #[cfg(not(target_arch = "sbf"))]
     {
         let message = libsecp256k1::Message::parse_slice(hash)
             .map_err(|_| Secp256k1RecoverError::InvalidHash)?;
