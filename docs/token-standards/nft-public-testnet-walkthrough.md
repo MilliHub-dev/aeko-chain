@@ -69,9 +69,9 @@ With those values present, the NFT demo will mark the canonical example as `live
 
 Once the accounts are live, update these surfaces together:
 
-- [`web/src/data/nftDemoExamples.js`](/Users/ok/Documents/projects/aeko-chain/web/src/data/nftDemoExamples.js)
-- [`docs/token-standards/nft-demo.md`](/Users/ok/Documents/projects/aeko-chain/docs/token-standards/nft-demo.md)
-- [`docs/token-standards/aeko-721.md`](/Users/ok/Documents/projects/aeko-chain/docs/token-standards/aeko-721.md)
+- [`web/src/data/nftDemoExamples.js`](../../web/src/data/nftDemoExamples.js)
+- [`docs/token-standards/nft-demo.md`](./nft-demo.md)
+- [`docs/token-standards/aeko-721.md`](./aeko-721.md)
 
 ## Current Boundary
 
