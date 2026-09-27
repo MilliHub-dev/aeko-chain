@@ -154,7 +154,11 @@ test('funding API URLs resolve from the configured origin and reject HTML 200 re
   assert.match(rpcClient, /getFundingRequestStatus/);
   assert.match(rpcClient, /\/funding\/request\/\$\{encodeURIComponent\(id\)\}/);
   assert.match(rpcClient, /requestConsoleAirdrop/);
-  assert.match(rpcClient, /requestConsoleAirdrop\(config\.fundingUrl, address, lamportsToAeko\(lamports\)\)/);
+  assert.match(rpcClient, /const airdrop = await requestConsoleAirdrop\(/);
+  assert.match(rpcClient, /config\.fundingUrl/);
+  assert.match(rpcClient, /lamportsToAeko\(lamports\)/);
+  assert.match(rpcClient, /Direct RPC airdrop fallback is disabled/);
+  assert.doesNotMatch(rpcClient, /return requestAirdrop\(rpcUrl, address, lamports\)/);
 });
 
 
