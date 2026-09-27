@@ -412,6 +412,13 @@ def main() -> int:
         "funding HTTP E2E must prove response-loss recovery reuses the persisted blockhash",
     )
     require(
+        "expired_submitted_grant_becomes_terminal_failed_without_fresh_intent" in funding_http_e2e
+        and "isBlockhashValid" in read(
+            ROOT / "apps" / "explorer" / "backend" / "src" / "infrastructure" / "chain.rs"
+        ),
+        "funding E2E must prove an expired unobserved intent becomes terminal without a fresh transfer",
+    )
+    require(
         "test_same_airdrop_intent_produces_same_signed_transaction" in faucet_replay_test
         and "assert_eq!(first.signatures, replay.signatures)" in faucet_replay_test,
         "Faucet tests must prove identical funding intent has a deterministic signature",
@@ -419,7 +426,8 @@ def main() -> int:
     require(
         "FUNDING_SUBMISSION_RETRY_PENDING" in funding_design
         and "same destination, amount, funding authorization and recent blockhash" in funding_design
-        and "Neither Scan nor Admin may manually retry it" in funding_design,
+        and "Neither Scan nor Admin may manually retry it" in funding_design
+        and "never substitutes a fresh blockhash" in funding_design,
         "funding design must document backend-owned deterministic replay",
     )
 
