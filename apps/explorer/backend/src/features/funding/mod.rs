@@ -1279,6 +1279,50 @@ pub async fn reconcile_submitted_settlements_once(state: &SharedState) -> usize 
 
     let mut transitioned = 0usize;
 
+    let processing_requests = match state
+        .repository
+        .list_recoverable_processing_funding_requests(500)
+        .await
+    {
+        Ok(requests) => requests,
+        Err(error) => {
+            tracing::error!(
+                error = %error,
+                network = %state.network,
+                "failed to load recoverable processing grant submissions"
+            );
+            Vec::new()
+        }
+    };
+
+    for request in processing_requests {
+        if recover_processing_grant_submission(state, request).await {
+            transitioned += 1;
+        }
+    }
+
+    let processing_airdrops = match state
+        .repository
+        .list_recoverable_processing_funding_airdrops(500)
+        .await
+    {
+        Ok(airdrops) => airdrops,
+        Err(error) => {
+            tracing::error!(
+                error = %error,
+                network = %state.network,
+                "failed to load recoverable processing developer airdrops"
+            );
+            Vec::new()
+        }
+    };
+
+    for airdrop in processing_airdrops {
+        if recover_processing_airdrop_submission(state, airdrop).await {
+            transitioned += 1;
+        }
+    }
+
     let requests = match state.repository.list_submitted_funding_requests(500).await {
         Ok(requests) => requests,
         Err(error) => {
@@ -1316,6 +1360,190 @@ pub async fn reconcile_submitted_settlements_once(state: &SharedState) -> usize 
     }
 
     transitioned
+}
+
+async fn recover_processing_grant_submission(
+    state: &SharedState,
+    request: FundingRequestRecord,
+) -> bool {
+    let Some(blockhash) = request.submission_blockhash.clone() else {
+        return false;
+    };
+    let lamports = match amount_to_lamports(request.amount_aeko) {
+        Ok(lamports) => lamports,
+        Err(error) => {
+            tracing::error!(
+                request_id = %request.id,
+                error = %error.message,
+                "recoverable grant contains an invalid persisted amount"
+            );
+            return false;
+        }
+    };
+
+    let rpc = state.rpc.clone();
+    let address = request.address.clone();
+    let authorization = state.funding_authorization_key.clone();
+    let submit_blockhash = blockhash.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        rpc.request_funding_airdrop(
+            &address,
+            lamports,
+            authorization.as_deref(),
+            Some(&submit_blockhash),
+        )
+    })
+    .await;
+
+    match result {
+        Ok(Ok(signature)) => match state
+            .repository
+            .set_funding_request_signature(&request.id, &signature)
+            .await
+        {
+            Ok(_) => true,
+            Err(FundingStoreError::RequestAlreadyDecided { .. }) => false,
+            Err(error) => {
+                tracing::error!(
+                    request_id = %request.id,
+                    blockhash = %blockhash,
+                    error = %error,
+                    "failed to persist recovered grant signature"
+                );
+                false
+            }
+        },
+        Ok(Err(error)) => {
+            if let Err(store_error) = state
+                .repository
+                .mark_funding_request_submission_error(
+                    &request.id,
+                    "FUNDING_SUBMISSION_RETRY_PENDING",
+                    &error.to_string(),
+                )
+                .await
+            {
+                tracing::warn!(
+                    request_id = %request.id,
+                    blockhash = %blockhash,
+                    error = %store_error,
+                    "failed to persist grant safe-replay error"
+                );
+            }
+            false
+        }
+        Err(error) => {
+            if let Err(store_error) = state
+                .repository
+                .mark_funding_request_submission_error(
+                    &request.id,
+                    "FUNDING_SUBMISSION_RETRY_PENDING",
+                    &error.to_string(),
+                )
+                .await
+            {
+                tracing::warn!(
+                    request_id = %request.id,
+                    blockhash = %blockhash,
+                    error = %store_error,
+                    "failed to persist grant replay worker error"
+                );
+            }
+            false
+        }
+    }
+}
+
+async fn recover_processing_airdrop_submission(
+    state: &SharedState,
+    airdrop: FundingAirdropRecord,
+) -> bool {
+    let Some(blockhash) = airdrop.submission_blockhash.clone() else {
+        return false;
+    };
+    let lamports = match amount_to_lamports(airdrop.amount_aeko) {
+        Ok(lamports) => lamports,
+        Err(error) => {
+            tracing::error!(
+                airdrop_id = %airdrop.id,
+                error = %error.message,
+                "recoverable developer airdrop contains an invalid persisted amount"
+            );
+            return false;
+        }
+    };
+
+    let rpc = state.rpc.clone();
+    let address = airdrop.address.clone();
+    let authorization = state.funding_authorization_key.clone();
+    let submit_blockhash = blockhash.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        rpc.request_funding_airdrop(
+            &address,
+            lamports,
+            authorization.as_deref(),
+            Some(&submit_blockhash),
+        )
+    })
+    .await;
+
+    match result {
+        Ok(Ok(signature)) => match state
+            .repository
+            .set_funding_airdrop_signature(&airdrop.id, &signature)
+            .await
+        {
+            Ok(_) => true,
+            Err(FundingStoreError::RequestAlreadyDecided { .. }) => false,
+            Err(error) => {
+                tracing::error!(
+                    airdrop_id = %airdrop.id,
+                    blockhash = %blockhash,
+                    error = %error,
+                    "failed to persist recovered developer-airdrop signature"
+                );
+                false
+            }
+        },
+        Ok(Err(error)) => {
+            if let Err(store_error) = state
+                .repository
+                .mark_funding_airdrop_error(
+                    &airdrop.id,
+                    "AIRDROP_SUBMISSION_RETRY_PENDING",
+                    &error.to_string(),
+                )
+                .await
+            {
+                tracing::warn!(
+                    airdrop_id = %airdrop.id,
+                    blockhash = %blockhash,
+                    error = %store_error,
+                    "failed to persist developer-airdrop safe-replay error"
+                );
+            }
+            false
+        }
+        Err(error) => {
+            if let Err(store_error) = state
+                .repository
+                .mark_funding_airdrop_error(
+                    &airdrop.id,
+                    "AIRDROP_SUBMISSION_RETRY_PENDING",
+                    &error.to_string(),
+                )
+                .await
+            {
+                tracing::warn!(
+                    airdrop_id = %airdrop.id,
+                    blockhash = %blockhash,
+                    error = %store_error,
+                    "failed to persist developer-airdrop replay worker error"
+                );
+            }
+            false
+        }
+    }
 }
 
 async fn reconcile_submitted_grant(state: &SharedState, request: FundingRequestRecord) -> bool {
