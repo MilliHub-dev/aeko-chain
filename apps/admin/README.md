@@ -15,7 +15,6 @@ those routes through Aeko Scan's same-origin
 One Operations Web deployment administers one blockchain environment:
 
 ```text
-AEKO_OPERATIONS_ROLE=admin
 AEKO_NETWORK=testnet
 AEKO_RPC_URL=https://rpc.aeko.online
 AEKO_EXPLORER_API_URL=https://api.aeko.online
