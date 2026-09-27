@@ -730,6 +730,11 @@ def main() -> int:
         "testnet runbook must document the live smart-contract compatibility gate",
     )
     require(
+        "explorer-ui:4000" in testnet_runbook
+        and "explorer-ui:3000" not in testnet_runbook,
+        "testnet runbook canonical Scan port must match the 4000 runtime listener",
+    )
+    require(
         'base64 = "0.21.7"' in hello_program_manifest,
         "Hello World invoke example must declare its direct base64 dev dependency",
     )
