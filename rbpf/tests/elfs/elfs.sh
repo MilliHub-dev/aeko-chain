@@ -1,7 +1,7 @@
 #!/bin/bash -ex
 
 # Requires Latest release of Aeko's custom LLVM
-# https://github.com/aeko-chain/platform-tools/releases
+# https://github.com/anza-xyz/platform-tools/releases
 
 TOOLCHAIN=../../../sdk/sbf/dependencies/sbf-tools
 RC_COMMON="$TOOLCHAIN/rust/bin/rustc --target sbf-aeko-aeko --crate-type lib -C panic=abort -C opt-level=2"

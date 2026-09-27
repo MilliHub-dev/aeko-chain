@@ -132,6 +132,16 @@ export async function requestFundingApproval(fundingUrl, address) {
   return readFundingResponse(response, 'Funding request');
 }
 
+export async function getFundingRequestStatus(fundingUrl, requestId) {
+  const id = String(requestId || '').trim();
+  if (!id) throw new Error('Funding request id is required.');
+  const response = await fetch(
+    fundingEndpoint(fundingUrl, `/funding/request/${encodeURIComponent(id)}`),
+    { cache: 'no-store' },
+  );
+  return readFundingResponse(response, 'Funding request status');
+}
+
 export async function requestConsoleAirdrop(fundingUrl, address, amountAeko) {
   const response = await fetch(fundingEndpoint(fundingUrl, '/funding/airdrop'), {
     method: 'POST',
@@ -147,12 +157,22 @@ export async function requestConsoleAirdrop(fundingUrl, address, amountAeko) {
 
 export async function requestTestnetFunding(rpcUrl, address, lamports) {
   const config = getTestNetworkConfig();
-  if (!isConfiguredPublicTestnetRpc(rpcUrl)) {
-    return requestAirdrop(rpcUrl, address, lamports);
+  if (
+    !config.available
+    || !config.fundingUrl
+    || normalizedUrl(rpcUrl) !== normalizedUrl(config.rpcUrl)
+  ) {
+    throw new Error(
+      'Managed test funding requires the configured test-network funding backend. Direct RPC airdrop fallback is disabled.',
+    );
   }
 
-  const grant = await requestConsoleAirdrop(config.fundingUrl, address, lamportsToAeko(lamports));
-  return grant.signature;
+  const airdrop = await requestConsoleAirdrop(
+    config.fundingUrl,
+    address,
+    lamportsToAeko(lamports),
+  );
+  return airdrop.signature;
 }
 
 export async function getAccountInfo(rpcUrl, address) {

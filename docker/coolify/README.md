@@ -21,13 +21,17 @@ contract. Do not migrate an established chain by only changing a Compose path.
 | Bootstrap | key preflight, Social bootstrap, Protocol bootstrap, read-only registry | `docker/coolify/bootstrap/compose.yml` |
 | Faucet + tools | Faucet daemon, opt-in wallet/operator CLI | `docker/coolify/faucet-tools/compose.yml` |
 | Validator | voting Validator / RPC / WebSocket | `docker/coolify/validator/compose.yml` |
-| Explorer API | indexer, REST API, funding/readiness control plane | `docker/coolify/explorer-api/compose.yml` |
-| Aeko Scan | Explorer UI and same-origin read proxy | `docker/coolify/explorer-ui/compose.yml` |
-| Operations Web | authenticated Admin/operator UI | `docker/coolify/operations-web/compose.yml` |
+| Explorer API | indexer, REST API, funding/readiness control plane | `apps/explorer/backend/compose.coolify.yml` |
+| Aeko Scan | Explorer UI and same-origin read proxy | `apps/explorer/web/compose.coolify.yml` |
+| Operations Web | authenticated Admin/operator UI | `apps/admin/compose.coolify.yml` |
 
 The three bootstrap jobs are deliberately one resource. Faucet and wallet tools
 are deliberately one resource; `wallet-tools` remains under the `ops`
 profile and does not start with the normal Faucet daemon.
+
+Infrastructure-owned resources stay under `docker/coolify/**`. Explorer API,
+Aeko Scan, and Operations Web own `compose.coolify.yml` and
+`.env.coolify.example` beside their application source under `apps/**`.
 
 ## Canonical testnet service names
 
@@ -113,6 +117,7 @@ the registry files directly. They consume Explorer API.
 The registry HTTP service exposes only:
 
 ```text
+/                         # non-secret JSON discovery manifest
 /healthz
 /social-registry.env
 /protocol-registry.env
@@ -120,7 +125,9 @@ The registry HTTP service exposes only:
 
 Every other path returns 404. The registry service mounts only
 `/data/aeko/social-state` and `/data/aeko/protocol-state` read-only. It never
-mounts `/data/aeko/keys`.
+mounts `/data/aeko/keys`. Product clients do not read this bootstrap host
+directly; they use Explorer API `/registry`, `/registry/social`, and
+`/registry/protocol`.
 
 The two generated registry files contain public chain metadata: genesis binding,
 program IDs, state-account public keys, vault/treasury public keys, feature IDs

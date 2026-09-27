@@ -10,6 +10,22 @@ use {
 };
 
 #[test]
+fn test_same_airdrop_intent_produces_same_signed_transaction() {
+    let keypair = Keypair::new();
+    let to = aeko_sdk::pubkey::new_rand();
+    let lamports = 50;
+    let blockhash = Hash::new_unique();
+    let faucet_addr = run_local_faucet(keypair, None);
+
+    let first = request_airdrop_transaction(&faucet_addr, &to, lamports, blockhash).unwrap();
+    let replay = request_airdrop_transaction(&faucet_addr, &to, lamports, blockhash).unwrap();
+
+    assert_eq!(first, replay);
+    assert_eq!(first.signatures, replay.signatures);
+    assert_eq!(first.message.recent_blockhash, blockhash);
+}
+
+#[test]
 fn test_local_faucet() {
     let keypair = Keypair::new();
     let to = aeko_sdk::pubkey::new_rand();

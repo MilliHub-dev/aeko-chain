@@ -28,6 +28,7 @@ import {
   sendTransaction,
 } from '../utils/aekoRpcClient';
 import { AekoWsClient } from '../utils/aekoWsClient';
+import { getNetworkPresentation } from '../utils/networkConfig';
 import {
   buildSignedAnchorPostTx,
   buildSignedLikeTx,
@@ -103,6 +104,7 @@ function AccountsWorkspace({
   rpcUrl,
   explorerUrl,
   fundingUrl,
+  presentation,
   wallets,
   setWallets,
   balances,
@@ -150,7 +152,7 @@ function AccountsWorkspace({
   const runAirdrop = async () => {
     if (!wallet) return;
     if (!fundingUrl) {
-      setResult({ kind: 'error', message: 'The Testnet Funding service is not configured for this deployment.' });
+      setResult({ kind: 'error', message: `${presentation.name} test funding is not configured for this deployment.` });
       return;
     }
     const value = Number(airdropAmount);
@@ -269,7 +271,7 @@ function AccountsWorkspace({
             <div className="grid gap-4 lg:grid-cols-2">
               <section className="rounded-2xl border border-aeko-accent/20 bg-aeko-accent/[0.04] p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-white"><Droplets size={14} className="text-aeko-accent" /> Test Console airdrop</div>
-                <p className="mt-1 text-[11px] leading-relaxed text-gray-600">This developer-only flow is separate from public funding approval. Choose an amount and the server submits a constrained testnet airdrop without exposing the private Funding Gateway credential.</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-gray-600">{`This developer-only flow is separate from public grant approval. Choose an amount and the server submits a constrained ${presentation.name} airdrop without exposing the server-only funding authorization secret.`}</p>
                 <AmountInput value={airdropAmount} onChange={setAirdropAmount} />
                 <button type="button" onClick={runAirdrop} disabled={Boolean(busy) || !fundingUrl || !wallet} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-aeko-accent/30 bg-aeko-accent/10 px-4 text-xs font-semibold text-aeko-accent disabled:opacity-40">
                   {busy === 'airdrop' ? <Loader2 size={13} className="animate-spin" /> : <Droplets size={13} />}
@@ -443,6 +445,7 @@ function SocialWorkspace({ rpcUrl, explorerApiUrl, explorerUrl, wallets, balance
 }
 
 export default function NetworkConsoleModalV2({ open, onClose, tab, onTabChange, rpcUrl, websocketUrl, network, explorerApiUrl, explorerUrl, fundingUrl }) {
+  const presentation = getNetworkPresentation(network);
   const [wallets, setWallets] = useState(() => loadWallets());
   const [balances, setBalances] = useState({});
   const [walletProfiles, setWalletProfiles] = useState({});
@@ -545,7 +548,7 @@ export default function NetworkConsoleModalV2({ open, onClose, tab, onTabChange,
         <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-white/10 bg-black/20 px-3 py-2 sm:px-5">{TABS.map((item) => { const Icon = item.icon; const active = tab === item.key; return <button key={item.key} type="button" onClick={() => onTabChange(item.key)} className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-4 text-sm ${active ? 'bg-white/10 text-white' : 'text-gray-500 hover:bg-white/5 hover:text-white'}`}><Icon size={14} /> {item.label}</button>; })}</nav>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
           {rpcState.error ? <div className="mb-4 rounded-xl border border-red-400/20 bg-red-500/10 p-3 text-xs text-red-100">Network/API: {rpcState.error}</div> : null}
-          {tab === 'accounts' ? <AccountsWorkspace rpcUrl={rpcUrl} explorerUrl={explorerUrl} fundingUrl={fundingUrl} wallets={wallets} setWallets={setWallets} balances={balances} walletProfiles={walletProfiles} walletErrors={walletErrors} refreshWallet={refreshWallet} /> : null}
+          {tab === 'accounts' ? <AccountsWorkspace rpcUrl={rpcUrl} explorerUrl={explorerUrl} fundingUrl={fundingUrl} presentation={presentation} wallets={wallets} setWallets={setWallets} balances={balances} walletProfiles={walletProfiles} walletErrors={walletErrors} refreshWallet={refreshWallet} /> : null}
           {tab === 'programs' ? <ProgramsWorkspace rpcUrl={rpcUrl} websocketUrl={websocketUrl} explorerApiUrl={explorerApiUrl} rpcState={rpcState} wsState={wsState} overview={overview} socialStatus={socialStatus} refresh={refreshInfrastructure} /> : null}
           {tab === 'social' ? <SocialWorkspace rpcUrl={rpcUrl} explorerApiUrl={explorerApiUrl} explorerUrl={explorerUrl} wallets={wallets} balances={balances} socialPulse={socialPulse} socialStateAccount={socialStateAccount} socialAntiSpamStateAccount={socialAntiSpamStateAccount} /> : null}
         </div>

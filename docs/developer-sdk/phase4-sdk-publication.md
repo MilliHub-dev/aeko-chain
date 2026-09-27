@@ -2,9 +2,9 @@
 
 This document tracks what remains before the Phase 4 SDK surfaces can be published externally.
 
-It complements the implementation tracker in [`docs/wallet/phase4-task.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-task.md) by focusing on packaging, verification, and release readiness.
+It complements the implementation tracker in [`docs/wallet/phase4-task.md`](../wallet/phase4-task.md) by focusing on packaging, verification, and release readiness.
 
-Execution details for publishing live releases are tracked in [`docs/developer-sdk/phase4-sdk-release-steps.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/phase4-sdk-release-steps.md).
+Execution details for publishing live releases are tracked in [`docs/developer-sdk/phase4-sdk-release-steps.md`](./phase4-sdk-release-steps.md).
 
 ## Release Order
 
@@ -28,7 +28,7 @@ Every SDK should ship with:
 
 Package:
 
-- [`sdk/js/package.json`](/Users/ok/Documents/projects/aeko-chain/sdk/js/package.json)
+- [`sdk/js/package.json`](../../sdk/js/package.json)
 
 Current readiness:
 
@@ -46,7 +46,7 @@ Remaining:
 
 Package:
 
-- [`sdk/node/package.json`](/Users/ok/Documents/projects/aeko-chain/sdk/node/package.json)
+- [`sdk/node/package.json`](../../sdk/node/package.json)
 
 Current readiness:
 
@@ -63,7 +63,7 @@ Remaining:
 
 Crate:
 
-- [`sdk/rust-client/Cargo.toml`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client/Cargo.toml)
+- [`sdk/rust-client/Cargo.toml`](../../sdk/rust-client/Cargo.toml)
 
 Current readiness:
 
@@ -84,7 +84,7 @@ Remaining:
 
 Package:
 
-- [`sdk/python/pyproject.toml`](/Users/ok/Documents/projects/aeko-chain/sdk/python/pyproject.toml)
+- [`sdk/python/pyproject.toml`](../../sdk/python/pyproject.toml)
 
 Current readiness:
 
@@ -109,4 +109,4 @@ When each SDK is published, record:
 - git commit or tag
 - release owner
 
-Use [`docs/wallet/phase4-closeout-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-closeout-record.md) as the final fill-in record.
+Use [`docs/wallet/phase4-closeout-record.md`](../wallet/phase4-closeout-record.md) as the final fill-in record.

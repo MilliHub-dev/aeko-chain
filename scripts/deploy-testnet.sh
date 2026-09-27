@@ -27,7 +27,6 @@ AEKO_IMAGE_TAG=${AEKO_IMAGE_TAG:-latest}
 AEKO_NETWORK=${AEKO_NETWORK:-testnet}
 AEKO_RPC_URL=${AEKO_RPC_URL:-}
 AEKO_WS_URL=${AEKO_WS_URL:-}
-AEKO_PUBLIC_FUNDING_URL=${AEKO_PUBLIC_FUNDING_URL:-}
 AEKO_PUBLIC_GOSSIP_ADDRESS=${AEKO_PUBLIC_GOSSIP_ADDRESS:-}
 FORCE_REBUILD=${FORCE_REBUILD:-0}
 RESET_CHAIN=0
@@ -129,8 +128,8 @@ if [ -z "${AEKO_EXPLORER_START_SLOT:-}" ]; then
   fi
 fi
 
-log "starting faucet, validator, state bootstraps, Explorer, Funding Gateway and Admin"
-docker compose -f "$COMPOSE_FILE" up -d faucet validator social-bootstrap protocol-bootstrap explorer-api explorer-ui funding-gateway operations-web
+log "starting faucet, validator, state bootstraps, Explorer and Admin"
+docker compose -f "$COMPOSE_FILE" up -d faucet validator social-bootstrap protocol-bootstrap explorer-api explorer-ui operations-web
 
 log "waiting for validator RPC (max 90s)"
 HEALTHY=0
@@ -205,13 +204,13 @@ cat <<EOF2
     RPC          http://${AEKO_DOMAIN}:8899
     PubSub WS    ws://${AEKO_DOMAIN}:8900
     Explorer UI  http://${AEKO_DOMAIN}:4000
-    Funding      http://${AEKO_DOMAIN}:3002
+    Funding      http://${AEKO_DOMAIN}:4000/api/explorer/${AEKO_NETWORK}/funding/*
     Admin        http://${AEKO_DOMAIN}:3001
 
   Configured public browser endpoints:
     RPC          ${AEKO_RPC_URL:-<not configured>}
     PubSub WS    ${AEKO_WS_URL:-<not configured>}
-    Funding      ${AEKO_PUBLIC_FUNDING_URL:-<not configured>}
+    Funding      same-origin under the configured Aeko Scan deployment
     Gossip       ${AEKO_PUBLIC_GOSSIP_ADDRESS:-<not configured>} (raw TCP/UDP, not HTTP)
 
   Explorer indexed reads are served through the Explorer UI same-origin
@@ -233,7 +232,6 @@ cat <<EOF2
     docker logs -f aeko-protocol-bootstrap
     docker logs -f aeko-explorer-api
     docker logs -f aeko-explorer-ui
-    docker logs -f aeko-funding-gateway
     docker logs -f aeko-operations-web
 
   See README.md for the social-first developer mental model and

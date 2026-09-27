@@ -77,12 +77,29 @@ impl ExplorerBackendConfig {
     }
 }
 
-
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct FundingControlConfig {
     pub authorization_key: Option<String>,
     pub requests_per_10_min: u32,
     pub faucet_per_request_cap_aeko: f64,
+    pub reconcile_interval: Duration,
+}
+
+impl std::fmt::Debug for FundingControlConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FundingControlConfig")
+            .field(
+                "funding_authorization_required",
+                &self.authorization_key.is_some(),
+            )
+            .field("requests_per_10_min", &self.requests_per_10_min)
+            .field(
+                "faucet_per_request_cap_aeko",
+                &self.faucet_per_request_cap_aeko,
+            )
+            .field("reconcile_interval", &self.reconcile_interval)
+            .finish()
+    }
 }
 
 impl FundingControlConfig {
@@ -101,8 +118,8 @@ impl FundingControlConfig {
             }
         }
 
-        let requests_per_10_min = optional_parse_env::<u32>("AEKO_FUNDING_REQUESTS_PER_10_MIN")?
-            .unwrap_or(5);
+        let requests_per_10_min =
+            optional_parse_env::<u32>("AEKO_FUNDING_REQUESTS_PER_10_MIN")?.unwrap_or(5);
         if requests_per_10_min == 0 {
             return Err(anyhow!(
                 "AEKO_FUNDING_REQUESTS_PER_10_MIN must be greater than zero"
@@ -117,10 +134,19 @@ impl FundingControlConfig {
             ));
         }
 
+        let reconcile_interval_seconds =
+            optional_parse_env::<u64>("AEKO_FUNDING_RECONCILE_INTERVAL_SECS")?.unwrap_or(5);
+        if reconcile_interval_seconds == 0 {
+            return Err(anyhow!(
+                "AEKO_FUNDING_RECONCILE_INTERVAL_SECS must be greater than zero"
+            ));
+        }
+
         Ok(Self {
             authorization_key,
             requests_per_10_min,
             faucet_per_request_cap_aeko,
+            reconcile_interval: Duration::from_secs(reconcile_interval_seconds),
         })
     }
 }
@@ -257,7 +283,10 @@ impl Default for ExplorerBackendConfig {
 
 #[cfg(test)]
 mod config_tests {
-    use super::validate_network;
+    use {
+        super::{validate_network, FundingControlConfig},
+        std::time::Duration,
+    };
 
     #[test]
     fn accepted_networks_match_deployable_chain_environments() {
@@ -265,5 +294,19 @@ mod config_tests {
             validate_network(network).unwrap();
         }
         assert!(validate_network("production").is_err());
+    }
+
+    #[test]
+    fn funding_control_debug_redacts_authorization_key() {
+        let config = FundingControlConfig {
+            authorization_key: Some("do-not-log-explorer-funding-secret".to_string()),
+            requests_per_10_min: 5,
+            faucet_per_request_cap_aeko: 100.0,
+            reconcile_interval: Duration::from_secs(5),
+        };
+
+        let rendered = format!("{config:?}");
+        assert!(!rendered.contains("do-not-log-explorer-funding-secret"));
+        assert!(rendered.contains("funding_authorization_required: true"));
     }
 }

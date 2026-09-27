@@ -181,9 +181,9 @@ assert_split_coolify_workflow_contract() {
     "docker/coolify/bootstrap/*" \
     "docker/coolify/faucet-tools/*" \
     "docker/coolify/validator/*" \
-    "docker/coolify/explorer-api/*" \
-    "docker/coolify/explorer-ui/*" \
-    "docker/coolify/operations-web/*"; do
+    "apps/explorer/backend/compose.coolify.yml|apps/explorer/backend/.env.coolify.example)" \
+    "apps/explorer/web/compose.coolify.yml|apps/explorer/web/.env.coolify.example)" \
+    "apps/admin/compose.coolify.yml|apps/admin/.env.coolify.example)"; do
     grep -Fq "$path" "$classifier"
   done
 

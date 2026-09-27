@@ -12,6 +12,7 @@ pub enum TokenomicsError {
     InvalidEpoch = 0xA007,
     InvalidCommission = 0xA008,
     InvalidStakeWeight = 0xA009,
+    GovernanceExecutionUnavailable = 0xA00A,
 }
 
 impl From<TokenomicsError> for ProgramError {

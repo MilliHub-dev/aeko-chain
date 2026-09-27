@@ -2,7 +2,7 @@
 
 AEKO Wallets are more than just key holders; they are **Identity Managers**.
 
-This document should be read alongside the canonical identity foundation in [`docs/wallet/identity.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/identity.md).
+This document should be read alongside the canonical identity foundation in [`docs/wallet/identity.md`](./identity.md).
 
 ## Key Concepts
 

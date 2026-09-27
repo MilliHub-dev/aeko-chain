@@ -2,10 +2,12 @@ import { motion } from 'framer-motion';
 import { createElement } from 'react';
 import { Shield, Zap, Users, Code, ArrowRight, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useNetwork } from '../components/NetworkContext';
+import { getNetworkPresentation } from '../utils/networkConfig';
 
 const MotionDiv = motion.div;
 
-const Hero = () => {
+const Hero = ({ presentation }) => {
   return (
     <div className="relative overflow-hidden pt-20 pb-32">
       {/* Background Gradients */}
@@ -19,7 +21,7 @@ const Hero = () => {
           transition={{ duration: 0.8 }}
         >
           <span className="inline-block py-1 px-3 rounded-full bg-white/5 border border-white/10 text-aeko-accent text-sm font-medium mb-6">
-            Testnet Live
+            {presentation.badge}
           </span>
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8">
             The First <span className="text-gradient">Permissioned Layer-1</span><br />
@@ -67,6 +69,8 @@ const FeatureCard = ({ icon, title, description, delay }) => (
 );
 
 export default function Home() {
+  const { network } = useNetwork();
+  const presentation = getNetworkPresentation(network);
   const features = [
     {
       icon: Shield,
@@ -96,13 +100,13 @@ export default function Home() {
     {
       icon: Users,
       title: "Network Interfaces",
-      description: "JSON-RPC, WebSocket, Explorer and policy-controlled Testnet Funding endpoints are separated by role and documented explicitly."
+      description: `JSON-RPC, WebSocket and Explorer endpoints follow the selected ${presentation.name} environment. ${presentation.fundingSummary}`
     }
   ];
 
   return (
     <div>
-      <Hero />
+      <Hero presentation={presentation} />
       
       <section className="py-24 bg-aeko-light/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

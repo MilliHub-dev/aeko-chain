@@ -11,9 +11,9 @@ It covers:
 
 This page should stay aligned with:
 
-- [`docs/socialfi/socialfi.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi.md)
-- [`docs/rpc-and-apis/websocket.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/websocket.md)
-- [`docs/rpc-and-apis/rate-limits.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/rate-limits.md)
+- [`docs/socialfi/socialfi.md`](../socialfi/socialfi.md)
+- [`docs/rpc-and-apis/websocket.md`](./websocket.md)
+- [`docs/rpc-and-apis/rate-limits.md`](./rate-limits.md)
 
 ## Conventions
 
@@ -272,7 +272,7 @@ Filter support should include:
 
 ## SocialFi RPC Extensions
 
-These methods depend on the SocialFi state model defined in [`docs/socialfi/socialfi.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi.md).
+These methods depend on the SocialFi state model defined in [`docs/socialfi/socialfi.md`](../socialfi/socialfi.md).
 
 ### `getPostAnchor`
 
@@ -473,5 +473,5 @@ SocialFi-specific methods may also return:
 
 The websocket and explorer API docs should be kept in sync with this reference:
 
-- [`docs/rpc-and-apis/websocket.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/websocket.md)
-- [`docs/rpc-and-apis/explorer-api.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/explorer-api.md)
+- [`docs/rpc-and-apis/websocket.md`](./websocket.md)
+- [`docs/rpc-and-apis/explorer-api.md`](./explorer-api.md)

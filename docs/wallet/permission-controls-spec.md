@@ -8,8 +8,8 @@ Scope: This document defines the on-chain state, policy model, audit log, and in
 
 This spec depends on:
 
-- [`docs/wallet/identity.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/identity.md)
-- [`docs/wallet/wallet-core-api.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/wallet-core-api.md)
+- [`docs/wallet/identity.md`](./identity.md)
+- [`docs/wallet/wallet-core-api.md`](./wallet-core-api.md)
 
 ## 1. Purpose
 
@@ -36,7 +36,7 @@ This document is the implementation-facing foundation for Ticket 4.2.
 
 ## 3. Identity Alignment
 
-Permission state attaches to the wallet identity anchor defined in [`docs/wallet/identity.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/identity.md).
+Permission state attaches to the wallet identity anchor defined in [`docs/wallet/identity.md`](./identity.md).
 
 Rules:
 

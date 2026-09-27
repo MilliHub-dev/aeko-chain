@@ -4,8 +4,8 @@ This document turns the Phase 4 SDK publication checklist into an operator-facin
 
 Use it together with:
 
-- [`docs/developer-sdk/phase4-sdk-publication.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/phase4-sdk-publication.md)
-- [`docs/wallet/phase4-closeout-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-closeout-record.md)
+- [`docs/developer-sdk/phase4-sdk-publication.md`](./phase4-sdk-publication.md)
+- [`docs/wallet/phase4-closeout-record.md`](../wallet/phase4-closeout-record.md)
 
 ## Release Order
 
@@ -28,7 +28,7 @@ Before publishing any SDK:
 
 Package:
 
-- [`sdk/js/package.json`](/Users/ok/Documents/projects/aeko-chain/sdk/js/package.json)
+- [`sdk/js/package.json`](../../sdk/js/package.json)
 
 Verification:
 
@@ -40,7 +40,7 @@ npm --prefix sdk/js run build
 
 Publish sequence:
 
-1. set the release version in [`sdk/js/package.json`](/Users/ok/Documents/projects/aeko-chain/sdk/js/package.json)
+1. set the release version in [`sdk/js/package.json`](../../sdk/js/package.json)
 2. build the package
 3. inspect the final `dist` output
 4. publish to npm
@@ -50,7 +50,7 @@ Publish sequence:
 
 Package:
 
-- [`sdk/node/package.json`](/Users/ok/Documents/projects/aeko-chain/sdk/node/package.json)
+- [`sdk/node/package.json`](../../sdk/node/package.json)
 
 Verification:
 
@@ -63,7 +63,7 @@ npm --prefix sdk/node run build
 Publish sequence:
 
 1. confirm the dependency on `@aeko-chain/web3.js` points to the intended published version
-2. set the release version in [`sdk/node/package.json`](/Users/ok/Documents/projects/aeko-chain/sdk/node/package.json)
+2. set the release version in [`sdk/node/package.json`](../../sdk/node/package.json)
 3. run typecheck and build
 4. publish to npm
 5. record the published version and registry URL
@@ -72,8 +72,8 @@ Publish sequence:
 
 Crate:
 
-- [`sdk/rust-client/Cargo.toml`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client/Cargo.toml)
-- [`docs/developer-sdk/rust-publish-dry-run.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/rust-publish-dry-run.md)
+- [`sdk/rust-client/Cargo.toml`](../../sdk/rust-client/Cargo.toml)
+- [`docs/developer-sdk/rust-publish-dry-run.md`](./rust-publish-dry-run.md)
 
 Verification:
 
@@ -92,9 +92,9 @@ Current status:
 
 Publish sequence:
 
-1. confirm crate metadata is correct in [`sdk/rust-client/Cargo.toml`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client/Cargo.toml)
+1. confirm crate metadata is correct in [`sdk/rust-client/Cargo.toml`](../../sdk/rust-client/Cargo.toml)
 2. confirm README example paths still match the crate surface
-3. rerun the dry-run checklist in [`docs/developer-sdk/rust-publish-dry-run.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/rust-publish-dry-run.md) for future releases
+3. rerun the dry-run checklist in [`docs/developer-sdk/rust-publish-dry-run.md`](./rust-publish-dry-run.md) for future releases
 4. publish to crates.io
 5. confirm docs.rs build status
 6. record the version, crates.io URL, and docs.rs URL
@@ -103,7 +103,7 @@ Publish sequence:
 
 Package:
 
-- [`sdk/python/pyproject.toml`](/Users/ok/Documents/projects/aeko-chain/sdk/python/pyproject.toml)
+- [`sdk/python/pyproject.toml`](../../sdk/python/pyproject.toml)
 
 Verification:
 
@@ -119,7 +119,7 @@ pip install -e sdk/python
 
 Publish sequence:
 
-1. set the release version in [`sdk/python/pyproject.toml`](/Users/ok/Documents/projects/aeko-chain/sdk/python/pyproject.toml)
+1. set the release version in [`sdk/python/pyproject.toml`](../../sdk/python/pyproject.toml)
 2. confirm README install guidance is current
 3. build the distribution artifacts
 4. publish to PyPI

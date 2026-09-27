@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
 import NetworkToolsPanel from '../components/NetworkToolsPanel';
-import { getNetworkConfig } from '../utils/networkConfig';
+import { getNetworkConfig, getNetworkPresentation } from '../utils/networkConfig';
 import { useAppSettings } from '../components/AppSettingsContext';
 
 export default function Developers() {
@@ -11,6 +11,7 @@ export default function Developers() {
   // Global selection: developer surfaces follow the shared toggle.
   const { network, testSurfacesVisible } = useNetwork();
   const activeNetwork = getNetworkConfig(network);
+  const presentation = getNetworkPresentation(network);
   const sdkCards = [
     {
       title: 'Rust Client SDK',
@@ -144,20 +145,18 @@ export default function Developers() {
             <div>
               <h2 className="text-2xl font-bold mb-2">Network Endpoints</h2>
               <p className="text-sm text-gray-400">
-                Switch between clusters to view the right explorer, funding, and API endpoints for
-                the current environment.
+                Switch between Mainnet and Testnet to inspect the endpoints and capabilities for
+                that independently deployed environment.
               </p>
             </div>
             <NetworkToggle />
           </div>
           <NetworkToolsPanel network={network} />
           <p className="text-sm text-gray-500 mt-6">
-            Current selection: {activeNetwork.label}. Wallet validation examples still default to
-            testnet unless you override the RPC environment variables.
+            Current selection: {activeNetwork.label}. {presentation.developerSummary}
           </p>
           <p className="text-sm text-gray-500 mt-2">
-            Explorer web pages now also support backend-driven reads when you configure
-            the explorer API URLs.
+            {presentation.fundingSummary}
           </p>
         </div>
       </div>

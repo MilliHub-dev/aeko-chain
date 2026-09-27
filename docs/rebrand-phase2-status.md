@@ -19,13 +19,13 @@ The workspace stopped building after broad renaming because some dependencies no
 
 Fixes applied:
 
-- Restored broken upstream patch URLs in the root [Cargo.toml](/Users/surdma/Dev/aeko/Cargo.toml)
+- Restored broken upstream patch URLs in the root [Cargo.toml](../Cargo.toml)
   - `crossbeam`
   - `curve25519-dalek`
   - `tokio`
-- Added a local vendored `aeko_rbpf` crate at [rbpf](/Users/surdma/Dev/aeko/rbpf) because `aeko_rbpf` does not exist on crates.io.
-- Added a local `aeko-nohash-hasher` crate at [nohash-hasher](/Users/surdma/Dev/aeko/nohash-hasher) because `aeko-nohash-hasher` does not exist on crates.io.
-- Wired both crates into the workspace root [Cargo.toml](/Users/surdma/Dev/aeko/Cargo.toml).
+- Added a local vendored `aeko_rbpf` crate at [rbpf](../rbpf) because `aeko_rbpf` does not exist on crates.io.
+- Added a local `aeko-nohash-hasher` crate at [nohash-hasher](../nohash-hasher) because `aeko-nohash-hasher` does not exist on crates.io.
+- Wired both crates into the workspace root [Cargo.toml](../Cargo.toml).
 
 ### 2. Project-facing rebrand cleanup
 
@@ -53,28 +53,28 @@ These were restored where necessary.
 
 Files fixed during compile recovery include:
 
-- [account-decoder/src/parse_token.rs](/Users/surdma/Dev/aeko/account-decoder/src/parse_token.rs)
-- [account-decoder/src/parse_token_extension.rs](/Users/surdma/Dev/aeko/account-decoder/src/parse_token_extension.rs)
-- [transaction-status/src/parse_token.rs](/Users/surdma/Dev/aeko/transaction-status/src/parse_token.rs)
-- [transaction-status/src/parse_token/extension/group_member_pointer.rs](/Users/surdma/Dev/aeko/transaction-status/src/parse_token/extension/group_member_pointer.rs)
-- [transaction-status/src/parse_token/extension/group_pointer.rs](/Users/surdma/Dev/aeko/transaction-status/src/parse_token/extension/group_pointer.rs)
-- [transaction-status/src/parse_token/extension/metadata_pointer.rs](/Users/surdma/Dev/aeko/transaction-status/src/parse_token/extension/metadata_pointer.rs)
-- [transaction-status/src/parse_token/extension/mint_close_authority.rs](/Users/surdma/Dev/aeko/transaction-status/src/parse_token/extension/mint_close_authority.rs)
-- [transaction-status/src/parse_token/extension/transfer_hook.rs](/Users/surdma/Dev/aeko/transaction-status/src/parse_token/extension/transfer_hook.rs)
-- [transaction-status/src/parse_token/extension/permanent_delegate.rs](/Users/surdma/Dev/aeko/transaction-status/src/parse_token/extension/permanent_delegate.rs)
-- [tokens/src/spl_token.rs](/Users/surdma/Dev/aeko/tokens/src/spl_token.rs)
-- [tokens/src/commands.rs](/Users/surdma/Dev/aeko/tokens/src/commands.rs)
-- [ledger/src/token_balances.rs](/Users/surdma/Dev/aeko/ledger/src/token_balances.rs)
-- [sdk/program/src/native_token.rs](/Users/surdma/Dev/aeko/sdk/program/src/native_token.rs)
-- [validator/src/admin_rpc_service.rs](/Users/surdma/Dev/aeko/validator/src/admin_rpc_service.rs)
+- [account-decoder/src/parse_token.rs](../account-decoder/src/parse_token.rs)
+- [account-decoder/src/parse_token_extension.rs](../account-decoder/src/parse_token_extension.rs)
+- [transaction-status/src/parse_token.rs](../transaction-status/src/parse_token.rs)
+- [transaction-status/src/parse_token/extension/group_member_pointer.rs](../transaction-status/src/parse_token/extension/group_member_pointer.rs)
+- [transaction-status/src/parse_token/extension/group_pointer.rs](../transaction-status/src/parse_token/extension/group_pointer.rs)
+- [transaction-status/src/parse_token/extension/metadata_pointer.rs](../transaction-status/src/parse_token/extension/metadata_pointer.rs)
+- [transaction-status/src/parse_token/extension/mint_close_authority.rs](../transaction-status/src/parse_token/extension/mint_close_authority.rs)
+- [transaction-status/src/parse_token/extension/transfer_hook.rs](../transaction-status/src/parse_token/extension/transfer_hook.rs)
+- [transaction-status/src/parse_token/extension/permanent_delegate.rs](../transaction-status/src/parse_token/extension/permanent_delegate.rs)
+- [tokens/src/spl_token.rs](../tokens/src/spl_token.rs)
+- [tokens/src/commands.rs](../tokens/src/commands.rs)
+- [ledger/src/token_balances.rs](../ledger/src/token_balances.rs)
+- [sdk/program/src/native_token.rs](../sdk/program/src/native_token.rs)
+- [validator/src/admin_rpc_service.rs](../validator/src/admin_rpc_service.rs)
 
 ### 4. CLI cleanup
 
 Deprecated `lamports_of_sol` call sites were updated to `lamports_of_aeko` in:
 
-- [cli/src/nonce.rs](/Users/surdma/Dev/aeko/cli/src/nonce.rs)
-- [cli/src/stake.rs](/Users/surdma/Dev/aeko/cli/src/stake.rs)
-- [cli/src/wallet.rs](/Users/surdma/Dev/aeko/cli/src/wallet.rs)
+- [cli/src/nonce.rs](../cli/src/nonce.rs)
+- [cli/src/stake.rs](../cli/src/stake.rs)
+- [cli/src/wallet.rs](../cli/src/wallet.rs)
 
 ### 5. Local `rbpf` rebrand cleanup
 
@@ -84,7 +84,7 @@ Examples:
 
 - maintainer email updated from `maintainers@solana.com` to `maintainers@aeko.chain`
 - verifier comment changed to refer to Aeko programs
-- [rbpf/tests/elfs/elfs.sh](/Users/surdma/Dev/aeko/rbpf/tests/elfs/elfs.sh) updated to use `sbf-aeko-aeko`
+- [rbpf/tests/elfs/elfs.sh](../rbpf/tests/elfs/elfs.sh) updated to use `sbf-aeko-aeko`
 
 ## Problems We Solved
 
@@ -184,7 +184,7 @@ At the time this document was written:
 - `cargo build -p aeko-account-decoder` passed
 - `cargo test -p aeko-validator` passed earlier in the recovery sequence
 - a long `cargo build --workspace` progressed through most of the workspace and eventually surfaced a late failure in `aeko-ledger`
-- that failure was fixed in [ledger/src/token_balances.rs](/Users/surdma/Dev/aeko/ledger/src/token_balances.rs)
+- that failure was fixed in [ledger/src/token_balances.rs](../ledger/src/token_balances.rs)
 
 The failing error was:
 
@@ -267,7 +267,7 @@ cargo run --bin aeko-validator -- --ledger ./test-ledger
 
 ## Remaining Work
 
-1. Run a fresh `cargo build --workspace` after the last fix in [ledger/src/token_balances.rs](/Users/surdma/Dev/aeko/ledger/src/token_balances.rs).
+1. Run a fresh `cargo build --workspace` after the last fix in [ledger/src/token_balances.rs](../ledger/src/token_balances.rs).
 2. If new failures appear, continue the same recovery pattern:
    - isolate the crate
    - determine whether the failure is project-owned drift or upstream compatibility drift

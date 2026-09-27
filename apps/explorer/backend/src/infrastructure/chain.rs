@@ -8,7 +8,7 @@ use {
             TransactionAccountRecord, TransactionRecord,
         },
     },
-    aeko_sdk::{pubkey::Pubkey, signature::Signature},
+    aeko_sdk::{hash::Hash, pubkey::Pubkey, signature::Signature},
     aeko_token_20_program::{
         instruction::Token20Instruction,
         state::{Aeko20Account, Aeko20Mint, MintPolicy},
@@ -65,6 +65,11 @@ pub enum FundingTransferStatus {
 struct RpcFundingSignatureStatus {
     err: Option<Value>,
     confirmation_status: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RpcFundingBlockhash {
+    blockhash: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -502,11 +507,21 @@ impl RpcChainClient {
         Ok(transfers)
     }
 
+    pub fn latest_funding_blockhash(&self) -> Result<String> {
+        let response: RpcContextResponse<RpcFundingBlockhash> =
+            self.rpc_request("getLatestBlockhash", json!([{ "commitment": "confirmed" }]))?;
+        if response.value.blockhash.trim().is_empty() {
+            bail!("getLatestBlockhash returned an empty blockhash");
+        }
+        Ok(response.value.blockhash)
+    }
+
     pub fn request_funding_airdrop(
         &self,
         address: &str,
         lamports: u64,
         funding_authorization: Option<&str>,
+        recent_blockhash: Option<&str>,
     ) -> Result<String> {
         let _: Pubkey = address
             .parse()
@@ -514,14 +529,25 @@ impl RpcChainClient {
         if lamports == 0 {
             bail!("funding amount must be greater than zero");
         }
-        let config = match funding_authorization {
-            Some(value) => json!({ "fundingAuthorization": value }),
-            None => json!({}),
-        };
+        if recent_blockhash.is_some_and(|value| value.trim().is_empty()) {
+            bail!("funding recent blockhash cannot be empty");
+        }
+        let config = json!({
+            "fundingAuthorization": funding_authorization,
+            "recentBlockhash": recent_blockhash,
+        });
         self.rpc_request("requestAirdrop", json!([address, lamports, config]))
     }
 
     pub fn funding_transfer_status(&self, signature: &str) -> Result<FundingTransferStatus> {
+        self.funding_transfer_status_with_blockhash(signature, None)
+    }
+
+    pub fn funding_transfer_status_with_blockhash(
+        &self,
+        signature: &str,
+        recent_blockhash: Option<&str>,
+    ) -> Result<FundingTransferStatus> {
         let _: Signature = signature
             .parse()
             .with_context(|| format!("invalid AEKO funding signature {signature:?}"))?;
@@ -530,6 +556,21 @@ impl RpcChainClient {
             json!([[signature], { "searchTransactionHistory": true }]),
         )?;
         let Some(status) = statuses.into_iter().next().flatten() else {
+            if let Some(blockhash) = recent_blockhash {
+                let _: Hash = blockhash
+                    .parse()
+                    .with_context(|| format!("invalid AEKO funding blockhash {blockhash:?}"))?;
+                let valid: bool = self.rpc_context_value_request(
+                    "isBlockhashValid",
+                    json!([blockhash, { "commitment": "confirmed" }]),
+                )?;
+                if !valid {
+                    return Ok(FundingTransferStatus::Failed(
+                        "funding transaction blockhash expired before the transaction was observed"
+                            .to_string(),
+                    ));
+                }
+            }
             return Ok(FundingTransferStatus::Pending);
         };
         if let Some(error) = status.err {
@@ -547,8 +588,19 @@ impl RpcChainClient {
         attempts: u32,
         interval: std::time::Duration,
     ) -> Result<FundingTransferStatus> {
+        self.wait_for_funding_transfer_with_blockhash(signature, None, attempts, interval)
+    }
+
+    pub fn wait_for_funding_transfer_with_blockhash(
+        &self,
+        signature: &str,
+        recent_blockhash: Option<&str>,
+        attempts: u32,
+        interval: std::time::Duration,
+    ) -> Result<FundingTransferStatus> {
         for attempt in 0..attempts {
-            let status = self.funding_transfer_status(signature)?;
+            let status =
+                self.funding_transfer_status_with_blockhash(signature, recent_blockhash)?;
             if status != FundingTransferStatus::Pending {
                 return Ok(status);
             }

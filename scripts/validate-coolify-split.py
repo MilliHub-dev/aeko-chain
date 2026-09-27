@@ -10,12 +10,36 @@ ROOT = Path(__file__).resolve().parents[1]
 COOLIFY = ROOT / "docker" / "coolify"
 
 RESOURCES = {
-    "bootstrap": ["key-bootstrap", "social-bootstrap", "protocol-bootstrap", "registry"],
-    "faucet-tools": ["faucet", "wallet-tools"],
-    "validator": ["validator"],
-    "explorer-api": ["explorer-api"],
-    "explorer-ui": ["explorer-ui"],
-    "operations-web": ["operations-web"],
+    "bootstrap": (
+        COOLIFY / "bootstrap" / "compose.yml",
+        COOLIFY / "bootstrap" / ".env.example",
+        ["key-bootstrap", "social-bootstrap", "protocol-bootstrap", "registry"],
+    ),
+    "faucet-tools": (
+        COOLIFY / "faucet-tools" / "compose.yml",
+        COOLIFY / "faucet-tools" / ".env.example",
+        ["faucet", "wallet-tools"],
+    ),
+    "validator": (
+        COOLIFY / "validator" / "compose.yml",
+        COOLIFY / "validator" / ".env.example",
+        ["validator"],
+    ),
+    "explorer-api": (
+        ROOT / "apps" / "explorer" / "backend" / "compose.coolify.yml",
+        ROOT / "apps" / "explorer" / "backend" / ".env.coolify.example",
+        ["explorer-api"],
+    ),
+    "explorer-ui": (
+        ROOT / "apps" / "explorer" / "web" / "compose.coolify.yml",
+        ROOT / "apps" / "explorer" / "web" / ".env.coolify.example",
+        ["explorer-ui"],
+    ),
+    "operations-web": (
+        ROOT / "apps" / "admin" / "compose.coolify.yml",
+        ROOT / "apps" / "admin" / ".env.coolify.example",
+        ["operations-web"],
+    ),
 }
 
 RETIRED_ENDPOINT_NAMES = (
@@ -115,13 +139,19 @@ def main() -> int:
 
     loaded: dict[str, str] = {}
     envs: dict[str, str] = {}
-    for label, expected_services in RESOURCES.items():
-        directory = COOLIFY / label
-        compose = read(directory / "compose.yml")
-        env_example = read(directory / ".env.example")
+    for label, (compose_path, env_path, expected_services) in RESOURCES.items():
+        compose = read(compose_path)
+        env_example = read(env_path)
         validate_common(label, expected_services, compose, env_example)
         loaded[label] = compose
         envs[label] = env_example
+
+    for retired in ("explorer-api", "explorer-ui", "operations-web"):
+        require(
+            not (COOLIFY / retired / "compose.yml").exists()
+            and not (COOLIFY / retired / ".env.example").exists(),
+            f"{retired} Coolify ownership must live beside its application under apps/",
+        )
 
     for label in ("bootstrap", "faucet-tools", "validator"):
         require(
@@ -151,6 +181,12 @@ def main() -> int:
             "AEKO_RPC_URL: ${AEKO_RPC_URL:?Set the active chain RPC URL}" in block,
             f"{name} bootstrap must consume only the active environment RPC",
         )
+        if name == "Protocol":
+            require(
+                "AEKO_NETWORK: ${AEKO_NETWORK:?Set mainnet, testnet, devnet, or localnet}"
+                in block,
+                "Protocol bootstrap must receive the same single active network identity",
+            )
         require(
             "key-bootstrap:" in block and "condition: service_completed_successfully" in block,
             f"{name} bootstrap must wait for key preflight",
@@ -178,6 +214,10 @@ def main() -> int:
     require("source: /data/aeko/keys" in faucet, "Faucet must read the persistent key store")
     require('profiles: ["ops"]' in wallet_tools, "wallet tools must remain opt-in operator tooling")
     require("AEKO_NETWORK=" in envs["faucet-tools"], "Faucet env example must identify its chain environment")
+    require(
+        "AEKO_NETWORK=" in envs["bootstrap"],
+        "Bootstrap env example must identify its chain environment",
+    )
 
     validator = loaded["validator"]
     require("AEKO_NETWORK: ${AEKO_NETWORK:?" in validator, "Validator must declare one active chain environment")
@@ -200,6 +240,11 @@ def main() -> int:
     )
 
     explorer_api = loaded["explorer-api"]
+    require(
+        "AEKO_EXPLORER_LOG_FORMAT:" in explorer_api
+        and "AEKO_EXPLORER_LOG_FILTER:" in explorer_api,
+        "Explorer API split resource must configure production application logging",
+    )
     for expected in (
         "AEKO_NETWORK: ${AEKO_NETWORK:?",
         "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
@@ -213,6 +258,7 @@ def main() -> int:
     for funding_name in (
         "AEKO_FUNDING_AUTHORIZATION_KEY",
         "AEKO_FUNDING_REQUESTS_PER_10_MIN",
+        "AEKO_FUNDING_RECONCILE_INTERVAL_SECS",
         "AEKO_FAUCET_PER_REQUEST_CAP",
     ):
         require(
@@ -227,6 +273,10 @@ def main() -> int:
         require(f"{name}=" in envs["explorer-api"], f"Explorer API env example missing {name}")
 
     explorer_ui = loaded["explorer-ui"]
+    require(
+        "AEKO_LOG_FORMAT:" in explorer_ui and "AEKO_LOG_LEVEL:" in explorer_ui,
+        "Scan split resource must configure production application logging",
+    )
     require("depends_on:" not in explorer_ui, "Scan must remain independently deployable")
     for expected in (
         "AEKO_NETWORK: ${AEKO_NETWORK:?",
@@ -244,6 +294,10 @@ def main() -> int:
     )
 
     operations = loaded["operations-web"]
+    require(
+        "AEKO_LOG_FORMAT:" in operations and "AEKO_LOG_LEVEL:" in operations,
+        "Operations Web split resource must configure production application logging",
+    )
     require("depends_on:" not in operations, "Operations Web must remain independently deployable")
     for expected in (
         "AEKO_NETWORK: ${AEKO_NETWORK:?",

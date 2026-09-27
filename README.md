@@ -95,9 +95,25 @@ For the complete authoritative mapping, including split-Coolify routing,
 same-Compose Docker DNS defaults, env overrides, and local host-port controls,
 see [Network ports, domains, and service discovery](./docs/operations/network-ports-and-domains.md).
 
-Testnet funding is served by the Explorer API and reached from Aeko Scan through
-the same-origin `/api/explorer/testnet/funding/*` path. There is no separate
-Funding Gateway runtime in the current target topology.
+Test-network funding is served by that network's Explorer API and reached from
+Aeko Scan through the same-origin `/api/explorer/{network}/funding/*` proxy.
+There is no separate Funding Gateway runtime.
+
+The funding domains are intentionally distinct:
+
+- **public grant request:** Scan creates and reads the request; authenticated
+  Operations Admin is the only product surface that may approve/reject it;
+- **developer airdrop:** direct capped Test Console utility, tracked separately
+  from the grant queue/ledger;
+- **mainnet distribution:** not a Faucet operation. Treasury, ecosystem grants,
+  launch allocation, vesting and validator emissions must follow the governed
+  tokenomics path. The complete two-house governance/treasury executor is not
+  implemented yet, so mainnet funding controls fail closed.
+
+Each chain environment is deployed independently. Scan's
+`/api/explorer/{network}` prefixes route to independently configured remote
+Explorer APIs; they do not imply that mainnet/testnet/devnet share one backend
+instance or database.
 
 ## Native Aeko SocialFi
 
@@ -298,16 +314,17 @@ Coolify supports independent resource deployments under
 validator, Explorer API, Explorer UI and Operations Web can be updated without
 recreating one another.
 
-The preferred topology has six Coolify resources, each with its own Compose
-path and .env.example:
+The preferred topology has six Coolify resources. Stateful infrastructure
+keeps its deployment files under `docker/coolify/**`; deployable applications
+own `compose.coolify.yml` and `.env.coolify.example` beside their source:
 
 ```text
 docker/coolify/bootstrap/compose.yml
 docker/coolify/faucet-tools/compose.yml
 docker/coolify/validator/compose.yml
-docker/coolify/explorer-api/compose.yml
-docker/coolify/explorer-ui/compose.yml
-docker/coolify/operations-web/compose.yml
+apps/explorer/backend/compose.coolify.yml
+apps/explorer/web/compose.coolify.yml
+apps/admin/compose.coolify.yml
 ```
 
 The bootstrap resource contains key, Social and Protocol one-shot jobs.
@@ -349,7 +366,6 @@ registry.aeko.online  -> registry:8089
 api.aeko.online       -> explorer-api:8088
 scan.aeko.online      -> explorer-ui:4000
 admin.aeko.online     -> operations-web:3001
-faucet.aeko.online    -> Faucet host TCP 9900
 ```
 
 AEKO_GOSSIP_HOST remains gossip.aeko.online, whose DNS points directly to the Validator host. Allow inbound

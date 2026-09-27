@@ -43,9 +43,10 @@ AEKO_EXPLORER_API_URL=https://api.aeko.online
 
 Optional complete `AEKO_MAINNET_*`, `AEKO_TESTNET_*` and
 `AEKO_DEVNET_*` RPC/WS/Explorer-API triplets describe other independently
-deployed chains that the user may select. The active network does not need its
-prefixed triplet because the generic values already describe it. Localnet is
-the local-development network.
+deployed chains. The standard public selector exposes Mainnet and Testnet only.
+Devnet and Localnet remain valid explicit development environments but are not
+public selector choices. The active network does not need its prefixed triplet
+because the generic values already describe it.
 
 The container entrypoint normalizes this into
 `{network, networks, demo}`. Browser indexed reads remain same-origin
@@ -70,7 +71,7 @@ server/domain; Scan proxies those APIs through its same-origin routes.
 Direct JSON-RPC from the browser is intentional only for consumer-style operations that cannot be delegated to the read-only Explorer backend, including:
 
 - wallet/network test tools;
-- policy-controlled testnet funding via the Operations Web funding role (same image as Admin, not a separate app), with raw `requestAirdrop` reserved for local/custom test networks;
+- raw `requestAirdrop` only on local/custom test validators that are explicitly configured without managed funding protection; public testnet funding uses the same-origin Explorer funding API instead;
 - signing/submitting transactions;
 - explicit Social/NFT end-to-end test consoles;
 - the temporary `/overview` compatibility fallback described above.

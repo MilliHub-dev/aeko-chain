@@ -111,7 +111,8 @@ test('social payout actions preflight live program-owned vault liquidity', async
   assert.match(social, /Creator reward vault/);
   assert.match(social, /Stake reward vault/);
   assert.match(social, /Monetization treasury/);
-  assert.match(social, /testnet operator must seed the payout vault/i);
+  assert.match(social, /presentation\.name/);
+  assert.doesNotMatch(social, /testnet operator must seed the payout vault/i);
 });
 
 
@@ -133,8 +134,12 @@ test('accounts workspace keeps public funding approval separate from direct Test
 
   assert.match(networkTools, /<TestnetFundingRequest fundingUrl=\{config\.fundingUrl\} \/>/);
   assert.match(funding, /Your AEKO wallet address/);
-  assert.match(funding, /operator approval/i);
+  assert.match(funding, /authenticated Admin must approve or reject/i);
   assert.match(funding, /requestFundingApproval\(fundingUrl, address\.trim\(\)\)/);
+  assert.match(funding, /getFundingRequestStatus\(fundingUrl, request\.id\)/);
+  assert.match(funding, /waiting for an Admin decision/i);
+  assert.match(funding, /Admin approved the grant/i);
+  assert.doesNotMatch(funding, /decideRequest|approve.*fetch|\/admin\/funding/);
 });
 
 
@@ -147,25 +152,38 @@ test('funding API URLs resolve from the configured origin and reject HTML 200 re
   assert.match(rpcClient, /content-type/);
   assert.match(rpcClient, /non-JSON/);
   assert.match(rpcClient, /requestFundingApproval/);
+  assert.match(rpcClient, /getFundingRequestStatus/);
+  assert.match(rpcClient, /\/funding\/request\/\$\{encodeURIComponent\(id\)\}/);
   assert.match(rpcClient, /requestConsoleAirdrop/);
-  assert.match(rpcClient, /requestConsoleAirdrop\(config\.fundingUrl, address, lamportsToAeko\(lamports\)\)/);
+  assert.match(rpcClient, /const airdrop = await requestConsoleAirdrop\(/);
+  assert.match(rpcClient, /config\.fundingUrl/);
+  assert.match(rpcClient, /lamportsToAeko\(lamports\)/);
+  assert.match(rpcClient, /Direct RPC airdrop fallback is disabled/);
+  assert.doesNotMatch(rpcClient, /return requestAirdrop\(rpcUrl, address, lamports\)/);
 });
 
 
 test('funding runtime is owned by the Scan backend after the Admin gateway removal', async () => {
   const migration = await source('../../../explorer/backend/migrations/0010_funding.sql');
+  const integrityMigration = await source('../../../explorer/backend/migrations/0012_funding_state_machine.sql');
   const fundingFeature = await source('../../../explorer/backend/src/features/funding/mod.rs');
 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS funding_settings/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS funding_requests/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS funding_grants/);
+  assert.match(integrityMigration, /CREATE TABLE IF NOT EXISTS funding_airdrops/);
+  assert.match(integrityMigration, /submitted/);
+  assert.match(integrityMigration, /confirmed/);
   assert.match(fundingFeature, /\/funding\/request/);
   assert.match(fundingFeature, /\/funding\/airdrop/);
   assert.match(fundingFeature, /x-aeko-settings-token/);
   assert.match(fundingFeature, /request_funding_airdrop/);
   assert.match(fundingFeature, /create_public_funding_request/);
   assert.match(fundingFeature, /reserve_public_funding_request/);
-  assert.match(fundingFeature, /mainnet-governed/);
+  assert.match(fundingFeature, /confirm_funding_request/);
+  assert.match(fundingFeature, /create_funding_airdrop/);
+  assert.match(fundingFeature, /mainnet-disabled/);
+  assert.doesNotMatch(fundingFeature, /finalize_funding_request/);
 });
 
 test('Admin funding polling preserves persisted policy revisions and mainnet separation', async () => {
@@ -177,11 +195,15 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
   assert.match(adminPage, /setInterval/);
   assert.match(adminPage, /expectedRevision: settings\.revision/);
   assert.match(adminPage, /consoleAirdropAggregateUnlimited/);
-  assert.match(adminPage, /mainnet-governed/);
-  assert.match(adminPage, /No Faucet policy is editable on mainnet/);
+  assert.match(adminPage, /mainnet-disabled/);
+  assert.match(adminPage, /Mainnet test funding is disabled/);
+  assert.match(adminPage, /Check confirmation/);
+  assert.match(adminPage, /Airdrop history/);
   assert.match(adminProxy, /x-aeko-settings-token/);
   assert.match(settingsRoute, /method: 'PATCH'/);
   assert.match(requestsRoute, /approved: action === 'approve'/);
+  assert.match(requestsRoute, /action === 'reconcile'/);
+  assert.match(requestsRoute, /\/reconcile/);
 });
 
 
@@ -199,9 +221,10 @@ test('Operations Web paginates long datasets and keeps dense control pages focus
   assert.match(dataTable, /Showing/);
 
   assert.match(fundingPage, /SectionTabs/);
-  assert.match(fundingPage, /Approval queue/);
+  assert.match(fundingPage, /Grant queue/);
   assert.match(fundingPage, /Policy & manual grant/);
   assert.match(fundingPage, /Grant history/);
+  assert.match(fundingPage, /Airdrop history/);
 
   assert.match(settingsPage, /Settings sections/);
   assert.match(settingsPage, /sticky top-14/);
@@ -294,7 +317,8 @@ test('Explorer web is the multi-network boundary while services use one active e
   assert.doesNotMatch(networkConfig, /Legacy alias/);
   assert.doesNotMatch(networkConfig, /devnet.*localnet.*testnet/i);
 
-  assert.match(networkToggle, /'mainnet', 'testnet', 'devnet', 'localnet'/);
+  assert.match(networkToggle, /PUBLIC_NETWORK_ORDER = \['mainnet', 'testnet'\]/);
+  assert.doesNotMatch(networkToggle, /PUBLIC_NETWORK_ORDER = .*devnet|PUBLIC_NETWORK_ORDER = .*localnet/);
   assert.match(networkToggle, /config\.rpcUrl/);
   assert.match(networkToggle, /Not configured/);
   assert.match(networkToggle, /useNetwork/);
@@ -304,6 +328,8 @@ test('Explorer web is the multi-network boundary while services use one active e
   assert.match(networkTools, /NetworkToggle/);
   assert.match(networkTools, /useNetwork/);
   assert.match(networkTools, /isTestNetwork && settings\.networkConsoleEnabled/);
+  assert.match(networkTools, /authenticated Admin approves grants/);
+  assert.doesNotMatch(networkTools, /config\.key === 'testnet'[\s\S]{0,180}aeko airdrop/);
 
   assert.match(entrypoint, /AEKO_ACTIVE_NETWORK/);
   assert.match(entrypoint, /AEKO_RPC_URL/);

@@ -200,7 +200,7 @@ All SDK builder functions return a **base64-encoded unsigned transaction**. The 
 
 ## Testnet Funding
 
-Public applications use the Funding Gateway, not the private Faucet Daemon and not unauthenticated public `requestAirdrop`:
+Public applications use the Explorer API funding module through Aeko Scan's same-origin funding routes. They do not connect to the private Faucet Daemon or call unauthenticated public `requestAirdrop`:
 
 ```bash
 curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
@@ -208,7 +208,7 @@ curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
   -d '{"address":"<pubkey>"}'
 ```
 
-The deployed validator requires server-side Funding Gateway authorization for `requestAirdrop`. Local/custom test validators may leave that protection unset for developer-only airdrop flows.
+The deployed validator requires a server-side funding authorization key for `requestAirdrop`. Only the matching Explorer API deployment receives that key. Operations Web and browser clients never receive it. Local/custom test validators may leave the protection unset for isolated developer-only airdrop flows.
 
 ---
 

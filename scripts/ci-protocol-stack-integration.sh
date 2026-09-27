@@ -9,6 +9,10 @@ LEDGER_DIR="$WORK_DIR/ledger"
 STATE_DIR="$WORK_DIR/protocol-state"
 CONTINUITY_DIR="$WORK_DIR/protocol-continuity"
 SOCIAL_STATE_DIR="$WORK_DIR/social-state"
+REGISTRY_HTTP_DIR="$WORK_DIR/registry-http"
+HELLO_PROGRAM_DIR="$WORK_DIR/hello-program"
+HELLO_PROGRAM_SO="$HELLO_PROGRAM_DIR/hello_aeko_program.so"
+HELLO_PROGRAM_KEYPAIR="$HELLO_PROGRAM_DIR/hello_aeko_program-keypair.json"
 AUTHORITY_KEYPAIR="$WORK_DIR/protocol-authority.json"
 RECIPIENT_KEYPAIR="$WORK_DIR/recipient.json"
 HISTORY_FILE="$WORK_DIR/historical-state.json"
@@ -19,14 +23,22 @@ EXPLORER_LOG="$WORK_DIR/explorer.log"
 POSTGRES_NAME="aeko-protocol-integration-postgres"
 RPC_URL="http://127.0.0.1:18899"
 EXPLORER_URL="http://127.0.0.1:18088"
+REGISTRY_URL="http://127.0.0.1:18089"
+FUNDING_ADMIN_TOKEN="protocol-ci-settings-admin-token-123456789"
+FUNDING_AUTHORIZATION_KEY="protocol-ci-funding-authorization-key-123456789"
 VALIDATOR_PID=""
 EXPLORER_PID=""
+REGISTRY_PID=""
 
 cleanup() {
   set +e
   if [ -n "$EXPLORER_PID" ]; then
     kill "$EXPLORER_PID" >/dev/null 2>&1 || true
     wait "$EXPLORER_PID" >/dev/null 2>&1 || true
+  fi
+  if [ -n "$REGISTRY_PID" ]; then
+    kill "$REGISTRY_PID" >/dev/null 2>&1 || true
+    wait "$REGISTRY_PID" >/dev/null 2>&1 || true
   fi
   if [ -n "$VALIDATOR_PID" ]; then
     kill "$VALIDATOR_PID" >/dev/null 2>&1 || true
@@ -51,15 +63,28 @@ fail_with_logs() {
 }
 trap fail_with_logs ERR
 
-mkdir -p "$LEDGER_DIR" "$STATE_DIR" "$CONTINUITY_DIR" "$SOCIAL_STATE_DIR"
+mkdir -p "$LEDGER_DIR" "$STATE_DIR" "$CONTINUITY_DIR" "$SOCIAL_STATE_DIR" "$REGISTRY_HTTP_DIR" "$HELLO_PROGRAM_DIR"
 
 # Build only the binaries exercised by this integration path. Previous source
 # validation on the shared runner makes these incremental in normal CI.
 cargo build --locked -p aeko-validator --bin aeko-test-validator --bin aeko-validator
 cargo build --locked -p aeko-keygen --bin aeko-keygen
+cargo build --locked -p aeko-cli --bin aeko
 cargo build --locked -p aeko-social-bootstrap --bin aeko-social-bootstrap
 cargo build --locked -p aeko-protocol-bootstrap --bin aeko-protocol-bootstrap
 cargo build --locked -p aeko-explorer-backend --bin aeko-explorer-backend
+
+# Keep the public external-developer starter on the same live compatibility
+# path as the validator. The SBF build and host invoke example must both compile
+# before any deployment assertion is attempted.
+bash ./cargo-build-sbf \
+  --manifest-path contracts/hello-aeko-program/Cargo.toml \
+  --sbf-out-dir "$HELLO_PROGRAM_DIR"
+cargo check --locked \
+  --manifest-path contracts/hello-aeko-program/Cargo.toml \
+  --example invoke_hello
+test -s "$HELLO_PROGRAM_SO"
+test -s "$HELLO_PROGRAM_KEYPAIR"
 
 start_validator() {
   local reset="$1"
@@ -74,7 +99,8 @@ start_validator() {
     args+=(--reset)
   fi
   : >"$VALIDATOR_LOG"
-  "${args[@]}" >"$VALIDATOR_LOG" 2>&1 &
+  AEKO_FUNDING_AUTHORIZATION_KEY="$FUNDING_AUTHORIZATION_KEY" \
+    "${args[@]}" >"$VALIDATOR_LOG" 2>&1 &
   VALIDATOR_PID=$!
 }
 
@@ -150,7 +176,8 @@ RECIPIENT_PUBKEY="$(target/debug/aeko-keygen pubkey "$RECIPIENT_KEYPAIR")"
 # Create and record real transaction history before restarting from the same
 # ledger. The restart must preserve genesis identity, account state and the
 # historical transaction query surface.
-RPC_URL="$RPC_URL" RECIPIENT_PUBKEY="$RECIPIENT_PUBKEY" HISTORY_FILE="$HISTORY_FILE" python3 - <<'PY'
+RPC_URL="$RPC_URL" RECIPIENT_PUBKEY="$RECIPIENT_PUBKEY" HISTORY_FILE="$HISTORY_FILE" \
+FUNDING_AUTHORIZATION_KEY="$FUNDING_AUTHORIZATION_KEY" python3 - <<'PY'
 import json
 import os
 import time
@@ -159,6 +186,7 @@ import urllib.request
 rpc_url = os.environ["RPC_URL"]
 recipient = os.environ["RECIPIENT_PUBKEY"]
 history_file = os.environ["HISTORY_FILE"]
+funding_authorization_key = os.environ["FUNDING_AUTHORIZATION_KEY"]
 
 
 def rpc(method, params=None):
@@ -172,7 +200,14 @@ def rpc(method, params=None):
 
 
 genesis = rpc("getGenesisHash")
-signature = rpc("requestAirdrop", [recipient, 1_000_000_000])
+signature = rpc(
+    "requestAirdrop",
+    [
+        recipient,
+        1_000_000_000,
+        {"fundingAuthorization": funding_authorization_key},
+    ],
+)
 
 # A confirmed transaction is not sufficient for a restart-continuity assertion:
 # TestValidator replays rooted ledger state on restart. Wait until the airdrop is
@@ -324,6 +359,7 @@ run_social_bootstrap() {
 
 run_protocol_bootstrap() {
   local reset_ledger="${1:-0}"
+  AEKO_NETWORK=localnet \
   AEKO_RPC_URL="$RPC_URL" \
   AEKO_PAYER_KEYPAIR="$LEDGER_DIR/faucet-keypair.json" \
   AEKO_PROTOCOL_AUTHORITY_KEYPAIR="$AUTHORITY_KEYPAIR" \
@@ -499,6 +535,26 @@ if [ "$postgres_ready" -ne 1 ]; then
   false
 fi
 
+cp "$SOCIAL_STATE_DIR/social-registry.env" "$REGISTRY_HTTP_DIR/social-registry.env"
+cp "$STATE_DIR/protocol-registry.env" "$REGISTRY_HTTP_DIR/protocol-registry.env"
+python3 -m http.server 18089 --bind 127.0.0.1 --directory "$REGISTRY_HTTP_DIR" \
+  >"$WORK_DIR/registry-http.log" 2>&1 &
+REGISTRY_PID=$!
+
+registry_ready=0
+for _ in $(seq 1 30); do
+  if curl -fsS "$REGISTRY_URL/social-registry.env" >/dev/null 2>&1 \
+    && curl -fsS "$REGISTRY_URL/protocol-registry.env" >/dev/null 2>&1; then
+    registry_ready=1
+    break
+  fi
+  sleep 0.2
+done
+if [ "$registry_ready" -ne 1 ]; then
+  echo "remote bootstrap registry did not become readable" >&2
+  false
+fi
+
 AEKO_RPC_URL="$RPC_URL" \
 AEKO_NETWORK=localnet \
 AEKO_EXPLORER_START_SLOT=0 \
@@ -516,10 +572,15 @@ AEKO_EXPLORER_BIND=127.0.0.1:18088 \
 AEKO_EXPLORER_REQUEST_TIMEOUT_SECS=30 \
 AEKO_EXPLORER_MAX_BODY_BYTES=1048576 \
 AEKO_EXPLORER_SYNC_INTERVAL_SECS=1 \
-AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=protocol-ci-settings-admin-token-123456789 \
+AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN="$FUNDING_ADMIN_TOKEN" \
+AEKO_FUNDING_AUTHORIZATION_KEY="$FUNDING_AUTHORIZATION_KEY" \
+AEKO_FUNDING_REQUESTS_PER_10_MIN=5 \
+AEKO_FUNDING_RECONCILE_INTERVAL_SECS=1 \
+AEKO_FAUCET_PER_REQUEST_CAP=100 \
 AEKO_RESET_LEDGER=0 \
-AEKO_PROTOCOL_REGISTRY_FILE="$STATE_DIR/protocol-registry.env" \
-AEKO_SOCIAL_REGISTRY_FILE="$SOCIAL_STATE_DIR/social-registry.env" \
+AEKO_REGISTRY_URL="$REGISTRY_URL" \
+AEKO_REGISTRY_REFRESH_SECONDS=1 \
+AEKO_REGISTRY_FETCH_TIMEOUT_SECONDS=2 \
 target/debug/aeko-explorer-backend >"$EXPLORER_LOG" 2>&1 &
 EXPLORER_PID=$!
 
@@ -548,6 +609,251 @@ if [ "$network_ready" -ne 1 ]; then
   echo "Explorer network readiness did not certify Social + Protocol" >&2
   false
 fi
+
+python3 - "$EXPLORER_URL" <<'PY'
+import json
+import sys
+import urllib.request
+
+base = sys.argv[1]
+with urllib.request.urlopen(base + "/registry", timeout=15) as response:
+    discovery = json.load(response)["data"]
+if discovery != {
+    "social": "/registry/social",
+    "protocol": "/registry/protocol",
+}:
+    raise RuntimeError(f"unexpected Explorer registry discovery payload: {discovery}")
+
+for path in ("/registry/social", "/registry/protocol"):
+    with urllib.request.urlopen(base + path, timeout=15) as response:
+        payload = json.load(response)["data"]
+    if payload.get("complete") is not True:
+        raise RuntimeError(f"remote registry-backed {path} is incomplete: {payload}")
+print("[ok] Explorer registry discovery and remote Social/Protocol registry consumption passed")
+PY
+
+RPC_URL="$RPC_URL" EXPLORER_URL="$EXPLORER_URL" \
+RECIPIENT_PUBKEY="$RECIPIENT_PUBKEY" FUNDING_ADMIN_TOKEN="$FUNDING_ADMIN_TOKEN" \
+python3 - <<'PY'
+import json
+import os
+import time
+import urllib.error
+import urllib.request
+from decimal import Decimal, ROUND_HALF_UP
+
+rpc_url = os.environ["RPC_URL"]
+explorer_url = os.environ["EXPLORER_URL"].rstrip("/")
+recipient = os.environ["RECIPIENT_PUBKEY"]
+admin_token = os.environ["FUNDING_ADMIN_TOKEN"]
+lamports_per_aeko = Decimal("1000000000")
+
+
+def request_json(method, path, payload=None, admin=False, expected=200):
+    body = None if payload is None else json.dumps(payload).encode()
+    headers = {"Accept": "application/json"}
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+    if admin:
+        headers["x-aeko-settings-token"] = admin_token
+    request = urllib.request.Request(
+        explorer_url + path,
+        data=body,
+        headers=headers,
+        method=method,
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            raw = response.read()
+            if response.status != expected:
+                raise RuntimeError(
+                    f"{method} {path}: HTTP {response.status}, expected {expected}: "
+                    f"{raw[:500]!r}"
+                )
+            return json.loads(raw)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace")
+        raise RuntimeError(f"{method} {path}: HTTP {exc.code}: {detail[:800]}") from exc
+
+
+def rpc(method, params=None):
+    body = json.dumps(
+        {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
+    ).encode()
+    request = urllib.request.Request(
+        rpc_url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        payload = json.load(response)
+    if payload.get("error"):
+        raise RuntimeError(f"RPC {method}: {payload['error']}")
+    return payload["result"]
+
+
+def balance(address):
+    value = rpc("getBalance", [address, {"commitment": "confirmed"}])
+    return int(value["value"] if isinstance(value, dict) else value)
+
+
+# The running TestValidator is configured with the server-only authorization
+# key. A browser-style direct requestAirdrop without that key must fail.
+unauthorized_body = json.dumps(
+    {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "requestAirdrop",
+        "params": [recipient, 1],
+    }
+).encode()
+unauthorized_request = urllib.request.Request(
+    rpc_url,
+    data=unauthorized_body,
+    headers={"Content-Type": "application/json"},
+)
+with urllib.request.urlopen(unauthorized_request, timeout=30) as response:
+    unauthorized = json.load(response)
+if not unauthorized.get("error"):
+    raise RuntimeError("protected requestAirdrop unexpectedly accepted a request without authorization")
+if int(unauthorized["error"].get("code", 0)) != -32600:
+    raise RuntimeError(f"protected requestAirdrop returned unexpected error: {unauthorized}")
+print("[ok] live Validator rejects unauthorized direct requestAirdrop")
+
+policy = request_json("GET", "/funding/policy")["data"]
+if policy.get("enabled") is not True:
+    raise RuntimeError(f"funding policy is not enabled: {policy}")
+amount = Decimal(str(policy["amountAeko"]))
+expected_lamports = int(
+    (amount * lamports_per_aeko).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+)
+before = balance(recipient)
+
+created = request_json(
+    "POST",
+    "/funding/request",
+    {"address": recipient},
+    expected=202,
+)["data"]
+if created.get("status") != "pending":
+    raise RuntimeError(f"public funding request was not pending: {created}")
+request_id = created["id"]
+print(f"[ok] live Explorer created pending funding request {request_id}")
+
+unauthorized_decision = urllib.request.Request(
+    explorer_url + f"/admin/funding/requests/{request_id}/decide",
+    data=json.dumps({"approved": True}).encode(),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+try:
+    urllib.request.urlopen(unauthorized_decision, timeout=30)
+except urllib.error.HTTPError as exc:
+    if exc.code != 401:
+        raise RuntimeError(
+            f"unauthorized grant decision returned HTTP {exc.code}, expected 401"
+        ) from exc
+else:
+    raise RuntimeError("Explorer accepted an Admin grant decision without the Admin token")
+print("[ok] live Explorer rejects unauthenticated grant decisions")
+
+approved = request_json(
+    "POST",
+    f"/admin/funding/requests/{request_id}/decide",
+    {"approved": True},
+    admin=True,
+)["data"]
+if approved.get("status") not in {"submitted", "confirmed"}:
+    raise RuntimeError(f"grant approval returned unexpected state: {approved}")
+
+confirmed = None
+for _ in range(90):
+    current = request_json("GET", f"/funding/request/{request_id}")["data"]
+    if current.get("status") == "confirmed":
+        confirmed = current
+        break
+    if current.get("status") in {"failed", "rejected"}:
+        raise RuntimeError(f"grant entered terminal failure state: {current}")
+    time.sleep(0.5)
+if confirmed is None:
+    raise RuntimeError("approved grant did not converge to confirmed")
+
+grant_signature = confirmed.get("signature")
+if not grant_signature:
+    raise RuntimeError("confirmed grant has no signature")
+
+after = balance(recipient)
+if after - before < expected_lamports:
+    raise RuntimeError(
+        f"confirmed grant balance delta {after - before} < expected {expected_lamports}"
+    )
+
+grants = request_json(
+    "GET",
+    "/admin/funding/grants?limit=500",
+    admin=True,
+)["data"]
+matching = [
+    grant
+    for grant in grants
+    if grant.get("requestId") == request_id
+    and grant.get("signature") == grant_signature
+    and grant.get("confirmed") is True
+]
+if len(matching) != 1:
+    raise RuntimeError(
+        f"expected exactly one confirmed grant for {request_id}, found {len(matching)}"
+    )
+print("[ok] live funding approval changed chain balance and recorded exactly one confirmed grant")
+
+airdrop = request_json(
+    "POST",
+    "/funding/airdrop",
+    {"address": recipient, "amountAeko": 1.0},
+)["data"]
+airdrop_id = airdrop.get("id")
+airdrop_signature = airdrop.get("signature")
+if not airdrop_id or not airdrop_signature:
+    raise RuntimeError(f"developer airdrop did not return durable identity/signature: {airdrop}")
+
+confirmed_airdrop = None
+for _ in range(90):
+    airdrops = request_json(
+        "GET",
+        "/admin/funding/airdrops?limit=500",
+        admin=True,
+    )["data"]
+    matches = [entry for entry in airdrops if entry.get("id") == airdrop_id]
+    if matches and matches[0].get("status") == "confirmed":
+        confirmed_airdrop = matches[0]
+        break
+    if matches and matches[0].get("status") == "failed":
+        raise RuntimeError(f"developer airdrop failed: {matches[0]}")
+    time.sleep(0.5)
+if confirmed_airdrop is None:
+    raise RuntimeError("developer airdrop did not converge to confirmed")
+
+grants_after_airdrop = request_json(
+    "GET",
+    "/admin/funding/grants?limit=500",
+    admin=True,
+)["data"]
+if any(grant.get("signature") == airdrop_signature for grant in grants_after_airdrop):
+    raise RuntimeError("developer airdrop leaked into the confirmed grant ledger")
+if grant_signature == airdrop_signature:
+    raise RuntimeError("grant and developer airdrop unexpectedly share a transaction signature")
+
+print(
+    "[ok] live protected funding path: request -> Admin approval -> Validator/Faucet -> "
+    "chain confirmation, with developer airdrops kept in a separate ledger"
+)
+PY
+
+AEKO_RPC_URL="$RPC_URL" \
+AEKO_HELLO_PAYER_KEYPAIR="$LEDGER_DIR/faucet-keypair.json" \
+AEKO_HELLO_PROGRAM_SO="$HELLO_PROGRAM_SO" \
+AEKO_HELLO_PROGRAM_KEYPAIR="$HELLO_PROGRAM_KEYPAIR" \
+python3 scripts/smoke-hello-program.py
 
 AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_URL" python3 scripts/smoke-aeko-social.py
 AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_URL" python3 scripts/smoke-aeko-protocol.py
@@ -578,5 +884,5 @@ if data["protocol"]["healthyCustody"] != 3 or data["protocol"]["custodyTotal"] !
 print("[ok] strict network readiness reports Social 5/5 state + 5/5 custody, Protocol 11/11 programs + 8/8 state + 3/3 custody")
 PY
 
-echo "[PASS] ledger continuity, genesis-bound Social/Protocol lifecycle, interrupted-reset recovery, Explorer readiness and smoke integration"
+echo "[PASS] ledger continuity, genesis-bound Social/Protocol lifecycle, interrupted-reset recovery, protected funding, Hello World SBF build/deploy/invoke, Explorer readiness and smoke integration"
 

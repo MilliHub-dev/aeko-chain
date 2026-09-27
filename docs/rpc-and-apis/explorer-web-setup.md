@@ -44,9 +44,11 @@ AEKO_EXPLORER_API_URL=https://api.aeko.online
 ```
 
 Optional complete `AEKO_MAINNET_*`, `AEKO_TESTNET_*` and
-`AEKO_DEVNET_*` RPC/WS/Explorer-API triplets make those remote networks
-selectable. Devnet is a real network when configured; it is not an alias for
-localnet or testnet.
+`AEKO_DEVNET_*` RPC/WS/Explorer-API triplets can route to independent
+deployments. The standard public network selector contains Mainnet and Testnet
+only. Devnet is still a real independently configured development environment,
+not an alias for localnet or testnet, and may be the active environment for a
+dedicated deployment without becoming a public selector option.
 
 The Scan container injects a normalized `{network, networks, demo}` runtime
 object. Browser indexed reads remain same-origin under
@@ -79,6 +81,12 @@ cargo run -p aeko-explorer-backend
 Useful indexing controls include `AEKO_EXPLORER_START_SLOT`,
 `AEKO_EXPLORER_MAX_BATCH_SIZE`, and
 `AEKO_EXPLORER_SYNC_INTERVAL_SECS`.
+
+For split deployments, set `AEKO_REGISTRY_URL` to that network's read-only
+registry service. Explorer fetches `social-registry.env` and
+`protocol-registry.env` from it with the configured timeout/refresh cache.
+Mounted `AEKO_SOCIAL_REGISTRY_FILE` and `AEKO_PROTOCOL_REGISTRY_FILE`
+remain the local/co-located precedence path.
 
 ## Run Explorer Web locally
 

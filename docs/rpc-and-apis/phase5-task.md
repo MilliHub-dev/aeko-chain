@@ -12,15 +12,15 @@ This plan combines the new Phase 5 breakdown with the current assumptions alread
 
 The current docs already promise several things Phase 5 should preserve and formalize:
 
-- [`docs/rpc-and-apis/rpc-overview.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/rpc-overview.md) establishes JSON-RPC as the primary developer interface and already assumes public cluster endpoints
-- [`docs/rpc-and-apis/rpc-reference.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/rpc-reference.md) already names baseline methods such as `getAccountInfo`, `getBalance`, and `sendTransaction`
-- [`docs/rpc-and-apis/websocket.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/websocket.md) already assumes real-time subscriptions for account and log updates
-- [`docs/rpc-and-apis/rate-limits.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/rate-limits.md) already commits AEKO to tiered public, developer, and partner access rules
-- [`docs/rpc-and-apis/explorer-api.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/explorer-api.md) already promises explorer-facing APIs for blocks, transactions, accounts, tokens, NFTs, and posts
-- [`docs/socialfi/socialfi-overview.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi-overview.md) already frames AEKO as a SocialFi-native chain
-- [`docs/socialfi/reward-model.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/reward-model.md) already assumes proof-of-engagement, creator payouts, and social-bonus logic
-- [`docs/socialfi/reputation-system.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/reputation-system.md) already assumes a chain-readable reputation score used in feeds and governance
-- [`docs/socialfi/creator-economy.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/creator-economy.md) already assumes creator coins, collectibles, and subscription-style monetization
+- [`docs/rpc-and-apis/rpc-overview.md`](./rpc-overview.md) establishes JSON-RPC as the primary developer interface and already assumes public cluster endpoints
+- [`docs/rpc-and-apis/rpc-reference.md`](./rpc-reference.md) already names baseline methods such as `getAccountInfo`, `getBalance`, and `sendTransaction`
+- [`docs/rpc-and-apis/websocket.md`](./websocket.md) already assumes real-time subscriptions for account and log updates
+- [`docs/rpc-and-apis/rate-limits.md`](./rate-limits.md) already commits AEKO to tiered public, developer, and partner access rules
+- [`docs/rpc-and-apis/explorer-api.md`](./explorer-api.md) already promises explorer-facing APIs for blocks, transactions, accounts, tokens, NFTs, and posts
+- [`docs/socialfi/socialfi-overview.md`](../socialfi/socialfi-overview.md) already frames AEKO as a SocialFi-native chain
+- [`docs/socialfi/reward-model.md`](../socialfi/reward-model.md) already assumes proof-of-engagement, creator payouts, and social-bonus logic
+- [`docs/socialfi/reputation-system.md`](../socialfi/reputation-system.md) already assumes a chain-readable reputation score used in feeds and governance
+- [`docs/socialfi/creator-economy.md`](../socialfi/creator-economy.md) already assumes creator coins, collectibles, and subscription-style monetization
 
 Phase 5 should refine and implement those assumptions rather than replace them casually.
 
@@ -60,7 +60,7 @@ This is the blocking foundation for the rest of Phase 5.
 
 Deliverable:
 
-- [`docs/socialfi/socialfi.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi.md)
+- [`docs/socialfi/socialfi.md`](../socialfi/socialfi.md)
 
 Required work:
 
@@ -139,8 +139,8 @@ Deliverables:
 
 - production RPC service design
 - stable JSON-RPC method set
-- updated [`docs/rpc-and-apis/rpc-reference.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/rpc-reference.md)
-- updated [`docs/rpc-and-apis/websocket.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/websocket.md)
+- updated [`docs/rpc-and-apis/rpc-reference.md`](./rpc-reference.md)
+- updated [`docs/rpc-and-apis/websocket.md`](./websocket.md)
 
 Acceptance criteria:
 
@@ -313,7 +313,7 @@ Deliverables:
 
 - deployed explorer backend
 - stable explorer API contract
-- updated [`docs/rpc-and-apis/explorer-api.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/explorer-api.md)
+- updated [`docs/rpc-and-apis/explorer-api.md`](./explorer-api.md)
 
 Acceptance criteria:
 
@@ -420,48 +420,48 @@ Deliverables:
 
 Current spec deliverables:
 
-- [`docs/socialfi/reward-contract.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/reward-contract.md)
-- [`docs/socialfi/social-posts-contract.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/social-posts-contract.md)
-- [`docs/socialfi/post-signature-flow.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/post-signature-flow.md)
-- [`docs/socialfi/social-staking-contract.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/social-staking-contract.md)
-- [`docs/socialfi/creator-monetization-contract.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/creator-monetization-contract.md)
-- [`docs/socialfi/anti-spam-contract.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/anti-spam-contract.md)
-- [`docs/rpc-and-apis/aeko-social-backend-integration.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/aeko-social-backend-integration.md)
+- [`docs/socialfi/reward-contract.md`](../socialfi/reward-contract.md)
+- [`docs/socialfi/social-posts-contract.md`](../socialfi/social-posts-contract.md)
+- [`docs/socialfi/post-signature-flow.md`](../socialfi/post-signature-flow.md)
+- [`docs/socialfi/social-staking-contract.md`](../socialfi/social-staking-contract.md)
+- [`docs/socialfi/creator-monetization-contract.md`](../socialfi/creator-monetization-contract.md)
+- [`docs/socialfi/anti-spam-contract.md`](../socialfi/anti-spam-contract.md)
+- [`docs/rpc-and-apis/aeko-social-backend-integration.md`](./aeko-social-backend-integration.md)
 
 Current implementation progress:
 
-- SocialFi RPC request/config/response types added in [`rpc-client-api`](/Users/ok/Documents/projects/aeko-chain/rpc-client-api)
-- SocialFi read-only RPC server surface added in [`rpc/src/rpc.rs`](/Users/ok/Documents/projects/aeko-chain/rpc/src/rpc.rs) and registered in [`rpc/src/rpc_service.rs`](/Users/ok/Documents/projects/aeko-chain/rpc/src/rpc_service.rs)
-- SocialFi RPC placeholder read behavior covered by RPC tests in [`rpc/src/rpc.rs`](/Users/ok/Documents/projects/aeko-chain/rpc/src/rpc.rs)
-- SocialFi reward and staking RPC reads now resolve real on-chain program state through [`rpc/src/rpc/account_resolver.rs`](/Users/ok/Documents/projects/aeko-chain/rpc/src/rpc/account_resolver.rs) for creator rewards, claimable rewards, reward epochs, and social stake positions
-- SocialFi reputation RPC reads now resolve anti-spam-backed on-chain profile state through [`rpc/src/rpc/account_resolver.rs`](/Users/ok/Documents/projects/aeko-chain/rpc/src/rpc/account_resolver.rs); engagement score and post-anchor reads still need dedicated canonical state
-- social posts support contract added in [`programs/social-posts`](/Users/ok/Documents/projects/aeko-chain/programs/social-posts) with canonical post anchors and replay-protected engagement proofs
-- post-signature and Aeko Social backend integration specs now exist in [`docs/socialfi/post-signature-flow.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/post-signature-flow.md) and [`docs/rpc-and-apis/aeko-social-backend-integration.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/aeko-social-backend-integration.md), explicitly defining the current split between backend signature verification and on-chain immutable anchoring
-- first-pass Aeko Social backend helpers for canonical post payload building, hashing, ed25519 verification, and `AnchorPost` transaction preparation now exist in [`sdk/node/src/socialPosts.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/node/src/socialPosts.ts)
-- a minimal reference Node backend for SocialFi post hashing, verification, anchoring, and persisted verification-status lookups now exists in [`sdk/node/examples/social-posts-backend.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/node/examples/social-posts-backend.ts)
+- SocialFi RPC request/config/response types added in [`rpc-client-api`](../../rpc-client-api)
+- SocialFi read-only RPC server surface added in [`rpc/src/rpc.rs`](../../rpc/src/rpc.rs) and registered in [`rpc/src/rpc_service.rs`](../../rpc/src/rpc_service.rs)
+- SocialFi RPC placeholder read behavior covered by RPC tests in [`rpc/src/rpc.rs`](../../rpc/src/rpc.rs)
+- SocialFi reward and staking RPC reads now resolve real on-chain program state through [`rpc/src/rpc/account_resolver.rs`](../../rpc/src/rpc/account_resolver.rs) for creator rewards, claimable rewards, reward epochs, and social stake positions
+- SocialFi reputation RPC reads now resolve anti-spam-backed on-chain profile state through [`rpc/src/rpc/account_resolver.rs`](../../rpc/src/rpc/account_resolver.rs); engagement score and post-anchor reads still need dedicated canonical state
+- social posts support contract added in [`programs/social-posts`](../../programs/social-posts) with canonical post anchors and replay-protected engagement proofs
+- post-signature and Aeko Social backend integration specs now exist in [`docs/socialfi/post-signature-flow.md`](../socialfi/post-signature-flow.md) and [`docs/rpc-and-apis/aeko-social-backend-integration.md`](./aeko-social-backend-integration.md), explicitly defining the current split between backend signature verification and on-chain immutable anchoring
+- first-pass Aeko Social backend helpers for canonical post payload building, hashing, ed25519 verification, and `AnchorPost` transaction preparation now exist in [`sdk/node/src/socialPosts.ts`](../../sdk/node/src/socialPosts.ts)
+- a minimal reference Node backend for SocialFi post hashing, verification, anchoring, and persisted verification-status lookups now exists in [`sdk/node/examples/social-posts-backend.ts`](../../sdk/node/examples/social-posts-backend.ts)
 - that reference backend now exposes a pluggable store adapter pattern and stable machine-readable error codes, making it a closer production template for Aeko Social integration
-- SocialFi post-anchor, creator-post, and engagement-event RPC reads now resolve real on-chain social-posts state through [`rpc/src/rpc/account_resolver.rs`](/Users/ok/Documents/projects/aeko-chain/rpc/src/rpc/account_resolver.rs)
-- SocialFi engagement score RPC reads now aggregate first-pass on-chain engagement proof weights from [`programs/social-posts`](/Users/ok/Documents/projects/aeko-chain/programs/social-posts)
-- `submitEngagementProof` now exists as a validated SocialFi RPC write wrapper in [`rpc/src/rpc.rs`](/Users/ok/Documents/projects/aeko-chain/rpc/src/rpc.rs), forwarding signed engagement transactions through the normal submission path
-- `stakeBehindCreator`, `unstakeBehindCreator`, and `claimSocialStakeYield` now exist as validated SocialFi RPC write wrappers in [`rpc/src/rpc.rs`](/Users/ok/Documents/projects/aeko-chain/rpc/src/rpc.rs), forwarding signed social-staking transactions through the normal submission path
-- explorer backend scaffold added in [`explorer-backend`](/Users/ok/Documents/projects/aeko-chain/explorer-backend) with config, indexer traits, read-store traits, and core explorer/socialfi record models
-- explorer backend now reads first-pass SocialFi snapshots directly from on-chain rewards, staking, posts, and anti-spam state in [`explorer-backend/src/indexer.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/indexer.rs), and an in-memory demo sync flow exists in [`explorer-backend/examples/demo_sync.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/examples/demo_sync.rs)
-- explorer backend now reads first-pass AEKO-20 account snapshots and AEKO-721 token snapshots directly from on-chain program state in [`explorer-backend/src/indexer.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/indexer.rs), and exposes those records through the explorer API service in [`explorer-backend/src/api.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/api.rs)
-- explorer backend now has a first runnable HTTP server in [`explorer-backend/src/server.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/server.rs) with a local boot example in [`explorer-backend/examples/api_server.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/examples/api_server.rs)
-- explorer HTTP server now exposes first-pass detail endpoints for blocks, posts, and NFTs in [`explorer-backend/src/server.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/server.rs)
-- explorer HTTP server now returns richer composite account and creator views in [`explorer-backend/src/server.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/server.rs) and [`explorer-backend/src/api.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/api.rs)
-- explorer backend now exposes a first-pass AEKO-20 token summary endpoint in [`explorer-backend/src/server.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/server.rs) and [`explorer-backend/src/api.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/api.rs)
-- explorer backend now exposes a first-pass AEKO-721 collection summary endpoint in [`explorer-backend/src/server.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/server.rs) and [`explorer-backend/src/api.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/api.rs)
-- explorer HTTP routes now support first-pass filtering and pagination-style query params for blocks, transactions, token transfers, NFTs, posts, engagement, and stakes in [`explorer-backend/src/server.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/server.rs)
-- web/frontend explorer wiring is now documented in [`docs/rpc-and-apis/explorer-web-setup.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/explorer-web-setup.md) and backed by env variables in [`web/.env.example`](/Users/ok/Documents/projects/aeko-chain/web/.env.example)
-- reward program scaffold added in [`programs/social-rewards`](/Users/ok/Documents/projects/aeko-chain/programs/social-rewards)
-- reward epoch settlement logic and processor tests added in [`programs/social-rewards`](/Users/ok/Documents/projects/aeko-chain/programs/social-rewards)
-- social staking program scaffold added in [`programs/social-staking`](/Users/ok/Documents/projects/aeko-chain/programs/social-staking)
-- social staking lifecycle checks and processor tests added in [`programs/social-staking`](/Users/ok/Documents/projects/aeko-chain/programs/social-staking)
-- creator monetization program scaffold added in [`programs/social-monetization`](/Users/ok/Documents/projects/aeko-chain/programs/social-monetization)
-- creator monetization fee-routing, subscription lifecycle checks, unlock uniqueness checks, and processor tests added in [`programs/social-monetization`](/Users/ok/Documents/projects/aeko-chain/programs/social-monetization)
-- anti-spam program scaffold added in [`programs/social-anti-spam`](/Users/ok/Documents/projects/aeko-chain/programs/social-anti-spam)
-- anti-spam eligibility enforcement and processor tests added in [`programs/social-anti-spam`](/Users/ok/Documents/projects/aeko-chain/programs/social-anti-spam)
+- SocialFi post-anchor, creator-post, and engagement-event RPC reads now resolve real on-chain social-posts state through [`rpc/src/rpc/account_resolver.rs`](../../rpc/src/rpc/account_resolver.rs)
+- SocialFi engagement score RPC reads now aggregate first-pass on-chain engagement proof weights from [`programs/social-posts`](../../programs/social-posts)
+- `submitEngagementProof` now exists as a validated SocialFi RPC write wrapper in [`rpc/src/rpc.rs`](../../rpc/src/rpc.rs), forwarding signed engagement transactions through the normal submission path
+- `stakeBehindCreator`, `unstakeBehindCreator`, and `claimSocialStakeYield` now exist as validated SocialFi RPC write wrappers in [`rpc/src/rpc.rs`](../../rpc/src/rpc.rs), forwarding signed social-staking transactions through the normal submission path
+- explorer backend scaffold added in [`explorer-backend`](../../explorer-backend) with config, indexer traits, read-store traits, and core explorer/socialfi record models
+- explorer backend now reads first-pass SocialFi snapshots directly from on-chain rewards, staking, posts, and anti-spam state in [`explorer-backend/src/indexer.rs`](../../explorer-backend/src/indexer.rs), and an in-memory demo sync flow exists in [`explorer-backend/examples/demo_sync.rs`](../../explorer-backend/examples/demo_sync.rs)
+- explorer backend now reads first-pass AEKO-20 account snapshots and AEKO-721 token snapshots directly from on-chain program state in [`explorer-backend/src/indexer.rs`](../../explorer-backend/src/indexer.rs), and exposes those records through the explorer API service in [`explorer-backend/src/api.rs`](../../explorer-backend/src/api.rs)
+- explorer backend now has a first runnable HTTP server in [`explorer-backend/src/server.rs`](../../explorer-backend/src/server.rs) with a local boot example in [`explorer-backend/examples/api_server.rs`](../../explorer-backend/examples/api_server.rs)
+- explorer HTTP server now exposes first-pass detail endpoints for blocks, posts, and NFTs in [`explorer-backend/src/server.rs`](../../explorer-backend/src/server.rs)
+- explorer HTTP server now returns richer composite account and creator views in [`explorer-backend/src/server.rs`](../../explorer-backend/src/server.rs) and [`explorer-backend/src/api.rs`](../../explorer-backend/src/api.rs)
+- explorer backend now exposes a first-pass AEKO-20 token summary endpoint in [`explorer-backend/src/server.rs`](../../explorer-backend/src/server.rs) and [`explorer-backend/src/api.rs`](../../explorer-backend/src/api.rs)
+- explorer backend now exposes a first-pass AEKO-721 collection summary endpoint in [`explorer-backend/src/server.rs`](../../explorer-backend/src/server.rs) and [`explorer-backend/src/api.rs`](../../explorer-backend/src/api.rs)
+- explorer HTTP routes now support first-pass filtering and pagination-style query params for blocks, transactions, token transfers, NFTs, posts, engagement, and stakes in [`explorer-backend/src/server.rs`](../../explorer-backend/src/server.rs)
+- web/frontend explorer wiring is now documented in [`docs/rpc-and-apis/explorer-web-setup.md`](./explorer-web-setup.md) and backed by env variables in [`web/.env.example`](../../web/.env.example)
+- reward program scaffold added in [`programs/social-rewards`](../../programs/social-rewards)
+- reward epoch settlement logic and processor tests added in [`programs/social-rewards`](../../programs/social-rewards)
+- social staking program scaffold added in [`programs/social-staking`](../../programs/social-staking)
+- social staking lifecycle checks and processor tests added in [`programs/social-staking`](../../programs/social-staking)
+- creator monetization program scaffold added in [`programs/social-monetization`](../../programs/social-monetization)
+- creator monetization fee-routing, subscription lifecycle checks, unlock uniqueness checks, and processor tests added in [`programs/social-monetization`](../../programs/social-monetization)
+- anti-spam program scaffold added in [`programs/social-anti-spam`](../../programs/social-anti-spam)
+- anti-spam eligibility enforcement and processor tests added in [`programs/social-anti-spam`](../../programs/social-anti-spam)
 
 Acceptance criteria:
 
@@ -481,7 +481,7 @@ Phase 5 is not complete until:
 
 ## Phase 5 Deliverables
 
-- [`docs/socialfi/socialfi.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi.md)
+- [`docs/socialfi/socialfi.md`](../socialfi/socialfi.md)
 - expanded RPC reference docs
 - expanded websocket and rate-limit docs
 - explorer backend and API docs
@@ -504,6 +504,6 @@ Phase 5 is not complete until:
 
 The first Phase 5 deliverable should be:
 
-- [`docs/socialfi/socialfi.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi.md)
+- [`docs/socialfi/socialfi.md`](../socialfi/socialfi.md)
 
 Nothing in the SocialFi RPC or explorer layer should be treated as stable until that foundation is signed off.

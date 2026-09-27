@@ -8,11 +8,13 @@ Coolify now has two deployment contracts:
 
 | Contract | Purpose |
 | --- | --- |
-| docker/coolify/*/compose.yml | preferred split resources; validator, Explorer API/UI and Operations Web can be deployed independently |
+| infrastructure `docker/coolify/*/compose.yml` plus app-owned `apps/**/compose.coolify.yml` | preferred split resources; each deployable application owns its Compose and `.env.coolify.example` beside its source |
 | docker/compose.coolify.yml | compatibility contract for the existing all-in-one resource and rollback during migration |
 
 For new Coolify resources, create one Git-based Docker Compose application per
-folder under docker/coolify and select that folder's compose.yml. Do not point
+resource. Infrastructure uses `docker/coolify/<resource>/compose.yml`; Explorer
+API, Scan, and Operations Web use the app-owned paths below and the adjacent
+`.env.coolify.example`. Do not point
 every resource at docker/compose.coolify.yml.
 
 The split files pull the same published images as the legacy contract. They do
@@ -104,8 +106,9 @@ Validator, bootstrap, Explorer API, Faucet or Operations Web.
 Aeko Scan is the only multi-network boundary. Its generic values define the
 active/default network; optional complete `AEKO_MAINNET_*`,
 `AEKO_TESTNET_*` and `AEKO_DEVNET_*` RPC/WS/Explorer-API triplets describe
-other independently deployed networks available in the UI toggle. Localnet is
-for local development.
+other independently deployed networks. The normal public Scan selector exposes
+Mainnet and Testnet only; Devnet/Localnet remain explicit development
+environments rather than public choices.
 
 Explorer API additionally owns `EXPLORER_DATABASE_URL` and the Explorer
 settings token. Operations Web owns its admin credentials. Bootstrap and
@@ -140,7 +143,7 @@ You do not need to set `AEKO_KEYS_DIR` in the Coolify dashboard and you do not n
 
 For a fresh chain, provision the intended chain keys under `/data/aeko/keys` before the full bootstrap application is deployed, then bring up Faucet and Validator. After Validator RPC is healthy, deploy the full bootstrap resource; its key-bootstrap service verifies those keys before Social/Protocol run. If these resources are on different Ubuntu hosts, remember that the same `/data/aeko/keys` path is host-local; provision only the required key files to each host through your secure custody process. Never commit keypairs or place them in a disposable Git checkout.
 
-Both Coolify contracts use literal bind sources. The legacy monolith fixes `/data/aeko/keys`; the split resources also fix their state directories under `/data/aeko/**`. No split bind `source:` contains `${...}` interpolation. Runtime consumers mount key/registry data read-only where possible, while explicit operator/bootstrap jobs receive only the write access they require. This is intentional because the current Coolify volume validator rejects interpolation in bind sources.
+Both Coolify contracts use literal bind sources. The legacy single-resource Compose stack fixes `/data/aeko/keys`; the split resources also fix their state directories under `/data/aeko/**`. No split bind `source:` contains `${...}` interpolation. Runtime consumers mount key/registry data read-only where possible, while explicit operator/bootstrap jobs receive only the write access they require. This is intentional because the current Coolify volume validator rejects interpolation in bind sources.
 
 ## Persistent chain state
 
@@ -173,9 +176,12 @@ The split Explorer API does not mount either bootstrap state directory and does
 not require dozens of copied registry environment variables. After Social and
 Protocol bootstrap succeed, the co-located `registry` service serves only the
 generated `social-registry.env` and `protocol-registry.env` files read-only
-at `registry.aeko.online`. Explorer API fetches a matching schema/genesis pair
-before startup and refreshes it periodically. The registry service never mounts
-or exposes `/data/aeko/keys`.
+at `registry.aeko.online`. Explorer API resolves those documents through
+`AEKO_REGISTRY_URL` when registry/status/readiness is evaluated, caches them
+for `AEKO_REGISTRY_REFRESH_SECONDS`, and retains the last good cached copy
+through a temporary refresh failure. Strict network readiness still requires
+the resolved schema/genesis to match the live validator. The registry service
+never mounts or exposes `/data/aeko/keys`.
 
 For the complete migration sequence and registry discovery contract, use
 `docker/coolify/README.md`.
@@ -204,9 +210,9 @@ same-origin read proxy and Operations Web. Browser navigation still uses
 `scan.aeko.online`; the browser is not required to call the API origin
 directly.
 
-`registry.aeko.online` exposes only `/healthz`,
-`/social-registry.env`, and `/protocol-registry.env`; all other paths
-return 404.
+`registry.aeko.online/` returns a non-secret JSON discovery manifest.
+`/healthz`, `/social-registry.env`, and `/protocol-registry.env` expose
+the health and two read-only registry documents; unknown paths return 404.
 
 Do not configure `gossip.aeko.online` as an HTTP route. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record
 directly to the Validator host and allow inbound TCP+UDP `8000-8050`.
@@ -223,9 +229,9 @@ For the split topology, create six separate Coolify applications:
 1. `docker/coolify/bootstrap/compose.yml`
 2. `docker/coolify/faucet-tools/compose.yml`
 3. `docker/coolify/validator/compose.yml`
-4. `docker/coolify/explorer-api/compose.yml`
-5. `docker/coolify/explorer-ui/compose.yml`
-6. `docker/coolify/operations-web/compose.yml`
+4. `apps/explorer/backend/compose.coolify.yml`
+5. `apps/explorer/web/compose.coolify.yml`
+6. `apps/admin/compose.coolify.yml`
 
 `wallet-tools` is already inside `faucet-tools` under the `ops` profile, so
 it does not need another Coolify application.
@@ -241,7 +247,9 @@ For an established chain:
 5. deploy `bootstrap`; key preflight runs first, then Social and Protocol may
    run in parallel against `AEKO_RPC_URL`; require the registry
    service to become healthy at `https://registry.aeko.online/healthz`;
-6. deploy Explorer API and verify it can fetch both registry files;
+6. deploy Explorer API and verify it can fetch both registry files through
+   `AEKO_REGISTRY_URL` and that `/network/readiness` accepts their live
+   genesis binding;
 7. deploy Explorer UI and Operations Web independently.
 
 For a genuinely new chain, provision/generate the intended keys before first
@@ -299,7 +307,7 @@ The signed browser write path in the Explorer test console remains the final end
 
 If Coolify reports an error such as `Invalid Docker volume definition` or `Invalid volume source` before containers start:
 
-1. Confirm the application uses the intended docker/coolify/<resource>/compose.yml path, or the legacy docker/compose.coolify.yml only when intentionally using the monolith.
+1. Confirm the application uses its intended split Compose path (`docker/coolify/<resource>/compose.yml` for infrastructure or `apps/**/compose.coolify.yml` for deployable apps), or the legacy `docker/compose.coolify.yml` only when intentionally using the monolith.
 2. Confirm every bind source is a literal /data/aeko/** path with no environment interpolation.
 3. Verify the required host directory/state exists before redeploying. Key bootstrap owns first-boot chain-key creation; it does not recreate an established ledger or bootstrap registry.
 

@@ -2,7 +2,7 @@
 
 Best practices for securing your AEKO assets.
 
-Security expectations should be read together with [`docs/wallet/identity.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/identity.md).
+Security expectations should be read together with [`docs/wallet/identity.md`](./identity.md).
 
 ## User Security
 1.  **Seed Phrase**: Never share your 12/24 word mnemonic.

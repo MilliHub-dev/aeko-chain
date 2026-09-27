@@ -10,9 +10,9 @@ Deploy the AEKO-20 reference program and its dependent tokenomics/public-mint co
 
 ## Programs In Scope
 
-- [`programs/tokenomics`](/Users/ok/Documents/projects/aeko-chain/programs/tokenomics)
-- [`programs/token-20`](/Users/ok/Documents/projects/aeko-chain/programs/token-20)
-- [`programs/public-mint`](/Users/ok/Documents/projects/aeko-chain/programs/public-mint)
+- [`programs/tokenomics`](../../programs/tokenomics)
+- [`programs/token-20`](../../programs/token-20)
+- [`programs/public-mint`](../../programs/public-mint)
 
 ## Prerequisites
 
@@ -24,9 +24,9 @@ Deploy the AEKO-20 reference program and its dependent tokenomics/public-mint co
 
 Reference docs:
 
-- [`docs/developer-sdk/cli-tools.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/cli-tools.md)
-- [`docs/rebrand-phase2-status.md`](/Users/ok/Documents/projects/aeko-chain/docs/rebrand-phase2-status.md)
-- [`tokenomics.md`](/Users/ok/Documents/projects/aeko-chain/tokenomics.md)
+- [`docs/developer-sdk/cli-tools.md`](../developer-sdk/cli-tools.md)
+- [`docs/rebrand-phase2-status.md`](../rebrand-phase2-status.md)
+- [`tokenomics.md`](../../tokenomics.md)
 
 ## Pre-Deployment Checks
 

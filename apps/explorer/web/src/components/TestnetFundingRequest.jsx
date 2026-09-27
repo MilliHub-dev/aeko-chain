@@ -1,8 +1,32 @@
 import { AlertTriangle, CheckCircle2, Droplets, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getFundingPolicy, requestFundingApproval } from '../utils/aekoRpcClient';
+import {
+  getFundingPolicy,
+  getFundingRequestStatus,
+  requestFundingApproval,
+} from '../utils/aekoRpcClient';
 
 const ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const TERMINAL_STATUSES = new Set(['confirmed', 'rejected', 'failed']);
+
+function requestMessage(request) {
+  switch (request?.status) {
+    case 'pending':
+      return 'Request received. It is waiting for an Admin decision.';
+    case 'processing':
+      return 'Admin approved the grant and settlement started. No action is required from you.';
+    case 'submitted':
+      return 'Admin approved the grant. The transfer was submitted and is awaiting chain confirmation.';
+    case 'confirmed':
+      return `${request.amountAeko} AEKO grant confirmed on-chain.`;
+    case 'rejected':
+      return 'The Admin rejected this funding request.';
+    case 'failed':
+      return 'The approved grant transfer failed on-chain. No confirmed grant was recorded.';
+    default:
+      return 'Funding request status is being checked.';
+  }
+}
 
 export default function TestnetFundingRequest({ fundingUrl }) {
   const [policy, setPolicy] = useState(
@@ -11,9 +35,10 @@ export default function TestnetFundingRequest({ fundingUrl }) {
   const [policyError, setPolicyError] = useState('');
   const [address, setAddress] = useState('');
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(
-    /** @type {{ kind: 'success' | 'error', message: string, requestId?: string } | null} */ (null),
+  const [request, setRequest] = useState(
+    /** @type {{ id: string, amountAeko: number, status: string, signature?: string | null, confirmed?: boolean, errorCode?: string | null } | null} */ (null),
   );
+  const [requestError, setRequestError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -43,6 +68,35 @@ export default function TestnetFundingRequest({ fundingUrl }) {
     };
   }, [fundingUrl]);
 
+  useEffect(() => {
+    if (!fundingUrl || !request?.id || TERMINAL_STATUSES.has(request.status)) return undefined;
+
+    let cancelled = false;
+    let timer;
+
+    async function refreshStatus() {
+      try {
+        const next = await getFundingRequestStatus(fundingUrl, request.id);
+        if (cancelled) return;
+        setRequest(next);
+        setRequestError('');
+        if (!TERMINAL_STATUSES.has(next.status)) {
+          timer = globalThis.setTimeout(refreshStatus, 4_000);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setRequestError(error.message || String(error));
+        timer = globalThis.setTimeout(refreshStatus, 8_000);
+      }
+    }
+
+    timer = globalThis.setTimeout(refreshStatus, 2_000);
+    return () => {
+      cancelled = true;
+      if (timer) globalThis.clearTimeout(timer);
+    };
+  }, [fundingUrl, request?.id, request?.status]);
+
   const valid = ADDRESS_RE.test(address.trim());
 
   async function submit(event) {
@@ -50,20 +104,20 @@ export default function TestnetFundingRequest({ fundingUrl }) {
     if (!valid || !fundingUrl || !policy?.enabled) return;
 
     setBusy(true);
-    setResult(null);
+    setRequest(null);
+    setRequestError('');
     try {
-      const request = await requestFundingApproval(fundingUrl, address.trim());
-      setResult({
-        kind: 'success',
-        message: `${request.amountAeko} AEKO funding request submitted for operator approval.`,
-        requestId: request.id,
-      });
+      const created = await requestFundingApproval(fundingUrl, address.trim());
+      setRequest(created);
     } catch (error) {
-      setResult({ kind: 'error', message: error.message || String(error) });
+      setRequestError(error.message || String(error));
     } finally {
       setBusy(false);
     }
   }
+
+  const requestSucceeded = request?.status === 'confirmed';
+  const requestFailed = request?.status === 'rejected' || request?.status === 'failed';
 
   return (
     <section className="mb-10 overflow-hidden rounded-2xl border border-aeko-accent/30 bg-gradient-to-br from-aeko-accent/[0.08] via-white/[0.025] to-transparent">
@@ -74,10 +128,10 @@ export default function TestnetFundingRequest({ fundingUrl }) {
               <Droplets size={19} className="text-aeko-accent" />
             </div>
             <div>
-              <div className="text-xs font-medium uppercase tracking-[0.16em] text-aeko-accent">Testnet Funding</div>
-              <h2 className="mt-1 text-2xl font-bold text-white">Get test AEKO</h2>
+              <div className="text-xs font-medium uppercase tracking-[0.16em] text-aeko-accent">Test funding request</div>
+              <h2 className="mt-1 text-2xl font-bold text-white">Request test AEKO</h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-400">
-                Paste any AEKO testnet wallet address. This creates a pending funding request for the operator to review and release from the Admin Console. Network Console airdrops are a separate developer flow.
+                Submit a wallet address from Aeko Scan. This only creates a request. An authenticated Admin must approve or reject the grant before any transfer is released. Developer Test Console airdrops are a separate flow.
               </p>
             </div>
           </div>
@@ -85,7 +139,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
           {policy && !policy.enabled ? (
             <div className="mb-4 flex gap-2 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3 text-sm text-amber-100">
               <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-              Testnet funding is currently paused by the operator.
+              Public test funding is currently paused by the Admin.
             </div>
           ) : null}
 
@@ -102,7 +156,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
               <input
                 value={address}
                 onChange={(event) => setAddress(event.target.value)}
-                placeholder="Paste a base58 AEKO testnet address"
+                placeholder="Paste a base58 AEKO test-network address"
                 spellCheck={false}
                 autoComplete="off"
                 className="min-h-[48px] w-full rounded-xl border border-white/10 bg-black/30 px-4 font-mono text-sm text-white outline-none transition focus:border-aeko-accent"
@@ -121,23 +175,63 @@ export default function TestnetFundingRequest({ fundingUrl }) {
             </button>
           </form>
 
-          {result ? (
-            <div className={`mt-4 rounded-xl border p-4 text-sm ${result.kind === 'success' ? 'border-green-400/25 bg-green-500/10 text-green-100' : 'border-red-400/25 bg-red-500/10 text-red-100'}`}>
+          {request ? (
+            <div
+              className={`mt-4 rounded-xl border p-4 text-sm ${
+                requestSucceeded
+                  ? 'border-green-400/25 bg-green-500/10 text-green-100'
+                  : requestFailed
+                    ? 'border-red-400/25 bg-red-500/10 text-red-100'
+                    : 'border-amber-400/25 bg-amber-400/10 text-amber-100'
+              }`}
+            >
               <div className="flex items-start gap-2">
-                {result.kind === 'success' ? <CheckCircle2 size={16} className="mt-0.5 shrink-0" /> : <AlertTriangle size={16} className="mt-0.5 shrink-0" />}
+                {requestSucceeded ? (
+                  <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
+                ) : requestFailed ? (
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                ) : (
+                  <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" />
+                )}
                 <div className="min-w-0">
-                  <div>{result.message}</div>
-                  {result.requestId ? <div className="mt-2 break-all font-mono text-[11px] text-gray-300">Request {result.requestId}</div> : null}
+                  <div>{requestMessage(request)}</div>
+                  <div className="mt-2 break-all font-mono text-[11px] text-gray-300">
+                    Request {request.id}
+                  </div>
+                  {request.signature ? (
+                    <div className="mt-1 break-all font-mono text-[11px] text-gray-400">
+                      Transaction {request.signature}
+                    </div>
+                  ) : null}
+                  {request.errorCode && !requestFailed ? (
+                    <div className="mt-1 text-xs text-amber-200/80">
+                      Settlement observation: {request.errorCode}
+                    </div>
+                  ) : null}
                 </div>
+              </div>
+            </div>
+          ) : null}
+
+          {requestError ? (
+            <div className="mt-4 flex gap-2 rounded-xl border border-red-400/25 bg-red-500/10 p-4 text-sm text-red-100">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              <div>
+                <div>{requestError}</div>
+                {request?.id ? (
+                  <div className="mt-1 text-xs text-red-100/70">
+                    Your request id is retained and status checks will retry automatically.
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : null}
         </div>
 
         <aside className="border-t border-white/10 bg-black/20 p-6 sm:p-8 lg:border-l lg:border-t-0">
-          <div className="text-sm font-semibold text-white">Funding policy</div>
+          <div className="text-sm font-semibold text-white">Grant policy</div>
           <p className="mt-1 text-xs leading-relaxed text-gray-500">
-            The funding service controls request size and abuse limits. Requests remain pending until an operator approves them; only the server can release funds.
+            Scan can submit and observe a public request. It cannot approve a grant. Admin owns the decision, while the backend enforces request size, cooldown, daily allocation, and settlement idempotency.
           </p>
           <div className="mt-5 grid gap-3">
             <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">

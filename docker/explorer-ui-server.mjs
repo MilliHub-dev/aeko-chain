@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { extname, resolve } from 'node:path'
@@ -70,6 +71,60 @@ function upstreamFor(pathname) {
 
 const FUNDING_WRITE_PATHS = new Set(['/funding/request', '/funding/airdrop'])
 const MAX_PROXY_BODY_BYTES = 64 * 1024
+const MAX_TELEMETRY_BODY_BYTES = 16 * 1024
+const CLIENT_TELEMETRY_PATH = '/api/telemetry/client'
+const LOG_LEVEL = String(process.env.AEKO_LOG_LEVEL || 'info').trim().toLowerCase()
+const LOG_FORMAT = String(process.env.AEKO_LOG_FORMAT || 'json').trim().toLowerCase()
+const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 }
+let telemetryWindowStartedAt = Date.now()
+let telemetryAcceptedInWindow = 0
+
+function truncate(value, max = 1200) {
+  const text = String(value ?? '')
+  return text.length > max ? text.slice(0, max) + '…' : text
+}
+
+function errorFields(error) {
+  if (!(error instanceof Error)) return { error_message: truncate(error || 'unknown error') }
+  return {
+    error_name: truncate(error.name, 120),
+    error_message: truncate(error.message),
+    error_stack: truncate(error.stack || '', 6000),
+  }
+}
+
+function log(level, event, fields = {}) {
+  if ((LEVELS[level] ?? LEVELS.info) < (LEVELS[LOG_LEVEL] ?? LEVELS.info)) return
+  const record = {
+    timestamp: new Date().toISOString(),
+    level,
+    service: 'aeko-scan',
+    network: ACTIVE_NETWORK || 'unknown',
+    event,
+    ...fields,
+  }
+  const line = LOG_FORMAT === 'json'
+    ? JSON.stringify(record)
+    : record.timestamp + ' ' + level.toUpperCase() + ' aeko-scan ' + event + ' ' + JSON.stringify(fields)
+  const target = level === 'error' || level === 'warn' ? process.stderr : process.stdout
+  target.write(line + '\n')
+}
+
+function requestId(req) {
+  const incoming = String(req.headers['x-request-id'] || '').trim()
+  return incoming && incoming.length <= 128 ? incoming : randomUUID()
+}
+
+function telemetryAllowed() {
+  const now = Date.now()
+  if (now - telemetryWindowStartedAt >= 60_000) {
+    telemetryWindowStartedAt = now
+    telemetryAcceptedInWindow = 0
+  }
+  if (telemetryAcceptedInWindow >= 300) return false
+  telemetryAcceptedInWindow += 1
+  return true
+}
 
 function explorerProxyMethodAllowed(method, target, pathname) {
   if (method === 'GET' || method === 'HEAD') return true
@@ -78,27 +133,32 @@ function explorerProxyMethodAllowed(method, target, pathname) {
   return FUNDING_WRITE_PATHS.has(suffix)
 }
 
-function readProxyBody(req) {
+function readProxyBody(req, maxBytes = MAX_PROXY_BODY_BYTES) {
   return new Promise((resolveBody, rejectBody) => {
     const chunks = []
     let size = 0
+    let rejected = false
 
     req.on('data', (chunk) => {
+      if (rejected) return
       size += chunk.length
-      if (size > MAX_PROXY_BODY_BYTES) {
+      if (size > maxBytes) {
+        rejected = true
         rejectBody(Object.assign(new Error('request body too large'), { code: 'BODY_TOO_LARGE' }))
-        req.destroy()
         return
       }
       chunks.push(chunk)
     })
-    req.on('end', () => resolveBody(Buffer.concat(chunks)))
+    req.on('end', () => {
+      if (!rejected) resolveBody(Buffer.concat(chunks))
+    })
     req.on('error', rejectBody)
   })
 }
 
-async function proxyExplorer(req, res, url, target) {
+async function proxyExplorer(req, res, url, target, id) {
   const method = req.method || 'GET'
+  const startedAt = performance.now()
   if (!explorerProxyMethodAllowed(method, target, url.pathname)) {
     json(res, 405, {
       error: {
@@ -130,6 +190,7 @@ async function proxyExplorer(req, res, url, target) {
     let body
     const headers = new Headers({
       Accept: req.headers.accept || 'application/json',
+      'X-Request-Id': id,
     })
 
     if (method === 'POST') {
@@ -199,6 +260,7 @@ async function proxyExplorer(req, res, url, target) {
     }
     responseHeaders.set('Cache-Control', 'no-store')
     responseHeaders.set('X-AEKO-Explorer-Proxy', 'same-origin')
+    responseHeaders.set('X-Request-Id', id)
 
     res.writeHead(upstream.status, Object.fromEntries(responseHeaders.entries()))
     if (req.method === 'HEAD') {
@@ -207,8 +269,26 @@ async function proxyExplorer(req, res, url, target) {
     }
     const responseBody = Buffer.from(await upstream.arrayBuffer())
     res.end(responseBody)
+    log(upstream.status >= 500 ? 'error' : 'info', 'proxy_request_completed', {
+      request_id: id,
+      method,
+      path: url.pathname,
+      target_network: target.network,
+      upstream_origin: upstreamUrl.origin,
+      status: upstream.status,
+      latency_ms: Math.round(performance.now() - startedAt),
+    })
   } catch (error) {
     const timeout = error instanceof Error && error.name === 'AbortError'
+    log('error', timeout ? 'proxy_request_timeout' : 'proxy_request_failed', {
+      request_id: id,
+      method,
+      path: url.pathname,
+      target_network: target.network,
+      upstream_origin: upstreamUrl.origin,
+      latency_ms: Math.round(performance.now() - startedAt),
+      ...errorFields(error),
+    })
     json(res, timeout ? 504 : 502, {
       error: {
         code: timeout ? 'EXPLORER_UPSTREAM_TIMEOUT' : 'EXPLORER_UPSTREAM_UNAVAILABLE',
@@ -218,6 +298,54 @@ async function proxyExplorer(req, res, url, target) {
   } finally {
     clearTimeout(timer)
   }
+}
+
+
+async function collectClientTelemetry(req, res, id) {
+  if (req.method !== 'POST') {
+    json(res, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } })
+    return
+  }
+  if (!telemetryAllowed()) {
+    json(res, 429, { error: { code: 'TELEMETRY_RATE_LIMITED', message: 'Telemetry rate limit exceeded' } })
+    return
+  }
+  const contentType = String(req.headers['content-type'] || '').toLowerCase()
+  if (!contentType.startsWith('application/json')) {
+    json(res, 415, { error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Telemetry requires application/json' } })
+    return
+  }
+
+  let raw
+  try {
+    raw = await readProxyBody(req, MAX_TELEMETRY_BODY_BYTES)
+  } catch (error) {
+    json(res, error?.code === 'BODY_TOO_LARGE' ? 413 : 400, {
+      error: { code: 'INVALID_TELEMETRY', message: 'Invalid telemetry payload' },
+    })
+    return
+  }
+
+  let payload
+  try {
+    payload = JSON.parse(raw.toString('utf8'))
+  } catch {
+    json(res, 400, { error: { code: 'INVALID_TELEMETRY', message: 'Invalid telemetry payload' } })
+    return
+  }
+
+  const clientError = payload?.error && typeof payload.error === 'object' ? payload.error : {}
+  const context = payload?.context && typeof payload.context === 'object' ? payload.context : {}
+  log('error', 'browser_error', {
+    request_id: id,
+    path: truncate(payload?.path || '', 512),
+    source: truncate(context.source || 'browser', 120),
+    error_name: truncate(clientError.name || 'Error', 120),
+    error_message: truncate(clientError.message || 'Unknown client error'),
+    error_stack: truncate(clientError.stack || '', 6000),
+    component_stack: truncate(context.componentStack || '', 6000),
+  })
+  json(res, 202, { ok: true })
 }
 
 function safeStaticPath(pathname) {
@@ -253,12 +381,30 @@ function serveStatic(req, res, pathname) {
   createReadStream(file).pipe(res)
 }
 
-createServer(async (req, res) => {
+const server = createServer(async (req, res) => {
+  const id = requestId(req)
+  const startedAt = performance.now()
   const method = req.method || 'GET'
   const url = new URL(req.url || '/', 'http://explorer-ui.local')
+  res.setHeader('X-Request-Id', id)
+  res.once('finish', () => {
+    log(res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info', 'http_request_completed', {
+      request_id: id,
+      method,
+      path: url.pathname,
+      status: res.statusCode,
+      latency_ms: Math.round(performance.now() - startedAt),
+    })
+  })
+
+  if (url.pathname === CLIENT_TELEMETRY_PATH) {
+    await collectClientTelemetry(req, res, id)
+    return
+  }
+
   const target = upstreamFor(url.pathname)
   if (target) {
-    await proxyExplorer(req, res, url, target)
+    await proxyExplorer(req, res, url, target, id)
     return
   }
 
@@ -268,6 +414,19 @@ createServer(async (req, res) => {
   }
 
   serveStatic(req, res, url.pathname)
-}).listen(PORT, '0.0.0.0', () => {
-  process.stdout.write(`AEKO Explorer UI listening on 0.0.0.0:${PORT}\n`)
+})
+
+process.on('uncaughtExceptionMonitor', (error) => {
+  log('error', 'process_uncaught_exception', errorFields(error))
+})
+process.on('unhandledRejection', (reason) => {
+  log('error', 'process_unhandled_rejection', errorFields(reason))
+})
+
+server.listen(PORT, '0.0.0.0', () => {
+  log('info', 'service_started', {
+    bind: `0.0.0.0:${PORT}`,
+    log_format: LOG_FORMAT,
+    log_level: LOG_LEVEL,
+  })
 })

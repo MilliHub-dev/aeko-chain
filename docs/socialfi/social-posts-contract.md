@@ -28,7 +28,7 @@ It is not responsible for:
 
 ## Current Implementation Progress
 
-- social-posts program added in [`programs/social-posts`](/Users/ok/Documents/projects/aeko-chain/programs/social-posts)
+- social-posts program added in [`programs/social-posts`](../../programs/social-posts)
 - canonical post-anchor state model implemented
 - engagement-proof state model implemented
 - initialize / anchor / edit / moderate / engagement / read instruction flow implemented
@@ -111,5 +111,5 @@ It is also the source event layer for:
 
 Related follow-up specs:
 
-- [`docs/socialfi/post-signature-flow.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/post-signature-flow.md)
-- [`docs/rpc-and-apis/aeko-social-backend-integration.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/aeko-social-backend-integration.md)
+- [`docs/socialfi/post-signature-flow.md`](./post-signature-flow.md)
+- [`docs/rpc-and-apis/aeko-social-backend-integration.md`](../rpc-and-apis/aeko-social-backend-integration.md)

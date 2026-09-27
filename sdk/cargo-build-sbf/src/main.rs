@@ -1,12 +1,12 @@
 use {
+    aeko_download_utils::download_file,
+    aeko_sdk::signature::{write_keypair_file, Keypair},
     bzip2::bufread::BzDecoder,
     cargo_metadata::camino::Utf8PathBuf,
     clap::{crate_description, crate_name, crate_version, Arg},
     itertools::Itertools,
     log::*,
     regex::Regex,
-    aeko_download_utils::download_file,
-    aeko_sdk::signature::{write_keypair_file, Keypair},
     std::{
         borrow::Cow,
         collections::{HashMap, HashSet},
@@ -156,7 +156,7 @@ fn find_installed_platform_tools() -> Vec<String> {
 }
 
 fn get_latest_platform_tools_version() -> Result<String, String> {
-    let url = "https://github.com/aeko-chain/platform-tools/releases/latest";
+    let url = "https://github.com/anza-xyz/platform-tools/releases/latest";
     let resp = reqwest::blocking::get(url).map_err(|err| format!("Failed to GET {url}: {err}"))?;
     let path = std::path::Path::new(resp.url().path());
     let version = path.file_name().unwrap().to_string_lossy().to_string();
@@ -532,11 +532,7 @@ fn link_aeko_toolchain(config: &Config) {
     }
 }
 
-fn build_aeko_package(
-    config: &Config,
-    target_directory: &Path,
-    package: &cargo_metadata::Package,
-) {
+fn build_aeko_package(config: &Config, target_directory: &Path, package: &cargo_metadata::Package) {
     let program_name = {
         let cdylib_targets = package
             .targets
@@ -618,7 +614,7 @@ fn build_aeko_package(
     install_if_missing(
         config,
         package,
-        "https://github.com/aeko-chain/platform-tools/releases/download",
+        "https://github.com/anza-xyz/platform-tools/releases/download",
         platform_tools_download_file_name.as_str(),
         &target_path,
     )
@@ -696,13 +692,7 @@ fn build_aeko_package(
     }
 
     let cargo_build = PathBuf::from("cargo");
-    let mut cargo_build_args = vec![
-        "+aeko",
-        "build",
-        "--release",
-        "--target",
-        "sbf-aeko-aeko",
-    ];
+    let mut cargo_build_args = vec!["+aeko", "build", "--release", "--target", "sbf-aeko-aeko"];
     if config.arch == "sbfv2" {
         cargo_build_args.push("-Zbuild-std=std,panic_abort");
     }

@@ -10,12 +10,12 @@ This plan is execution-focused. It defines the work order, deliverables, accepta
 
 The current wallet docs already establish several assumptions Phase 4 should preserve:
 
-- [`docs/wallet/wallet-architecture.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/wallet-architecture.md) treats the wallet as an identity manager and references an Identity PDA
-- [`docs/wallet/wallet-api.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/wallet-api.md) assumes an `aeko-wallet-adapter` interface with identity extensions
-- [`docs/wallet/permissions.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/permissions.md) already describes scopes and session-key ideas
-- [`docs/wallet/security.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/security.md) already expects Ledger support, phishing protection, and auto-disconnect
-- [`docs/platform-features/identity-system.md`](/Users/ok/Documents/projects/aeko-chain/docs/platform-features/identity-system.md) already links wallet addresses to identity PDAs and reputation
-- [`docs/permission-layer/identity-and-clearance.md`](/Users/ok/Documents/projects/aeko-chain/docs/permission-layer/identity-and-clearance.md) already defines identity tiers including KYC-linked flows
+- [`docs/wallet/wallet-architecture.md`](./wallet-architecture.md) treats the wallet as an identity manager and references an Identity PDA
+- [`docs/wallet/wallet-api.md`](./wallet-api.md) assumes an `aeko-wallet-adapter` interface with identity extensions
+- [`docs/wallet/permissions.md`](./permissions.md) already describes scopes and session-key ideas
+- [`docs/wallet/security.md`](./security.md) already expects Ledger support, phishing protection, and auto-disconnect
+- [`docs/platform-features/identity-system.md`](../platform-features/identity-system.md) already links wallet addresses to identity PDAs and reputation
+- [`docs/permission-layer/identity-and-clearance.md`](../permission-layer/identity-and-clearance.md) already defines identity tiers including KYC-linked flows
 
 Phase 4 should refine and implement those assumptions, not replace them casually.
 
@@ -37,7 +37,7 @@ This is the blocking foundation for all later Phase 4 work.
 
 Deliverable:
 
-- [`docs/wallet/identity.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/identity.md)
+- [`docs/wallet/identity.md`](./identity.md)
 
 Required work:
 
@@ -151,7 +151,7 @@ Acceptance criteria:
 
 Current progress:
 
-- wallet permission controls spec drafted in [`docs/wallet/permission-controls-spec.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/permission-controls-spec.md)
+- wallet permission controls spec drafted in [`docs/wallet/permission-controls-spec.md`](./permission-controls-spec.md)
 - existing wallet permission doc aligned to the implementation spec
 - wallet permission program scaffold added
 - initialize, grant, revoke, freeze, and unfreeze instruction paths added
@@ -161,31 +161,31 @@ Current progress:
 - processor-level tests added for update, over-cap rejection, deny-by-default enforcement, expiry resolution, and audit logging
 - token-cap and time-window edge-case tests added
 - wallet-core permission helper layer added for building and signing wallet-permission transactions
-- JS SDK scaffold added in [`sdk/js`](/Users/ok/Documents/projects/aeko-chain/sdk/js) with RPC, wallet adapter, and permission request helpers
+- JS SDK scaffold added in [`sdk/js`](../../sdk/js) with RPC, wallet adapter, and permission request helpers
 - JS SDK transaction send / confirm helpers and subscription example added
 - JS SDK AEKO-721 prepared transaction builders added
 - JS SDK wallet-permissions prepared transaction builders added
 - JS SDK local dependency install, `typecheck`, and `build` completed
-- Node.js SDK scaffold added in [`sdk/node`](/Users/ok/Documents/projects/aeko-chain/sdk/node) with server-side signing, batch send helpers, and polling webhook-style listeners
+- Node.js SDK scaffold added in [`sdk/node`](../../sdk/node) with server-side signing, batch send helpers, and polling webhook-style listeners
 - Node.js SDK local dependency install, `typecheck`, and `build` completed
 - Node.js SDK package boundary tightened to consume `@aeko-chain/web3.js` through package exports rather than repo-local `dist` imports
-- Rust SDK scaffold added in [`sdk/rust-client`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client) with async RPC access, transaction submission helpers, AEKO-721 builders, wallet-permissions builders, and typed account decoders
-- Rust SDK example coverage added in [`sdk/rust-client/examples`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client/examples)
+- Rust SDK scaffold added in [`sdk/rust-client`](../../sdk/rust-client) with async RPC access, transaction submission helpers, AEKO-721 builders, wallet-permissions builders, and typed account decoders
+- Rust SDK example coverage added in [`sdk/rust-client/examples`](../../sdk/rust-client/examples)
 - Rust SDK published to crates.io as `aeko-rust-sdk@2.0.0`
 - Rust SDK patch release `2.0.2` prepared in repo to refresh docs.rs metadata and hosted documentation
-- Python SDK scaffold added in [`sdk/python`](/Users/ok/Documents/projects/aeko-chain/sdk/python) with stdlib-based JSON-RPC access, query helpers, raw transaction submission, and signature polling helpers
+- Python SDK scaffold added in [`sdk/python`](../../sdk/python) with stdlib-based JSON-RPC access, query helpers, raw transaction submission, and signature polling helpers
 - Python SDK AEKO-721 and wallet-permissions helpers added for decoded reads and instruction planning
-- Python SDK examples added in [`sdk/python/examples`](/Users/ok/Documents/projects/aeko-chain/sdk/python/examples)
+- Python SDK examples added in [`sdk/python/examples`](../../sdk/python/examples)
 - Python SDK published to PyPI as `aeko-sdk==0.1.0`
 - JavaScript SDK published to npm as `@aeko-chain/web3.js@0.1.0`
 - Node.js SDK published to npm as `@aeko-chain/sdk@0.1.0`
-- cross-SDK publication checklist added in [`docs/developer-sdk/phase4-sdk-publication.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/phase4-sdk-publication.md)
-- SDK release execution guide added in [`docs/developer-sdk/phase4-sdk-release-steps.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/phase4-sdk-release-steps.md)
-- Phase 4 closeout record template added in [`docs/wallet/phase4-closeout-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-closeout-record.md)
-- wallet core testnet validation runbook added in [`docs/wallet/wallet-core-testnet-validation.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/wallet-core-testnet-validation.md)
-- wallet permissions testnet validation runbook added in [`docs/wallet/wallet-permissions-testnet-validation.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/wallet-permissions-testnet-validation.md)
-- wallet-core validation helper examples added in [`wallet-core/examples`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples)
-- command-level validation guide added in [`docs/wallet/phase4-validation-commands.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-validation-commands.md)
+- cross-SDK publication checklist added in [`docs/developer-sdk/phase4-sdk-publication.md`](../developer-sdk/phase4-sdk-publication.md)
+- SDK release execution guide added in [`docs/developer-sdk/phase4-sdk-release-steps.md`](../developer-sdk/phase4-sdk-release-steps.md)
+- Phase 4 closeout record template added in [`docs/wallet/phase4-closeout-record.md`](./phase4-closeout-record.md)
+- wallet core testnet validation runbook added in [`docs/wallet/wallet-core-testnet-validation.md`](./wallet-core-testnet-validation.md)
+- wallet permissions testnet validation runbook added in [`docs/wallet/wallet-permissions-testnet-validation.md`](./wallet-permissions-testnet-validation.md)
+- wallet-core validation helper examples added in [`wallet-core/examples`](../../wallet-core/examples)
+- command-level validation guide added in [`docs/wallet/phase4-validation-commands.md`](./phase4-validation-commands.md)
 - wallet-core local validation helper executed successfully on `2026-04-02`
 - wallet-permissions local validation helper executed successfully on `2026-04-02`
 
@@ -290,7 +290,7 @@ Each major Phase 4 deliverable should also include:
 
 Phase 4 is complete only when:
 
-- [`docs/wallet/identity.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/identity.md) is written and signed off
+- [`docs/wallet/identity.md`](./identity.md) is written and signed off
 - wallet core is implemented and tested on testnet
 - wallet permission controls are implemented and tested end-to-end
 - JS SDK is published with working examples
@@ -305,5 +305,5 @@ The remaining work is no longer initial planning. It is closeout work:
 
 1. validate wallet core on testnet
 2. validate wallet permissions end-to-end on testnet
-3. record live testnet transaction signatures and rejection evidence in [`docs/wallet/phase4-closeout-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-closeout-record.md)
+3. record live testnet transaction signatures and rejection evidence in [`docs/wallet/phase4-closeout-record.md`](./phase4-closeout-record.md)
 4. update this tracker once the live validation evidence is recorded

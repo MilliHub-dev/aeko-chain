@@ -8,7 +8,7 @@ All first-party AEKO container and Compose definitions live in this directory. T
 | `compose.local.yml` | Portable local/testnet topology, including the optional `rpc-node` profile |
 | `compose.dokploy.yml` | Image-only public topology for Dokploy |
 | `compose.coolify.yml` | Legacy image-only all-in-one Coolify topology retained for compatibility/rollback |
-| `coolify/*/compose.yml` | Preferred independently deployable Coolify resources with per-resource environment examples and stable `/data/aeko/**` state paths |
+| `coolify/{bootstrap,faucet-tools,validator}/compose.yml` + app-local `../apps/**/compose.coolify.yml` | Preferred independently deployable Coolify resources; apps own `.env.coolify.example` beside source while stateful infrastructure retains stable `/data/aeko/**` paths |
 | `env.public.example` | Public-deployment environment template shared by Dokploy and Coolify |
 | `validator-entrypoint.sh` | Shared validator/RPC role entrypoint |
 | `key-preflight.sh` | Reusable fail-closed keypair diagnostic helper; Coolify does not use it as a global startup gate |
@@ -28,7 +28,9 @@ docker compose -f docker/compose.dokploy.yml config
 docker compose -f docker/compose.coolify.yml config
 python3 scripts/validate-network-ports.py
 python3 scripts/validate-coolify-split.py
-for compose in docker/coolify/*/compose.yml; do docker compose -f "$compose" config; done
+for compose in docker/coolify/{bootstrap,faucet-tools,validator}/compose.yml \
+  apps/explorer/backend/compose.coolify.yml apps/explorer/web/compose.coolify.yml \
+  apps/admin/compose.coolify.yml; do docker compose -f "$compose" config; done
 ```
 
 The authoritative domain/port and environment-override contract is documented

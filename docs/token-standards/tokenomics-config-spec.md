@@ -1,10 +1,10 @@
 # Tokenomics Config and State Spec
 
-Status: Stage A design complete
+Status: Stage A model implemented in part; runtime/governance integration incomplete
 
-Purpose: This document defines the canonical config, state, and governance storage model for AEKO tokenomics. It is the implementation bridge between [`tokenomics.md`](/Users/ok/Documents/projects/aeko-chain/tokenomics.md) and the Phase 2 contracts/programs that depend on it.
+Purpose: This document defines the canonical config, state, and governance storage model for AEKO tokenomics. It is the implementation bridge between [`tokenomics.md`](../../tokenomics.md) and the Phase 2 programs that depend on it.
 
-This spec does not implement the tokenomics program. It defines the data model and storage responsibilities that implementation must follow.
+The repository now contains a tokenomics program, bootstrap state, epoch-emission accounting and validator-reward calculations. That is not equivalent to complete economic execution: runtime transaction-fee distribution still does not consume this tokenomics state, the documented allocation buckets are not yet provisioned as governed spendable reserves, and the two-house proposal/timelock executor described in `docs/governance/` does not yet exist. Mainnet treasury/grant execution must therefore remain fail-closed.
 
 ## 1. Design Goals
 
@@ -195,11 +195,37 @@ pub enum GovernableField {
 }
 ```
 
-These match the signed-off governable set in [`tokenomics.md`](/Users/ok/Documents/projects/aeko-chain/tokenomics.md).
+These match the signed-off governable set in [`tokenomics.md`](../../tokenomics.md).
 
-## 4. Canonical Values
+## 4. Native Representation Gate
 
-### 4.1 Supply Baseline
+The tokenomics state uses `u128` policy/accounting fields, but native AEKO
+account balances in the chain runtime are currently `u64` lamports with
+`LAMPORTS_PER_AEKO = 1,000,000,000`. Those are not interchangeable
+capabilities.
+
+At the current native precision:
+
+```text
+max whole native AEKO in u64 = floor(18,446,744,073,709,551,615 / 1,000,000,000)
+                             = 18,446,744,073 AEKO
+signed-off supply target     = 500,000,000,000 AEKO
+```
+
+Therefore the current `SupplyState` can describe the signed-off policy, but it
+cannot by itself prove that the corresponding native reserves exist or can be
+settled as balances. `aeko-protocol-bootstrap` intentionally refuses
+`AEKO_NETWORK=mainnet` while this invariant is unresolved.
+
+This gate must be resolved before implementing governed reserve provisioning,
+treasury payouts, validator-reserve settlement, or mainnet Token House voting
+that assumes the full 500B native supply exists. Testnet/devnet/localnet may
+continue using their test liquidity and reference policy state; that does not
+make those Faucet balances a mainnet allocation.
+
+## 5. Canonical Values
+
+### 5.1 Supply Baseline
 
 ```text
 total_supply_target      = 500,000,000,000 AEKO
@@ -212,7 +238,7 @@ ecosystem_bucket         =  40,000,000,000 AEKO
 public_sale_bucket       =  25,000,000,000 AEKO
 ```
 
-### 4.2 Epoch and Fee Baseline
+### 5.2 Epoch and Fee Baseline
 
 ```text
 epoch_duration_seconds   = 86,400
@@ -225,7 +251,7 @@ social_subsidy_enabled   = true
 social_subsidy_monthly_cap = 1,000,000 AEKO per registered app
 ```
 
-### 4.3 Validator Baseline
+### 5.3 Validator Baseline
 
 ```text
 min_commission           = 5%
@@ -236,7 +262,7 @@ slash_double_sign        = 5%
 slash_destination        = treasury
 ```
 
-## 5. Account Relationships
+## 6. Account Relationships
 
 The following logical ownership model is recommended:
 
@@ -263,7 +289,7 @@ Public minting should read:
 - subsidy configuration
 - supply state if public mints consume governed reserves
 
-## 6. Required Instruction Surface
+## 7. Required Instruction Surface
 
 Minimum tokenomics-layer instructions:
 
@@ -279,7 +305,7 @@ Minimum tokenomics-layer instructions:
 - `QueueGovernanceUpdate`
 - `ExecuteGovernanceUpdate`
 
-## 7. Emission Processing Rules
+## 8. Emission Processing Rules
 
 Each epoch settlement must:
 
@@ -297,7 +323,7 @@ Required invariants:
 - reserve depletion must be monotonic
 - floor inflation minting must be tracked separately from reserve emissions
 
-## 8. Validator Reward Settlement Rules
+## 9. Validator Reward Settlement Rules
 
 The signed-off validator reward model is:
 
@@ -309,7 +335,7 @@ delegator_pool = gross_reward × (1 - commission_rate)
 delegator_reward = delegator_pool × (delegator_stake / total_validator_stake)
 ```
 
-### 8.1 Uptime Multipliers
+### 9.1 Uptime Multipliers
 
 ```text
 uptime >= 99%  -> 1.10
@@ -322,7 +348,7 @@ Implementation note:
 
 - evaluate the `< 80%` condition before the `< 95%` condition in code
 
-### 8.2 Slashing Rule
+### 9.2 Slashing Rule
 
 If a validator is slashed during the epoch:
 
@@ -330,7 +356,7 @@ If a validator is slashed during the epoch:
 - uptime multiplier is ignored
 - slash amount routes to treasury
 
-### 8.3 Recommended Reward Settlement Struct
+### 9.3 Recommended Reward Settlement Struct
 
 ```rust
 pub struct ValidatorEpochReward {
@@ -349,7 +375,7 @@ pub struct ValidatorEpochReward {
 }
 ```
 
-### 8.4 Deterministic Math Requirements
+### 9.4 Deterministic Math Requirements
 
 Implementation must:
 
@@ -366,7 +392,7 @@ Recommended basis point representation:
 - `0.80` multiplier -> `8000 bps`
 - `0.00` multiplier -> `0 bps`
 
-## 9. Fee Routing Rules
+## 10. Fee Routing Rules
 
 A fee-routing helper or policy reader should expose:
 
@@ -385,7 +411,7 @@ For each fee-bearing transaction:
 - route atomically
 - record accounting event
 
-## 10. Team Vesting State
+## 11. Team Vesting State
 
 The tokenomics layer should not directly manage every vesting wallet, but it should define the canonical team vesting policy consumed by any vesting program.
 
@@ -411,7 +437,7 @@ Signed-off team vesting policy:
 - `total_vesting_months = 12`
 - `unlock_mode = CliffUnlock`
 
-## 11. Governance Update Rules
+## 12. Governance Update Rules
 
 The following fields are governable:
 
@@ -429,7 +455,7 @@ Recommended governance execution rules:
 - timelock period applied
 - update executed and event emitted
 
-## 12. Events
+## 13. Events
 
 The tokenomics layer should emit:
 
@@ -444,7 +470,7 @@ The tokenomics layer should emit:
 - `GovernanceUpdateQueued`
 - `GovernanceUpdateExecuted`
 
-## 13. Invariants
+## 14. Invariants
 
 Implementation must enforce:
 
@@ -458,7 +484,7 @@ Implementation must enforce:
 - slashed epochs distribute no validator reward
 - validator plus delegator distributions never exceed gross reward
 
-## 14. Recommended Build Order
+## 15. Recommended Build Order
 
 1. define structs and serialization
 2. initialize tokenomics accounts at genesis or network bootstrap
@@ -468,7 +494,7 @@ Implementation must enforce:
 6. implement governance update queue and execution flow
 7. integrate AEKO-20 and validator reward distribution against this state
 
-## 15. Completion Status
+## 16. Completion Status
 
 - [x] Canonical tokenomics config model defined
 - [x] Canonical supply and reserve accounting model defined
@@ -476,7 +502,12 @@ Implementation must enforce:
 - [x] Canonical subsidy registry model defined
 - [x] Governable fields mapped into explicit update state
 - [x] Validator reward settlement model defined
-- [ ] Tokenomics program/module implemented
-- [ ] Genesis/bootstrap initialization path implemented
-- [ ] Epoch settlement path implemented
-- [ ] Governance update execution path implemented
+- [x] Tokenomics program/module scaffold and state processing implemented
+- [x] Protocol bootstrap initializes canonical tokenomics state
+- [x] Epoch emission accounting path implemented
+- [ ] Runtime fee routing wired to tokenomics state
+- [ ] Governed allocation reserves provisioned and spendable through protocol rules
+- [ ] Validator/delegator reward accounting wired to actual balance settlement
+- [ ] Two-house governance proposal/timelock execution path implemented
+- [x] Direct governable `UpdateField` mutation fails closed while that executor is absent
+- [x] Protocol bootstrap records governance program id as unset instead of aliasing the protocol signer

@@ -5444,6 +5444,7 @@ pub mod tests {
         },
         aeko_accounts_db::{inline_spl_token, inline_spl_token_2022},
         aeko_entry::entry::next_versioned_entry,
+        aeko_faucet::faucet::run_local_faucet,
         aeko_gossip::socketaddr,
         aeko_ledger::{
             blockstore_meta::PerfSampleV2,
@@ -7600,10 +7601,10 @@ pub mod tests {
     }
 
     #[test]
-    fn test_rpc_request_airdrop_requires_funding_gateway_authorization() {
+    fn test_rpc_request_airdrop_requires_funding_authorization() {
         let RpcHandler { meta, io, .. } = RpcHandler::start_with_config(JsonRpcConfig {
             faucet_addr: Some("127.0.0.1:1".parse().unwrap()),
-            funding_authorization_key: Some("test-funding-gateway-key".to_string()),
+            funding_authorization_key: Some("test-funding-authorization-key".to_string()),
             ..JsonRpcConfig::default()
         });
         let bob_pubkey = aeko_sdk::pubkey::new_rand();
@@ -7622,7 +7623,7 @@ pub mod tests {
         );
 
         let authorized = format!(
-            r#"{{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["{bob_pubkey}",50,{{"fundingAuthorization":"test-funding-gateway-key"}}]}}"#
+            r#"{{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["{bob_pubkey}",50,{{"fundingAuthorization":"test-funding-authorization-key"}}]}}"#
         );
         let authorized_response = io
             .handle_request_sync(&authorized, meta)
@@ -7633,6 +7634,41 @@ pub mod tests {
         assert_eq!(
             code, -32603,
             "authorized call should reach the configured faucet"
+        );
+    }
+
+    #[test]
+    fn test_rpc_request_airdrop_replays_same_expired_funding_intent_signature() {
+        let faucet_addr = run_local_faucet(Keypair::new(), None);
+        let RpcHandler { meta, io, .. } = RpcHandler::start_with_config(JsonRpcConfig {
+            faucet_addr: Some(faucet_addr),
+            funding_authorization_key: Some("test-funding-authorization-key".to_string()),
+            ..JsonRpcConfig::default()
+        });
+        let recipient = aeko_sdk::pubkey::new_rand();
+        let persisted_blockhash = Hash::new_unique().to_string();
+
+        let request = format!(
+            r#"{{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["{recipient}",50,{{"fundingAuthorization":"test-funding-authorization-key","recentBlockhash":"{persisted_blockhash}"}}]}}"#
+        );
+
+        let first = io
+            .handle_request_sync(&request, meta.clone())
+            .expect("first funding replay response");
+        let first: Response =
+            serde_json::from_str(&first).expect("first funding replay JSON response");
+        let first_signature: String = parse_success_result(first);
+
+        let replay = io
+            .handle_request_sync(&request, meta)
+            .expect("second funding replay response");
+        let replay: Response =
+            serde_json::from_str(&replay).expect("second funding replay JSON response");
+        let replay_signature: String = parse_success_result(replay);
+
+        assert_eq!(
+            first_signature, replay_signature,
+            "the same recipient/amount/blockhash intent must recover the same signature even when the blockhash is no longer in the bank queue"
         );
     }
 

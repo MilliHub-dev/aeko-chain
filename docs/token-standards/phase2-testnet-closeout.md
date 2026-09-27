@@ -6,7 +6,7 @@ This document tracks the final operational steps needed to mark Phase 2 complete
 
 Deployment record:
 
-- [`docs/token-standards/phase2-deployment-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/token-standards/phase2-deployment-record.md)
+- [`docs/token-standards/phase2-deployment-record.md`](./phase2-deployment-record.md)
 
 ## Remaining Items
 
@@ -17,7 +17,7 @@ Deployment record:
 
 Follow:
 
-- [`docs/token-standards/aeko-20-testnet-deployment.md`](/Users/ok/Documents/projects/aeko-chain/docs/token-standards/aeko-20-testnet-deployment.md)
+- [`docs/token-standards/aeko-20-testnet-deployment.md`](./aeko-20-testnet-deployment.md)
 
 This closes:
 
@@ -27,7 +27,7 @@ This closes:
 
 Follow:
 
-- [`docs/token-standards/nft-public-testnet-walkthrough.md`](/Users/ok/Documents/projects/aeko-chain/docs/token-standards/nft-public-testnet-walkthrough.md)
+- [`docs/token-standards/nft-public-testnet-walkthrough.md`](./nft-public-testnet-walkthrough.md)
 
 This closes:
 
@@ -42,7 +42,7 @@ This closes:
 - canonical AEKO-721 token address recorded
 - web demo configured with live `AEKO_DEMO_*` runtime values
 - testnet verification transaction signatures recorded
-- [`docs/token-standards/phase2-implementation-spec.md`](/Users/ok/Documents/projects/aeko-chain/docs/token-standards/phase2-implementation-spec.md) updated to mark both remaining items complete
+- [`docs/token-standards/phase2-implementation-spec.md`](./phase2-implementation-spec.md) updated to mark both remaining items complete
 
 ## Completion Boundary
 

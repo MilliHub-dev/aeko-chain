@@ -80,6 +80,7 @@ services:
     pull_policy: always
     restart: "no"
     environment:
+      AEKO_NETWORK: ${AEKO_NETWORK:-testnet}
       AEKO_RPC_URL: ${AEKO_RPC_URL:-http://validator:8899}
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_PROTOCOL_AUTHORITY_KEYPAIR: /keys/protocol-authority-keypair.json
@@ -133,7 +134,7 @@ services:
       - --keypair
       - /keys/faucet-keypair.json
       # Hard ceiling per airdrop request, enforced by the faucet itself. Per-wallet
-      # cooldown and the daily budget live in the Operations Web Funding Gateway.
+      # Grant policy, cooldown and daily budget are enforced by the active Explorer backend/PostgreSQL deployment.
       - --per-request-cap
       - ${AEKO_FAUCET_PER_REQUEST_CAP:-100}
     depends_on:
@@ -239,6 +240,7 @@ services:
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       AEKO_FUNDING_AUTHORIZATION_KEY: ${AEKO_FUNDING_AUTHORIZATION_KEY:-}
       AEKO_FUNDING_REQUESTS_PER_10_MIN: ${AEKO_FUNDING_REQUESTS_PER_10_MIN:-5}
+      AEKO_FUNDING_RECONCILE_INTERVAL_SECS: ${AEKO_FUNDING_RECONCILE_INTERVAL_SECS:-5}
       AEKO_FAUCET_PER_REQUEST_CAP: ${AEKO_FAUCET_PER_REQUEST_CAP:-100}
       DATABASE_URL: ${EXPLORER_DATABASE_URL:?}
       AEKO_SOCIAL_REGISTRY_FILE: /state/social-registry.env
@@ -322,7 +324,6 @@ services:
     pull_policy: always
     restart: unless-stopped
     environment:
-      AEKO_OPERATIONS_ROLE: admin
       AEKO_NETWORK: ${AEKO_NETWORK:-testnet}
       AEKO_RPC_URL: ${AEKO_RPC_URL:-http://validator:8899}
       AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-http://explorer-api:8088}

@@ -11,7 +11,7 @@ AEKO keeps platform-specific Compose contracts so local convenience and public d
 | `docker/compose.local.yml` | portable local/testnet stack; validator RPC/WS are host-published and `rpc-node` is optional |
 | `docker/compose.dokploy.yml` | public/Dokploy stack; uses prebuilt Docker Hub images and serves RPC/WS from the healthy voting validator |
 | `docker/compose.coolify.yml` | legacy public/Coolify all-in-one compatibility stack |
-| `docker/coolify/*/compose.yml` | preferred Coolify split resources; independent failure/lifecycle boundaries with related bootstrap and operator roles grouped together |
+| `docker/coolify/{bootstrap,faucet-tools,validator}/compose.yml` and app-local `apps/**/compose.coolify.yml` | preferred Coolify split resources; stateful infrastructure stays deployment-owned while each Explorer/Admin application owns its Compose and `.env.coolify.example` beside source |
 
 Coolify split resources are additive. The existing `docker/compose.coolify.yml` remains the rollback/compatibility path and is not rewritten by the split migration. An established chain must migrate the current named-volume contents into the fixed `/data/aeko/**` paths before switching the configured Coolify Compose paths. See [`docker/coolify/README.md`](./docker/coolify/README.md).
 
@@ -124,11 +124,17 @@ For the currently deployed testnet, the active-environment values are
 `AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900`.
 
 A future mainnet or devnet deployment uses the same variable names on its own
-servers with that network's domains. Aeko Scan is the exception: its generic
-values define the default network, and optional `AEKO_MAINNET_*`,
-`AEKO_TESTNET_*`, and `AEKO_DEVNET_*` RPC/WS/Explorer-API triplets let the
-UI switch to other independent deployments. Browser indexed reads remain
-same-origin under `/api/explorer/{network}`.
+servers with that network's domains. These are independent stacks even when an
+operator happens to place several stacks on the same physical host. They do not
+share an Explorer process, Admin process, database, chain identity, or active
+`AEKO_NETWORK`.
+
+Aeko Scan is the exception: its generic values define the default network, and
+optional `AEKO_MAINNET_*`, `AEKO_TESTNET_*`, and `AEKO_DEVNET_*`
+RPC/WS/Explorer-API triplets let the UI switch to other independent
+deployments. Browser indexed reads remain same-origin under
+`/api/explorer/{network}`; those prefixes are Scan routing labels, not
+evidence that the target networks run inside one server process.
 
 ## Required production environment
 
@@ -149,18 +155,19 @@ AEKO_ALLOW_CHAIN_KEY_GENERATION=0
 ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=<private Admin-to-Explorer settings token>
+# Required on testnet/devnet; configure the identical secret on this network's
+# Validator and Explorer API. Mainnet leaves it empty because Faucet funding is disabled.
+AEKO_FUNDING_AUTHORIZATION_KEY=<32-plus-character-server-secret>
+AEKO_FUNDING_REQUESTS_PER_10_MIN=5
+AEKO_FAUCET_PER_REQUEST_CAP=100
 ```
 
-Optional funding policy (initial values; editable in the admin console afterwards):
-
-```text
-AEKO_FAUCET_PER_REQUEST_CAP=100        # hard ceiling enforced by the faucet binary, in AEKO
-FUNDING_DEFAULT_AMOUNT_AEKO=5
-FUNDING_DEFAULT_COOLDOWN_HOURS=24
-FUNDING_DEFAULT_DAILY_BUDGET_AEKO=5000
-FUNDING_MAX_MANUAL_GRANT_AEKO=100
-FUNDING_MAX_CONSOLE_AIRDROP_AEKO=25
-```
+Funding policy values such as the public request amount, wallet cooldown, daily
+grant budget, Admin manual-grant cap, and developer-airdrop cap live in the
+Explorer PostgreSQL `funding_settings` record. Migration defaults seed the
+first record; Operations Web is the normal editor. Do not configure the retired
+`FUNDING_DEFAULT_*` or `FUNDING_MAX_*` environment variables as parallel
+sources of truth.
 
 Optional SocialFi bootstrap configuration:
 
@@ -417,8 +424,10 @@ Validator/bootstrap/faucet-tools should remain pinned to immutable validated
 tags. Their promotion/deployment is intentional and independent of Explorer or
 Admin releases.
 
-A webhook never chooses a Compose path. Each Coolify split resource must already
-point at its matching `docker/coolify/<resource>/compose.yml`; the legacy
+A webhook never chooses a Compose path. Each Coolify split resource must already point at its matching Compose file:
+`docker/coolify/<resource>/compose.yml` for infrastructure, or the app-local
+`compose.coolify.yml` for Explorer API, Scan, and Operations Web. Their app-local
+`.env.coolify.example` documents the matching deployment environment. The legacy
 resource remains on `docker/compose.coolify.yml`.
 
 ## Mandatory Aeko Social and AEKO Protocol lifecycle

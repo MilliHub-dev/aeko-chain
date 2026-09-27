@@ -6,8 +6,8 @@ This document defines the Phase 5 anti-spam contract or module used when AEKO en
 
 It should stay aligned with:
 
-- [`docs/socialfi/socialfi.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi.md)
-- [`docs/wallet/permission-controls-spec.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/permission-controls-spec.md)
+- [`docs/socialfi/socialfi.md`](./socialfi.md)
+- [`docs/wallet/permission-controls-spec.md`](../wallet/permission-controls-spec.md)
 
 ## Responsibilities
 
@@ -127,7 +127,7 @@ This contract spec is required before protocol-enforced SocialFi anti-spam rules
 
 Current implementation progress:
 
-- anti-spam program scaffold added in [`programs/social-anti-spam`](/Users/ok/Documents/projects/aeko-chain/programs/social-anti-spam)
+- anti-spam program scaffold added in [`programs/social-anti-spam`](../../programs/social-anti-spam)
 - mode-based eligibility checks added for reputation, stake, and cooldown gating
 - penalty mode now updates slash and cooldown profile state
 - processor tests added for reputation rejection, stake rejection, cooldown enforcement, and penalty mutation

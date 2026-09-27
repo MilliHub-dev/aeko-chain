@@ -1,6 +1,7 @@
 use {
     crate::{
         config::{FundingControlConfig, ServerConfig, SettingsControlConfig},
+        features::funding,
         http::{self, state::AppState},
         indexing::service::IndexerService,
         infrastructure::{
@@ -17,11 +18,12 @@ use {
 };
 
 pub async fn run(rpc: RpcChainClient) -> Result<()> {
-    observability::init();
     let backend = rpc.config.clone();
     let server = ServerConfig::from_env().context("loading Explorer server environment")?;
     let settings_control = SettingsControlConfig::from_env()
         .context("loading Explorer settings control environment")?;
+    let funding_control = FundingControlConfig::from_env(&backend.network)
+        .context("loading Explorer funding control environment")?;
 
     let startup_rpc = rpc.clone();
     tokio::task::spawn_blocking(move || startup_rpc.health())
@@ -82,7 +84,7 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
         .context("verifying Explorer PostgreSQL belongs to this validator chain")?;
 
     tracing::info!(
-        rpc = %backend.rpc_url,
+        rpc_origin = %observability::endpoint_origin(&backend.rpc_url),
         network = %backend.network,
         genesis_hash = %genesis_hash,
         bind = %server.bind_addr,
@@ -97,6 +99,7 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
         indexer.run(sync_interval).await;
     });
 
+    let reconcile_interval = funding_control.reconcile_interval;
     let state = AppState::new(
         repository,
         Arc::new(rpc),
@@ -110,6 +113,14 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
         funding_control.faucet_per_request_cap_aeko,
     )
     .shared();
+
+    if state.is_test_environment() {
+        let reconciliation_state = state.clone();
+        tokio::spawn(async move {
+            funding::run_settlement_reconciler(reconciliation_state, reconcile_interval).await;
+        });
+    }
+
     let router = http::build_router(state, &server);
     let listener = TcpListener::bind(server.bind_addr)
         .await

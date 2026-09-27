@@ -6,6 +6,8 @@ Owner: AEKO core team
 
 Scope: This document defines the economic model for AEKO as the native gas, staking, governance, and SocialFi reward token. It is the source of truth for Phase 2 implementation. No AEKO-20, public minting, or AEKO-721 contract logic should hardcode economic values that conflict with this document.
 
+Implementation boundary: signed-off economic policy is not the same as completed runtime integration. The repository currently models these allocations and parameters in the tokenomics program, but mainnet governed treasury/grant execution and runtime transaction-fee routing are not yet fully wired to this state. Testnet/devnet Faucet funding is test liquidity and must never be counted as, or debited from, the governed mainnet allocation buckets.
+
 ## 1. Purpose
 
 AEKO is the native token of AEKO Chain and serves four roles:
@@ -42,7 +44,41 @@ The token model is designed to balance:
 
 Total: `500,000,000,000 AEKO`
 
-### 2.3 Current Decision Required
+### 2.3 Native Representation Compatibility
+
+The signed-off economic target and the current native runtime representation are
+not yet compatible for mainnet.
+
+Current runtime facts:
+
+- native account balances and Bank capitalization use `u64` atomic units;
+- `sdk/program/src/native_token.rs` currently defines
+  `1 AEKO = 1,000,000,000 lamports`;
+- at that precision, the largest whole-AEKO value representable by one `u64`
+  balance is `18,446,744,073 AEKO`;
+- the signed-off `500,000,000,000 AEKO` target would require
+  `500,000,000,000,000,000,000` atomic units and therefore cannot be
+  represented by the current native balance type.
+
+This is a **mainnet launch blocker**, not permission to silently change the
+signed-off supply. The repository does not currently contain a signed-off
+decision that native AEKO must retain nine decimal places, but changing native
+precision is a chain-wide compatibility decision. Likewise, reducing the 500B
+target or replacing the native `u64` balance representation would change a
+different protocol invariant.
+
+Until one of those choices is explicitly approved and implemented, mainnet
+protocol bootstrap must fail closed and no documentation, UI, governance flow,
+or treasury implementation may claim that the 500B allocation has been
+provisioned as spendable native AEKO.
+
+For reference only, not as a decision: with a `u64` balance type, eight native
+decimals still cannot represent 500B AEKO, while seven decimals can. Any such
+precision change must be deliberately migrated across runtime, SDK, CLI,
+Explorer, wallets, fee math, staking, genesis, tests, and public interfaces
+before mainnet.
+
+### 2.4 Current Decision Required
 
 Supply model decision:
 
@@ -447,7 +483,7 @@ This example is normative for formula interpretation, with final implementation 
 ## 14. Sign-Off Checklist
 
 - [x] Supply model approved
-- [ ] Genesis circulating assumptions approved
+- [x] Genesis circulating assumptions approved
 - [x] Team vesting schedule approved
 - [x] Inflation schedule approved
 - [x] Epoch emission method approved
@@ -456,7 +492,7 @@ This example is normative for formula interpretation, with final implementation 
 - [x] Slashing policy approved
 - [x] Fee split approved
 - [x] Subsidy policy approved
-- [ ] This document approved as Phase 2 source of truth
+- [x] This document approved as Phase 2 source of truth
 
 ## 15. Compatibility Note
 

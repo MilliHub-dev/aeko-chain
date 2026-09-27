@@ -6,8 +6,8 @@ This document defines the Phase 5 social staking contract or module that allows 
 
 It should stay aligned with:
 
-- [`docs/socialfi/socialfi.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi.md)
-- [`tokenomics.md`](/Users/ok/Documents/projects/aeko-chain/tokenomics.md)
+- [`docs/socialfi/socialfi.md`](./socialfi.md)
+- [`tokenomics.md`](../../tokenomics.md)
 
 ## Responsibilities
 
@@ -141,6 +141,6 @@ This contract spec is required before social staking RPC methods and explorer vi
 
 Current implementation progress:
 
-- social staking program scaffold added in [`programs/social-staking`](/Users/ok/Documents/projects/aeko-chain/programs/social-staking)
+- social staking program scaffold added in [`programs/social-staking`](../../programs/social-staking)
 - stake open, cooldown, finalize-unstake, yield record, and claim invariants tightened
 - processor tests added for cooldown lifecycle, yield accounting, and creator/staker consistency checks

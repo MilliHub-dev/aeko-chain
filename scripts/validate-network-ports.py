@@ -17,14 +17,32 @@ SHARED_ENV = ROOT / "docker" / "env.public.example"
 PORT_DOC = ROOT / "docs" / "operations" / "network-ports-and-domains.md"
 COOLIFY = ROOT / "docker" / "coolify"
 
-SPLIT_RESOURCES = (
-    "bootstrap",
-    "faucet-tools",
-    "validator",
-    "explorer-api",
-    "explorer-ui",
-    "operations-web",
-)
+SPLIT_RESOURCES = {
+    "bootstrap": (
+        COOLIFY / "bootstrap" / "compose.yml",
+        COOLIFY / "bootstrap" / ".env.example",
+    ),
+    "faucet-tools": (
+        COOLIFY / "faucet-tools" / "compose.yml",
+        COOLIFY / "faucet-tools" / ".env.example",
+    ),
+    "validator": (
+        COOLIFY / "validator" / "compose.yml",
+        COOLIFY / "validator" / ".env.example",
+    ),
+    "explorer-api": (
+        ROOT / "apps" / "explorer" / "backend" / "compose.coolify.yml",
+        ROOT / "apps" / "explorer" / "backend" / ".env.coolify.example",
+    ),
+    "explorer-ui": (
+        ROOT / "apps" / "explorer" / "web" / "compose.coolify.yml",
+        ROOT / "apps" / "explorer" / "web" / ".env.coolify.example",
+    ),
+    "operations-web": (
+        ROOT / "apps" / "admin" / "compose.coolify.yml",
+        ROOT / "apps" / "admin" / ".env.coolify.example",
+    ),
+}
 
 
 class ContractFailure(RuntimeError):
@@ -112,9 +130,7 @@ def main() -> int:
     # Every split Coolify resource owns a complete adjacent env example.
     split: dict[str, str] = {}
     split_envs: dict[str, str] = {}
-    for resource in SPLIT_RESOURCES:
-        compose_path = COOLIFY / resource / "compose.yml"
-        env_path = COOLIFY / resource / ".env.example"
+    for resource, (compose_path, env_path) in SPLIT_RESOURCES.items():
         compose = read(compose_path)
         env_text = read(env_path)
         require_all_interpolations_documented(

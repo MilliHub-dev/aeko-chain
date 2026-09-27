@@ -4,12 +4,12 @@ This document defines the backend API surface for the AEKO Explorer.
 
 The explorer backend is indexer-backed. Unlike the raw chain RPC, these endpoints may return enriched and historical views derived from persisted chain data.
 
-Current first-pass implementation status in repo:
+Current implementation lives under [`apps/explorer/backend`](../../apps/explorer/backend/).
+It uses PostgreSQL for durable indexed state and validator RPC for authoritative
+live chain reads. Frontend wiring and environment setup are documented in
+[`explorer-web-setup.md`](./explorer-web-setup.md).
 
-- a runnable HTTP server exists in [`explorer-backend/src/server.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/server.rs)
-- a local boot example exists in [`explorer-backend/examples/api_server.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/examples/api_server.rs)
-- frontend wiring and env setup are documented in [`docs/rpc-and-apis/explorer-web-setup.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/explorer-web-setup.md)
-- the first live routes currently implemented are:
+Representative live routes include:
   - `GET /health`
   - `GET /blocks`
   - `GET /blocks/{slot}`
@@ -29,6 +29,14 @@ Current first-pass implementation status in repo:
   - `GET /engagement`
   - `GET /stakes`
   - `GET /search`
+  - `GET /registry`
+  - `GET /registry/social`
+  - `GET /registry/protocol`
+  - `GET /social/status`
+  - `GET /protocol/status`
+  - `GET /network/readiness`
+  - `GET /funding/policy` on non-mainnet test environments
+  - `POST /funding/request` on non-mainnet test environments
 
 Current profile behavior:
 
@@ -225,7 +233,7 @@ Returns collection summary and items.
 
 ## SocialFi Endpoints
 
-These endpoints depend on the SocialFi layer defined in [`docs/socialfi/socialfi.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi.md).
+These endpoints depend on the SocialFi layer defined in [`docs/socialfi/socialfi.md`](../socialfi/socialfi.md).
 
 ### `GET /posts`
 
@@ -294,6 +302,35 @@ Suggested query params:
 ### `GET /reputation/{address}`
 
 Returns reputation score and, if policy allows, a score breakdown.
+
+## Bootstrap registry discovery
+
+### `GET /registry`
+
+Returns only the canonical Explorer registry API paths. It does not expose
+registry values, the remote registry origin, credentials, or key material.
+
+### `GET /registry/social`
+
+Returns the canonical Social registry resolved for this Explorer deployment.
+
+### `GET /registry/protocol`
+
+Returns the canonical Protocol registry resolved for this Explorer deployment.
+
+Resolution order is environment-specific but deterministic:
+
+1. explicit process environment values override matching registry fields;
+2. a configured mounted registry file is used when present and non-empty;
+3. otherwise a split deployment may fetch the corresponding
+   `social-registry.env` or `protocol-registry.env` document from
+   `AEKO_REGISTRY_URL`.
+
+Remote registry reads use the configured timeout/refresh cache. A temporary
+refresh failure may use the last successfully cached registry, but
+`/network/readiness` still verifies the resolved schema/genesis against the
+active Validator before declaring the network ready. Registry keypair files are
+never part of this HTTP contract.
 
 ## Search
 

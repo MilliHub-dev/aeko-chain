@@ -1,7 +1,6 @@
 'use client'
 import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 
 function LoginForm() {
   const router = useRouter()
@@ -72,9 +71,6 @@ export default function LoginPage() {
           <Suspense>
             <LoginForm />
           </Suspense>
-        </div>
-        <div className="text-xs text-gray-600">
-          Looking for test AEKO? Use the <Link href="/funding" className="text-emerald-400 hover:underline">public funding portal</Link>.
         </div>
       </div>
     </div>

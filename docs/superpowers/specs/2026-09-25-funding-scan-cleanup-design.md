@@ -1,82 +1,272 @@
 # Funding + Scan cleanup design
 
 Date: 2026-09-25
-Status: Approved (Approach 1)
-Decisions: funding merges into Scan stack (A); product name Aeko Scan (A); queue/policy moves to explorer backend (A)
+Status: Approved architecture, corrected implementation contract 2026-09-27
 
-## 0. Implementation Status (as of 2026-09-25)
+## 1. Decisions
 
-### Fully completed — terminology/label/docs fixes verified:
+The canonical product and trust boundaries are:
 
-- **Product naming**: All UI labels unified to "Aeko Scan" in `Layout.jsx:68,73,135,187`, `Explorer.jsx:360-361`, `NetworkToolsPanel.jsx`, `README.md`, `docs.json`, `docs/operations/*.md`, `DEPLOYMENT.md`, `BACKEND-DEV-GUIDE.md`. Explorer = deprecated; product = Scan.
-- **Environment docs**: `docker/env.public.example`, `DEPLOYMENT.md`, `BACKEND-DEV-GUIDE.md`, `docs/operations/coolify.md`, `docs/operations/testnet-runbook.md` all corrected: `Funding Gateway` → funding role; removed `Funding Portal` / `fund.aeko.online` as separate app/domain terminology; clarified `FUNDING_GATEWAY_KEY` split removed; `AEKO_PUBLIC_FUNDING_URL` renamed to `<public Testnet funding-role URL>`.
-- **Docs JSON**: `apps/explorer/web/src/data/docs.json` funding/explorer/test-console/network-interfaces pages rewritten with Scan role terminology, removed `VITE_AEKO_TESTNET_EXPLORER_API` / `VITE_AEKO_MAINNET_EXPLORER_API` legacy strings, clarified API surfaces as same-origin.
-- **Terminology migration**: `apps/explorer/web/src/utils/networkConfig.js` funding label → "Managed testnet funding (Operations Web role)". `apps/admin/README.md` "Funding Gateway" → "Funding role (same image as Admin)".
-- **Migrations**: New migration `apps/explorer/backend/migrations/0010_funding.sql` created with `funding_settings`, `funding_requests`, `funding_grants` tables replacing JSON-file funding ledger.
-- **Tokenomics**: Duplicate vesting vesting line (`24 months`) removed from `tokenomics.md` §7.
-- **Tests**: `npm test` passes 67/67; `npx tsc --noEmit` clean in admin.
-- **Spec**: Committed to `docs/superpowers/specs/2026-09-25-funding-scan-cleanup-design.md`.
+1. **Aeko Scan is the public request surface.** A user may request test funding and read the resulting request status from Scan.
+2. **Operations Admin is the only grant decision surface.** Scan never approves or rejects a grant.
+3. **A grant is not an airdrop.** Public/Admin grants use an approval queue; developer Test Console airdrops are direct, capped test utilities with their own ledger.
+4. **Mainnet is not a Faucet environment.** Test funding and `requestAirdrop` are not treasury, ecosystem allocation, TGE, vesting, validator emission, or governed mainnet distribution.
+5. **Each network is deployed independently.** Every Validator, Explorer API, database, registry and Operations Web deployment owns one `AEKO_NETWORK`. Aeko Scan may be configured with prefixed URLs for several independently deployed networks so the browser can switch between them. Those prefixes are routing metadata, not a monolithic multi-chain backend.
+6. **Explorer backend owns test-funding policy and durable settlement state.** PostgreSQL is the only funding queue/ledger store. JSON funding state and the historic Funding Gateway role are retired.
 
-### Still pending — structural/backend work:
+## 2. Independent network topology
 
-- **Rust backend module**: `apps/explorer/backend/src/features/funding/` **created** with `mod.rs`, routes (`/funding/policy`, `/funding/request`, `/funding/airdrop`, `/admin/funding/*`), query stubs, auth via `FUNDING_ADMIN_HEADER`. Wired into `features/mod.rs` router (`.merge(funding::router())`) and `http/state.rs` (`funding_admin_token`). Migration `0010_funding.sql` already exists.
-- **Docker compose removal**: `funding-gateway` service blocks removed from `compose.local.yml`, `compose.dokploy.yml`, `compose.coolify.yml`; `AEKO_PUBLIC_FUNDING_URL` / `AEKO_LOCALNET_FUNDING_URL` / `FUNDING_ALLOWED_ORIGINS` / `FUNDING_GATEWAY_KEY` removed from explorer-ui/validator; `AEKO_SCAN_AIRDROP_KEY` added to `explorer-api`; `admin-state` volume removed; `funding-gateway` `depends_on` removed from `operations-web`.
-- **Explorer UI proxy**: `explorer-ui-server.mjs` already routes `/api/explorer/testnet/*` to `explorer-api:8088`, which now serves funding endpoints via the Rust module — POST funding routes work through same-origin proxy without separate funding gateway.
-- **Admin code removal**: `apps/admin/src/middleware.ts` funding branches and `app/api/funding/*` routes **retained** per design (live `fund.aeko.online` migration in progress) — removal deferred until migration completes.
-- **Env config**: `vite.config.js` / `aekoRpcClient.js` `fundingUrl` still references external URL — removal deferred until `fund.aeko.online` fully decommissioned (same-origin path is active on backend, frontend switch is the final closing step).
-- **Explorer UI POST proxy**: `docker/explorer-ui-server.mjs` currently only proxies `GET`/`HEAD` on `/api/explorer/*` — funding POST routes (`/api/funding/request`, `/api/funding/airdrop`) require new POST proxy logic in `explorer-ui-server.mjs` running against `explorer-api:8088`.
-- **Env config**: `apps/explorer/web/vite.config.js` still references `publicFunding` which feeds `fundingUrl`; must be changed to same-origin path only, removing external funding URL injection entirely.
-- **Contract tests**: `networkConsoleContract.test.js`, `networkDeploy.test.js`, `appSettingsFetch.test.js`, `explorerSourcePolicy.test.js`, `aekoRpcClient.test.js` need updating for new same-origin funding path and env removals.
+A single environment is deployed like this:
 
-### Next steps after this status record:
+```text
+                     one AEKO_NETWORK
+                           |
+Aeko Scan --------> Explorer API --------> PostgreSQL
+   |                     |
+   | public request      +------> Validator RPC
+   | status read                     |
+   |                                  +------> private Faucet (test/dev/local only)
+   |
+Operations Admin ---- authenticated server-side Explorer Admin API
+```
 
-Proceed with Rust `funding/mod.rs` + migration + proxy POST support + compose/admin deletions per the design in §2–§3. Once backend routes and env removals land, frontend `networkConfig.js`/`aekoRpcClient.js` `fundingUrl`/`fundingEndpoint` can be stripped, closing the contradiction loop entirely.
+A different network has a different deployment of those services and its own
+chain identity, database, URLs and secrets.
 
-- No `apps/funding` exists. Funding is a role (`AEKO_OPERATIONS_ROLE=funding`) inside `apps/admin`, but docs, envs, and UI treat `fund.aeko.online` / Funding Gateway / Funding Portal as a separate app and domain.
-- Funding releases test AEKO through server-authorized low-level `requestAirdrop` plus private `faucet:9900`, constrained by `tokenomics.md` supply policy (500B baseline, daily budget). The JSON-file `funding-store.ts` ledger plus `FUNDING_*` / `AEKO_*FUNDING_URL` splits contradict that single-supply model.
-- Scanner is the Scan UI surface inside Explorer UI (`/explorer/*` routes on `scan.aeko.online`), but codebase mixes `Explorer`, `Aeko Scan`, and `Explorer/Aeko Scan` in `Layout.jsx`, `Explorer.jsx`, docs, and env names (`AEKO_EXPLORER_*` vs `AEKO_PUBLIC_*` vs legacy `VITE_AEKO_*`).
+Aeko Scan is allowed to carry a map such as:
 
-## 2. Architecture
+```text
+AEKO_MAINNET_RPC_URL / WS_URL / EXPLORER_API_URL
+AEKO_TESTNET_RPC_URL / WS_URL / EXPLORER_API_URL
+AEKO_DEVNET_RPC_URL  / WS_URL / EXPLORER_API_URL
+```
 
-Single public origin `scan.aeko.online` (`explorer-ui:4000`) serves Aeko Scan UI plus same-origin proxies:
+Those values point at remote independent stacks. Generic `AEKO_RPC_URL`,
+`AEKO_WS_URL` and `AEKO_EXPLORER_API_URL` still describe the Scan
+deployment's default network. Server components do not use the prefixed matrix
+to jump between chains.
 
-- `/api/explorer/{network}/*` -> private `explorer-api:8088`
-- `/api/explorer/testnet/funding/*` -> same private `explorer-api:8088` (new funding module)
+## 3. Public grant lifecycle
 
-Deleted: `funding-gateway:3001` service, `fund.aeko.online` DNS/route, `AEKO_OPERATIONS_ROLE=funding` branch. `apps/admin` becomes admin-only. Faucet stays private `faucet:9900`. Validator RPC stays `rpc.aeko.online` / `ws.aeko.online`. No browser calls `requestAirdrop` directly on testnet. Localnet loopback keeps direct airdrop for `cargo run` dev.
+### 3.1 Request
 
-Funding state moves from `funding-state.json` to Postgres in explorer backend, capped by `tokenomics.md` policy.
+Scan calls:
 
-## 3. Components
+```text
+POST /funding/request
+{ "address": "<wallet>" }
+```
 
-- Rust `apps/explorer/backend` new `funding` module: `GET policy`, `POST request`, `POST airdrop`, `GET/PUT admin/*` auth via existing `AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN`. Tables `funding_settings`, `funding_requests`, `funding_grants`. Server-only airdrop key `AEKO_SCAN_AIRDROP_KEY`, never to browser.
-- `apps/explorer/web` (Aeko Scan): `networkConfig.js` drops `fundingUrl/fundingEnabled/fundingLabel`; funding uses same-origin `explorerApiUrl + /funding/*`. Rewrite `aekoRpcClient.js fundingEndpoint()`, remove `fundingUrl` prop from `TestnetFundingRequest.jsx`, `NetworkToolsPanel.jsx`, `NetworkConsoleModalV2.jsx`, `NetworkTools.jsx`. Unify `Layout.jsx:187` and `Explorer.jsx:360-361` to Aeko Scan only. Rewrite `docs.json` funding/explorer/test-console/network-interfaces pages. Update `.env.example`, `vite.config.js`; remove legacy `VITE_AEKO_*` strings.
-- `apps/admin` admin-only: delete funding role branches, `middleware.ts` funding prefixes, `app/(public)/funding`, `api/funding/*`, `api/internal/funding/*`, `lib/funding-store.ts`, `lib/funding-*.ts`, funding RPC client. Keep `app/(admin)/funding-grants` rewritten to call Scan backend via `AEKO_INTERNAL_EXPLORER_API_URL`. Update `README.md`, `.env.local.example`.
-- `docker/`: delete `funding-gateway` blocks from `compose.local.yml`, `compose.dokploy.yml`, `compose.coolify.yml`; remove `AEKO_PUBLIC_FUNDING_URL`, `AEKO_LOCALNET_FUNDING_URL`, `AEKO_INTERNAL_FUNDING_URL`, `FUNDING_ALLOWED_ORIGINS`, `FUNDING_GATEWAY_KEY` split; add `AEKO_SCAN_AIRDROP_KEY` to explorer-api only. Update `env.public.example`, `explorer-ui-entrypoint.sh` (no funding URL requirement; inject only `{env,testnet,mainnet,localnet,demo}` with same-origin funding).
+The Explorer backend validates:
 
-## 4. Data flow
+- test/dev/local environment only;
+- address shape;
+- funding enabled;
+- per-wallet cooldown;
+- active duplicate request;
+- daily public-grant budget, attributed to the UTC day on which Admin
+  approves/reserves the grant so delayed confirmation cannot shift spend into a
+  different day's budget.
 
-- Public request: `POST {explorerApi}/funding/request {address}` checks enabled, address, cooldown, daily budget, queue cap; writes `pending`. No chain write yet.
-- Approval: Admin `POST {internal-explorer}/funding/admin/requests/{id}/decide` rechecks budget plus manual-grant cap, then server-side `requestAirdrop`/faucet call; writes grant row with signature. Failure returns `FUNDING_TRANSFER_FAILED`; request stays `pending` with error.
-- Test Console: `POST {explorerApi}/funding/airdrop {address, amountAeko}` enforces console cap (25 default) plus IP throttle, then same server-side airdrop path. No operator wait.
-- Supply: amounts validated against Postgres daily sum plus `tokenomics.md` caps (500B baseline, 5 default, 5000/day default). Explorer backend is single writer. Total-supply reads stay via RPC/indexed balances, not funding ledger.
+The only successful initial state is `pending`. No chain transfer happens at
+request creation.
 
-## 5. Env and terminology
+Scan may later read:
 
-Delete: `AEKO_PUBLIC_FUNDING_URL`, `AEKO_LOCALNET_FUNDING_URL`, `AEKO_INTERNAL_FUNDING_URL`, `FUNDING_ALLOWED_ORIGINS`, `FUNDING_GATEWAY_KEY` split, `FUNDING_ADMIN_API_KEY` (replaced by `AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN`), `AEKO_OPERATIONS_ROLE`, legacy `VITE_AEKO_TESTNET_EXPLORER_API` / `VITE_AEKO_MAINNET_EXPLORER_API` strings.
+```text
+GET /funding/request/:id
+```
 
-Keep/move to explorer-api: `FUNDING_DEFAULT_AMOUNT_AEKO`, `FUNDING_DEFAULT_COOLDOWN_HOURS`, `FUNDING_DEFAULT_DAILY_BUDGET_AEKO`, `FUNDING_MAX_MANUAL_GRANT_AEKO`, `FUNDING_MAX_CONSOLE_AIRDROP_AEKO`, `FUNDING_IP_REQUESTS_PER_10_MIN`, `AEKO_FAUCET_PER_REQUEST_CAP`. Remove `FUNDING_STATE_DIR`.
+This endpoint is status-only. It exposes no approval operation.
 
-Canonical terms: product Aeko Scan; origin `scan.aeko.online`; routes `/explorer/*` (compat); backend Scan API / Explorer backend (`explorer-api:8088`, private); Test Console is Scan Test Console under `/network-tools` (testnet-pinned); Funding is Testnet funding (Scan funding queue plus constrained airdrop). `fund.aeko.online` is historic alias only, zero code references.
+### 3.2 Admin decision
 
-## 6. Errors and validation
+Authenticated Operations Admin calls the private/admin Explorer routes using
+the server-side `AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN`.
 
-Fail closed: missing airdrop key or faucet down yields `503 FUNDING_DISABLED` / `502 FUNDING_TRANSFER_FAILED`; UI shows paused message; no browser direct `requestAirdrop` fallback on testnet. Partial mainnet config still throws. Local deploy exposes only localnet.
+Only a `pending` public request can be:
 
-Update contract tests: `networkConsoleContract.test.js`, `networkDeploy.test.js`, `appSettingsFetch.test.js`, `explorerSourcePolicy.test.js`, `aekoRpcClient.test.js`, plus new Rust funding policy/budget/cooldown/queue-cap tests.
+- approved, moving into settlement; or
+- rejected, moving to `rejected`.
 
-Manual verify: `curl scan.../api/explorer/testnet/funding/policy`; request then approve then balance via `rpc.aeko.online`; console cap plus throttle; Admin grants page; `npm test/lint/build` in `apps/explorer/web`; `cargo check/clippy` for backend.
+Scan has no Admin token and the Scan proxy does not expose Admin mutation
+routes.
 
-## 7. Out of scope
+### 3.3 Durable settlement state machine
 
-No tokenomics supply change. No validator/faucet protocol change. No `/scan/*` route rename. No new mobile or bridge work.
+```text
+pending
+  | approve (Admin only)
+  v
+processing
+  | durable transaction signature
+  v
+submitted
+  | chain confirms             | chain reports failure
+  v                            v
+confirmed                    failed
+
+pending -- reject (Admin only) --> rejected
+```
+
+Rules:
+
+- `processing` means the Admin approved the grant but no durable transaction
+  signature has been persisted yet. Before the low-level RPC submission, the
+  backend persists the exact recent blockhash used for that transaction intent.
+- `submitted` means a signature exists and the amount remains budget-reserved.
+- An observation timeout never converts `submitted` into a confirmed grant.
+- Once a signature exists, reject and a second logical submission are forbidden.
+- Admin reconciliation of `submitted` only checks the existing signature. It
+  never creates a new transfer.
+- If the RPC response is lost before a signature is persisted, the request stays
+  `processing` with `FUNDING_SUBMISSION_RETRY_PENDING`. The background
+  reconciler may replay **only the persisted transaction intent**: the same
+  destination, amount, funding authorization and recent blockhash. The Faucet
+  signs that identical intent deterministically, so the replay has the same
+  transaction signature. This signature recovery remains possible after that
+  blockhash expires because the signed transaction is reconstructed from the
+  persisted intent; Explorer then searches transaction history for the recovered
+  signature to distinguish an original transfer that landed from an intent that
+  never landed. Neither Scan nor Admin may manually retry it. The backend never
+  substitutes a fresh blockhash for that logical grant.
+- If a signature is known but absent from transaction history, the backend
+  checks the persisted submission blockhash. While that blockhash is valid the
+  request remains pending; once it is invalid, the exact transaction can no
+  longer land and the request becomes terminal `failed`. The backend never
+  substitutes a fresh blockhash for that logical grant.
+- A confirmed grant is inserted exactly once and linked to its request id.
+- A terminal on-chain failure or expired unobserved transaction releases the
+  reservation and does not create a grant row.
+
+## 4. Developer airdrop lifecycle
+
+Developer Test Console airdrops call:
+
+```text
+POST /funding/airdrop
+{ "address": "<wallet>", "amountAeko": <amount> }
+```
+
+They are:
+
+- test/dev/local only;
+- rate-limited;
+- capped by both policy and Faucet hard ceiling;
+- submitted directly without Admin approval;
+- stored in `funding_airdrops`, not `funding_requests` or
+  `funding_grants`.
+
+Airdrop history and confirmed grant history must remain separate in Operations
+Web.
+
+## 5. Settlement authorization
+
+The Explorer backend is the application settlement authority for test funding.
+It sends the server-only `AEKO_FUNDING_AUTHORIZATION_KEY` in the
+`requestAirdrop` RPC config. The matching Validator deployment validates that
+key before using its private Faucet.
+
+The secret is configured independently per network deployment. It must not be
+injected into Aeko Scan JavaScript or exposed through Operations Web responses.
+
+Managed test funding must never fall back to a browser direct
+`requestAirdrop` call.
+
+## 6. Mainnet boundary
+
+For `AEKO_NETWORK=mainnet`:
+
+- public funding policy/request/status routes are unavailable;
+- developer airdrop is unavailable;
+- Admin funding settings, queue, manual Faucet grant and reconciliation are
+  unavailable;
+- `AEKO_FUNDING_AUTHORIZATION_KEY` is not a mainnet distribution authority.
+
+The economic target model in `tokenomics.md` defines Treasury,
+Ecosystem/Grants, Community, Validator Rewards, Team and Public Sale
+allocations. Mainnet distribution must debit a real governed allocation and be
+authorized by the real governance/treasury execution path.
+
+The repository does not yet implement the complete two-house governance
+executor or provision those documented allocation buckets as spendable governed
+reserves. Therefore mainnet grant/distribution UI must remain fail-closed rather
+than reuse test funding.
+
+## 7. Persistence
+
+PostgreSQL owns:
+
+- `funding_settings`
+- `funding_requests`
+- `funding_grants`
+- `funding_airdrops`
+- `funding_rate_events`
+
+Retired sources of truth:
+
+- `apps/admin/data/funding-state.json`
+- public Admin funding page
+- Admin direct-RPC funding client
+- separate Funding Gateway service/role
+
+## 8. Product terminology
+
+Use these terms consistently:
+
+- **Grant request**: user request submitted in Scan and decided by Admin.
+- **Grant**: Admin-approved transfer that is confirmed on-chain.
+- **Manual grant**: Admin-created test grant, still subject to test-network
+  settlement limits.
+- **Developer airdrop**: direct capped Test Console utility; no Admin approval.
+- **Mainnet distribution**: governed token allocation movement; never call this
+  a Faucet grant unless a future governance specification explicitly defines
+  such a mechanism.
+- **Aeko Scan**: public explorer/request UX.
+- **Operations Web / Admin**: authenticated operator control plane.
+
+## 9. Validation and acceptance
+
+Repository validation must prove:
+
+- Scan can create and read a grant request but cannot decide it;
+- only authenticated Admin can approve/reject;
+- processing cannot be rejected;
+- submitted cannot be resubmitted;
+- submitted remains budget-reserved until terminal chain outcome;
+- confirmation creates exactly one grant;
+- failed transfers create no grant;
+- developer airdrops never enter the grant ledger or public grant budget;
+- mainnet funding/airdrop routes fail closed;
+- each backend uses only its active network config;
+- Scan may route to independently deployed network APIs.
+
+Deployment dogfood is mandatory before release:
+
+```bash
+AEKO_NETWORK=testnet \
+AEKO_SCAN_URL=https://scan.example \
+AEKO_OPERATIONS_URL=https://admin.example \
+AEKO_RPC_URL=https://rpc.example \
+AEKO_FUNDING_SMOKE_ADDRESS=<dedicated-test-wallet> \
+ADMIN_PASSWORD='<operator-password>' \
+python3 scripts/smoke-funding-e2e.py
+```
+
+The smoke test must prove:
+
+```text
+Scan request
+  -> Scan cannot approve
+  -> Admin login
+  -> Admin approval
+  -> protected RPC/Faucet settlement
+  -> chain confirmation
+  -> public status confirmed
+  -> wallet balance increased
+  -> exactly one confirmed grant
+  -> grant absent from developer-airdrop ledger
+```
+
+Until that live test succeeds against a deployed test environment, funding is
+not `INTEGRATION_VERIFIED`.
