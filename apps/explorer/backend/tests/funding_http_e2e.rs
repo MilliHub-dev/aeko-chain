@@ -33,10 +33,7 @@ struct FakeRpcState {
     airdrop_calls: Arc<AtomicUsize>,
 }
 
-async fn fake_rpc(
-    State(state): State<FakeRpcState>,
-    Json(request): Json<Value>,
-) -> Json<Value> {
+async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>) -> Json<Value> {
     let method = request
         .get("method")
         .and_then(Value::as_str)
@@ -134,12 +131,9 @@ async fn request_json(
 
     let response = app.clone().oneshot(request).await.unwrap();
     let status = response.status();
-    let bytes = to_bytes(response.into_body(), 1024 * 1024)
-        .await
-        .unwrap();
-    let payload = serde_json::from_slice(&bytes).unwrap_or_else(|_| {
-        json!({"raw": String::from_utf8_lossy(&bytes).to_string()})
-    });
+    let bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+    let payload = serde_json::from_slice(&bytes)
+        .unwrap_or_else(|_| json!({"raw": String::from_utf8_lossy(&bytes).to_string()}));
     (status, payload)
 }
 
