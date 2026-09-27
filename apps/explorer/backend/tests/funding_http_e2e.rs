@@ -36,6 +36,7 @@ struct FakeRpcState {
     airdrop_calls: Arc<AtomicUsize>,
     airdrop_failures: Arc<AtomicUsize>,
     blockhash_calls: Arc<AtomicUsize>,
+    blockhash_valid: Arc<AtomicBool>,
     pending_signature_statuses: Arc<AtomicUsize>,
     blockhash: String,
     airdrop_signature: String,
@@ -60,6 +61,21 @@ async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>)
                         "blockhash": state.blockhash,
                         "lastValidBlockHeight": 500
                     }
+                }
+            }))
+        }
+        "isBlockhashValid" => {
+            let supplied = request
+                .pointer("/params/0")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            Json(json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "result": {
+                    "context": {"slot": 42},
+                    "value": supplied == state.blockhash
+                        && state.blockhash_valid.load(Ordering::SeqCst)
                 }
             }))
         }
@@ -218,6 +234,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         airdrop_calls: Arc::new(AtomicUsize::new(0)),
         airdrop_failures: Arc::new(AtomicUsize::new(0)),
         blockhash_calls: Arc::new(AtomicUsize::new(0)),
+        blockhash_valid: Arc::new(AtomicBool::new(true)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
         blockhash: Pubkey::new_unique().to_string(),
         airdrop_signature: Signature::new_unique().to_string(),
@@ -410,6 +427,124 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
 }
 
 #[tokio::test]
+async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() -> Result<()> {
+    let _guard = TEST_DB_LOCK.lock().await;
+    let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
+        .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
+
+    let authorization = "test-funding-authorization-key-expired-0001".to_string();
+    let fake_state = FakeRpcState {
+        authorization: authorization.clone(),
+        saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
+        airdrop_calls: Arc::new(AtomicUsize::new(0)),
+        airdrop_failures: Arc::new(AtomicUsize::new(0)),
+        blockhash_calls: Arc::new(AtomicUsize::new(0)),
+        blockhash_valid: Arc::new(AtomicBool::new(false)),
+        pending_signature_statuses: Arc::new(AtomicUsize::new(usize::MAX)),
+        blockhash: Pubkey::new_unique().to_string(),
+        airdrop_signature: Signature::new_unique().to_string(),
+    };
+    let rpc_observer = fake_state.clone();
+
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let rpc_addr = listener.local_addr()?;
+    let fake_server = Router::new()
+        .route("/", post(fake_rpc))
+        .with_state(fake_state);
+    tokio::spawn(async move {
+        axum::serve(listener, fake_server).await.unwrap();
+    });
+
+    let config = backend_config(database_url, format!("http://{rpc_addr}"));
+    let repository = PostgresRepository::connect(&config).await?;
+    let settings = repository.funding_settings().await?;
+    repository
+        .update_funding_settings(
+            settings.revision,
+            &aeko_explorer_backend::infrastructure::persistence::funding::FundingSettingsUpdate {
+                enabled: Some(true),
+                amount_aeko: Some(5.0),
+                cooldown_hours: Some(0.0),
+                daily_budget_aeko: Some(1_000_000.0),
+                max_manual_grant_aeko: Some(100.0),
+                console_airdrop_cap_aeko: Some(25.0),
+            },
+        )
+        .await?;
+
+    let admin_token = "test-settings-admin-token-expired-0000001";
+    let rpc_owner = build_rpc_owner(config).await?;
+    let state = AppState::new(
+        repository,
+        rpc_owner.clone(),
+        "testnet",
+        "test-genesis",
+        128,
+        true,
+        admin_token,
+        Some(authorization),
+        100,
+        100.0,
+    )
+    .shared();
+    let app = build_router(state.clone(), &server_config());
+
+    let address = Pubkey::new_unique().to_string();
+    let (status, created) = request_json(
+        &app,
+        Method::POST,
+        "/funding/request",
+        Some(json!({"address": address})),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{created}");
+    let request_id = created["data"]["id"]
+        .as_str()
+        .expect("request id")
+        .to_string();
+
+    let before = state.repository.funding_policy_snapshot().await?;
+    let (status, failed_response) = request_json(
+        &app,
+        Method::POST,
+        &format!("/admin/funding/requests/{request_id}/decide"),
+        Some(json!({"approved": true})),
+        Some(admin_token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_GATEWAY, "{failed_response}");
+    assert_eq!(failed_response["error"]["code"], "FUNDING_TRANSACTION_FAILED");
+    assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(rpc_observer.blockhash_calls.load(Ordering::SeqCst), 1);
+
+    let failed = state
+        .repository
+        .funding_request(&request_id)
+        .await?
+        .expect("failed request");
+    assert_eq!(failed.status, "failed");
+    assert!(!failed.confirmed);
+
+    let after = state.repository.funding_policy_snapshot().await?;
+    assert!(
+        after.public_reserved_aeko <= before.public_reserved_aeko,
+        "expired intent must release its public budget reservation"
+    );
+    assert!(!state
+        .repository
+        .list_funding_grants(500)
+        .await?
+        .iter()
+        .any(|grant| grant.request_id.as_deref() == Some(request_id.as_str())));
+
+    drop(app);
+    drop(state);
+    drop_rpc_owner(rpc_owner).await?;
+    Ok(())
+}
+
+#[tokio::test]
 async fn processing_grant_replays_only_persisted_intent_after_submission_response_failure() -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().await;
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
@@ -424,6 +559,7 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
         airdrop_calls: Arc::new(AtomicUsize::new(0)),
         airdrop_failures: Arc::new(AtomicUsize::new(1)),
         blockhash_calls: Arc::new(AtomicUsize::new(0)),
+        blockhash_valid: Arc::new(AtomicBool::new(true)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
         blockhash: blockhash.clone(),
         airdrop_signature: expected_signature.clone(),
@@ -568,6 +704,7 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
         airdrop_calls: Arc::new(AtomicUsize::new(0)),
         airdrop_failures: Arc::new(AtomicUsize::new(0)),
         blockhash_calls: Arc::new(AtomicUsize::new(0)),
+        blockhash_valid: Arc::new(AtomicBool::new(true)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(12)),
         blockhash: Pubkey::new_unique().to_string(),
         airdrop_signature: Signature::new_unique().to_string(),
