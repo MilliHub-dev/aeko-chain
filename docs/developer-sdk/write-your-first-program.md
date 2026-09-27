@@ -90,7 +90,7 @@ substitute for the SBF build.
 Once the program artifact exists:
 
 ```bash
-aeko program deploy target/deploy/hello_aeko_program.so
+aeko program deploy contracts/hello-aeko-program/target/deploy/hello_aeko_program.so
 ```
 
 Or from this repo if the CLI is not globally installed:
