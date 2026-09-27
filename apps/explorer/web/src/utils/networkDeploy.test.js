@@ -16,13 +16,11 @@ const TESTNET = {
   rpcUrl: 'https://rpc.test.example.invalid',
   websocketUrl: 'wss://ws.test.example.invalid',
   explorerApiUrl: '/api/explorer/testnet',
-  fundingUrl: '/api/explorer/testnet',
 };
 const DEVNET = {
   rpcUrl: 'https://rpc.dev.example.invalid',
   websocketUrl: 'wss://ws.dev.example.invalid',
   explorerApiUrl: '/api/explorer/devnet',
-  fundingUrl: '/api/explorer/devnet',
 };
 
 test('active network is the default while alternate deployments remain selectable', async () => {
@@ -51,6 +49,8 @@ test('testnet deployment defaults to testnet without pretending other networks s
   assert.equal(m.getActiveNetwork(), 'testnet');
   assert.equal(m.getDefaultExplorerNetwork(), 'testnet');
   assert.equal(m.getNetworkConfig('testnet').rpcUrl, TESTNET.rpcUrl);
+  assert.equal(m.getNetworkConfig('testnet').fundingEnabled, true);
+  assert.equal(m.getNetworkConfig('testnet').fundingUrl, undefined);
   assert.equal(m.getNetworkConfig('mainnet').available, false);
   assert.equal(m.getNetworkConfig('devnet').available, false);
   assert.equal(m.getTestNetwork(), 'testnet');

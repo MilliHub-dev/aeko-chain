@@ -19,7 +19,6 @@ const TESTNET = {
   rpcUrl: 'https://rpc.example.invalid',
   websocketUrl: 'wss://ws.example.invalid',
   explorerApiUrl: '/api/explorer/testnet',
-  fundingUrl: 'https://fund.example.invalid',
 };
 
 test('settings fetch failure names the backend URL instead of a bare status', async () => {

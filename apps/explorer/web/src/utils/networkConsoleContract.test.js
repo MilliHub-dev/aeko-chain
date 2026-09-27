@@ -126,15 +126,15 @@ test('accounts workspace keeps public funding approval separate from direct Test
   assert.match(implementation, /Test Console airdrop/);
   assert.match(implementation, /Request airdrop/);
   assert.match(implementation, /hasSpendableBalance/);
-  assert.match(implementation, /requestConsoleAirdrop\(fundingUrl, wallet\.address, value\)/);
+  assert.match(implementation, /requestConsoleAirdrop\(explorerApiUrl, wallet\.address, value\)/);
   assert.match(implementation, /lg:grid-cols-2/);
   assert.doesNotMatch(implementation, /\brequestAirdrop\b|\brequestTestnetFunding\b|FUNDING_GATEWAY_KEY/);
-  assert.match(networkTools, /fundingUrl=\{config\.fundingUrl\}/);
+  assert.match(networkTools, /explorerApiUrl=\{config\.explorerApiUrl\}/);
 
-  assert.match(networkTools, /<TestnetFundingRequest fundingUrl=\{config\.fundingUrl\} \/>/);
+  assert.match(networkTools, /<TestnetFundingRequest explorerApiUrl=\{config\.explorerApiUrl\} \/>/);
   assert.match(funding, /Your AEKO wallet address/);
   assert.match(funding, /operator approval/i);
-  assert.match(funding, /requestFundingApproval\(fundingUrl, address\.trim\(\)\)/);
+  assert.match(funding, /requestFundingApproval\(explorerApiUrl, address\.trim\(\)\)/);
 });
 
 
@@ -143,12 +143,12 @@ test('funding API URLs resolve from the configured origin and reject HTML 200 re
 
   assert.match(rpcClient, /base\.origin/);
   assert.match(rpcClient, /new URL\(path\.replace\(/);
-  assert.match(rpcClient, /same-origin Explorer proxy base/);
+  assert.match(rpcClient, /selected Explorer/Scan API/);
   assert.match(rpcClient, /content-type/);
   assert.match(rpcClient, /non-JSON/);
   assert.match(rpcClient, /requestFundingApproval/);
   assert.match(rpcClient, /requestConsoleAirdrop/);
-  assert.match(rpcClient, /requestConsoleAirdrop\(config\.fundingUrl, address, lamportsToAeko\(lamports\)\)/);
+  assert.match(rpcClient, /requestConsoleAirdrop\(config\.explorerApiUrl, address, lamportsToAeko\(lamports\)\)/);
 });
 
 
@@ -165,7 +165,10 @@ test('funding runtime is owned by the Scan backend after the Admin gateway remov
   assert.match(fundingFeature, /request_funding_airdrop/);
   assert.match(fundingFeature, /create_public_funding_request/);
   assert.match(fundingFeature, /reserve_public_funding_request/);
-  assert.match(fundingFeature, /mainnet-governed/);
+  assert.match(fundingFeature, /\/funding\/requests\/:id\/status/);
+  assert.match(fundingFeature, /confirm_funding_request/);
+  assert.doesNotMatch(fundingFeature, /finalize_funding_request/);
+  assert.match(fundingFeature, /mainnet-disabled/);
 });
 
 test('Admin funding polling preserves persisted policy revisions and mainnet separation', async () => {
@@ -177,8 +180,8 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
   assert.match(adminPage, /setInterval/);
   assert.match(adminPage, /expectedRevision: settings\.revision/);
   assert.match(adminPage, /consoleAirdropAggregateUnlimited/);
-  assert.match(adminPage, /mainnet-governed/);
-  assert.match(adminPage, /No Faucet policy is editable on mainnet/);
+  assert.match(adminPage, /mainnet-disabled/);
+  assert.match(adminPage, /Mainnet distributions are fail-closed/);
   assert.match(adminProxy, /x-aeko-settings-token/);
   assert.match(settingsRoute, /method: 'PATCH'/);
   assert.match(requestsRoute, /approved: action === 'approve'/);
