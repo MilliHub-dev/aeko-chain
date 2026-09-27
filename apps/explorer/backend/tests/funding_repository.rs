@@ -97,9 +97,7 @@ async fn funding_policy_queue_and_grants_are_durable_and_separated() -> Result<(
     assert_eq!(processing.status, "processing");
 
     let reserved = repository.funding_policy_snapshot().await?;
-    assert!(
-        reserved.public_reserved_aeko >= before_reservation.public_reserved_aeko + 5.0
-    );
+    assert!(reserved.public_reserved_aeko >= before_reservation.public_reserved_aeko + 5.0);
 
     let public_signature = format!("integration-public-signature-{suffix}");
     let submitted = repository
@@ -109,13 +107,10 @@ async fn funding_policy_queue_and_grants_are_durable_and_separated() -> Result<(
 
     let reserved_after_submit = repository.funding_policy_snapshot().await?;
     assert!(
-        reserved_after_submit.public_reserved_aeko
-            >= before_reservation.public_reserved_aeko + 5.0
+        reserved_after_submit.public_reserved_aeko >= before_reservation.public_reserved_aeko + 5.0
     );
 
-    let confirmed = repository
-        .confirm_funding_request(&pending.id)
-        .await?;
+    let confirmed = repository.confirm_funding_request(&pending.id).await?;
     assert_eq!(confirmed.status, "confirmed");
     assert!(confirmed.confirmed);
 
@@ -143,7 +138,10 @@ async fn funding_policy_queue_and_grants_are_durable_and_separated() -> Result<(
         .await?;
 
     let after_console = repository.funding_policy_snapshot().await?;
-    assert_eq!(after_console.public_spent_aeko, after_public.public_spent_aeko);
+    assert_eq!(
+        after_console.public_spent_aeko,
+        after_public.public_spent_aeko
+    );
     assert_eq!(
         after_console.public_reserved_aeko,
         after_public.public_reserved_aeko
@@ -151,7 +149,6 @@ async fn funding_policy_queue_and_grants_are_durable_and_separated() -> Result<(
 
     Ok(())
 }
-
 
 #[tokio::test]
 async fn submitted_funding_stays_reserved_and_cannot_be_rejected() -> Result<()> {
@@ -176,7 +173,9 @@ async fn submitted_funding_stays_reserved_and_cannot_be_rejected() -> Result<()>
     let suffix = unique_suffix();
     let address = format!("integration-submitted-{suffix}");
     let pending = repository.create_public_funding_request(&address).await?;
-    let processing = repository.reserve_public_funding_request(&pending.id).await?;
+    let processing = repository
+        .reserve_public_funding_request(&pending.id)
+        .await?;
     assert_eq!(processing.status, "processing");
 
     let signature = format!("integration-submitted-signature-{suffix}");

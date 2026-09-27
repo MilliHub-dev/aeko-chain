@@ -370,7 +370,10 @@ pub fn router() -> Router<SharedState> {
     Router::new()
         .route("/funding/policy", get(get_policy))
         .route("/funding/request", post(create_request))
-        .route("/funding/requests/:id/status", get(get_public_request_status))
+        .route(
+            "/funding/requests/:id/status",
+            get(get_public_request_status),
+        )
         .route("/funding/airdrop", post(create_airdrop))
         .route(
             "/admin/funding/settings",
@@ -378,10 +381,7 @@ pub fn router() -> Router<SharedState> {
         )
         .route("/admin/funding/requests", get(list_requests))
         .route("/admin/funding/requests/:id", get(get_request))
-        .route(
-            "/admin/funding/requests/:id/decide",
-            post(decide_request),
-        )
+        .route("/admin/funding/requests/:id/decide", post(decide_request))
         .route("/admin/funding/grants", get(list_grants))
         .route("/admin/funding/grant", post(create_grant))
 }
@@ -606,11 +606,7 @@ async fn decide_request(
     if !body.approved {
         let request = state
             .repository
-            .reject_funding_request(
-                &id,
-                Some("OPERATOR_REJECTED"),
-                Some("Rejected by operator"),
-            )
+            .reject_funding_request(&id, Some("OPERATOR_REJECTED"), Some("Rejected by operator"))
             .await?;
         return Ok(response::data_from_source(
             &state.network,
@@ -785,11 +781,7 @@ async fn settle_request(
         Ok(FundingTransferStatus::Failed(error)) => {
             let failed = state
                 .repository
-                .fail_funding_request(
-                    &request.id,
-                    "FUNDING_TRANSACTION_FAILED",
-                    &error,
-                )
+                .fail_funding_request(&request.id, "FUNDING_TRANSACTION_FAILED", &error)
                 .await?;
             Err(FundingHttpError::new(
                 StatusCode::BAD_GATEWAY,

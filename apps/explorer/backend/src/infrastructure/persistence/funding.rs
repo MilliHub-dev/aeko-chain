@@ -162,9 +162,7 @@ impl PostgresRepository {
     }
 
     pub async fn funding_settings(&self) -> Result<PersistedFundingSettings, sqlx::Error> {
-        let sql = format!(
-            "SELECT {SETTINGS_COLUMNS} FROM funding_settings WHERE singleton = TRUE"
-        );
+        let sql = format!("SELECT {SETTINGS_COLUMNS} FROM funding_settings WHERE singleton = TRUE");
         sqlx::query_as::<_, PersistedFundingSettings>(&sql)
             .fetch_one(&self.pool)
             .await
@@ -217,11 +215,9 @@ impl PostgresRepository {
             .bind(&lock_key)
             .execute(&mut *tx)
             .await?;
-        sqlx::query(
-            "DELETE FROM funding_rate_events WHERE occurred_at < NOW() - INTERVAL '1 day'",
-        )
-        .execute(&mut *tx)
-        .await?;
+        sqlx::query("DELETE FROM funding_rate_events WHERE occurred_at < NOW() - INTERVAL '1 day'")
+            .execute(&mut *tx)
+            .await?;
         let count: i64 = sqlx::query_scalar(
             r#"
             SELECT COUNT(*)::bigint
@@ -559,12 +555,13 @@ impl PostgresRepository {
                 status: request.status,
             });
         }
-        let signature = request
-            .signature
-            .as_deref()
-            .ok_or(FundingStoreError::RequestAlreadyDecided {
-                status: "submitted-without-signature".to_string(),
-            })?;
+        let signature =
+            request
+                .signature
+                .as_deref()
+                .ok_or(FundingStoreError::RequestAlreadyDecided {
+                    status: "submitted-without-signature".to_string(),
+                })?;
 
         sqlx::query(
             r#"
@@ -700,9 +697,7 @@ impl PostgresRepository {
         &self,
         id: &str,
     ) -> Result<Option<FundingRequestRecord>, FundingStoreError> {
-        let sql = format!(
-            "SELECT {REQUEST_COLUMNS} FROM funding_requests WHERE id = $1::uuid"
-        );
+        let sql = format!("SELECT {REQUEST_COLUMNS} FROM funding_requests WHERE id = $1::uuid");
         Ok(sqlx::query_as::<_, FundingRequestRecord>(&sql)
             .bind(id)
             .fetch_optional(&self.pool)
