@@ -20,11 +20,26 @@ export async function POST(req: NextRequest) {
   }
 
   const id = String(body.id ?? '').trim()
-  const action = body.action === 'approve' || body.action === 'reject' ? body.action : ''
+  const action =
+    body.action === 'approve' || body.action === 'reject' || body.action === 'reconcile'
+      ? body.action
+      : ''
   if (!id || !action) {
     return NextResponse.json(
-      { error: { code: 'INVALID_DECISION', message: 'A request id and approve/reject action are required' } },
+      {
+        error: {
+          code: 'INVALID_DECISION',
+          message: 'A request id and approve/reject/reconcile action are required',
+        },
+      },
       { status: 400 },
+    )
+  }
+
+  if (action === 'reconcile') {
+    return fundingAdminRequest(
+      `/admin/funding/requests/${encodeURIComponent(id)}/reconcile`,
+      { method: 'POST' },
     )
   }
 
