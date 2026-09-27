@@ -470,6 +470,10 @@ fn main() {
         enable_extended_tx_metadata_storage: true,
         rpc_bigtable_config,
         faucet_addr: Some(faucet_addr),
+        funding_authorization_key: std::env::var("AEKO_FUNDING_AUTHORIZATION_KEY")
+            .ok()
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty()),
         account_indexes,
         ..JsonRpcConfig::default_for_test()
     });
