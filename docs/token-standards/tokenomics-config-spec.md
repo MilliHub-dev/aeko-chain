@@ -223,7 +223,7 @@ that assumes the full 500B native supply exists. Testnet/devnet/localnet may
 continue using their test liquidity and reference policy state; that does not
 make those Faucet balances a mainnet allocation.
 
-## 6. Canonical Values
+## 5. Canonical Values
 
 ### 5.1 Supply Baseline
 
@@ -335,7 +335,7 @@ delegator_pool = gross_reward × (1 - commission_rate)
 delegator_reward = delegator_pool × (delegator_stake / total_validator_stake)
 ```
 
-### 8.1 Uptime Multipliers
+### 9.1 Uptime Multipliers
 
 ```text
 uptime >= 99%  -> 1.10
@@ -348,7 +348,7 @@ Implementation note:
 
 - evaluate the `< 80%` condition before the `< 95%` condition in code
 
-### 8.2 Slashing Rule
+### 9.2 Slashing Rule
 
 If a validator is slashed during the epoch:
 
@@ -356,7 +356,7 @@ If a validator is slashed during the epoch:
 - uptime multiplier is ignored
 - slash amount routes to treasury
 
-### 8.3 Recommended Reward Settlement Struct
+### 9.3 Recommended Reward Settlement Struct
 
 ```rust
 pub struct ValidatorEpochReward {
@@ -375,7 +375,7 @@ pub struct ValidatorEpochReward {
 }
 ```
 
-### 8.4 Deterministic Math Requirements
+### 9.4 Deterministic Math Requirements
 
 Implementation must:
 
