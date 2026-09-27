@@ -43,7 +43,7 @@ Show a collection authority creating a collection, minting an NFT, freezing it, 
 
 ## Remaining Demo Gaps
 
-- live publication of the canonical public collection and token accounts described in [`docs/token-standards/nft-public-testnet-walkthrough.md`](/Users/ok/Documents/projects/aeko-chain/docs/token-standards/nft-public-testnet-walkthrough.md)
+- live publication of the canonical public collection and token accounts described in [`docs/token-standards/nft-public-testnet-walkthrough.md`](./nft-public-testnet-walkthrough.md)
 - broader multi-wallet selection UX if multiple AEKO adapters are injected at once
 
 ## Required Accounts
