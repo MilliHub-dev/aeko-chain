@@ -87,7 +87,7 @@ Phase 5 infrastructure should support:
 - domain allowlisting for approved applications if policy requires it
 - permission checks for restricted endpoints
 
-SocialFi-specific protections should align with [`docs/socialfi/socialfi.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi.md), especially:
+SocialFi-specific protections should align with [`docs/socialfi/socialfi.md`](../socialfi/socialfi.md), especially:
 
 - engagement proof spam control
 - posting-rate protection
