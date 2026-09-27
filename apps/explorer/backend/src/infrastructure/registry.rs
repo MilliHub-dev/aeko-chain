@@ -511,8 +511,7 @@ mod tests {
             let read = stream.read(&mut request).unwrap();
             let request = String::from_utf8_lossy(&request[..read]);
             assert!(request.starts_with("GET /social-registry.env "));
-            let body =
-                "AEKO_REGISTRY_SCHEMA_VERSION=2\nAEKO_CHAIN_GENESIS_HASH=remote-genesis\n";
+            let body = "AEKO_REGISTRY_SCHEMA_VERSION=2\nAEKO_CHAIN_GENESIS_HASH=remote-genesis\n";
             write!(
                 stream,
                 "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
