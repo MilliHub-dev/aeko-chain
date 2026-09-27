@@ -733,7 +733,7 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
     let fake_server = Router::new()
         .route("/", post(fake_rpc))
         .with_state(fake_state);
-    let rpc_owner = tokio::spawn(async move {
+    tokio::spawn(async move {
         axum::serve(listener, fake_server).await.unwrap();
     });
 
@@ -755,9 +755,10 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
         .await?;
 
     let admin_token = "test-settings-admin-token-expired-replay-0001";
+    let rpc_owner = build_rpc_owner(config).await?;
     let state = AppState::new(
         repository,
-        Arc::new(RpcChainClient::new(config)?),
+        rpc_owner.clone(),
         "testnet",
         "test-genesis",
         128,
