@@ -201,7 +201,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         None,
     )
     .await;
-    assert_eq!(status, StatusCode::OK, "{created}");
+    assert_eq!(status, StatusCode::ACCEPTED, "{created}");
     assert_eq!(created["data"]["status"], "pending");
     let request_id = created["data"]["id"]
         .as_str()
