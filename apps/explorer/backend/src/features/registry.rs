@@ -24,9 +24,7 @@ pub fn router() -> Router<SharedState> {
     Router::new().route("/registry", get(get_registry_index))
 }
 
-async fn get_registry_index(
-    State(state): State<SharedState>,
-) -> Json<DataEnvelope<RegistryIndex>> {
+async fn get_registry_index(State(state): State<SharedState>) -> Json<DataEnvelope<RegistryIndex>> {
     response::data_from_source(
         &state.network,
         RegistryIndex {
