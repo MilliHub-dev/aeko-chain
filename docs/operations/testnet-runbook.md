@@ -220,7 +220,7 @@ Coolify-proxy (Traefik) handles all TLS termination and HTTP routing. You do not
 | `rpc.aeko.online` | validator-1:8899 | `https://` | JSON-RPC for wallets, dApps, CLIs |
 | `ws.aeko.online` | validator-1:8900 | `wss://` | Pubsub WebSocket |
 | `scan.aeko.online/api/explorer/testnet/*` | explorer-ui:4000 -> explorer-backend:8088 | `https://` | Explorer UI read-only proxy |
-| `scan.aeko.online` | explorer-ui:3000 | `https://` | Explorer web UI (primary) |
+| `scan.aeko.online` | explorer-ui:4000 | `https://` | Aeko Scan web UI (primary) |
 | `gossip.aeko.online` | validator gossip | raw TCP+UDP | validator discovery/peer entrypoint only |
 | `cloud.aeko.online` | Coolify dashboard (port 8000, managed by Coolify) | `http://`/`https://` | Operator UI |
 
