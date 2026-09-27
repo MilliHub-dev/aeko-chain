@@ -244,11 +244,9 @@ impl PostgresRepository {
             .bind(&lock_key)
             .execute(&mut *tx)
             .await?;
-        sqlx::query(
-            "DELETE FROM funding_rate_events WHERE occurred_at < NOW() - INTERVAL '1 day'",
-        )
-        .execute(&mut *tx)
-        .await?;
+        sqlx::query("DELETE FROM funding_rate_events WHERE occurred_at < NOW() - INTERVAL '1 day'")
+            .execute(&mut *tx)
+            .await?;
         let count: i64 = sqlx::query_scalar(
             r#"
             SELECT COUNT(*)::bigint
@@ -359,8 +357,9 @@ impl PostgresRepository {
         id: &str,
     ) -> Result<FundingRequestRecord, FundingStoreError> {
         let mut tx = self.pool.begin().await?;
-        let request_sql =
-            format!("SELECT {REQUEST_COLUMNS} FROM funding_requests WHERE id = $1::uuid FOR UPDATE");
+        let request_sql = format!(
+            "SELECT {REQUEST_COLUMNS} FROM funding_requests WHERE id = $1::uuid FOR UPDATE"
+        );
         let request = sqlx::query_as::<_, FundingRequestRecord>(&request_sql)
             .bind(id)
             .fetch_optional(&mut *tx)
@@ -612,8 +611,9 @@ impl PostgresRepository {
         id: &str,
     ) -> Result<FundingRequestRecord, FundingStoreError> {
         let mut tx = self.pool.begin().await?;
-        let request_sql =
-            format!("SELECT {REQUEST_COLUMNS} FROM funding_requests WHERE id = $1::uuid FOR UPDATE");
+        let request_sql = format!(
+            "SELECT {REQUEST_COLUMNS} FROM funding_requests WHERE id = $1::uuid FOR UPDATE"
+        );
         let request = sqlx::query_as::<_, FundingRequestRecord>(&request_sql)
             .bind(id)
             .fetch_optional(&mut *tx)
@@ -628,12 +628,13 @@ impl PostgresRepository {
                 status: request.status,
             });
         }
-        let signature = request
-            .signature
-            .as_deref()
-            .ok_or(FundingStoreError::RequestAlreadyDecided {
-                status: "submitted-without-signature".to_string(),
-            })?;
+        let signature =
+            request
+                .signature
+                .as_deref()
+                .ok_or(FundingStoreError::RequestAlreadyDecided {
+                    status: "submitted-without-signature".to_string(),
+                })?;
 
         sqlx::query(
             r#"
