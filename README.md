@@ -95,9 +95,25 @@ For the complete authoritative mapping, including split-Coolify routing,
 same-Compose Docker DNS defaults, env overrides, and local host-port controls,
 see [Network ports, domains, and service discovery](./docs/operations/network-ports-and-domains.md).
 
-Testnet funding is served by the Explorer API and reached from Aeko Scan through
-the same-origin `/api/explorer/testnet/funding/*` path. There is no separate
-Funding Gateway runtime in the current target topology.
+Test-network funding is served by that network's Explorer API and reached from
+Aeko Scan through the same-origin `/api/explorer/{network}/funding/*` proxy.
+There is no separate Funding Gateway runtime.
+
+The funding domains are intentionally distinct:
+
+- **public grant request:** Scan creates and reads the request; authenticated
+  Operations Admin is the only product surface that may approve/reject it;
+- **developer airdrop:** direct capped Test Console utility, tracked separately
+  from the grant queue/ledger;
+- **mainnet distribution:** not a Faucet operation. Treasury, ecosystem grants,
+  launch allocation, vesting and validator emissions must follow the governed
+  tokenomics path. The complete two-house governance/treasury executor is not
+  implemented yet, so mainnet funding controls fail closed.
+
+Each chain environment is deployed independently. Scan's
+`/api/explorer/{network}` prefixes route to independently configured remote
+Explorer APIs; they do not imply that mainnet/testnet/devnet share one backend
+instance or database.
 
 ## Native Aeko SocialFi
 
