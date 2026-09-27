@@ -151,6 +151,12 @@ def main() -> int:
             "AEKO_RPC_URL: ${AEKO_RPC_URL:?Set the active chain RPC URL}" in block,
             f"{name} bootstrap must consume only the active environment RPC",
         )
+        if name == "Protocol":
+            require(
+                "AEKO_NETWORK: ${AEKO_NETWORK:?Set mainnet, testnet, devnet, or localnet}"
+                in block,
+                "Protocol bootstrap must receive the same single active network identity",
+            )
         require(
             "key-bootstrap:" in block and "condition: service_completed_successfully" in block,
             f"{name} bootstrap must wait for key preflight",
@@ -178,6 +184,10 @@ def main() -> int:
     require("source: /data/aeko/keys" in faucet, "Faucet must read the persistent key store")
     require('profiles: ["ops"]' in wallet_tools, "wallet tools must remain opt-in operator tooling")
     require("AEKO_NETWORK=" in envs["faucet-tools"], "Faucet env example must identify its chain environment")
+    require(
+        "AEKO_NETWORK=" in envs["bootstrap"],
+        "Bootstrap env example must identify its chain environment",
+    )
 
     validator = loaded["validator"]
     require("AEKO_NETWORK: ${AEKO_NETWORK:?" in validator, "Validator must declare one active chain environment")
