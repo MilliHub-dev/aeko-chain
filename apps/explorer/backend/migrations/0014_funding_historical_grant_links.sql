@@ -18,10 +18,10 @@ WITH request_by_signature AS (
       AND source IN ('public', 'admin')
     ORDER BY signature, source, requested_at DESC
 )
-UPDATE funding_grants AS grant
-SET request_id = request.id
-FROM request_by_signature AS request
-WHERE grant.request_id IS NULL
-  AND grant.signature = request.signature
-  AND grant.source = request.source
-  AND grant.address = request.address;
+UPDATE funding_grants AS funding_grant
+SET request_id = funding_request.id
+FROM request_by_signature AS funding_request
+WHERE funding_grant.request_id IS NULL
+  AND funding_grant.signature = funding_request.signature
+  AND funding_grant.source = funding_request.source
+  AND funding_grant.address = funding_request.address;
