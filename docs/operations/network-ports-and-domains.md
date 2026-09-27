@@ -26,14 +26,17 @@ reached by browser clients through Aeko Scan's same-origin
 `/api/explorer/testnet/funding/*` proxy. The private Faucet on `9900` remains
 the low-level signer used by the Validator funding path.
 
-The read-only registry exposes only:
+The read-only registry exposes:
 
-- `/healthz`
-- `/social-registry.env`
-- `/protocol-registry.env`
+- `/` — a small JSON discovery manifest naming the safe public registry paths;
+- `/healthz` — health probe;
+- `/social-registry.env` — canonical Social bootstrap registry;
+- `/protocol-registry.env` — canonical Protocol bootstrap registry.
 
-All other registry paths return 404. The registry never mounts
-`/data/aeko/keys`.
+Unknown paths still return 404. The registry never mounts or serves
+`/data/aeko/keys`. A split Explorer API consumes the two registry documents
+through its active network's `AEKO_REGISTRY_URL`; co-located/local deployments
+may instead use mounted registry files.
 
 ## Service discovery variables
 
@@ -54,11 +57,14 @@ sets. The values change to that network's domains. Do not put mainnet, testnet,
 and devnet endpoints into every backend/validator deployment.
 
 Aeko Scan is the multi-network exception. Its generic variables describe the
-active/default network. Optional complete alternate triplets use:
-
+active/default network. Optional complete alternate triplets use
 `AEKO_<NETWORK>_RPC_URL`, `AEKO_<NETWORK>_WS_URL`, and
-`AEKO_<NETWORK>_EXPLORER_API_URL` for `MAINNET`, `TESTNET`, `DEVNET`,
-or `LOCALNET`.
+`AEKO_<NETWORK>_EXPLORER_API_URL`.
+
+The standard public selector exposes **Mainnet** and **Testnet** only. Devnet
+and Localnet remain valid independently deployed/operator development
+environments and can be the active environment, but they are not presented as
+public network choices.
 
 ## Single-network co-located/local Compose defaults and overrides
 
