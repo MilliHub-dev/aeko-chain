@@ -49,6 +49,7 @@ bash -c '
   python3 scripts/validate-program-ids.py
   python3 scripts/validate-network-ports.py
   python3 scripts/validate-coolify-split.py
+  python3 scripts/validate-deployment-contract.py
   for compose in docker/coolify/*/compose.yml; do
     docker compose -f "$compose" config >/dev/null
   done
