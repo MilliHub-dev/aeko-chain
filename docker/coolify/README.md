@@ -113,6 +113,7 @@ the registry files directly. They consume Explorer API.
 The registry HTTP service exposes only:
 
 ```text
+/                         # non-secret JSON discovery manifest
 /healthz
 /social-registry.env
 /protocol-registry.env
@@ -120,7 +121,9 @@ The registry HTTP service exposes only:
 
 Every other path returns 404. The registry service mounts only
 `/data/aeko/social-state` and `/data/aeko/protocol-state` read-only. It never
-mounts `/data/aeko/keys`.
+mounts `/data/aeko/keys`. Product clients do not read this bootstrap host
+directly; they use Explorer API `/registry`, `/registry/social`, and
+`/registry/protocol`.
 
 The two generated registry files contain public chain metadata: genesis binding,
 program IDs, state-account public keys, vault/treasury public keys, feature IDs
