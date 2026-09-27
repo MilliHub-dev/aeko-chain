@@ -60,10 +60,12 @@ active/default network. Optional complete alternate triplets use:
 `AEKO_<NETWORK>_EXPLORER_API_URL` for `MAINNET`, `TESTNET`, `DEVNET`,
 or `LOCALNET`.
 
-## All-in-one/local Compose defaults and overrides
+## Single-network co-located/local Compose defaults and overrides
 
 The all-in-one Compose files keep Docker service DNS as **server-side defaults**
 where that is correct, but every dependency remains operator-overridable.
+
+Co-locating these services on one host does **not** make AEKO a multi-network monolith. This Compose file represents one `AEKO_NETWORK`; mainnet, testnet, devnet, and localnet remain independently configured/deployed network stacks even when an operator chooses to place more than one stack on the same physical server.
 
 | Consumer | Default inside same Compose network | Override |
 | --- | --- | --- |
@@ -82,7 +84,7 @@ Explorer proxy can still use `explorer-api:8088`. If you set the generic
 endpoint variables in the deployment environment, those values override the
 defaults.
 
-Example: force every server-side consumer in the monolith to use the routed
+Example: force every server-side consumer in one co-located testnet stack to use the routed
 testnet domains instead of Docker DNS:
 
 ```text
