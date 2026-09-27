@@ -28,6 +28,7 @@ PROTOCOL_INTEGRATION = ROOT / "scripts" / "ci-protocol-stack-integration.sh"
 FUNDING_SMOKE = ROOT / "scripts" / "smoke-funding-e2e.py"
 README = ROOT / "README.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
+DEPLOY_HELPER = ROOT / "scripts" / "deploy-testnet.sh"
 BACKEND_GUIDE = ROOT / "BACKEND-DEV-GUIDE.md"
 TESTNET_RUNBOOK = ROOT / "docs" / "operations" / "testnet-runbook.md"
 PROTOCOL_BOOTSTRAP = ROOT / "protocol-bootstrap" / "src" / "main.rs"
@@ -94,6 +95,7 @@ def main() -> int:
     funding_smoke = read(FUNDING_SMOKE)
     readme = read(README)
     deployment = read(DEPLOYMENT)
+    deploy_helper = read(DEPLOY_HELPER)
     backend_guide = read(BACKEND_GUIDE)
     testnet_runbook = read(TESTNET_RUNBOOK)
     protocol_bootstrap = read(PROTOCOL_BOOTSTRAP)
@@ -393,6 +395,23 @@ def main() -> int:
             required in funding_smoke,
             f"deployed funding smoke missing contract: {required}",
         )
+
+    # The documented deploy helper must start the same topology as Compose.
+    for retired in (
+        "funding-gateway",
+        "AEKO_PUBLIC_FUNDING_URL",
+        "aeko-funding-gateway",
+        ":3002",
+    ):
+        reject(deploy_helper, retired, "deploy-testnet helper")
+    require(
+        "explorer-api explorer-ui operations-web" in deploy_helper,
+        "deploy-testnet helper must start Explorer API/UI and Operations Web without a funding sidecar",
+    )
+    require(
+        "/api/explorer/${AEKO_NETWORK}/funding/*" in deploy_helper,
+        "deploy-testnet helper must advertise the same-origin Scan funding route",
+    )
 
     # Documentation must match the running architecture.
     for where, text in (
