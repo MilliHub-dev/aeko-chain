@@ -140,7 +140,7 @@ You do not need to set `AEKO_KEYS_DIR` in the Coolify dashboard and you do not n
 
 For a fresh chain, provision the intended chain keys under `/data/aeko/keys` before the full bootstrap application is deployed, then bring up Faucet and Validator. After Validator RPC is healthy, deploy the full bootstrap resource; its key-bootstrap service verifies those keys before Social/Protocol run. If these resources are on different Ubuntu hosts, remember that the same `/data/aeko/keys` path is host-local; provision only the required key files to each host through your secure custody process. Never commit keypairs or place them in a disposable Git checkout.
 
-Both Coolify contracts use literal bind sources. The legacy monolith fixes `/data/aeko/keys`; the split resources also fix their state directories under `/data/aeko/**`. No split bind `source:` contains `${...}` interpolation. Runtime consumers mount key/registry data read-only where possible, while explicit operator/bootstrap jobs receive only the write access they require. This is intentional because the current Coolify volume validator rejects interpolation in bind sources.
+Both Coolify contracts use literal bind sources. The legacy single-resource Compose stack fixes `/data/aeko/keys`; the split resources also fix their state directories under `/data/aeko/**`. No split bind `source:` contains `${...}` interpolation. Runtime consumers mount key/registry data read-only where possible, while explicit operator/bootstrap jobs receive only the write access they require. This is intentional because the current Coolify volume validator rejects interpolation in bind sources.
 
 ## Persistent chain state
 
