@@ -12,7 +12,7 @@ The repository currently defines and deploys one canonical public network: **AEK
 | Testnet funding | `https://scan.aeko.online/api/explorer/testnet/funding/*` |
 | Validator gossip | `gossip.aeko.online:8001` |
 
-Testnet AEKO has no asserted monetary value. Public funding is policy-controlled through the Funding Portal. The Faucet Daemon on TCP `9900` is private infrastructure.
+Testnet AEKO has no asserted monetary value. Public funding requests use Aeko Scan's same-origin Explorer funding API and require authenticated Operations Admin approval before settlement. The Faucet Daemon on TCP `9900` is low-level infrastructure used by the Validator funding path, not a browser funding API.
 
 ## Mainnet
 
