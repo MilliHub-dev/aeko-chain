@@ -68,6 +68,11 @@ struct RpcFundingSignatureStatus {
 }
 
 #[derive(Debug, Deserialize)]
+struct RpcFundingBlockhash {
+    blockhash: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct JsonRpcError {
     code: i64,
     message: String,
@@ -502,11 +507,23 @@ impl RpcChainClient {
         Ok(transfers)
     }
 
+    pub fn latest_funding_blockhash(&self) -> Result<String> {
+        let response: RpcContextResponse<RpcFundingBlockhash> = self.rpc_request(
+            "getLatestBlockhash",
+            json!([{ "commitment": "confirmed" }]),
+        )?;
+        if response.value.blockhash.trim().is_empty() {
+            bail!("getLatestBlockhash returned an empty blockhash");
+        }
+        Ok(response.value.blockhash)
+    }
+
     pub fn request_funding_airdrop(
         &self,
         address: &str,
         lamports: u64,
         funding_authorization: Option<&str>,
+        recent_blockhash: Option<&str>,
     ) -> Result<String> {
         let _: Pubkey = address
             .parse()
@@ -514,10 +531,13 @@ impl RpcChainClient {
         if lamports == 0 {
             bail!("funding amount must be greater than zero");
         }
-        let config = match funding_authorization {
-            Some(value) => json!({ "fundingAuthorization": value }),
-            None => json!({}),
-        };
+        if recent_blockhash.is_some_and(|value| value.trim().is_empty()) {
+            bail!("funding recent blockhash cannot be empty");
+        }
+        let config = json!({
+            "fundingAuthorization": funding_authorization,
+            "recentBlockhash": recent_blockhash,
+        });
         self.rpc_request("requestAirdrop", json!([address, lamports, config]))
     }
 
