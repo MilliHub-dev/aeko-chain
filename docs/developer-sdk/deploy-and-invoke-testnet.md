@@ -120,7 +120,7 @@ SBF program artifact.
 Deploy the built program to testnet:
 
 ```bash
-aeko program deploy target/deploy/hello_aeko_program.so
+aeko program deploy contracts/hello-aeko-program/target/deploy/hello_aeko_program.so
 ```
 
 Or from the repo root:
@@ -148,7 +148,7 @@ From the repo root:
 AEKO_RPC_URL=https://rpc.aeko.online \
 AEKO_PROGRAM_ID=<DEPLOYED_PROGRAM_ID> \
 AEKO_KEYPAIR_PATH=$HOME/.config/aeko/id.json \
-cargo run --manifest-path contracts/hello-aeko-program/Cargo.toml --example invoke_hello -- "hello-from-testnet"
+cargo run --locked --manifest-path contracts/hello-aeko-program/Cargo.toml --example invoke_hello -- "hello-from-testnet"
 ```
 
 What it does:
