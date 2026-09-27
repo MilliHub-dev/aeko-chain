@@ -21,6 +21,11 @@ use {
     tar::Archive,
 };
 
+// platform-tools defines this compiler ABI target. It is an upstream
+// compatibility name and must not be product-rebranded without a forked toolchain.
+const SBF_TARGET_TRIPLE: &str = "sbf-solana-solana";
+const SBF_TARGET_RUSTFLAGS_ENV: &str = "CARGO_TARGET_SBF_SOLANA_SOLANA_RUSTFLAGS";
+
 #[derive(Debug)]
 struct Config<'a> {
     cargo_args: Vec<&'a str>,
@@ -577,7 +582,7 @@ fn build_aeko_package(config: &Config, target_directory: &Path, package: &cargo_
         .cloned()
         .unwrap_or_else(|| target_directory.join("deploy"));
 
-    let target_build_directory = target_directory.join("sbf-aeko-aeko").join("release");
+    let target_build_directory = target_directory.join(SBF_TARGET_TRIPLE).join("release");
 
     env::set_current_dir(root_package_dir).unwrap_or_else(|err| {
         error!(
@@ -658,7 +663,7 @@ fn build_aeko_package(config: &Config, target_directory: &Path, package: &cargo_
         );
         env::remove_var("RUSTC")
     }
-    let cargo_target = "CARGO_TARGET_SBF_AEKO_AEKO_RUSTFLAGS";
+    let cargo_target = SBF_TARGET_RUSTFLAGS_ENV;
     let rustflags = env::var("RUSTFLAGS").ok().unwrap_or_default();
     if env::var("RUSTFLAGS").is_ok() {
         warn!(
@@ -692,7 +697,7 @@ fn build_aeko_package(config: &Config, target_directory: &Path, package: &cargo_
     }
 
     let cargo_build = PathBuf::from("cargo");
-    let mut cargo_build_args = vec!["+aeko", "build", "--release", "--target", "sbf-aeko-aeko"];
+    let mut cargo_build_args = vec!["+aeko", "build", "--release", "--target", SBF_TARGET_TRIPLE];
     if config.arch == "sbfv2" {
         cargo_build_args.push("-Zbuild-std=std,panic_abort");
     }

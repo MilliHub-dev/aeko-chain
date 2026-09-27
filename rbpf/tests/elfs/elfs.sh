@@ -1,10 +1,11 @@
 #!/bin/bash -ex
 
-# Requires Latest release of Aeko's custom LLVM
+# Requires the platform-tools SBF compiler.
+# The compiler target triple is an upstream ABI name, not Aeko product branding.
 # https://github.com/anza-xyz/platform-tools/releases
 
 TOOLCHAIN=../../../sdk/sbf/dependencies/sbf-tools
-RC_COMMON="$TOOLCHAIN/rust/bin/rustc --target sbf-aeko-aeko --crate-type lib -C panic=abort -C opt-level=2"
+RC_COMMON="$TOOLCHAIN/rust/bin/rustc --target sbf-solana-solana --crate-type lib -C panic=abort -C opt-level=2"
 RC="$RC_COMMON -C target_cpu=sbfv2"
 RC_V1="$RC_COMMON -C target_cpu=generic"
 LD_COMMON="$TOOLCHAIN/llvm/bin/ld.lld -z notext -shared --Bdynamic -entry entrypoint --script elf.ld"

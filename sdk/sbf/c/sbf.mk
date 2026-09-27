@@ -16,7 +16,7 @@ OS := $(shell uname)
 
 LLVM_DIR = $(LOCAL_PATH)../dependencies/platform-tools/llvm
 LLVM_SYSTEM_INC_DIRS := $(LLVM_DIR)/lib/clang/17/include
-COMPILER_RT_DIR = $(LOCAL_PATH)../dependencies/platform-tools/rust/lib/rustlib/sbf-aeko-aeko/lib
+COMPILER_RT_DIR = $(LOCAL_PATH)../dependencies/platform-tools/rust/lib/rustlib/sbf-solana-solana/lib
 STD_INC_DIRS := $(LLVM_DIR)/include
 STD_LIB_DIRS := $(LLVM_DIR)/lib
 
