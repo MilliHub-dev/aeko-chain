@@ -43,7 +43,6 @@ function readAlternative(network) {
     rpcUrl,
     websocketUrl,
     explorerApiUrl: `/api/explorer/${network}`,
-    ...(network === 'mainnet' ? {} : { fundingUrl: `/api/explorer/${network}` }),
   };
 }
 
@@ -60,9 +59,6 @@ networks[activeNetwork] = {
   rpcUrl: optional('AEKO_RPC_URL'),
   websocketUrl: optional('AEKO_WS_URL'),
   explorerApiUrl: `/api/explorer/${activeNetwork}`,
-  ...(activeNetwork === 'mainnet'
-    ? {}
-    : { fundingUrl: `/api/explorer/${activeNetwork}` }),
 };
 
 const demo = {

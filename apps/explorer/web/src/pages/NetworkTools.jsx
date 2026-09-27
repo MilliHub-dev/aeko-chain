@@ -54,12 +54,13 @@ function developerQuickCommands(config) {
     funding = [
       'aeko airdrop 10 <recipient-address>',
     ];
-  } else if (config.key === 'testnet') {
+  } else if (config.key === 'testnet' || config.key === 'devnet') {
     funding = [
-      'aeko airdrop <amount> <recipient-address>',
+      '# Public requestAirdrop is protected on shared test networks.',
+      '# Use Aeko Scan Funding or the Test Console instead.',
     ];
   } else {
-    funding = ['# no airdrops on mainnet — use treasury or exchange distribution'];
+    funding = ['# no Faucet funding on mainnet'];
   }
 
   const programs = [
@@ -139,7 +140,7 @@ export default function NetworkTools() {
       </div>
 
       {isTestNetwork ? (
-        <TestnetFundingRequest fundingUrl={config.fundingUrl} />
+        <TestnetFundingRequest explorerApiUrl={config.explorerApiUrl} />
       ) : null}
 
       {isTestNetwork && settings.networkConsoleEnabled && (
@@ -257,7 +258,6 @@ export default function NetworkTools() {
           network={config.label}
           explorerApiUrl={config.explorerApiUrl}
           explorerUrl={config.explorerUrl}
-          fundingUrl={config.fundingUrl}
         />
       )}
     </div>

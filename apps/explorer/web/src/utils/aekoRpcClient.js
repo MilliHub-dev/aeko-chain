@@ -77,12 +77,12 @@ function normalizedUrl(value) {
 
 export function isConfiguredPublicTestnetRpc(rpcUrl) {
   const config = getTestNetworkConfig();
-  if (!config.available || isLocalNetworkConfig(config) || !config.fundingUrl) return false;
+  if (!config.available || isLocalNetworkConfig(config) || !config.explorerApiUrl) return false;
   return normalizedUrl(rpcUrl) === normalizedUrl(config.rpcUrl);
 }
 
-function fundingEndpoint(fundingUrl, path) {
-  const configured = String(fundingUrl || '').trim();
+function fundingEndpoint(explorerApiUrl, path) {
+  const configured = String(explorerApiUrl || '').trim();
   if (!configured) throw new Error('Test funding is not set up for this network.');
 
   let base;
@@ -95,9 +95,8 @@ function fundingEndpoint(fundingUrl, path) {
     throw new Error('Test funding address must use http or https.');
   }
 
-  // Funding is now served by the Explorer/Scan backend. `fundingUrl` is the
-  // same-origin Explorer proxy base (for example
-  // `/api/explorer/testnet`), not a separate Funding Gateway address.
+  // Funding is part of the selected Explorer/Scan API. There is no separate
+  // public funding origin or Funding Gateway address.
   const basePath = `${base.pathname.replace(/\/?$/, '/')}`;
   return new URL(path.replace(/^\//, ''), `${base.origin}${basePath}`).toString();
 }
@@ -118,13 +117,13 @@ async function readFundingResponse(response, label) {
   return body.data;
 }
 
-export async function getFundingPolicy(fundingUrl) {
-  const response = await fetch(fundingEndpoint(fundingUrl, '/funding/policy'));
+export async function getFundingPolicy(explorerApiUrl) {
+  const response = await fetch(fundingEndpoint(explorerApiUrl, '/funding/policy'));
   return readFundingResponse(response, 'Funding policy request');
 }
 
-export async function requestFundingApproval(fundingUrl, address) {
-  const response = await fetch(fundingEndpoint(fundingUrl, '/funding/request'), {
+export async function requestFundingApproval(explorerApiUrl, address) {
+  const response = await fetch(fundingEndpoint(explorerApiUrl, '/funding/request'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address }),
@@ -132,8 +131,17 @@ export async function requestFundingApproval(fundingUrl, address) {
   return readFundingResponse(response, 'Funding request');
 }
 
-export async function requestConsoleAirdrop(fundingUrl, address, amountAeko) {
-  const response = await fetch(fundingEndpoint(fundingUrl, '/funding/airdrop'), {
+export async function getFundingRequestStatus(explorerApiUrl, requestId) {
+  const id = encodeURIComponent(String(requestId || '').trim());
+  if (!id) throw new Error('Funding request id is required.');
+  const response = await fetch(fundingEndpoint(explorerApiUrl, `/funding/requests/${id}/status`), {
+    cache: 'no-store',
+  });
+  return readFundingResponse(response, 'Funding request status');
+}
+
+export async function requestConsoleAirdrop(explorerApiUrl, address, amountAeko) {
+  const response = await fetch(fundingEndpoint(explorerApiUrl, '/funding/airdrop'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address, amountAeko }),
@@ -151,7 +159,7 @@ export async function requestTestnetFunding(rpcUrl, address, lamports) {
     return requestAirdrop(rpcUrl, address, lamports);
   }
 
-  const grant = await requestConsoleAirdrop(config.fundingUrl, address, lamportsToAeko(lamports));
+  const grant = await requestConsoleAirdrop(config.explorerApiUrl, address, lamportsToAeko(lamports));
   return grant.signature;
 }
 

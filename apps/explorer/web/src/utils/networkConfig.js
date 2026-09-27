@@ -36,14 +36,13 @@ function explorerLabel() {
   }
 }
 
-function normalizeNetwork(value, { funding = false } = {}) {
+function normalizeNetwork(value) {
   const input = value && typeof value === 'object' ? value : {};
   const normalized = {
     rpcUrl: clean(input.rpcUrl),
     websocketUrl: clean(input.websocketUrl),
     explorerApiUrl: clean(input.explorerApiUrl),
   };
-  if (funding) normalized.fundingUrl = clean(input.fundingUrl);
   return normalized;
 }
 
@@ -71,15 +70,15 @@ const configured = {
   mainnet: validateNetwork('Mainnet', normalizeNetwork(runtimeNetworks.mainnet)),
   testnet: validateNetwork(
     'Testnet',
-    normalizeNetwork(runtimeNetworks.testnet, { funding: true }),
+    normalizeNetwork(runtimeNetworks.testnet),
   ),
   devnet: validateNetwork(
     'Devnet',
-    normalizeNetwork(runtimeNetworks.devnet, { funding: true }),
+    normalizeNetwork(runtimeNetworks.devnet),
   ),
   localnet: validateNetwork(
     'Localnet',
-    normalizeNetwork(runtimeNetworks.localnet, { funding: true }),
+    normalizeNetwork(runtimeNetworks.localnet),
   ),
 };
 
@@ -98,7 +97,6 @@ if (useBuiltInLocalFallback) {
       rpcUrl: 'http://127.0.0.1:8899',
       websocketUrl: 'ws://127.0.0.1:8900',
       explorerApiUrl: '/api/explorer/localnet',
-      fundingUrl: '',
     },
   };
 }
@@ -126,11 +124,10 @@ function networkRecord(network) {
     explorerUrl: browserOrigin || 'http://127.0.0.1:4000',
     explorerApiUrl: value.explorerApiUrl,
     explorerLabel: explorerLabel(),
-    fundingUrl: isMainnet ? '' : value.fundingUrl || '',
     fundingLabel: isMainnet
       ? 'No test funding on mainnet'
-      : `${network} funding through the selected Explorer API`,
-    fundingEnabled: !isMainnet && Boolean(value.fundingUrl),
+      : `${network} funding is served by the selected Aeko Scan API`,
+    fundingEnabled: !isMainnet && state.configured && Boolean(value.explorerApiUrl),
     cliCluster: value.rpcUrl,
     isActiveEnvironment: network === activeNetwork,
     isLoopbackFallback: network === 'localnet' && useBuiltInLocalFallback,
