@@ -8,9 +8,9 @@ Yes, other developers can write smart contracts on AEKO Chain.
 
 In this repo, the on-chain Rust surface is built around:
 
-- [`sdk/program`](/Users/ok/Documents/projects/aeko-chain/sdk/program)
-- the AEKO CLI documented in [`docs/developer-sdk/cli-tools.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/cli-tools.md)
-- the existing SBF examples under [`programs/sbf/rust`](/Users/ok/Documents/projects/aeko-chain/programs/sbf/rust)
+- [`sdk/program`](../../sdk/program/)
+- the AEKO CLI documented in [`cli-tools.md`](./cli-tools.md)
+- the existing SBF examples under [`programs/sbf/rust`](../../programs/sbf/rust/)
 
 The normal mental model is:
 
@@ -22,7 +22,7 @@ The normal mental model is:
 
 A minimal starter now lives at:
 
-- [`contracts/hello-aeko-program`](/Users/ok/Documents/projects/aeko-chain/contracts/hello-aeko-program)
+- [`contracts/hello-aeko-program`](../../contracts/hello-aeko-program/)
 
 That template is intentionally tiny:
 
@@ -69,17 +69,21 @@ You need:
 
 CLI install guide:
 
-- [`docs/developer-sdk/cli-tools.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/cli-tools.md)
+- [`cli-tools.md`](./cli-tools.md)
 
 ## Build Flow
 
-From your program directory:
+From the repository root, use AEKO's checked-in SBF wrapper:
 
 ```bash
-cargo build-bpf
+./cargo-build-sbf \
+  --manifest-path contracts/hello-aeko-program/Cargo.toml \
+  --sbf-out-dir contracts/hello-aeko-program/target/deploy
 ```
 
-If your toolchain uses the newer AEKO SBF command naming, follow your local AEKO build setup. The repo still references the classic build path in several places for familiarity.
+This produces `hello_aeko_program.so` plus the generated
+`hello_aeko_program-keypair.json`. A normal host `cargo build` is not a
+substitute for the SBF build.
 
 ## Deploy Flow
 
@@ -92,8 +96,17 @@ aeko program deploy target/deploy/hello_aeko_program.so
 Or from this repo if the CLI is not globally installed:
 
 ```bash
-cargo run --bin aeko -- program deploy target/deploy/hello_aeko_program.so
+cargo run -p aeko-cli --bin aeko -- \
+  program deploy contracts/hello-aeko-program/target/deploy/hello_aeko_program.so
 ```
+
+## CI Compatibility Gate
+
+`scripts/ci-protocol-stack-integration.sh` builds this starter as SBF, deploys
+it to the live CI TestValidator, verifies the program account is executable,
+runs `examples/invoke_hello.rs`, and requires a confirmed transaction whose
+logs contain `Hello from AEKO!`. That gate keeps the documented external
+developer path coupled to the chain runtime and CLI.
 
 ## Suggested Next Steps After Hello World
 
@@ -105,7 +118,7 @@ cargo run --bin aeko -- program deploy target/deploy/hello_aeko_program.so
 
 ## Related Docs
 
-- [`docs/developer-sdk/rust-sdk.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/rust-sdk.md)
-- [`docs/developer-sdk/cli-tools.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/cli-tools.md)
-- [`docs/developer-sdk/deploy-and-invoke-testnet.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/deploy-and-invoke-testnet.md)
-- [`docs/contributing/repo-structure.md`](/Users/ok/Documents/projects/aeko-chain/docs/contributing/repo-structure.md)
+- [`rust-sdk.md`](./rust-sdk.md)
+- [`cli-tools.md`](./cli-tools.md)
+- [`deploy-and-invoke-testnet.md`](./deploy-and-invoke-testnet.md)
+- [`repo-structure.md`](../contributing/repo-structure.md)
