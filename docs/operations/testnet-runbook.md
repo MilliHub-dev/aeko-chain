@@ -204,7 +204,7 @@ Coolify-proxy (Traefik) handles all TLS termination and HTTP routing. You do not
 | `gossip.aeko.online` | validator gossip | raw TCP+UDP | validator discovery/peer entrypoint only |
 | `cloud.aeko.online` | Coolify dashboard (port 8000, managed by Coolify) | `http://`/`https://` | Operator UI |
 
-The Faucet Daemon on TCP `9900` deliberately has **no public hostname**. User applications use the Testnet Funding Portal/Gateway; only the server-side Funding Gateway is authorized to invoke the deployed validator's low-level `requestAirdrop` path.
+The Faucet Daemon on TCP `9900` deliberately has **no public hostname**. User applications use Aeko Scan's same-origin test-network funding routes, which proxy to that network's Explorer API. Only the matching Explorer API receives the server-side authorization required to invoke the deployed validator's low-level `requestAirdrop` path.
 
 ### 5.2 Namecheap DNS records
 
