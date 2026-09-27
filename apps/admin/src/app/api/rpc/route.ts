@@ -3,12 +3,12 @@ import { resolveAdminRpcUrl } from '../../../lib/network'
 
 /**
  * Read-only RPC relay for the admin pages (the middleware requires an operator
- * session). Funding grants go through /api/funding/request, where the policy lives,
- * and nothing that submits or mutates is relayed at all.
+ * session). This relay is intentionally read-only. Test-network grant approval
+ * goes through the authenticated /api/admin/funding/* control plane, which calls
+ * the active deployment's Explorer backend. Developer airdrops are separate.
  *
- * Admin always targets mainnet whenever AEKO_MAINNET_RPC_URL is configured;
- * otherwise the configured AEKO_RPC_URL (testnet in current deployments) or
- * explicit AEKO_LOCALNET_RPC_URL for local runs. See lib/network.ts.
+ * This Admin deployment always targets its single AEKO_NETWORK via AEKO_RPC_URL.
+ * Cross-network routing belongs to Aeko Scan, not Operations Web.
  */
 const isReadOnly = (method: unknown) =>
   typeof method === 'string' && (method.startsWith('get') || method === 'simulateTransaction')
