@@ -36,7 +36,10 @@ The read-only registry exposes:
 Unknown paths still return 404. The registry never mounts or serves
 `/data/aeko/keys`. A split Explorer API consumes the two registry documents
 through its active network's `AEKO_REGISTRY_URL`; co-located/local deployments
-may instead use mounted registry files.
+may instead use mounted registry files. Explorer also exposes `GET /registry`
+as a safe discovery response for its own `/registry/social` and
+`/registry/protocol` API routes, so local/API consumers do not need to guess
+registry subpaths.
 
 ## Service discovery variables
 
