@@ -1137,6 +1137,7 @@ dependencies = [
  "aeko-program",
  "aeko-rust-sdk",
  "aeko-sdk",
+ "base64 0.21.7",
  "bincode",
  "tokio",
 ]
