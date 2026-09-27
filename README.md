@@ -365,7 +365,6 @@ registry.aeko.online  -> registry:8089
 api.aeko.online       -> explorer-api:8088
 scan.aeko.online      -> explorer-ui:4000
 admin.aeko.online     -> operations-web:3001
-faucet.aeko.online    -> Faucet host TCP 9900
 ```
 
 AEKO_GOSSIP_HOST remains gossip.aeko.online, whose DNS points directly to the Validator host. Allow inbound
