@@ -198,6 +198,6 @@ Once this works, the next useful upgrade is:
 
 ## Related Files
 
-- [`contracts/hello-aeko-program`](/Users/ok/Documents/projects/aeko-chain/contracts/hello-aeko-program)
-- [`contracts/hello-aeko-program/examples/invoke_hello.rs`](/Users/ok/Documents/projects/aeko-chain/contracts/hello-aeko-program/examples/invoke_hello.rs)
-- [`docs/developer-sdk/write-your-first-program.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/write-your-first-program.md)
+- [`contracts/hello-aeko-program`](../../contracts/hello-aeko-program/)
+- [`contracts/hello-aeko-program/examples/invoke_hello.rs`](../../contracts/hello-aeko-program/examples/invoke_hello.rs)
+- [`write-your-first-program.md`](./write-your-first-program.md)
