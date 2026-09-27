@@ -448,10 +448,7 @@ pub fn router() -> Router<SharedState> {
         )
         .route("/admin/funding/requests", get(list_requests))
         .route("/admin/funding/requests/:id", get(get_request))
-        .route(
-            "/admin/funding/requests/:id/decide",
-            post(decide_request),
-        )
+        .route("/admin/funding/requests/:id/decide", post(decide_request))
         .route(
             "/admin/funding/requests/:id/reconcile",
             post(reconcile_request),
@@ -683,11 +680,7 @@ async fn decide_request(
     if !body.approved {
         let request = state
             .repository
-            .reject_funding_request(
-                &id,
-                Some("OPERATOR_REJECTED"),
-                Some("Rejected by Admin"),
-            )
+            .reject_funding_request(&id, Some("OPERATOR_REJECTED"), Some("Rejected by Admin"))
             .await?;
         return Ok(response::data_from_source(
             &state.network,
@@ -953,17 +946,14 @@ async fn observe_grant(
     .await;
 
     match observation {
-        Ok(Ok(FundingTransferStatus::Confirmed)) => {
-            Ok(state.repository.confirm_funding_request(&request.id).await?)
-        }
+        Ok(Ok(FundingTransferStatus::Confirmed)) => Ok(state
+            .repository
+            .confirm_funding_request(&request.id)
+            .await?),
         Ok(Ok(FundingTransferStatus::Failed(error))) => {
             state
                 .repository
-                .mark_funding_request_failed(
-                    &request.id,
-                    "FUNDING_TRANSACTION_FAILED",
-                    &error,
-                )
+                .mark_funding_request_failed(&request.id, "FUNDING_TRANSACTION_FAILED", &error)
                 .await?;
             Err(FundingHttpError::new(
                 StatusCode::BAD_GATEWAY,
@@ -1113,17 +1103,14 @@ async fn observe_airdrop(
     .await;
 
     match observation {
-        Ok(Ok(FundingTransferStatus::Confirmed)) => {
-            Ok(state.repository.confirm_funding_airdrop(&airdrop.id).await?)
-        }
+        Ok(Ok(FundingTransferStatus::Confirmed)) => Ok(state
+            .repository
+            .confirm_funding_airdrop(&airdrop.id)
+            .await?),
         Ok(Ok(FundingTransferStatus::Failed(error))) => {
             state
                 .repository
-                .mark_funding_airdrop_failed(
-                    &airdrop.id,
-                    "AIRDROP_TRANSACTION_FAILED",
-                    &error,
-                )
+                .mark_funding_airdrop_failed(&airdrop.id, "AIRDROP_TRANSACTION_FAILED", &error)
                 .await?;
             Err(FundingHttpError::new(
                 StatusCode::BAD_GATEWAY,
