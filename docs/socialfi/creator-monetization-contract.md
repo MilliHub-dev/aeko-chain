@@ -6,9 +6,9 @@ This document defines the Phase 5 creator monetization contract or module for ti
 
 It should stay aligned with:
 
-- [`docs/socialfi/socialfi.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi.md)
-- [`docs/socialfi/creator-economy.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/creator-economy.md)
-- [`docs/socialfi/monetization.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/monetization.md)
+- [`docs/socialfi/socialfi.md`](./socialfi.md)
+- [`docs/socialfi/creator-economy.md`](./creator-economy.md)
+- [`docs/socialfi/monetization.md`](./monetization.md)
 
 ## Responsibilities
 
@@ -148,7 +148,7 @@ This contract spec is required before creator monetization endpoints should be e
 
 Current implementation progress:
 
-- creator monetization program scaffold added in [`programs/social-monetization`](/Users/ok/Documents/projects/aeko-chain/programs/social-monetization)
+- creator monetization program scaffold added in [`programs/social-monetization`](../../programs/social-monetization)
 - creator payout accounting now applies platform-fee routing to claimable creator balances
 - duplicate tip / subscription / unlock guards and subscription state checks added
 - processor tests added for fee routing, subscription lifecycle, and unlock uniqueness
