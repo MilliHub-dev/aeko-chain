@@ -44,6 +44,40 @@ The token model is designed to balance:
 
 Total: `500,000,000,000 AEKO`
 
+### 2.3 Native Representation Compatibility
+
+The signed-off economic target and the current native runtime representation are
+not yet compatible for mainnet.
+
+Current runtime facts:
+
+- native account balances and Bank capitalization use `u64` atomic units;
+- `sdk/program/src/native_token.rs` currently defines
+  `1 AEKO = 1,000,000,000 lamports`;
+- at that precision, the largest whole-AEKO value representable by one `u64`
+  balance is `18,446,744,073 AEKO`;
+- the signed-off `500,000,000,000 AEKO` target would require
+  `500,000,000,000,000,000,000` atomic units and therefore cannot be
+  represented by the current native balance type.
+
+This is a **mainnet launch blocker**, not permission to silently change the
+signed-off supply. The repository does not currently contain a signed-off
+decision that native AEKO must retain nine decimal places, but changing native
+precision is a chain-wide compatibility decision. Likewise, reducing the 500B
+target or replacing the native `u64` balance representation would change a
+different protocol invariant.
+
+Until one of those choices is explicitly approved and implemented, mainnet
+protocol bootstrap must fail closed and no documentation, UI, governance flow,
+or treasury implementation may claim that the 500B allocation has been
+provisioned as spendable native AEKO.
+
+For reference only, not as a decision: with a `u64` balance type, eight native
+decimals still cannot represent 500B AEKO, while seven decimals can. Any such
+precision change must be deliberately migrated across runtime, SDK, CLI,
+Explorer, wallets, fee math, staking, genesis, tests, and public interfaces
+before mainnet.
+
 ### 2.3 Current Decision Required
 
 Supply model decision:
