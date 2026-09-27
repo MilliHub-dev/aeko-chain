@@ -7,7 +7,7 @@ pub mod rewards;
 pub mod state;
 
 use aeko_program_runtime::declare_process_instruction;
-use aeko_sdk::pubkey::Pubkey;
+use aeko_sdk::{native_token::LAMPORTS_PER_AEKO, pubkey::Pubkey};
 use borsh::{BorshDeserialize, BorshSerialize};
 
 pub const DEFAULT_COMPUTE_UNITS: u64 = 150;
@@ -33,6 +33,16 @@ pub const TREASURY_BUCKET_AEKO: u128 = 100_000_000_000;
 pub const TEAM_BUCKET_AEKO: u128 = 60_000_000_000;
 pub const ECOSYSTEM_BUCKET_AEKO: u128 = 40_000_000_000;
 pub const PUBLIC_SALE_BUCKET_AEKO: u128 = 25_000_000_000;
+
+/// Native AEKO account balances are currently stored as `u64` lamports.
+/// This is the largest whole-AEKO balance representable at the active native
+/// precision without changing the chain's atomic-unit contract.
+pub const MAX_NATIVE_AEKO_AT_CURRENT_PRECISION: u128 =
+    u64::MAX as u128 / LAMPORTS_PER_AEKO as u128;
+
+pub const fn governed_supply_fits_native_balance() -> bool {
+    GOVERNED_SUPPLY_TARGET_AEKO <= MAX_NATIVE_AEKO_AT_CURRENT_PRECISION
+}
 
 pub const EPOCH_DURATION_SECONDS: u64 = 86_400;
 pub const EPOCHS_PER_YEAR: u32 = 365;
@@ -353,6 +363,13 @@ pub fn uptime_multiplier_bps(uptime_bps: u16) -> u16 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_capacity_guard_detects_unrepresentable_signed_off_supply() {
+        assert_eq!(LAMPORTS_PER_AEKO, 1_000_000_000);
+        assert_eq!(MAX_NATIVE_AEKO_AT_CURRENT_PRECISION, 18_446_744_073);
+        assert!(!governed_supply_fits_native_balance());
+    }
 
     #[test]
     fn fee_breakdown_matches_signed_off_split() {
