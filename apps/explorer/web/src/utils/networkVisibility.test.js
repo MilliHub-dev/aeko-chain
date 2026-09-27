@@ -99,7 +99,9 @@ test('toggle and surfaces use consumer wording, not core-dev jargon', async () =
   assert.match(toggle, /const config = getNetworkConfig\(option\)/);
   assert.match(toggle, /config\.label/);
   assert.match(toggle, /Not configured/);
-  assert.match(toggle, /'mainnet', 'testnet', 'devnet', 'localnet'/);
+  assert.match(toggle, /PUBLIC_NETWORK_ORDER = \['mainnet', 'testnet'\]/);
+  assert.doesNotMatch(toggle, /PUBLIC_NETWORK_ORDER = .*devnet/);
+  assert.doesNotMatch(toggle, /PUBLIC_NETWORK_ORDER = .*localnet/);
   // Config labels pair each network with a plain-word hint.
   assert.match(config, /Mainnet · Live/);
   assert.match(config, /Testnet · Test/);
@@ -148,6 +150,28 @@ test('developer flow shows cluster selection and quick commands per network', as
   assert.match(tools, /aeko airdrop/);
   assert.match(tools, /aeko program deploy/);
   assert.match(tools, /aeko program close/);
-  // Airdrops go through the CLI everywhere; funding is special-cases only.
+  // Only local development advertises a direct CLI airdrop. Public Testnet
+  // must direct users through the Admin-approved funding request workflow.
+  assert.match(tools, /config\.key === 'localnet'/);
+  assert.match(tools, /authenticated Admin approves grants/);
+  assert.doesNotMatch(tools, /config\.key === 'testnet'[\s\S]{0,180}aeko airdrop/);
   assert.doesNotMatch(tools, /curl -X POST/);
+});
+
+
+test('visible environment terminology follows the selected network', async () => {
+  const config = await source('utils/networkConfig.js');
+  const home = await source('pages/Home.jsx');
+  const explorer = await source('pages/Explorer.jsx');
+  const developers = await source('pages/Developers.jsx');
+  const tools = await source('pages/NetworkTools.jsx');
+
+  assert.match(config, /getNetworkPresentation/);
+  assert.match(config, /badge: 'Mainnet'/);
+  assert.match(config, /badge: 'Testnet Live'/);
+  for (const body of [home, explorer, developers, tools]) {
+    assert.match(body, /getNetworkPresentation|presentation\./);
+  }
+  assert.doesNotMatch(home, />\s*Testnet Live\s*</);
+  assert.match(tools, /presentation\.fundingSummary/);
 });
