@@ -14,6 +14,24 @@ The repository currently defines and deploys one canonical public network: **AEK
 
 Testnet AEKO has no asserted monetary value. Public funding requests use Aeko Scan's same-origin Explorer funding API and require authenticated Operations Admin approval before settlement. The Faucet Daemon on TCP `9900` is low-level infrastructure used by the Validator funding path, not a browser funding API.
 
+### Registry discovery
+
+The bootstrap registry and the product-facing registry API are different
+surfaces:
+
+- `https://registry.aeko.online/` is a read-only bootstrap service. Its root
+  returns a small non-secret discovery manifest; the canonical documents are
+  `/social-registry.env` and `/protocol-registry.env`. Unknown paths return
+  `404` by design.
+- Aeko Scan, Operations Web, and application clients should use the selected
+  network's Explorer API instead: `GET /registry`, `GET /registry/social`,
+  and `GET /registry/protocol`. On public Testnet those are available through
+  `https://scan.aeko.online/api/explorer/testnet/registry...`.
+- A local Explorer backend exposes the same API contract at its configured
+  Explorer origin (normally `http://127.0.0.1:8088`). A `404` from an
+  arbitrary raw bootstrap-registry path is therefore not a signal to bypass the
+  Explorer API or guess a key-file URL.
+
 ## Mainnet
 
 This repository does **not** currently define a canonical public AEKO mainnet
