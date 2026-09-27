@@ -110,15 +110,20 @@ pending -- reject (Admin only) --> rejected
 Rules:
 
 - `processing` means the Admin approved the grant but no durable transaction
-  signature has been persisted yet.
+  signature has been persisted yet. Before the low-level RPC submission, the
+  backend persists the exact recent blockhash used for that transaction intent.
 - `submitted` means a signature exists and the amount remains budget-reserved.
 - An observation timeout never converts `submitted` into a confirmed grant.
-- Once a signature exists, reject and resubmit are forbidden.
+- Once a signature exists, reject and a second logical submission are forbidden.
 - Admin reconciliation of `submitted` only checks the existing signature. It
-  never sends another transfer.
-- A transport failure before the backend knows whether the RPC accepted the
-  transfer is `FUNDING_SUBMISSION_UNCERTAIN`. The request remains reserved and
-  must not be automatically retried.
+  never creates a new transfer.
+- If the RPC response is lost before a signature is persisted, the request stays
+  `processing` with `FUNDING_SUBMISSION_RETRY_PENDING`. The background
+  reconciler may replay **only the persisted transaction intent**: the same
+  destination, amount, funding authorization and recent blockhash. The Faucet
+  signs that identical intent deterministically, so the replay has the same
+  transaction signature. Neither Scan nor Admin may manually retry it or choose
+  a fresh blockhash.
 - A confirmed grant is inserted exactly once and linked to its request id.
 - A terminal on-chain failure releases the reservation and does not create a
   grant row.
