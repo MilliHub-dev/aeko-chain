@@ -121,11 +121,10 @@ Rules:
   never creates a new transfer.
 - If the RPC response is lost before a signature is persisted, the request stays
   `processing` with `FUNDING_SUBMISSION_RETRY_PENDING`. The background
-  reconciler may replay **only the persisted transaction intent**: the same
-  destination, amount, funding authorization and recent blockhash. The Faucet
+  reconciler may replay **only the persisted transaction intent**: the same destination, amount, funding authorization and recent blockhash. The Faucet
   signs that identical intent deterministically, so the replay has the same
-  transaction signature. Neither Scan nor Admin may manually retry it or choose
-  a fresh blockhash.
+  transaction signature. Neither Scan nor Admin may manually retry it. The
+  backend never substitutes a fresh blockhash for that logical grant.
 - If a signature is known but absent from transaction history, the backend
   checks the persisted submission blockhash. While that blockhash is valid the
   request remains pending; once it is invalid, the exact transaction can no
