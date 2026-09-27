@@ -78,7 +78,7 @@ precision change must be deliberately migrated across runtime, SDK, CLI,
 Explorer, wallets, fee math, staking, genesis, tests, and public interfaces
 before mainnet.
 
-### 2.3 Current Decision Required
+### 2.4 Current Decision Required
 
 Supply model decision:
 
