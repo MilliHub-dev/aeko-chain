@@ -31,6 +31,13 @@ DEPLOYMENT = ROOT / "DEPLOYMENT.md"
 DEPLOY_HELPER = ROOT / "scripts" / "deploy-testnet.sh"
 BACKEND_GUIDE = ROOT / "BACKEND-DEV-GUIDE.md"
 TESTNET_RUNBOOK = ROOT / "docs" / "operations" / "testnet-runbook.md"
+NETWORK_PORTS = ROOT / "docs" / "operations" / "network-ports-and-domains.md"
+TESTNET_ENVIRONMENT = ROOT / "docs" / "aeko-chain" / "testnet-mainnet.md"
+SDK_TESTNET_GUIDE = ROOT / "docs" / "developer-sdk" / "deploy-and-invoke-testnet.md"
+ADMIN_README = ROOT / "apps" / "admin" / "README.md"
+SCAN_README = ROOT / "apps" / "explorer" / "web" / "README.md"
+ADMIN_LOGIN = ROOT / "apps" / "admin" / "src" / "app" / "login" / "page.tsx"
+ADMIN_SIDEBAR = ROOT / "apps" / "admin" / "src" / "components" / "sidebar.tsx"
 PROTOCOL_BOOTSTRAP = ROOT / "protocol-bootstrap" / "src" / "main.rs"
 SOCIAL_BOOTSTRAP = ROOT / "social-bootstrap" / "src" / "main.rs"
 BOOTSTRAP_LIFECYCLE = ROOT / "bootstrap-common" / "lifecycle.rs"
@@ -98,6 +105,13 @@ def main() -> int:
     deploy_helper = read(DEPLOY_HELPER)
     backend_guide = read(BACKEND_GUIDE)
     testnet_runbook = read(TESTNET_RUNBOOK)
+    network_ports = read(NETWORK_PORTS)
+    testnet_environment = read(TESTNET_ENVIRONMENT)
+    sdk_testnet_guide = read(SDK_TESTNET_GUIDE)
+    admin_readme = read(ADMIN_README)
+    scan_readme = read(SCAN_README)
+    admin_login = read(ADMIN_LOGIN)
+    admin_sidebar = read(ADMIN_SIDEBAR)
     protocol_bootstrap = read(PROTOCOL_BOOTSTRAP)
     social_bootstrap = read(SOCIAL_BOOTSTRAP)
     bootstrap_lifecycle = read(BOOTSTRAP_LIFECYCLE)
@@ -413,17 +427,31 @@ def main() -> int:
         "deploy-testnet helper must advertise the same-origin Scan funding route",
     )
 
-    # Documentation must match the running architecture.
+    # Documentation and user-facing navigation must match the running
+    # architecture. The Faucet may have a raw TCP hostname in split deployment,
+    # but it is never a browser/application funding endpoint.
     for where, text in (
         ("README", readme),
         ("DEPLOYMENT", deployment),
         ("backend guide", backend_guide),
         ("testnet runbook", testnet_runbook),
+        ("network ports", network_ports),
+        ("testnet environment", testnet_environment),
+        ("SDK testnet guide", sdk_testnet_guide),
+        ("Admin README", admin_readme),
+        ("Scan README", scan_readme),
     ):
         reject(text, "fund.aeko.online", where)
-        reject(text, "faucet.aeko.online", where)
         reject(text, "FUNDING_GATEWAY_KEY", where)
         reject(text, "AEKO_INTERNAL_FUNDING_URL", where)
+        reject(text, "AEKO_OPERATIONS_ROLE", where)
+
+    reject(testnet_environment, "Funding Portal", "testnet environment")
+    reject(scan_readme, "Operations Web funding role", "Scan README")
+    reject(sdk_testnet_guide, "/Users/ok/Documents/projects/aeko-chain", "SDK testnet guide")
+    reject(admin_login, 'href="/funding"', "Admin login")
+    reject(admin_sidebar, 'href="/funding"', "Admin sidebar")
+    reject(admin_env, "AEKO_OPERATIONS_ROLE", "Admin env example")
 
     require(
         "There is no separate Funding Gateway runtime." in readme,
@@ -436,6 +464,25 @@ def main() -> int:
     require(
         "scripts/smoke-funding-e2e.py" in testnet_runbook,
         "testnet runbook must document the deployed product funding smoke",
+    )
+    require(
+        "Public testnet funding uses the managed Explorer funding flow." in testnet_runbook
+        and "It is not the public-testnet funding contract." in testnet_runbook,
+        "testnet runbook must route public funding through Explorer and reserve direct airdrop for local/custom validators",
+    )
+    require(
+        "The Explorer backend owns settlement" in sdk_testnet_guide,
+        "SDK testnet guide must identify Explorer as the settlement authority",
+    )
+    require(
+        "Aeko Scan's same-origin Explorer funding API" in testnet_environment
+        and "authenticated Operations Admin approval" in testnet_environment,
+        "network environment docs must describe the current public grant boundary",
+    )
+    require(
+        "There is **no separate public Funding Gateway service/domain" in network_ports
+        and "firewall it to Validator source addresses" in network_ports,
+        "network port docs must distinguish the retired gateway from raw Faucet transport",
     )
 
     print("[PASS] AEKO deployment, funding authority and dogfood contracts are internally consistent")
