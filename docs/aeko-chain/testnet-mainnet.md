@@ -16,9 +16,19 @@ Testnet AEKO has no asserted monetary value. Public funding requests use Aeko Sc
 
 ## Mainnet
 
-This repository does **not** currently define a canonical public AEKO mainnet endpoint or claim a live mainnet deployment. Applications must not invent or reuse an undeclared mainnet endpoint.
+This repository does **not** currently define a canonical public AEKO mainnet
+endpoint or claim a live mainnet deployment. Applications must not invent or
+reuse an undeclared mainnet endpoint.
 
-When a mainnet is deployed, configure its RPC, WebSocket, Explorer API and Explorer UI explicitly.
+Mainnet protocol bootstrap is intentionally fail-closed today. The signed-off
+500B AEKO economic target cannot fit the current native `u64` balance model at
+nine-decimal precision, and the repository also does not yet implement the
+complete two-house governance/reserve-spend executor. Those are explicit
+pre-mainnet protocol blockers, not reasons to reuse testnet Faucet funding.
+
+When those protocol blockers are resolved and a mainnet is deliberately
+provisioned, configure its RPC, WebSocket, Explorer API and Explorer UI
+explicitly as that network's independent deployment.
 
 ## Devnet
 
