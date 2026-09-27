@@ -109,16 +109,17 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
     ));
 
     let reserved = repository.funding_policy_snapshot().await?;
-    assert!(
-        reserved.public_reserved_aeko >= before_reservation.public_reserved_aeko + 5.0
-    );
+    assert!(reserved.public_reserved_aeko >= before_reservation.public_reserved_aeko + 5.0);
 
     let public_signature = format!("integration-public-signature-{suffix}");
     let submitted = repository
         .set_funding_request_signature(&pending.id, &public_signature)
         .await?;
     assert_eq!(submitted.status, "submitted");
-    assert_eq!(submitted.signature.as_deref(), Some(public_signature.as_str()));
+    assert_eq!(
+        submitted.signature.as_deref(),
+        Some(public_signature.as_str())
+    );
 
     repository
         .mark_funding_request_observation_error(
@@ -128,10 +129,7 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
         )
         .await?;
     let while_submitted = repository.funding_policy_snapshot().await?;
-    assert!(
-        while_submitted.public_reserved_aeko
-            >= before_reservation.public_reserved_aeko + 5.0
-    );
+    assert!(while_submitted.public_reserved_aeko >= before_reservation.public_reserved_aeko + 5.0);
 
     let confirmed = repository.confirm_funding_request(&pending.id).await?;
     assert_eq!(confirmed.status, "confirmed");
@@ -153,10 +151,7 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
 
     let after_public = repository.funding_policy_snapshot().await?;
     assert!(after_public.public_spent_aeko >= before_reservation.public_spent_aeko + 5.0);
-    assert!(
-        after_public.public_reserved_aeko
-            <= while_submitted.public_reserved_aeko - 5.0
-    );
+    assert!(after_public.public_reserved_aeko <= while_submitted.public_reserved_aeko - 5.0);
 
     // Developer airdrops are a separate ledger and never enter grant accounting.
     let airdrop_address = format!("integration-airdrop-{suffix}");
@@ -185,7 +180,10 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
         .any(|grant| grant.signature.as_deref() == Some(airdrop_signature.as_str())));
 
     let after_airdrop = repository.funding_policy_snapshot().await?;
-    assert_eq!(after_airdrop.public_spent_aeko, after_public.public_spent_aeko);
+    assert_eq!(
+        after_airdrop.public_spent_aeko,
+        after_public.public_spent_aeko
+    );
     assert_eq!(
         after_airdrop.public_reserved_aeko,
         after_public.public_reserved_aeko
