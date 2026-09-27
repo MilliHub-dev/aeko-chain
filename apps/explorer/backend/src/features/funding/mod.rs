@@ -3,9 +3,10 @@ use {
         infrastructure::{
             chain::FundingTransferStatus,
             persistence::funding::{
-                FundingGrantRecord, FundingRequestRecord, FundingSettingsUpdate, FundingStoreError,
-                PersistedFundingSettings,
+                FundingAirdropRecord, FundingGrantRecord, FundingRequestRecord,
+                FundingSettingsUpdate, FundingStoreError, PersistedFundingSettings,
             },
+            rpc_error::RpcRequestError,
         },
         response::{self, DataEnvelope},
         state::SharedState,
@@ -124,6 +125,11 @@ impl From<FundingStoreError> for FundingHttpError {
                 "REQUEST_NOT_FOUND",
                 "Funding request was not found",
             ),
+            FundingStoreError::AirdropNotFound => Self::new(
+                StatusCode::NOT_FOUND,
+                "AIRDROP_NOT_FOUND",
+                "Developer airdrop was not found",
+            ),
             FundingStoreError::RequestAlreadyDecided { status } => Self::new(
                 StatusCode::CONFLICT,
                 "REQUEST_ALREADY_DECIDED",
@@ -206,6 +212,8 @@ struct FundingRequestView {
     source: String,
     status: String,
     decided_at: Option<String>,
+    submitted_at: Option<String>,
+    confirmed_at: Option<String>,
     signature: Option<String>,
     confirmed: bool,
     error_code: Option<String>,
@@ -222,6 +230,8 @@ impl From<FundingRequestRecord> for FundingRequestView {
             source: value.source,
             status: value.status,
             decided_at: value.decided_at.map(|value| value.to_rfc3339()),
+            submitted_at: value.submitted_at.map(|value| value.to_rfc3339()),
+            confirmed_at: value.confirmed_at.map(|value| value.to_rfc3339()),
             signature: value.signature,
             confirmed: value.confirmed,
             error_code: value.error_code,
@@ -234,6 +244,7 @@ impl From<FundingRequestRecord> for FundingRequestView {
 #[serde(rename_all = "camelCase")]
 struct FundingGrantView {
     id: String,
+    request_id: Option<String>,
     address: String,
     amount_aeko: f64,
     signature: Option<String>,
@@ -246,12 +257,77 @@ impl From<FundingGrantRecord> for FundingGrantView {
     fn from(value: FundingGrantRecord) -> Self {
         Self {
             id: value.id,
+            request_id: value.request_id,
             address: value.address,
             amount_aeko: value.amount_aeko,
             signature: value.signature,
             granted_at: value.granted_at.to_rfc3339(),
             source: value.source,
             confirmed: value.confirmed,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PublicFundingRequestStatusView {
+    id: String,
+    amount_aeko: f64,
+    requested_at: String,
+    status: String,
+    decided_at: Option<String>,
+    submitted_at: Option<String>,
+    confirmed_at: Option<String>,
+    signature: Option<String>,
+    confirmed: bool,
+    error_code: Option<String>,
+}
+
+impl From<FundingRequestRecord> for PublicFundingRequestStatusView {
+    fn from(value: FundingRequestRecord) -> Self {
+        Self {
+            id: value.id,
+            amount_aeko: value.amount_aeko,
+            requested_at: value.requested_at.to_rfc3339(),
+            status: value.status,
+            decided_at: value.decided_at.map(|value| value.to_rfc3339()),
+            submitted_at: value.submitted_at.map(|value| value.to_rfc3339()),
+            confirmed_at: value.confirmed_at.map(|value| value.to_rfc3339()),
+            signature: value.signature,
+            confirmed: value.confirmed,
+            error_code: value.error_code,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FundingAirdropView {
+    id: String,
+    address: String,
+    amount_aeko: f64,
+    signature: Option<String>,
+    status: String,
+    requested_at: String,
+    submitted_at: Option<String>,
+    confirmed_at: Option<String>,
+    error_code: Option<String>,
+    error_message: Option<String>,
+}
+
+impl From<FundingAirdropRecord> for FundingAirdropView {
+    fn from(value: FundingAirdropRecord) -> Self {
+        Self {
+            id: value.id,
+            address: value.address,
+            amount_aeko: value.amount_aeko,
+            signature: value.signature,
+            status: value.status,
+            requested_at: value.requested_at.to_rfc3339(),
+            submitted_at: value.submitted_at.map(|value| value.to_rfc3339()),
+            confirmed_at: value.confirmed_at.map(|value| value.to_rfc3339()),
+            error_code: value.error_code,
+            error_message: value.error_message,
         }
     }
 }
@@ -364,6 +440,7 @@ pub fn router() -> Router<SharedState> {
     Router::new()
         .route("/funding/policy", get(get_policy))
         .route("/funding/request", post(create_request))
+        .route("/funding/request/:id", get(get_public_request_status))
         .route("/funding/airdrop", post(create_airdrop))
         .route(
             "/admin/funding/settings",
@@ -375,8 +452,13 @@ pub fn router() -> Router<SharedState> {
             "/admin/funding/requests/:id/decide",
             post(decide_request),
         )
+        .route(
+            "/admin/funding/requests/:id/reconcile",
+            post(reconcile_request),
+        )
         .route("/admin/funding/grants", get(list_grants))
         .route("/admin/funding/grant", post(create_grant))
+        .route("/admin/funding/airdrops", get(list_airdrops))
 }
 
 async fn get_policy(
@@ -431,11 +513,31 @@ async fn create_request(
     ))
 }
 
+async fn get_public_request_status(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+) -> FundingResult<Json<DataEnvelope<PublicFundingRequestStatusView>>> {
+    ensure_test_environment(&state)?;
+    let request = state
+        .repository
+        .funding_request(&id)
+        .await?
+        .ok_or_else(|| FundingHttpError::from(FundingStoreError::RequestNotFound))?;
+    if request.source != "public" {
+        return Err(FundingHttpError::from(FundingStoreError::RequestNotFound));
+    }
+    Ok(response::data_from_source(
+        &state.network,
+        request.into(),
+        "funding-request-status",
+    ))
+}
+
 async fn create_airdrop(
     State(state): State<SharedState>,
     headers: HeaderMap,
     Json(body): Json<DirectGrantBody>,
-) -> FundingResult<Json<DataEnvelope<FundingRequestView>>> {
+) -> FundingResult<Json<DataEnvelope<FundingAirdropView>>> {
     ensure_test_environment(&state)?;
     let address = validate_address(&body.address)?;
     apply_rate_limit(&state, &headers, "console-airdrop").await?;
@@ -448,15 +550,15 @@ async fn create_airdrop(
         .console_airdrop_cap_aeko
         .min(state.faucet_per_request_cap_aeko);
     validate_direct_amount(body.amount_aeko, cap, "Test Console airdrop")?;
-    let request = state
+    let airdrop = state
         .repository
-        .create_immediate_funding_request(&address, body.amount_aeko, "console")
+        .create_funding_airdrop(&address, body.amount_aeko)
         .await?;
-    let settled = settle_request(&state, request, false).await?;
+    let settled = submit_and_observe_airdrop(&state, airdrop).await?;
     Ok(response::data_from_source(
         &state.network,
         settled.into(),
-        "funding-settlement",
+        "developer-airdrop",
     ))
 }
 
@@ -470,7 +572,7 @@ async fn get_admin_settings(
             &state.network,
             AdminFundingSnapshot {
                 network: state.network.clone(),
-                mode: "mainnet-governed",
+                mode: "mainnet-disabled",
                 settings: None,
                 daily_remaining_aeko: None,
                 public_spent_aeko: None,
@@ -584,7 +686,7 @@ async fn decide_request(
             .reject_funding_request(
                 &id,
                 Some("OPERATOR_REJECTED"),
-                Some("Rejected by operator"),
+                Some("Rejected by Admin"),
             )
             .await?;
         return Ok(response::data_from_source(
@@ -599,10 +701,21 @@ async fn decide_request(
         .funding_request(&id)
         .await?
         .ok_or_else(|| FundingHttpError::from(FundingStoreError::RequestNotFound))?;
-    let request = match existing.status.as_str() {
-        "approved" => existing,
-        "processing" => existing,
-        "pending" => state.repository.reserve_public_funding_request(&id).await?,
+
+    let settled = match existing.status.as_str() {
+        "pending" => {
+            let reserved = state.repository.reserve_public_funding_request(&id).await?;
+            submit_and_observe_grant(&state, reserved).await?
+        }
+        "submitted" => observe_grant(&state, existing).await?,
+        "confirmed" => existing,
+        "processing" => {
+            return Err(FundingHttpError::new(
+                StatusCode::CONFLICT,
+                "FUNDING_SUBMISSION_UNCERTAIN",
+                "This grant is already being submitted and has no durable transaction signature yet. Do not submit it again; investigate the original RPC attempt.",
+            ))
+        }
         status => {
             return Err(FundingHttpError::from(
                 FundingStoreError::RequestAlreadyDecided {
@@ -611,15 +724,41 @@ async fn decide_request(
             ))
         }
     };
-    let settled = if request.status == "approved" {
-        request
-    } else {
-        settle_request(&state, request, true).await?
-    };
+
     Ok(response::data_from_source(
         &state.network,
         settled.into(),
         "funding-settlement",
+    ))
+}
+
+async fn reconcile_request(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> FundingResult<Json<DataEnvelope<FundingRequestView>>> {
+    authorize_admin(&headers, &state.settings_admin_token)?;
+    ensure_test_environment(&state)?;
+    let request = state
+        .repository
+        .funding_request(&id)
+        .await?
+        .ok_or_else(|| FundingHttpError::from(FundingStoreError::RequestNotFound))?;
+    let reconciled = match request.status.as_str() {
+        "submitted" => observe_grant(&state, request).await?,
+        "confirmed" => request,
+        status => {
+            return Err(FundingHttpError::from(
+                FundingStoreError::RequestAlreadyDecided {
+                    status: status.to_string(),
+                },
+            ))
+        }
+    };
+    Ok(response::data_from_source(
+        &state.network,
+        reconciled.into(),
+        "funding-reconciliation",
     ))
 }
 
@@ -664,9 +803,9 @@ async fn create_grant(
     validate_direct_amount(body.amount_aeko, cap, "Manual grant")?;
     let request = state
         .repository
-        .create_immediate_funding_request(&address, body.amount_aeko, "admin")
+        .create_immediate_grant_request(&address, body.amount_aeko)
         .await?;
-    let settled = settle_request(&state, request, false).await?;
+    let settled = submit_and_observe_grant(&state, request).await?;
     Ok(response::data_from_source(
         &state.network,
         settled.into(),
@@ -674,112 +813,353 @@ async fn create_grant(
     ))
 }
 
-async fn settle_request(
-    state: &SharedState,
-    mut request: FundingRequestRecord,
-    retry_public_on_submit_failure: bool,
-) -> FundingResult<FundingRequestRecord> {
-    if request.signature.is_none() {
-        let lamports = amount_to_lamports(request.amount_aeko)?;
-        let rpc = state.rpc.clone();
-        let address = request.address.clone();
-        let authorization = state.funding_authorization_key.clone();
-        let submit = tokio::task::spawn_blocking(move || {
-            rpc.request_funding_airdrop(&address, lamports, authorization.as_deref())
-        })
-        .await
-        .map_err(FundingHttpError::internal)?;
+async fn list_airdrops(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Query(query): Query<ListQuery>,
+) -> FundingResult<Json<DataEnvelope<Vec<FundingAirdropView>>>> {
+    authorize_admin(&headers, &state.settings_admin_token)?;
+    ensure_test_environment(&state)?;
+    let limit = query.limit.unwrap_or(100).clamp(1, 500);
+    let airdrops = state
+        .repository
+        .list_funding_airdrops(limit)
+        .await?
+        .into_iter()
+        .map(FundingAirdropView::from)
+        .collect();
+    Ok(response::data_from_source(
+        &state.network,
+        airdrops,
+        "developer-airdrop-ledger",
+    ))
+}
 
-        let signature = match submit {
-            Ok(signature) => signature,
-            Err(error) => {
-                if retry_public_on_submit_failure && request.source == "public" {
-                    state
-                        .repository
-                        .reset_funding_request_after_transfer_failure(
-                            &request.id,
-                            "FUNDING_TRANSFER_FAILED",
-                            &error.to_string(),
-                        )
-                        .await?;
-                } else {
-                    let _ = state
-                        .repository
-                        .reject_funding_request(
-                            &request.id,
-                            Some("FUNDING_TRANSFER_FAILED"),
-                            Some(&error.to_string()),
-                        )
-                        .await;
-                }
-                return Err(FundingHttpError::new(
-                    StatusCode::BAD_GATEWAY,
-                    "FUNDING_TRANSFER_FAILED",
-                    "Validator/Faucet rejected the funding transfer",
-                ));
-            }
-        };
-        request = state
-            .repository
-            .set_funding_request_signature(&request.id, &signature)
-            .await?;
+async fn submit_and_observe_grant(
+    state: &SharedState,
+    request: FundingRequestRecord,
+) -> FundingResult<FundingRequestRecord> {
+    if request.status != "processing" || request.signature.is_some() {
+        return Err(FundingHttpError::from(
+            FundingStoreError::RequestAlreadyDecided {
+                status: request.status,
+            },
+        ));
     }
 
+    let lamports = amount_to_lamports(request.amount_aeko)?;
+    let rpc = state.rpc.clone();
+    let address = request.address.clone();
+    let authorization = state.funding_authorization_key.clone();
+    let submit = tokio::task::spawn_blocking(move || {
+        rpc.request_funding_airdrop(&address, lamports, authorization.as_deref())
+    })
+    .await;
+
+    let signature = match submit {
+        Ok(Ok(signature)) => signature,
+        Ok(Err(error)) if is_explicit_rpc_rejection(&error) => {
+            if request.source == "public" {
+                state
+                    .repository
+                    .reset_public_request_after_explicit_submit_rejection(
+                        &request.id,
+                        "FUNDING_TRANSFER_REJECTED",
+                        &error.to_string(),
+                    )
+                    .await?;
+            } else {
+                state
+                    .repository
+                    .mark_funding_request_failed(
+                        &request.id,
+                        "FUNDING_TRANSFER_REJECTED",
+                        &error.to_string(),
+                    )
+                    .await?;
+            }
+            return Err(FundingHttpError::new(
+                StatusCode::BAD_GATEWAY,
+                "FUNDING_TRANSFER_REJECTED",
+                "Validator/Faucet explicitly rejected the grant transfer",
+            ));
+        }
+        Ok(Err(error)) => {
+            state
+                .repository
+                .mark_funding_request_submission_error(
+                    &request.id,
+                    "FUNDING_SUBMISSION_UNCERTAIN",
+                    &error.to_string(),
+                )
+                .await?;
+            return Err(FundingHttpError::new(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "FUNDING_SUBMISSION_UNCERTAIN",
+                "The grant submission outcome is uncertain. It remains reserved and must not be resubmitted automatically.",
+            ));
+        }
+        Err(error) => {
+            state
+                .repository
+                .mark_funding_request_submission_error(
+                    &request.id,
+                    "FUNDING_SUBMISSION_UNCERTAIN",
+                    &error.to_string(),
+                )
+                .await?;
+            return Err(FundingHttpError::new(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "FUNDING_SUBMISSION_UNCERTAIN",
+                "The grant submission worker ended unexpectedly. The grant remains reserved and must not be resubmitted automatically.",
+            ));
+        }
+    };
+
+    let submitted = state
+        .repository
+        .set_funding_request_signature(&request.id, &signature)
+        .await?;
+    observe_grant(state, submitted).await
+}
+
+async fn observe_grant(
+    state: &SharedState,
+    request: FundingRequestRecord,
+) -> FundingResult<FundingRequestRecord> {
+    if request.status == "confirmed" {
+        return Ok(request);
+    }
+    if request.status != "submitted" {
+        return Err(FundingHttpError::from(
+            FundingStoreError::RequestAlreadyDecided {
+                status: request.status,
+            },
+        ));
+    }
     let signature = request.signature.clone().ok_or_else(|| {
-        FundingHttpError::internal("funding request has no signature after settlement submission")
+        FundingHttpError::internal("submitted grant has no durable transaction signature")
     })?;
+
     let rpc = state.rpc.clone();
     let signature_for_wait = signature.clone();
-    let status = tokio::task::spawn_blocking(move || {
+    let observation = tokio::task::spawn_blocking(move || {
         rpc.wait_for_funding_transfer(
             &signature_for_wait,
             CONFIRMATION_ATTEMPTS,
             Duration::from_millis(CONFIRMATION_INTERVAL_MS),
         )
     })
-    .await
-    .map_err(FundingHttpError::internal)?;
+    .await;
 
-    match status {
-        Ok(FundingTransferStatus::Confirmed) => Ok(state
-            .repository
-            .finalize_funding_request(&request.id, true)
-            .await?),
-        Ok(FundingTransferStatus::Failed(error)) => {
-            let rejected = state
+    match observation {
+        Ok(Ok(FundingTransferStatus::Confirmed)) => {
+            Ok(state.repository.confirm_funding_request(&request.id).await?)
+        }
+        Ok(Ok(FundingTransferStatus::Failed(error))) => {
+            state
                 .repository
-                .reject_funding_request(
+                .mark_funding_request_failed(
                     &request.id,
-                    Some("FUNDING_TRANSACTION_FAILED"),
-                    Some(&error),
+                    "FUNDING_TRANSACTION_FAILED",
+                    &error,
                 )
                 .await?;
             Err(FundingHttpError::new(
                 StatusCode::BAD_GATEWAY,
                 "FUNDING_TRANSACTION_FAILED",
-                format!(
-                    "Funding transaction {} failed on-chain; request {} is {}",
-                    signature, rejected.id, rejected.status
-                ),
+                format!("Grant transaction {signature} failed on-chain"),
             ))
         }
-        Ok(FundingTransferStatus::Pending) => Ok(state
+        Ok(Ok(FundingTransferStatus::Pending)) => Ok(state
             .repository
-            .finalize_funding_request(&request.id, false)
+            .mark_funding_request_observation_error(
+                &request.id,
+                "FUNDING_CONFIRMATION_PENDING",
+                "Transaction was submitted and is still awaiting chain confirmation",
+            )
             .await?),
+        Ok(Err(error)) => {
+            tracing::warn!(
+                request_id = %request.id,
+                signature = %signature,
+                error = %error,
+                "grant transaction was submitted but confirmation polling failed"
+            );
+            Ok(state
+                .repository
+                .mark_funding_request_observation_error(
+                    &request.id,
+                    "FUNDING_CONFIRMATION_UNAVAILABLE",
+                    &error.to_string(),
+                )
+                .await?)
+        }
         Err(error) => {
             tracing::warn!(
                 request_id = %request.id,
                 signature = %signature,
                 error = %error,
-                "funding transaction was submitted but confirmation polling failed"
+                "grant confirmation worker ended unexpectedly"
             );
             Ok(state
                 .repository
-                .finalize_funding_request(&request.id, false)
+                .mark_funding_request_observation_error(
+                    &request.id,
+                    "FUNDING_CONFIRMATION_UNAVAILABLE",
+                    &error.to_string(),
+                )
                 .await?)
         }
     }
+}
+
+async fn submit_and_observe_airdrop(
+    state: &SharedState,
+    airdrop: FundingAirdropRecord,
+) -> FundingResult<FundingAirdropRecord> {
+    let lamports = amount_to_lamports(airdrop.amount_aeko)?;
+    let rpc = state.rpc.clone();
+    let address = airdrop.address.clone();
+    let authorization = state.funding_authorization_key.clone();
+    let submit = tokio::task::spawn_blocking(move || {
+        rpc.request_funding_airdrop(&address, lamports, authorization.as_deref())
+    })
+    .await;
+
+    let signature = match submit {
+        Ok(Ok(signature)) => signature,
+        Ok(Err(error)) if is_explicit_rpc_rejection(&error) => {
+            state
+                .repository
+                .mark_funding_airdrop_failed(
+                    &airdrop.id,
+                    "AIRDROP_TRANSFER_REJECTED",
+                    &error.to_string(),
+                )
+                .await?;
+            return Err(FundingHttpError::new(
+                StatusCode::BAD_GATEWAY,
+                "AIRDROP_TRANSFER_REJECTED",
+                "Validator/Faucet explicitly rejected the developer airdrop",
+            ));
+        }
+        Ok(Err(error)) => {
+            state
+                .repository
+                .mark_funding_airdrop_error(
+                    &airdrop.id,
+                    "AIRDROP_SUBMISSION_UNCERTAIN",
+                    &error.to_string(),
+                )
+                .await?;
+            return Err(FundingHttpError::new(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "AIRDROP_SUBMISSION_UNCERTAIN",
+                "The developer airdrop submission outcome is uncertain and will not be retried automatically.",
+            ));
+        }
+        Err(error) => {
+            state
+                .repository
+                .mark_funding_airdrop_error(
+                    &airdrop.id,
+                    "AIRDROP_SUBMISSION_UNCERTAIN",
+                    &error.to_string(),
+                )
+                .await?;
+            return Err(FundingHttpError::new(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "AIRDROP_SUBMISSION_UNCERTAIN",
+                "The developer airdrop submission worker ended unexpectedly and will not be retried automatically.",
+            ));
+        }
+    };
+
+    let submitted = state
+        .repository
+        .set_funding_airdrop_signature(&airdrop.id, &signature)
+        .await?;
+    observe_airdrop(state, submitted).await
+}
+
+async fn observe_airdrop(
+    state: &SharedState,
+    airdrop: FundingAirdropRecord,
+) -> FundingResult<FundingAirdropRecord> {
+    if airdrop.status == "confirmed" {
+        return Ok(airdrop);
+    }
+    if airdrop.status != "submitted" {
+        return Err(FundingHttpError::from(
+            FundingStoreError::RequestAlreadyDecided {
+                status: airdrop.status,
+            },
+        ));
+    }
+    let signature = airdrop.signature.clone().ok_or_else(|| {
+        FundingHttpError::internal("submitted developer airdrop has no transaction signature")
+    })?;
+
+    let rpc = state.rpc.clone();
+    let signature_for_wait = signature.clone();
+    let observation = tokio::task::spawn_blocking(move || {
+        rpc.wait_for_funding_transfer(
+            &signature_for_wait,
+            CONFIRMATION_ATTEMPTS,
+            Duration::from_millis(CONFIRMATION_INTERVAL_MS),
+        )
+    })
+    .await;
+
+    match observation {
+        Ok(Ok(FundingTransferStatus::Confirmed)) => {
+            Ok(state.repository.confirm_funding_airdrop(&airdrop.id).await?)
+        }
+        Ok(Ok(FundingTransferStatus::Failed(error))) => {
+            state
+                .repository
+                .mark_funding_airdrop_failed(
+                    &airdrop.id,
+                    "AIRDROP_TRANSACTION_FAILED",
+                    &error,
+                )
+                .await?;
+            Err(FundingHttpError::new(
+                StatusCode::BAD_GATEWAY,
+                "AIRDROP_TRANSACTION_FAILED",
+                format!("Developer airdrop transaction {signature} failed on-chain"),
+            ))
+        }
+        Ok(Ok(FundingTransferStatus::Pending)) => Ok(state
+            .repository
+            .mark_funding_airdrop_error(
+                &airdrop.id,
+                "AIRDROP_CONFIRMATION_PENDING",
+                "Transaction was submitted and is still awaiting chain confirmation",
+            )
+            .await?),
+        Ok(Err(error)) => Ok(state
+            .repository
+            .mark_funding_airdrop_error(
+                &airdrop.id,
+                "AIRDROP_CONFIRMATION_UNAVAILABLE",
+                &error.to_string(),
+            )
+            .await?),
+        Err(error) => Ok(state
+            .repository
+            .mark_funding_airdrop_error(
+                &airdrop.id,
+                "AIRDROP_CONFIRMATION_UNAVAILABLE",
+                &error.to_string(),
+            )
+            .await?),
+    }
+}
+
+fn is_explicit_rpc_rejection(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<RpcRequestError>().is_some()
 }
 
 async fn apply_rate_limit(
