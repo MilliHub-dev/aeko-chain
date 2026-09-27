@@ -2,8 +2,8 @@
 
 AEKO Wallets support granular permissions, allowing users to approve specific actions without giving full account access.
 
-Permission behavior should be implemented against the wallet-anchored identity model in [`docs/wallet/identity.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/identity.md).
-The implementation-facing source of truth for Ticket 4.2 is [`docs/wallet/permission-controls-spec.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/permission-controls-spec.md).
+Permission behavior should be implemented against the wallet-anchored identity model in [`docs/wallet/identity.md`](./identity.md).
+The implementation-facing source of truth for Ticket 4.2 is [`docs/wallet/permission-controls-spec.md`](./permission-controls-spec.md).
 
 ## Scopes
 dApps can request the following scopes:
