@@ -845,7 +845,8 @@ async fn prepare_grant_submission_intent(
     }
 
     let rpc = state.rpc.clone();
-    let blockhash = match tokio::task::spawn_blocking(move || rpc.latest_funding_blockhash()).await {
+    let blockhash = match tokio::task::spawn_blocking(move || rpc.latest_funding_blockhash()).await
+    {
         Ok(Ok(blockhash)) => blockhash,
         Ok(Err(error)) => {
             if request.source == "public" {
@@ -1075,7 +1076,8 @@ async fn prepare_airdrop_submission_intent(
     }
 
     let rpc = state.rpc.clone();
-    let blockhash = match tokio::task::spawn_blocking(move || rpc.latest_funding_blockhash()).await {
+    let blockhash = match tokio::task::spawn_blocking(move || rpc.latest_funding_blockhash()).await
+    {
         Ok(Ok(blockhash)) => blockhash,
         Ok(Err(error)) => {
             state
@@ -1121,7 +1123,9 @@ async fn submit_and_observe_airdrop(
 ) -> FundingResult<FundingAirdropRecord> {
     let airdrop = prepare_airdrop_submission_intent(state, airdrop).await?;
     let blockhash = airdrop.submission_blockhash.clone().ok_or_else(|| {
-        FundingHttpError::internal("processing developer airdrop has no durable submission blockhash")
+        FundingHttpError::internal(
+            "processing developer airdrop has no durable submission blockhash",
+        )
     })?;
     let lamports = amount_to_lamports(airdrop.amount_aeko)?;
     let rpc = state.rpc.clone();
