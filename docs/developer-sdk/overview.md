@@ -30,17 +30,17 @@ console.log("Connected to AEKO Devnet");
 
 ## Current Repo Status
 
-- JavaScript SDK scaffold and verified local build live in [`sdk/js`](/Users/ok/Documents/projects/aeko-chain/sdk/js)
-- Node.js SDK scaffold and verified local build live in [`sdk/node`](/Users/ok/Documents/projects/aeko-chain/sdk/node)
-- the new high-level Rust client SDK now lives in [`sdk/rust-client`](/Users/ok/Documents/projects/aeko-chain/sdk/rust-client)
-- a first external on-chain starter guide now lives in [`docs/developer-sdk/write-your-first-program.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/write-your-first-program.md)
-- a full zero-to-first-live-program walkthrough now lives in [`docs/developer-sdk/deploy-and-invoke-testnet.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/deploy-and-invoke-testnet.md)
-- a minimal starter contract template now lives in [`contracts/hello-aeko-program`](/Users/ok/Documents/projects/aeko-chain/contracts/hello-aeko-program)
-- the Python SDK scaffold now lives in [`sdk/python`](/Users/ok/Documents/projects/aeko-chain/sdk/python)
+- JavaScript SDK scaffold and verified local build live in [`sdk/js`](../../sdk/js)
+- Node.js SDK scaffold and verified local build live in [`sdk/node`](../../sdk/node)
+- the new high-level Rust client SDK now lives in [`sdk/rust-client`](../../sdk/rust-client)
+- a first external on-chain starter guide now lives in [`docs/developer-sdk/write-your-first-program.md`](./write-your-first-program.md)
+- a full zero-to-first-live-program walkthrough now lives in [`docs/developer-sdk/deploy-and-invoke-testnet.md`](./deploy-and-invoke-testnet.md)
+- a minimal starter contract template now lives in [`contracts/hello-aeko-program`](../../contracts/hello-aeko-program)
+- the Python SDK scaffold now lives in [`sdk/python`](../../sdk/python)
 - `@aeko-chain/web3.js@0.1.0` is published on npm
 - `@aeko-chain/sdk@0.1.0` is published on npm
 - `aeko-rust-sdk@2.0.0` is published on crates.io
 - `aeko-rust-sdk@2.0.2` is prepared in repo as the docs.rs refresh patch release
 - `aeko-sdk==0.1.0` is published on PyPI
-- cross-SDK publication tracking now lives in [`docs/developer-sdk/phase4-sdk-publication.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/phase4-sdk-publication.md)
-- per-SDK release steps now live in [`docs/developer-sdk/phase4-sdk-release-steps.md`](/Users/ok/Documents/projects/aeko-chain/docs/developer-sdk/phase4-sdk-release-steps.md)
+- cross-SDK publication tracking now lives in [`docs/developer-sdk/phase4-sdk-publication.md`](./phase4-sdk-publication.md)
+- per-SDK release steps now live in [`docs/developer-sdk/phase4-sdk-release-steps.md`](./phase4-sdk-release-steps.md)
