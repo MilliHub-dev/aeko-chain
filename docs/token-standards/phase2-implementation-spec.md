@@ -10,44 +10,44 @@ This spec does not replace `tokenomics.md`, `aeko-20.md`, or `aeko-721.md`. Inst
 
 ### Completed
 
-- [x] Phase 2 execution plan created in [`task.md`](/Users/ok/Documents/projects/aeko-chain/task.md)
-- [x] Phase 2 implementation spec created in [`docs/token-standards/phase2-implementation-spec.md`](/Users/ok/Documents/projects/aeko-chain/docs/token-standards/phase2-implementation-spec.md)
+- [x] Phase 2 execution plan created in [`task.md`](../../task.md)
+- [x] Phase 2 implementation spec created in [`docs/token-standards/phase2-implementation-spec.md`](./phase2-implementation-spec.md)
 - [x] Tokenomics baseline captured in planning/spec docs
 - [x] Initial implementation boundaries defined for Tokenomics Config, AEKO-20, Public Minting Module, and AEKO-721
 - [x] Open sign-off decisions documented before contract work
-- [x] Draft [`tokenomics.md`](/Users/ok/Documents/projects/aeko-chain/tokenomics.md) created
+- [x] Draft [`tokenomics.md`](../../tokenomics.md) created
 - [x] Supply model signed off as Option B: managed governed target with perpetual floor inflation beyond reserve exhaustion
 - [x] Team vesting updated to `1-2 years` with `12-month cliff`
 - [x] Epoch definition signed off: `1 day` epoch, `365` epochs/year
 - [x] Per-year and per-epoch emission schedule signed off
 - [x] Fee split, subsidy cap, commission bounds, and slashing parameters signed off
-- [x] Tokenomics config/state design created in [`docs/token-standards/tokenomics-config-spec.md`](/Users/ok/Documents/projects/aeko-chain/docs/token-standards/tokenomics-config-spec.md)
+- [x] Tokenomics config/state design created in [`docs/token-standards/tokenomics-config-spec.md`](./tokenomics-config-spec.md)
 - [x] Governance parameter storage model defined
 - [x] Validator reward formula signed off and documented
-- [x] Tokenomics program crate scaffolded in [`programs/tokenomics`](/Users/ok/Documents/projects/aeko-chain/programs/tokenomics)
+- [x] Tokenomics program crate scaffolded in [`programs/tokenomics`](../../programs/tokenomics)
 - [x] Tokenomics instruction/state API added for initialize, read, and governance-gated update flows
 - [x] Tokenomics processor wired for initialize, read-return-data, and governance-gated update behavior
 - [x] Tokenomics processor tests added for initialize, read, and authorized update flows
 - [x] Epoch settlement and validator reward calculation logic added to the tokenomics program
 - [x] Validator reward distribution recording added to tokenomics state
 - [x] AEKO-20 spec upgraded from placeholder to implementation-facing draft
-- [x] AEKO-20 program scaffold added in [`programs/token-20`](/Users/ok/Documents/projects/aeko-chain/programs/token-20)
+- [x] AEKO-20 program scaffold added in [`programs/token-20`](../../programs/token-20)
 - [x] AEKO-20 core mint/account initialization plus mint, transfer, and burn logic added
 - [x] AEKO-20 allowance flow added with approve, revoke, and transferFrom behavior
 - [x] AEKO-20 emissions-controlled mint path integrated with tokenomics state
 - [x] AEKO-20 freeze/thaw controls and mint-authority rotation added
-- [x] Public mint program scaffold added in [`programs/public-mint`](/Users/ok/Documents/projects/aeko-chain/programs/public-mint)
+- [x] Public mint program scaffold added in [`programs/public-mint`](../../programs/public-mint)
 - [x] Public mint policy, blocklist, allowlist, cooldown, per-wallet window, subsidy validation, and anomaly-based wallet blocking added
 - [x] Public mint module now delegates validated issuance into the AEKO-20 mint flow
 - [x] AEKO-20 dedicated public mint guard path added for `PublicMintControlled` issuance
-- [x] Permissioned mint flow documentation drafted in [`docs/token-standards/permissioned-mint-flow.md`](/Users/ok/Documents/projects/aeko-chain/docs/token-standards/permissioned-mint-flow.md)
-- [x] Public mint API / endpoint documentation drafted in [`docs/token-standards/public-mint-api.md`](/Users/ok/Documents/projects/aeko-chain/docs/token-standards/public-mint-api.md)
+- [x] Permissioned mint flow documentation drafted in [`docs/token-standards/permissioned-mint-flow.md`](./permissioned-mint-flow.md)
+- [x] Public mint API / endpoint documentation drafted in [`docs/token-standards/public-mint-api.md`](./public-mint-api.md)
 - [x] Public mint admin instruction tests added for policy updates and list management
 - [x] AEKO-721 spec upgraded from placeholder to implementation-facing draft
-- [x] AEKO-721 program scaffold added in [`programs/token-721`](/Users/ok/Documents/projects/aeko-chain/programs/token-721)
+- [x] AEKO-721 program scaffold added in [`programs/token-721`](../../programs/token-721)
 - [x] AEKO-721 collection init, mint, transfer, metadata update, and royalty validation added
 - [x] AEKO-721 freeze/thaw controls and stricter metadata validation added
-- [x] AEKO-721 demo recipe drafted in [`docs/token-standards/nft-demo.md`](/Users/ok/Documents/projects/aeko-chain/docs/token-standards/nft-demo.md)
+- [x] AEKO-721 demo recipe drafted in [`docs/token-standards/nft-demo.md`](./nft-demo.md)
 - [x] AEKO-721 web demo now supports live testnet-backed reads, wallet detection, and unsigned transaction construction for wallet signing
 - [x] AEKO-721 web demo now derives seed-based collection/token accounts and prepares setup transactions with rent estimates
 - [x] AEKO-721 web demo now uses a typed wallet adapter layer for connect, proof signing, and sign-and-send flows
