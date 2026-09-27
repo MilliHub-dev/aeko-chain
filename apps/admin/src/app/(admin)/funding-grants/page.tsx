@@ -452,7 +452,7 @@ export default function FundingGrantsPage() {
                       </button>
                     ) : request.status === 'processing' ? (
                       <span className="max-w-xs text-xs leading-5 text-amber-200">
-                        Submission outcome uncertain. Do not approve, reject, or retry automatically.
+                        Submission response is unresolved. The backend safely replays only the persisted transaction intent; do not approve, reject, or manually resubmit it.
                       </span>
                     ) : (
                       <span className="max-w-xs text-xs leading-5 text-red-300">
