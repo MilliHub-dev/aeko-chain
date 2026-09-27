@@ -6,7 +6,6 @@ use {
                 FundingAirdropRecord, FundingGrantRecord, FundingRequestRecord,
                 FundingSettingsUpdate, FundingStoreError, PersistedFundingSettings,
             },
-            rpc_error::RpcRequestError,
         },
         response::{self, DataEnvelope},
         state::SharedState,
@@ -830,7 +829,7 @@ async fn list_airdrops(
     ))
 }
 
-async fn submit_and_observe_grant(
+async fn prepare_grant_submission_intent(
     state: &SharedState,
     request: FundingRequestRecord,
 ) -> FundingResult<FundingRequestRecord> {
@@ -841,25 +840,20 @@ async fn submit_and_observe_grant(
             },
         ));
     }
+    if request.submission_blockhash.is_some() {
+        return Ok(request);
+    }
 
-    let lamports = amount_to_lamports(request.amount_aeko)?;
     let rpc = state.rpc.clone();
-    let address = request.address.clone();
-    let authorization = state.funding_authorization_key.clone();
-    let submit = tokio::task::spawn_blocking(move || {
-        rpc.request_funding_airdrop(&address, lamports, authorization.as_deref())
-    })
-    .await;
-
-    let signature = match submit {
-        Ok(Ok(signature)) => signature,
-        Ok(Err(error)) if is_explicit_rpc_rejection(&error) => {
+    let blockhash = match tokio::task::spawn_blocking(move || rpc.latest_funding_blockhash()).await {
+        Ok(Ok(blockhash)) => blockhash,
+        Ok(Err(error)) => {
             if request.source == "public" {
                 state
                     .repository
-                    .reset_public_request_after_explicit_submit_rejection(
+                    .reset_public_request_before_submission(
                         &request.id,
-                        "FUNDING_TRANSFER_REJECTED",
+                        "FUNDING_BLOCKHASH_UNAVAILABLE",
                         &error.to_string(),
                     )
                     .await?;
@@ -868,30 +862,89 @@ async fn submit_and_observe_grant(
                     .repository
                     .mark_funding_request_failed(
                         &request.id,
-                        "FUNDING_TRANSFER_REJECTED",
+                        "FUNDING_BLOCKHASH_UNAVAILABLE",
                         &error.to_string(),
                     )
                     .await?;
             }
             return Err(FundingHttpError::new(
-                StatusCode::BAD_GATEWAY,
-                "FUNDING_TRANSFER_REJECTED",
-                "Validator/Faucet explicitly rejected the grant transfer",
+                StatusCode::SERVICE_UNAVAILABLE,
+                "FUNDING_BLOCKHASH_UNAVAILABLE",
+                "A chain blockhash could not be obtained before grant submission; no transfer was attempted.",
             ));
         }
+        Err(error) => {
+            if request.source == "public" {
+                state
+                    .repository
+                    .reset_public_request_before_submission(
+                        &request.id,
+                        "FUNDING_BLOCKHASH_UNAVAILABLE",
+                        &error.to_string(),
+                    )
+                    .await?;
+            } else {
+                state
+                    .repository
+                    .mark_funding_request_failed(
+                        &request.id,
+                        "FUNDING_BLOCKHASH_UNAVAILABLE",
+                        &error.to_string(),
+                    )
+                    .await?;
+            }
+            return Err(FundingHttpError::new(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "FUNDING_BLOCKHASH_UNAVAILABLE",
+                "The blockhash worker ended before grant submission; no transfer was attempted.",
+            ));
+        }
+    };
+
+    Ok(state
+        .repository
+        .set_funding_request_submission_blockhash(&request.id, &blockhash)
+        .await?)
+}
+
+async fn submit_and_observe_grant(
+    state: &SharedState,
+    request: FundingRequestRecord,
+) -> FundingResult<FundingRequestRecord> {
+    let request = prepare_grant_submission_intent(state, request).await?;
+    let blockhash = request.submission_blockhash.clone().ok_or_else(|| {
+        FundingHttpError::internal("processing grant has no durable submission blockhash")
+    })?;
+    let lamports = amount_to_lamports(request.amount_aeko)?;
+    let rpc = state.rpc.clone();
+    let address = request.address.clone();
+    let authorization = state.funding_authorization_key.clone();
+    let submit_blockhash = blockhash.clone();
+    let submit = tokio::task::spawn_blocking(move || {
+        rpc.request_funding_airdrop(
+            &address,
+            lamports,
+            authorization.as_deref(),
+            Some(&submit_blockhash),
+        )
+    })
+    .await;
+
+    let signature = match submit {
+        Ok(Ok(signature)) => signature,
         Ok(Err(error)) => {
             state
                 .repository
                 .mark_funding_request_submission_error(
                     &request.id,
-                    "FUNDING_SUBMISSION_UNCERTAIN",
+                    "FUNDING_SUBMISSION_RETRY_PENDING",
                     &error.to_string(),
                 )
                 .await?;
             return Err(FundingHttpError::new(
                 StatusCode::SERVICE_UNAVAILABLE,
-                "FUNDING_SUBMISSION_UNCERTAIN",
-                "The grant submission outcome is uncertain. It remains reserved and must not be resubmitted automatically.",
+                "FUNDING_SUBMISSION_RETRY_PENDING",
+                "The grant submission response was not obtained. The backend will safely replay the same persisted transaction intent; no second grant will be created.",
             ));
         }
         Err(error) => {
@@ -899,14 +952,14 @@ async fn submit_and_observe_grant(
                 .repository
                 .mark_funding_request_submission_error(
                     &request.id,
-                    "FUNDING_SUBMISSION_UNCERTAIN",
+                    "FUNDING_SUBMISSION_RETRY_PENDING",
                     &error.to_string(),
                 )
                 .await?;
             return Err(FundingHttpError::new(
                 StatusCode::SERVICE_UNAVAILABLE,
-                "FUNDING_SUBMISSION_UNCERTAIN",
-                "The grant submission worker ended unexpectedly. The grant remains reserved and must not be resubmitted automatically.",
+                "FUNDING_SUBMISSION_RETRY_PENDING",
+                "The grant submission worker ended unexpectedly. The backend will safely replay the same persisted transaction intent.",
             ));
         }
     };
@@ -1006,49 +1059,100 @@ async fn observe_grant(
     }
 }
 
-async fn submit_and_observe_airdrop(
+async fn prepare_airdrop_submission_intent(
     state: &SharedState,
     airdrop: FundingAirdropRecord,
 ) -> FundingResult<FundingAirdropRecord> {
-    let lamports = amount_to_lamports(airdrop.amount_aeko)?;
-    let rpc = state.rpc.clone();
-    let address = airdrop.address.clone();
-    let authorization = state.funding_authorization_key.clone();
-    let submit = tokio::task::spawn_blocking(move || {
-        rpc.request_funding_airdrop(&address, lamports, authorization.as_deref())
-    })
-    .await;
+    if airdrop.status != "processing" || airdrop.signature.is_some() {
+        return Err(FundingHttpError::from(
+            FundingStoreError::RequestAlreadyDecided {
+                status: airdrop.status,
+            },
+        ));
+    }
+    if airdrop.submission_blockhash.is_some() {
+        return Ok(airdrop);
+    }
 
-    let signature = match submit {
-        Ok(Ok(signature)) => signature,
-        Ok(Err(error)) if is_explicit_rpc_rejection(&error) => {
+    let rpc = state.rpc.clone();
+    let blockhash = match tokio::task::spawn_blocking(move || rpc.latest_funding_blockhash()).await {
+        Ok(Ok(blockhash)) => blockhash,
+        Ok(Err(error)) => {
             state
                 .repository
                 .mark_funding_airdrop_failed(
                     &airdrop.id,
-                    "AIRDROP_TRANSFER_REJECTED",
-                    &error.to_string(),
-                )
-                .await?;
-            return Err(FundingHttpError::new(
-                StatusCode::BAD_GATEWAY,
-                "AIRDROP_TRANSFER_REJECTED",
-                "Validator/Faucet explicitly rejected the developer airdrop",
-            ));
-        }
-        Ok(Err(error)) => {
-            state
-                .repository
-                .mark_funding_airdrop_error(
-                    &airdrop.id,
-                    "AIRDROP_SUBMISSION_UNCERTAIN",
+                    "AIRDROP_BLOCKHASH_UNAVAILABLE",
                     &error.to_string(),
                 )
                 .await?;
             return Err(FundingHttpError::new(
                 StatusCode::SERVICE_UNAVAILABLE,
-                "AIRDROP_SUBMISSION_UNCERTAIN",
-                "The developer airdrop submission outcome is uncertain and will not be retried automatically.",
+                "AIRDROP_BLOCKHASH_UNAVAILABLE",
+                "A chain blockhash could not be obtained before the developer airdrop; no transfer was attempted.",
+            ));
+        }
+        Err(error) => {
+            state
+                .repository
+                .mark_funding_airdrop_failed(
+                    &airdrop.id,
+                    "AIRDROP_BLOCKHASH_UNAVAILABLE",
+                    &error.to_string(),
+                )
+                .await?;
+            return Err(FundingHttpError::new(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "AIRDROP_BLOCKHASH_UNAVAILABLE",
+                "The blockhash worker ended before the developer airdrop; no transfer was attempted.",
+            ));
+        }
+    };
+
+    Ok(state
+        .repository
+        .set_funding_airdrop_submission_blockhash(&airdrop.id, &blockhash)
+        .await?)
+}
+
+async fn submit_and_observe_airdrop(
+    state: &SharedState,
+    airdrop: FundingAirdropRecord,
+) -> FundingResult<FundingAirdropRecord> {
+    let airdrop = prepare_airdrop_submission_intent(state, airdrop).await?;
+    let blockhash = airdrop.submission_blockhash.clone().ok_or_else(|| {
+        FundingHttpError::internal("processing developer airdrop has no durable submission blockhash")
+    })?;
+    let lamports = amount_to_lamports(airdrop.amount_aeko)?;
+    let rpc = state.rpc.clone();
+    let address = airdrop.address.clone();
+    let authorization = state.funding_authorization_key.clone();
+    let submit_blockhash = blockhash.clone();
+    let submit = tokio::task::spawn_blocking(move || {
+        rpc.request_funding_airdrop(
+            &address,
+            lamports,
+            authorization.as_deref(),
+            Some(&submit_blockhash),
+        )
+    })
+    .await;
+
+    let signature = match submit {
+        Ok(Ok(signature)) => signature,
+        Ok(Err(error)) => {
+            state
+                .repository
+                .mark_funding_airdrop_error(
+                    &airdrop.id,
+                    "AIRDROP_SUBMISSION_RETRY_PENDING",
+                    &error.to_string(),
+                )
+                .await?;
+            return Err(FundingHttpError::new(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "AIRDROP_SUBMISSION_RETRY_PENDING",
+                "The developer airdrop response was not obtained. The backend will safely replay the same persisted transaction intent.",
             ));
         }
         Err(error) => {
@@ -1056,14 +1160,14 @@ async fn submit_and_observe_airdrop(
                 .repository
                 .mark_funding_airdrop_error(
                     &airdrop.id,
-                    "AIRDROP_SUBMISSION_UNCERTAIN",
+                    "AIRDROP_SUBMISSION_RETRY_PENDING",
                     &error.to_string(),
                 )
                 .await?;
             return Err(FundingHttpError::new(
                 StatusCode::SERVICE_UNAVAILABLE,
-                "AIRDROP_SUBMISSION_UNCERTAIN",
-                "The developer airdrop submission worker ended unexpectedly and will not be retried automatically.",
+                "AIRDROP_SUBMISSION_RETRY_PENDING",
+                "The developer airdrop worker ended unexpectedly. The backend will safely replay the same persisted transaction intent.",
             ));
         }
     };
@@ -1355,10 +1459,6 @@ async fn funding_transfer_status_once(
         Ok(Err(error)) => Err(error.to_string()),
         Err(error) => Err(error.to_string()),
     }
-}
-
-fn is_explicit_rpc_rejection(error: &anyhow::Error) -> bool {
-    error.downcast_ref::<RpcRequestError>().is_some()
 }
 
 async fn apply_rate_limit(
