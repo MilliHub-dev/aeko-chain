@@ -5,6 +5,12 @@
 > program/executor described below. Tokenomics parameter mutation or mainnet
 > treasury spending must not be presented as governed execution until proposal,
 > voting and timelock enforcement exist on-chain.
+>
+> The current tokenomics program now fails closed on `UpdateField` even for the
+> protocol authority, and protocol bootstrap stores an unset
+> `governance_program_id` rather than treating an operator signer as a
+> governance program. Parameter updates remain unavailable until the executor
+> described here is genuinely implemented.
 
 AEKO Chain uses a **Two-House Governance System** to balance financial interests with community values.
 
