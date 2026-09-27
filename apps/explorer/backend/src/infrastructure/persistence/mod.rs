@@ -10,6 +10,7 @@ use {
 
 pub mod accounts;
 pub mod assets;
+pub mod funding;
 pub mod ledger;
 pub mod overview;
 pub mod search;

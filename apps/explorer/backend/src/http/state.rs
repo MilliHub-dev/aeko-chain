@@ -13,9 +13,13 @@ pub struct AppState {
     pub max_ready_lag_slots: u64,
     pub social_enabled: bool,
     pub settings_admin_token: String,
+    pub funding_authorization_key: Option<String>,
+    pub funding_requests_per_10_min: u32,
+    pub faucet_per_request_cap_aeko: f64,
 }
 
 impl AppState {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         repository: PostgresRepository,
         rpc: Arc<RpcChainClient>,
@@ -24,6 +28,9 @@ impl AppState {
         max_ready_lag_slots: u64,
         social_enabled: bool,
         settings_admin_token: impl Into<String>,
+        funding_authorization_key: Option<String>,
+        funding_requests_per_10_min: u32,
+        faucet_per_request_cap_aeko: f64,
     ) -> Self {
         Self {
             repository,
@@ -33,10 +40,17 @@ impl AppState {
             max_ready_lag_slots,
             social_enabled,
             settings_admin_token: settings_admin_token.into(),
+            funding_authorization_key,
+            funding_requests_per_10_min,
+            faucet_per_request_cap_aeko,
         }
     }
 
     pub fn shared(self) -> SharedState {
         Arc::new(self)
+    }
+
+    pub fn is_test_environment(&self) -> bool {
+        matches!(self.network.as_str(), "testnet" | "devnet" | "localnet")
     }
 }

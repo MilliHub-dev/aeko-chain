@@ -161,16 +161,27 @@ test('funding runtime is owned by the Scan backend after the Admin gateway remov
   assert.match(migration, /CREATE TABLE IF NOT EXISTS funding_grants/);
   assert.match(fundingFeature, /\/funding\/request/);
   assert.match(fundingFeature, /\/funding\/airdrop/);
-  assert.match(fundingFeature, /x-aeko-funding-admin-token/);
+  assert.match(fundingFeature, /x-aeko-settings-token/);
+  assert.match(fundingFeature, /request_funding_airdrop/);
+  assert.match(fundingFeature, /create_public_funding_request/);
+  assert.match(fundingFeature, /reserve_public_funding_request/);
+  assert.match(fundingFeature, /mainnet-governed/);
 });
 
-test('Admin funding polling preserves an operator policy draft', async () => {
+test('Admin funding polling preserves persisted policy revisions and mainnet separation', async () => {
   const adminPage = await source('../../../admin/src/app/(admin)/funding-grants/page.tsx');
+  const adminProxy = await source('../../../admin/src/lib/funding-api.ts');
+  const settingsRoute = await source('../../../admin/src/app/api/admin/funding/settings/route.ts');
+  const requestsRoute = await source('../../../admin/src/app/api/admin/funding/requests/route.ts');
 
   assert.match(adminPage, /setInterval/);
-  assert.match(adminPage, /setDraft\(\(current\) => current \?\? s\.data\.settings\)/);
-  assert.match(adminPage, /setDraft\(json\.data\.settings\)/);
-  assert.match(adminPage, /setDraft\(\(current\) => current \? \{ \.\.\.current, enabled: nextEnabled \} : current\)/);
+  assert.match(adminPage, /expectedRevision: settings\.revision/);
+  assert.match(adminPage, /consoleAirdropAggregateUnlimited/);
+  assert.match(adminPage, /mainnet-governed/);
+  assert.match(adminPage, /No Faucet policy is editable on mainnet/);
+  assert.match(adminProxy, /x-aeko-settings-token/);
+  assert.match(settingsRoute, /method: 'PATCH'/);
+  assert.match(requestsRoute, /approved: action === 'approve'/);
 });
 
 
@@ -268,7 +279,11 @@ test('Explorer web is the multi-network boundary while services use one active e
   assert.match(server, /AEKO_EXPLORER_API_URL/);
   assert.match(server, /AEKO_DEVNET_EXPLORER_API_URL/);
   assert.match(server, /'mainnet', 'testnet', 'devnet', 'localnet'/);
-  assert.match(server, /Explorer UI proxy is read-only/);
+  assert.match(server, /FUNDING_WRITE_PATHS/);
+  assert.match(server, /\/funding\/request/);
+  assert.match(server, /\/funding\/airdrop/);
+  assert.match(server, /target\.network === 'mainnet'/);
+  assert.match(server, /METHOD_NOT_ALLOWED/);
 
   assert.match(networkConfig, /runtime\.networks/);
   assert.match(networkConfig, /runtime\.network/);

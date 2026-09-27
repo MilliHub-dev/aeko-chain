@@ -147,8 +147,8 @@ pub struct JsonRpcConfig {
     pub enable_rpc_transaction_history: bool,
     pub enable_extended_tx_metadata_storage: bool,
     pub faucet_addr: Option<SocketAddr>,
-    /// When set, requestAirdrop is reserved for the trusted Funding Gateway.
-    pub funding_gateway_key: Option<String>,
+    /// When set, requestAirdrop is reserved for the trusted funding service.
+    pub funding_authorization_key: Option<String>,
     pub health_check_slot_distance: u64,
     pub rpc_bigtable_config: Option<RpcBigtableConfig>,
     pub max_multiple_accounts: Option<usize>,
@@ -176,8 +176,8 @@ impl std::fmt::Debug for JsonRpcConfig {
             )
             .field("faucet_addr", &self.faucet_addr)
             .field(
-                "funding_gateway_authorization_required",
-                &self.funding_gateway_key.is_some(),
+                "funding_authorization_required",
+                &self.funding_authorization_key.is_some(),
             )
             .field(
                 "health_check_slot_distance",
@@ -3660,9 +3660,9 @@ pub mod rpc_full {
                 config.commitment.is_some()
             );
 
-            if let Some(expected_key) = meta.config.funding_gateway_key.as_deref() {
+            if let Some(expected_key) = meta.config.funding_authorization_key.as_deref() {
                 if config.funding_authorization.as_deref() != Some(expected_key) {
-                    info!("request_airdrop rejected: funding gateway authorization required");
+                    info!("request_airdrop rejected: funding authorization required");
                     return Err(Error::invalid_request());
                 }
             }
@@ -7589,21 +7589,21 @@ pub mod tests {
     }
 
     #[test]
-    fn test_json_rpc_config_debug_redacts_funding_gateway_key() {
+    fn test_json_rpc_config_debug_redacts_funding_authorization_key() {
         let config = JsonRpcConfig {
-            funding_gateway_key: Some("do-not-log-this-funding-secret".to_string()),
+            funding_authorization_key: Some("do-not-log-this-funding-secret".to_string()),
             ..JsonRpcConfig::default_for_test()
         };
         let rendered = format!("{config:?}");
         assert!(!rendered.contains("do-not-log-this-funding-secret"));
-        assert!(rendered.contains("funding_gateway_authorization_required: true"));
+        assert!(rendered.contains("funding_authorization_required: true"));
     }
 
     #[test]
     fn test_rpc_request_airdrop_requires_funding_gateway_authorization() {
         let RpcHandler { meta, io, .. } = RpcHandler::start_with_config(JsonRpcConfig {
             faucet_addr: Some("127.0.0.1:1".parse().unwrap()),
-            funding_gateway_key: Some("test-funding-gateway-key".to_string()),
+            funding_authorization_key: Some("test-funding-gateway-key".to_string()),
             ..JsonRpcConfig::default()
         });
         let bob_pubkey = aeko_sdk::pubkey::new_rand();

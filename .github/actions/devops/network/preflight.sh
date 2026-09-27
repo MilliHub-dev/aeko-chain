@@ -27,9 +27,9 @@ AEKO_IMAGE_TAG=ci \
 ADMIN_PASSWORD=ci-admin-password \
 ADMIN_SESSION_SECRET=ci-admin-session-secret \
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=ci-explorer-settings-admin-token-0001 \
-FUNDING_GATEWAY_KEY=ci-funding-gateway-key \
-FUNDING_ADMIN_API_KEY=ci-funding-admin-service-key \
-FUNDING_ALLOWED_ORIGINS=https://scan.ci.invalid \
+AEKO_FUNDING_AUTHORIZATION_KEY=ci-funding-authorization-key-000001 \
+AEKO_FUNDING_REQUESTS_PER_10_MIN=5 \
+AEKO_FAUCET_PER_REQUEST_CAP=100 \
 bash -c '
   set -euo pipefail
   bash -n docker/validator-entrypoint.sh

@@ -77,6 +77,54 @@ impl ExplorerBackendConfig {
     }
 }
 
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct FundingControlConfig {
+    pub authorization_key: Option<String>,
+    pub requests_per_10_min: u32,
+    pub faucet_per_request_cap_aeko: f64,
+}
+
+impl FundingControlConfig {
+    pub fn from_env(network: &str) -> Result<Self> {
+        let authorization_key = optional_env("AEKO_FUNDING_AUTHORIZATION_KEY");
+        if matches!(network, "testnet" | "devnet") {
+            let key = authorization_key.as_deref().ok_or_else(|| {
+                anyhow!(
+                    "AEKO_FUNDING_AUTHORIZATION_KEY is required for {network} funding settlement"
+                )
+            })?;
+            if key.len() < 32 {
+                return Err(anyhow!(
+                    "AEKO_FUNDING_AUTHORIZATION_KEY must be at least 32 characters"
+                ));
+            }
+        }
+
+        let requests_per_10_min = optional_parse_env::<u32>("AEKO_FUNDING_REQUESTS_PER_10_MIN")?
+            .unwrap_or(5);
+        if requests_per_10_min == 0 {
+            return Err(anyhow!(
+                "AEKO_FUNDING_REQUESTS_PER_10_MIN must be greater than zero"
+            ));
+        }
+
+        let faucet_per_request_cap_aeko =
+            optional_parse_env::<f64>("AEKO_FAUCET_PER_REQUEST_CAP")?.unwrap_or(100.0);
+        if !faucet_per_request_cap_aeko.is_finite() || faucet_per_request_cap_aeko <= 0.0 {
+            return Err(anyhow!(
+                "AEKO_FAUCET_PER_REQUEST_CAP must be a positive finite number"
+            ));
+        }
+
+        Ok(Self {
+            authorization_key,
+            requests_per_10_min,
+            faucet_per_request_cap_aeko,
+        })
+    }
+}
+
 pub struct SettingsControlConfig {
     pub admin_token: String,
 }
@@ -135,6 +183,20 @@ fn optional_env(key: &str) -> Option<String> {
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
 }
+
+fn optional_parse_env<T: std::str::FromStr>(key: &str) -> Result<Option<T>>
+where
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    let Some(value) = optional_env(key) else {
+        return Ok(None);
+    };
+    value
+        .parse::<T>()
+        .map(Some)
+        .map_err(|error| anyhow!("{key}={value:?} is not parseable: {error}"))
+}
+
 fn required_parse_env<T: std::str::FromStr>(key: &str) -> Result<T>
 where
     <T as std::str::FromStr>::Err: std::fmt::Display,

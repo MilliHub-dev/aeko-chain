@@ -108,7 +108,7 @@ async function readFundingResponse(response, label) {
     const text = await response.text().catch(() => '');
     throw new Error(
       `${label} returned HTTP ${response.status} with ${contentType || 'non-JSON'} content. `
-        + `Check that the funding address points at the funding service, not a web page. ${text.slice(0, 100)}`,
+        + `The same-origin Scan proxy did not return the Explorer funding API JSON contract. ${text.slice(0, 100)}`,
     );
   }
   const body = await response.json();
