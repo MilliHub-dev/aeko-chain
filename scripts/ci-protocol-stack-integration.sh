@@ -9,6 +9,7 @@ LEDGER_DIR="$WORK_DIR/ledger"
 STATE_DIR="$WORK_DIR/protocol-state"
 CONTINUITY_DIR="$WORK_DIR/protocol-continuity"
 SOCIAL_STATE_DIR="$WORK_DIR/social-state"
+REGISTRY_HTTP_DIR="$WORK_DIR/registry-http"
 HELLO_PROGRAM_DIR="$WORK_DIR/hello-program"
 HELLO_PROGRAM_SO="$HELLO_PROGRAM_DIR/hello_aeko_program.so"
 HELLO_PROGRAM_KEYPAIR="$HELLO_PROGRAM_DIR/hello_aeko_program-keypair.json"
@@ -22,16 +23,22 @@ EXPLORER_LOG="$WORK_DIR/explorer.log"
 POSTGRES_NAME="aeko-protocol-integration-postgres"
 RPC_URL="http://127.0.0.1:18899"
 EXPLORER_URL="http://127.0.0.1:18088"
+REGISTRY_URL="http://127.0.0.1:18089"
 FUNDING_ADMIN_TOKEN="protocol-ci-settings-admin-token-123456789"
 FUNDING_AUTHORIZATION_KEY="protocol-ci-funding-authorization-key-123456789"
 VALIDATOR_PID=""
 EXPLORER_PID=""
+REGISTRY_PID=""
 
 cleanup() {
   set +e
   if [ -n "$EXPLORER_PID" ]; then
     kill "$EXPLORER_PID" >/dev/null 2>&1 || true
     wait "$EXPLORER_PID" >/dev/null 2>&1 || true
+  fi
+  if [ -n "$REGISTRY_PID" ]; then
+    kill "$REGISTRY_PID" >/dev/null 2>&1 || true
+    wait "$REGISTRY_PID" >/dev/null 2>&1 || true
   fi
   if [ -n "$VALIDATOR_PID" ]; then
     kill "$VALIDATOR_PID" >/dev/null 2>&1 || true
@@ -56,7 +63,7 @@ fail_with_logs() {
 }
 trap fail_with_logs ERR
 
-mkdir -p "$LEDGER_DIR" "$STATE_DIR" "$CONTINUITY_DIR" "$SOCIAL_STATE_DIR" "$HELLO_PROGRAM_DIR"
+mkdir -p "$LEDGER_DIR" "$STATE_DIR" "$CONTINUITY_DIR" "$SOCIAL_STATE_DIR" "$REGISTRY_HTTP_DIR" "$HELLO_PROGRAM_DIR"
 
 # Build only the binaries exercised by this integration path. Previous source
 # validation on the shared runner makes these incremental in normal CI.
@@ -528,6 +535,26 @@ if [ "$postgres_ready" -ne 1 ]; then
   false
 fi
 
+cp "$SOCIAL_STATE_DIR/social-registry.env" "$REGISTRY_HTTP_DIR/social-registry.env"
+cp "$STATE_DIR/protocol-registry.env" "$REGISTRY_HTTP_DIR/protocol-registry.env"
+python3 -m http.server 18089 --bind 127.0.0.1 --directory "$REGISTRY_HTTP_DIR" \
+  >"$WORK_DIR/registry-http.log" 2>&1 &
+REGISTRY_PID=$!
+
+registry_ready=0
+for _ in $(seq 1 30); do
+  if curl -fsS "$REGISTRY_URL/social-registry.env" >/dev/null 2>&1 \
+    && curl -fsS "$REGISTRY_URL/protocol-registry.env" >/dev/null 2>&1; then
+    registry_ready=1
+    break
+  fi
+  sleep 0.2
+done
+if [ "$registry_ready" -ne 1 ]; then
+  echo "remote bootstrap registry did not become readable" >&2
+  false
+fi
+
 AEKO_RPC_URL="$RPC_URL" \
 AEKO_NETWORK=localnet \
 AEKO_EXPLORER_START_SLOT=0 \
@@ -551,8 +578,9 @@ AEKO_FUNDING_REQUESTS_PER_10_MIN=5 \
 AEKO_FUNDING_RECONCILE_INTERVAL_SECS=1 \
 AEKO_FAUCET_PER_REQUEST_CAP=100 \
 AEKO_RESET_LEDGER=0 \
-AEKO_PROTOCOL_REGISTRY_FILE="$STATE_DIR/protocol-registry.env" \
-AEKO_SOCIAL_REGISTRY_FILE="$SOCIAL_STATE_DIR/social-registry.env" \
+AEKO_REGISTRY_URL="$REGISTRY_URL" \
+AEKO_REGISTRY_REFRESH_SECONDS=1 \
+AEKO_REGISTRY_FETCH_TIMEOUT_SECONDS=2 \
 target/debug/aeko-explorer-backend >"$EXPLORER_LOG" 2>&1 &
 EXPLORER_PID=$!
 
@@ -581,6 +609,20 @@ if [ "$network_ready" -ne 1 ]; then
   echo "Explorer network readiness did not certify Social + Protocol" >&2
   false
 fi
+
+python3 - "$EXPLORER_URL" <<'PY'
+import json
+import sys
+import urllib.request
+
+base = sys.argv[1]
+for path in ("/registry/social", "/registry/protocol"):
+    with urllib.request.urlopen(base + path, timeout=15) as response:
+        payload = json.load(response)["data"]
+    if payload.get("complete") is not True:
+        raise RuntimeError(f"remote registry-backed {path} is incomplete: {payload}")
+print("[ok] Explorer consumed Social and Protocol registries over AEKO_REGISTRY_URL")
+PY
 
 RPC_URL="$RPC_URL" EXPLORER_URL="$EXPLORER_URL" \
 RECIPIENT_PUBKEY="$RECIPIENT_PUBKEY" FUNDING_ADMIN_TOKEN="$FUNDING_ADMIN_TOKEN" \
