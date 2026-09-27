@@ -713,6 +713,26 @@ impl PostgresRepository {
             .await?)
     }
 
+    pub async fn list_submitted_funding_requests(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<FundingRequestRecord>, FundingStoreError> {
+        let sql = format!(
+            r#"
+            SELECT {REQUEST_COLUMNS}
+            FROM funding_requests
+            WHERE status = 'submitted'
+              AND signature IS NOT NULL
+            ORDER BY submitted_at ASC NULLS FIRST, requested_at ASC
+            LIMIT $1
+            "#
+        );
+        Ok(sqlx::query_as::<_, FundingRequestRecord>(&sql)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?)
+    }
+
     pub async fn list_funding_grants(
         &self,
         limit: i64,
@@ -890,6 +910,26 @@ impl PostgresRepository {
             SELECT {AIRDROP_COLUMNS}
             FROM funding_airdrops
             ORDER BY requested_at DESC
+            LIMIT $1
+            "#
+        );
+        Ok(sqlx::query_as::<_, FundingAirdropRecord>(&sql)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?)
+    }
+
+    pub async fn list_submitted_funding_airdrops(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<FundingAirdropRecord>, FundingStoreError> {
+        let sql = format!(
+            r#"
+            SELECT {AIRDROP_COLUMNS}
+            FROM funding_airdrops
+            WHERE status = 'submitted'
+              AND signature IS NOT NULL
+            ORDER BY submitted_at ASC NULLS FIRST, requested_at ASC
             LIMIT $1
             "#
         );
