@@ -59,7 +59,10 @@ const REGISTRY_ANCHOR_FILE_NAME: &str = "protocol-registry.anchor";
 
 fn main() -> Result<()> {
     let network = env::var("AEKO_NETWORK").unwrap_or_else(|_| "localnet".to_string());
-    if !matches!(network.as_str(), "mainnet" | "testnet" | "devnet" | "localnet") {
+    if !matches!(
+        network.as_str(),
+        "mainnet" | "testnet" | "devnet" | "localnet"
+    ) {
         return Err(anyhow!(
             "AEKO_NETWORK must be one of mainnet, testnet, devnet, or localnet"
         ));
