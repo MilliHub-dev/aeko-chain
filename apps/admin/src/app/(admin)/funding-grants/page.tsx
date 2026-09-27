@@ -18,7 +18,7 @@ type Settings = {
 
 type FundingSnapshot = {
   network: 'mainnet' | 'testnet' | 'devnet' | 'localnet'
-  mode: 'test-funding' | 'mainnet-governed'
+  mode: 'test-funding' | 'mainnet-disabled'
   settings: Settings | null
   dailyRemainingAeko: number | null
   publicSpentAeko: number | null
@@ -29,6 +29,7 @@ type FundingSnapshot = {
 
 type Grant = {
   id: string
+  requestId?: string | null
   address: string
   amountAeko: number
   signature?: string | null
@@ -43,15 +44,30 @@ type FundingRequest = {
   amountAeko: number
   requestedAt: string
   source: string
-  status: 'pending' | 'processing' | 'approved' | 'rejected'
+  status: 'pending' | 'processing' | 'submitted' | 'confirmed' | 'failed' | 'rejected'
   decidedAt?: string | null
+  submittedAt?: string | null
+  confirmedAt?: string | null
   signature?: string | null
   confirmed: boolean
   errorCode?: string | null
   errorMessage?: string | null
 }
 
-type FundingView = 'queue' | 'policy' | 'history'
+type Airdrop = {
+  id: string
+  address: string
+  amountAeko: number
+  signature?: string | null
+  status: 'processing' | 'submitted' | 'confirmed' | 'failed'
+  requestedAt: string
+  submittedAt?: string | null
+  confirmedAt?: string | null
+  errorCode?: string | null
+  errorMessage?: string | null
+}
+
+type FundingView = 'queue' | 'policy' | 'history' | 'airdrops'
 
 const inputClass =
   'min-h-[44px] w-full rounded-lg border border-[#1e2135] bg-[#0d0e16] px-3 py-2 text-sm text-gray-100 outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 mono'
@@ -72,6 +88,7 @@ export default function FundingGrantsPage() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [draft, setDraft] = useState<Settings | null>(null)
   const [grants, setGrants] = useState<Grant[]>([])
+  const [airdrops, setAirdrops] = useState<Airdrop[]>([])
   const [requests, setRequests] = useState<FundingRequest[]>([])
   const [requestBusy, setRequestBusy] = useState('')
   const [address, setAddress] = useState('')
@@ -96,15 +113,18 @@ export default function FundingGrantsPage() {
 
       if (nextSnapshot.mode !== 'test-funding') {
         setGrants([])
+        setAirdrops([])
         setRequests([])
         return
       }
 
-      const [g, r] = await Promise.all([
+      const [g, a, r] = await Promise.all([
         readJson(await fetch('/api/admin/funding/grants?limit=100', { cache: 'no-store' })),
+        readJson(await fetch('/api/admin/funding/airdrops?limit=100', { cache: 'no-store' })),
         readJson(await fetch('/api/admin/funding/requests?limit=100', { cache: 'no-store' })),
       ])
       setGrants(g.data ?? [])
+      setAirdrops(a.data ?? [])
       setRequests(r.data ?? [])
     } catch (error) {
       setNotice({
@@ -184,7 +204,7 @@ export default function FundingGrantsPage() {
     }
   }
 
-  async function decideRequest(id: string, action: 'approve' | 'reject') {
+  async function decideRequest(id: string, action: 'approve' | 'reject' | 'reconcile') {
     setRequestBusy(id)
     setNotice(null)
     try {
@@ -195,11 +215,11 @@ export default function FundingGrantsPage() {
       }))
       setNotice({
         ok: true,
-        text: action === 'approve'
-          ? json.data.confirmed
-            ? `Approved and confirmed ${json.data.amountAeko} AEKO to ${json.data.address}`
-            : `Approved ${json.data.amountAeko} AEKO for ${json.data.address}; the transfer was submitted and is awaiting observed confirmation`
-          : 'Funding request rejected',
+        text: action === 'reject'
+          ? 'Funding request rejected'
+          : json.data.status === 'confirmed'
+            ? `Grant confirmed: ${json.data.amountAeko} AEKO to ${json.data.address}`
+            : `Grant is ${json.data.status}; no duplicate transfer will be submitted while confirmation is unresolved.`,
       })
       await refresh()
     } catch (error) {
@@ -253,7 +273,9 @@ export default function FundingGrantsPage() {
       </div>
     )
 
-  const pendingRequests = requests.filter((request) => request.status === 'pending' || request.status === 'processing')
+  const attentionRequests = requests.filter((request) =>
+    ['pending', 'processing', 'submitted', 'failed'].includes(request.status),
+  )
   const isTestFunding = snapshot?.mode === 'test-funding'
 
   return (
@@ -265,7 +287,7 @@ export default function FundingGrantsPage() {
           <p className="mt-1 max-w-3xl text-sm leading-6 text-gray-500">
             {isTestFunding
               ? 'Review public test-funding requests, maintain testnet policy, and keep operator grants separate from direct developer airdrops.'
-              : 'Mainnet distribution is governed treasury/allocation activity. Faucet funding and requestAirdrop are intentionally unavailable here.'}
+              : 'This Operations Web deployment does not expose mainnet Faucet funding or grant release. Mainnet treasury/allocation distribution is a separate governed protocol workflow and is not represented here as implemented.'}
           </p>
         </div>
         {isTestFunding && settings ? (
@@ -285,11 +307,11 @@ export default function FundingGrantsPage() {
         ) : null}
       </div>
 
-      {snapshot?.mode === 'mainnet-governed' ? (
+      {snapshot?.mode === 'mainnet-disabled' ? (
         <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-5 text-sm leading-6 text-amber-100">
-          <div className="font-semibold">Mainnet governed distribution mode</div>
+          <div className="font-semibold">Mainnet test funding is disabled</div>
           <p className="mt-1 text-amber-100/80">
-            No Faucet policy is editable on mainnet. Ecosystem grants, treasury distributions, launch allocations, and any governance-approved airdrop must debit an explicit approved tokenomics bucket and follow the governance/treasury process.
+            This page cannot mint, faucet, approve, or release mainnet AEKO. A future mainnet grant must execute through the separately implemented governance and treasury allocation path; these test-funding controls intentionally fail closed.
           </p>
         </div>
       ) : null}
@@ -302,7 +324,7 @@ export default function FundingGrantsPage() {
         />
         <StatCard
           label="Public funding"
-          value={isTestFunding && settings ? (settings.enabled ? 'Open' : 'Paused') : snapshot ? 'Governed' : '—'}
+          value={isTestFunding && settings ? (settings.enabled ? 'Open' : 'Paused') : snapshot ? 'Unavailable' : '—'}
           accent={isTestFunding ? settings?.enabled : undefined}
         />
         <StatCard label="Per request" value={isTestFunding && settings ? `${settings.amountAeko} AEKO` : '—'} />
@@ -313,7 +335,7 @@ export default function FundingGrantsPage() {
             : '—'}
           sub={isTestFunding && settings ? `of ${settings.dailyBudgetAeko.toLocaleString()}` : undefined}
         />
-        <StatCard label="Pending" value={isTestFunding ? pendingRequests.length : '—'} />
+        <StatCard label="Needs attention" value={isTestFunding ? attentionRequests.length : '—'} />
         <StatCard label="Grant history" value={isTestFunding ? grants.length : '—'} />
       </div>
 
@@ -361,9 +383,10 @@ export default function FundingGrantsPage() {
             value={view}
             onChange={setView}
             items={[
-              { value: 'queue', label: 'Approval queue', description: 'Public requests waiting on you', count: pendingRequests.length },
-              { value: 'policy', label: 'Policy & manual grant', description: 'Public limits and operator actions' },
-              { value: 'history', label: 'Grant history', description: 'Released testnet transfers', count: grants.length },
+              { value: 'queue', label: 'Grant queue', description: 'Admin decisions and submitted grant reconciliation', count: attentionRequests.length },
+              { value: 'policy', label: 'Policy & manual grant', description: 'Public limits and Admin-only grant actions' },
+              { value: 'history', label: 'Grant history', description: 'Confirmed Admin-approved grants', count: grants.length },
+              { value: 'airdrops', label: 'Airdrop history', description: 'Developer Test Console airdrops', count: airdrops.length },
             ]}
           />
 
@@ -376,34 +399,66 @@ export default function FundingGrantsPage() {
                     Approval atomically re-checks wallet cooldown and the public daily budget before protected Validator/Faucet settlement.
                   </p>
                 </div>
-                <div className="text-xs text-gray-600">{pendingRequests.length} active request{pendingRequests.length === 1 ? '' : 's'}</div>
+                <div className="text-xs text-gray-600">{attentionRequests.length} request{attentionRequests.length === 1 ? '' : 's'} requiring attention</div>
               </div>
               <DataTable
                 paginationLabel="requests"
                 columns={['Requested', 'Address', 'Amount', 'Source', 'Status', 'Decision']}
-                rows={pendingRequests.map((request) => [
+                rows={attentionRequests.map((request) => [
                   new Date(request.requestedAt).toLocaleString(),
                   request.address.slice(0, 10) + '…' + request.address.slice(-6),
                   `${request.amountAeko} AEKO`,
                   request.source,
-                  <span key={`${request.id}-status`} className={request.status === 'processing' ? 'text-yellow-300' : 'text-emerald-300'}>{request.status}</span>,
+                  <span
+                    key={`${request.id}-status`}
+                    className={
+                      request.status === 'failed'
+                        ? 'text-red-300'
+                        : request.status === 'pending'
+                          ? 'text-emerald-300'
+                          : 'text-yellow-300'
+                    }
+                  >
+                    {request.status}
+                  </span>,
                   <div key={request.id} className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => decideRequest(request.id, 'approve')}
-                      disabled={Boolean(requestBusy)}
-                      className="min-h-[36px] rounded-lg bg-emerald-400 px-3 text-xs font-semibold text-black transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {requestBusy === request.id ? 'Working…' : request.status === 'processing' ? 'Reconcile transfer' : 'Approve & release'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => decideRequest(request.id, 'reject')}
-                      disabled={Boolean(requestBusy) || request.status === 'processing'}
-                      className="min-h-[36px] rounded-lg border border-[#2b3048] px-3 text-xs text-gray-300 transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Reject
-                    </button>
+                    {request.status === 'pending' ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => decideRequest(request.id, 'approve')}
+                          disabled={Boolean(requestBusy)}
+                          className="min-h-[36px] rounded-lg bg-emerald-400 px-3 text-xs font-semibold text-black transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {requestBusy === request.id ? 'Working…' : 'Approve & release'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => decideRequest(request.id, 'reject')}
+                          disabled={Boolean(requestBusy)}
+                          className="min-h-[36px] rounded-lg border border-[#2b3048] px-3 text-xs text-gray-300 transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    ) : request.status === 'submitted' ? (
+                      <button
+                        type="button"
+                        onClick={() => decideRequest(request.id, 'reconcile')}
+                        disabled={Boolean(requestBusy)}
+                        className="min-h-[36px] rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
+                      >
+                        {requestBusy === request.id ? 'Checking…' : 'Check confirmation'}
+                      </button>
+                    ) : request.status === 'processing' ? (
+                      <span className="max-w-xs text-xs leading-5 text-amber-200">
+                        Submission outcome uncertain. Do not approve, reject, or retry automatically.
+                      </span>
+                    ) : (
+                      <span className="max-w-xs text-xs leading-5 text-red-300">
+                        Transfer failed on-chain. No grant was recorded.
+                      </span>
+                    )}
                   </div>,
                 ])}
                 empty="No public funding requests need attention"
@@ -466,12 +521,47 @@ export default function FundingGrantsPage() {
             </div>
           ) : null}
 
+          {view === 'airdrops' ? (
+            <section className="rounded-2xl border border-[#1e2135] bg-[#12141f] p-4 sm:p-5">
+              <div className="mb-4">
+                <h2 className="font-semibold text-white">Developer Test Console airdrops</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Direct developer airdrops bypass the public grant approval queue, but remain test-network-only, rate-limited, capped per request, and durably tracked.
+                </p>
+              </div>
+              <DataTable
+                paginationLabel="airdrops"
+                columns={['Requested', 'Address', 'Amount', 'Status', 'Signature', 'Error']}
+                rows={airdrops.map((airdrop) => [
+                  new Date(airdrop.requestedAt).toLocaleString(),
+                  airdrop.address.slice(0, 10) + '…' + airdrop.address.slice(-6),
+                  `${airdrop.amountAeko} AEKO`,
+                  <span
+                    key={airdrop.id}
+                    className={
+                      airdrop.status === 'confirmed'
+                        ? 'text-emerald-300'
+                        : airdrop.status === 'failed'
+                          ? 'text-red-300'
+                          : 'text-yellow-300'
+                    }
+                  >
+                    {airdrop.status}
+                  </span>,
+                  airdrop.signature ? airdrop.signature.slice(0, 16) + '…' : '—',
+                  airdrop.errorCode ?? '—',
+                ])}
+                empty="No developer airdrops have been requested yet"
+              />
+            </section>
+          ) : null}
+
           {view === 'history' ? (
             <section className="rounded-2xl border border-[#1e2135] bg-[#12141f] p-4 sm:p-5">
               <div className="mb-4">
-                <h2 className="font-semibold text-white">Released testnet grants & airdrops</h2>
+                <h2 className="font-semibold text-white">Confirmed testnet grants</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Durable settlement history from public approvals, operator grants, and Test Console airdrops.
+                  Only confirmed public requests approved by Admin and confirmed manual Admin grants appear here. Developer airdrops are deliberately separate.
                 </p>
               </div>
               <DataTable
@@ -485,7 +575,7 @@ export default function FundingGrantsPage() {
                   <span key={grant.id} className={grant.confirmed ? 'text-emerald-300' : 'text-yellow-300'}>{grant.confirmed ? 'confirmed' : 'submitted'}</span>,
                   grant.signature ? grant.signature.slice(0, 16) + '…' : '—',
                 ])}
-                empty="No grants or direct airdrops have been released yet"
+                empty="No confirmed grants have been released yet"
               />
             </section>
           ) : null}
