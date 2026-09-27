@@ -14,6 +14,12 @@ ALTER TABLE funding_requests
     ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ NULL,
     ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ NULL;
 
+-- The pre-0012 status CHECK only permits pending/processing/approved/rejected.
+-- Drop it before rewriting historical approved rows to the new submitted/
+-- confirmed states, then install the new lifecycle constraint below.
+ALTER TABLE funding_requests
+    DROP CONSTRAINT IF EXISTS funding_requests_status_check;
+
 -- Preserve historical rows created by the earlier implementation.
 UPDATE funding_requests
 SET
@@ -24,9 +30,6 @@ SET
     END,
     submitted_at = COALESCE(submitted_at, CASE WHEN signature IS NOT NULL THEN decided_at ELSE NULL END),
     confirmed_at = COALESCE(confirmed_at, CASE WHEN confirmed THEN decided_at ELSE NULL END);
-
-ALTER TABLE funding_requests
-    DROP CONSTRAINT IF EXISTS funding_requests_status_check;
 
 ALTER TABLE funding_requests
     ADD CONSTRAINT funding_requests_status_check
