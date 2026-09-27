@@ -79,7 +79,9 @@ cargo build --locked -p aeko-explorer-backend --bin aeko-explorer-backend
 # before any deployment assertion is attempted.
 bash ./cargo-build-sbf \
   --manifest-path contracts/hello-aeko-program/Cargo.toml \
-  --sbf-out-dir "$HELLO_PROGRAM_DIR"
+  --sbf-out-dir "$HELLO_PROGRAM_DIR" \
+  -- \
+  --locked
 cargo check --locked \
   --manifest-path contracts/hello-aeko-program/Cargo.toml \
   --example invoke_hello
