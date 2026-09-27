@@ -7600,10 +7600,10 @@ pub mod tests {
     }
 
     #[test]
-    fn test_rpc_request_airdrop_requires_funding_gateway_authorization() {
+    fn test_rpc_request_airdrop_requires_funding_authorization() {
         let RpcHandler { meta, io, .. } = RpcHandler::start_with_config(JsonRpcConfig {
             faucet_addr: Some("127.0.0.1:1".parse().unwrap()),
-            funding_authorization_key: Some("test-funding-gateway-key".to_string()),
+            funding_authorization_key: Some("test-funding-authorization-key".to_string()),
             ..JsonRpcConfig::default()
         });
         let bob_pubkey = aeko_sdk::pubkey::new_rand();
@@ -7622,7 +7622,7 @@ pub mod tests {
         );
 
         let authorized = format!(
-            r#"{{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["{bob_pubkey}",50,{{"fundingAuthorization":"test-funding-gateway-key"}}]}}"#
+            r#"{{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["{bob_pubkey}",50,{{"fundingAuthorization":"test-funding-authorization-key"}}]}}"#
         );
         let authorized_response = io
             .handle_request_sync(&authorized, meta)
