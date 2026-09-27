@@ -1,5 +1,11 @@
 # Governance Proposals
 
+> **Implementation status:** normative target flow, not a claim of current
+> runtime capability. No `GovernanceInstruction` implementation matching this
+> lifecycle exists in the repository today. Mainnet treasury/allocation
+> execution therefore remains unavailable rather than falling back to an Admin
+> signer or Faucet path.
+
 Proposals are the mechanism for changing the AEKO Protocol.
 
 ## Proposal Types
