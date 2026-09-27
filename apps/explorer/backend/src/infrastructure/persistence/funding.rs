@@ -636,6 +636,26 @@ impl PostgresRepository {
                     status: "submitted-without-signature".to_string(),
                 })?;
 
+        // Pre-0012 rows already have a grant keyed by signature but no
+        // request_id. Adopt that row inside the same transaction before the
+        // request-id upsert so an upgraded database remains idempotent.
+        sqlx::query(
+            r#"
+            UPDATE funding_grants
+            SET request_id = $1::uuid, confirmed = TRUE
+            WHERE request_id IS NULL
+              AND signature = $2
+              AND source = $3
+              AND address = $4
+            "#,
+        )
+        .bind(id)
+        .bind(signature)
+        .bind(&request.source)
+        .bind(&request.address)
+        .execute(&mut *tx)
+        .await?;
+
         sqlx::query(
             r#"
             INSERT INTO funding_grants (
