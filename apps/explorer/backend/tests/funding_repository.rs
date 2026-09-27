@@ -44,7 +44,7 @@ fn unique_suffix() -> u128 {
 async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Result<()> {
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
-    let repository = PostgresRepository::connect(&test_config(database_url)).await?;
+    let repository = PostgresRepository::connect(&test_config(database_url.clone())).await?;
 
     for scope in [
         "public-request-origin",
@@ -158,6 +158,29 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
         .await?;
     let while_submitted = repository.funding_policy_snapshot().await?;
     assert!(while_submitted.public_reserved_aeko >= before_reservation.public_reserved_aeko + 5.0);
+
+    // Simulate a grant row written by the pre-0012 model: same durable chain
+    // signature, but no request_id linkage yet. Confirmation must adopt this
+    // row rather than insert a duplicate grant and hit the signature index.
+    let legacy_pool = sqlx::PgPool::connect(&database_url).await?;
+    sqlx::query(
+        r#"
+        INSERT INTO funding_grants (
+            request_id,
+            address,
+            amount_aeko,
+            signature,
+            source,
+            confirmed
+        )
+        VALUES (NULL, $1, $2::double precision::numeric, $3, 'public', FALSE)
+        "#,
+    )
+    .bind(&public_address)
+    .bind(5.0_f64)
+    .bind(&public_signature)
+    .execute(&legacy_pool)
+    .await?;
 
     let confirmed = repository.confirm_funding_request(&pending.id).await?;
     assert_eq!(confirmed.status, "confirmed");
