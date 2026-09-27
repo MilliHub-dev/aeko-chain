@@ -21,6 +21,9 @@ ADMIN_ENV = ROOT / "apps" / "admin" / ".env.local.example"
 EXPLORER_ENV = ROOT / "apps" / "explorer" / "backend" / ".env.example"
 FUNDING_FEATURE = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "funding" / "mod.rs"
 FUNDING_CONFIG = ROOT / "apps" / "explorer" / "backend" / "src" / "config" / "mod.rs"
+FUNDING_HTTP_E2E = ROOT / "apps" / "explorer" / "backend" / "tests" / "funding_http_e2e.rs"
+FUNDING_DESIGN = ROOT / "docs" / "superpowers" / "specs" / "2026-09-25-funding-scan-cleanup-design.md"
+FAUCET_REPLAY_TEST = ROOT / "faucet" / "tests" / "local-faucet.rs"
 ADMIN_FUNDING_CLIENT = ROOT / "apps" / "admin" / "src" / "lib" / "funding-api.ts"
 ADMIN_FUNDING_ROUTE = ROOT / "apps" / "admin" / "src" / "app" / "api" / "admin" / "funding" / "requests" / "route.ts"
 NETWORK_CONFIG = ROOT / "apps" / "explorer" / "web" / "src" / "utils" / "networkConfig.js"
@@ -99,6 +102,9 @@ def main() -> int:
     explorer_env = read(EXPLORER_ENV)
     funding_feature = read(FUNDING_FEATURE)
     funding_config = read(FUNDING_CONFIG)
+    funding_http_e2e = read(FUNDING_HTTP_E2E)
+    funding_design = read(FUNDING_DESIGN)
+    faucet_replay_test = read(FAUCET_REPLAY_TEST)
     admin_funding_client = read(ADMIN_FUNDING_CLIENT)
     admin_funding_route = read(ADMIN_FUNDING_ROUTE)
     network_config = read(NETWORK_CONFIG)
@@ -390,6 +396,33 @@ def main() -> int:
         in read(ROOT / "apps" / "explorer" / "backend" / "src" / "http" / "state.rs"),
         "Explorer funding must distinguish test environments from mainnet",
     )
+    for required in (
+        "submission_blockhash",
+        "FUNDING_SUBMISSION_RETRY_PENDING",
+        "recover_processing_grant_submission",
+        "recover_processing_airdrop_submission",
+    ):
+        require(
+            required in funding_feature,
+            f"Explorer funding recovery contract missing {required}",
+        )
+    require(
+        "blockhash_calls.load(Ordering::SeqCst),\n        1" in funding_http_e2e
+        and "processing_grant_replays_only_persisted_intent" in funding_http_e2e,
+        "funding HTTP E2E must prove response-loss recovery reuses the persisted blockhash",
+    )
+    require(
+        "test_same_airdrop_intent_produces_same_signed_transaction" in faucet_replay_test
+        and "assert_eq!(first.signatures, replay.signatures)" in faucet_replay_test,
+        "Faucet tests must prove identical funding intent has a deterministic signature",
+    )
+    require(
+        "FUNDING_SUBMISSION_RETRY_PENDING" in funding_design
+        and "same destination, amount, funding authorization and recent blockhash" in funding_design
+        and "Neither Scan nor Admin may manually retry it" in funding_design,
+        "funding design must document backend-owned deterministic replay",
+    )
+
     require(
         "AEKO_FUNDING_AUTHORIZATION_KEY is required" in funding_config
         and "AEKO_FUNDING_RECONCILE_INTERVAL_SECS" in funding_config,
