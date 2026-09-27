@@ -33,3 +33,17 @@ explicitly as that network's independent deployment.
 ## Devnet
 
 This repository does **not** currently define a separate public devnet endpoint. Local development uses loopback endpoints; remote development should target the public testnet unless another network is explicitly provisioned.
+
+
+## Aeko Scan network selection
+
+The normal public Aeko Scan selector exposes **Mainnet** and **Testnet**. It
+does not advertise Devnet or Localnet as public networks. Devnet and Localnet
+remain supported as independently configured development environments and may
+be used by dedicated developer/operator deployments.
+
+Changing the selected public network changes the Explorer/API target and the
+visible environment terminology. Mainnet hides test-only funding and console
+capabilities; Testnet exposes the policy-controlled request workflow where
+Scan submits the request and authenticated Operations Admin makes the grant
+decision.
