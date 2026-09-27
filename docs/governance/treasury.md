@@ -47,6 +47,23 @@ Governed outflows may include:
 The separate Ecosystem / Grants allocation remains its own `40B AEKO` bucket
 and must not be silently merged into the `100B AEKO` Treasury bucket.
 
+## Native reserve representation requirement
+
+Before governance can spend the documented Treasury or Ecosystem/Grants
+allocations, those reserves must be representable and actually provisioned in
+the native asset model.
+
+Today native AEKO uses `u64` balances with nine decimal places. That permits at
+most `18,446,744,073` whole AEKO in a `u64` balance, below even the
+`25,000,000,000 AEKO` signed-off genesis circulating baseline and far below
+the `500,000,000,000 AEKO` overall target. The `u128` bucket numbers stored
+by the tokenomics program are therefore policy/accounting state, not proof of
+spendable reserves.
+
+Mainnet bootstrap now fails closed on this mismatch. Governance work must not
+route around the guard. A protocol decision on native precision, supply, or
+balance representation must be implemented first.
+
 ## Governance requirement
 
 Treasury or ecosystem spending on mainnet is not a Faucet operation and is not
