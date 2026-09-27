@@ -430,6 +430,29 @@ def main() -> int:
         "Scan proxy must bound and type-check public funding bodies",
     )
 
+    # Raw bootstrap registry and product-facing registry discovery are distinct.
+    # The bootstrap root is a non-secret manifest; only its two generated env
+    # documents and health probe are otherwise routable. Product clients use
+    # Explorer API /registry* routes instead of guessing raw bootstrap paths.
+    require(
+        "location = / {" in split_bootstrap
+        and '"service":"aeko-bootstrap-registry"' in split_bootstrap
+        and "location = /social-registry.env" in split_bootstrap
+        and "location = /protocol-registry.env" in split_bootstrap
+        and "location / {" in split_bootstrap
+        and "return 404;" in split_bootstrap,
+        "split bootstrap registry must expose discovery/root plus exact registry documents and deny unknown paths",
+    )
+    for required in (
+        '.route("/registry", get(get_registry_index))',
+        'social: "/registry/social"',
+        'protocol: "/registry/protocol"',
+    ):
+        require(
+            required in registry_feature,
+            f"Explorer registry discovery contract missing {required}",
+        )
+
     # Explorer owns durable policy/state and the Admin boundary.
     for required in (
         '"/funding/policy"',
@@ -668,6 +691,15 @@ def main() -> int:
         "Aeko Scan's same-origin Explorer funding API" in testnet_environment
         and "authenticated Operations Admin approval" in testnet_environment,
         "network environment docs must describe the current public grant boundary",
+    )
+    require(
+        "### Registry discovery" in testnet_environment
+        and "GET /registry" in testnet_environment
+        and "GET /registry/social" in testnet_environment
+        and "GET /registry/protocol" in testnet_environment
+        and "Unknown paths return" in testnet_environment
+        and "404" in testnet_environment,
+        "network environment docs must distinguish raw bootstrap registry paths from Explorer product registry routes",
     )
     require(
         "There is **no separate public Funding Gateway service/domain" in network_ports
