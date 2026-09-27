@@ -195,7 +195,7 @@ pub enum GovernableField {
 }
 ```
 
-These match the signed-off governable set in [`tokenomics.md`](/Users/ok/Documents/projects/aeko-chain/tokenomics.md).
+These match the signed-off governable set in [`tokenomics.md`](../../tokenomics.md).
 
 ## 4. Canonical Values
 
