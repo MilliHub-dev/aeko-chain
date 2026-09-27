@@ -77,7 +77,6 @@ impl ExplorerBackendConfig {
     }
 }
 
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct FundingControlConfig {
     pub authorization_key: Option<String>,
@@ -101,8 +100,8 @@ impl FundingControlConfig {
             }
         }
 
-        let requests_per_10_min = optional_parse_env::<u32>("AEKO_FUNDING_REQUESTS_PER_10_MIN")?
-            .unwrap_or(5);
+        let requests_per_10_min =
+            optional_parse_env::<u32>("AEKO_FUNDING_REQUESTS_PER_10_MIN")?.unwrap_or(5);
         if requests_per_10_min == 0 {
             return Err(anyhow!(
                 "AEKO_FUNDING_REQUESTS_PER_10_MIN must be greater than zero"
