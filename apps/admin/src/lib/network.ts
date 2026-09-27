@@ -27,12 +27,6 @@ export function resolveAdminRpcUrl(): string {
   return clean('AEKO_RPC_URL') || HARDCODED_LOCAL_RPC
 }
 
-// Funding actions, when enabled for the active environment, use that same
-// environment's RPC. Admin must never reach into another network implicitly.
-export function resolveFundingRpcUrl(): string {
-  return clean('AEKO_RPC_URL') || HARDCODED_LOCAL_RPC
-}
-
 export function resolveAdminExplorerUrl(): string {
   return clean('AEKO_EXPLORER_API_URL') || HARDCODED_LOCAL_EXPLORER
 }
