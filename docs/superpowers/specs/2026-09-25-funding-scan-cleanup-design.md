@@ -64,7 +64,9 @@ The Explorer backend validates:
 - funding enabled;
 - per-wallet cooldown;
 - active duplicate request;
-- daily public-grant budget.
+- daily public-grant budget, attributed to the UTC day on which Admin
+  approves/reserves the grant so delayed confirmation cannot shift spend into a
+  different day's budget.
 
 The only successful initial state is `pending`. No chain transfer happens at
 request creation.
