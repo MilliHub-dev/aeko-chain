@@ -6,9 +6,9 @@ The explorer backend is indexer-backed. Unlike the raw chain RPC, these endpoint
 
 Current first-pass implementation status in repo:
 
-- a runnable HTTP server exists in [`explorer-backend/src/server.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/src/server.rs)
-- a local boot example exists in [`explorer-backend/examples/api_server.rs`](/Users/ok/Documents/projects/aeko-chain/explorer-backend/examples/api_server.rs)
-- frontend wiring and env setup are documented in [`docs/rpc-and-apis/explorer-web-setup.md`](/Users/ok/Documents/projects/aeko-chain/docs/rpc-and-apis/explorer-web-setup.md)
+- a runnable HTTP server exists in [`explorer-backend/src/server.rs`](../../explorer-backend/src/server.rs)
+- a local boot example exists in [`explorer-backend/examples/api_server.rs`](../../explorer-backend/examples/api_server.rs)
+- frontend wiring and env setup are documented in [`docs/rpc-and-apis/explorer-web-setup.md`](./explorer-web-setup.md)
 - the first live routes currently implemented are:
   - `GET /health`
   - `GET /blocks`
@@ -225,7 +225,7 @@ Returns collection summary and items.
 
 ## SocialFi Endpoints
 
-These endpoints depend on the SocialFi layer defined in [`docs/socialfi/socialfi.md`](/Users/ok/Documents/projects/aeko-chain/docs/socialfi/socialfi.md).
+These endpoints depend on the SocialFi layer defined in [`docs/socialfi/socialfi.md`](../socialfi/socialfi.md).
 
 ### `GET /posts`
 
