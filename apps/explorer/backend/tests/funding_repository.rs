@@ -40,6 +40,31 @@ fn unique_suffix() -> u128 {
         .as_nanos()
 }
 
+#[test]
+fn funding_state_machine_migration_releases_legacy_status_constraint_before_rewrite() {
+    let migration = include_str!("../migrations/0012_funding_state_machine.sql");
+    let drop_position = migration
+        .find("DROP CONSTRAINT IF EXISTS funding_requests_status_check")
+        .expect("0012 must drop the legacy status constraint");
+    let rewrite_position = migration
+        .find("UPDATE funding_requests")
+        .expect("0012 must rewrite historical funding requests");
+    let new_constraint_position = migration
+        .rfind("ADD CONSTRAINT funding_requests_status_check")
+        .expect("0012 must install the new status constraint");
+
+    assert!(
+        drop_position < rewrite_position,
+        "legacy status constraint must be removed before new status values are written"
+    );
+    assert!(
+        rewrite_position < new_constraint_position,
+        "new status constraint must be installed after historical rows are normalized"
+    );
+    assert!(migration.contains("WHEN status = 'approved' AND confirmed THEN 'confirmed'"));
+    assert!(migration.contains("WHEN status = 'approved' THEN 'submitted'"));
+}
+
 #[tokio::test]
 async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Result<()> {
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
