@@ -581,8 +581,10 @@ def main() -> int:
         "deploy-testnet helper must advertise the same-origin Scan funding route",
     )
 
-    # Repository documentation must be portable. A checked-in link to one
-    # contributor's workstation is never a valid source reference.
+    # Repository documentation must be portable and must not silently revive
+    # retired funding/developer contracts. The dated cleanup design is the one
+    # deliberate exception because it records the names that were removed.
+    historical_funding_design = FUNDING_DESIGN.resolve()
     for doc_path in (ROOT / "docs").rglob("*"):
         if not doc_path.is_file() or doc_path.suffix.lower() not in {".md", ".mdx", ".txt"}:
             continue
@@ -593,6 +595,22 @@ def main() -> int:
             and "Documents/projects/aeko-chain" not in doc_text,
             f"{doc_path.relative_to(ROOT)} contains a machine-specific local repository path",
         )
+        reject(doc_text, "fund.aeko.online", str(doc_path.relative_to(ROOT)))
+        reject(doc_text, "Funding Portal", str(doc_path.relative_to(ROOT)))
+        reject(doc_text, "cargo build-bpf", str(doc_path.relative_to(ROOT)))
+        if doc_path.resolve() != historical_funding_design:
+            for retired_doc_contract in (
+                "AEKO_OPERATIONS_ROLE",
+                "FUNDING_GATEWAY_KEY",
+                "AEKO_INTERNAL_FUNDING_URL",
+                "AEKO_PUBLIC_FUNDING_URL",
+                "AEKO_LOCALNET_FUNDING_URL",
+            ):
+                reject(
+                    doc_text,
+                    retired_doc_contract,
+                    str(doc_path.relative_to(ROOT)),
+                )
 
     # Documentation and user-facing navigation must match the running
     # architecture. The Faucet may have a raw TCP hostname in split deployment,
