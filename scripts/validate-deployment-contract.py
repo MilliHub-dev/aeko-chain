@@ -26,6 +26,7 @@ ADMIN_FUNDING_ROUTE = ROOT / "apps" / "admin" / "src" / "app" / "api" / "admin" 
 NETWORK_CONFIG = ROOT / "apps" / "explorer" / "web" / "src" / "utils" / "networkConfig.js"
 PROTOCOL_INTEGRATION = ROOT / "scripts" / "ci-protocol-stack-integration.sh"
 FUNDING_SMOKE = ROOT / "scripts" / "smoke-funding-e2e.py"
+HELLO_PROGRAM_SMOKE = ROOT / "scripts" / "smoke-hello-program.py"
 README = ROOT / "README.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
 DEPLOY_HELPER = ROOT / "scripts" / "deploy-testnet.sh"
@@ -100,6 +101,7 @@ def main() -> int:
     network_config = read(NETWORK_CONFIG)
     protocol_integration = read(PROTOCOL_INTEGRATION)
     funding_smoke = read(FUNDING_SMOKE)
+    hello_program_smoke = read(HELLO_PROGRAM_SMOKE)
     readme = read(README)
     deployment = read(DEPLOYMENT)
     deploy_helper = read(DEPLOY_HELPER)
@@ -395,6 +397,34 @@ def main() -> int:
         require(
             required in protocol_integration,
             f"live protocol-stack funding dogfood missing contract: {required}",
+        )
+
+    # The external developer contract path is part of the same live network
+    # acceptance gate. A compile-only example is insufficient: CI must build
+    # SBF, deploy the generated program keypair, invoke it and inspect the
+    # confirmed transaction logs.
+    for required in (
+        "contracts/hello-aeko-program/Cargo.toml",
+        "cargo-build-sbf",
+        "hello_aeko_program.so",
+        "smoke-hello-program.py",
+    ):
+        require(
+            required in protocol_integration,
+            f"live protocol-stack Hello World gate missing contract: {required}",
+        )
+    for required in (
+        '"program"',
+        '"deploy"',
+        '"getAccountInfo"',
+        '"getSignatureStatuses"',
+        '"getTransaction"',
+        '"Hello from AEKO!"',
+        '"invoke_hello"',
+    ):
+        require(
+            required in hello_program_smoke,
+            f"Hello World smoke missing runtime proof: {required}",
         )
 
     for required in (
