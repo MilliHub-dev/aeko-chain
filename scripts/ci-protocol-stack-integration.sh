@@ -19,6 +19,8 @@ EXPLORER_LOG="$WORK_DIR/explorer.log"
 POSTGRES_NAME="aeko-protocol-integration-postgres"
 RPC_URL="http://127.0.0.1:18899"
 EXPLORER_URL="http://127.0.0.1:18088"
+FUNDING_ADMIN_TOKEN="protocol-ci-settings-admin-token-123456789"
+FUNDING_AUTHORIZATION_KEY="protocol-ci-funding-authorization-key-123456789"
 VALIDATOR_PID=""
 EXPLORER_PID=""
 
@@ -74,7 +76,8 @@ start_validator() {
     args+=(--reset)
   fi
   : >"$VALIDATOR_LOG"
-  "${args[@]}" >"$VALIDATOR_LOG" 2>&1 &
+  AEKO_FUNDING_AUTHORIZATION_KEY="$FUNDING_AUTHORIZATION_KEY" \
+    "${args[@]}" >"$VALIDATOR_LOG" 2>&1 &
   VALIDATOR_PID=$!
 }
 
@@ -150,7 +153,8 @@ RECIPIENT_PUBKEY="$(target/debug/aeko-keygen pubkey "$RECIPIENT_KEYPAIR")"
 # Create and record real transaction history before restarting from the same
 # ledger. The restart must preserve genesis identity, account state and the
 # historical transaction query surface.
-RPC_URL="$RPC_URL" RECIPIENT_PUBKEY="$RECIPIENT_PUBKEY" HISTORY_FILE="$HISTORY_FILE" python3 - <<'PY'
+RPC_URL="$RPC_URL" RECIPIENT_PUBKEY="$RECIPIENT_PUBKEY" HISTORY_FILE="$HISTORY_FILE" \
+FUNDING_AUTHORIZATION_KEY="$FUNDING_AUTHORIZATION_KEY" python3 - <<'PY'
 import json
 import os
 import time
@@ -159,6 +163,7 @@ import urllib.request
 rpc_url = os.environ["RPC_URL"]
 recipient = os.environ["RECIPIENT_PUBKEY"]
 history_file = os.environ["HISTORY_FILE"]
+funding_authorization_key = os.environ["FUNDING_AUTHORIZATION_KEY"]
 
 
 def rpc(method, params=None):
@@ -172,7 +177,14 @@ def rpc(method, params=None):
 
 
 genesis = rpc("getGenesisHash")
-signature = rpc("requestAirdrop", [recipient, 1_000_000_000])
+signature = rpc(
+    "requestAirdrop",
+    [
+        recipient,
+        1_000_000_000,
+        {"fundingAuthorization": funding_authorization_key},
+    ],
+)
 
 # A confirmed transaction is not sufficient for a restart-continuity assertion:
 # TestValidator replays rooted ledger state on restart. Wait until the airdrop is
@@ -516,7 +528,11 @@ AEKO_EXPLORER_BIND=127.0.0.1:18088 \
 AEKO_EXPLORER_REQUEST_TIMEOUT_SECS=30 \
 AEKO_EXPLORER_MAX_BODY_BYTES=1048576 \
 AEKO_EXPLORER_SYNC_INTERVAL_SECS=1 \
-AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=protocol-ci-settings-admin-token-123456789 \
+AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN="$FUNDING_ADMIN_TOKEN" \
+AEKO_FUNDING_AUTHORIZATION_KEY="$FUNDING_AUTHORIZATION_KEY" \
+AEKO_FUNDING_REQUESTS_PER_10_MIN=5 \
+AEKO_FUNDING_RECONCILE_INTERVAL_SECS=1 \
+AEKO_FAUCET_PER_REQUEST_CAP=100 \
 AEKO_RESET_LEDGER=0 \
 AEKO_PROTOCOL_REGISTRY_FILE="$STATE_DIR/protocol-registry.env" \
 AEKO_SOCIAL_REGISTRY_FILE="$SOCIAL_STATE_DIR/social-registry.env" \
@@ -548,6 +564,223 @@ if [ "$network_ready" -ne 1 ]; then
   echo "Explorer network readiness did not certify Social + Protocol" >&2
   false
 fi
+
+RPC_URL="$RPC_URL" EXPLORER_URL="$EXPLORER_URL" \
+RECIPIENT_PUBKEY="$RECIPIENT_PUBKEY" FUNDING_ADMIN_TOKEN="$FUNDING_ADMIN_TOKEN" \
+python3 - <<'PY'
+import json
+import os
+import time
+import urllib.error
+import urllib.request
+from decimal import Decimal, ROUND_HALF_UP
+
+rpc_url = os.environ["RPC_URL"]
+explorer_url = os.environ["EXPLORER_URL"].rstrip("/")
+recipient = os.environ["RECIPIENT_PUBKEY"]
+admin_token = os.environ["FUNDING_ADMIN_TOKEN"]
+lamports_per_aeko = Decimal("1000000000")
+
+
+def request_json(method, path, payload=None, admin=False, expected=200):
+    body = None if payload is None else json.dumps(payload).encode()
+    headers = {"Accept": "application/json"}
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+    if admin:
+        headers["x-aeko-settings-token"] = admin_token
+    request = urllib.request.Request(
+        explorer_url + path,
+        data=body,
+        headers=headers,
+        method=method,
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            raw = response.read()
+            if response.status != expected:
+                raise RuntimeError(
+                    f"{method} {path}: HTTP {response.status}, expected {expected}: "
+                    f"{raw[:500]!r}"
+                )
+            return json.loads(raw)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace")
+        raise RuntimeError(f"{method} {path}: HTTP {exc.code}: {detail[:800]}") from exc
+
+
+def rpc(method, params=None):
+    body = json.dumps(
+        {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
+    ).encode()
+    request = urllib.request.Request(
+        rpc_url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        payload = json.load(response)
+    if payload.get("error"):
+        raise RuntimeError(f"RPC {method}: {payload['error']}")
+    return payload["result"]
+
+
+def balance(address):
+    value = rpc("getBalance", [address, {"commitment": "confirmed"}])
+    return int(value["value"] if isinstance(value, dict) else value)
+
+
+# The running TestValidator is configured with the server-only authorization
+# key. A browser-style direct requestAirdrop without that key must fail.
+unauthorized_body = json.dumps(
+    {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "requestAirdrop",
+        "params": [recipient, 1],
+    }
+).encode()
+unauthorized_request = urllib.request.Request(
+    rpc_url,
+    data=unauthorized_body,
+    headers={"Content-Type": "application/json"},
+)
+with urllib.request.urlopen(unauthorized_request, timeout=30) as response:
+    unauthorized = json.load(response)
+if not unauthorized.get("error"):
+    raise RuntimeError("protected requestAirdrop unexpectedly accepted a request without authorization")
+if int(unauthorized["error"].get("code", 0)) != -32600:
+    raise RuntimeError(f"protected requestAirdrop returned unexpected error: {unauthorized}")
+print("[ok] live Validator rejects unauthorized direct requestAirdrop")
+
+policy = request_json("GET", "/funding/policy")["data"]
+if policy.get("enabled") is not True:
+    raise RuntimeError(f"funding policy is not enabled: {policy}")
+amount = Decimal(str(policy["amountAeko"]))
+expected_lamports = int(
+    (amount * lamports_per_aeko).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+)
+before = balance(recipient)
+
+created = request_json(
+    "POST",
+    "/funding/request",
+    {"address": recipient},
+    expected=202,
+)["data"]
+if created.get("status") != "pending":
+    raise RuntimeError(f"public funding request was not pending: {created}")
+request_id = created["id"]
+print(f"[ok] live Explorer created pending funding request {request_id}")
+
+unauthorized_decision = urllib.request.Request(
+    explorer_url + f"/admin/funding/requests/{request_id}/decide",
+    data=json.dumps({"approved": True}).encode(),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+try:
+    urllib.request.urlopen(unauthorized_decision, timeout=30)
+except urllib.error.HTTPError as exc:
+    if exc.code != 401:
+        raise RuntimeError(
+            f"unauthorized grant decision returned HTTP {exc.code}, expected 401"
+        ) from exc
+else:
+    raise RuntimeError("Explorer accepted an Admin grant decision without the Admin token")
+print("[ok] live Explorer rejects unauthenticated grant decisions")
+
+approved = request_json(
+    "POST",
+    f"/admin/funding/requests/{request_id}/decide",
+    {"approved": True},
+    admin=True,
+)["data"]
+if approved.get("status") not in {"submitted", "confirmed"}:
+    raise RuntimeError(f"grant approval returned unexpected state: {approved}")
+
+confirmed = None
+for _ in range(90):
+    current = request_json("GET", f"/funding/request/{request_id}")["data"]
+    if current.get("status") == "confirmed":
+        confirmed = current
+        break
+    if current.get("status") in {"failed", "rejected"}:
+        raise RuntimeError(f"grant entered terminal failure state: {current}")
+    time.sleep(0.5)
+if confirmed is None:
+    raise RuntimeError("approved grant did not converge to confirmed")
+
+grant_signature = confirmed.get("signature")
+if not grant_signature:
+    raise RuntimeError("confirmed grant has no signature")
+
+after = balance(recipient)
+if after - before < expected_lamports:
+    raise RuntimeError(
+        f"confirmed grant balance delta {after - before} < expected {expected_lamports}"
+    )
+
+grants = request_json(
+    "GET",
+    "/admin/funding/grants?limit=500",
+    admin=True,
+)["data"]
+matching = [
+    grant
+    for grant in grants
+    if grant.get("requestId") == request_id
+    and grant.get("signature") == grant_signature
+    and grant.get("confirmed") is True
+]
+if len(matching) != 1:
+    raise RuntimeError(
+        f"expected exactly one confirmed grant for {request_id}, found {len(matching)}"
+    )
+print("[ok] live funding approval changed chain balance and recorded exactly one confirmed grant")
+
+airdrop = request_json(
+    "POST",
+    "/funding/airdrop",
+    {"address": recipient, "amountAeko": 1.0},
+)["data"]
+airdrop_id = airdrop.get("id")
+airdrop_signature = airdrop.get("signature")
+if not airdrop_id or not airdrop_signature:
+    raise RuntimeError(f"developer airdrop did not return durable identity/signature: {airdrop}")
+
+confirmed_airdrop = None
+for _ in range(90):
+    airdrops = request_json(
+        "GET",
+        "/admin/funding/airdrops?limit=500",
+        admin=True,
+    )["data"]
+    matches = [entry for entry in airdrops if entry.get("id") == airdrop_id]
+    if matches and matches[0].get("status") == "confirmed":
+        confirmed_airdrop = matches[0]
+        break
+    if matches and matches[0].get("status") == "failed":
+        raise RuntimeError(f"developer airdrop failed: {matches[0]}")
+    time.sleep(0.5)
+if confirmed_airdrop is None:
+    raise RuntimeError("developer airdrop did not converge to confirmed")
+
+grants_after_airdrop = request_json(
+    "GET",
+    "/admin/funding/grants?limit=500",
+    admin=True,
+)["data"]
+if any(grant.get("signature") == airdrop_signature for grant in grants_after_airdrop):
+    raise RuntimeError("developer airdrop leaked into the confirmed grant ledger")
+if grant_signature == airdrop_signature:
+    raise RuntimeError("grant and developer airdrop unexpectedly share a transaction signature")
+
+print(
+    "[ok] live protected funding path: request -> Admin approval -> Validator/Faucet -> "
+    "chain confirmation, with developer airdrops kept in a separate ledger"
+)
+PY
 
 AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_URL" python3 scripts/smoke-aeko-social.py
 AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_URL" python3 scripts/smoke-aeko-protocol.py
