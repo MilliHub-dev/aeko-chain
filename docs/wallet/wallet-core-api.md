@@ -6,7 +6,7 @@ Owner: AEKO core team
 
 Scope: This document defines the core wallet API for key generation, key storage, signing, import/export, and stateless signature support.
 
-This spec depends on [`docs/wallet/identity.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/identity.md).
+This spec depends on [`docs/wallet/identity.md`](./identity.md).
 
 ## 1. Purpose
 
@@ -26,7 +26,7 @@ Current Rust implementation status:
 - `wallet-core` now includes a permission helper layer for the wallet-permissions program
 - it can build wallet-permission instructions and unsigned transactions for initialize, grant, update, revoke, freeze, unfreeze, usage recording, and permission reads
 - it can sign those permission transactions with either encrypted local keystores or Ledger-backed accounts
-- runnable validation examples now live in [`wallet-core/examples`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples)
+- runnable validation examples now live in [`wallet-core/examples`](../../wallet-core/examples)
 
 ## 2. Key Management Requirements
 
