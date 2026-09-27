@@ -77,7 +77,7 @@ cargo build --locked -p aeko-explorer-backend --bin aeko-explorer-backend
 # Keep the public external-developer starter on the same live compatibility
 # path as the validator. The SBF build and host invoke example must both compile
 # before any deployment assertion is attempted.
-./cargo-build-sbf \
+bash ./cargo-build-sbf \
   --manifest-path contracts/hello-aeko-program/Cargo.toml \
   --sbf-out-dir "$HELLO_PROGRAM_DIR"
 cargo check --locked \
