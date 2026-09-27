@@ -4,17 +4,17 @@ This document provides the command-level entry points for the Phase 4 validation
 
 Use it with:
 
-- [`docs/wallet/wallet-core-testnet-validation.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/wallet-core-testnet-validation.md)
-- [`docs/wallet/wallet-permissions-testnet-validation.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/wallet-permissions-testnet-validation.md)
-- [`docs/wallet/phase4-closeout-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-closeout-record.md)
+- [`docs/wallet/wallet-core-testnet-validation.md`](./wallet-core-testnet-validation.md)
+- [`docs/wallet/wallet-permissions-testnet-validation.md`](./wallet-permissions-testnet-validation.md)
+- [`docs/wallet/phase4-closeout-record.md`](./phase4-closeout-record.md)
 
 ## Wallet Core Helper
 
 Source:
 
-- [`wallet-core/examples/create_keystore.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/create_keystore.rs)
-- [`wallet-core/examples/keystore_validation.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/keystore_validation.rs)
-- [`wallet-core/examples/keystore_testnet_submit.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/keystore_testnet_submit.rs)
+- [`wallet-core/examples/create_keystore.rs`](../../wallet-core/examples/create_keystore.rs)
+- [`wallet-core/examples/keystore_validation.rs`](../../wallet-core/examples/keystore_validation.rs)
+- [`wallet-core/examples/keystore_testnet_submit.rs`](../../wallet-core/examples/keystore_testnet_submit.rs)
 
 Create a real encrypted keystore file:
 
@@ -70,8 +70,8 @@ What to capture:
 
 Source:
 
-- [`wallet-core/examples/permission_validation.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/permission_validation.rs)
-- [`wallet-core/examples/permissions_testnet_submit.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/permissions_testnet_submit.rs)
+- [`wallet-core/examples/permission_validation.rs`](../../wallet-core/examples/permission_validation.rs)
+- [`wallet-core/examples/permissions_testnet_submit.rs`](../../wallet-core/examples/permissions_testnet_submit.rs)
 
 Command:
 
@@ -125,4 +125,4 @@ For final closeout:
 
 - use the helper output to verify local signing behavior
 - use the runbooks to drive the live AEKO testnet submission and confirmation steps
-- record final transaction signatures in [`docs/wallet/phase4-closeout-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-closeout-record.md)
+- record final transaction signatures in [`docs/wallet/phase4-closeout-record.md`](./phase4-closeout-record.md)
