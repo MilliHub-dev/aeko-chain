@@ -125,7 +125,7 @@ Recommended retry policy:
 
 ## Production Notes
 
-The current in-repo Node SDK at [`sdk/node`](/Users/ok/Documents/projects/aeko-chain/sdk/node) already helps with:
+The current in-repo Node SDK at [`sdk/node`](../../sdk/node) already helps with:
 
 - backend RPC connectivity
 - prepared transaction signing abstractions
@@ -142,10 +142,10 @@ What it does not yet provide:
 
 The current first-pass backend helper surface lives in:
 
-- [`sdk/node/src/socialPosts.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/node/src/socialPosts.ts)
-- [`sdk/node/src/socialBackend.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/node/src/socialBackend.ts)
+- [`sdk/node/src/socialPosts.ts`](../../sdk/node/src/socialPosts.ts)
+- [`sdk/node/src/socialBackend.ts`](../../sdk/node/src/socialBackend.ts)
 
-A minimal reference HTTP service now exists at [`sdk/node/examples/social-posts-backend.ts`](/Users/ok/Documents/projects/aeko-chain/sdk/node/examples/social-posts-backend.ts).
+A minimal reference HTTP service now exists at [`sdk/node/examples/social-posts-backend.ts`](../../sdk/node/examples/social-posts-backend.ts).
 
 That example exposes:
 
