@@ -23,9 +23,11 @@ use {
         },
         time::Duration,
     },
-    tokio::net::TcpListener,
+    tokio::{net::TcpListener, sync::Mutex},
     tower::ServiceExt,
 };
+
+static TEST_DB_LOCK: Mutex<()> = Mutex::const_new(());
 
 #[derive(Clone)]
 struct FakeRpcState {
@@ -157,6 +159,7 @@ async fn request_json(
 
 #[tokio::test]
 async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Result<()> {
+    let _guard = TEST_DB_LOCK.lock().await;
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
 
@@ -353,6 +356,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
 
 #[tokio::test]
 async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
+    let _guard = TEST_DB_LOCK.lock().await;
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
 
@@ -478,6 +482,7 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
 
 #[tokio::test]
 async fn mainnet_funding_and_airdrop_routes_fail_closed() -> Result<()> {
+    let _guard = TEST_DB_LOCK.lock().await;
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
 
