@@ -140,22 +140,26 @@ From this point every CLI command (`aeko balance`, `aeko transfer`, `aeko progra
 
 `aeko-keygen new --outfile ~/my-dev-wallet.json` generates a fresh keypair and writes it to disk. `aeko address --keypair ~/my-dev-wallet.json` prints the public key. The same JSON file works for any Solana-compatible tooling (Phantom, Solflare, Anchor, Web3.js) that supports importing a keypair file.
 
-### 4.3 Receiving testnet funding
+### 4.3 Receiving public-testnet funding
 
-**From the CLI.**
+Public testnet funding uses the managed Explorer funding flow. Submit the wallet address through Aeko Scan:
+
 ```bash
-aeko airdrop 2 <pubkey>
+curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
+  -H 'Content-Type: application/json' \
+  -d '{"address":"<pubkey>"}'
 ```
 
-**From JavaScript.** Using `@solana/web3.js`:
-```js
-import { Connection, PublicKey } from "@solana/web3.js";
-const conn = new Connection("https://rpc.aeko.online", "confirmed");
-const sig = await conn.requestAirdrop(new PublicKey("..."), 2_000_000_000); // 2 AEKO
-await conn.confirmTransaction(sig);
+The request starts as `pending`. An authenticated Operations Admin must approve it. Operations Web sends the decision to Explorer API; Explorer owns settlement and calls the Validator's protected low-level `requestAirdrop` path. The Validator then uses the Faucet to obtain the signed transfer.
+
+Use the returned request id to poll the public status endpoint until it becomes `confirmed`:
+
+```bash
+curl https://scan.aeko.online/api/explorer/testnet/funding/request/<REQUEST_ID>
+aeko balance <pubkey> --url https://rpc.aeko.online
 ```
 
-The faucet keypair was seeded with 500 million AEKO at genesis, so the well is deep.
+Direct `aeko airdrop` / `Connection.requestAirdrop()` is reserved for local or custom test validators that are explicitly configured without managed funding protection. It is not the public-testnet funding contract.
 
 ### 4.4 Subscribing to live updates
 
@@ -204,7 +208,7 @@ Coolify-proxy (Traefik) handles all TLS termination and HTTP routing. You do not
 | `gossip.aeko.online` | validator gossip | raw TCP+UDP | validator discovery/peer entrypoint only |
 | `cloud.aeko.online` | Coolify dashboard (port 8000, managed by Coolify) | `http://`/`https://` | Operator UI |
 
-The Faucet Daemon on TCP `9900` deliberately has **no public hostname**. User applications use Aeko Scan's same-origin test-network funding routes, which proxy to that network's Explorer API. Only the matching Explorer API receives the server-side authorization required to invoke the deployed validator's low-level `requestAirdrop` path.
+The Faucet Daemon on TCP `9900` is **not a public application API**. In an all-in-one deployment the Validator reaches it over private service networking; in split deployments it may use a raw TCP hostname such as `faucet.aeko.online:9900`, which must be firewall-restricted to the matching Validator. User applications use Aeko Scan's same-origin test-network funding routes, and only the matching Explorer API receives the server-side authorization required to invoke the Validator's low-level `requestAirdrop` path.
 
 ### 5.2 Namecheap DNS records
 
