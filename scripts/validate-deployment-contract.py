@@ -35,6 +35,8 @@ TESTNET_RUNBOOK = ROOT / "docs" / "operations" / "testnet-runbook.md"
 NETWORK_PORTS = ROOT / "docs" / "operations" / "network-ports-and-domains.md"
 TESTNET_ENVIRONMENT = ROOT / "docs" / "aeko-chain" / "testnet-mainnet.md"
 SDK_TESTNET_GUIDE = ROOT / "docs" / "developer-sdk" / "deploy-and-invoke-testnet.md"
+WRITE_FIRST_PROGRAM = ROOT / "docs" / "developer-sdk" / "write-your-first-program.md"
+HELLO_PROGRAM_MANIFEST = ROOT / "contracts" / "hello-aeko-program" / "Cargo.toml"
 ADMIN_README = ROOT / "apps" / "admin" / "README.md"
 SCAN_README = ROOT / "apps" / "explorer" / "web" / "README.md"
 ADMIN_LOGIN = ROOT / "apps" / "admin" / "src" / "app" / "login" / "page.tsx"
@@ -110,6 +112,8 @@ def main() -> int:
     network_ports = read(NETWORK_PORTS)
     testnet_environment = read(TESTNET_ENVIRONMENT)
     sdk_testnet_guide = read(SDK_TESTNET_GUIDE)
+    write_first_program = read(WRITE_FIRST_PROGRAM)
+    hello_program_manifest = read(HELLO_PROGRAM_MANIFEST)
     admin_readme = read(ADMIN_README)
     scan_readme = read(SCAN_README)
     admin_login = read(ADMIN_LOGIN)
@@ -479,6 +483,9 @@ def main() -> int:
         reject(text, "AEKO_OPERATIONS_ROLE", where)
 
     reject(testnet_environment, "Funding Portal", "testnet environment")
+    reject(sdk_testnet_guide, "cargo build-bpf", "SDK testnet guide")
+    reject(write_first_program, "cargo build-bpf", "write-first-program guide")
+    reject(write_first_program, "/Users/ok/Documents/projects/aeko-chain", "write-first-program guide")
     reject(scan_readme, "Operations Web funding role", "Scan README")
     reject(sdk_testnet_guide, "/Users/ok/Documents/projects/aeko-chain", "SDK testnet guide")
     reject(admin_login, 'href="/funding"', "Admin login")
@@ -516,8 +523,29 @@ def main() -> int:
         and "firewall it to Validator source addresses" in network_ports,
         "network port docs must distinguish the retired gateway from raw Faucet transport",
     )
+    require(
+        "./cargo-build-sbf" in sdk_testnet_guide
+        and "scripts/smoke-hello-program.py" in sdk_testnet_guide
+        and "Hello from AEKO!" in sdk_testnet_guide,
+        "SDK testnet guide must document the repository SBF build and live invoke proof",
+    )
+    require(
+        "./cargo-build-sbf" in write_first_program
+        and "ci-protocol-stack-integration.sh" in write_first_program
+        and "Hello from AEKO!" in write_first_program,
+        "write-first-program guide must match the live Hello World compatibility gate",
+    )
+    require(
+        "Smart-contract build/deploy/invoke works in CI." in testnet_runbook
+        and "scripts/ci-protocol-stack-integration.sh" in testnet_runbook,
+        "testnet runbook must document the live smart-contract compatibility gate",
+    )
+    require(
+        'base64 = "0.21.7"' in hello_program_manifest,
+        "Hello World invoke example must declare its direct base64 dev dependency",
+    )
 
-    print("[PASS] AEKO deployment, funding authority and dogfood contracts are internally consistent")
+    print("[PASS] AEKO deployment, funding authority, docs and dogfood contracts are internally consistent")
     return 0
 
 
