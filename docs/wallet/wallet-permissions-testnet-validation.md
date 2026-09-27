@@ -4,8 +4,8 @@ This document defines the live validation flow required to close Ticket 4.2 for 
 
 It should be used together with:
 
-- [`docs/wallet/permission-controls-spec.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/permission-controls-spec.md)
-- [`docs/wallet/phase4-closeout-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-closeout-record.md)
+- [`docs/wallet/permission-controls-spec.md`](./permission-controls-spec.md)
+- [`docs/wallet/phase4-closeout-record.md`](./phase4-closeout-record.md)
 
 ## Goal
 
@@ -35,8 +35,8 @@ Recommended baseline:
 
 Helpful starting point:
 
-- [`wallet-core/examples/permission_validation.rs`](/Users/ok/Documents/projects/aeko-chain/wallet-core/examples/permission_validation.rs)
-- [`docs/wallet/phase4-validation-commands.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-validation-commands.md)
+- [`wallet-core/examples/permission_validation.rs`](../../wallet-core/examples/permission_validation.rs)
+- [`docs/wallet/phase4-validation-commands.md`](./phase4-validation-commands.md)
 
 ### 1. Initialize Permission State
 
@@ -151,7 +151,7 @@ Wallet permissions validation is complete when:
 - over-cap and disallowed usage fail predictably
 - effective permission reads match policy state
 - audit-log writes are visible for key actions
-- final verification values are recorded in [`docs/wallet/phase4-closeout-record.md`](/Users/ok/Documents/projects/aeko-chain/docs/wallet/phase4-closeout-record.md)
+- final verification values are recorded in [`docs/wallet/phase4-closeout-record.md`](./phase4-closeout-record.md)
 
 ## Output To Record
 
