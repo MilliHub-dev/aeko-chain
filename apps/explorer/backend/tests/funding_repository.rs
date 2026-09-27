@@ -164,6 +164,20 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
     let reserved = repository.funding_policy_snapshot().await?;
     assert!(reserved.public_reserved_aeko >= before_reservation.public_reserved_aeko + 5.0);
 
+    let public_blockhash = format!("integration-public-blockhash-{suffix}");
+    let intent = repository
+        .set_funding_request_submission_blockhash(&pending.id, &public_blockhash)
+        .await?;
+    assert_eq!(
+        intent.submission_blockhash.as_deref(),
+        Some(public_blockhash.as_str())
+    );
+    assert!(repository
+        .list_recoverable_processing_funding_requests(500)
+        .await?
+        .iter()
+        .any(|request| request.id == pending.id));
+
     let public_signature = format!("integration-public-signature-{suffix}");
     let submitted = repository
         .set_funding_request_signature(&pending.id, &public_signature)
@@ -236,6 +250,16 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
         .await?;
     assert_eq!(airdrop.status, "processing");
 
+    let airdrop_blockhash = format!("integration-airdrop-blockhash-{suffix}");
+    repository
+        .set_funding_airdrop_submission_blockhash(&airdrop.id, &airdrop_blockhash)
+        .await?;
+    assert!(repository
+        .list_recoverable_processing_funding_airdrops(500)
+        .await?
+        .iter()
+        .any(|entry| entry.id == airdrop.id));
+
     let airdrop_signature = format!("integration-airdrop-signature-{suffix}");
     let submitted_airdrop = repository
         .set_funding_airdrop_signature(&airdrop.id, &airdrop_signature)
@@ -272,6 +296,10 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
         .await?;
     repository
         .reserve_public_funding_request(&failed_pending.id)
+        .await?;
+    let failed_blockhash = format!("integration-failed-blockhash-{suffix}");
+    repository
+        .set_funding_request_submission_blockhash(&failed_pending.id, &failed_blockhash)
         .await?;
     let failed_signature = format!("integration-failed-signature-{suffix}");
     repository
