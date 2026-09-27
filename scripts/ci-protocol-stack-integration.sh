@@ -9,6 +9,9 @@ LEDGER_DIR="$WORK_DIR/ledger"
 STATE_DIR="$WORK_DIR/protocol-state"
 CONTINUITY_DIR="$WORK_DIR/protocol-continuity"
 SOCIAL_STATE_DIR="$WORK_DIR/social-state"
+HELLO_PROGRAM_DIR="$WORK_DIR/hello-program"
+HELLO_PROGRAM_SO="$HELLO_PROGRAM_DIR/hello_aeko_program.so"
+HELLO_PROGRAM_KEYPAIR="$HELLO_PROGRAM_DIR/hello_aeko_program-keypair.json"
 AUTHORITY_KEYPAIR="$WORK_DIR/protocol-authority.json"
 RECIPIENT_KEYPAIR="$WORK_DIR/recipient.json"
 HISTORY_FILE="$WORK_DIR/historical-state.json"
@@ -53,15 +56,28 @@ fail_with_logs() {
 }
 trap fail_with_logs ERR
 
-mkdir -p "$LEDGER_DIR" "$STATE_DIR" "$CONTINUITY_DIR" "$SOCIAL_STATE_DIR"
+mkdir -p "$LEDGER_DIR" "$STATE_DIR" "$CONTINUITY_DIR" "$SOCIAL_STATE_DIR" "$HELLO_PROGRAM_DIR"
 
 # Build only the binaries exercised by this integration path. Previous source
 # validation on the shared runner makes these incremental in normal CI.
 cargo build --locked -p aeko-validator --bin aeko-test-validator --bin aeko-validator
 cargo build --locked -p aeko-keygen --bin aeko-keygen
+cargo build --locked -p aeko-cli --bin aeko
 cargo build --locked -p aeko-social-bootstrap --bin aeko-social-bootstrap
 cargo build --locked -p aeko-protocol-bootstrap --bin aeko-protocol-bootstrap
 cargo build --locked -p aeko-explorer-backend --bin aeko-explorer-backend
+
+# Keep the public external-developer starter on the same live compatibility
+# path as the validator. The SBF build and host invoke example must both compile
+# before any deployment assertion is attempted.
+./cargo-build-sbf \
+  --manifest-path contracts/hello-aeko-program/Cargo.toml \
+  --sbf-out-dir "$HELLO_PROGRAM_DIR"
+cargo check --locked \
+  --manifest-path contracts/hello-aeko-program/Cargo.toml \
+  --example invoke_hello
+test -s "$HELLO_PROGRAM_SO"
+test -s "$HELLO_PROGRAM_KEYPAIR"
 
 start_validator() {
   local reset="$1"
@@ -782,6 +798,12 @@ print(
 )
 PY
 
+AEKO_RPC_URL="$RPC_URL" \
+AEKO_HELLO_PAYER_KEYPAIR="$LEDGER_DIR/faucet-keypair.json" \
+AEKO_HELLO_PROGRAM_SO="$HELLO_PROGRAM_SO" \
+AEKO_HELLO_PROGRAM_KEYPAIR="$HELLO_PROGRAM_KEYPAIR" \
+python3 scripts/smoke-hello-program.py
+
 AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_URL" python3 scripts/smoke-aeko-social.py
 AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_URL" python3 scripts/smoke-aeko-protocol.py
 
@@ -811,5 +833,5 @@ if data["protocol"]["healthyCustody"] != 3 or data["protocol"]["custodyTotal"] !
 print("[ok] strict network readiness reports Social 5/5 state + 5/5 custody, Protocol 11/11 programs + 8/8 state + 3/3 custody")
 PY
 
-echo "[PASS] ledger continuity, genesis-bound Social/Protocol lifecycle, interrupted-reset recovery, Explorer readiness and smoke integration"
+echo "[PASS] ledger continuity, genesis-bound Social/Protocol lifecycle, interrupted-reset recovery, protected funding, Hello World SBF build/deploy/invoke, Explorer readiness and smoke integration"
 
