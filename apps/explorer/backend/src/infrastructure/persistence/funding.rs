@@ -37,6 +37,7 @@ pub struct FundingRequestRecord {
     pub decided_at: Option<DateTime<Utc>>,
     pub submitted_at: Option<DateTime<Utc>>,
     pub confirmed_at: Option<DateTime<Utc>>,
+    pub submission_blockhash: Option<String>,
     pub signature: Option<String>,
     pub confirmed: bool,
     pub error_code: Option<String>,
@@ -65,6 +66,7 @@ pub struct FundingAirdropRecord {
     pub requested_at: DateTime<Utc>,
     pub submitted_at: Option<DateTime<Utc>>,
     pub confirmed_at: Option<DateTime<Utc>>,
+    pub submission_blockhash: Option<String>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
 }
@@ -128,6 +130,7 @@ const REQUEST_COLUMNS: &str = r#"
     decided_at,
     submitted_at,
     confirmed_at,
+    submission_blockhash,
     signature,
     confirmed,
     error_code,
@@ -154,6 +157,7 @@ const AIRDROP_COLUMNS: &str = r#"
     requested_at,
     submitted_at,
     confirmed_at,
+    submission_blockhash,
     error_code,
     error_message
 "#;
@@ -398,6 +402,7 @@ impl PostgresRepository {
                 decided_at = NOW(),
                 submitted_at = NULL,
                 confirmed_at = NULL,
+                submission_blockhash = NULL,
                 signature = NULL,
                 confirmed = FALSE,
                 error_code = NULL,
@@ -412,6 +417,43 @@ impl PostgresRepository {
             .await?;
         tx.commit().await?;
         Ok(reserved_request)
+    }
+
+    pub async fn set_funding_request_submission_blockhash(
+        &self,
+        id: &str,
+        blockhash: &str,
+    ) -> Result<FundingRequestRecord, FundingStoreError> {
+        let sql = format!(
+            r#"
+            UPDATE funding_requests
+            SET
+                submission_blockhash = COALESCE(submission_blockhash, $2),
+                error_code = NULL,
+                error_message = NULL
+            WHERE id = $1::uuid
+              AND status = 'processing'
+              AND signature IS NULL
+              AND (submission_blockhash IS NULL OR submission_blockhash = $2)
+            RETURNING {REQUEST_COLUMNS}
+            "#
+        );
+        if let Some(request) = sqlx::query_as::<_, FundingRequestRecord>(&sql)
+            .bind(id)
+            .bind(blockhash)
+            .fetch_optional(&self.pool)
+            .await?
+        {
+            return Ok(request);
+        }
+
+        let existing = self
+            .funding_request(id)
+            .await?
+            .ok_or(FundingStoreError::RequestNotFound)?;
+        Err(FundingStoreError::RequestAlreadyDecided {
+            status: existing.status,
+        })
     }
 
     pub async fn set_funding_request_signature(
@@ -429,7 +471,9 @@ impl PostgresRepository {
                 confirmed = FALSE,
                 error_code = NULL,
                 error_message = NULL
-            WHERE id = $1::uuid AND status = 'processing'
+            WHERE id = $1::uuid
+              AND status = 'processing'
+              AND submission_blockhash IS NOT NULL
             RETURNING {REQUEST_COLUMNS}
             "#
         );
@@ -490,6 +534,7 @@ impl PostgresRepository {
                 decided_at = NULL,
                 submitted_at = NULL,
                 confirmed_at = NULL,
+                submission_blockhash = NULL,
                 signature = NULL,
                 confirmed = FALSE,
                 error_code = $2,
@@ -733,6 +778,27 @@ impl PostgresRepository {
             .await?)
     }
 
+    pub async fn list_recoverable_processing_funding_requests(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<FundingRequestRecord>, FundingStoreError> {
+        let sql = format!(
+            r#"
+            SELECT {REQUEST_COLUMNS}
+            FROM funding_requests
+            WHERE status = 'processing'
+              AND signature IS NULL
+              AND submission_blockhash IS NOT NULL
+            ORDER BY decided_at ASC NULLS FIRST, requested_at ASC
+            LIMIT $1
+            "#
+        );
+        Ok(sqlx::query_as::<_, FundingRequestRecord>(&sql)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?)
+    }
+
     pub async fn list_submitted_funding_requests(
         &self,
         limit: i64,
@@ -791,6 +857,43 @@ impl PostgresRepository {
             .await?)
     }
 
+    pub async fn set_funding_airdrop_submission_blockhash(
+        &self,
+        id: &str,
+        blockhash: &str,
+    ) -> Result<FundingAirdropRecord, FundingStoreError> {
+        let sql = format!(
+            r#"
+            UPDATE funding_airdrops
+            SET
+                submission_blockhash = COALESCE(submission_blockhash, $2),
+                error_code = NULL,
+                error_message = NULL
+            WHERE id = $1::uuid
+              AND status = 'processing'
+              AND signature IS NULL
+              AND (submission_blockhash IS NULL OR submission_blockhash = $2)
+            RETURNING {AIRDROP_COLUMNS}
+            "#
+        );
+        if let Some(airdrop) = sqlx::query_as::<_, FundingAirdropRecord>(&sql)
+            .bind(id)
+            .bind(blockhash)
+            .fetch_optional(&self.pool)
+            .await?
+        {
+            return Ok(airdrop);
+        }
+
+        let existing = self
+            .funding_airdrop(id)
+            .await?
+            .ok_or(FundingStoreError::AirdropNotFound)?;
+        Err(FundingStoreError::RequestAlreadyDecided {
+            status: existing.status,
+        })
+    }
+
     pub async fn set_funding_airdrop_signature(
         &self,
         id: &str,
@@ -805,7 +908,9 @@ impl PostgresRepository {
                 submitted_at = COALESCE(submitted_at, NOW()),
                 error_code = NULL,
                 error_message = NULL
-            WHERE id = $1::uuid AND status = 'processing'
+            WHERE id = $1::uuid
+              AND status = 'processing'
+              AND submission_blockhash IS NOT NULL
             RETURNING {AIRDROP_COLUMNS}
             "#
         );
@@ -930,6 +1035,27 @@ impl PostgresRepository {
             SELECT {AIRDROP_COLUMNS}
             FROM funding_airdrops
             ORDER BY requested_at DESC
+            LIMIT $1
+            "#
+        );
+        Ok(sqlx::query_as::<_, FundingAirdropRecord>(&sql)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?)
+    }
+
+    pub async fn list_recoverable_processing_funding_airdrops(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<FundingAirdropRecord>, FundingStoreError> {
+        let sql = format!(
+            r#"
+            SELECT {AIRDROP_COLUMNS}
+            FROM funding_airdrops
+            WHERE status = 'processing'
+              AND signature IS NULL
+              AND submission_blockhash IS NOT NULL
+            ORDER BY requested_at ASC
             LIMIT $1
             "#
         );
