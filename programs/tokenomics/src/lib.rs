@@ -37,8 +37,7 @@ pub const PUBLIC_SALE_BUCKET_AEKO: u128 = 25_000_000_000;
 /// Native AEKO account balances are currently stored as `u64` lamports.
 /// This is the largest whole-AEKO balance representable at the active native
 /// precision without changing the chain's atomic-unit contract.
-pub const MAX_NATIVE_AEKO_AT_CURRENT_PRECISION: u128 =
-    u64::MAX as u128 / LAMPORTS_PER_AEKO as u128;
+pub const MAX_NATIVE_AEKO_AT_CURRENT_PRECISION: u128 = u64::MAX as u128 / LAMPORTS_PER_AEKO as u128;
 
 pub const fn governed_supply_fits_native_balance() -> bool {
     GOVERNED_SUPPLY_TARGET_AEKO <= MAX_NATIVE_AEKO_AT_CURRENT_PRECISION
@@ -317,10 +316,9 @@ impl EmissionState {
             EmissionBand::Year2 => (YEAR_2_EMISSION_AEKO, YEAR_2_EPOCH_EMISSION_AEKO),
             EmissionBand::Year3 => (YEAR_3_EMISSION_AEKO, YEAR_3_EPOCH_EMISSION_AEKO),
             EmissionBand::Year4 => (YEAR_4_EMISSION_AEKO, YEAR_4_EPOCH_EMISSION_AEKO),
-            EmissionBand::Year5Floor => (
-                YEAR_5_PLUS_EMISSION_AEKO,
-                YEAR_5_PLUS_EPOCH_EMISSION_AEKO,
-            ),
+            EmissionBand::Year5Floor => {
+                (YEAR_5_PLUS_EMISSION_AEKO, YEAR_5_PLUS_EPOCH_EMISSION_AEKO)
+            }
         }
     }
 }
