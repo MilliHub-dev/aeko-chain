@@ -124,6 +124,7 @@ services:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-protocol-bootstrap:${AEKO_IMAGE_TAG:-latest}
     container_name: aeko-protocol-bootstrap
     environment:
+      AEKO_NETWORK: ${AEKO_NETWORK:-localnet}
       AEKO_RPC_URL: ${AEKO_RPC_URL:-http://validator:8899}
       AEKO_PAYER_KEYPAIR: /keys/faucet.json
       AEKO_PROTOCOL_AUTHORITY_KEYPAIR: /keys/protocol-authority.json
