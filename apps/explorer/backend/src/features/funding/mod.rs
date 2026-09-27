@@ -1175,11 +1175,7 @@ pub async fn reconcile_submitted_settlements_once(state: &SharedState) -> usize 
 
     let mut transitioned = 0usize;
 
-    let requests = match state
-        .repository
-        .list_submitted_funding_requests(500)
-        .await
-    {
+    let requests = match state.repository.list_submitted_funding_requests(500).await {
         Ok(requests) => requests,
         Err(error) => {
             tracing::error!(
@@ -1197,11 +1193,7 @@ pub async fn reconcile_submitted_settlements_once(state: &SharedState) -> usize 
         }
     }
 
-    let airdrops = match state
-        .repository
-        .list_submitted_funding_airdrops(500)
-        .await
-    {
+    let airdrops = match state.repository.list_submitted_funding_airdrops(500).await {
         Ok(airdrops) => airdrops,
         Err(error) => {
             tracing::error!(
@@ -1222,10 +1214,7 @@ pub async fn reconcile_submitted_settlements_once(state: &SharedState) -> usize 
     transitioned
 }
 
-async fn reconcile_submitted_grant(
-    state: &SharedState,
-    request: FundingRequestRecord,
-) -> bool {
+async fn reconcile_submitted_grant(state: &SharedState, request: FundingRequestRecord) -> bool {
     let Some(signature) = request.signature.clone() else {
         tracing::error!(
             request_id = %request.id,
@@ -1253,11 +1242,7 @@ async fn reconcile_submitted_grant(
         Ok(FundingTransferStatus::Failed(error)) => {
             match state
                 .repository
-                .mark_funding_request_failed(
-                    &request.id,
-                    "FUNDING_TRANSACTION_FAILED",
-                    &error,
-                )
+                .mark_funding_request_failed(&request.id, "FUNDING_TRANSACTION_FAILED", &error)
                 .await
             {
                 Ok(_) => true,
@@ -1296,10 +1281,7 @@ async fn reconcile_submitted_grant(
     }
 }
 
-async fn reconcile_submitted_airdrop(
-    state: &SharedState,
-    airdrop: FundingAirdropRecord,
-) -> bool {
+async fn reconcile_submitted_airdrop(state: &SharedState, airdrop: FundingAirdropRecord) -> bool {
     let Some(signature) = airdrop.signature.clone() else {
         tracing::error!(
             airdrop_id = %airdrop.id,
@@ -1327,11 +1309,7 @@ async fn reconcile_submitted_airdrop(
         Ok(FundingTransferStatus::Failed(error)) => {
             match state
                 .repository
-                .mark_funding_airdrop_failed(
-                    &airdrop.id,
-                    "AIRDROP_TRANSACTION_FAILED",
-                    &error,
-                )
+                .mark_funding_airdrop_failed(&airdrop.id, "AIRDROP_TRANSACTION_FAILED", &error)
                 .await
             {
                 Ok(_) => true,
@@ -1351,11 +1329,7 @@ async fn reconcile_submitted_airdrop(
         Err(error) => {
             if let Err(store_error) = state
                 .repository
-                .mark_funding_airdrop_error(
-                    &airdrop.id,
-                    "AIRDROP_CONFIRMATION_UNAVAILABLE",
-                    &error,
-                )
+                .mark_funding_airdrop_error(&airdrop.id, "AIRDROP_CONFIRMATION_UNAVAILABLE", &error)
                 .await
             {
                 tracing::warn!(
