@@ -992,9 +992,11 @@ async fn observe_grant(
 
     let rpc = state.rpc.clone();
     let signature_for_wait = signature.clone();
+    let blockhash_for_wait = request.submission_blockhash.clone();
     let observation = tokio::task::spawn_blocking(move || {
-        rpc.wait_for_funding_transfer(
+        rpc.wait_for_funding_transfer_with_blockhash(
             &signature_for_wait,
+            blockhash_for_wait.as_deref(),
             CONFIRMATION_ATTEMPTS,
             Duration::from_millis(CONFIRMATION_INTERVAL_MS),
         )
@@ -1203,9 +1205,11 @@ async fn observe_airdrop(
 
     let rpc = state.rpc.clone();
     let signature_for_wait = signature.clone();
+    let blockhash_for_wait = airdrop.submission_blockhash.clone();
     let observation = tokio::task::spawn_blocking(move || {
-        rpc.wait_for_funding_transfer(
+        rpc.wait_for_funding_transfer_with_blockhash(
             &signature_for_wait,
+            blockhash_for_wait.as_deref(),
             CONFIRMATION_ATTEMPTS,
             Duration::from_millis(CONFIRMATION_INTERVAL_MS),
         )
@@ -1559,7 +1563,13 @@ async fn reconcile_submitted_grant(state: &SharedState, request: FundingRequestR
         return false;
     };
 
-    match funding_transfer_status_once(state, &signature).await {
+    match funding_transfer_status_once(
+        state,
+        &signature,
+        request.submission_blockhash.as_deref(),
+    )
+    .await
+    {
         Ok(FundingTransferStatus::Confirmed) => {
             match state.repository.confirm_funding_request(&request.id).await {
                 Ok(_) => true,
@@ -1626,7 +1636,13 @@ async fn reconcile_submitted_airdrop(state: &SharedState, airdrop: FundingAirdro
         return false;
     };
 
-    match funding_transfer_status_once(state, &signature).await {
+    match funding_transfer_status_once(
+        state,
+        &signature,
+        airdrop.submission_blockhash.as_deref(),
+    )
+    .await
+    {
         Ok(FundingTransferStatus::Confirmed) => {
             match state.repository.confirm_funding_airdrop(&airdrop.id).await {
                 Ok(_) => true,
@@ -1683,10 +1699,16 @@ async fn reconcile_submitted_airdrop(state: &SharedState, airdrop: FundingAirdro
 async fn funding_transfer_status_once(
     state: &SharedState,
     signature: &str,
+    recent_blockhash: Option<&str>,
 ) -> Result<FundingTransferStatus, String> {
     let rpc = state.rpc.clone();
     let signature = signature.to_string();
-    match tokio::task::spawn_blocking(move || rpc.funding_transfer_status(&signature)).await {
+    let recent_blockhash = recent_blockhash.map(str::to_owned);
+    match tokio::task::spawn_blocking(move || {
+        rpc.funding_transfer_status_with_blockhash(&signature, recent_blockhash.as_deref())
+    })
+    .await
+    {
         Ok(Ok(status)) => Ok(status),
         Ok(Err(error)) => Err(error.to_string()),
         Err(error) => Err(error.to_string()),
