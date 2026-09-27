@@ -6,6 +6,8 @@ Owner: AEKO core team
 
 Scope: This document defines the economic model for AEKO as the native gas, staking, governance, and SocialFi reward token. It is the source of truth for Phase 2 implementation. No AEKO-20, public minting, or AEKO-721 contract logic should hardcode economic values that conflict with this document.
 
+Implementation boundary: signed-off economic policy is not the same as completed runtime integration. The repository currently models these allocations and parameters in the tokenomics program, but mainnet governed treasury/grant execution and runtime transaction-fee routing are not yet fully wired to this state. Testnet/devnet Faucet funding is test liquidity and must never be counted as, or debited from, the governed mainnet allocation buckets.
+
 ## 1. Purpose
 
 AEKO is the native token of AEKO Chain and serves four roles:
@@ -447,7 +449,7 @@ This example is normative for formula interpretation, with final implementation 
 ## 14. Sign-Off Checklist
 
 - [x] Supply model approved
-- [ ] Genesis circulating assumptions approved
+- [x] Genesis circulating assumptions approved
 - [x] Team vesting schedule approved
 - [x] Inflation schedule approved
 - [x] Epoch emission method approved
@@ -456,7 +458,7 @@ This example is normative for formula interpretation, with final implementation 
 - [x] Slashing policy approved
 - [x] Fee split approved
 - [x] Subsidy policy approved
-- [ ] This document approved as Phase 2 source of truth
+- [x] This document approved as Phase 2 source of truth
 
 ## 15. Compatibility Note
 
