@@ -128,6 +128,20 @@ fn server_config() -> ServerConfig {
     }
 }
 
+async fn build_rpc_owner(config: ExplorerBackendConfig) -> Result<Arc<RpcChainClient>> {
+    let client = tokio::task::spawn_blocking(move || RpcChainClient::new(config))
+        .await
+        .context("RPC client construction worker panicked")??;
+    Ok(Arc::new(client))
+}
+
+async fn drop_rpc_owner(owner: Arc<RpcChainClient>) -> Result<()> {
+    tokio::task::spawn_blocking(move || drop(owner))
+        .await
+        .context("RPC client shutdown worker panicked")?;
+    Ok(())
+}
+
 async fn request_json(
     app: &Router,
     method: Method,
@@ -199,9 +213,10 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         .await?;
 
     let admin_token = "test-settings-admin-token-0000000001";
+    let rpc_owner = build_rpc_owner(config).await?;
     let state = AppState::new(
         repository,
-        Arc::new(RpcChainClient::new(config)?),
+        rpc_owner.clone(),
         "testnet",
         "test-genesis",
         128,
@@ -351,6 +366,8 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         .iter()
         .any(|entry| entry["signature"].as_str() == Some(grant_signature.as_str())));
 
+    drop(app);
+    drop_rpc_owner(rpc_owner).await?;
     Ok(())
 }
 
@@ -396,9 +413,10 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
         .await?;
 
     let admin_token = "test-settings-admin-token-0000000003";
+    let rpc_owner = build_rpc_owner(config).await?;
     let state = AppState::new(
         repository,
-        Arc::new(RpcChainClient::new(config)?),
+        rpc_owner.clone(),
         "testnet",
         "test-genesis",
         128,
@@ -477,6 +495,9 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
         1
     );
 
+    drop(app);
+    drop(state);
+    drop_rpc_owner(rpc_owner).await?;
     Ok(())
 }
 
@@ -505,9 +526,10 @@ async fn mainnet_funding_and_airdrop_routes_fail_closed() -> Result<()> {
     config.network = "mainnet".to_string();
     let repository = PostgresRepository::connect(&config).await?;
     let admin_token = "test-settings-admin-token-0000000002";
+    let rpc_owner = build_rpc_owner(config).await?;
     let state = AppState::new(
         repository,
-        Arc::new(RpcChainClient::new(config)?),
+        rpc_owner.clone(),
         "mainnet",
         "mainnet-test-genesis",
         128,
@@ -546,5 +568,7 @@ async fn mainnet_funding_and_airdrop_routes_fail_closed() -> Result<()> {
         assert_eq!(status, StatusCode::NOT_FOUND, "{uri}: {payload}");
     }
 
+    drop(app);
+    drop_rpc_owner(rpc_owner).await?;
     Ok(())
 }
