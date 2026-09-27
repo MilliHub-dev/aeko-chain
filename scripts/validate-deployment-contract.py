@@ -29,6 +29,7 @@ ADMIN_FUNDING_ROUTE = ROOT / "apps" / "admin" / "src" / "app" / "api" / "admin" 
 NETWORK_CONFIG = ROOT / "apps" / "explorer" / "web" / "src" / "utils" / "networkConfig.js"
 NETWORK_TOGGLE = ROOT / "apps" / "explorer" / "web" / "src" / "components" / "NetworkToggle.jsx"
 REGISTRY_RESOLVER = ROOT / "apps" / "explorer" / "backend" / "src" / "infrastructure" / "registry.rs"
+REGISTRY_FEATURE = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "registry.rs"
 SPLIT_BOOTSTRAP = ROOT / "docker" / "coolify" / "bootstrap" / "compose.yml"
 PROTOCOL_INTEGRATION = ROOT / "scripts" / "ci-protocol-stack-integration.sh"
 FUNDING_SMOKE = ROOT / "scripts" / "smoke-funding-e2e.py"
@@ -113,6 +114,7 @@ def main() -> int:
     network_config = read(NETWORK_CONFIG)
     network_toggle = read(NETWORK_TOGGLE)
     registry_resolver = read(REGISTRY_RESOLVER)
+    registry_feature = read(REGISTRY_FEATURE)
     split_bootstrap = read(SPLIT_BOOTSTRAP)
     protocol_integration = read(PROTOCOL_INTEGRATION)
     funding_smoke = read(FUNDING_SMOKE)
@@ -291,12 +293,19 @@ def main() -> int:
         "split Bootstrap registry must expose a safe root discovery manifest",
     )
     require(
+        'Router::new().route("/registry", get(get_registry_index))' in registry_feature
+        and '"/registry/social"' in registry_feature
+        and '"/registry/protocol"' in registry_feature,
+        "Explorer API must expose a non-secret registry discovery endpoint",
+    )
+    require(
         'AEKO_REGISTRY_URL="$REGISTRY_URL"' in protocol_integration
+        and '"/registry"' in protocol_integration
         and '"/registry/social"' in protocol_integration
         and '"/registry/protocol"' in protocol_integration
-        and "Explorer consumed Social and Protocol registries over AEKO_REGISTRY_URL"
+        and "Explorer registry discovery and remote Social/Protocol registry consumption passed"
         in protocol_integration,
-        "live protocol-stack integration must exercise remote registry discovery",
+        "live protocol-stack integration must exercise registry discovery and remote registry consumption",
     )
 
     # Public Scan selection is a product surface, not a list of every
