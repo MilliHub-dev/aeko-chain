@@ -13,6 +13,41 @@ const browserOrigin =
 
 const NETWORK_ORDER = ['mainnet', 'testnet', 'devnet', 'localnet'];
 
+const NETWORK_PRESENTATION = Object.freeze({
+  mainnet: Object.freeze({
+    name: 'Mainnet',
+    badge: 'Mainnet',
+    stateLabel: 'Production network',
+    explorerSummary: 'Browse confirmed Mainnet blocks, transactions, assets, accounts, and social activity.',
+    developerSummary: 'The selected endpoints and commands target Mainnet. Test-only funding and simulation tools are hidden.',
+    fundingSummary: 'Mainnet does not expose test funding or developer airdrops.',
+  }),
+  testnet: Object.freeze({
+    name: 'Testnet',
+    badge: 'Testnet Live',
+    stateLabel: 'Public test network',
+    explorerSummary: 'Browse live Testnet blocks, transactions, assets, accounts, and social activity.',
+    developerSummary: 'The selected endpoints and commands target the public Testnet.',
+    fundingSummary: 'Test funding requests require Admin approval; developer airdrops are a separate test utility.',
+  }),
+  devnet: Object.freeze({
+    name: 'Devnet',
+    badge: 'Development network',
+    stateLabel: 'Private development network',
+    explorerSummary: 'Browse the configured Devnet deployment.',
+    developerSummary: 'The selected endpoints and commands target this explicitly provisioned Devnet.',
+    fundingSummary: 'Devnet funding is test-only and belongs to this Devnet deployment.',
+  }),
+  localnet: Object.freeze({
+    name: 'Localnet',
+    badge: 'Local development',
+    stateLabel: 'Local development network',
+    explorerSummary: 'Browse the local AEKO development validator and indexed state.',
+    developerSummary: 'The selected endpoints and commands target the local development stack.',
+    fundingSummary: 'Local funding is development-only and never represents a public network allocation.',
+  }),
+});
+
 function clean(value) {
   return String(value || '').trim();
 }
@@ -140,6 +175,11 @@ function networkRecord(network) {
 export const NETWORKS = Object.fromEntries(
   NETWORK_ORDER.map((network) => [network, networkRecord(network)]),
 );
+
+export function getNetworkPresentation(network) {
+  const key = normalizeNetworkKey(network) || activeNetwork;
+  return NETWORK_PRESENTATION[key] || NETWORK_PRESENTATION.testnet;
+}
 
 export function getActiveNetwork() {
   return activeNetwork;
