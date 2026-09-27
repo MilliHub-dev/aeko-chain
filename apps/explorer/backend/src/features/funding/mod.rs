@@ -1563,12 +1563,8 @@ async fn reconcile_submitted_grant(state: &SharedState, request: FundingRequestR
         return false;
     };
 
-    match funding_transfer_status_once(
-        state,
-        &signature,
-        request.submission_blockhash.as_deref(),
-    )
-    .await
+    match funding_transfer_status_once(state, &signature, request.submission_blockhash.as_deref())
+        .await
     {
         Ok(FundingTransferStatus::Confirmed) => {
             match state.repository.confirm_funding_request(&request.id).await {
@@ -1636,12 +1632,8 @@ async fn reconcile_submitted_airdrop(state: &SharedState, airdrop: FundingAirdro
         return false;
     };
 
-    match funding_transfer_status_once(
-        state,
-        &signature,
-        airdrop.submission_blockhash.as_deref(),
-    )
-    .await
+    match funding_transfer_status_once(state, &signature, airdrop.submission_blockhash.as_deref())
+        .await
     {
         Ok(FundingTransferStatus::Confirmed) => {
             match state.repository.confirm_funding_airdrop(&airdrop.id).await {
