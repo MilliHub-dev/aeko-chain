@@ -352,6 +352,7 @@ run_social_bootstrap() {
 
 run_protocol_bootstrap() {
   local reset_ledger="${1:-0}"
+  AEKO_NETWORK=localnet \
   AEKO_RPC_URL="$RPC_URL" \
   AEKO_PAYER_KEYPAIR="$LEDGER_DIR/faucet-keypair.json" \
   AEKO_PROTOCOL_AUTHORITY_KEYPAIR="$AUTHORITY_KEYPAIR" \
