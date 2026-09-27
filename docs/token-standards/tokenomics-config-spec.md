@@ -509,3 +509,5 @@ Implementation must enforce:
 - [ ] Governed allocation reserves provisioned and spendable through protocol rules
 - [ ] Validator/delegator reward accounting wired to actual balance settlement
 - [ ] Two-house governance proposal/timelock execution path implemented
+- [x] Direct governable `UpdateField` mutation fails closed while that executor is absent
+- [x] Protocol bootstrap records governance program id as unset instead of aliasing the protocol signer
