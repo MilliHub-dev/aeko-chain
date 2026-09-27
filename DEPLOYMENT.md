@@ -124,11 +124,17 @@ For the currently deployed testnet, the active-environment values are
 `AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900`.
 
 A future mainnet or devnet deployment uses the same variable names on its own
-servers with that network's domains. Aeko Scan is the exception: its generic
-values define the default network, and optional `AEKO_MAINNET_*`,
-`AEKO_TESTNET_*`, and `AEKO_DEVNET_*` RPC/WS/Explorer-API triplets let the
-UI switch to other independent deployments. Browser indexed reads remain
-same-origin under `/api/explorer/{network}`.
+servers with that network's domains. These are independent stacks even when an
+operator happens to place several stacks on the same physical host. They do not
+share an Explorer process, Admin process, database, chain identity, or active
+`AEKO_NETWORK`.
+
+Aeko Scan is the exception: its generic values define the default network, and
+optional `AEKO_MAINNET_*`, `AEKO_TESTNET_*`, and `AEKO_DEVNET_*`
+RPC/WS/Explorer-API triplets let the UI switch to other independent
+deployments. Browser indexed reads remain same-origin under
+`/api/explorer/{network}`; those prefixes are Scan routing labels, not
+evidence that the target networks run inside one server process.
 
 ## Required production environment
 
@@ -149,18 +155,19 @@ AEKO_ALLOW_CHAIN_KEY_GENERATION=0
 ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=<private Admin-to-Explorer settings token>
+# Required on testnet/devnet; configure the identical secret on this network's
+# Validator and Explorer API. Mainnet leaves it empty because Faucet funding is disabled.
+AEKO_FUNDING_AUTHORIZATION_KEY=<32-plus-character-server-secret>
+AEKO_FUNDING_REQUESTS_PER_10_MIN=5
+AEKO_FAUCET_PER_REQUEST_CAP=100
 ```
 
-Optional funding policy (initial values; editable in the admin console afterwards):
-
-```text
-AEKO_FAUCET_PER_REQUEST_CAP=100        # hard ceiling enforced by the faucet binary, in AEKO
-FUNDING_DEFAULT_AMOUNT_AEKO=5
-FUNDING_DEFAULT_COOLDOWN_HOURS=24
-FUNDING_DEFAULT_DAILY_BUDGET_AEKO=5000
-FUNDING_MAX_MANUAL_GRANT_AEKO=100
-FUNDING_MAX_CONSOLE_AIRDROP_AEKO=25
-```
+Funding policy values such as the public request amount, wallet cooldown, daily
+grant budget, Admin manual-grant cap, and developer-airdrop cap live in the
+Explorer PostgreSQL `funding_settings` record. Migration defaults seed the
+first record; Operations Web is the normal editor. Do not configure the retired
+`FUNDING_DEFAULT_*` or `FUNDING_MAX_*` environment variables as parallel
+sources of truth.
 
 Optional SocialFi bootstrap configuration:
 
