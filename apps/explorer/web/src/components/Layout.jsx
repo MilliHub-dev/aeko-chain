@@ -5,7 +5,6 @@ import { motion as Motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/icon.jpg';
 import { useAppSettings } from './AppSettingsContext';
 import { useNetwork } from './NetworkContext';
-import { BRIDGE_RUNTIME_AVAILABLE } from '../utils/appSettings';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,9 +20,6 @@ const Navbar = () => {
     { name: 'Token', path: '/token' },
     ...(settings.nftDemoEnabled && testSurfacesVisible ? [{ name: 'NTF', path: '/ntf' }] : []),
     ...(settings.developersEnabled ? [{ name: 'Developers', path: '/developers' }] : []),
-    ...(settings.bridgeEnabled && BRIDGE_RUNTIME_AVAILABLE
-      ? [{ name: 'Bridge', path: '/bridge' }]
-      : []),
     { name: 'Contact', path: '/contact' },
   ];
 
@@ -188,9 +184,6 @@ const Footer = () => {
                 <li><Link to="/developers" className="hover:text-aeko-accent">Build on Aeko</Link></li>
               ) : null}
               <li><Link to="/explorer" className="hover:text-aeko-accent">Aeko Scan</Link></li>
-              {settings.bridgeEnabled && BRIDGE_RUNTIME_AVAILABLE ? (
-                <li><Link to="/bridge" className="hover:text-aeko-accent">Bridge</Link></li>
-              ) : null}
             </ul>
           </div>
 
