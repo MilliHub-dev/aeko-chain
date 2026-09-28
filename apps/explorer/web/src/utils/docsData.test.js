@@ -82,6 +82,11 @@ test('planned policy and security guides remain explicit and status-scoped', () 
 test('removed Explorer API endpoint surface stays removed', () => {
   const serialized = JSON.stringify(docsPages);
   assert.doesNotMatch(serialized, /\{\{explorerApiUrl\}\}/);
-  const visible = JSON.stringify(docsPages.map(({ id, sources, ...page }) => page));
+  const visible = JSON.stringify(docsPages.map((page) => {
+    const publicPage = { ...page };
+    delete publicPage.id;
+    delete publicPage.sources;
+    return publicPage;
+  }));
   assert.doesNotMatch(visible, /Explorer API/);
 });
