@@ -102,11 +102,15 @@ cargo run -p aeko-cli --bin aeko -- \
 
 ## CI Compatibility Gate
 
-`scripts/ci-protocol-stack-integration.sh` builds this starter as SBF, deploys
-it to the live CI TestValidator, verifies the program account is executable,
-runs `examples/invoke_hello.rs`, and requires a confirmed transaction whose
-logs contain `Hello from AEKO!`. That gate keeps the documented external
-developer path coupled to the chain runtime and CLI.
+The dedicated `Smart contracts (SBF → AEKO SVM)` CI job builds this starter
+as SBF, starts an isolated AEKO TestValidator, deploys the generated artifact
+through the real `aeko program deploy` CLI path, verifies the program account
+is executable, runs `examples/invoke_hello.rs`, and requires a confirmed
+transaction whose logs contain `Hello from AEKO!`.
+
+That smart-contract gate is intentionally separate from validator/Faucet/
+bootstrap image validation, while still proving compatibility with the AEKO SVM
+and CLI.
 
 ## Suggested Next Steps After Hello World
 

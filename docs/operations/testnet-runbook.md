@@ -116,21 +116,19 @@ authenticated route, the protected Validator/Faucet settlement confirms,
 the wallet balance increases, exactly one confirmed grant is persisted, and the
 grant does not appear in the developer-airdrop ledger.
 
-**Smart-contract build/deploy/invoke works in CI.** The repository's live
-protocol-stack gate also builds
+**Smart-contract build/deploy/invoke works in CI.** The dedicated
+`Smart contracts (SBF → AEKO SVM)` job builds
 [`contracts/hello-aeko-program`](../../contracts/hello-aeko-program/) with
-`cargo-build-sbf`, deploys it through the AEKO CLI to the real CI
-`aeko-test-validator`, verifies the program account is executable, invokes the
-documented Rust example, and requires the confirmed transaction logs to contain
-`Hello from AEKO!`:
+`cargo-build-sbf`, starts an isolated AEKO `aeko-test-validator`, deploys the
+resulting SBF artifact through the real `aeko program deploy` CLI path, invokes
+the documented Rust example, and requires the confirmed transaction logs to
+contain `Hello from AEKO!`.
 
-```bash
-scripts/ci-protocol-stack-integration.sh
-```
-
-That gate proves repository runtime/toolchain compatibility on an isolated CI
-network. It does **not** automatically deploy the Hello World program to the
-public testnet; public deployment remains an explicit developer/operator action.
+The smart-contract lane is intentionally separate from the Blockchain network
+image lane. It proves contract/toolchain/SVM compatibility without treating a
+deployable contract as a validator, Faucet, or bootstrap image. It does **not**
+automatically deploy the Hello World program to the public testnet; public
+deployment remains an explicit developer/operator action.
 
 **Explorer is indexing.** `curl -s https://scan.aeko.online/api/explorer/testnet/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `https://scan.aeko.online` should show a list of recent blocks and a slot counter that ticks up.
 

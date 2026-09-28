@@ -41,6 +41,7 @@ jobs:
       cli: ${{ steps.changes.outputs.cli }}
       core: ${{ steps.changes.outputs.core }}
       packaging: ${{ steps.changes.outputs.packaging }}
+      smart_contracts: ${{ steps.changes.outputs.smart_contracts }}
       explorer_backend: ${{ steps.changes.outputs.explorer_backend }}
       explorer_web: ${{ steps.changes.outputs.explorer_web }}
       coolify_bootstrap: ${{ steps.changes.outputs.coolify_bootstrap }}
@@ -67,6 +68,7 @@ jobs:
       run_explorer_backend: ${{ steps.plan.outputs.run_explorer_backend }}
       run_explorer_web: ${{ steps.plan.outputs.run_explorer_web }}
       run_network: ${{ steps.plan.outputs.run_network }}
+      run_smart_contracts: ${{ steps.plan.outputs.run_smart_contracts }}
       run_sdk_non_rust: ${{ steps.plan.outputs.run_sdk_non_rust }}
       run_sdk_rust: ${{ steps.plan.outputs.run_sdk_rust }}
       run_ci_contract: ${{ steps.plan.outputs.run_ci_contract }}
@@ -108,6 +110,7 @@ jobs:
           CLI: ${{ steps.changes.outputs.cli }}
           CORE: ${{ steps.changes.outputs.core }}
           PACKAGING: ${{ steps.changes.outputs.packaging }}
+          SMART_CONTRACTS: ${{ steps.changes.outputs.smart_contracts }}
           EXPLORER_BACKEND: ${{ steps.changes.outputs.explorer_backend }}
           EXPLORER_WEB: ${{ steps.changes.outputs.explorer_web }}
           COOLIFY_BOOTSTRAP: ${{ steps.changes.outputs.coolify_bootstrap }}
@@ -312,6 +315,29 @@ jobs:
           registry-user: ${{ needs.classify.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ needs.classify.outputs.sha_tag }}
 
+  smart_contracts:
+    name: Smart contracts (SBF → AEKO SVM)
+    needs: classify
+    if: needs.classify.outputs.run_smart_contracts == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare smart-contract runner
+        uses: ./.github/actions/devops/pipeline/setup
+        with:
+          rust: ${{ needs.classify.outputs.run_smart_contracts }}
+          python: ${{ needs.classify.outputs.run_smart_contracts }}
+
+      - name: Build, deploy, invoke, and verify SBF contract
+        uses: ./.github/actions/devops/smart-contracts
+        with:
+          validate-source: ${{ needs.classify.outputs.run_smart_contracts }}
+
   sdk_non_rust:
     name: External SDKs (JS / Node / Python)
     needs: classify
@@ -382,6 +408,7 @@ jobs:
       - cli
       - explorer_backend
       - network
+      - smart_contracts
       - sdk_non_rust
       - sdk_rust
     if: ${{ always() && !cancelled() && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') }}
@@ -407,6 +434,8 @@ jobs:
           EXPLORER_BACKEND_RESULT: ${{ needs.explorer_backend.result }}
           EXPECT_NETWORK: ${{ needs.classify.outputs.run_network }}
           NETWORK_RESULT: ${{ needs.network.result }}
+          EXPECT_SMART_CONTRACTS: ${{ needs.classify.outputs.run_smart_contracts }}
+          SMART_CONTRACTS_RESULT: ${{ needs.smart_contracts.result }}
           EXPECT_SDK_NON_RUST: ${{ needs.classify.outputs.run_sdk_non_rust }}
           SDK_NON_RUST_RESULT: ${{ needs.sdk_non_rust.result }}
           EXPECT_SDK_RUST: ${{ needs.classify.outputs.run_sdk_rust }}
