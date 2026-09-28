@@ -8,7 +8,7 @@ import {
   Menu,
   Network,
 } from 'lucide-react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion as Motion, useReducedMotion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import DocsContent from '../components/docs/DocsContent';
 import DocsSidebar from '../components/docs/DocsSidebar';
@@ -232,7 +232,7 @@ export default function Docs() {
               </section>
             ) : null}
 
-            <motion.div
+            <Motion.div
               key={page.id}
               initial={reduceMotion ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -245,7 +245,7 @@ export default function Docs() {
                 pagesById={docsPagesById}
                 onNavigatePage={navigatePage}
               />
-            </motion.div>
+            </Motion.div>
 
             <div className="mt-14 grid gap-3 border-t border-white/10 pt-8 sm:grid-cols-2">
               <PageNavButton

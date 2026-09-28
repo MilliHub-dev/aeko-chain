@@ -111,7 +111,7 @@ function Callout({ block }) {
   );
 }
 
-function EndpointList({ block, networkConfig }) {
+function EndpointList({ block, networkConfig, anchor }) {
   return (
     <section className="space-y-4">
       <BlockHeading id={anchor} title={block.title} />
@@ -147,7 +147,7 @@ function EndpointList({ block, networkConfig }) {
   );
 }
 
-function DocsTable({ block }) {
+function DocsTable({ block, anchor }) {
   return (
     <section className="space-y-4">
       <BlockHeading id={anchor} title={block.title} />
@@ -281,9 +281,9 @@ function renderBlock(block, networkConfig, index) {
         </section>
       );
     case 'table':
-      return <DocsTable block={block} />;
+      return <DocsTable block={block} anchor={anchor} />;
     case 'endpoints':
-      return <EndpointList block={block} networkConfig={networkConfig} />;
+      return <EndpointList block={block} networkConfig={networkConfig} anchor={anchor} />;
     default:
       return null;
   }
