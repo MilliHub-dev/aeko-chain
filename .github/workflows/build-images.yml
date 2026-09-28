@@ -8,6 +8,10 @@ on:
       - "**/*.md"
       - "LICENSE*"
       - "NOTICE*"
+      - "contracts/**"
+      - "scripts/smoke-hello-program.py"
+      - ".github/actions/devops/smart-contracts/**"
+      - ".github/workflows/smart-contracts.yml"
   push:
     branches: ["main"]
     paths-ignore:
@@ -15,6 +19,10 @@ on:
       - "**/*.md"
       - "LICENSE*"
       - "NOTICE*"
+      - "contracts/**"
+      - "scripts/smoke-hello-program.py"
+      - ".github/actions/devops/smart-contracts/**"
+      - ".github/workflows/smart-contracts.yml"
   workflow_dispatch:
 
 permissions:
