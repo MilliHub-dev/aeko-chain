@@ -991,8 +991,10 @@ mod tests {
             }
         });
 
-        let mut config = ExplorerBackendConfig::default();
-        config.rpc_url = format!("http://{address}");
+        let config = ExplorerBackendConfig {
+            rpc_url: format!("http://{address}"),
+            ..ExplorerBackendConfig::default()
+        };
         let client = RpcChainClient::new(config).unwrap();
         let record = client.fetch_core_slot(0).unwrap();
         server.join().unwrap();
