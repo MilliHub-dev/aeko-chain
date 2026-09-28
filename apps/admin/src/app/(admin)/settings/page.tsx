@@ -44,7 +44,7 @@ const SAFE_DRAFT: SettingsDraft = {
   networkConsoleEnabled: false,
   docsEnabled: true,
   developersEnabled: true,
-  bridgeEnabled: true,
+  bridgeEnabled: false,
   nftDemoEnabled: true,
   nftLiveFlowEnabled: false,
   nftAdvancedToolsEnabled: false,
@@ -77,6 +77,7 @@ type ToggleSetting =
 function toDraft(snapshot: SettingsSnapshot): SettingsDraft {
   return {
     ...snapshot.application,
+    bridgeEnabled: false,
     socialReadinessRequired: snapshot.blockchain.socialReadinessRequired,
     maxReadyLagSlots: snapshot.blockchain.maxReadyLagSlots,
   }
@@ -286,7 +287,7 @@ export default function SettingsPage() {
               <ToggleRow label="AEKO Network Console" description="Enable the signed test-wallet, program, Social workspace and Social E2E tools inside Network Tools." checked={draft.networkConsoleEnabled} onChange={(value) => updateToggle('networkConsoleEnabled', value)} disabled={controlsDisabled || !draft.networkToolsEnabled} />
               <ToggleRow label="Documentation" description="Expose the public documentation route and navigation entry." checked={draft.docsEnabled} onChange={(value) => updateToggle('docsEnabled', value)} disabled={controlsDisabled} />
               <ToggleRow label="Developer portal" description="Expose the Build on Aeko developer page and navigation entry." checked={draft.developersEnabled} onChange={(value) => updateToggle('developersEnabled', value)} disabled={controlsDisabled} />
-              <ToggleRow label="Bridge page" description="Expose the public bridge route and navigation entry." checked={draft.bridgeEnabled} onChange={(value) => updateToggle('bridgeEnabled', value)} disabled={controlsDisabled} />
+              <ToggleRow label="Bridge" description="Unavailable: cross-chain Bridge remains Phase 7 work and is intentionally fail-closed until the protocol and settlement path exist." checked={false} onChange={() => undefined} disabled />
               <ToggleRow label="NFT Demo page" description="Expose the AEKO-721 demo route and navigation links." checked={draft.nftDemoEnabled} onChange={(value) => updateToggle('nftDemoEnabled', value)} disabled={controlsDisabled} />
               <ToggleRow label="NFT live lifecycle" description="Show the public wallet-local create, mint, freeze, thaw, update, transfer, and Explorer verification flow." checked={draft.nftLiveFlowEnabled} onChange={(value) => updateToggle('nftLiveFlowEnabled', value)} disabled={controlsDisabled || !draft.nftDemoEnabled} />
               <ToggleRow label="NFT advanced protocol tools" description="Show lower-level account reads, setup builders, unsigned transaction tools, wallet adapter diagnostics, and signed submission." checked={draft.nftAdvancedToolsEnabled} onChange={(value) => updateToggle('nftAdvancedToolsEnabled', value)} disabled={controlsDisabled || !draft.nftDemoEnabled} />
