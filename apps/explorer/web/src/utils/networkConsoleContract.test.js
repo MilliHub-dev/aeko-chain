@@ -246,9 +246,10 @@ test('Admin section switches keep descriptions outside non-wrapping tab buttons'
 });
 
 
-test('Explorer web is the multi-network boundary while services use one active environment', async () => {
+test('Explorer web exposes only Mainnet and Testnet in production', async () => {
   const example = await source('../.env.example');
-  const deploymentEnv = await source('../../../../docker/env.public.example');
+  const splitEnv = await source('../.env.coolify.example');
+  const splitCompose = await source('../compose.coolify.yml');
   const viteConfig = await source('../vite.config.js');
   const networkConfig = await source('utils/networkConfig.js');
   const entrypoint = await source('../../../../docker/explorer-ui-entrypoint.sh');
@@ -269,77 +270,58 @@ test('Explorer web is the multi-network boundary while services use one active e
     'AEKO_TESTNET_RPC_URL',
     'AEKO_TESTNET_WS_URL',
     'AEKO_TESTNET_EXPLORER_API_URL',
-    'AEKO_DEVNET_RPC_URL',
-    'AEKO_DEVNET_WS_URL',
-    'AEKO_DEVNET_EXPLORER_API_URL',
   ]) {
     assert.match(example, new RegExp('^' + key + '=', 'm'));
-    assert.match(deploymentEnv, new RegExp(key));
+    assert.match(splitEnv, new RegExp('^' + key + '=', 'm'));
+    assert.match(splitCompose, new RegExp(key));
   }
 
-  for (const retired of [
-    'AEKO_ENV',
-    'AEKO_PUBLIC_RPC_URL',
-    'AEKO_PUBLIC_WS_URL',
-    'AEKO_INTERNAL_RPC_URL',
-    'AEKO_INTERNAL_EXPLORER_API_URL',
-    'AEKO_PUBLIC_EXPLORER_API_URL',
-    'VITE_AEKO_',
+  for (const privateRuntime of [
+    'AEKO_DEVNET_',
+    'AEKO_LOCALNET_',
+    'AEKO_DEMO_',
   ]) {
-    assert.doesNotMatch(example, new RegExp(retired));
-    assert.doesNotMatch(networkConfig, new RegExp(retired));
+    assert.doesNotMatch(splitEnv, new RegExp(privateRuntime));
+    assert.doesNotMatch(splitCompose, new RegExp(privateRuntime));
+    assert.doesNotMatch(entrypoint, new RegExp(privateRuntime));
   }
 
-  assert.match(viteConfig, /AEKO_NETWORK/);
-  assert.match(viteConfig, /AEKO_RPC_URL/);
-  assert.match(viteConfig, /AEKO_EXPLORER_API_URL/);
-  assert.match(viteConfig, /network\.toUpperCase\(\)/);
-  assert.match(viteConfig, /'mainnet', 'testnet', 'devnet', 'localnet'/);
-  assert.match(viteConfig, /`\/api\/explorer\/\$\{network\}`/);
+  assert.match(viteConfig, /PUBLIC_NETWORKS = \['mainnet', 'testnet'\]/);
+  assert.match(viteConfig, /activeNetwork = configuredActive \|\| 'localnet'/);
+  assert.doesNotMatch(viteConfig, /devnet/);
   assert.match(viteConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
 
-  assert.match(server, /AEKO_NETWORK/);
-  assert.match(server, /AEKO_EXPLORER_API_URL/);
-  assert.match(server, /AEKO_DEVNET_EXPLORER_API_URL/);
-  assert.match(server, /'mainnet', 'testnet', 'devnet', 'localnet'/);
-  assert.match(server, /FUNDING_WRITE_PATHS/);
-  assert.match(server, /\/funding\/request/);
-  assert.match(server, /\/funding\/airdrop/);
-  assert.match(server, /target\.network === 'mainnet'/);
-  assert.match(server, /METHOD_NOT_ALLOWED/);
+  assert.match(server, /\['mainnet', 'testnet'\]/);
+  assert.doesNotMatch(server, /AEKO_DEVNET_EXPLORER_API_URL/);
+  assert.doesNotMatch(server, /AEKO_LOCALNET_EXPLORER_API_URL/);
+  assert.match(server, /target\.network !== 'testnet'/);
+  assert.match(server, /pathname === '\/runtime-config\.js'/);
+  assert.match(server, /'no-store'/);
+  assert.match(server, /url\.pathname === '\/healthz'/);
 
   assert.match(networkConfig, /runtime\.networks/);
-  assert.match(networkConfig, /runtime\.network/);
-  assert.match(networkConfig, /getActiveNetwork/);
-  assert.match(networkConfig, /getDefaultExplorerNetwork/);
-  assert.match(networkConfig, /getTestNetwork/);
-  assert.match(networkConfig, /key === 'devnet'/);
-  assert.doesNotMatch(networkConfig, /Legacy alias/);
-  assert.doesNotMatch(networkConfig, /devnet.*localnet.*testnet/i);
+  assert.match(networkConfig, /PUBLIC_NETWORK_ORDER = \['mainnet', 'testnet'\]/);
+  assert.match(networkConfig, /new URL\('\/explorer'/);
+  assert.doesNotMatch(networkConfig, /name: 'Devnet'/);
+  assert.doesNotMatch(networkConfig, /getDemoConfig/);
 
   assert.match(networkToggle, /PUBLIC_NETWORK_ORDER = \['mainnet', 'testnet'\]/);
   assert.doesNotMatch(networkToggle, /PUBLIC_NETWORK_ORDER = .*devnet|PUBLIC_NETWORK_ORDER = .*localnet/);
-  assert.match(networkToggle, /config\.rpcUrl/);
-  assert.match(networkToggle, /Not configured/);
+  assert.match(networkToggle, /is not available yet/);
   assert.match(networkToggle, /useNetwork/);
 
   assert.match(explorer, /NetworkToggle/);
   assert.match(explorer, /useNetwork/);
   assert.match(networkTools, /NetworkToggle/);
   assert.match(networkTools, /useNetwork/);
-  assert.match(networkTools, /isTestNetwork && settings\.networkConsoleEnabled/);
-  assert.match(networkTools, /authenticated Admin approves grants/);
-  assert.doesNotMatch(networkTools, /config\.key === 'testnet'[\s\S]{0,180}aeko airdrop/);
+  assert.match(networkTools, /Testnet funding request form above/);
+  assert.doesNotMatch(networkTools, /selected Explorer API/i);
 
   assert.match(entrypoint, /AEKO_ACTIVE_NETWORK/);
-  assert.match(entrypoint, /AEKO_RPC_URL/);
-  assert.match(entrypoint, /AEKO_EXPLORER_API_URL/);
-  assert.match(entrypoint, /networks\[activeNetwork\]/);
-  assert.match(entrypoint, /network\.toUpperCase\(\)/);
-  assert.match(entrypoint, /'mainnet', 'testnet', 'devnet', 'localnet'/);
-  assert.doesNotMatch(entrypoint, /AEKO_ENV/);
+  assert.match(entrypoint, /\['mainnet', 'testnet'\]/);
+  assert.doesNotMatch(entrypoint, /devnet|localnet/);
 
-  assert.match(demo, /getDemoConfig/);
+  assert.doesNotMatch(demo, /getDemoConfig/);
   assert.doesNotMatch(demo, /AEKO_DEMO_/);
 });
 
