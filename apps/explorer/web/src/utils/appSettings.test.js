@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { BRIDGE_RUNTIME_AVAILABLE, normalizeAppSettingsPayload, SAFE_APP_SETTINGS } from './appSettings.js';
+import { normalizeAppSettingsPayload, SAFE_APP_SETTINGS } from './appSettings.js';
 
 const root = new URL('../', import.meta.url);
 async function source(path) {
@@ -49,7 +49,6 @@ test('application settings normalize public surfaces and Explorer behavior with 
   assert.deepEqual(invalid.application, SAFE_APP_SETTINGS);
   assert.equal(SAFE_APP_SETTINGS.networkToolsEnabled, true);
   assert.equal(SAFE_APP_SETTINGS.bridgeEnabled, false);
-  assert.equal(BRIDGE_RUNTIME_AVAILABLE, false);
   assert.equal(SAFE_APP_SETTINGS.nftDemoEnabled, true);
   assert.equal(SAFE_APP_SETTINGS.networkConsoleEnabled, false);
   assert.equal(SAFE_APP_SETTINGS.nftLiveFlowEnabled, false);
@@ -69,7 +68,8 @@ test('settings are wired to routes, navigation, search and refresh behavior', as
   assert.match(app, /settings\.networkConsoleEnabled/);
   assert.match(app, /settings\.docsEnabled/);
   assert.match(app, /settings\.developersEnabled/);
-  assert.match(app, /settings\.bridgeEnabled && BRIDGE_RUNTIME_AVAILABLE/);
+  assert.doesNotMatch(app, /import Bridge from/);
+  assert.match(app, /path="\\/bridge"[\\s\\S]*Navigate to="\\/explorer"/);
   assert.match(app, /settings\.nftDemoEnabled/);
   // Mainnet hides every test surface regardless of API visibility flags.
   assert.match(app, /testSurfacesVisible/);
@@ -81,7 +81,8 @@ test('settings are wired to routes, navigation, search and refresh behavior', as
   assert.match(layout, /settings\.networkToolsEnabled/);
   assert.match(layout, /settings\.docsEnabled/);
   assert.match(layout, /settings\.developersEnabled/);
-  assert.match(layout, /settings\.bridgeEnabled && BRIDGE_RUNTIME_AVAILABLE/);
+  assert.doesNotMatch(layout, /settings\.bridgeEnabled/);
+  assert.doesNotMatch(layout, /to="\\/bridge"/);
   assert.match(layout, /settings\.nftDemoEnabled/);
   assert.match(layout, /testSurfacesVisible/);
 
