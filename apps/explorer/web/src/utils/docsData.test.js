@@ -119,3 +119,17 @@ test('legacy monolithic docs payload remains removed', async () => {
     'legacy data/docs.json should stay removed once structured docs are active',
   );
 });
+
+
+test('docs page shell moves keyboard context with guide navigation', async () => {
+  const docsPage = await source('pages/Docs.jsx');
+
+  assert.match(docsPage, /Skip to documentation content/);
+  assert.match(docsPage, /href="#developer-docs-content"/);
+  assert.match(docsPage, /pageTitleRef/);
+  assert.match(docsPage, /tabIndex=\{-1\}/);
+  assert.match(docsPage, /pageTitleRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(docsPage, /document\.title = .*AEKO Developer Docs/);
+  assert.match(docsPage, /restoreMobileTriggerRef/);
+  assert.match(docsPage, /if \(isMobileMenuOpen\) restoreMobileTriggerRef\.current = false/);
+});

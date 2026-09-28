@@ -62,6 +62,10 @@ export default function Docs() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuTriggerRef = useRef(null);
   const mobileMenuPanelRef = useRef(null);
+  const restoreMobileTriggerRef = useRef(true);
+  const pageTitleRef = useRef(null);
+  const hasMountedPageRef = useRef(false);
+  const initialDocumentTitleRef = useRef(null);
   const { network, config: networkConfig } = useNetwork();
   const location = useLocation();
   const navigate = useNavigate();
@@ -81,6 +85,7 @@ export default function Docs() {
 
   const navigatePage = useCallback((pageId) => {
     if (!getDocsPage(pageId)) return;
+    if (isMobileMenuOpen) restoreMobileTriggerRef.current = false;
     const nextParams = new URLSearchParams(location.search);
     nextParams.set('page', pageId);
     setIsMobileMenuOpen(false);
@@ -89,7 +94,32 @@ export default function Docs() {
       search: `?${nextParams.toString()}`,
       hash: '',
     });
-  }, [location.pathname, location.search, navigate]);
+  }, [isMobileMenuOpen, location.pathname, location.search, navigate]);
+
+  useEffect(() => {
+    if (initialDocumentTitleRef.current === null) {
+      initialDocumentTitleRef.current = document.title;
+    }
+    return () => {
+      if (initialDocumentTitleRef.current !== null) {
+        document.title = initialDocumentTitleRef.current;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    document.title = `${page.title} | AEKO Developer Docs`;
+
+    if (!hasMountedPageRef.current) {
+      hasMountedPageRef.current = true;
+      return undefined;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      pageTitleRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [page.id, page.title]);
 
   useEffect(() => {
     if (!requestedPageId || getDocsPage(requestedPageId)) return;
@@ -160,12 +190,21 @@ export default function Docs() {
       window.cancelAnimationFrame(focusFrame);
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
-      window.requestAnimationFrame(() => mobileMenuTriggerRef.current?.focus());
+      if (restoreMobileTriggerRef.current) {
+        window.requestAnimationFrame(() => mobileMenuTriggerRef.current?.focus());
+      }
+      restoreMobileTriggerRef.current = true;
     };
   }, [isMobileMenuOpen]);
 
   return (
     <div className="min-h-screen bg-aeko-dark">
+      <a
+        href="#developer-docs-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-black focus:shadow-xl focus:outline-none focus:ring-2 focus:ring-aeko-accent"
+      >
+        Skip to documentation content
+      </a>
       <div className="mx-auto max-w-[1540px] px-4 pb-24 pt-24 sm:px-6 lg:px-8">
         <div className="mb-5 flex items-center justify-between gap-4 lg:hidden">
           <button
@@ -229,7 +268,11 @@ export default function Docs() {
                         {networkConfig?.label || network}
                       </span>
                     </div>
-                    <h1 className="max-w-[18ch] text-4xl font-semibold leading-[1.05] tracking-[-0.035em] text-white sm:text-5xl">
+                    <h1
+                      ref={pageTitleRef}
+                      tabIndex={-1}
+                      className="max-w-[18ch] text-4xl font-semibold leading-[1.05] tracking-[-0.035em] text-white outline-none sm:text-5xl"
+                    >
                       {page.title}
                     </h1>
                     <p className="mt-5 max-w-2xl text-base leading-7 text-gray-400 sm:text-[17px]">
