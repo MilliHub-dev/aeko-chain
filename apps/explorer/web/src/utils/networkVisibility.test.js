@@ -168,7 +168,7 @@ test('visible environment terminology follows the selected network', async () =>
 
   assert.match(config, /getNetworkPresentation/);
   assert.match(config, /badge: 'Mainnet'/);
-  assert.match(config, /badge: 'Testnet Live'/);
+  assert.match(config, /badge: 'Testnet'/);
   for (const body of [home, explorer, developers, tools]) {
     assert.match(body, /getNetworkPresentation|presentation\./);
   }
