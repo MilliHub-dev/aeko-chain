@@ -34,7 +34,7 @@ function buildQuery(params = {}) {
 async function fetchEnvelope(path, network) {
   const base = getExplorerApiBase(network);
   if (!base) {
-    throw new ExplorerApiError('Explorer API URL is not configured', { path });
+    throw new ExplorerApiError('Aeko Scan data is unavailable for the selected network.', { path });
   }
 
   let response;
@@ -63,8 +63,7 @@ async function fetchEnvelope(path, network) {
       message = `Indexer is unreachable (${response.status}). The explorer backend may be restarting or syncing — retry in a moment.`;
     } else if (looksLikeExplorerUi) {
       message =
-        `Explorer read proxy is misrouted (${response.status}): the same-origin API path returned the Explorer UI HTML. `
-        + 'Check the selected Scan Explorer API upstream (active AEKO_EXPLORER_API_URL or its Scan-only alternate).';
+        `Aeko Scan could not reach its data service (${response.status}). Please try again shortly.`;
     } else {
       message = `Indexer returned non-JSON (${response.status}). ${snippet}`;
     }
