@@ -1,7 +1,5 @@
 import { getDefaultExplorerNetwork, getNetworkConfig } from './networkConfig.js';
 
-export const BRIDGE_RUNTIME_AVAILABLE = false;
-
 export const SAFE_APP_SETTINGS = Object.freeze({
   networkToolsEnabled: true,
   networkConsoleEnabled: false,
