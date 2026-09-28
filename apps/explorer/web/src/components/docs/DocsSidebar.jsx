@@ -7,7 +7,7 @@ export default function DocsSidebar({
   activePageId,
   onNavigate,
   mobile = false,
-  onClose,
+  onClose = () => {},
 }) {
   const [query, setQuery] = useState('');
   const normalizedQuery = query.trim().toLowerCase();
