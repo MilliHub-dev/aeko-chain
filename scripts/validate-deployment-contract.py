@@ -743,9 +743,9 @@ def main() -> int:
     )
     require(
         "./cargo-build-sbf" in write_first_program
-        and "Smart contracts (SBF → AEKO SVM)" in write_first_program
+        and "AEKO Smart Contracts (non-blocking)" in write_first_program
         and "Hello from AEKO!" in write_first_program,
-        "write-first-program guide must match the dedicated Hello World smart-contract gate",
+        "write-first-program guide must match the non-blocking live Hello World smart-contract gate",
     )
     require(
         "./cargo-build-sbf" in rust_sdk_guide
