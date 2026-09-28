@@ -68,6 +68,34 @@ test('public documentation never exposes internal repository or file references'
   }
 });
 
+test('public copy describes developer capabilities instead of documentation derivation', () => {
+  const content = JSON.stringify({ sections: docsSections, pages: docsPages });
+  const forbiddenDerivationLanguage = [
+    /methods exercised by current SDKs/i,
+    /implemented instruction areas/i,
+    /implemented program actions/i,
+    /implemented instruction families/i,
+    /implemented NFT lifecycle/i,
+    /implemented AEKO-20 action surface/i,
+    /historical draft/i,
+    /older material/i,
+    /draft service routes/i,
+    /trace in source and tests/i,
+    /current client code/i,
+    /current implementation/i,
+    /reference implementation/i,
+    /checked-in fast installer/i,
+  ];
+
+  for (const pattern of forbiddenDerivationLanguage) {
+    assert.doesNotMatch(
+      content,
+      pattern,
+      `public docs must describe the product contract, not derivation language matching ${pattern}`,
+    );
+  }
+});
+
 test('on-page outline ids are stable and unique within each page', () => {
   for (const page of docsPages) {
     const outline = getDocsPageOutline(page);

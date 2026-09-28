@@ -124,7 +124,7 @@ const docsData = {
       "id": "overview",
       "title": "Build on AEKO",
       "section": "start-here",
-      "summary": "A consumer-first path from a network endpoint to a verified transaction, API integration, or on-chain program.",
+      "summary": "A practical path from a network endpoint to a confirmed transaction, API integration, or on-chain program.",
       "status": "available",
       "tags": [
         "quickstart",
@@ -136,14 +136,14 @@ const docsData = {
         "Use a wallet or signing method appropriate for your application."
       ],
       "outcomes": [
-        "Pick the right AEKO developer surface.",
+        "Choose the AEKO toolchain that fits your application.",
         "Complete a read or write and verify the result in Aeko Scan."
       ],
       "networkTools": true,
       "blocks": [
         {
           "type": "callout",
-          "title": "Start with the public developer surface",
+          "title": "Start with one working path",
           "body": "Choose a network, a supported SDK or the CLI, then verify the result in Aeko Scan. Start with one working read/write loop and expand only when your application needs another surface.",
           "tone": "info"
         },
@@ -558,7 +558,7 @@ const docsData = {
       "id": "cli-reference",
       "title": "CLI command families",
       "section": "tooling",
-      "summary": "A map of the command families exposed by the current AEKO CLI, organized by developer task.",
+      "summary": "AEKO CLI command families organized by developer task.",
       "status": "available",
       "tags": [
         "cli",
@@ -753,8 +753,8 @@ const docsData = {
         },
         {
           "type": "callout",
-          "title": "Do not invent companion packages",
-          "body": "Use `@aeko-chain/sdk` for the Node.js developer surface. Only add companion packages that are explicitly published and supported for the release you target.",
+          "title": "Use published packages only",
+          "body": "Use `@aeko-chain/sdk` for Node.js services. Add companion packages only when they are published and documented for the release you target.",
           "tone": "warning"
         }
       ],
@@ -897,7 +897,7 @@ const docsData = {
         },
         {
           "type": "table",
-          "title": "Methods exercised by current SDKs",
+          "title": "Common JSON-RPC methods",
           "headers": [
             "Method",
             "Typical use"
@@ -1517,13 +1517,13 @@ const docsData = {
         "Know the mint, token accounts, owners/authorities, and policy required by your use case."
       ],
       "outcomes": [
-        "Understand the implemented AEKO-20 action surface.",
+        "Understand AEKO-20 actions for issuance, transfers, allowances, controls, and authority.",
         "Verify indexed token summaries in Aeko Scan where appropriate."
       ],
       "blocks": [
         {
           "type": "table",
-          "title": "Implemented instruction areas",
+          "title": "AEKO-20 actions",
           "headers": [
             "Area",
             "Examples"
@@ -1562,7 +1562,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Use the published token contract",
-          "body": "Integrate against the actions and release-specific deployment details published for the network you target. Avoid relying on historical draft behavior that is not part of the current public contract.",
+          "body": "Use the contract actions and deployment details published for the network you target. Do not depend on unpublished or deprecated behavior.",
           "tone": "warning"
         },
         {
@@ -1585,7 +1585,7 @@ const docsData = {
       "id": "aeko721",
       "title": "AEKO-721 NFTs",
       "section": "tokens-nfts",
-      "summary": "Create collections, mint NFTs, transfer ownership, freeze/thaw items, and update metadata through the implemented AEKO-721 program and SDK builders.",
+      "summary": "Create collections, mint NFTs, transfer ownership, freeze or thaw items, and update metadata with AEKO-721 and its SDK builders.",
       "status": "available",
       "tags": [
         "nft",
@@ -1597,7 +1597,7 @@ const docsData = {
         "A wallet capable of signing the prepared transaction."
       ],
       "outcomes": [
-        "Use the implemented NFT lifecycle instead of hand-encoding instructions."
+        "Use the AEKO-721 lifecycle through SDK builders instead of hand-encoding instructions."
       ],
       "blocks": [
         {
@@ -2021,7 +2021,7 @@ const docsData = {
         },
         {
           "type": "bullets",
-          "title": "Current integration boundary",
+          "title": "Integration boundary",
           "items": [
             "AEKO defines a bridge model for cross-chain messaging and asset movement.",
             "Do not send assets to addresses obtained from conceptual material or informal examples.",
@@ -2170,7 +2170,7 @@ const docsData = {
       "blocks": [
         {
           "type": "table",
-          "title": "Commitment levels used by current client code",
+          "title": "Commitment levels",
           "headers": [
             "Level",
             "Typical product use"
@@ -2199,7 +2199,7 @@ const docsData = {
         {
           "type": "paragraph",
           "title": "Fees",
-          "body": "Fees belong to transaction execution and should be surfaced as part of the user's signing context when the client can estimate or display them. Do not hard-code historical fee numbers into application logic."
+          "body": "Fees belong to transaction execution and should be surfaced in the user's signing context when the client can estimate or display them. Do not hard-code a fee amount; read or estimate it when the transaction is prepared."
         }
       ],
       "related": [
@@ -2235,7 +2235,7 @@ const docsData = {
           "items": [
             {
               "title": "Copy the endpoint again",
-              "body": "Use the endpoint shown above instead of a URL copied from older material."
+              "body": "Use the endpoint shown above and confirm the selected network before debugging higher-level failures."
             },
             {
               "title": "Verify a simple read",
@@ -2373,7 +2373,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Explorer data is intentionally enriched",
-          "body": "The Explorer backend persists searchable historical/relational views. That extra processing is why a brief gap between raw RPC and indexed presentation can occur.",
+          "body": "Aeko Scan serves indexed, searchable views, so a confirmed write can appear in RPC before it appears in Scan. Retry the indexed read before treating that delay as a chain failure.",
           "tone": "info"
         }
       ],
@@ -2536,7 +2536,7 @@ const docsData = {
         "None for the status page."
       ],
       "outcomes": [
-        "Know what is implemented today and what should not be presented as a ready creator-coin API."
+        "Understand the available AEKO-20 boundary and avoid treating creator-coin trading as a public API."
       ],
       "blocks": [
         {
@@ -2549,8 +2549,8 @@ const docsData = {
           "type": "bullets",
           "title": "Safe integration boundary",
           "items": [
-            "Use AEKO-20 documentation for implemented fungible-token primitives.",
-            "Treat creator-coin pricing/bonding-curve behavior as unavailable until a deployed program/interface and release-specific contract details are published.",
+            "Use AEKO-20 for available fungible-token primitives.",
+            "Treat creator-coin pricing and bonding-curve behavior as unavailable until a public create/buy/sell interface is released.",
             "Do not infer creator-coin economics from SocialFi prose and hard-code them into an application."
           ]
         }
@@ -2611,7 +2611,7 @@ const docsData = {
       "id": "public-mint",
       "title": "Public & permissioned minting",
       "section": "tokens-nfts",
-      "summary": "Use the implemented public-mint program as a policy-controlled issuance boundary; end-user wallets cannot bypass the required mint authority and policy checks.",
+      "summary": "Public minting is an authority-managed issuance path; end-user wallets cannot bypass the required mint authority and policy checks.",
       "status": "operator",
       "tags": [
         "public-mint",
@@ -2621,17 +2621,17 @@ const docsData = {
       ],
       "prerequisites": [
         "An AEKO-20 mint configured for PublicMintControlled issuance.",
-        "The release-specific public-mint state and tokenomics state accounts.",
+        "The public-mint and tokenomics state accounts for the selected network.",
         "A wallet signer plus the controlled mint-authority signer required by the program."
       ],
       "outcomes": [
         "Understand which checks the on-chain public-mint path enforces before supply changes.",
-        "Avoid presenting draft service routes or arbitrary self-minting as a supported public workflow."
+        "Distinguish supported controlled issuance from arbitrary self-minting."
       ],
       "blocks": [
         {
           "type": "table",
-          "title": "Implemented program actions",
+          "title": "Public-mint actions",
           "headers": [
             "Action",
             "Who should use it",
@@ -2718,7 +2718,7 @@ const docsData = {
         "sbf"
       ],
       "prerequisites": [
-        "A program instruction/account contract you can trace in source and tests."
+        "A defined instruction/account contract for the program you are integrating."
       ],
       "outcomes": [
         "Know the minimum authorization and account invariants to test before deployment.",
@@ -2837,10 +2837,10 @@ const docsData = {
         },
         {
           "type": "bullets",
-          "title": "Implemented instruction families",
+          "title": "Anti-spam actions",
           "items": [
             "`CheckPostEligibility` and `CheckEngagementEligibility` evaluate a wallet against the active mode.",
-            "`ReadAntiSpamProfile` exposes the current program profile/state as return data.",
+            "`ReadAntiSpamProfile` returns the active anti-spam profile/state for application reads.",
             "`FlagSpamBehavior`, `ApplyCooldown`, `ClearCooldown` and `ApplySpamPenalty` require the configured authority signer.",
             "The post program receives anti-spam state as part of relevant write paths, so product UI should not model eligibility as an unrelated toggle."
           ]
