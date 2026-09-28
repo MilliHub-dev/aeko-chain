@@ -134,7 +134,7 @@ test('accounts workspace keeps public funding approval separate from direct Test
 
   assert.match(networkTools, /<TestnetFundingRequest fundingUrl=\{config\.fundingUrl\} \/>/);
   assert.match(funding, /Your AEKO wallet address/);
-  assert.match(funding, /authenticated Admin must approve or reject/i);
+  assert.match(funding, /Enter your Testnet wallet address to request test AEKO/i);\n  assert.doesNotMatch(funding, /authenticated Admin must approve or reject/i);
   assert.match(funding, /requestFundingApproval\(fundingUrl, address\.trim\(\)\)/);
   assert.match(funding, /getFundingRequestStatus\(fundingUrl, request\.id\)/);
   assert.match(funding, /waiting for an Admin decision/i);
@@ -158,7 +158,7 @@ test('funding API URLs resolve from the configured origin and reject HTML 200 re
   assert.match(rpcClient, /const airdrop = await requestConsoleAirdrop\(/);
   assert.match(rpcClient, /config\.fundingUrl/);
   assert.match(rpcClient, /lamportsToAeko\(lamports\)/);
-  assert.match(rpcClient, /Direct RPC airdrop fallback is disabled/);
+  assert.match(rpcClient, /Test AEKO is temporarily unavailable for this network/);
   assert.doesNotMatch(rpcClient, /return requestAirdrop\(rpcUrl, address, lamports\)/);
 });
 
