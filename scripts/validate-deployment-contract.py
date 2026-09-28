@@ -430,9 +430,9 @@ def main() -> int:
         "Scan proxy must enumerate its two public funding writes",
     )
     require(
-        "target.network === 'mainnet'" in explorer_proxy
+        "target.network !== 'testnet'" in explorer_proxy
         and "return FUNDING_WRITE_PATHS.has(suffix)" in explorer_proxy,
-        "Scan proxy must fail closed for mainnet writes and all non-funding POSTs",
+        "Scan proxy must allow funding writes only on Testnet and reject all non-funding POSTs",
     )
     require(
         "MAX_PROXY_BODY_BYTES" in explorer_proxy
