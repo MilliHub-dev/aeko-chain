@@ -56,6 +56,11 @@ For HTTP/WebSocket services, configure the Coolify Domain against the listed
 container port. Their split Compose files use `expose:` and do not publish
 host ports merely to communicate across instances.
 
+For **Operations Web**, configure Coolify's application health-check path as
+`/healthz`. Do not probe `/`: the Admin root is intentionally protected by
+session authentication and unauthenticated requests are redirected to
+`/login`. The container healthcheck uses the same public `/healthz` route.
+
 Faucet and validator gossip are different. They are raw TCP/UDP protocols, not
 HTTP routes. Their DNS records identify the host, but the required host ports
 must still be reachable. Restrict Faucet TCP 9900 to Validator source addresses
@@ -128,6 +133,15 @@ Every other path returns 404. The registry service mounts only
 mounts `/data/aeko/keys`. Product clients do not read this bootstrap host
 directly; they use Explorer API `/registry`, `/registry/social`, and
 `/registry/protocol`.
+
+The split bootstrap wrappers invalidate
+`.aeko-bootstrap-runtime-ready` before every Social/Protocol verification and
+republish it from the completed `.aeko-chain-binding` only after the one-shot
+bootstrap exits successfully. Registry `/healthz` requires both readiness
+markers and both registry documents. This means a long-running registry
+container cannot stay green after a later bootstrap verification fails. The
+marker is operational health state only; it never authorizes recreation of
+canonical on-chain state.
 
 The two generated registry files contain public chain metadata: genesis binding,
 program IDs, state-account public keys, vault/treasury public keys, feature IDs
@@ -247,6 +261,30 @@ switching resources.
 
 Never start an established Validator against an empty ledger with
 `AEKO_REQUIRE_EXISTING_LEDGER=0`.
+
+### Missing canonical Social account after a split migration
+
+An Explorer warning such as `canonical social-posts state account ... does not
+exist` means the registry resolved a canonical public key but the active RPC
+cannot read that account. Explorer/PostgreSQL indexing can remain healthy while
+the Social projection is degraded, so do not treat this as an Explorer database
+failure.
+
+For an established chain, first inspect the Validator migration. Confirm that
+the original Validator ledger was copied into
+`/data/aeko/validator-ledger` and that the Social state directory, including
+hidden lifecycle files, was copied into `/data/aeko/social-state`. Keep
+`AEKO_REQUIRE_EXISTING_LEDGER=1`, `AEKO_ALLOW_CHAIN_KEY_GENERATION=0`, and
+`AEKO_RESET_LEDGER=0` while recovering continuity. Re-run the Bootstrap
+resource after restoring the matching state; the Social one-shot must exit 0
+before registry health returns 200.
+
+Do **not** delete the registry, regenerate Social keypairs, or set a reset flag
+on Bootstrap alone merely to make health green. The same-genesis guard is
+deliberately fail-closed because silently replacing a canonical account would
+hide ledger/state loss. If the chain is intentionally being replaced, perform
+the Validator and bootstrap reset as one coordinated new-chain operation and
+then return all reset/first-boot flags to their established values.
 
 ## Coolify deployment triggers
 
