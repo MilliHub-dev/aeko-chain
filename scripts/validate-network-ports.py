@@ -318,12 +318,20 @@ def main() -> int:
     for name in (
         "AEKO_MAINNET_EXPLORER_API_URL",
         "AEKO_TESTNET_EXPLORER_API_URL",
-        "AEKO_DEVNET_EXPLORER_API_URL",
     ):
         require(
             name in scan_server or "network.toUpperCase()" in scan_entrypoint or "network.toUpperCase()" in scan_vite,
-            f"Scan multi-network runtime must support {name}",
+            f"Scan public-network runtime must support {name}",
         )
+    for private_prefix in ("AEKO_DEVNET_", "AEKO_LOCALNET_", "AEKO_DEMO_"):
+        require(
+            private_prefix not in split["explorer-ui"] and private_prefix not in split_envs["explorer-ui"],
+            f"split Scan must not expose {private_prefix} variables",
+        )
+    require(
+        "pathname === '/runtime-config.js'" in scan_server and "'no-store'" in scan_server,
+        "Scan runtime-config.js must bypass browser caching",
+    )
 
     print("[PASS] AEKO network ports/domains/env contract is internally consistent")
     return 0
