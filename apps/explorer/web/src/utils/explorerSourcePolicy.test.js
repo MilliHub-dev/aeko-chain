@@ -41,16 +41,15 @@ test('the production Explorer client is backend-first with a narrow RPC fallback
 });
 
 
-test('Explorer client diagnoses a broken same-origin read proxy without exposing the backend origin', async () => {
+test('Explorer client keeps proxy failures product-facing and runtime-driven', async () => {
   const source = await readFile(new URL('./explorerApi.js', import.meta.url), 'utf8');
   const network = await readFile(new URL('./networkConfig.js', import.meta.url), 'utf8');
 
-  assert.match(source, /Explorer read proxy is misrouted/);
-  assert.match(source, /AEKO_EXPLORER_API_URL/);
-  assert.doesNotMatch(source, /AEKO_PUBLIC_EXPLORER_API_URL/);
-  assert.match(network, /\/api\/explorer\/(testnet|mainnet|localnet)/);
+  assert.match(source, /Aeko Scan could not reach its data service/);
+  assert.doesNotMatch(source, /AEKO_EXPLORER_API_URL|AEKO_PUBLIC_EXPLORER_API_URL/);
+  assert.match(network, /PUBLIC_NETWORK_ORDER = \['mainnet', 'testnet'\]/);
   assert.match(network, /runtime\.networks/);
   assert.match(network, /runtime\.network/);
-  assert.match(network, /devnet/);
+  assert.doesNotMatch(network, /name: 'Devnet'/);
   assert.doesNotMatch(network, /AEKO_PUBLIC_EXPLORER_API_URL|api\.aeko\.online/);
 });
