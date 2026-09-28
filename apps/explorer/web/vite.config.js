@@ -11,11 +11,11 @@ if (
 }
 
 const clean = (value) => String(value || '').trim()
-const NETWORKS = ['mainnet', 'testnet', 'devnet', 'localnet']
+const PUBLIC_NETWORKS = ['mainnet', 'testnet']
 
-function normalizeNetwork(value) {
+function normalizePublicNetwork(value) {
   const network = clean(value).toLowerCase()
-  return NETWORKS.includes(network) ? network : ''
+  return PUBLIC_NETWORKS.includes(network) ? network : ''
 }
 
 function readAlternative(env, network) {
@@ -38,7 +38,8 @@ function readAlternative(env, network) {
 
 export default defineConfig(({ command, mode }) => {
   const env = command === 'serve' ? loadEnv(mode, process.cwd(), '') : {}
-  const activeNetwork = normalizeNetwork(env.AEKO_NETWORK) || 'localnet'
+  const configuredActive = normalizePublicNetwork(env.AEKO_NETWORK)
+  const activeNetwork = configuredActive || 'localnet'
 
   let activeRpc = clean(env.AEKO_RPC_URL)
   let activeWs = clean(env.AEKO_WS_URL)
@@ -59,7 +60,7 @@ export default defineConfig(({ command, mode }) => {
   }
 
   const alternatives = Object.fromEntries(
-    NETWORKS.map((network) => [network, readAlternative(env, network)]),
+    PUBLIC_NETWORKS.map((network) => [network, readAlternative(env, network)]),
   )
   alternatives[activeNetwork] = {
     rpcUrl: activeRpc,
@@ -67,36 +68,27 @@ export default defineConfig(({ command, mode }) => {
     upstream: activeUpstream,
   }
 
-  const devRuntimeConfig = command === 'serve'
-    ? {
-        network: activeNetwork,
-        networks: Object.fromEntries(
-          NETWORKS
-            .filter((network) => alternatives[network])
-            .map((network) => [
-              network,
-              {
-                rpcUrl: alternatives[network].rpcUrl,
-                websocketUrl: alternatives[network].websocketUrl,
-                explorerApiUrl: `/api/explorer/${network}`,
-                ...(network === 'mainnet'
-                  ? {}
-                  : { fundingUrl: `/api/explorer/${network}` }),
-              },
-            ]),
-        ),
-        demo: {
-          rpcUrl: clean(env.AEKO_DEMO_RPC_URL),
-          collection: clean(env.AEKO_DEMO_COLLECTION),
-          token: clean(env.AEKO_DEMO_TOKEN),
-          metadataUri: clean(env.AEKO_DEMO_METADATA_URI),
+  const runtimeNetworks = Object.fromEntries(
+    Object.entries(alternatives)
+      .filter(([, value]) => value)
+      .map(([network, value]) => [
+        network,
+        {
+          rpcUrl: value.rpcUrl,
+          websocketUrl: value.websocketUrl,
+          explorerApiUrl: `/api/explorer/${network}`,
+          ...(network === 'testnet' ? { fundingUrl: '/api/explorer/testnet' } : {}),
         },
-      }
+      ]),
+  )
+
+  const devRuntimeConfig = command === 'serve'
+    ? { network: activeNetwork, networks: runtimeNetworks }
     : {}
 
   const proxy = {}
-  for (const network of NETWORKS) {
-    const target = alternatives[network]?.upstream
+  for (const [network, value] of Object.entries(alternatives)) {
+    const target = value?.upstream
     if (!target) continue
     const prefix = `/api/explorer/${network}`
     proxy[prefix] = {
