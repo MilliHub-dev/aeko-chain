@@ -104,11 +104,11 @@ servers with that network's domains. Do not load all network endpoints into
 Validator, bootstrap, Explorer API, Faucet or Operations Web.
 
 Aeko Scan is the only multi-network boundary. Its generic values define the
-active/default network; optional complete `AEKO_MAINNET_*`,
-`AEKO_TESTNET_*` and `AEKO_DEVNET_*` RPC/WS/Explorer-API triplets describe
-other independently deployed networks. The normal public Scan selector exposes
-Mainnet and Testnet only; Devnet/Localnet remain explicit development
-environments rather than public choices.
+active/default public network; optional complete `AEKO_MAINNET_*` and
+`AEKO_TESTNET_*` RPC/WS/Explorer-API triplets describe the other independently
+deployed public network. The production Scan resource accepts Mainnet and
+Testnet only. Devnet and Localnet remain explicit development environments and
+are configured outside the public Scan deployment contract.
 
 Explorer API additionally owns `EXPLORER_DATABASE_URL` and the Explorer
 settings token. Operations Web owns its admin credentials. Bootstrap and
