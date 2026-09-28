@@ -211,8 +211,15 @@ same-origin read proxy and Operations Web. Browser navigation still uses
 directly.
 
 `registry.aeko.online/` returns a non-secret JSON discovery manifest.
-`/healthz`, `/social-registry.env`, and `/protocol-registry.env` expose
-the health and two read-only registry documents; unknown paths return 404.
+`/healthz` returns 200 only after both registry files and completed lifecycle
+bindings exist; `/social-registry.env` and `/protocol-registry.env` expose
+the two read-only registry documents; unknown paths return 404. This bootstrap
+health does not replace Explorer `/network/readiness` or `/social/status`,
+which verify the live chain.
+
+Operations Web exposes unauthenticated `/healthz` specifically for Coolify and
+load-balancer probes. Keep `/` authenticated; configure any platform-level
+health check to use `/healthz` instead of probing the protected home route.
 
 Do not configure `gossip.aeko.online` as an HTTP route. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record
 directly to the Validator host and allow inbound TCP+UDP `8000-8050`.
@@ -293,7 +300,14 @@ curl -s https://scan.aeko.online/api/explorer/testnet/registry/protocol
 curl -s https://scan.aeko.online/api/explorer/testnet/protocol/status
 ```
 
-Final acceptance requires `/network/readiness` HTTP 200, the registry genesis matching the live validator genesis, Social `5/5`, Protocol executable programs `11/11`, and Protocol canonical state `8/8`. For the full read-path smoke test:
+Final acceptance requires `/network/readiness` HTTP 200, the registry genesis matching the live validator genesis, Social `5/5`, Protocol executable programs `11/11`, and Protocol canonical state `8/8`.
+
+If `/social/status` reports that a registry-bound canonical account is missing,
+treat that as an established-state continuity failure. Restore the matching
+validator ledger/Social state from the pre-split backup; do not use
+`AEKO_RESET_LEDGER=1` unless you intentionally want a replacement chain.
+
+For the full read-path smoke test:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \

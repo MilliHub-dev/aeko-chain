@@ -43,15 +43,17 @@ AEKO_WS_URL=wss://ws.aeko.online
 AEKO_EXPLORER_API_URL=https://api.aeko.online
 ```
 
-Optional complete `AEKO_MAINNET_*`, `AEKO_TESTNET_*` and
-`AEKO_DEVNET_*` RPC/WS/Explorer-API triplets can route to independent
-deployments. The standard public network selector contains Mainnet and Testnet
-only. Devnet is still a real independently configured development environment,
-not an alias for localnet or testnet, and may be the active environment for a
-dedicated deployment without becoming a public selector option.
+The split production Scan resource accepts optional complete
+`AEKO_MAINNET_*` and `AEKO_TESTNET_*` RPC/WS/Explorer-API triplets only.
+The public network selector therefore contains Mainnet and Testnet only.
+Devnet remains a real development environment, and Localnet remains the local
+developer environment, but neither is advertised as a public alternate by the
+split Coolify Scan resource.
 
 The Scan container injects a normalized `{network, networks, demo}` runtime
-object. Browser indexed reads remain same-origin under
+object. `demo` is optional NTF example metadata, not a network. The generated
+`/runtime-config.js` is explicitly non-cacheable so endpoint changes are visible
+immediately after a Scan redeploy. Browser indexed reads remain same-origin under
 `/api/explorer/{network}`; the Scan server proxies each path to that
 network's Explorer API.
 

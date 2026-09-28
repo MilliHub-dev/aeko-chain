@@ -136,6 +136,18 @@ def validate_common(label: str, expected_services: list[str], compose: str, env_
 
 def main() -> int:
     read(COOLIFY / "README.md")
+    scan_server = read(ROOT / "docker" / "explorer-ui-server.mjs")
+    admin_middleware = read(ROOT / "apps" / "admin" / "src" / "middleware.ts")
+    admin_health = read(ROOT / "apps" / "admin" / "src" / "app" / "healthz" / "route.ts")
+    require(
+        "RUNTIME_CONFIG_PATH" in scan_server
+        and "no-store, max-age=0" in scan_server,
+        "Scan runtime-config.js must never be cached across deployments",
+    )
+    require(
+        "'/healthz'" in admin_middleware and "aeko-operations-web" in admin_health,
+        "Operations Web /healthz must remain public and explicit",
+    )
 
     loaded: dict[str, str] = {}
     envs: dict[str, str] = {}
@@ -200,6 +212,10 @@ def main() -> int:
     require(registry.count("read_only: true") >= 2, "registry state mounts must be read-only")
     require("location = /social-registry.env" in registry, "registry must expose the Social registry")
     require("location = /protocol-registry.env" in registry, "registry must expose the Protocol registry")
+    require(
+        registry.count(".aeko-chain-binding") >= 4,
+        "registry health must require completed Social and Protocol lifecycle bindings",
+    )
     require("location / {" in registry and "return 404;" in registry, "registry must deny every other path")
     require('"8089"' in registry, "registry must expose container port 8089")
 
@@ -283,15 +299,27 @@ def main() -> int:
         "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
         "AEKO_WS_URL: ${AEKO_WS_URL:?",
         "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
-        "AEKO_MAINNET_RPC_URL:",
-        "AEKO_TESTNET_RPC_URL:",
-        "AEKO_DEVNET_RPC_URL:",
     ):
-        require(expected in explorer_ui, f"Scan missing multi-network contract: {expected}")
-    require(
-        "AEKO_DEVNET_EXPLORER_API_URL=" in envs["explorer-ui"],
-        "Scan env example must support a real remote devnet",
-    )
+        require(expected in explorer_ui, f"Scan missing active-network contract: {expected}")
+    for network in ("MAINNET", "TESTNET"):
+        for suffix in ("RPC_URL", "WS_URL", "EXPLORER_API_URL"):
+            name = f"AEKO_{network}_{suffix}"
+            require(f"{name}:" in explorer_ui, f"Scan Compose missing public alternate {name}")
+            require(f"{name}=" in envs["explorer-ui"], f"Scan env example missing public alternate {name}")
+    public_scan_contract = explorer_ui + "\n" + envs["explorer-ui"]
+    for private_name in (
+        "AEKO_DEVNET_RPC_URL",
+        "AEKO_DEVNET_WS_URL",
+        "AEKO_DEVNET_EXPLORER_API_URL",
+        "AEKO_LOCALNET_RPC_URL",
+        "AEKO_LOCALNET_WS_URL",
+        "AEKO_LOCALNET_EXPLORER_API_URL",
+        "AEKO_DEMO_RPC_URL",
+    ):
+        require(
+            private_name not in public_scan_contract,
+            f"public split Scan must not advertise {private_name}",
+        )
 
     operations = loaded["operations-web"]
     require(
@@ -299,6 +327,10 @@ def main() -> int:
         "Operations Web split resource must configure production application logging",
     )
     require("depends_on:" not in operations, "Operations Web must remain independently deployable")
+    require(
+        "http://127.0.0.1:3001/healthz" in operations,
+        "Operations Web healthcheck must use the public /healthz endpoint",
+    )
     for expected in (
         "AEKO_NETWORK: ${AEKO_NETWORK:?",
         "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
@@ -306,7 +338,7 @@ def main() -> int:
     ):
         require(expected in operations, f"Operations Web missing active-environment contract: {expected}")
 
-    print("split Coolify single-network + Scan multi-network contract: ok")
+    print("split Coolify service health + public Mainnet/Testnet Scan contract: ok")
     return 0
 
 

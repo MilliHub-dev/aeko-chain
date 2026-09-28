@@ -5,7 +5,7 @@ export const SAFE_APP_SETTINGS = Object.freeze({
   networkConsoleEnabled: false,
   docsEnabled: true,
   developersEnabled: true,
-  bridgeEnabled: true,
+  bridgeEnabled: false,
   nftDemoEnabled: true,
   nftLiveFlowEnabled: false,
   nftAdvancedToolsEnabled: false,
@@ -33,7 +33,9 @@ export function normalizeAppSettingsPayload(data) {
       networkConsoleEnabled: booleanOr(application.networkConsoleEnabled, SAFE_APP_SETTINGS.networkConsoleEnabled),
       docsEnabled: booleanOr(application.docsEnabled, SAFE_APP_SETTINGS.docsEnabled),
       developersEnabled: booleanOr(application.developersEnabled, SAFE_APP_SETTINGS.developersEnabled),
-      bridgeEnabled: booleanOr(application.bridgeEnabled, SAFE_APP_SETTINGS.bridgeEnabled),
+      // Cross-chain Bridge remains Phase 7 work. Never expose its old prototype
+      // from a stale database value or during an independently deployed rollout.
+      bridgeEnabled: false,
       nftDemoEnabled: booleanOr(application.nftDemoEnabled, SAFE_APP_SETTINGS.nftDemoEnabled),
       nftLiveFlowEnabled: booleanOr(application.nftLiveFlowEnabled, SAFE_APP_SETTINGS.nftLiveFlowEnabled),
       nftAdvancedToolsEnabled: booleanOr(application.nftAdvancedToolsEnabled, SAFE_APP_SETTINGS.nftAdvancedToolsEnabled),

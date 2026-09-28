@@ -73,6 +73,7 @@ const FUNDING_WRITE_PATHS = new Set(['/funding/request', '/funding/airdrop'])
 const MAX_PROXY_BODY_BYTES = 64 * 1024
 const MAX_TELEMETRY_BODY_BYTES = 16 * 1024
 const CLIENT_TELEMETRY_PATH = '/api/telemetry/client'
+const RUNTIME_CONFIG_PATH = '/runtime-config.js'
 const LOG_LEVEL = String(process.env.AEKO_LOG_LEVEL || 'info').trim().toLowerCase()
 const LOG_FORMAT = String(process.env.AEKO_LOG_FORMAT || 'json').trim().toLowerCase()
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 }
@@ -370,9 +371,14 @@ function serveStatic(req, res, pathname) {
   if (!existsSync(file) || !statSync(file).isFile()) file = resolve(ROOT, 'index.html')
 
   const ext = extname(file).toLowerCase()
+  const cacheControl = pathname === RUNTIME_CONFIG_PATH
+    ? 'no-store, max-age=0'
+    : ext === '.html'
+      ? 'no-cache'
+      : 'public, max-age=3600'
   res.writeHead(200, {
     'Content-Type': MIME[ext] || 'application/octet-stream',
-    'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600',
+    'Cache-Control': cacheControl,
   })
   if (req.method === 'HEAD') {
     res.end()

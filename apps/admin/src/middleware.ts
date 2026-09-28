@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth'
 import { logger, requestIdFromHeaders } from '@/lib/logger'
 
-const ADMIN_PUBLIC_PREFIXES = ['/login', '/api/login', '/api/logout', '/api/telemetry/client']
+const ADMIN_PUBLIC_PREFIXES = ['/healthz', '/login', '/api/login', '/api/logout', '/api/telemetry/client']
 
 const matchesPrefix = (pathname: string, prefixes: string[]) =>
   prefixes.some((prefix) =>

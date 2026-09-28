@@ -139,7 +139,7 @@ export default function NetworkTools() {
         <NetworkToolsPanel network={network} />
       </div>
 
-      {isTestNetwork ? (
+      {isTestNetwork && config.fundingEnabled ? (
         <TestnetFundingRequest fundingUrl={config.fundingUrl} />
       ) : null}
 

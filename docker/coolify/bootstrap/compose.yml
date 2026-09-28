@@ -113,6 +113,10 @@ services:
           server_tokens off;
 
           location = /healthz {
+            if (!-f /registry/social/social-registry.env) { return 503; }
+            if (!-f /registry/social/.aeko-chain-binding) { return 503; }
+            if (!-f /registry/protocol/protocol-registry.env) { return 503; }
+            if (!-f /registry/protocol/.aeko-chain-binding) { return 503; }
             default_type text/plain;
             add_header Cache-Control "no-store" always;
             return 200 "ok\n";
@@ -163,7 +167,9 @@ services:
         - CMD-SHELL
         - >-
           test -s /registry/social/social-registry.env &&
+          test -s /registry/social/.aeko-chain-binding &&
           test -s /registry/protocol/protocol-registry.env &&
+          test -s /registry/protocol/.aeko-chain-binding &&
           wget -qO- http://127.0.0.1:8089/healthz | grep -qx ok
       interval: 30s
       timeout: 5s

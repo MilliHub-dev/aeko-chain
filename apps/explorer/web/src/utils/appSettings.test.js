@@ -50,6 +50,7 @@ test('application settings normalize public surfaces and Explorer behavior with 
   assert.equal(SAFE_APP_SETTINGS.networkToolsEnabled, true);
   assert.equal(SAFE_APP_SETTINGS.nftDemoEnabled, true);
   assert.equal(SAFE_APP_SETTINGS.networkConsoleEnabled, false);
+  assert.equal(SAFE_APP_SETTINGS.bridgeEnabled, false);
   assert.equal(SAFE_APP_SETTINGS.nftLiveFlowEnabled, false);
   assert.equal(SAFE_APP_SETTINGS.nftAdvancedToolsEnabled, false);
 });
@@ -67,7 +68,8 @@ test('settings are wired to routes, navigation, search and refresh behavior', as
   assert.match(app, /settings\.networkConsoleEnabled/);
   assert.match(app, /settings\.docsEnabled/);
   assert.match(app, /settings\.developersEnabled/);
-  assert.match(app, /settings\.bridgeEnabled/);
+  assert.doesNotMatch(app, /settings\.bridgeEnabled/);
+  assert.match(app, /path="\/bridge"[\s\S]*Navigate to="\/explorer"/);
   assert.match(app, /settings\.nftDemoEnabled/);
   // Mainnet hides every test surface regardless of API visibility flags.
   assert.match(app, /testSurfacesVisible/);
@@ -79,7 +81,8 @@ test('settings are wired to routes, navigation, search and refresh behavior', as
   assert.match(layout, /settings\.networkToolsEnabled/);
   assert.match(layout, /settings\.docsEnabled/);
   assert.match(layout, /settings\.developersEnabled/);
-  assert.match(layout, /settings\.bridgeEnabled/);
+  assert.doesNotMatch(layout, /settings\.bridgeEnabled/);
+  assert.doesNotMatch(layout, /to="\/bridge"/);
   assert.match(layout, /settings\.nftDemoEnabled/);
   assert.match(layout, /testSurfacesVisible/);
 

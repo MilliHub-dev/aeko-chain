@@ -158,13 +158,15 @@ function networkRecord(network) {
     available: state.configured,
     rpcUrl: value.rpcUrl,
     websocketUrl: value.websocketUrl,
-    explorerUrl: browserOrigin || 'http://127.0.0.1:4000',
+    explorerUrl: browserOrigin ? `${browserOrigin}/explorer` : '/explorer',
     explorerApiUrl: value.explorerApiUrl,
     explorerLabel: explorerLabel(),
     fundingUrl: isMainnet ? '' : value.fundingUrl || '',
     fundingLabel: isMainnet
-      ? 'No test funding on mainnet'
-      : `${network} funding through the selected Explorer API`,
+      ? 'Test funding is not available on Mainnet'
+      : network === 'testnet'
+        ? 'Test AEKO requests are available here when public funding is enabled'
+        : 'Development funding is available only when this environment enables it',
     fundingEnabled: !isMainnet && Boolean(value.fundingUrl),
     cliCluster: value.rpcUrl,
     isActiveEnvironment: network === activeNetwork,

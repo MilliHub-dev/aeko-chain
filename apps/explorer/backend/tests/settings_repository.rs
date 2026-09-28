@@ -39,7 +39,7 @@ async fn app_settings_are_durable_and_revision_guarded() -> Result<()> {
     assert!(!initial.network_console_enabled);
     assert!(initial.docs_enabled);
     assert!(initial.developers_enabled);
-    assert!(initial.bridge_enabled);
+    assert!(!initial.bridge_enabled);
     assert!(initial.nft_demo_enabled);
     assert!(!initial.nft_live_flow_enabled);
     assert!(!initial.nft_advanced_tools_enabled);

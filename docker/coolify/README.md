@@ -83,11 +83,12 @@ Deploying the same resource set for mainnet or devnet means changing
 `AEKO_NETWORK` and those generic URLs to that network's domains. It does not
 mean adding the other networks to the server.
 
-**Aeko Scan is the exception.** It is the global multi-network presentation
-layer. Its generic URLs describe the active/default network, while optional
-complete `AEKO_MAINNET_*`, `AEKO_TESTNET_*` and `AEKO_DEVNET_*` RPC/WS/
-Explorer-API triplets describe other independently deployed networks that the
-user can select. Localnet remains a local-development option.
+**Aeko Scan is the exception.** It is the public multi-network presentation
+layer. Its generic URLs describe the active/default network, while the split
+production resource accepts optional complete `AEKO_MAINNET_*` and
+`AEKO_TESTNET_*` RPC/WS/Explorer-API triplets only. The public selector has
+exactly Mainnet and Testnet. Devnet and Localnet remain development
+environments rather than public alternates.
 
 Whether an active URL resolves to the same Docker network, another Ubuntu
 machine, or another provider is deployment topology. That is not encoded as
@@ -118,10 +119,16 @@ The registry HTTP service exposes only:
 
 ```text
 /                         # non-secret JSON discovery manifest
-/healthz
+/healthz                   # registry files + completed lifecycle bindings
 /social-registry.env
 /protocol-registry.env
 ```
+
+Registry `/healthz` fails until both generated registry files and their
+`.aeko-chain-binding` completion markers exist. This is a bootstrap lifecycle
+check, not proof that every canonical account still exists on-chain. Explorer
+`/network/readiness` and `/social/status` remain the authoritative runtime
+checks for registry/genesis/account validity.
 
 Every other path returns 404. The registry service mounts only
 `/data/aeko/social-state` and `/data/aeko/protocol-state` read-only. It never
@@ -248,6 +255,13 @@ switching resources.
 Never start an established Validator against an empty ledger with
 `AEKO_REQUIRE_EXISTING_LEDGER=0`.
 
+If Explorer reports that a canonical Social account from the registry does not
+exist while the registry genesis still matches live RPC, do **not** make
+bootstrap recreate that account. Verify the migrated
+`/data/aeko/validator-ledger` and `/data/aeko/social-state` against the
+pre-split backup and restore the matching established state. Use
+`AEKO_RESET_LEDGER=1` only when intentionally replacing the entire chain.
+
 ## Coolify deployment triggers
 
 Stateful/security-sensitive resources remain intentional releases:
@@ -274,6 +288,6 @@ Do not accept a deployment from container state alone. Verify:
 - Social registry/status is complete;
 - Protocol registry/status is complete;
 - Aeko Scan reads through its same-origin proxy;
-- Operations Web can read Explorer API and perform authenticated settings
-  operations;
+- Operations Web `/healthz` is reachable without an admin session and the
+  authenticated application can read Explorer API and perform settings operations;
 - Faucet TCP 9900 is reachable from Validator but not broadly exposed.
