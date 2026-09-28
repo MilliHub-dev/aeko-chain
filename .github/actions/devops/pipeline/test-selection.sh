@@ -54,9 +54,6 @@ assert_full_validation_workflow_contract() {
     'validate-source: ${{ needs.classify.outputs.run_explorer_backend }}' \
     'run-preflight: ${{ needs.classify.outputs.run_network }}' \
     'validate-source: ${{ needs.classify.outputs.run_network }}' \
-    'rust: ${{ needs.classify.outputs.run_smart_contracts }}' \
-    'python: ${{ needs.classify.outputs.run_smart_contracts }}' \
-    'validate-source: ${{ needs.classify.outputs.run_smart_contracts }}' \
     'js: ${{ needs.classify.outputs.run_sdk_non_rust }}' \
     'node: ${{ needs.classify.outputs.run_sdk_non_rust }}' \
     'python: ${{ needs.classify.outputs.run_sdk_non_rust }}'; do
@@ -70,6 +67,7 @@ assert_full_validation_workflow_contract() {
 
 assert_smart_contract_pipeline_separation() {
   local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+  local contract_workflow="$PIPELINE_DIR/../../../workflows/smart-contracts.yml"
   local classifier="$PIPELINE_DIR/../detect-changes/action.yml"
   local network_run="$PIPELINE_DIR/../network/run.sh"
   local network_integration="$PIPELINE_DIR/../../../../scripts/ci-protocol-stack-integration.sh"
@@ -79,7 +77,17 @@ assert_smart_contract_pipeline_separation() {
   grep -Fq 'smart_contracts:' "$classifier"
   grep -Fq 'contracts/*|scripts/smoke-hello-program.py)' "$classifier"
   grep -Fq 'smart_contracts=true' "$classifier"
-  grep -Fq 'Smart contracts (SBF → AEKO SVM)' "$workflow"
+  if grep -Fq 'Smart contracts (SBF → AEKO SVM)' "$workflow"; then
+    echo "AEKO DevOps must not own the non-blocking smart-contract job." >&2
+    exit 1
+  fi
+  grep -Fq 'AEKO Smart Contracts (non-blocking)' "$contract_workflow"
+  grep -Fq 'continue-on-error: true' "$contract_workflow"
+  grep -Fq 'live-testnet:' "$contract_workflow"
+  grep -Fq -- '- "contracts/**"' "$workflow"
+  grep -Fq -- '- "scripts/smoke-hello-program.py"' "$workflow"
+  grep -Fq -- '- ".github/actions/devops/smart-contracts/**"' "$workflow"
+  grep -Fq -- '- ".github/workflows/smart-contracts.yml"' "$workflow"
 
   if grep -Fq 'contracts/hello-aeko-program' "$network_run"; then
     echo "Blockchain network action still owns deployable smart-contract build logic." >&2
@@ -95,12 +103,19 @@ assert_smart_contract_pipeline_separation() {
   fi
 
   grep -Fq 'cargo-build-sbf' "$contract_run"
-  grep -Fq 'aeko-test-validator' "$contract_run"
+  if grep -Fq 'aeko-test-validator' "$contract_run"; then
+    echo "Smart-contract runner must not build a local Validator/network runtime." >&2
+    exit 1
+  fi
+  grep -Fq 'https://rpc.aeko.online' "$contract_run"
+  grep -Fq 'https://scan.aeko.online/api/explorer/testnet' "$contract_run"
+  grep -Fq '/funding/airdrop' "$contract_run"
+  grep -Fq 'aeko-keygen new' "$contract_run"
   grep -Fq 'smoke-hello-program.py' "$contract_run"
   grep -Fq '"program",' "$smoke"
   grep -Fq '"deploy",' "$smoke"
 
-  echo "[ok] deployable SBF contracts have an independent build -> AEKO CLI deploy -> AEKO SVM invoke lane"
+  echo "[ok] deployable SBF contracts run in a standalone non-blocking live Testnet workflow"
 }
 
 assert_vercel_git_deployments_disabled() {
@@ -139,7 +154,7 @@ run_plan_case() {
   output="$(mktemp)"
 
   GITHUB_OUTPUT="$output" GITHUB_EVENT_NAME="$event_name" \
-  ADMIN=false CLI=false CORE="$core" PACKAGING=false SMART_CONTRACTS=false \
+  ADMIN=false CLI=false CORE="$core" PACKAGING=false \
   EXPLORER_BACKEND=false EXPLORER_WEB="$explorer_web" \
   SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false \
   CI_PIPELINE="$ci_pipeline" bash "$PIPELINE_DIR/plan.sh"
@@ -150,7 +165,6 @@ run_plan_case() {
     assert_output "$output" "run_explorer_backend=true"
     assert_output "$output" "run_explorer_web=true"
     assert_output "$output" "run_network=true"
-    assert_output "$output" "run_smart_contracts=true"
     assert_output "$output" "run_sdk_non_rust=true"
     assert_output "$output" "run_sdk_rust=true"
   fi
@@ -198,7 +212,7 @@ run_deploy_plan_case() {
   output="$(mktemp)"
 
   GITHUB_OUTPUT="$output" GITHUB_EVENT_NAME=push \
-  ADMIN="$admin" CLI=false CORE="$core" PACKAGING=false SMART_CONTRACTS=false \
+  ADMIN="$admin" CLI=false CORE="$core" PACKAGING=false \
   EXPLORER_BACKEND="$explorer_backend" EXPLORER_WEB="$explorer_web" \
   COOLIFY_BOOTSTRAP="$coolify_bootstrap" \
   COOLIFY_FAUCET_TOOLS="$coolify_faucet_tools" \

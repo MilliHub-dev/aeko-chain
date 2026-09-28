@@ -116,19 +116,21 @@ authenticated route, the protected Validator/Faucet settlement confirms,
 the wallet balance increases, exactly one confirmed grant is persisted, and the
 grant does not appear in the developer-airdrop ledger.
 
-**Smart-contract build/deploy/invoke works in CI.** The dedicated
-`Smart contracts (SBF → AEKO SVM)` job builds
+**Smart-contract build/deploy/invoke works in CI.** The standalone
+`AEKO Smart Contracts (non-blocking)` workflow first probes
+`https://rpc.aeko.online` for live health, genesis and slot data. When the
+public Testnet is healthy, it builds
 [`contracts/hello-aeko-program`](../../contracts/hello-aeko-program/) with
-`cargo-build-sbf`, starts an isolated AEKO `aeko-test-validator`, deploys the
-resulting SBF artifact through the real `aeko program deploy` CLI path, invokes
-the documented Rust example, and requires the confirmed transaction logs to
-contain `Hello from AEKO!`.
+`cargo-build-sbf`, creates an ephemeral AEKO keypair, reads the live Scan
+funding policy, obtains test AEKO through the public
+`/api/explorer/testnet/funding/airdrop` path, then deploys through the real
+`aeko program deploy` CLI path. The invoke smoke requires a confirmed
+transaction whose logs contain `Hello from AEKO!`.
 
-The smart-contract lane is intentionally separate from the Blockchain network
-image lane. It proves contract/toolchain/SVM compatibility without treating a
-deployable contract as a validator, Faucet, or bootstrap image. It does **not**
-automatically deploy the Hello World program to the public testnet; public
-deployment remains an explicit developer/operator action.
+This workflow is deliberately independent of `AEKO DevOps (single runner)`.
+It builds no Validator/Faucet/bootstrap image and its RPC, funding, SBF, deploy
+or invoke failure is non-blocking: core application/network validation,
+publication and CLI release processing continue independently.
 
 **Explorer is indexing.** `curl -s https://scan.aeko.online/api/explorer/testnet/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `https://scan.aeko.online` should show a list of recent blocks and a slot counter that ticks up.
 

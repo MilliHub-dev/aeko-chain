@@ -176,8 +176,9 @@ A successful upload alone is not enough. The invocation transaction must have
 
 ## Repository CI Acceptance
 
-The dedicated `Smart contracts (SBF → AEKO SVM)` job runs this same starter
-against a real isolated `aeko-test-validator`:
+The standalone `AEKO Smart Contracts (non-blocking)` workflow runs this same
+starter against the live public AEKO Testnet after verifying
+`https://rpc.aeko.online` is healthy:
 
 ```text
 contracts/hello-aeko-program
@@ -189,12 +190,17 @@ contracts/hello-aeko-program
   -> "Hello from AEKO!" program log
 ```
 
-The job is implemented by
-[`.github/actions/devops/smart-contracts/run.sh`](../../.github/actions/devops/smart-contracts/run.sh)
-and delegates the deployment/invocation assertions to
+The workflow is implemented by
+[`.github/workflows/smart-contracts.yml`](../../.github/workflows/smart-contracts.yml)
+and
+[`.github/actions/devops/smart-contracts/run.sh`](../../.github/actions/devops/smart-contracts/run.sh).
+It creates an ephemeral keypair, funds it through the public Test Console
+`/funding/airdrop` API within the live policy cap, then delegates deployment
+and invocation assertions to
 [`scripts/smoke-hello-program.py`](../../scripts/smoke-hello-program.py).
-This CI test uses an isolated TestValidator; it does not deploy the starter to
-the public testnet automatically.
+
+The smart-contract workflow is non-blocking and is not part of the core
+`AEKO DevOps` success gate.
 
 ## Expected Output
 
