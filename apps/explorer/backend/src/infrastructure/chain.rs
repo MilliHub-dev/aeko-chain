@@ -997,7 +997,9 @@ mod tests {
         let record = client.fetch_core_slot(0).unwrap();
         server.join().unwrap();
 
-        let block = record.block.expect("historical block should still be indexed");
+        let block = record
+            .block
+            .expect("historical block should still be indexed");
         assert_eq!(block.slot, 0);
         assert_eq!(block.producer, None);
     }
