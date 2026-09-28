@@ -41,26 +41,20 @@ AEKO_WS_URL=wss://ws.aeko.online
 AEKO_EXPLORER_API_URL=https://api.aeko.online
 ```
 
-Optional complete `AEKO_MAINNET_*`, `AEKO_TESTNET_*` and
-`AEKO_DEVNET_*` RPC/WS/Explorer-API triplets describe other independently
-deployed chains. The standard public selector exposes Mainnet and Testnet only.
-Devnet and Localnet remain valid explicit development environments but are not
-public selector choices. The active network does not need its prefixed triplet
-because the generic values already describe it.
+Optional complete `AEKO_MAINNET_*` and `AEKO_TESTNET_*` RPC/WS/Explorer-API
+triplets describe the other public chain when it is independently deployed.
+Production Scan accepts only Mainnet and Testnet. Devnet remains a valid
+engineering chain environment, and Localnet remains a Vite development
+convenience, but neither is part of the production Scan runtime contract.
 
-The container entrypoint normalizes this into
-`{network, networks, demo}`. Browser indexed reads remain same-origin
-`/api/explorer/{network}`; the UI server maps each selected network to its
-corresponding remote Explorer API. Endpoint-specific `VITE_AEKO_*` variables
-remain unsupported.
+The container entrypoint normalizes this into `{network, networks}`. Browser
+indexed reads remain same-origin `/api/explorer/{network}`; the UI server maps
+each selected public network to its corresponding remote Explorer API.
+Endpoint-specific `VITE_AEKO_*` variables remain unsupported.
 
-`src/utils/networkConfig.js` treats `devnet` as a real independent network,
-not an alias for testnet or localnet. The default selection is
-`AEKO_NETWORK`, and persisted user choices are accepted only when that
-network is actually configured.
-
-Test-only surfaces use the selected non-mainnet network. If Scan opens on
-mainnet, testnet is preferred when available, then devnet, then localnet.
+The default selection is `AEKO_NETWORK`, and persisted user choices are
+accepted only when that public network is actually configured. Test-only
+surfaces use Testnet; Vite development may use its loopback Localnet fallback.
 
 In split Coolify, Aeko Scan remains the browser-facing product origin at
 `https://scan.aeko.online`. Each chain's Explorer API may live on a separate
@@ -78,7 +72,7 @@ Direct JSON-RPC from the browser is intentional only for consumer-style operatio
 
 Block, transaction, account, creator, token, NFT, collection, post and search pages use the Explorer API first because they need durable indexed history and aggregation.
 
-`src/data/nftDemoExamples.js` belongs only to the explicitly labeled AEKO-721 demo workflow. It is not a data source for `/explorer`.
+`src/data/nftDemoExamples.js` contains documentation/test examples only. It is not a data source for `/explorer` and no longer consumes production runtime variables.
 
 ## Validation
 
