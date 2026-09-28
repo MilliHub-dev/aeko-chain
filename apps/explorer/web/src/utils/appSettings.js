@@ -5,7 +5,7 @@ export const SAFE_APP_SETTINGS = Object.freeze({
   networkConsoleEnabled: false,
   docsEnabled: true,
   developersEnabled: true,
-  bridgeEnabled: true,
+  bridgeEnabled: false,
   nftDemoEnabled: true,
   nftLiveFlowEnabled: false,
   nftAdvancedToolsEnabled: false,

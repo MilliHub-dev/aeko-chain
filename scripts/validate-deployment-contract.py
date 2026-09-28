@@ -315,8 +315,18 @@ def main() -> int:
         "Aeko Scan public selector must expose Mainnet and Testnet only",
     )
     require(
-        "devnet" in network_config and "localnet" in network_config,
-        "Devnet/Localnet must remain valid independently configured development environments",
+        "name: 'Devnet'" not in network_config,
+        "public Scan network configuration must not expose Devnet",
+    )
+    require(
+        "PUBLIC_NETWORK_ORDER = ['mainnet', 'testnet']" in network_config,
+        "public Scan runtime must normalize only Mainnet and Testnet",
+    )
+    require(
+        "RUNTIME_CONFIG_PATH = '/runtime-config.js'" in explorer_proxy
+        and "pathname === RUNTIME_CONFIG_PATH" in explorer_proxy
+        and "'no-store, max-age=0'" in explorer_proxy,
+        "Scan runtime configuration must not be cached across deployments",
     )
 
     # Native token and permission programs stay feature-gated.
@@ -420,9 +430,9 @@ def main() -> int:
         "Scan proxy must enumerate its two public funding writes",
     )
     require(
-        "target.network === 'mainnet'" in explorer_proxy
+        "target.network !== 'testnet'" in explorer_proxy
         and "return FUNDING_WRITE_PATHS.has(suffix)" in explorer_proxy,
-        "Scan proxy must fail closed for mainnet writes and all non-funding POSTs",
+        "Scan proxy must allow funding writes only on Testnet and reject all non-funding POSTs",
     )
     require(
         "MAX_PROXY_BODY_BYTES" in explorer_proxy

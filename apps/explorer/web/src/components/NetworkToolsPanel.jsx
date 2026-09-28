@@ -1,65 +1,62 @@
-import { ExternalLink } from 'lucide-react';
+import { Activity, Radio, WalletCards, Waypoints } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { getNetworkConfig } from '../utils/networkConfig';
 
-function EndpointValue({ value }) {
-  return <div className="font-mono text-sm break-all text-white">{value || 'Not configured'}</div>;
-}
-
-function fundingHost(value) {
-  if (!value) return null;
-  try {
-    const origin = globalThis.location?.origin || 'http://127.0.0.1';
-    return new URL(value, origin).host || value;
-  } catch {
-    return null;
-  }
+function Status({ available, availableLabel = 'Available' }) {
+  return (
+    <div className={`text-sm font-medium ${available ? 'text-green-300' : 'text-gray-500'}`}>
+      {available ? availableLabel : 'Unavailable'}
+    </div>
+  );
 }
 
 export default function NetworkToolsPanel({ network }) {
   const config = getNetworkConfig(network);
+  const isTestnet = config.key === 'testnet';
+
+  const cards = [
+    {
+      label: 'Network access',
+      icon: <Waypoints size={14} />,
+      content: <Status available={Boolean(config.rpcUrl)} availableLabel="Available" />,
+    },
+    {
+      label: 'Realtime tools',
+      icon: <Radio size={14} />,
+      content: <Status available={Boolean(config.websocketUrl)} />,
+    },
+    {
+      label: 'Aeko Scan',
+      icon: <Activity size={14} />,
+      content: (
+        <Link
+          to="/explorer"
+          className="text-sm font-medium text-aeko-accent transition-colors hover:text-white"
+        >
+          Open explorer
+        </Link>
+      ),
+    },
+    {
+      label: 'Test AEKO',
+      icon: <WalletCards size={14} />,
+      content: isTestnet
+        ? <Status available={config.fundingEnabled} availableLabel="Available below" />
+        : <div className="text-sm font-medium text-gray-500">Not available on Mainnet</div>,
+    },
+  ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">App connection</div>
-        <EndpointValue value={config.rpcUrl} />
-      </div>
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Live updates</div>
-        <EndpointValue value={config.websocketUrl} />
-      </div>
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Aeko Scan</div>
-        {config.explorerUrl ? (
-          <a
-            href={config.explorerUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 text-aeko-accent hover:text-white transition-colors text-sm break-all"
-          >
-            {config.explorerLabel}
-            <ExternalLink size={14} />
-          </a>
-        ) : (
-          <div className="text-sm text-gray-400">Not configured</div>
-        )}
-      </div>
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Test funding</div>
-        {config.fundingEnabled && fundingHost(config.fundingUrl) ? (
-          <a
-            href={config.fundingUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 text-aeko-accent hover:text-white transition-colors text-sm break-all"
-          >
-            {fundingHost(config.fundingUrl)}
-            <ExternalLink size={14} />
-          </a>
-        ) : (
-          <div className="text-sm text-gray-400">{config.fundingLabel}</div>
-        )}
-      </div>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {cards.map(({ label, icon, content }) => (
+        <div key={label} className="rounded-xl border border-white/10 bg-white/5 p-5">
+          <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500">
+            {icon}
+            {label}
+          </div>
+          {content}
+        </div>
+      ))}
     </div>
   );
 }

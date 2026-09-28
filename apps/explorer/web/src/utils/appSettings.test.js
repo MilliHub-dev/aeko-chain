@@ -48,6 +48,7 @@ test('application settings normalize public surfaces and Explorer behavior with 
   });
   assert.deepEqual(invalid.application, SAFE_APP_SETTINGS);
   assert.equal(SAFE_APP_SETTINGS.networkToolsEnabled, true);
+  assert.equal(SAFE_APP_SETTINGS.bridgeEnabled, false);
   assert.equal(SAFE_APP_SETTINGS.nftDemoEnabled, true);
   assert.equal(SAFE_APP_SETTINGS.networkConsoleEnabled, false);
   assert.equal(SAFE_APP_SETTINGS.nftLiveFlowEnabled, false);
@@ -62,12 +63,16 @@ test('settings are wired to routes, navigation, search and refresh behavior', as
   const nftDemo = await source('pages/NftDemo.jsx');
   const explorer = await source('pages/Explorer.jsx');
   const explorerApi = await source('utils/explorerApi.js');
+  const adminSettings = await source('../../../admin/src/app/(admin)/settings/page.tsx');
+  const backendSettings = await source('../../backend/src/features/settings/mod.rs');
+  const bridgeMigration = await source('../../backend/migrations/0017_disable_unimplemented_bridge.sql');
 
   assert.match(app, /settings\.networkToolsEnabled/);
   assert.match(app, /settings\.networkConsoleEnabled/);
   assert.match(app, /settings\.docsEnabled/);
   assert.match(app, /settings\.developersEnabled/);
-  assert.match(app, /settings\.bridgeEnabled/);
+  assert.doesNotMatch(app, /import Bridge from/);
+  assert.match(app, /path="\/bridge"[\s\S]*Navigate to="\/explorer"/);
   assert.match(app, /settings\.nftDemoEnabled/);
   // Mainnet hides every test surface regardless of API visibility flags.
   assert.match(app, /testSurfacesVisible/);
@@ -79,7 +84,8 @@ test('settings are wired to routes, navigation, search and refresh behavior', as
   assert.match(layout, /settings\.networkToolsEnabled/);
   assert.match(layout, /settings\.docsEnabled/);
   assert.match(layout, /settings\.developersEnabled/);
-  assert.match(layout, /settings\.bridgeEnabled/);
+  assert.doesNotMatch(layout, /settings\.bridgeEnabled/);
+  assert.doesNotMatch(layout, /to="\/bridge"/);
   assert.match(layout, /settings\.nftDemoEnabled/);
   assert.match(layout, /testSurfacesVisible/);
 
@@ -90,4 +96,11 @@ test('settings are wired to routes, navigation, search and refresh behavior', as
   assert.match(explorer, /settings\.explorerSearchResultLimit/);
   assert.match(explorer, /settings\.explorerAutoRefreshSeconds/);
   assert.match(explorerApi, /safeLimit/);
+
+  assert.match(adminSettings, /bridgeEnabled: false/);
+  assert.match(adminSettings, /Bridge.*Unavailable:[\s\S]*disabled/s);
+  assert.match(backendSettings, /bridge_enabled == Some\(true\)/);
+  assert.match(backendSettings, /bridgeEnabled cannot be enabled/);
+  assert.match(bridgeMigration, /SET bridge_enabled = FALSE/);
+  assert.match(bridgeMigration, /ALTER COLUMN bridge_enabled SET DEFAULT FALSE/);
 });

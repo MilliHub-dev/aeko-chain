@@ -83,16 +83,16 @@ export function isConfiguredPublicTestnetRpc(rpcUrl) {
 
 function fundingEndpoint(fundingUrl, path) {
   const configured = String(fundingUrl || '').trim();
-  if (!configured) throw new Error('Test funding is not set up for this network.');
+  if (!configured) throw new Error('Test AEKO is temporarily unavailable.');
 
   let base;
   try {
     base = new URL(configured, globalThis.location?.origin || 'http://127.0.0.1');
   } catch {
-    throw new Error('Test funding address is invalid.');
+    throw new Error('Test AEKO is temporarily unavailable.');
   }
   if (!['http:', 'https:'].includes(base.protocol)) {
-    throw new Error('Test funding address must use http or https.');
+    throw new Error('Test AEKO is temporarily unavailable.');
   }
 
   // Funding is now served by the Explorer/Scan backend. `fundingUrl` is the
@@ -163,7 +163,7 @@ export async function requestTestnetFunding(rpcUrl, address, lamports) {
     || normalizedUrl(rpcUrl) !== normalizedUrl(config.rpcUrl)
   ) {
     throw new Error(
-      'Managed test funding requires the configured test-network funding backend. Direct RPC airdrop fallback is disabled.',
+      'Test AEKO is temporarily unavailable for this network.',
     );
   }
 

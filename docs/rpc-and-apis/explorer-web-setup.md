@@ -43,12 +43,11 @@ AEKO_WS_URL=wss://ws.aeko.online
 AEKO_EXPLORER_API_URL=https://api.aeko.online
 ```
 
-Optional complete `AEKO_MAINNET_*`, `AEKO_TESTNET_*` and
-`AEKO_DEVNET_*` RPC/WS/Explorer-API triplets can route to independent
-deployments. The standard public network selector contains Mainnet and Testnet
-only. Devnet is still a real independently configured development environment,
-not an alias for localnet or testnet, and may be the active environment for a
-dedicated deployment without becoming a public selector option.
+Optional complete `AEKO_MAINNET_*` and `AEKO_TESTNET_*` RPC/WS/Explorer-API
+triplets route the two public Scan choices to independent deployments. The
+production Scan runtime accepts Mainnet and Testnet only. Devnet remains a real
+independently deployed development environment, but it is not configured in the
+public Scan resource; Localnet remains a local Vite development target.
 
 The Scan container injects a normalized `{network, networks, demo}` runtime
 object. Browser indexed reads remain same-origin under

@@ -53,9 +53,9 @@ function developerQuickCommands(config) {
   let funding;
   if (config.key === 'localnet') {
     funding = ['aeko airdrop 10 <recipient-address>'];
-  } else if (config.key === 'testnet' || config.key === 'devnet') {
+  } else if (config.key === 'testnet') {
     funding = [
-      '# use the funding request form above; an authenticated Admin approves grants',
+      '# use the Testnet funding request form above',
       '# developer Test Console airdrops are a separate capped utility',
     ];
   } else {
@@ -199,7 +199,7 @@ export default function NetworkTools() {
             {isTestNetwork
               ? config.key === 'localnet'
                 ? 'Local development can add test funds directly with the airdrop command below.'
-                : 'Use the testnet funding request form to request test funds for operator approval. The Scan Test Console has its own separate airdrop for developers. New funds are issued by the funding role — apps never create them directly.'
+                : 'Use the Testnet funding request form below to request test AEKO. Approved requests are delivered to the wallet address you provide.'
               : 'The live network has no test funding. Use your normal treasury, exchange, or operational distribution flow.'}
           </p>
 
@@ -211,8 +211,8 @@ export default function NetworkTools() {
                 Managed funding service
               </div>
               <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-white/10">
-                Public users submit grant requests through Aeko Scan. Only authenticated Admin
-                can approve them, and the active Explorer backend owns settlement.
+                Submit a Testnet request below and track its status in Aeko Scan. Approval and
+                settlement happen securely behind the service boundary.
               </div>
             </div>
           ) : (
@@ -242,7 +242,7 @@ export default function NetworkTools() {
             ))}
           </div>
           <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
-            <Droplets size={13} /> Funding grants and test transactions link directly to Aeko Scan.
+            <Droplets size={13} /> Testnet funding and transaction results stay inside Aeko Scan.
           </div>
         </div>
       </div>

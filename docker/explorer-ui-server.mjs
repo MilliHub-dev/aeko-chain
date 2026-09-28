@@ -13,12 +13,12 @@ function clean(name) {
 
 function normalizeNetwork(value) {
   const network = String(value || '').trim().toLowerCase()
-  return ['mainnet', 'testnet', 'devnet', 'localnet'].includes(network) ? network : ''
+  return ['mainnet', 'testnet'].includes(network) ? network : ''
 }
 
 const ACTIVE_NETWORK = normalizeNetwork(process.env.AEKO_NETWORK)
 if (!ACTIVE_NETWORK) {
-  throw new Error('AEKO_NETWORK must be mainnet, testnet, devnet, or localnet')
+  throw new Error('AEKO_NETWORK for public Scan must be mainnet or testnet')
 }
 
 const ACTIVE_UPSTREAM = clean('AEKO_EXPLORER_API_URL')
@@ -29,8 +29,6 @@ if (!ACTIVE_UPSTREAM) {
 const UPSTREAMS = {
   mainnet: clean('AEKO_MAINNET_EXPLORER_API_URL'),
   testnet: clean('AEKO_TESTNET_EXPLORER_API_URL'),
-  devnet: clean('AEKO_DEVNET_EXPLORER_API_URL'),
-  localnet: clean('AEKO_LOCALNET_EXPLORER_API_URL'),
 }
 UPSTREAMS[ACTIVE_NETWORK] = ACTIVE_UPSTREAM
 
@@ -60,7 +58,7 @@ function json(res, status, body) {
 }
 
 function upstreamFor(pathname) {
-  for (const network of ['mainnet', 'testnet', 'devnet', 'localnet']) {
+  for (const network of ['mainnet', 'testnet']) {
     const prefix = `/api/explorer/${network}`
     if (pathname === prefix || pathname.startsWith(prefix + '/')) {
       return { prefix, upstream: UPSTREAMS[network], network }
@@ -73,6 +71,7 @@ const FUNDING_WRITE_PATHS = new Set(['/funding/request', '/funding/airdrop'])
 const MAX_PROXY_BODY_BYTES = 64 * 1024
 const MAX_TELEMETRY_BODY_BYTES = 16 * 1024
 const CLIENT_TELEMETRY_PATH = '/api/telemetry/client'
+const RUNTIME_CONFIG_PATH = '/runtime-config.js'
 const LOG_LEVEL = String(process.env.AEKO_LOG_LEVEL || 'info').trim().toLowerCase()
 const LOG_FORMAT = String(process.env.AEKO_LOG_FORMAT || 'json').trim().toLowerCase()
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 }
@@ -128,7 +127,7 @@ function telemetryAllowed() {
 
 function explorerProxyMethodAllowed(method, target, pathname) {
   if (method === 'GET' || method === 'HEAD') return true
-  if (method !== 'POST' || target.network === 'mainnet') return false
+  if (method !== 'POST' || target.network !== 'testnet') return false
   const suffix = pathname.slice(target.prefix.length) || '/'
   return FUNDING_WRITE_PATHS.has(suffix)
 }
@@ -370,9 +369,15 @@ function serveStatic(req, res, pathname) {
   if (!existsSync(file) || !statSync(file).isFile()) file = resolve(ROOT, 'index.html')
 
   const ext = extname(file).toLowerCase()
+  const cacheControl = pathname === RUNTIME_CONFIG_PATH
+    ? 'no-store, max-age=0'
+    : ext === '.html'
+      ? 'no-cache'
+      : 'public, max-age=3600'
+
   res.writeHead(200, {
     'Content-Type': MIME[ext] || 'application/octet-stream',
-    'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600',
+    'Cache-Control': cacheControl,
   })
   if (req.method === 'HEAD') {
     res.end()
@@ -396,6 +401,17 @@ const server = createServer(async (req, res) => {
       latency_ms: Math.round(performance.now() - startedAt),
     })
   })
+
+  if (url.pathname === '/healthz' && ['GET', 'HEAD'].includes(method)) {
+    const body = 'ok\n'
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Content-Length': Buffer.byteLength(body),
+      'Cache-Control': 'no-store',
+    })
+    res.end(method === 'HEAD' ? undefined : body)
+    return
+  }
 
   if (url.pathname === CLIENT_TELEMETRY_PATH) {
     await collectClientTelemetry(req, res, id)

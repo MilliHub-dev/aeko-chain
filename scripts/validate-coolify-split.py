@@ -315,13 +315,13 @@ def main() -> int:
         "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
         "AEKO_MAINNET_RPC_URL:",
         "AEKO_TESTNET_RPC_URL:",
-        "AEKO_DEVNET_RPC_URL:",
     ):
-        require(expected in explorer_ui, f"Scan missing multi-network contract: {expected}")
-    require(
-        "AEKO_DEVNET_EXPLORER_API_URL=" in envs["explorer-ui"],
-        "Scan env example must support a real remote devnet",
-    )
+        require(expected in explorer_ui, f"Scan missing public-network contract: {expected}")
+    for private_prefix in ("AEKO_DEVNET_", "AEKO_LOCALNET_", "AEKO_DEMO_"):
+        require(
+            private_prefix not in explorer_ui and private_prefix not in envs["explorer-ui"],
+            f"public Scan must not expose {private_prefix} deployment variables",
+        )
 
     operations = loaded["operations-web"]
     admin_middleware = read(ROOT / "apps" / "admin" / "src" / "middleware.ts")

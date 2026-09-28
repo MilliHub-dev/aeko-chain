@@ -98,14 +98,14 @@ test('toggle and surfaces use consumer wording, not core-dev jargon', async () =
   // whose endpoint triplet has not been configured.
   assert.match(toggle, /const config = getNetworkConfig\(option\)/);
   assert.match(toggle, /config\.label/);
-  assert.match(toggle, /Not configured/);
+  assert.match(toggle, /is not available yet/);
   assert.match(toggle, /PUBLIC_NETWORK_ORDER = \['mainnet', 'testnet'\]/);
   assert.doesNotMatch(toggle, /PUBLIC_NETWORK_ORDER = .*devnet/);
   assert.doesNotMatch(toggle, /PUBLIC_NETWORK_ORDER = .*localnet/);
   // Config labels pair each network with a plain-word hint.
-  assert.match(config, /Mainnet · Live/);
-  assert.match(config, /Testnet · Test/);
-  assert.match(config, /Localnet · Local/);
+  assert.match(config, /name: 'Mainnet'/);
+  assert.match(config, /name: 'Testnet'/);
+  assert.doesNotMatch(config, /name: 'Devnet'/);
 
   // User-facing surfaces must not leak core chain-developer vocabulary.
   // (RPC method names and codec internals stay in utils, not in UI copy.)
@@ -151,9 +151,9 @@ test('developer flow shows cluster selection and quick commands per network', as
   assert.match(tools, /aeko program deploy/);
   assert.match(tools, /aeko program close/);
   // Only local development advertises a direct CLI airdrop. Public Testnet
-  // must direct users through the Admin-approved funding request workflow.
+  // must direct users through the managed funding request workflow.
   assert.match(tools, /config\.key === 'localnet'/);
-  assert.match(tools, /authenticated Admin approves grants/);
+  assert.match(tools, /Testnet funding request form above/);
   assert.doesNotMatch(tools, /config\.key === 'testnet'[\s\S]{0,180}aeko airdrop/);
   assert.doesNotMatch(tools, /curl -X POST/);
 });
@@ -168,7 +168,7 @@ test('visible environment terminology follows the selected network', async () =>
 
   assert.match(config, /getNetworkPresentation/);
   assert.match(config, /badge: 'Mainnet'/);
-  assert.match(config, /badge: 'Testnet Live'/);
+  assert.match(config, /badge: 'Testnet'/);
   for (const body of [home, explorer, developers, tools]) {
     assert.match(body, /getNetworkPresentation|presentation\./);
   }

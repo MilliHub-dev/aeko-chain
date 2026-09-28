@@ -15,7 +15,6 @@ import ExplorerPost from './pages/ExplorerPost';
 import ExplorerNft from './pages/ExplorerNft';
 import ExplorerToken from './pages/ExplorerToken';
 import ExplorerCollection from './pages/ExplorerCollection';
-import Bridge from './pages/Bridge';
 import NftDemo from './pages/NftDemo';
 import NetworkTools from './pages/NetworkTools';
 import SocialTest from './pages/SocialTestV2';
@@ -56,7 +55,7 @@ function ConfiguredApp() {
           <Route path="/explorer/nft/:tokenId" element={<ExplorerNft />} />
           <Route path="/explorer/token/:mint" element={<ExplorerToken />} />
           <Route path="/explorer/collection/:collectionId" element={<ExplorerCollection />} />
-          <Route path="/bridge" element={optionalRoute(settings.bridgeEnabled, <Bridge />)} />
+          <Route path="/bridge" element={<Navigate to="/explorer" replace />} />
           <Route
             path="/network-tools"
             element={optionalRoute(settings.networkToolsEnabled, <NetworkTools />)}

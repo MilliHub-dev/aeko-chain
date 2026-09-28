@@ -88,11 +88,13 @@ Deploying the same resource set for mainnet or devnet means changing
 `AEKO_NETWORK` and those generic URLs to that network's domains. It does not
 mean adding the other networks to the server.
 
-**Aeko Scan is the exception.** It is the global multi-network presentation
-layer. Its generic URLs describe the active/default network, while optional
-complete `AEKO_MAINNET_*`, `AEKO_TESTNET_*` and `AEKO_DEVNET_*` RPC/WS/
-Explorer-API triplets describe other independently deployed networks that the
-user can select. Localnet remains a local-development option.
+**Aeko Scan is the exception.** It is the public multi-network presentation
+layer. Its generic URLs describe the active/default public network, while
+optional complete `AEKO_MAINNET_*` and `AEKO_TESTNET_*` RPC/WS/Explorer-API
+triplets describe the other independently deployed public network. The
+production Scan resource accepts Mainnet and Testnet only. Devnet remains a
+dedicated engineering deployment and Localnet remains local development; they
+are not browser-selectable production Scan targets.
 
 Whether an active URL resolves to the same Docker network, another Ubuntu
 machine, or another provider is deployment topology. That is not encoded as
