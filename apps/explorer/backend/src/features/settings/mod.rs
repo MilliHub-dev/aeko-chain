@@ -87,6 +87,12 @@ impl SettingsPatch {
                 "expectedRevision must be greater than zero".to_string(),
             ));
         }
+        if self.bridge_enabled == Some(true) {
+            return Err(ApiError::BadRequest(
+                "bridgeEnabled cannot be enabled until the Phase 7 bridge protocol is implemented"
+                    .to_string(),
+            ));
+        }
 
         let has_change = self.network_tools_enabled.is_some()
             || self.network_console_enabled.is_some()
@@ -343,6 +349,14 @@ mod tests {
         valid.explorer_auto_refresh_seconds = Some(15);
         valid.settings_refresh_seconds = Some(30);
         assert!(valid.validate().is_ok());
+
+        let mut unsupported_bridge = base_patch();
+        unsupported_bridge.bridge_enabled = Some(true);
+        assert!(unsupported_bridge.validate().is_err());
+
+        let mut disabled_bridge = base_patch();
+        disabled_bridge.bridge_enabled = Some(false);
+        assert!(disabled_bridge.validate().is_ok());
 
         let mut bad_list = base_patch();
         bad_list.explorer_list_size = Some(13);
