@@ -8,6 +8,9 @@ outputs:
   packaging:
     description: Docker, Compose, deployment, or image-pipeline packaging changed.
     value: ${{ steps.classify.outputs.packaging }}
+  smart_contracts:
+    description: Deployable SBF smart-contract source changed and requires contract build/deploy/invoke validation.
+    value: ${{ steps.classify.outputs.smart_contracts }}
   admin:
     description: Admin application changed or must be validated by the orchestrator change.
     value: ${{ steps.classify.outputs.admin }}
@@ -100,6 +103,7 @@ runs:
 
         core=false
         packaging=false
+        smart_contracts=false
         admin=false
         cli=false
         explorer_backend=false
@@ -138,6 +142,7 @@ runs:
           # Manual main runs validate the complete release surface, but do not
           # republish SDK package versions that did not change.
           core=true
+          smart_contracts=true
           mark_all_apps
         else
           HEAD_SHA="${GITHUB_SHA}"
@@ -195,6 +200,11 @@ runs:
                 ;;
               apps/cli/*)
                 cli=true
+                ;;
+              contracts/*|scripts/smoke-hello-program.py)
+                # Deployable SBF contracts are not blockchain runtime/network
+                # source. They build and execute in their own AEKO SVM lane.
+                smart_contracts=true
                 ;;
               sdk/src/feature_set.rs)
                 # Runtime feature declarations are also part of the CLI's
@@ -357,7 +367,7 @@ runs:
         fi
 
         rust_needed=false
-        if [ "$core" = true ] || [ "$cli" = true ] || [ "$explorer_backend" = true ] || [ "$sdk_rust" = true ]; then
+        if [ "$core" = true ] || [ "$smart_contracts" = true ] || [ "$cli" = true ] || [ "$explorer_backend" = true ] || [ "$sdk_rust" = true ]; then
           rust_needed=true
         fi
 
@@ -367,7 +377,7 @@ runs:
         fi
 
         python_needed=false
-        if [ "$core" = true ] || [ "$packaging" = true ] || [ "$sdk_python" = true ]; then
+        if [ "$core" = true ] || [ "$smart_contracts" = true ] || [ "$packaging" = true ] || [ "$sdk_python" = true ]; then
           python_needed=true
         fi
 
@@ -384,6 +394,7 @@ runs:
         {
           echo "core=$core"
           echo "packaging=$packaging"
+          echo "smart_contracts=$smart_contracts"
           echo "admin=$admin"
           echo "cli=$cli"
           echo "explorer_backend=$explorer_backend"
@@ -413,8 +424,8 @@ runs:
           echo "ci_pipeline=$ci_pipeline"
         } >> "$GITHUB_OUTPUT"
 
-        printf 'Selection: core=%s packaging=%s admin=%s cli=%s backend=%s web=%s coolify(bootstrap=%s,faucet-tools=%s,validator=%s,api=%s,ui=%s,ops=%s) sdk(js=%s,node=%s,python=%s,rust=%s) sdk-release(js=%s,node=%s,python=%s,rust=%s) ci-pipeline=%s unmapped=%s\n' \
-          "$core" "$packaging" "$admin" "$cli" "$explorer_backend" "$explorer_web" \
+        printf 'Selection: core=%s packaging=%s smart-contracts=%s admin=%s cli=%s backend=%s web=%s coolify(bootstrap=%s,faucet-tools=%s,validator=%s,api=%s,ui=%s,ops=%s) sdk(js=%s,node=%s,python=%s,rust=%s) sdk-release(js=%s,node=%s,python=%s,rust=%s) ci-pipeline=%s unmapped=%s\n' \
+          "$core" "$packaging" "$smart_contracts" "$admin" "$cli" "$explorer_backend" "$explorer_web" \
           "$coolify_bootstrap" "$coolify_faucet_tools" "$coolify_validator" "$coolify_explorer_api" "$coolify_explorer_ui" "$coolify_operations_web" \
           "$sdk_js" "$sdk_node" "$sdk_python" "$sdk_rust" \
           "$sdk_release_js" "$sdk_release_node" "$sdk_release_python" "$sdk_release_rust" "$ci_pipeline" "$unmapped_app"

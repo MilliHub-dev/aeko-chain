@@ -30,6 +30,7 @@ require_result "${EXPECT_EXPLORER_WEB:-false}" "explorer-web" "${EXPLORER_WEB_RE
 require_result "${EXPECT_CLI:-false}" "cli" "${CLI_RESULT:-}"
 require_result "${EXPECT_EXPLORER_BACKEND:-false}" "explorer-backend" "${EXPLORER_BACKEND_RESULT:-}"
 require_result "${EXPECT_NETWORK:-false}" "network" "${NETWORK_RESULT:-}"
+require_result "${EXPECT_SMART_CONTRACTS:-false}" "smart-contracts" "${SMART_CONTRACTS_RESULT:-}"
 require_result "${EXPECT_SDK_NON_RUST:-false}" "sdk-non-rust" "${SDK_NON_RUST_RESULT:-}"
 require_result "${EXPECT_SDK_RUST:-false}" "sdk-rust" "${SDK_RUST_RESULT:-}"
 
