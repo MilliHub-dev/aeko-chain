@@ -4,6 +4,24 @@ AEKO Chain is a Solana-derived, SVM-compatible blockchain runtime extended with 
 
 The Aeko product backend is a separate service/repository (`MilliHub-dev/Aeko_backend`, currently `:4101`).
 
+## Install AEKO CLI
+
+The CLI release contains both `aeko` and `aeko-keygen`. The installers download the latest successful main-branch GitHub Release, verify its SHA-256 checksum, install the binaries, and verify that both executables can run.
+
+Linux x86_64:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MilliHub-dev/aeko-chain/main/install/aeko-cli-install.sh | sh
+```
+
+Windows x86_64 / PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/MilliHub-dev/aeko-chain/main/install/aeko-cli-install.ps1 | iex
+```
+
+See [`install/README.md`](./install/README.md) for version pinning, install-directory overrides, supported targets, and integrity details.
+
 ## Mental model
 
 Do not think of AEKO as one validator container or one web server. A usable public deployment is a set of cooperating roles:

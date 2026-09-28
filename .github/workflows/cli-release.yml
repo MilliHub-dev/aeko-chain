@@ -1,11 +1,15 @@
 name: AEKO CLI release binaries
 
 # Normal main/PR CLI validation and the aeko-tools image are owned by the
-# single-runner AEKO DevOps workflow. This workflow is intentionally reserved
-# for explicit cross-platform release artifact generation, which necessarily
-# uses platform-specific runners. A release tag must point to a commit already
-# contained in main; feature branches can never publish a GitHub Release.
+# single-runner AEKO DevOps workflow. Cross-platform release binaries are built
+# only after that workflow completes successfully on a push to main, so failed
+# main builds cannot publish CLI assets. Explicit v* tags remain supported for
+# operator-managed versioned releases, and workflow_dispatch remains build-only.
 on:
+  workflow_run:
+    workflows: ["AEKO DevOps (single runner)"]
+    branches: ["main"]
+    types: [completed]
   workflow_dispatch:
   push:
     tags:
@@ -15,12 +19,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: cli-binaries-${{ github.ref }}
-  cancel-in-progress: true
+  group: cli-binaries-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: false
 
 jobs:
   build:
     name: ${{ matrix.target }}
+    if: >
+      github.event_name != 'workflow_run' ||
+      (
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.conclusion == 'success'
+      )
     strategy:
       fail-fast: false
       matrix:
@@ -43,6 +54,7 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
 
       - name: Require release tag commit on main
@@ -157,7 +169,14 @@ jobs:
 
   release:
     name: Publish GitHub release assets
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: >
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.conclusion == 'success'
+      ) ||
+      startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-24.04
     permissions:
@@ -166,9 +185,22 @@ jobs:
       - name: Checkout release commit
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
 
+      - name: Reconfirm successful main source
+        if: github.event_name == 'workflow_run'
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$SOURCE_SHA" origin/main
+
       - name: Reconfirm tag commit is on main
+        if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: |
           set -euo pipefail
@@ -186,12 +218,63 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
         shell: bash
         run: |
           set -euo pipefail
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" release-assets/* --clobber
+
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            short_sha="${SOURCE_SHA:0:12}"
+            TAG="cli-main-${short_sha}"
+            TITLE="AEKO CLI main ${short_sha}"
           else
-            gh release create "$TAG" release-assets/* --verify-tag --generate-notes --title "$TAG"
+            TAG="$REF_NAME"
+            TITLE="$REF_NAME"
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            git fetch --tags origin
+            existing_sha="$(git rev-list -n 1 "$TAG")"
+            if [ "$existing_sha" != "$SOURCE_SHA" ]; then
+              echo "Existing release $TAG points to $existing_sha, expected $SOURCE_SHA." >&2
+              exit 1
+            fi
+            echo "GitHub Release $TAG already exists for $SOURCE_SHA; leaving published assets unchanged."
+            exit 0
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            git fetch --tags origin
+            existing_sha="$(git rev-list -n 1 "$TAG")"
+            if [ "$existing_sha" != "$SOURCE_SHA" ]; then
+              echo "Existing tag $TAG points to $existing_sha, expected $SOURCE_SHA." >&2
+              exit 1
+            fi
+          fi
+
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            notes_file="$(mktemp)"
+            trap 'rm -f "$notes_file"' EXIT
+            cat > "$notes_file" <<EOF
+          Automated AEKO CLI binaries published after successful AEKO DevOps main run #${SOURCE_RUN_NUMBER}.
+
+          Source commit: https://github.com/${GH_REPO}/commit/${SOURCE_SHA}
+          Validating workflow: https://github.com/${GH_REPO}/actions/runs/${SOURCE_RUN_ID}
+          EOF
+
+            gh release create "$TAG" release-assets/* \
+              --target "$SOURCE_SHA" \
+              --title "$TITLE" \
+              --notes-file "$notes_file" \
+              --latest
+          else
+            gh release create "$TAG" release-assets/* \
+              --verify-tag \
+              --generate-notes \
+              --title "$TITLE" \
+              --latest
           fi

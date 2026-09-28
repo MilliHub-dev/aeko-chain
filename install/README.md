@@ -2,7 +2,7 @@
 
 The fast installer downloads **prebuilt** `aeko` and `aeko-keygen` binaries from the latest AEKO GitHub Release. It does not clone the repository or compile the Rust workspace on the user's machine.
 
-The one-line installers become usable after the first tagged `v*` release publishes the CLI assets. Pull-request workflow artifacts validate the binaries before that release, but are not used by the public installer.
+The one-line installers consume the latest GitHub Release. Every successful `AEKO DevOps (single runner)` push to `main` publishes a traceable `cli-main-<12-character-commit>` release from the exact validated commit. Explicit `v*` tags remain available for operator-managed versioned releases. Pull-request workflow artifacts validate binaries but are not used by the public installer.
 
 ## Linux x86_64 (glibc)
 

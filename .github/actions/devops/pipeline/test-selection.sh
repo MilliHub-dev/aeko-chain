@@ -71,6 +71,29 @@ assert_vercel_git_deployments_disabled() {
   echo "[ok] Vercel Git auto-deployments are disabled"
 }
 
+
+assert_cli_release_after_main_contract() {
+  local workflow="$PIPELINE_DIR/../../../workflows/cli-release.yml"
+  local root_readme="$PIPELINE_DIR/../../../../README.md"
+
+  grep -Fq 'workflow_run:' "$workflow"
+  grep -Fq 'workflows: ["AEKO DevOps (single runner)"]' "$workflow"
+  grep -Fq 'branches: ["main"]' "$workflow"
+  grep -Fq 'types: [completed]' "$workflow"
+  grep -Fq "github.event.workflow_run.event == 'push'" "$workflow"
+  grep -Fq "github.event.workflow_run.head_branch == 'main'" "$workflow"
+  grep -Fq "github.event.workflow_run.conclusion == 'success'" "$workflow"
+  grep -Fq "github.event.workflow_run.head_sha" "$workflow"
+  grep -Fq 'TAG="cli-main-${short_sha}"' "$workflow"
+  grep -Fq -- '--target "$SOURCE_SHA"' "$workflow"
+  grep -Fq 'git ls-remote --exit-code --tags origin "refs/tags/$TAG"' "$workflow"
+  grep -Fq -- '--latest' "$workflow"
+  grep -Fq 'install/aeko-cli-install.sh | sh' "$root_readme"
+  grep -Fq 'install/aeko-cli-install.ps1 | iex' "$root_readme"
+
+  echo "[ok] successful main DevOps runs publish traceable CLI GitHub Releases and root install commands stay documented"
+}
+
 run_plan_case() {
   local label="$1" event_name="$2" ci_pipeline="$3" core="$4" expected_all="$5" explorer_web="${6:-false}"
   local output
@@ -234,6 +257,7 @@ assert_node24_action_majors
 assert_split_coolify_workflow_contract
 assert_full_validation_workflow_contract
 assert_vercel_git_deployments_disabled
+assert_cli_release_after_main_contract
 
 run_plan_case "Explorer Web-only main push runs the full validation DAG" push false false true true
 run_plan_case "CI-only pull request runs images and all external SDK validation" pull_request true false true
