@@ -323,7 +323,9 @@ def main() -> int:
         "public Scan runtime must normalize only Mainnet and Testnet",
     )
     require(
-        "pathname === '/runtime-config.js'" in explorer_proxy and "'no-store'" in explorer_proxy,
+        "RUNTIME_CONFIG_PATH = '/runtime-config.js'" in explorer_proxy
+        and "pathname === RUNTIME_CONFIG_PATH" in explorer_proxy
+        and "'no-store, max-age=0'" in explorer_proxy,
         "Scan runtime configuration must not be cached across deployments",
     )
 
