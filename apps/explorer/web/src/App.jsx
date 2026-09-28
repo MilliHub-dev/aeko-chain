@@ -23,6 +23,7 @@ import ScrollToTop from './components/ScrollToTop';
 import { AppSettingsProvider } from './components/AppSettingsProvider';
 import { useAppSettings } from './components/AppSettingsContext';
 import { useNetwork } from './components/NetworkContext';
+import { BRIDGE_RUNTIME_AVAILABLE } from './utils/appSettings';
 
 function ConfiguredApp() {
   const { settings, loading } = useAppSettings();
@@ -56,7 +57,13 @@ function ConfiguredApp() {
           <Route path="/explorer/nft/:tokenId" element={<ExplorerNft />} />
           <Route path="/explorer/token/:mint" element={<ExplorerToken />} />
           <Route path="/explorer/collection/:collectionId" element={<ExplorerCollection />} />
-          <Route path="/bridge" element={optionalRoute(settings.bridgeEnabled, <Bridge />)} />
+          <Route
+            path="/bridge"
+            element={optionalRoute(
+              settings.bridgeEnabled && BRIDGE_RUNTIME_AVAILABLE,
+              <Bridge />,
+            )}
+          />
           <Route
             path="/network-tools"
             element={optionalRoute(settings.networkToolsEnabled, <NetworkTools />)}
