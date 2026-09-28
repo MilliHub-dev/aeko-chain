@@ -1,5 +1,5 @@
 # Coolify split resource owned by apps/explorer/web.
-# Aeko Scan is the global multi-network presentation layer.
+# Public Aeko Scan exposes Mainnet and Testnet only.
 x-logging: &default-logging
   driver: json-file
   options:
@@ -12,7 +12,7 @@ services:
     pull_policy: always
     restart: unless-stopped
     environment:
-      AEKO_NETWORK: ${AEKO_NETWORK:?Set the default Scan network}
+      AEKO_NETWORK: ${AEKO_NETWORK:?Set mainnet or testnet as the default Scan network}
       AEKO_RPC_URL: ${AEKO_RPC_URL:?Set the active network RPC URL}
       AEKO_WS_URL: ${AEKO_WS_URL:?Set the active network WebSocket URL}
       AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?Set the active network Explorer API URL}
@@ -22,23 +22,13 @@ services:
       AEKO_TESTNET_RPC_URL: ${AEKO_TESTNET_RPC_URL:-}
       AEKO_TESTNET_WS_URL: ${AEKO_TESTNET_WS_URL:-}
       AEKO_TESTNET_EXPLORER_API_URL: ${AEKO_TESTNET_EXPLORER_API_URL:-}
-      AEKO_DEVNET_RPC_URL: ${AEKO_DEVNET_RPC_URL:-}
-      AEKO_DEVNET_WS_URL: ${AEKO_DEVNET_WS_URL:-}
-      AEKO_DEVNET_EXPLORER_API_URL: ${AEKO_DEVNET_EXPLORER_API_URL:-}
-      AEKO_LOCALNET_RPC_URL: ${AEKO_LOCALNET_RPC_URL:-}
-      AEKO_LOCALNET_WS_URL: ${AEKO_LOCALNET_WS_URL:-}
-      AEKO_LOCALNET_EXPLORER_API_URL: ${AEKO_LOCALNET_EXPLORER_API_URL:-}
-      AEKO_DEMO_RPC_URL: ${AEKO_DEMO_RPC_URL:-}
-      AEKO_DEMO_COLLECTION: ${AEKO_DEMO_COLLECTION:-}
-      AEKO_DEMO_TOKEN: ${AEKO_DEMO_TOKEN:-}
-      AEKO_DEMO_METADATA_URI: ${AEKO_DEMO_METADATA_URI:-}
       AEKO_EXPLORER_PROXY_TIMEOUT_MS: ${AEKO_EXPLORER_PROXY_TIMEOUT_MS:-20000}
       AEKO_LOG_FORMAT: ${AEKO_LOG_FORMAT:-json}
       AEKO_LOG_LEVEL: ${AEKO_LOG_LEVEL:-info}
     expose:
       - "4000"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/ >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/healthz | grep -qx ok || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
