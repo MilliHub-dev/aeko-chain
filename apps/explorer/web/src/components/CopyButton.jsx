@@ -40,7 +40,6 @@ export default function CopyButton({ value, label = 'Copy', compact = false, cla
   };
 
   const Icon = state === 'copied' ? Check : state === 'error' ? AlertCircle : Copy;
-  const text = state === 'copied' ? 'Copied' : state === 'error' ? 'Copy failed' : label;
 
   return (
     <button
@@ -51,7 +50,6 @@ export default function CopyButton({ value, label = 'Copy', compact = false, cla
       className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-gray-300 transition hover:border-white/25 hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent/70 disabled:cursor-not-allowed disabled:opacity-40 ${compact ? 'min-w-11 px-2' : ''} ${className}`}
     >
       <Icon size={14} />
-      {compact ? <span className="sr-only" aria-live="polite">{text}</span> : <span aria-live="polite">{text}</span>}
     </button>
   );
 }

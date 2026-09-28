@@ -23,7 +23,6 @@ function resolveDocValue(value, networkConfig) {
   const replacements = {
     '{{rpcUrl}}': networkConfig?.rpcUrl || '<AEKO_RPC_URL>',
     '{{websocketUrl}}': networkConfig?.websocketUrl || '<AEKO_WEBSOCKET_URL>',
-    '{{explorerApiUrl}}': networkConfig?.explorerApiUrl || '<AEKO_EXPLORER_API_URL>',
     '{{networkLabel}}': networkConfig?.label || 'selected network',
   };
 
@@ -37,7 +36,6 @@ function resolveEndpointValue(value, networkConfig) {
   const text = String(value || '');
   if (text.includes('{{rpcUrl}}') && !networkConfig?.rpcUrl) return '';
   if (text.includes('{{websocketUrl}}') && !networkConfig?.websocketUrl) return '';
-  if (text.includes('{{explorerApiUrl}}') && !networkConfig?.explorerApiUrl) return '';
   return resolveDocValue(text, networkConfig);
 }
 
