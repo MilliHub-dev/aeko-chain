@@ -3261,4 +3261,34 @@ export function getDocsPageOutline(page) {
     .filter(Boolean);
 }
 
+function collectDocsSearchValues(value, bucket) {
+  if (typeof value === 'string') {
+    bucket.push(value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectDocsSearchValues(item, bucket));
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+  Object.values(value).forEach((item) => collectDocsSearchValues(item, bucket));
+}
+
+export function getDocsSearchText(page) {
+  if (!page) return '';
+  const values = [];
+  collectDocsSearchValues(
+    {
+      title: page.title,
+      summary: page.summary,
+      tags: page.tags,
+      prerequisites: page.prerequisites,
+      outcomes: page.outcomes,
+      blocks: page.blocks,
+    },
+    values,
+  );
+  return values.join(' ').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
 export default docsData;

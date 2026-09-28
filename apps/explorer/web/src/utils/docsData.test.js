@@ -7,6 +7,7 @@ import {
   docsPagesById,
   docsSections,
   getDocsPageOutline,
+  getDocsSearchText,
   getDocsStatus,
 } from '../data/docs/index.js';
 
@@ -199,4 +200,35 @@ test('browser signing guide scopes injected-wallet Mainnet support', () => {
   assert.match(serialized, /Testnet flow/);
   assert.match(serialized, /before Mainnet/i);
   assert.match(serialized, /wallet explicitly supports the production network/i);
+});
+
+
+test('phase 8 search indexes full public guide content', () => {
+  const cliSearch = getDocsSearchText(docsPagesById['cli-reference']);
+  assert.match(cliSearch, /write-buffer/);
+  assert.match(cliSearch, /address lookup tables/);
+
+  const lifecycleSearch = getDocsSearchText(docsPagesById['transaction-lifecycle']);
+  assert.match(lifecycleSearch, /duplicate write/);
+  assert.match(lifecycleSearch, /signature-status/);
+});
+
+test('phase 8 launch navigation adds full-search, permalink and deep-link affordances', async () => {
+  const docsPage = await source('pages/Docs.jsx');
+  const sidebar = await source('components/docs/DocsSidebar.jsx');
+  const renderer = await source('components/docs/DocsContent.jsx');
+
+  assert.match(sidebar, /getDocsSearchText\(page\)/);
+  assert.match(sidebar, /Clear documentation search/);
+  assert.match(sidebar, /Search titles, commands, APIs and guide content/);
+  assert.match(sidebar, /aria-live="polite"/);
+
+  assert.match(docsPage, /Copy guide link/);
+  assert.match(docsPage, /Share guide/);
+  assert.match(docsPage, /target\?\.focus\?\.\(\{ preventScroll: true \}\)/);
+  assert.match(docsPage, /<details className="mt-6[^"]*xl:hidden"/);
+  assert.match(docsPage, /aria-label="On this page"/);
+
+  assert.match(renderer, /tabIndex=\{-1\}/);
+  assert.match(renderer, /outline-none/);
 });

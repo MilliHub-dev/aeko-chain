@@ -45,7 +45,8 @@ function BlockHeading({ id, title }) {
   return (
     <h2
       id={id}
-      className="scroll-mt-28 text-2xl font-semibold tracking-tight text-white"
+      tabIndex={-1}
+      className="scroll-mt-28 text-2xl font-semibold tracking-tight text-white outline-none"
     >
       <a
         href={`#${id}`}

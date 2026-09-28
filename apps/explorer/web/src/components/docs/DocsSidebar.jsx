@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { BookOpenText, Search, X } from 'lucide-react';
+import { getDocsSearchText } from '../../data/docs';
 
 export default function DocsSidebar({
   sections,
@@ -21,18 +22,16 @@ export default function DocsSidebar({
         items: section.items.filter((pageId) => {
           const page = pagesById[pageId];
           if (!page) return false;
-          const haystack = [
-            page.title,
-            page.summary,
-            ...(page.tags || []),
-          ]
-            .join(' ')
-            .toLowerCase();
-          return haystack.includes(normalizedQuery);
+          return getDocsSearchText(page).includes(normalizedQuery);
         }),
       }))
       .filter((section) => section.items.length > 0);
   }, [normalizedQuery, pagesById, sections]);
+
+  const visibleGuideCount = visibleSections.reduce(
+    (total, section) => total + section.items.length,
+    0,
+  );
 
   return (
     <aside
@@ -62,23 +61,40 @@ export default function DocsSidebar({
           ) : null}
         </div>
 
-        <label className="relative block">
-          <span className="sr-only">Search documentation</span>
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600"
-            aria-hidden="true"
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find a guide"
-            className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.035] pl-10 pr-3 text-sm text-white outline-none transition placeholder:text-gray-600 focus:border-aeko-accent/40 focus:ring-2 focus:ring-aeko-accent/20"
-          />
-        </label>
+        <div className="relative">
+          <label className="block">
+            <span className="sr-only">Search documentation</span>
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Find a guide"
+              className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.035] pl-10 pr-10 text-sm text-white outline-none transition placeholder:text-gray-600 focus:border-aeko-accent/40 focus:ring-2 focus:ring-aeko-accent/20"
+            />
+          </label>
+          {normalizedQuery ? (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              aria-label="Clear documentation search"
+              className="absolute right-1.5 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent/70"
+            >
+              <X size={15} aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
+        <div className="mt-2 min-h-5 px-1 text-[11px] text-gray-600" aria-live="polite">
+          {normalizedQuery
+            ? `${visibleGuideCount} guide${visibleGuideCount === 1 ? '' : 's'} found`
+            : 'Search titles, commands, APIs and guide content'}
+        </div>
 
-        <nav className="mt-7 space-y-7">
+        <nav className="mt-6 space-y-7">
           {visibleSections.length > 0 ? (
             visibleSections.map((section) => (
               <section key={section.id}>

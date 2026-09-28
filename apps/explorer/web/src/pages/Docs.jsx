@@ -13,6 +13,7 @@ import DocsSidebar from '../components/docs/DocsSidebar';
 import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
 import NetworkToolsPanel from '../components/NetworkToolsPanel';
+import CopyButton from '../components/CopyButton';
 import {
   defaultDocsPageId,
   docsPagesById,
@@ -82,6 +83,16 @@ export default function Docs() {
   const status = getDocsStatus(page.status);
   const neighbors = getDocsPageNeighbors(page.id);
   const outline = getDocsPageOutline(page);
+  const guideUrl = useMemo(() => {
+    const relativeUrl = `${location.pathname}${location.search}${location.hash}`;
+    const origin = globalThis.location?.origin;
+    if (!origin) return relativeUrl;
+    try {
+      return new URL(relativeUrl, origin).toString();
+    } catch {
+      return relativeUrl;
+    }
+  }, [location.hash, location.pathname, location.search]);
 
   const navigatePage = useCallback((pageId) => {
     if (!getDocsPage(pageId)) return;
@@ -139,7 +150,9 @@ export default function Docs() {
     const frame = window.requestAnimationFrame(() => {
       if (location.hash) {
         const id = decodeURIComponent(location.hash.slice(1));
-        document.getElementById(id)?.scrollIntoView({ block: 'start' });
+        const target = document.getElementById(id);
+        target?.scrollIntoView({ block: 'start' });
+        target?.focus?.({ preventScroll: true });
         return;
       }
       window.scrollTo({ top: 0, behavior: 'auto' });
@@ -280,15 +293,43 @@ export default function Docs() {
                     </p>
                   </div>
 
-                  <div className="shrink-0">
-                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600">
-                      Documentation network
+                  <div className="shrink-0 space-y-4">
+                    <div>
+                      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600">
+                        Documentation network
+                      </div>
+                      <NetworkToggle />
                     </div>
-                    <NetworkToggle />
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="text-[11px] font-medium text-gray-500">Share guide</span>
+                      <CopyButton value={guideUrl} label="Copy guide link" compact />
+                    </div>
                   </div>
                 </div>
               </div>
             </header>
+
+            {outline.length ? (
+              <details className="mt-6 rounded-2xl border border-white/10 bg-white/[0.02] p-4 xl:hidden">
+                <summary className="cursor-pointer select-none text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent/70">
+                  On this page
+                  <span className="ml-2 text-xs font-normal text-gray-500">
+                    {outline.length} section{outline.length === 1 ? '' : 's'}
+                  </span>
+                </summary>
+                <nav className="mt-4 grid gap-1 border-l border-white/10 pl-3" aria-label="On this page">
+                  {outline.map((item) => (
+                    <a
+                      key={item.id}
+                      href={`#${item.id}`}
+                      className="rounded-lg px-3 py-2 text-sm leading-5 text-gray-400 no-underline transition hover:bg-white/[0.035] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent/70"
+                    >
+                      {item.title}
+                    </a>
+                  ))}
+                </nav>
+              </details>
+            ) : null}
 
             {page.networkTools ? (
               <section className="mt-6 rounded-[24px] border border-white/10 bg-white/[0.02] p-5 sm:p-6">
