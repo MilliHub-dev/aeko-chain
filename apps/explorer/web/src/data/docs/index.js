@@ -279,7 +279,7 @@ const docsData = {
         {
           "type": "paragraph",
           "title": "Why examples follow your selection",
-          "body": "Documentation snippets resolve network tokens at render time. Switching Mainnet/Testnet changes endpoint examples instead of leaving stale URLs copied into the page."
+          "body": "Examples use the currently selected network. Switching Mainnet or Testnet updates endpoint values automatically."
         }
       ],
       "related": [
@@ -368,7 +368,7 @@ const docsData = {
             },
             {
               "title": "Configure the selected network",
-              "body": "Point the CLI at the same endpoint used throughout these docs.",
+              "body": "Point the CLI at the endpoint shown for the selected network.",
               "code": "aeko config set --url {{rpcUrl}}"
             },
             {
@@ -1884,7 +1884,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Do not infer payout correctness from UI totals alone",
-          "body": "For value-bearing actions, retain the transaction signature and verify chain confirmation. Explorer totals are convenient indexed summaries, not a replacement for the underlying transaction/account evidence.",
+          "body": "For value-bearing actions, retain the transaction signature and verify chain confirmation. Explorer totals are convenient indexed summaries, not a replacement for transaction and account verification.",
           "tone": "security"
         }
       ],
@@ -2024,7 +2024,7 @@ const docsData = {
           "title": "Integration boundary",
           "items": [
             "AEKO defines a bridge model for cross-chain messaging and asset movement.",
-            "Do not send assets to addresses obtained from conceptual material or informal examples.",
+            "Do not send assets until a public bridge interface publishes supported addresses and recovery rules for the selected network.",
             "Wait for release-specific supported-chain, asset, fee, finality and failure-recovery guidance."
           ]
         },
@@ -2365,7 +2365,7 @@ const docsData = {
               "body": "Indexed history can arrive after raw chain confirmation."
             },
             {
-              "title": "Escalate only with evidence",
+              "title": "Escalate with transaction details",
               "body": "Report the network, signature, canonical RPC observation, Explorer route, and timestamp; never attach signing secrets."
             }
           ]
@@ -2551,7 +2551,7 @@ const docsData = {
           "items": [
             "Use AEKO-20 for available fungible-token primitives.",
             "Treat creator-coin pricing and bonding-curve behavior as unavailable until a public create/buy/sell interface is released.",
-            "Do not infer creator-coin economics from SocialFi prose and hard-code them into an application."
+            "Do not assume a creator-coin pricing model until a public interface defines its economics and transaction flow."
           ]
         }
       ],

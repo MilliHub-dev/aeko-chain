@@ -85,6 +85,10 @@ test('public copy describes developer capabilities instead of documentation deri
     /current implementation/i,
     /reference implementation/i,
     /checked-in fast installer/i,
+    /documentation snippets/i,
+    /throughout these docs/i,
+    /socialfi prose/i,
+    /conceptual material|informal examples/i,
   ];
 
   for (const pattern of forbiddenDerivationLanguage) {
