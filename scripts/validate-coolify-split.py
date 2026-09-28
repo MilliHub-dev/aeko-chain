@@ -342,8 +342,9 @@ def main() -> int:
         "Operations Web container healthcheck must use the dedicated public /healthz route",
     )
     require(
-        "'/healthz'" in admin_middleware,
-        "Operations Web middleware must keep /healthz outside Admin session authentication",
+        "pathname === '/healthz'" in admin_middleware
+        and "return nextWithRequestId(req, requestId)" in admin_middleware,
+        "Operations Web middleware must bypass Admin authentication and request logging for /healthz",
     )
     require(
         "return new Response('ok\\n'" in admin_health_route
