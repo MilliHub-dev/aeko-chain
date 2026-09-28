@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -60,6 +60,8 @@ function PageNavButton({ page, direction, onNavigate }) {
 
 export default function Docs() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuTriggerRef = useRef(null);
+  const mobileMenuPanelRef = useRef(null);
   const { network, config: networkConfig } = useNetwork();
   const location = useLocation();
   const navigate = useNavigate();
@@ -119,16 +121,46 @@ export default function Docs() {
     if (!isMobileMenuOpen) return undefined;
 
     const previousOverflow = document.body.style.overflow;
+    const focusFrame = window.requestAnimationFrame(() => {
+      mobileMenuPanelRef.current?.focus();
+    });
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') setIsMobileMenuOpen(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setIsMobileMenuOpen(false);
+        return;
+      }
+
+      if (event.key !== 'Tab' || !mobileMenuPanelRef.current) return;
+      const focusable = [...mobileMenuPanelRef.current.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )];
+      if (!focusable.length) {
+        event.preventDefault();
+        mobileMenuPanelRef.current.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !mobileMenuPanelRef.current.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !mobileMenuPanelRef.current.contains(active))) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      window.cancelAnimationFrame(focusFrame);
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
+      window.requestAnimationFrame(() => mobileMenuTriggerRef.current?.focus());
     };
   }, [isMobileMenuOpen]);
 
@@ -137,6 +169,7 @@ export default function Docs() {
       <div className="mx-auto max-w-[1540px] px-4 pb-24 pt-24 sm:px-6 lg:px-8">
         <div className="mb-5 flex items-center justify-between gap-4 lg:hidden">
           <button
+            ref={mobileMenuTriggerRef}
             type="button"
             onClick={() => setIsMobileMenuOpen(true)}
             className="flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-medium text-white transition hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent/70"
@@ -311,7 +344,11 @@ export default function Docs() {
             onClick={() => setIsMobileMenuOpen(false)}
             aria-label="Close documentation menu"
           />
-          <div className="absolute inset-y-0 left-0 w-[min(88vw,360px)] overflow-y-auto border-r border-white/10 bg-aeko-dark shadow-2xl">
+          <div
+            ref={mobileMenuPanelRef}
+            tabIndex={-1}
+            className="absolute inset-y-0 left-0 w-[min(88vw,360px)] overflow-y-auto border-r border-white/10 bg-aeko-dark shadow-2xl outline-none"
+          >
             <DocsSidebar
               sections={docsSections}
               pagesById={docsPagesById}

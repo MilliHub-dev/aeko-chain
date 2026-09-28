@@ -103,6 +103,11 @@ test('renderer and page shell do not expose implementation-source UI', async () 
   assert.doesNotMatch(renderer, /GitHubSourceLink|page\.sources|Implementation references|github\.com\/MilliHub-dev/);
   assert.doesNotMatch(docsPage, /Edit docs source|Source policy|github\.com\/MilliHub-dev|implementation source/i);
   assert.doesNotMatch(docsPage, /dangerouslySetInnerHTML|docs\.json/);
+  assert.match(docsPage, /mobileMenuTriggerRef/);
+  assert.match(docsPage, /mobileMenuPanelRef/);
+  assert.match(docsPage, /event\.key === 'Escape'/);
+  assert.match(docsPage, /event\.key !== 'Tab'/);
+  assert.match(docsPage, /tabIndex=\{-1\}/);
 });
 
 test('legacy monolithic docs payload remains removed', async () => {
