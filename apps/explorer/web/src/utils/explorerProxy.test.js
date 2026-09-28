@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
+import process from 'node:process';
 import test from 'node:test';
 
 async function listen(server) {
@@ -51,7 +52,7 @@ test('funding proxy converts an upstream HTML 403 into the Explorer JSON error c
   const scanPort = await unusedPort();
   const stderr = { value: '' };
   const serverPath = fileURLToPath(
-    new URL('../../../../docker/explorer-ui-server.mjs', import.meta.url),
+    new URL('../../../../../docker/explorer-ui-server.mjs', import.meta.url),
   );
   const child = spawn(process.execPath, [serverPath], {
     env: {
