@@ -26,41 +26,25 @@ trap cleanup EXIT
 rpc_call() {
   local method="$1"
   local params="${2:-[]}"
-  RPC_METHOD="$method" RPC_PARAMS="$params" RPC_URL="$LIVE_RPC_URL" python3 - <<'PY'
+  local body
+
+  body="$(RPC_METHOD="$method" RPC_PARAMS="$params" python3 - <<'PY'
 import json
 import os
-import time
-import urllib.error
-import urllib.request
 
-method = os.environ["RPC_METHOD"]
-params = json.loads(os.environ["RPC_PARAMS"])
-url = os.environ["RPC_URL"]
-body = json.dumps(
-    {"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
+print(json.dumps(
+    {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": os.environ["RPC_METHOD"],
+        "params": json.loads(os.environ["RPC_PARAMS"]),
+    },
     separators=(",", ":"),
-).encode("utf-8")
-
-request = urllib.request.Request(
-    url,
-    data=body,
-    headers={"Content-Type": "application/json", "Accept": "application/json"},
-    method="POST",
-)
-
-last_error = None
-for attempt in range(3):
-    try:
-        with urllib.request.urlopen(request, timeout=25) as response:
-            print(response.read().decode("utf-8"))
-        raise SystemExit(0)
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        last_error = exc
-        if attempt < 2:
-            time.sleep(1 + attempt)
-
-raise SystemExit(f"RPC {method} request failed: {last_error}")
+))
 PY
+)"
+
+  curl --fail-with-body --silent --show-error     --connect-timeout 10 --max-time 25 --retry 2 --retry-all-errors     -H 'Content-Type: application/json'     -H 'Accept: application/json'     --data-binary "$body"     "$LIVE_RPC_URL"
 }
 
 json_rpc_result() {
@@ -103,14 +87,17 @@ if [ "$LIVE_TESTNET" != "true" ]; then
 fi
 
 echo "==> Probing live AEKO Testnet RPC: $LIVE_RPC_URL"
-health="$(json_rpc_result "$(rpc_call getHealth)")"
+health_json="$(rpc_call getHealth)"
+health="$(json_rpc_result "$health_json")"
 if [ "$health" != "ok" ]; then
   echo "Live AEKO Testnet RPC is not healthy: $health" >&2
   exit 1
 fi
 
-genesis="$(json_rpc_result "$(rpc_call getGenesisHash)")"
-slot="$(json_rpc_result "$(rpc_call getSlot '[{"commitment":"confirmed"}]')")"
+genesis_json="$(rpc_call getGenesisHash)"
+genesis="$(json_rpc_result "$genesis_json")"
+slot_json="$(rpc_call getSlot '[{"commitment":"confirmed"}]')"
+slot="$(json_rpc_result "$slot_json")"
 if ! [[ "$slot" =~ ^[0-9]+$ ]] || [ "$slot" -le 0 ]; then
   echo "Live AEKO Testnet returned an invalid slot: $slot" >&2
   exit 1
