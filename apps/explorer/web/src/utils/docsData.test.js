@@ -63,3 +63,25 @@ test('on-page outline ids are stable and unique within each page', () => {
     }
   }
 });
+
+
+test('planned policy and security guides remain explicit and status-scoped', () => {
+  const publicMint = docsPagesById['public-mint'];
+  const programSecurity = docsPagesById['program-security'];
+  const antiSpam = docsPagesById['anti-spam'];
+
+  assert.equal(publicMint.status, 'operator');
+  assert.equal(programSecurity.status, 'available');
+  assert.equal(antiSpam.status, 'operator');
+  assert.ok(docsSections.find((section) => section.id === 'tokens-nfts').items.includes('public-mint'));
+  assert.ok(docsSections.find((section) => section.id === 'smart-contracts').items.includes('program-security'));
+  assert.ok(docsSections.find((section) => section.id === 'socialfi').items.includes('anti-spam'));
+});
+
+
+test('removed Explorer API endpoint surface stays removed', () => {
+  const serialized = JSON.stringify(docsPages);
+  assert.doesNotMatch(serialized, /\{\{explorerApiUrl\}\}/);
+  const visible = JSON.stringify(docsPages.map(({ id, sources, ...page }) => page));
+  assert.doesNotMatch(visible, /Explorer API/);
+});

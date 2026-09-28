@@ -46,7 +46,8 @@ const docsData = {
         "program-model",
         "first-program",
         "deploy-invoke",
-        "program-lifecycle"
+        "program-lifecycle",
+        "program-security"
       ]
     },
     {
@@ -65,6 +66,7 @@ const docsData = {
       "description": "Fungible assets, NFTs and lifecycle recipes.",
       "items": [
         "aeko20",
+        "public-mint",
         "aeko721",
         "nft-flow",
         "creator-coins"
@@ -79,6 +81,7 @@ const docsData = {
         "posts-engagement",
         "rewards-staking",
         "monetization",
+        "anti-spam",
         "social-backend"
       ]
     },
@@ -154,7 +157,7 @@ const docsData = {
             },
             {
               "title": "Read before you write",
-              "body": "Verify connectivity with a balance, account, blockhash, or Explorer API request before asking a wallet to sign."
+              "body": "Verify connectivity with a balance, account or recent blockhash before asking a wallet to sign."
             },
             {
               "title": "Sign and submit",
@@ -229,7 +232,7 @@ const docsData = {
       "id": "networks",
       "title": "Networks & endpoints",
       "section": "start-here",
-      "summary": "Use the selected network consistently across CLI, SDK, WebSocket, Explorer API, and Scan verification.",
+      "summary": "Use the selected network consistently across CLI, SDK, realtime subscriptions and Aeko Scan verification.",
       "status": "available",
       "tags": [
         "network",
@@ -241,7 +244,7 @@ const docsData = {
         "The Explorer deployment must expose the selected network in its runtime configuration."
       ],
       "outcomes": [
-        "Copy the active RPC, WebSocket, and Explorer API endpoints.",
+        "Copy the active RPC and realtime endpoints.",
         "Point CLI and SDK examples at the same network."
       ],
       "networkTools": true,
@@ -259,11 +262,6 @@ const docsData = {
               "label": "WebSocket",
               "value": "{{websocketUrl}}",
               "note": "Use for live subscriptions."
-            },
-            {
-              "label": "Explorer API",
-              "value": "{{explorerApiUrl}}",
-              "note": "Use for indexed, searchable, enriched views."
             }
           ]
         },
@@ -288,8 +286,7 @@ const docsData = {
       "related": [
         "fund-test-wallet",
         "rpc-quickstart",
-        "websocket",
-        "explorer-api"
+        "websocket"
       ],
       "sources": [
         {
@@ -1128,104 +1125,62 @@ const docsData = {
     },
     {
       "id": "explorer-api",
-      "title": "Explorer API",
+      "title": "Aeko Scan indexed data",
       "section": "network-apis",
-      "summary": "Use indexed Explorer endpoints for historical, searchable, enriched views; use raw RPC for authoritative live chain calls.",
-      "status": "available",
+      "summary": "Use Aeko Scan for searchable, enriched and historical views; use raw RPC for authoritative live chain reads and transaction submission.",
+      "status": "operator",
       "tags": [
         "explorer",
-        "api",
-        "indexer",
+        "scan",
+        "indexed-data",
         "search"
       ],
       "prerequisites": [
-        "A configured Explorer API endpoint."
+        "Aeko Scan available for the selected network."
       ],
       "outcomes": [
-        "Choose correctly between raw RPC and indexed Explorer data."
+        "Choose correctly between raw RPC and indexed Scan views."
       ],
-      "networkTools": true,
+      "networkTools": false,
       "blocks": [
         {
-          "type": "endpoints",
-          "title": "Common read paths",
-          "items": [
-            {
-              "label": "Recent blocks",
-              "value": "{{explorerApiUrl}}/blocks",
-              "note": "Indexed block list."
-            },
-            {
-              "label": "Transactions",
-              "value": "{{explorerApiUrl}}/transactions",
-              "note": "Searchable transaction history."
-            },
-            {
-              "label": "Search",
-              "value": "{{explorerApiUrl}}/search",
-              "note": "Resolve common chain and SocialFi identifiers."
-            },
-            {
-              "label": "Posts",
-              "value": "{{explorerApiUrl}}/posts",
-              "note": "Indexed SocialFi post views."
-            }
-          ]
-        },
-        {
           "type": "table",
-          "title": "Representative routes",
+          "title": "Indexed views",
           "headers": [
-            "Route",
+            "View",
             "Purpose"
           ],
           "rows": [
             [
-              "GET /blocks/{slot}",
-              "Indexed block detail."
+              "Blocks",
+              "Browse indexed block detail and transaction counts."
             ],
             [
-              "GET /transactions/{signature}",
-              "Enriched transaction detail."
+              "Transactions",
+              "Inspect status, fees, instructions, accounts and logs after indexing."
             ],
             [
-              "GET /accounts/{address}",
-              "Composite wallet/account view."
+              "Accounts",
+              "Use composite wallet/account history where available."
             ],
             [
-              "GET /tokens/{mint}",
-              "AEKO-20 summary."
+              "Tokens & NFTs",
+              "Inspect indexed token, NFT and collection ownership/metadata views."
             ],
             [
-              "GET /nfts/{tokenId}",
-              "NFT detail."
+              "Creators & posts",
+              "Browse indexed creator, post, engagement, reward and stake projections."
             ],
             [
-              "GET /collections/{collectionId}",
-              "Collection summary and items."
-            ],
-            [
-              "GET /creators/{address}",
-              "Creator profile summary."
-            ],
-            [
-              "GET /posts/{postId}",
-              "Social post detail."
-            ],
-            [
-              "GET /engagement",
-              "Indexed engagement activity."
-            ],
-            [
-              "GET /stakes",
-              "Indexed social stake records."
+              "Search",
+              "Resolve supported chain and SocialFi identifiers through Aeko Scan."
             ]
           ]
         },
         {
           "type": "callout",
-          "title": "Indexed data is not the transaction submission path",
-          "body": "The Explorer API can lag the chain and may contain derived summaries. Use RPC/SDK for transaction submission and canonical account reads; use Explorer API when you need searchable history or enriched relational views.",
+          "title": "Indexed data is not the submission path",
+          "body": "Aeko Scan can lag the live chain and may include derived summaries. Submit transactions and read canonical account state through RPC/SDK; use Scan when you need searchable or enriched presentation.",
           "tone": "info"
         }
       ],
@@ -1237,12 +1192,12 @@ const docsData = {
       ],
       "sources": [
         {
-          "label": "explorer-api.md",
-          "path": "docs/rpc-and-apis/explorer-api.md"
+          "label": "Explorer backend",
+          "path": "apps/explorer/backend"
         },
         {
-          "label": "backend",
-          "path": "apps/explorer/backend"
+          "label": "Aeko Scan",
+          "path": "apps/explorer/web/src/pages/Explorer.jsx"
         }
       ]
     },
@@ -1575,7 +1530,8 @@ const docsData = {
       "related": [
         "deploy-invoke",
         "application-security",
-        "cli-reference"
+        "cli-reference",
+        "program-security"
       ],
       "sources": [
         {
@@ -1747,7 +1703,7 @@ const docsData = {
       ],
       "outcomes": [
         "Understand the implemented AEKO-20 action surface.",
-        "Use Explorer API for indexed token summaries where appropriate."
+        "Verify indexed token summaries in Aeko Scan where appropriate."
       ],
       "blocks": [
         {
@@ -1795,27 +1751,19 @@ const docsData = {
           "tone": "warning"
         },
         {
-          "type": "endpoints",
-          "title": "Indexed token reads",
+          "type": "bullets",
+          "title": "Verify token state",
           "items": [
-            {
-              "label": "Token summary",
-              "value": "{{explorerApiUrl}}/tokens/<MINT>",
-              "note": "Indexed AEKO-20 summary."
-            },
-            {
-              "label": "Token transfers",
-              "value": "{{explorerApiUrl}}/tokens/transfers",
-              "note": "Searchable transfer history when indexed."
-            }
+            "Use raw RPC/account reads when your application needs canonical live state.",
+            "Use Aeko Scan to inspect indexed token summaries and transfer history when available."
           ]
         }
       ],
       "related": [
-        "explorer-api",
         "aeko721",
         "application-security",
-        "creator-coins"
+        "creator-coins",
+        "public-mint"
       ],
       "sources": [
         {
@@ -1888,26 +1836,17 @@ const docsData = {
           "value": "import { buildPreparedToken721Transaction } from '@aeko-chain/web3.js';\n\nconst preparedBase64 = buildPreparedToken721Transaction({\n  payer: 'PAYER',\n  recentBlockhash: 'RECENT_BLOCKHASH',\n  action: 'transfer',\n  token: 'TOKEN_ACCOUNT',\n  authority: 'CURRENT_OWNER',\n  owner: 'CURRENT_OWNER',\n  recipient: 'NEW_OWNER',\n  metadata: { name: 'unused-for-transfer', uri: 'unused-for-transfer' },\n});\n\n// Send the prepared transaction through the user's wallet/signing flow."
         },
         {
-          "type": "endpoints",
-          "title": "Indexed NFT reads",
+          "type": "bullets",
+          "title": "Verify NFT state",
           "items": [
-            {
-              "label": "NFT detail",
-              "value": "{{explorerApiUrl}}/nfts/<TOKEN_ID>",
-              "note": "Indexed ownership and metadata view."
-            },
-            {
-              "label": "Collection detail",
-              "value": "{{explorerApiUrl}}/collections/<COLLECTION_ID>",
-              "note": "Collection summary and items."
-            }
+            "Confirm the transaction signature through RPC after a mint, transfer or metadata update.",
+            "Use Aeko Scan to inspect indexed NFT and collection ownership/metadata views."
           ]
         }
       ],
       "related": [
         "nft-flow",
-        "browser-wallets",
-        "explorer-api"
+        "browser-wallets"
       ],
       "sources": [
         {
@@ -1965,7 +1904,7 @@ const docsData = {
               "body": "Confirm through RPC before waiting for the Explorer index."
             },
             {
-              "title": "Read the NFT in Scan/Explorer API",
+              "title": "Read the NFT in Aeko Scan",
               "body": "Use the token/collection identifiers to verify indexed ownership and metadata."
             }
           ]
@@ -2044,7 +1983,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Reads and writes have different best paths",
-          "body": "Write canonical state through signed program transactions. Read searchable feeds, creator profiles, post detail, rewards, engagement and stake history through the Explorer API when an indexed view is what the product needs.",
+          "body": "Write canonical state through signed program transactions. Read searchable feeds, creator profiles, post detail, rewards, engagement and stake history through Aeko Scan when an indexed view is what the product needs.",
           "tone": "info"
         }
       ],
@@ -2053,7 +1992,8 @@ const docsData = {
         "rewards-staking",
         "monetization",
         "social-backend",
-        "creator-coins"
+        "creator-coins",
+        "anti-spam"
       ],
       "sources": [
         {
@@ -2139,19 +2079,11 @@ const docsData = {
           "value": "import { buildCanonicalPostPayload, buildPostHashBundle } from '@aeko-chain/sdk';\n\nconst canonical = {\n  postId: 'POST_ID_BASE58_32_BYTES',\n  creator: 'CREATOR_ADDRESS',\n  contentHash: 'CONTENT_HASH',\n  metadataHash: 'METADATA_HASH',\n  contentUri: 'https://example.com/content/123',\n  postKind: 'original',\n  createdAtUnix: Math.floor(Date.now() / 1000),\n  visibility: 'public',\n};\n\nconst payload = buildCanonicalPostPayload(canonical);\nconst hashes = buildPostHashBundle({ content: 'hello', metadata: '{}', canonicalPayload: canonical });\nconsole.log(payload, hashes);"
         },
         {
-          "type": "endpoints",
+          "type": "bullets",
           "title": "Indexed reads",
           "items": [
-            {
-              "label": "Posts",
-              "value": "{{explorerApiUrl}}/posts",
-              "note": "Feed/search read model."
-            },
-            {
-              "label": "Engagement",
-              "value": "{{explorerApiUrl}}/engagement",
-              "note": "Indexed engagement records."
-            }
+            "Use Aeko Scan to inspect indexed posts and engagement after canonical chain writes are confirmed.",
+            "For canonical program state, use RPC/account reads rather than treating an indexed feed as transaction authority."
           ]
         }
       ],
@@ -2194,29 +2126,11 @@ const docsData = {
       ],
       "blocks": [
         {
-          "type": "endpoints",
+          "type": "bullets",
           "title": "Indexed creator views",
           "items": [
-            {
-              "label": "Creator",
-              "value": "{{explorerApiUrl}}/creators/<ADDRESS>",
-              "note": "Composite creator profile."
-            },
-            {
-              "label": "Rewards",
-              "value": "{{explorerApiUrl}}/creators/<ADDRESS>/rewards",
-              "note": "Creator reward history."
-            },
-            {
-              "label": "Stake",
-              "value": "{{explorerApiUrl}}/creators/<ADDRESS>/stake",
-              "note": "Social stake summary."
-            },
-            {
-              "label": "All stakes",
-              "value": "{{explorerApiUrl}}/stakes",
-              "note": "Indexed stake records."
-            }
+            "Aeko Scan can present creator profiles, reward history and social stake summaries from indexed chain data.",
+            "For value-bearing actions, retain and confirm the underlying transaction signature instead of relying on displayed totals alone."
           ]
         },
         {
@@ -2228,8 +2142,7 @@ const docsData = {
       ],
       "related": [
         "socialfi-overview",
-        "monetization",
-        "explorer-api"
+        "monetization"
       ],
       "sources": [
         {
@@ -2285,7 +2198,8 @@ const docsData = {
       "related": [
         "socialfi-overview",
         "application-security",
-        "wallet-permissions"
+        "wallet-permissions",
+        "anti-spam"
       ],
       "sources": [
         {
@@ -2302,7 +2216,7 @@ const docsData = {
       "id": "social-backend",
       "title": "Social backend integration",
       "section": "socialfi",
-      "summary": "Use the Node SDK to canonicalize/sign-verify post payloads and prepare chain writes while the Explorer API supplies indexed read models.",
+      "summary": "Use the Node SDK to canonicalize and verify post payloads, then prepare signed chain writes while Aeko Scan provides indexed verification views.",
       "status": "available",
       "tags": [
         "socialfi",
@@ -2313,7 +2227,7 @@ const docsData = {
       "prerequisites": [
         "Node.js backend.",
         "User signature/public key.",
-        "AEKO RPC and Explorer API endpoints."
+        "An AEKO RPC endpoint and access to Aeko Scan for indexed verification."
       ],
       "outcomes": [
         "Build a backend boundary that verifies user intent before submitting/relaying a prepared SocialFi write."
@@ -2354,8 +2268,7 @@ const docsData = {
       ],
       "related": [
         "posts-engagement",
-        "node-sdk",
-        "explorer-api"
+        "node-sdk"
       ],
       "sources": [
         {
@@ -3128,6 +3041,312 @@ const docsData = {
         {
           "label": "clap_app.rs",
           "path": "apps/cli/src/clap_app.rs"
+        }
+      ]
+    },
+    {
+      "id": "public-mint",
+      "title": "Public & permissioned minting",
+      "section": "tokens-nfts",
+      "summary": "Use the implemented public-mint program as a policy-controlled issuance boundary; end-user wallets cannot bypass the required mint authority and policy checks.",
+      "status": "operator",
+      "tags": [
+        "public-mint",
+        "permissioned-mint",
+        "aeko-20",
+        "policy"
+      ],
+      "prerequisites": [
+        "An AEKO-20 mint configured for PublicMintControlled issuance.",
+        "The release-specific public-mint state and tokenomics state accounts.",
+        "A wallet signer plus the controlled mint-authority signer required by the program."
+      ],
+      "outcomes": [
+        "Understand which checks the on-chain public-mint path enforces before supply changes.",
+        "Avoid presenting draft service routes or arbitrary self-minting as a supported public workflow."
+      ],
+      "blocks": [
+        {
+          "type": "table",
+          "title": "Implemented program actions",
+          "headers": [
+            "Action",
+            "Who should use it",
+            "Purpose"
+          ],
+          "rows": [
+            [
+              "InitializePolicy / UpdatePolicy",
+              "Network/operator authority",
+              "Create or change issuance policy state."
+            ],
+            [
+              "Add/Remove blocklist",
+              "Network/operator authority",
+              "Deny or restore mint eligibility for a wallet."
+            ],
+            [
+              "Add/Remove allowlist",
+              "Network/operator authority",
+              "Manage allowlist-gated issuance."
+            ],
+            [
+              "PublicMint",
+              "Wallet + controlled mint authority",
+              "Apply policy checks, then issue through the AEKO-20 public-mint-controlled path."
+            ]
+          ]
+        },
+        {
+          "type": "steps",
+          "title": "What the on-chain mint path verifies",
+          "items": [
+            {
+              "title": "Policy and eligibility",
+              "body": "The public-mint state checks enablement, block/allow lists, cooldown/window limits, anomaly thresholds and subsidy rules."
+            },
+            {
+              "title": "Destination ownership",
+              "body": "The destination AEKO-20 account must match the requesting wallet and target mint."
+            },
+            {
+              "title": "Required signatures",
+              "body": "The requesting wallet remains attributable, while the configured mint authority must also sign the issuance path."
+            },
+            {
+              "title": "AEKO-20 policy",
+              "body": "The token program verifies PublicMintControlled policy, destination validity, freeze state and supply-cap constraints."
+            },
+            {
+              "title": "Usage accounting",
+              "body": "The public-mint program persists wallet-window and subsidy usage after successful issuance."
+            }
+          ]
+        },
+        {
+          "type": "callout",
+          "title": "No verified public mint service endpoint",
+          "body": "The repository's public-mint service document labels its HTTP routes as a draft integration reference. This portal therefore documents the implemented on-chain instruction boundary and does not publish those suggested routes as a live public service.",
+          "tone": "warning"
+        },
+        {
+          "type": "callout",
+          "title": "Operator-managed authority is intentional",
+          "body": "A PublicMintControlled asset is not arbitrary self-minting. Keep the mint authority in a controlled service or governance boundary and surface policy/cooldown/limit failures to the user without exposing authority secrets.",
+          "tone": "security"
+        }
+      ],
+      "related": [
+        "aeko20",
+        "wallet-permissions",
+        "application-security"
+      ],
+      "sources": [
+        {
+          "label": "instruction.rs",
+          "path": "programs/public-mint/src/instruction.rs"
+        },
+        {
+          "label": "processor.rs",
+          "path": "programs/public-mint/src/processor.rs"
+        },
+        {
+          "label": "permissioned-mint-flow.md",
+          "path": "docs/token-standards/permissioned-mint-flow.md"
+        },
+        {
+          "label": "main.rs",
+          "path": "protocol-bootstrap/src/main.rs"
+        }
+      ]
+    },
+    {
+      "id": "program-security",
+      "title": "Program security checklist",
+      "section": "smart-contracts",
+      "summary": "Validate signers, account ownership, writable state, serialization and upgrade authority before an AEKO program is treated as production-ready.",
+      "status": "available",
+      "tags": [
+        "program",
+        "security",
+        "rust",
+        "sbf"
+      ],
+      "prerequisites": [
+        "A program instruction/account contract you can trace in source and tests."
+      ],
+      "outcomes": [
+        "Know the minimum authorization and account invariants to test before deployment.",
+        "Keep upgrade/close authority separate from normal application signing."
+      ],
+      "blocks": [
+        {
+          "type": "bullets",
+          "title": "Before deployment",
+          "items": [
+            "Reject missing or unexpected signers before mutating state.",
+            "Validate every program-owned account and the relationships between accounts passed to an instruction.",
+            "Mark only accounts that are actually mutated as writable in client instructions.",
+            "Bounds-check instruction data and serialized state before arithmetic, indexing or allocation.",
+            "Reject unauthorized owners/authorities, duplicate identifiers, invalid freeze state, overflow/underflow and malformed data.",
+            "Test failure paths, not just happy-path instruction execution."
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Authority boundaries",
+          "headers": [
+            "Authority",
+            "Use",
+            "Do not"
+          ],
+          "rows": [
+            [
+              "User signer",
+              "Approve the user's explicit application action.",
+              "Reuse it as a deployment or service authority."
+            ],
+            [
+              "Backend/service signer",
+              "Pay fees or perform narrowly scoped service actions when the product requires it.",
+              "Treat it as proof of user intent."
+            ],
+            [
+              "Upgrade authority",
+              "Upgrade/extend/close an upgradeable program.",
+              "Store it with routine application credentials."
+            ],
+            [
+              "Program state authority",
+              "Mutate policy/configuration state where the program contract allows it.",
+              "Infer authority from a client-side role label."
+            ]
+          ]
+        },
+        {
+          "type": "callout",
+          "title": "Client validation is not program validation",
+          "body": "Wallet UX and backend checks can improve safety, but an on-chain program must enforce signer, owner, account and state invariants itself because clients are untrusted.",
+          "tone": "security"
+        }
+      ],
+      "related": [
+        "first-program",
+        "deploy-invoke",
+        "program-lifecycle",
+        "application-security"
+      ],
+      "sources": [
+        {
+          "label": "hello program",
+          "path": "contracts/hello-aeko-program/src/lib.rs"
+        },
+        {
+          "label": "token-721 processor",
+          "path": "programs/token-721/src/processor.rs"
+        },
+        {
+          "label": "wallet-permissions processor",
+          "path": "programs/wallet-permissions/src/processor.rs"
+        },
+        {
+          "label": "upgradeable loader",
+          "path": "sdk/program/src/bpf_loader_upgradeable.rs"
+        }
+      ]
+    },
+    {
+      "id": "anti-spam",
+      "title": "Anti-spam policy",
+      "section": "socialfi",
+      "summary": "Consume eligibility decisions from the implemented anti-spam program while keeping policy mutations and penalties behind the configured authority.",
+      "status": "operator",
+      "tags": [
+        "socialfi",
+        "anti-spam",
+        "reputation",
+        "staking",
+        "cooldown"
+      ],
+      "prerequisites": [
+        "The deployment's anti-spam state account and current policy mode.",
+        "The reputation/stake inputs required by the active policy."
+      ],
+      "outcomes": [
+        "Know which anti-spam checks an application can depend on.",
+        "Avoid implementing cooldowns or penalties as frontend-only flags."
+      ],
+      "blocks": [
+        {
+          "type": "table",
+          "title": "Program modes and actions",
+          "headers": [
+            "Surface",
+            "Behavior",
+            "Application implication"
+          ],
+          "rows": [
+            [
+              "ObserveOnly",
+              "Eligibility checks do not gate by reputation/stake.",
+              "Use results for observation/telemetry; do not invent enforcement."
+            ],
+            [
+              "GateByReputation",
+              "Post/engagement checks require the configured reputation threshold.",
+              "Explain eligibility failure instead of retrying the same write blindly."
+            ],
+            [
+              "GateByStake",
+              "Eligibility requires the configured minimum stake.",
+              "Read/refresh stake state before asking the user to repeat the action."
+            ],
+            [
+              "PenaltyEnabled",
+              "Reputation gating is active and authorized penalties can be applied.",
+              "Penalty/cooldown mutations remain authority-controlled."
+            ]
+          ]
+        },
+        {
+          "type": "bullets",
+          "title": "Implemented instruction families",
+          "items": [
+            "`CheckPostEligibility` and `CheckEngagementEligibility` evaluate a wallet against the active mode.",
+            "`ReadAntiSpamProfile` exposes the current program profile/state as return data.",
+            "`FlagSpamBehavior`, `ApplyCooldown`, `ClearCooldown` and `ApplySpamPenalty` require the configured authority signer.",
+            "The post program receives anti-spam state as part of relevant write paths, so product UI should not model eligibility as an unrelated toggle."
+          ]
+        },
+        {
+          "type": "callout",
+          "title": "Operator-managed policy, app-visible outcome",
+          "body": "Apps can consume eligibility and profile outcomes, but they must not fabricate authority-only flags, cooldown clearing or penalties. Surface the rejection reason and recovery condition that the active policy actually enforces.",
+          "tone": "warning"
+        }
+      ],
+      "related": [
+        "socialfi-overview",
+        "posts-engagement",
+        "rewards-staking",
+        "application-security"
+      ],
+      "sources": [
+        {
+          "label": "instruction.rs",
+          "path": "programs/social-anti-spam/src/instruction.rs"
+        },
+        {
+          "label": "state.rs",
+          "path": "programs/social-anti-spam/src/state.rs"
+        },
+        {
+          "label": "processor.rs",
+          "path": "programs/social-anti-spam/src/processor.rs"
+        },
+        {
+          "label": "social-posts instruction",
+          "path": "programs/social-posts/src/instruction.rs"
         }
       ]
     }

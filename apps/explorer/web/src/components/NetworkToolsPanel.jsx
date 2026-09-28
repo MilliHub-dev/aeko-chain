@@ -1,4 +1,4 @@
-import { Activity, Braces, Radio, WalletCards, Waypoints } from 'lucide-react';
+import { Activity, Radio, WalletCards, Waypoints } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CopyButton from './CopyButton';
 import { getNetworkConfig } from '../utils/networkConfig';
@@ -45,7 +45,6 @@ export default function NetworkToolsPanel({ network }) {
         icon={<Radio size={14} />}
         hint="Subscriptions and live updates"
       />
-
 
       <div className="rounded-xl border border-white/10 bg-white/5 p-5">
         <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500">
