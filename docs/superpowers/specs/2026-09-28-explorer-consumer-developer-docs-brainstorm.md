@@ -77,7 +77,7 @@ Create sections matching `apps/`, `programs/`, `rpc/`, `sdk/`, and other reposit
 
 ### Option C: Task-oriented portal backed by a capability/reference layer
 
-Organize the public docs around what developers are trying to accomplish, then expose CLI, SDK, API and source references as implementation paths inside each topic.
+Organize the public docs around what developers are trying to accomplish, then present only the supported CLI, SDK and API paths that help complete each task.
 
 **Chosen.** It allows the same real capability to be documented once conceptually and then connected to all supported tools.
 

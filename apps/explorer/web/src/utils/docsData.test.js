@@ -58,6 +58,8 @@ test('public documentation never exposes internal repository or file references'
     /raw\.githubusercontent\.com/i,
     /github\.com\/[^\s"']+\/(?:blob|tree)\//i,
     /implementation references|edit docs source|source policy/i,
+    /verified public surface|verified node exports|verified client methods|verified crate scope|verified program family/i,
+    /current evidence|inspected external|this portal intentionally|source of truth/i,
     /coming soon|being updated|check back soon|todo:/i,
   ];
   for (const pattern of forbidden) {

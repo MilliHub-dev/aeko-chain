@@ -231,7 +231,7 @@ const docsData = {
         "endpoint"
       ],
       "prerequisites": [
-        "The Explorer deployment must expose the selected network in its runtime configuration."
+        "The selected network must be available in Aeko Scan."
       ],
       "outcomes": [
         "Copy the active RPC, realtime and Explorer API endpoints.",
@@ -269,7 +269,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Funding is network-specific",
-          "body": "Mainnet does not provide test funding. Testnet exposes the funding workflow only when the deployment has configured it. The network panel above reflects the current deployment instead of hard-coding an endpoint.",
+          "body": "Mainnet does not provide test funding. Testnet funding is shown only when it is available for the selected network. Use the live network panel above instead of copying an endpoint from another environment.",
           "tone": "warning"
         },
         {
@@ -396,7 +396,7 @@ const docsData = {
       "id": "fund-test-wallet",
       "title": "Get test AEKO",
       "section": "start-here",
-      "summary": "Fund development wallets through the deployment-provided Testnet funding surface without assuming a private faucet address.",
+      "summary": "Fund a development wallet on Testnet using the funding tools shown in Aeko Scan.",
       "status": "testnet",
       "tags": [
         "funding",
@@ -408,7 +408,7 @@ const docsData = {
         "Create or load the wallet address you want to fund."
       ],
       "outcomes": [
-        "Receive test-only AEKO when the deployment enables funding.",
+        "Receive test-only AEKO when funding is available for the selected network.",
         "Confirm the resulting balance before continuing."
       ],
       "networkTools": true,
@@ -416,7 +416,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Testnet only",
-          "body": "The Explorer runtime decides whether test funding is available. Mainnet intentionally has no test-funding path.",
+          "body": "Test funding is available only on supported Testnet environments. Mainnet intentionally has no test-funding path.",
           "tone": "warning"
         },
         {
@@ -425,7 +425,7 @@ const docsData = {
           "items": [
             {
               "title": "Select Testnet",
-              "body": "Use the network control on this page. The funding state shown above comes from the active deployment."
+              "body": "Use the network control on this page. The funding status above follows the selected network."
             },
             {
               "title": "Open Network Tools",
@@ -676,7 +676,7 @@ const docsData = {
         },
         {
           "type": "bullets",
-          "title": "Verified public surface",
+          "title": "What the SDK provides",
           "items": [
             "Generic JSON-RPC plus latest blockhash, balance, account and program-account helpers.",
             "Token accounts by owner and signature-status helpers.",
@@ -736,7 +736,7 @@ const docsData = {
         },
         {
           "type": "bullets",
-          "title": "Verified Node exports",
+          "title": "Node.js capabilities",
           "items": [
             "`AekoNodeClient`, built on the JavaScript connection layer.",
             "Server-side signing helpers.",
@@ -792,7 +792,7 @@ const docsData = {
         },
         {
           "type": "bullets",
-          "title": "Verified client methods",
+          "title": "Core client methods",
           "items": [
             "`get_latest_blockhash`",
             "`get_balance`",
@@ -849,7 +849,7 @@ const docsData = {
         },
         {
           "type": "bullets",
-          "title": "Verified crate scope",
+          "title": "Rust client capabilities",
           "items": [
             "Latest blockhash, balance, account, program-account and signature-status requests.",
             "Base64 transaction submission.",
@@ -1292,7 +1292,7 @@ const docsData = {
       "id": "program-lifecycle",
       "title": "Program lifecycle",
       "section": "smart-contracts",
-      "summary": "Inspect and manage deployed programs with the CLI without exposing validator/operator procedures.",
+      "summary": "Inspect and manage deployed programs with the CLI.",
       "status": "available",
       "tags": [
         "program",
@@ -1721,7 +1721,7 @@ const docsData = {
       "blocks": [
         {
           "type": "table",
-          "title": "Verified program family",
+          "title": "SocialFi capabilities",
           "headers": [
             "Program",
             "Purpose"
@@ -1984,7 +1984,7 @@ const docsData = {
       "id": "bridge-status",
       "title": "Bridge availability",
       "section": "security-bridge",
-      "summary": "Bridge integration is not currently exposed as a stable public developer workflow.",
+      "summary": "A public bridge integration is not currently available through the supported SDK and API surfaces.",
       "status": "design",
       "tags": [
         "bridge",
@@ -2001,14 +2001,14 @@ const docsData = {
         {
           "type": "callout",
           "title": "Design / not public",
-          "body": "Do not initiate cross-chain transfers until AEKO publishes a release-specific public bridge interface with supported chains and assets, deployed addresses, fees, confirmation requirements and recovery guidance.",
+          "body": "Do not build a production bridge flow until a public interface publishes supported chains and assets, contract or endpoint identifiers, fees, confirmation rules, recovery behavior, and security requirements.",
           "tone": "warning"
         },
         {
           "type": "bullets",
           "title": "Current integration boundary",
           "items": [
-            "No stable public bridge SDK or application API is currently published.",
+            "AEKO defines a bridge model for cross-chain messaging and asset movement.",
             "Do not send assets to addresses obtained from conceptual material or informal examples.",
             "Wait for release-specific supported-chain, asset, fee, finality and failure-recovery guidance."
           ]
@@ -2057,8 +2057,8 @@ const docsData = {
         },
         {
           "type": "callout",
-          "title": "Build an application-specific threat model",
-          "body": "Model the assets and trust boundaries in your own product: user wallet, browser origin, backend, relayer/service keys, RPC provider, metadata hosting, and any privileged on-chain authorities.",
+          "title": "Model your application trust boundaries",
+          "body": "Model the assets and trust boundaries in your own product: user wallet, browser origin, backend, relayer or service keys, RPC provider, metadata hosting, and privileged on-chain authorities.",
           "tone": "security"
         }
       ],
@@ -2083,7 +2083,7 @@ const docsData = {
         "None beyond basic public-key concepts."
       ],
       "outcomes": [
-        "Reason about client requests without needing validator internals."
+        "Reason about client requests using accounts, instructions, signatures, and program ownership."
       ],
       "blocks": [
         {
@@ -2217,7 +2217,7 @@ const docsData = {
           "items": [
             {
               "title": "Copy the endpoint again",
-              "body": "Use the runtime-provided value above instead of a URL from old documentation."
+              "body": "Use the endpoint shown above instead of a URL copied from older material."
             },
             {
               "title": "Verify a simple read",
@@ -2368,7 +2368,7 @@ const docsData = {
       "id": "examples",
       "title": "Examples & recipes",
       "section": "tooling",
-      "summary": "Jump from a verified SDK or contract example instead of starting from an empty file.",
+      "summary": "Start from a working SDK or smart-contract example instead of an empty file.",
       "status": "available",
       "tags": [
         "examples",
@@ -2458,7 +2458,7 @@ const docsData = {
           "title": "Application-facing boundary",
           "headers": [
             "Capability",
-            "Current public boundary",
+            "Availability",
             "Developer implication"
           ],
           "rows": [
@@ -2486,8 +2486,8 @@ const docsData = {
         },
         {
           "type": "callout",
-          "title": "Operator-managed",
-          "body": "A deployment can expose verified identity/clearance outcomes to an application, but issuer onboarding, clearance issuance and privileged registry changes belong to the configured authority model. This portal intentionally does not publish a fake self-service issuance recipe.",
+          "title": "Authority-managed",
+          "body": "Applications can consume identity and clearance outcomes when those capabilities are available for the selected network. Issuer onboarding, clearance issuance, and privileged registry changes remain authority-controlled. There is no public self-service clearance issuance flow.",
           "tone": "warning"
         },
         {
@@ -2505,7 +2505,7 @@ const docsData = {
       "id": "creator-coins",
       "title": "Creator coins status",
       "section": "tokens-nfts",
-      "summary": "Creator coins are a SocialFi/token concept, but no stable high-level public creator-coin create/buy/sell workflow is currently published.",
+      "summary": "Creator coins are an AEKO-20-based SocialFi concept, but a public bonding-curve create/buy/sell workflow is not currently available through the supported SDK surfaces.",
       "status": "design",
       "tags": [
         "creator-coin",
@@ -2523,7 +2523,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Design / not public",
-          "body": "AEKO-20 is available, but a dedicated creator-coin bonding-curve create/buy/sell client contract is not currently published. Do not synthesize one from conceptual product descriptions.",
+          "body": "AEKO-20 is available for fungible-token primitives. Creator-coin pricing and bonding-curve actions are not currently exposed through a supported high-level create/buy/sell interface, so applications should not invent or hard-code that behavior.",
           "tone": "warning"
         },
         {
@@ -2545,7 +2545,7 @@ const docsData = {
       "id": "governance-status",
       "title": "Governance status",
       "section": "protocol-concepts",
-      "summary": "AEKO has a target governance model, but the two-house proposal, voting, timelock and execution flow is not currently exposed as a public application workflow.",
+      "summary": "The target governance model is not currently available as a public application workflow.",
       "status": "design",
       "tags": [
         "governance",
@@ -2563,13 +2563,13 @@ const docsData = {
         {
           "type": "callout",
           "title": "Design / not public",
-          "body": "The target two-house governance executor is not currently available as a public application workflow. Do not present proposal execution, treasury spending or parameter mutation as governed on-chain functionality until a versioned public governance contract is released.",
+          "body": "Proposal creation, two-house voting, timelock execution, treasury spending, and governed parameter mutation are not currently available as a public application workflow. Do not present those actions as live functionality until a public governance interface is released.",
           "tone": "warning"
         },
         {
           "type": "paragraph",
           "title": "Do not confuse CLI vote tooling with app governance",
-          "body": "The AEKO CLI includes vote-account/validator commands inherited by the chain runtime. Those commands are not evidence that the documented Citizen House / proposal lifecycle exists as a consumer governance API."
+          "body": "The AEKO CLI includes validator vote-account commands. Those commands are separate from application governance and do not provide a proposal or treasury-governance interface."
         },
         {
           "type": "bullets",
@@ -2621,17 +2621,17 @@ const docsData = {
           "rows": [
             [
               "InitializePolicy / UpdatePolicy",
-              "Network/operator authority",
+              "Network authority",
               "Create or change issuance policy state."
             ],
             [
               "Add/Remove blocklist",
-              "Network/operator authority",
+              "Network authority",
               "Deny or restore mint eligibility for a wallet."
             ],
             [
               "Add/Remove allowlist",
-              "Network/operator authority",
+              "Network authority",
               "Manage allowlist-gated issuance."
             ],
             [
@@ -2669,14 +2669,14 @@ const docsData = {
         },
         {
           "type": "callout",
-          "title": "No verified public mint service endpoint",
-          "body": "No stable public mint HTTP service contract is currently published. Use the on-chain policy-controlled issuance boundary and release-specific integration details rather than assuming an HTTP route exists.",
+          "title": "Public mint service availability",
+          "body": "A general public HTTP mint service is not currently exposed as a supported application interface. Use the on-chain public-mint path only when the selected network provides the required state, policy, and mint authority.",
           "tone": "warning"
         },
         {
           "type": "callout",
-          "title": "Operator-managed authority is intentional",
-          "body": "A PublicMintControlled asset is not arbitrary self-minting. Keep the mint authority in a controlled service or governance boundary and surface policy/cooldown/limit failures to the user without exposing authority secrets.",
+          "title": "Controlled mint authority",
+          "body": "A PublicMintControlled asset is not arbitrary self-minting. Keep mint authority inside the intended controlled signing boundary and surface policy, cooldown, and limit failures without exposing authority secrets.",
           "tone": "security"
         }
       ],
@@ -2767,7 +2767,7 @@ const docsData = {
       "id": "anti-spam",
       "title": "Anti-spam policy",
       "section": "socialfi",
-      "summary": "Consume eligibility decisions from the implemented anti-spam program while keeping policy mutations and penalties behind the configured authority.",
+      "summary": "Consume anti-spam eligibility decisions while keeping policy mutations and penalties behind the network's configured authority.",
       "status": "operator",
       "tags": [
         "socialfi",
@@ -2777,7 +2777,7 @@ const docsData = {
         "cooldown"
       ],
       "prerequisites": [
-        "The deployment's anti-spam state account and current policy mode.",
+        "The anti-spam state account for the selected network.",
         "The reputation/stake inputs required by the active policy."
       ],
       "outcomes": [
@@ -2828,7 +2828,7 @@ const docsData = {
         },
         {
           "type": "callout",
-          "title": "Operator-managed policy, app-visible outcome",
+          "title": "Policy authority and app-visible outcomes",
           "body": "Apps can consume eligibility and profile outcomes, but they must not fabricate authority-only flags, cooldown clearing or penalties. Surface the rejection reason and recovery condition that the active policy actually enforces.",
           "tone": "warning"
         }
@@ -2843,11 +2843,12 @@ const docsData = {
   ]
 };
 
+
 export const DOC_STATUS = Object.freeze({
   available: { label: 'Available', tone: 'success' },
   testnet: { label: 'Testnet', tone: 'testnet' },
   local: { label: 'Local development', tone: 'neutral' },
-  operator: { label: 'Operator-managed', tone: 'neutral' },
+  operator: { label: 'Authority-managed', tone: 'neutral' },
   design: { label: 'Design / not public', tone: 'warning' },
 });
 

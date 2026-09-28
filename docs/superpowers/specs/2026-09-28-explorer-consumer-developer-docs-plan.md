@@ -246,6 +246,7 @@ The change is not complete until all applicable criteria hold:
 18. Independent reviewer has no blocking finding.
 19. Dogfood walkthroughs demonstrate the primary consumer journeys.
 20. Git/Release verifies the final PR diff and remote commit before the work is reported complete.
+21. Public `/docs` interprets verified behavior into developer guidance and never exposes internal repository paths, filenames, markdown files, or authoring evidence.
 
 ## 10. Current validation limitation
 
