@@ -2,9 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  BookOpenCheck,
   ChevronRight,
-  ExternalLink,
   Menu,
   Network,
 } from 'lucide-react';
@@ -260,21 +258,7 @@ export default function Docs() {
               />
             </div>
 
-            <div className="mt-8 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3 text-sm text-gray-500">
-                <BookOpenCheck size={17} className="text-aeko-accent" aria-hidden="true" />
-                <span>Found a mismatch? The implementation source is the authority for this portal.</span>
-              </div>
-              <a
-                href="https://github.com/MilliHub-dev/aeko-chain/blob/main/apps/explorer/web/src/data/docs/index.js"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-medium text-gray-400 no-underline transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent/70"
-              >
-                Edit docs source
-                <ExternalLink size={15} aria-hidden="true" />
-              </a>
-            </div>
+
           </main>
 
           <aside className="hidden xl:block" aria-label="On this page">
@@ -302,10 +286,10 @@ export default function Docs() {
 
               <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-600">
-                  Source policy
+                  Network-aware examples
                 </div>
                 <p className="mt-2 text-xs leading-5 text-gray-500">
-                  Executable client code and current program implementations take precedence over stale prose.
+                  Endpoint examples follow the network selected at the top of this guide.
                 </p>
               </div>
             </div>

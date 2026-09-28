@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   docsPageOrder,
@@ -8,6 +9,12 @@ import {
   getDocsPageOutline,
   getDocsStatus,
 } from '../data/docs/index.js';
+
+const root = new URL('../', import.meta.url);
+
+async function source(filePath) {
+  return readFile(new URL(filePath, root), 'utf8');
+}
 
 test('documentation navigation resolves every page exactly once', () => {
   const pageIds = docsPages.map((page) => page.id);
@@ -27,28 +34,34 @@ test('documentation navigation resolves every page exactly once', () => {
 
 test('documentation pages have meaningful structured content and valid relationships', () => {
   const allowedStatuses = new Set(['available', 'testnet', 'local', 'operator', 'design']);
-
   for (const page of docsPages) {
     assert.ok(page.title, `${page.id} must have a title`);
     assert.ok(page.summary, `${page.id} must have a summary`);
     assert.ok(allowedStatuses.has(page.status), `${page.id} has unknown status ${page.status}`);
     assert.ok(page.blocks?.length > 0, `${page.id} must have content blocks`);
     assert.ok(getDocsStatus(page.status)?.label, `${page.id} status must render a label`);
-
+    assert.equal(Object.prototype.hasOwnProperty.call(page, 'sources'), false, `${page.id} must not expose source metadata`);
     for (const relatedId of page.related || []) {
       assert.ok(docsPagesById[relatedId], `${page.id} references missing related page ${relatedId}`);
-    }
-
-    for (const source of page.sources || []) {
-      assert.ok(source.path, `${page.id} contains a source without a repository path`);
     }
   }
 });
 
-test('documentation contains no advertised placeholder copy', () => {
-  const content = JSON.stringify(docsPages).toLowerCase();
-  for (const phrase of ['coming soon', 'being updated', 'check back soon', 'todo:']) {
-    assert.equal(content.includes(phrase), false, `placeholder phrase must not ship: ${phrase}`);
+test('public documentation never exposes internal repository or file references', () => {
+  const content = JSON.stringify({ sections: docsSections, pages: docsPages });
+  const forbidden = [
+    /CLAUDE\.md/i,
+    /README\.md/i,
+    /\b[^\s"']+\.md\b/i,
+    /\b(?:apps|programs|docs|contracts|scripts|src)\//i,
+    /\b(?:monorepo|repository|codebase|markdown)\b/i,
+    /raw\.githubusercontent\.com/i,
+    /github\.com\/[^\s"']+\/(?:blob|tree)\//i,
+    /implementation references|edit docs source|source policy/i,
+    /coming soon|being updated|check back soon|todo:/i,
+  ];
+  for (const pattern of forbidden) {
+    assert.doesNotMatch(content, pattern, `public docs leaked internal reference matching ${pattern}`);
   }
 });
 
@@ -64,29 +77,38 @@ test('on-page outline ids are stable and unique within each page', () => {
   }
 });
 
-
 test('planned policy and security guides remain explicit and status-scoped', () => {
-  const publicMint = docsPagesById['public-mint'];
-  const programSecurity = docsPagesById['program-security'];
-  const antiSpam = docsPagesById['anti-spam'];
-
-  assert.equal(publicMint.status, 'operator');
-  assert.equal(programSecurity.status, 'available');
-  assert.equal(antiSpam.status, 'operator');
-  assert.ok(docsSections.find((section) => section.id === 'tokens-nfts').items.includes('public-mint'));
-  assert.ok(docsSections.find((section) => section.id === 'smart-contracts').items.includes('program-security'));
-  assert.ok(docsSections.find((section) => section.id === 'socialfi').items.includes('anti-spam'));
+  assert.equal(docsPagesById['public-mint'].status, 'operator');
+  assert.equal(docsPagesById['program-security'].status, 'available');
+  assert.equal(docsPagesById['anti-spam'].status, 'operator');
+  assert.equal(docsPagesById['bridge-status'].status, 'design');
+  assert.equal(docsPagesById['creator-coins'].status, 'design');
+  assert.equal(docsPagesById['governance-status'].status, 'design');
 });
 
-
-test('removed Explorer API endpoint surface stays removed', () => {
+test('Explorer API endpoint surface remains public and copyable', async () => {
   const serialized = JSON.stringify(docsPages);
-  assert.doesNotMatch(serialized, /\{\{explorerApiUrl\}\}/);
-  const visible = JSON.stringify(docsPages.map((page) => {
-    const publicPage = { ...page };
-    delete publicPage.id;
-    delete publicPage.sources;
-    return publicPage;
-  }));
-  assert.doesNotMatch(visible, /Explorer API/);
+  assert.match(serialized, /\{\{explorerApiUrl\}\}/);
+  assert.match(serialized, /Explorer API/);
+  const panel = await source('components/NetworkToolsPanel.jsx');
+  const renderer = await source('components/docs/DocsContent.jsx');
+  assert.match(panel, /label="Explorer API"/);
+  assert.match(panel, /config\.explorerApiUrl/);
+  assert.match(renderer, /explorerApiUrl/);
+});
+
+test('renderer and page shell do not expose implementation-source UI', async () => {
+  const renderer = await source('components/docs/DocsContent.jsx');
+  const docsPage = await source('pages/Docs.jsx');
+  assert.doesNotMatch(renderer, /GitHubSourceLink|page\.sources|Implementation references|github\.com\/MilliHub-dev/);
+  assert.doesNotMatch(docsPage, /Edit docs source|Source policy|github\.com\/MilliHub-dev|implementation source/i);
+  assert.doesNotMatch(docsPage, /dangerouslySetInnerHTML|docs\.json/);
+});
+
+test('legacy monolithic docs payload remains removed', async () => {
+  await assert.rejects(
+    source('data/docs.json'),
+    (error) => error?.code === 'ENOENT',
+    'legacy data/docs.json should stay removed once structured docs are active',
+  );
 });

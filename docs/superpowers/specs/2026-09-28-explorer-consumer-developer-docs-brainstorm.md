@@ -59,7 +59,7 @@ Every public page should use developer-consumer terminology:
 - "program" or "smart contract" depending on developer context;
 - "network" rather than deployment topology unless endpoint selection matters.
 
-Internal crate names may appear in an **Implementation reference** or **Source** note when they help a developer verify behavior, but they must not drive the main explanation.
+Repository evidence is for internal planning, review and validation only. The public `/docs` UI must never render repository paths, filenames, Markdown documents, source links, implementation-reference panels or maintainer-only evidence.
 
 ## 5. Information architecture options considered
 
@@ -196,7 +196,7 @@ Every substantial capability page should contain the parts that apply:
 13. **Errors and recovery**
 14. **Security notes**
 15. **Related guides**
-16. **Source / implementation reference**, when useful
+16. **Release/product links**, when required for the developer task; never repository-source references
 
 A page must not fabricate a language/tool path. If a capability is not exposed by a given SDK, that SDK tab/section is omitted or explicitly marked unsupported.
 
@@ -224,7 +224,7 @@ The docs should behave like a developer tool:
 - sidebar groups remain navigable on mobile;
 - pages expose previous/next navigation;
 - section anchors support deep linking;
-- external package/source links are clearly distinguished from in-app guides;
+- package registry and release-distribution links may be shown when they are part of the developer workflow; repository source links must not be rendered;
 - interactive controls have keyboard focus states and accessible labels.
 
 ## 10. Visual direction
@@ -267,3 +267,8 @@ This PR does not need to:
 ## 13. Success definition
 
 A new developer should be able to enter `/docs`, choose the relevant network and complete a real supported task from installation through verification without reading AEKO core source code or guessing which CLI/SDK/API path exists.
+
+
+## 14. Public/internal evidence boundary — 2026-09-28 amendment
+
+Repository files, tests and implementation details remain valid evidence for authors and reviewers, but they are not public documentation content. Public `/docs` must not expose source-tree paths, filenames, Markdown references, GitHub blob/tree links, "source of truth" language, or maintainer/operator evidence panels.

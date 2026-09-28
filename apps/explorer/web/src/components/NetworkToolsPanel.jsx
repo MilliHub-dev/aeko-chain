@@ -1,4 +1,4 @@
-import { Activity, Radio, WalletCards, Waypoints } from 'lucide-react';
+import { Activity, Braces, Radio, WalletCards, Waypoints } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CopyButton from './CopyButton';
 import { getNetworkConfig } from '../utils/networkConfig';
@@ -44,6 +44,12 @@ export default function NetworkToolsPanel({ network }) {
         value={config.websocketUrl}
         icon={<Radio size={14} />}
         hint="Subscriptions and live updates"
+      />
+      <EndpointCard
+        label="Explorer API"
+        value={config.explorerApiUrl}
+        icon={<Braces size={14} />}
+        hint="Indexed application data"
       />
 
       <div className="rounded-xl border border-white/10 bg-white/5 p-5">

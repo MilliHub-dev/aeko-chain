@@ -2,7 +2,6 @@ import clsx from 'clsx';
 import {
   AlertTriangle,
   CheckCircle2,
-  ExternalLink,
   Info,
   Link2,
   ShieldCheck,
@@ -23,6 +22,7 @@ function resolveDocValue(value, networkConfig) {
   const replacements = {
     '{{rpcUrl}}': networkConfig?.rpcUrl || '<AEKO_RPC_URL>',
     '{{websocketUrl}}': networkConfig?.websocketUrl || '<AEKO_WEBSOCKET_URL>',
+    '{{explorerApiUrl}}': networkConfig?.explorerApiUrl || '<AEKO_EXPLORER_API_URL>',
     '{{networkLabel}}': networkConfig?.label || 'selected network',
   };
 
@@ -36,6 +36,7 @@ function resolveEndpointValue(value, networkConfig) {
   const text = String(value || '');
   if (text.includes('{{rpcUrl}}') && !networkConfig?.rpcUrl) return '';
   if (text.includes('{{websocketUrl}}') && !networkConfig?.websocketUrl) return '';
+  if (text.includes('{{explorerApiUrl}}') && !networkConfig?.explorerApiUrl) return '';
   return resolveDocValue(text, networkConfig);
 }
 
@@ -180,32 +181,6 @@ function DocsTable({ block, anchor }) {
         </table>
       </div>
     </section>
-  );
-}
-
-function GitHubSourceLink({ source }) {
-  const tail = source.path.split('/').pop() || source.path;
-  const isFile = tail.includes('.');
-  const mode = isFile ? 'blob' : 'tree';
-  const href = `https://github.com/MilliHub-dev/aeko-chain/${mode}/main/${source.path}`;
-
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="group flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3 text-sm no-underline transition hover:border-white/20 hover:bg-white/[0.05]"
-    >
-      <span className="min-w-0">
-        <span className="block font-medium text-gray-200">{source.label || tail}</span>
-        <span className="mt-0.5 block truncate font-mono text-[11px] text-gray-600">{source.path}</span>
-      </span>
-      <ExternalLink
-        size={15}
-        className="shrink-0 text-gray-600 transition group-hover:text-aeko-accent"
-        aria-hidden="true"
-      />
-    </a>
   );
 }
 
@@ -374,21 +349,6 @@ export default function DocsContent({
         </section>
       ) : null}
 
-      {page.sources?.length ? (
-        <section className="mt-10 border-t border-white/10 pt-8">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-gray-500">
-            Implementation references
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-gray-500">
-            These links are evidence for the public behavior described above. They are not required reading to use the feature.
-          </p>
-          <div className="mt-4 grid gap-3">
-            {page.sources.map((source) => (
-              <GitHubSourceLink key={source.path} source={source} />
-            ))}
-          </div>
-        </section>
-      ) : null}
     </article>
   );
 }

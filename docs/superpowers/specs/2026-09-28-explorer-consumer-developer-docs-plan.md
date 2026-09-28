@@ -100,7 +100,7 @@ Required metadata per page:
 - status;
 - content blocks;
 - related-page ids;
-- optional source references.
+- no source-reference metadata is rendered in the public page model.
 
 Avoid embedding application behavior in arbitrary HTML strings when a reusable renderable block can express it.
 
@@ -176,7 +176,7 @@ Add:
 - all documented internal page ids resolve;
 - no orphan sidebar item;
 - no imported docs data file is missing;
-- every source link/path referenced in data exists in the inspected repository state;
+- public documentation data contains no internal file paths, filenames or source-reference metadata;
 - no duplicate page id;
 - no empty “coming soon” placeholder remains for an advertised section.
 
@@ -230,7 +230,7 @@ The change is not complete until all applicable criteria hold:
 2. No modular docs import points at a missing file.
 3. RPC, WebSocket and Explorer API endpoint values are directly copyable.
 4. Install commands and substantive code examples are copyable.
-5. Public prose is written for consumer developers, not AEKO core maintainers.
+5. Public prose is written for consumer developers, not AEKO core maintainers, and exposes no internal file references.
 6. CLI documentation reflects the actual command families exposed by `apps/cli`.
 7. JS, Node, Python and Rust pages reflect their actual package surfaces and examples.
 8. Smart-contract docs include write → build → deploy → invoke → verify.

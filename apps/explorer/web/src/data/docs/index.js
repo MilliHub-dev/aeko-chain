@@ -139,8 +139,8 @@ const docsData = {
       "blocks": [
         {
           "type": "callout",
-          "title": "Start with the public surface, not the monorepo",
-          "body": "You do not need validator, database, or deployment internals to build an AEKO application. Use the selected network endpoint, a supported SDK or the CLI, then verify chain results in Aeko Scan.",
+          "title": "Start with the public developer surface",
+          "body": "Choose a network, a supported SDK or the CLI, then verify the result in Aeko Scan. Start with one working read/write loop and expand only when your application needs another surface.",
           "tone": "info"
         },
         {
@@ -175,38 +175,38 @@ const docsData = {
           "headers": [
             "Surface",
             "Best for",
-            "Verified repository path"
+            "Recommended fit"
           ],
           "rows": [
             [
               "AEKO CLI",
               "Wallet operations, transfers, chain queries, program lifecycle",
-              "apps/cli"
+              "Direct terminal workflows and automation."
             ],
             [
               "JavaScript / TypeScript",
               "Browser and general JS applications",
-              "apps/sdk/js"
+              "Client applications and wallet-driven flows."
             ],
             [
               "Node.js",
               "Backends, server signing, SocialFi helpers",
-              "apps/sdk/node"
+              "Backend services and SocialFi integration."
             ],
             [
               "Python",
               "Automation, analytics, monitoring, scripts",
-              "apps/sdk/python"
+              "Scripting, analytics and operational tooling."
             ],
             [
               "Rust client",
               "Typed async services and Rust integrations",
-              "apps/sdk/rust-client"
+              "Rust services that need typed client calls."
             ],
             [
               "Rust program SDK",
               "On-chain programs compiled for SBF",
-              "sdk/program"
+              "Smart contracts and on-chain state transitions."
             ]
           ]
         }
@@ -216,16 +216,6 @@ const docsData = {
         "install-cli",
         "javascript-sdk",
         "rpc-quickstart"
-      ],
-      "sources": [
-        {
-          "label": "CLAUDE.md",
-          "path": "CLAUDE.md"
-        },
-        {
-          "label": "networkConfig.js",
-          "path": "apps/explorer/web/src/utils/networkConfig.js"
-        }
       ]
     },
     {
@@ -244,7 +234,7 @@ const docsData = {
         "The Explorer deployment must expose the selected network in its runtime configuration."
       ],
       "outcomes": [
-        "Copy the active RPC and realtime endpoints.",
+        "Copy the active RPC, realtime and Explorer API endpoints.",
         "Point CLI and SDK examples at the same network."
       ],
       "networkTools": true,
@@ -262,6 +252,11 @@ const docsData = {
               "label": "WebSocket",
               "value": "{{websocketUrl}}",
               "note": "Use for live subscriptions."
+            },
+            {
+              "label": "Explorer API",
+              "value": "{{explorerApiUrl}}",
+              "note": "Use for indexed, searchable and enriched application reads."
             }
           ]
         },
@@ -286,17 +281,8 @@ const docsData = {
       "related": [
         "fund-test-wallet",
         "rpc-quickstart",
-        "websocket"
-      ],
-      "sources": [
-        {
-          "label": "networkConfig.js",
-          "path": "apps/explorer/web/src/utils/networkConfig.js"
-        },
-        {
-          "label": "NetworkToolsPanel.jsx",
-          "path": "apps/explorer/web/src/components/NetworkToolsPanel.jsx"
-        }
+        "websocket",
+        "explorer-api"
       ]
     },
     {
@@ -311,23 +297,22 @@ const docsData = {
         "aeko-keygen"
       ],
       "prerequisites": [
-        "Linux x86_64 with glibc or Windows x86_64 are the fast-install targets documented in the repository."
+        "Linux x86_64 with glibc or Windows x86_64 for the supported quick-install targets."
       ],
       "outcomes": [
         "Run `aeko` and `aeko-keygen` from your shell."
       ],
       "blocks": [
         {
-          "type": "code",
-          "label": "Linux x86_64",
-          "language": "bash",
-          "value": "curl -fsSL https://raw.githubusercontent.com/MilliHub-dev/aeko-chain/main/install/aeko-cli-install.sh | sh"
+          "type": "paragraph",
+          "title": "Install from an AEKO release",
+          "body": "Download the latest AEKO CLI release bundle for your operating system from the official AEKO Releases page. The bundle includes both `aeko` and `aeko-keygen` and publishes checksums for integrity verification."
         },
         {
           "type": "code",
-          "label": "Windows x86_64 / PowerShell",
-          "language": "powershell",
-          "value": "irm https://raw.githubusercontent.com/MilliHub-dev/aeko-chain/main/install/aeko-cli-install.ps1 | iex"
+          "label": "AEKO Releases",
+          "language": "text",
+          "value": "https://github.com/MilliHub-dev/aeko-chain/releases/latest"
         },
         {
           "type": "code",
@@ -338,7 +323,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Other platforms",
-          "body": "Do not substitute Solana installers or unrelated package names. If your platform is not covered by the checked-in fast installers, follow the AEKO release/source installation instructions for that platform.",
+          "body": "Use a supported AEKO release package for your platform and verify its checksum before installation. Do not substitute unrelated chain installers or package names.",
           "tone": "warning"
         }
       ],
@@ -346,16 +331,6 @@ const docsData = {
         "wallet",
         "networks",
         "cli-reference"
-      ],
-      "sources": [
-        {
-          "label": "README.md",
-          "path": "install/README.md"
-        },
-        {
-          "label": "cli-tools.md",
-          "path": "docs/developer-sdk/cli-tools.md"
-        }
       ]
     },
     {
@@ -415,16 +390,6 @@ const docsData = {
         "fund-test-wallet",
         "first-transaction",
         "browser-wallets"
-      ],
-      "sources": [
-        {
-          "label": "clap_app.rs",
-          "path": "apps/cli/src/clap_app.rs"
-        },
-        {
-          "label": "security.md",
-          "path": "docs/wallet/security.md"
-        }
       ]
     },
     {
@@ -482,16 +447,6 @@ const docsData = {
         "wallet",
         "first-transaction",
         "networks"
-      ],
-      "sources": [
-        {
-          "label": "networkConfig.js",
-          "path": "apps/explorer/web/src/utils/networkConfig.js"
-        },
-        {
-          "label": "explorer-api.md",
-          "path": "docs/rpc-and-apis/explorer-api.md"
-        }
       ]
     },
     {
@@ -544,16 +499,6 @@ const docsData = {
         "verify-scan",
         "fees-finality",
         "transaction-failures"
-      ],
-      "sources": [
-        {
-          "label": "clap_app.rs",
-          "path": "apps/cli/src/clap_app.rs"
-        },
-        {
-          "label": "transaction-lifecycle.md",
-          "path": "docs/aeko-chain/transaction-lifecycle.md"
-        }
       ]
     },
     {
@@ -601,23 +546,13 @@ const docsData = {
         "explorer-api",
         "indexing-delay",
         "transaction-failures"
-      ],
-      "sources": [
-        {
-          "label": "explorer-api.md",
-          "path": "docs/rpc-and-apis/explorer-api.md"
-        },
-        {
-          "label": "App.jsx",
-          "path": "apps/explorer/web/src/App.jsx"
-        }
       ]
     },
     {
       "id": "cli-reference",
       "title": "CLI command families",
       "section": "tooling",
-      "summary": "A map of the command families exposed by the current AEKO CLI, organized by developer task rather than internal crate.",
+      "summary": "A map of the command families exposed by the current AEKO CLI, organized by developer task.",
       "status": "available",
       "tags": [
         "cli",
@@ -696,7 +631,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Avoid stale network aliases",
-          "body": "Use the endpoint copied from the active Explorer deployment when accuracy matters. Older documentation may contain network monikers that are not advertised by the current CLI help.",
+          "body": "Use the endpoint copied from the active network when accuracy matters. Cluster aliases can differ across environments, while the full endpoint keeps CLI, SDK and Explorer requests aligned.",
           "tone": "warning"
         }
       ],
@@ -704,12 +639,6 @@ const docsData = {
         "install-cli",
         "program-lifecycle",
         "rpc-quickstart"
-      ],
-      "sources": [
-        {
-          "label": "clap_app.rs",
-          "path": "apps/cli/src/clap_app.rs"
-        }
       ]
     },
     {
@@ -770,20 +699,6 @@ const docsData = {
         "wallet-permissions",
         "aeko721",
         "websocket"
-      ],
-      "sources": [
-        {
-          "label": "package.json",
-          "path": "apps/sdk/js/package.json"
-        },
-        {
-          "label": "index.ts",
-          "path": "apps/sdk/js/src/index.ts"
-        },
-        {
-          "label": "connection.ts",
-          "path": "apps/sdk/js/src/connection.ts"
-        }
       ]
     },
     {
@@ -833,7 +748,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Do not invent companion packages",
-          "body": "The repository-owned Node developer package is `@aeko-chain/sdk`. Public docs should not direct developers to unrelated package names unless a corresponding public package surface is verified.",
+          "body": "Use `@aeko-chain/sdk` for the Node.js developer surface. Only add companion packages that are explicitly published and supported for the release you target.",
           "tone": "warning"
         }
       ],
@@ -841,20 +756,6 @@ const docsData = {
         "social-backend",
         "posts-engagement",
         "javascript-sdk"
-      ],
-      "sources": [
-        {
-          "label": "package.json",
-          "path": "apps/sdk/node/package.json"
-        },
-        {
-          "label": "index.ts",
-          "path": "apps/sdk/node/src/index.ts"
-        },
-        {
-          "label": "socialPosts.ts",
-          "path": "apps/sdk/node/src/socialPosts.ts"
-        }
       ]
     },
     {
@@ -904,7 +805,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Version visibility",
-          "body": "The repository package metadata can move ahead of the latest package-registry release. Pin a version in production and verify the registry release notes when you need a specific newly added helper.",
+          "body": "Pin a package version in production and check the package-registry release notes when you need a recently introduced helper.",
           "tone": "info"
         }
       ],
@@ -912,16 +813,6 @@ const docsData = {
         "rpc-quickstart",
         "transaction-failures",
         "aeko721"
-      ],
-      "sources": [
-        {
-          "label": "pyproject.toml",
-          "path": "apps/sdk/python/pyproject.toml"
-        },
-        {
-          "label": "client.py",
-          "path": "apps/sdk/python/src/aeko_sdk/client.py"
-        }
       ]
     },
     {
@@ -971,16 +862,6 @@ const docsData = {
         "first-program",
         "deploy-invoke",
         "wallet-permissions"
-      ],
-      "sources": [
-        {
-          "label": "Cargo.toml",
-          "path": "apps/sdk/rust-client/Cargo.toml"
-        },
-        {
-          "label": "lib.rs",
-          "path": "apps/sdk/rust-client/src/lib.rs"
-        }
       ]
     },
     {
@@ -1057,16 +938,6 @@ const docsData = {
         "websocket",
         "explorer-api",
         "errors-rate-limits"
-      ],
-      "sources": [
-        {
-          "label": "connection.ts",
-          "path": "apps/sdk/js/src/connection.ts"
-        },
-        {
-          "label": "client.py",
-          "path": "apps/sdk/python/src/aeko_sdk/client.py"
-        }
       ]
     },
     {
@@ -1111,24 +982,14 @@ const docsData = {
       "related": [
         "rpc-quickstart",
         "connectivity"
-      ],
-      "sources": [
-        {
-          "label": "connection.ts",
-          "path": "apps/sdk/js/src/connection.ts"
-        },
-        {
-          "label": "websocket.md",
-          "path": "docs/rpc-and-apis/websocket.md"
-        }
       ]
     },
     {
       "id": "explorer-api",
-      "title": "Aeko Scan indexed data",
+      "title": "Explorer API & indexed data",
       "section": "network-apis",
-      "summary": "Use Aeko Scan for searchable, enriched and historical views; use raw RPC for authoritative live chain reads and transaction submission.",
-      "status": "operator",
+      "summary": "Use the configured Explorer API for searchable, enriched and historical views; use raw RPC for authoritative live chain reads and transaction submission.",
+      "status": "available",
       "tags": [
         "explorer",
         "scan",
@@ -1136,13 +997,31 @@ const docsData = {
         "search"
       ],
       "prerequisites": [
-        "Aeko Scan available for the selected network."
+        "A configured Explorer API endpoint for the selected network."
       ],
       "outcomes": [
-        "Choose correctly between raw RPC and indexed Scan views."
+        "Copy the selected Explorer API endpoint.",
+        "Choose correctly between raw RPC and indexed reads."
       ],
-      "networkTools": false,
+      "networkTools": true,
       "blocks": [
+        {
+          "type": "endpoints",
+          "title": "Selected Explorer API",
+          "items": [
+            {
+              "label": "Explorer API",
+              "value": "{{explorerApiUrl}}",
+              "note": "Indexed application data for the selected network."
+            }
+          ]
+        },
+        {
+          "type": "code",
+          "label": "Read recent blocks",
+          "language": "bash",
+          "value": "curl \"{{explorerApiUrl}}/blocks?limit=20\""
+        },
         {
           "type": "table",
           "title": "Indexed views",
@@ -1173,14 +1052,14 @@ const docsData = {
             ],
             [
               "Search",
-              "Resolve supported chain and SocialFi identifiers through Aeko Scan."
+              "Resolve supported chain and SocialFi identifiers."
             ]
           ]
         },
         {
           "type": "callout",
           "title": "Indexed data is not the submission path",
-          "body": "Aeko Scan can lag the live chain and may include derived summaries. Submit transactions and read canonical account state through RPC/SDK; use Scan when you need searchable or enriched presentation.",
+          "body": "Indexed views can lag the live chain and may include derived summaries. Submit transactions and read canonical account state through RPC/SDK; use the Explorer API for searchable or enriched presentation.",
           "tone": "info"
         }
       ],
@@ -1189,16 +1068,6 @@ const docsData = {
         "indexing-delay",
         "rpc-quickstart",
         "social-backend"
-      ],
-      "sources": [
-        {
-          "label": "Explorer backend",
-          "path": "apps/explorer/backend"
-        },
-        {
-          "label": "Aeko Scan",
-          "path": "apps/explorer/web/src/pages/Explorer.jsx"
-        }
       ]
     },
     {
@@ -1266,16 +1135,6 @@ const docsData = {
         "transaction-failures",
         "connectivity",
         "indexing-delay"
-      ],
-      "sources": [
-        {
-          "label": "rate-limits.md",
-          "path": "docs/rpc-and-apis/rate-limits.md"
-        },
-        {
-          "label": "connection.ts",
-          "path": "apps/sdk/js/src/connection.ts"
-        }
       ]
     },
     {
@@ -1312,7 +1171,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Start with the hello program",
-          "body": "`contracts/hello-aeko-program` is the smallest repository-owned starter: one entrypoint, one log path, and no custom state. Use it before adding account layouts and serialization.",
+          "body": "Start with a minimal hello-style program: one entrypoint, one log path and no custom state. Add account layouts and serialization only after the basic build/deploy/invoke loop works.",
           "tone": "info"
         }
       ],
@@ -1320,23 +1179,13 @@ const docsData = {
         "first-program",
         "deploy-invoke",
         "accounts-transactions"
-      ],
-      "sources": [
-        {
-          "label": "README.md",
-          "path": "sdk/program/README.md"
-        },
-        {
-          "label": "Cargo.toml",
-          "path": "contracts/hello-aeko-program/Cargo.toml"
-        }
       ]
     },
     {
       "id": "first-program",
       "title": "Write your first Rust program",
       "section": "smart-contracts",
-      "summary": "Start from the repository-owned hello program and keep the first instruction surface intentionally small.",
+      "summary": "Start with a minimal hello-style Rust program and keep the first instruction surface intentionally small.",
       "status": "available",
       "tags": [
         "rust",
@@ -1360,9 +1209,9 @@ const docsData = {
         },
         {
           "type": "code",
-          "label": "Build the repository starter",
+          "label": "Build your program",
           "language": "bash",
-          "value": "./cargo-build-sbf \\\n  --manifest-path contracts/hello-aeko-program/Cargo.toml \\\n  --sbf-out-dir contracts/hello-aeko-program/target/deploy"
+          "value": "./cargo-build-sbf \\\n  --manifest-path ./my-program/Cargo.toml \\\n  --sbf-out-dir ./my-program/target/deploy"
         },
         {
           "type": "callout",
@@ -1375,16 +1224,6 @@ const docsData = {
         "deploy-invoke",
         "program-lifecycle",
         "application-security"
-      ],
-      "sources": [
-        {
-          "label": "lib.rs",
-          "path": "contracts/hello-aeko-program/src/lib.rs"
-        },
-        {
-          "label": "write-your-first-program.md",
-          "path": "docs/developer-sdk/write-your-first-program.md"
-        }
       ]
     },
     {
@@ -1410,9 +1249,9 @@ const docsData = {
       "blocks": [
         {
           "type": "code",
-          "label": "Deploy the hello program",
+          "label": "Deploy your program",
           "language": "bash",
-          "value": "aeko config set --url {{rpcUrl}}\naeko program deploy contracts/hello-aeko-program/target/deploy/hello_aeko_program.so"
+          "value": "aeko config set --url {{rpcUrl}}\naeko program deploy ./my-program/target/deploy/my_program.so"
         },
         {
           "type": "steps",
@@ -1428,7 +1267,7 @@ const docsData = {
             },
             {
               "title": "Invoke the starter",
-              "body": "Use the repository hello-program invocation example or your own client instruction."
+              "body": "Construct the instruction expected by your deployed program, sign it with the required wallet or service signer, and submit it to the selected network."
             },
             {
               "title": "Confirm the transaction",
@@ -1447,16 +1286,6 @@ const docsData = {
         "first-program",
         "program-lifecycle",
         "verify-scan"
-      ],
-      "sources": [
-        {
-          "label": "deploy-and-invoke-testnet.md",
-          "path": "docs/developer-sdk/deploy-and-invoke-testnet.md"
-        },
-        {
-          "label": "hello-aeko-program",
-          "path": "contracts/hello-aeko-program"
-        }
       ]
     },
     {
@@ -1532,12 +1361,6 @@ const docsData = {
         "application-security",
         "cli-reference",
         "program-security"
-      ],
-      "sources": [
-        {
-          "label": "clap_app.rs",
-          "path": "apps/cli/src/clap_app.rs"
-        }
       ]
     },
     {
@@ -1587,12 +1410,6 @@ const docsData = {
         "javascript-sdk",
         "wallet-permissions",
         "application-security"
-      ],
-      "sources": [
-        {
-          "label": "wallet.ts",
-          "path": "apps/sdk/js/src/wallet.ts"
-        }
       ]
     },
     {
@@ -1671,27 +1488,13 @@ const docsData = {
         "application-security",
         "javascript-sdk",
         "identity-clearance"
-      ],
-      "sources": [
-        {
-          "label": "instruction.rs",
-          "path": "programs/wallet-permissions/src/instruction.rs"
-        },
-        {
-          "label": "permissions.ts",
-          "path": "apps/sdk/js/src/permissions.ts"
-        },
-        {
-          "label": "builders.ts",
-          "path": "apps/sdk/js/src/builders.ts"
-        }
       ]
     },
     {
       "id": "aeko20",
       "title": "AEKO-20 fungible tokens",
       "section": "tokens-nfts",
-      "summary": "The repository contains a live AEKO-20 program implementation; integrate against its implemented instruction surface rather than the older draft checklist.",
+      "summary": "AEKO-20 provides a fungible-token instruction surface for issuance, transfers, allowances, account controls and authority management.",
       "status": "available",
       "tags": [
         "token",
@@ -1746,8 +1549,8 @@ const docsData = {
         },
         {
           "type": "callout",
-          "title": "The old standard page contains stale implementation checkboxes",
-          "body": "Use `programs/token-20` as the implementation source of truth. Public docs should not repeat a historical checklist that still says the reference program is unimplemented.",
+          "title": "Use the published token contract",
+          "body": "Integrate against the actions and release-specific deployment details published for the network you target. Avoid relying on historical draft behavior that is not part of the current public contract.",
           "tone": "warning"
         },
         {
@@ -1764,20 +1567,6 @@ const docsData = {
         "application-security",
         "creator-coins",
         "public-mint"
-      ],
-      "sources": [
-        {
-          "label": "lib.rs",
-          "path": "programs/token-20/src/lib.rs"
-        },
-        {
-          "label": "instruction.rs",
-          "path": "programs/token-20/src/instruction.rs"
-        },
-        {
-          "label": "explorer-api.md",
-          "path": "docs/rpc-and-apis/explorer-api.md"
-        }
       ]
     },
     {
@@ -1847,16 +1636,6 @@ const docsData = {
       "related": [
         "nft-flow",
         "browser-wallets"
-      ],
-      "sources": [
-        {
-          "label": "instruction.rs",
-          "path": "programs/token-721/src/instruction.rs"
-        },
-        {
-          "label": "builders.ts",
-          "path": "apps/sdk/js/src/builders.ts"
-        }
       ]
     },
     {
@@ -1911,7 +1690,7 @@ const docsData = {
         },
         {
           "type": "callout",
-          "title": "Use the repository demo as implementation evidence, not as a production trust model",
+          "title": "Use demos as workflow examples, not as production trust policy",
           "body": "The demo proves builder/read paths. Production apps still need their own UX, authorization, metadata hosting policy, retries, and key-handling controls.",
           "tone": "security"
         }
@@ -1920,16 +1699,6 @@ const docsData = {
         "aeko721",
         "browser-wallets",
         "verify-scan"
-      ],
-      "sources": [
-        {
-          "label": "examples",
-          "path": "apps/sdk/js/examples"
-        },
-        {
-          "label": "NftDemo.jsx",
-          "path": "apps/explorer/web/src/pages/NftDemo.jsx"
-        }
       ]
     },
     {
@@ -1994,28 +1763,6 @@ const docsData = {
         "social-backend",
         "creator-coins",
         "anti-spam"
-      ],
-      "sources": [
-        {
-          "label": "lib.rs",
-          "path": "programs/social-posts/src/lib.rs"
-        },
-        {
-          "label": "lib.rs",
-          "path": "programs/social-rewards/src/lib.rs"
-        },
-        {
-          "label": "lib.rs",
-          "path": "programs/social-staking/src/lib.rs"
-        },
-        {
-          "label": "lib.rs",
-          "path": "programs/social-anti-spam/src/lib.rs"
-        },
-        {
-          "label": "lib.rs",
-          "path": "programs/social-monetization/src/lib.rs"
-        }
       ]
     },
     {
@@ -2091,20 +1838,6 @@ const docsData = {
         "social-backend",
         "verify-scan",
         "application-security"
-      ],
-      "sources": [
-        {
-          "label": "instruction.rs",
-          "path": "programs/social-posts/src/instruction.rs"
-        },
-        {
-          "label": "socialPosts.ts",
-          "path": "apps/sdk/node/src/socialPosts.ts"
-        },
-        {
-          "label": "explorer-api.md",
-          "path": "docs/rpc-and-apis/explorer-api.md"
-        }
       ]
     },
     {
@@ -2143,20 +1876,6 @@ const docsData = {
       "related": [
         "socialfi-overview",
         "monetization"
-      ],
-      "sources": [
-        {
-          "label": "social-rewards",
-          "path": "programs/social-rewards"
-        },
-        {
-          "label": "social-staking",
-          "path": "programs/social-staking"
-        },
-        {
-          "label": "explorer-api.md",
-          "path": "docs/rpc-and-apis/explorer-api.md"
-        }
       ]
     },
     {
@@ -2191,7 +1910,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Program presence does not imply one universal product policy",
-          "body": "The repository implements monetization and anti-spam program families, but an application must still define which actions it exposes, what authority is required, and how failures are explained.",
+          "body": "Monetization and anti-spam are separate product capabilities. Your application must still define which actions it exposes, what authority is required, and how policy failures are explained to the user.",
           "tone": "info"
         }
       ],
@@ -2200,16 +1919,6 @@ const docsData = {
         "application-security",
         "wallet-permissions",
         "anti-spam"
-      ],
-      "sources": [
-        {
-          "label": "social-monetization",
-          "path": "programs/social-monetization"
-        },
-        {
-          "label": "social-anti-spam",
-          "path": "programs/social-anti-spam"
-        }
       ]
     },
     {
@@ -2269,27 +1978,13 @@ const docsData = {
       "related": [
         "posts-engagement",
         "node-sdk"
-      ],
-      "sources": [
-        {
-          "label": "socialPosts.ts",
-          "path": "apps/sdk/node/src/socialPosts.ts"
-        },
-        {
-          "label": "socialBackend.ts",
-          "path": "apps/sdk/node/src/socialBackend.ts"
-        },
-        {
-          "label": "nodejs-backend-integration.md",
-          "path": "docs/aeko-social-integration/nodejs-backend-integration.md"
-        }
       ]
     },
     {
       "id": "bridge-status",
       "title": "Bridge availability",
       "section": "security-bridge",
-      "summary": "The repository describes an AEKO bridge design, but this docs surface does not have evidence of a complete public bridge integration endpoint/SDK workflow.",
+      "summary": "Bridge integration is not currently exposed as a stable public developer workflow.",
       "status": "design",
       "tags": [
         "bridge",
@@ -2306,41 +2001,27 @@ const docsData = {
         {
           "type": "callout",
           "title": "Design / not public",
-          "body": "Bridge documents describe lock/mint, guardian, relayer, supported-chain and security concepts. A public app-facing bridge contract/SDK/endpoint flow has not been proven in the inspected consumer surfaces, so this portal does not publish copy-paste bridge execution steps.",
+          "body": "Do not initiate cross-chain transfers until AEKO publishes a release-specific public bridge interface with supported chains and assets, deployed addresses, fees, confirmation requirements and recovery guidance.",
           "tone": "warning"
         },
         {
           "type": "bullets",
-          "title": "What you can safely take from the current docs",
+          "title": "Current integration boundary",
           "items": [
-            "A bridge design exists in `docs/bridge`.",
-            "The design separates source-chain lock/verification from AEKO-side minting and relayer/guardian responsibilities.",
-            "Security depends on privileged cross-chain verification, so endpoint/contract addresses must be release-specific and verified before use."
+            "No stable public bridge SDK or application API is currently published.",
+            "Do not send assets to addresses obtained from conceptual material or informal examples.",
+            "Wait for release-specific supported-chain, asset, fee, finality and failure-recovery guidance."
           ]
         },
         {
           "type": "paragraph",
-          "title": "Integration rule",
-          "body": "Do not send assets to an address copied from an architecture document. Wait for a release-specific public bridge interface with supported chains/assets, deployed contract addresses, confirmation policy, fees, failure recovery, and security review."
+          "title": "Security rule",
+          "body": "Cross-chain transfers depend on privileged verification and relaying. Treat every contract address, guardian/relayer assumption and confirmation rule as release-specific security data."
         }
       ],
       "related": [
         "application-security",
         "networks"
-      ],
-      "sources": [
-        {
-          "label": "bridge-overview.md",
-          "path": "docs/bridge/bridge-overview.md"
-        },
-        {
-          "label": "message-flow.md",
-          "path": "docs/bridge/message-flow.md"
-        },
-        {
-          "label": "security-model.md",
-          "path": "docs/bridge/security-model.md"
-        }
       ]
     },
     {
@@ -2376,7 +2057,7 @@ const docsData = {
         },
         {
           "type": "callout",
-          "title": "Repository threat-model prose is not a substitute for an application threat model",
+          "title": "Build an application-specific threat model",
           "body": "Model the assets and trust boundaries in your own product: user wallet, browser origin, backend, relayer/service keys, RPC provider, metadata hosting, and any privileged on-chain authorities.",
           "tone": "security"
         }
@@ -2385,16 +2066,6 @@ const docsData = {
         "wallet-permissions",
         "transaction-failures",
         "program-lifecycle"
-      ],
-      "sources": [
-        {
-          "label": "threat-model.md",
-          "path": "docs/security/threat-model.md"
-        },
-        {
-          "label": "security.md",
-          "path": "docs/wallet/security.md"
-        }
       ]
     },
     {
@@ -2460,16 +2131,6 @@ const docsData = {
         "rpc-quickstart",
         "fees-finality",
         "program-model"
-      ],
-      "sources": [
-        {
-          "label": "transaction-lifecycle.md",
-          "path": "docs/aeko-chain/transaction-lifecycle.md"
-        },
-        {
-          "label": "connection.ts",
-          "path": "apps/sdk/js/src/connection.ts"
-        }
       ]
     },
     {
@@ -2529,20 +2190,6 @@ const docsData = {
         "transaction-failures",
         "rpc-quickstart",
         "governance-status"
-      ],
-      "sources": [
-        {
-          "label": "connection.ts",
-          "path": "apps/sdk/js/src/connection.ts"
-        },
-        {
-          "label": "gas-and-fees.md",
-          "path": "docs/aeko-chain/gas-and-fees.md"
-        },
-        {
-          "label": "consensus.md",
-          "path": "docs/aeko-chain/consensus.md"
-        }
       ]
     },
     {
@@ -2601,16 +2248,6 @@ const docsData = {
         "errors-rate-limits",
         "websocket",
         "transaction-failures"
-      ],
-      "sources": [
-        {
-          "label": "connection.ts",
-          "path": "apps/sdk/js/src/connection.ts"
-        },
-        {
-          "label": "networkConfig.js",
-          "path": "apps/explorer/web/src/utils/networkConfig.js"
-        }
       ]
     },
     {
@@ -2672,16 +2309,6 @@ const docsData = {
         "errors-rate-limits",
         "indexing-delay",
         "fees-finality"
-      ],
-      "sources": [
-        {
-          "label": "connection.ts",
-          "path": "apps/sdk/js/src/connection.ts"
-        },
-        {
-          "label": "client.py",
-          "path": "apps/sdk/python/src/aeko_sdk/client.py"
-        }
       ]
     },
     {
@@ -2735,12 +2362,6 @@ const docsData = {
         "verify-scan",
         "explorer-api",
         "transaction-failures"
-      ],
-      "sources": [
-        {
-          "label": "explorer-api.md",
-          "path": "docs/rpc-and-apis/explorer-api.md"
-        }
       ]
     },
     {
@@ -2758,47 +2379,42 @@ const docsData = {
         "Choose the SDK or program path that matches your application."
       ],
       "outcomes": [
-        "Know where the repository's runnable/copyable developer examples live."
+        "Choose a practical starter task for the client surface you are using."
       ],
       "blocks": [
         {
           "type": "table",
-          "title": "Example sets",
+          "title": "Starter recipes",
           "headers": [
             "Surface",
-            "Repository examples",
+            "Starter task",
             "What to learn"
           ],
           "rows": [
             [
               "JavaScript / TypeScript",
-              "apps/sdk/js/examples",
-              "Connection, wallet/permission, NFT and transaction patterns."
+              "Connect a wallet, read an account, prepare a transaction",
+              "Connection, wallet, permission and transaction patterns."
             ],
             [
               "Node.js",
-              "apps/sdk/node/examples",
-              "Backend-oriented client and SocialFi service patterns."
+              "Read chain state and prepare a signed SocialFi write",
+              "Backend client and SocialFi service patterns."
             ],
             [
               "Python",
-              "apps/sdk/python/examples",
+              "Read balances and monitor account state",
               "Basic RPC usage and account watching."
             ],
             [
               "Rust client",
-              "apps/sdk/rust-client/examples",
-              "Typed client and NFT/permission flows."
+              "Read typed state and submit a signed transaction",
+              "Typed client, NFT and permission flows."
             ],
             [
-              "Task recipes",
-              "docs/developer-sdk/examples",
-              "Wallet creation, transactions, token/NFT recipes."
-            ],
-            [
-              "On-chain starter",
-              "contracts/hello-aeko-program",
-              "Minimal program build/deploy/invoke path."
+              "Smart contract",
+              "Build, deploy and invoke a minimal program",
+              "The SBF program lifecycle from entrypoint to verification."
             ]
           ]
         },
@@ -2815,39 +2431,13 @@ const docsData = {
         "python-sdk",
         "rust-sdk",
         "first-program"
-      ],
-      "sources": [
-        {
-          "label": "examples",
-          "path": "docs/developer-sdk/examples"
-        },
-        {
-          "label": "examples",
-          "path": "apps/sdk/js/examples"
-        },
-        {
-          "label": "examples",
-          "path": "apps/sdk/node/examples"
-        },
-        {
-          "label": "examples",
-          "path": "apps/sdk/python/examples"
-        },
-        {
-          "label": "examples",
-          "path": "apps/sdk/rust-client/examples"
-        },
-        {
-          "label": "hello-aeko-program",
-          "path": "contracts/hello-aeko-program"
-        }
       ]
     },
     {
       "id": "identity-clearance",
       "title": "Identity & clearance status",
       "section": "wallets-permissions",
-      "summary": "AEKO has implemented permission-registry and clearance types, but identity issuance is an authority-managed boundary rather than a general wallet self-service flow.",
+      "summary": "Identity and clearance are authority-managed capabilities rather than a general wallet self-service flow.",
       "status": "operator",
       "tags": [
         "identity",
@@ -2856,7 +2446,7 @@ const docsData = {
         "registry"
       ],
       "prerequisites": [
-        "Understand whether your deployment/environment actually provisions identity and clearance credentials."
+        "Confirm that the network and application you target actually expose identity or clearance credentials."
       ],
       "outcomes": [
         "Avoid presenting privileged clearance issuance as a normal public dApp action.",
@@ -2865,32 +2455,32 @@ const docsData = {
       "blocks": [
         {
           "type": "table",
-          "title": "What is implemented vs. app-facing",
+          "title": "Application-facing boundary",
           "headers": [
-            "Surface",
-            "Current evidence",
+            "Capability",
+            "Current public boundary",
             "Developer implication"
           ],
           "rows": [
             [
-              "Clearance types",
-              "`programs/permission-types` defines the clearance model.",
-              "Apps may consume clearance semantics when the environment exposes them."
+              "Clearance levels",
+              "Applications may consume issued clearance semantics when the selected environment exposes them.",
+              "Treat clearance as an input to eligibility, not as a value a normal dApp can self-issue."
             ],
             [
-              "Permission registry",
-              "`programs/permission-registry` implements issuer/clearance/role instructions.",
-              "Issuance and registry authority are privileged; do not let arbitrary clients self-issue clearance."
+              "Issuer / registry authority",
+              "Issuance and registry changes are privileged operations.",
+              "Do not expose arbitrary self-service clearance issuance."
             ],
             [
-              "Wallet permissions",
-              "High-level JS/Rust builders exist for wallet delegation.",
-              "Use wallet-permission builders for app delegation; do not confuse delegation with identity clearance."
+              "Wallet delegation",
+              "Public wallet-permission builders support scoped app delegation.",
+              "Use wallet permissions for delegation; do not confuse delegation with identity clearance."
             ],
             [
-              "Public high-level identity SDK",
-              "No equivalent general-purpose identity/clearance builder was verified in the inspected external SDKs.",
-              "Do not invent a browser self-service KYC/clearance API."
+              "High-level identity client",
+              "No general-purpose public self-service identity/clearance builder is currently published.",
+              "Do not invent a browser KYC or clearance issuance API."
             ]
           ]
         },
@@ -2909,31 +2499,13 @@ const docsData = {
       "related": [
         "wallet-permissions",
         "application-security"
-      ],
-      "sources": [
-        {
-          "label": "clearance.rs",
-          "path": "programs/permission-types/src/clearance.rs"
-        },
-        {
-          "label": "instruction.rs",
-          "path": "programs/permission-registry/src/instruction.rs"
-        },
-        {
-          "label": "identity-and-clearance.md",
-          "path": "docs/permission-layer/identity-and-clearance.md"
-        },
-        {
-          "label": "security.md",
-          "path": "docs/wallet/security.md"
-        }
       ]
     },
     {
       "id": "creator-coins",
       "title": "Creator coins status",
       "section": "tokens-nfts",
-      "summary": "Creator coins are documented as an AEKO-20-based SocialFi concept, but a verified public bonding-curve SDK/program workflow is not exposed by the inspected consumer surfaces.",
+      "summary": "Creator coins are a SocialFi/token concept, but no stable high-level public creator-coin create/buy/sell workflow is currently published.",
       "status": "design",
       "tags": [
         "creator-coin",
@@ -2951,7 +2523,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Design / not public",
-          "body": "AEKO-20 is implemented, but the repository documentation's creator-coin bonding-curve product model is not backed by a verified high-level public create/buy/sell integration path in the current external SDKs. Do not synthesize one from the concept document.",
+          "body": "AEKO-20 is available, but a dedicated creator-coin bonding-curve create/buy/sell client contract is not currently published. Do not synthesize one from conceptual product descriptions.",
           "tone": "warning"
         },
         {
@@ -2967,27 +2539,13 @@ const docsData = {
       "related": [
         "aeko20",
         "socialfi-overview"
-      ],
-      "sources": [
-        {
-          "label": "creator-coins.md",
-          "path": "docs/token-standards/creator-coins.md"
-        },
-        {
-          "label": "creator-economy.md",
-          "path": "docs/socialfi/creator-economy.md"
-        },
-        {
-          "label": "instruction.rs",
-          "path": "programs/token-20/src/instruction.rs"
-        }
       ]
     },
     {
       "id": "governance-status",
       "title": "Governance status",
       "section": "protocol-concepts",
-      "summary": "The repository defines a target governance model, but the documented two-house proposal/voting/timelock execution path is not currently implemented as a public application workflow.",
+      "summary": "AEKO has a target governance model, but the two-house proposal, voting, timelock and execution flow is not currently exposed as a public application workflow.",
       "status": "design",
       "tags": [
         "governance",
@@ -3005,7 +2563,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Design / not public",
-          "body": "The governance documents explicitly state that the target two-house governance executor is not currently implemented. Public applications must not present proposal execution, treasury spending, or parameter mutation as governed on-chain functionality until the corresponding program and enforcement path exist.",
+          "body": "The target two-house governance executor is not currently available as a public application workflow. Do not present proposal execution, treasury spending or parameter mutation as governed on-chain functionality until a versioned public governance contract is released.",
           "tone": "warning"
         },
         {
@@ -3028,20 +2586,6 @@ const docsData = {
         "accounts-transactions",
         "fees-finality",
         "application-security"
-      ],
-      "sources": [
-        {
-          "label": "governance-overview.md",
-          "path": "docs/governance/governance-overview.md"
-        },
-        {
-          "label": "proposals.md",
-          "path": "docs/governance/proposals.md"
-        },
-        {
-          "label": "clap_app.rs",
-          "path": "apps/cli/src/clap_app.rs"
-        }
       ]
     },
     {
@@ -3126,7 +2670,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "No verified public mint service endpoint",
-          "body": "The repository's public-mint service document labels its HTTP routes as a draft integration reference. This portal therefore documents the implemented on-chain instruction boundary and does not publish those suggested routes as a live public service.",
+          "body": "No stable public mint HTTP service contract is currently published. Use the on-chain policy-controlled issuance boundary and release-specific integration details rather than assuming an HTTP route exists.",
           "tone": "warning"
         },
         {
@@ -3140,24 +2684,6 @@ const docsData = {
         "aeko20",
         "wallet-permissions",
         "application-security"
-      ],
-      "sources": [
-        {
-          "label": "instruction.rs",
-          "path": "programs/public-mint/src/instruction.rs"
-        },
-        {
-          "label": "processor.rs",
-          "path": "programs/public-mint/src/processor.rs"
-        },
-        {
-          "label": "permissioned-mint-flow.md",
-          "path": "docs/token-standards/permissioned-mint-flow.md"
-        },
-        {
-          "label": "main.rs",
-          "path": "protocol-bootstrap/src/main.rs"
-        }
       ]
     },
     {
@@ -3235,24 +2761,6 @@ const docsData = {
         "deploy-invoke",
         "program-lifecycle",
         "application-security"
-      ],
-      "sources": [
-        {
-          "label": "hello program",
-          "path": "contracts/hello-aeko-program/src/lib.rs"
-        },
-        {
-          "label": "token-721 processor",
-          "path": "programs/token-721/src/processor.rs"
-        },
-        {
-          "label": "wallet-permissions processor",
-          "path": "programs/wallet-permissions/src/processor.rs"
-        },
-        {
-          "label": "upgradeable loader",
-          "path": "sdk/program/src/bpf_loader_upgradeable.rs"
-        }
       ]
     },
     {
@@ -3330,24 +2838,6 @@ const docsData = {
         "posts-engagement",
         "rewards-staking",
         "application-security"
-      ],
-      "sources": [
-        {
-          "label": "instruction.rs",
-          "path": "programs/social-anti-spam/src/instruction.rs"
-        },
-        {
-          "label": "state.rs",
-          "path": "programs/social-anti-spam/src/state.rs"
-        },
-        {
-          "label": "processor.rs",
-          "path": "programs/social-anti-spam/src/processor.rs"
-        },
-        {
-          "label": "social-posts instruction",
-          "path": "programs/social-posts/src/instruction.rs"
-        }
       ]
     }
   ]
