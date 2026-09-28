@@ -164,6 +164,7 @@ export default function Docs() {
     if (!isMobileMenuOpen) return undefined;
 
     const previousOverflow = document.body.style.overflow;
+    const mobileMenuTrigger = mobileMenuTriggerRef.current;
     const focusFrame = window.requestAnimationFrame(() => {
       mobileMenuPanelRef.current?.focus();
     });
@@ -203,8 +204,8 @@ export default function Docs() {
       window.cancelAnimationFrame(focusFrame);
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
-      if (restoreMobileTriggerRef.current) {
-        window.requestAnimationFrame(() => mobileMenuTriggerRef.current?.focus());
+      if (restoreMobileTriggerRef.current && mobileMenuTrigger) {
+        window.requestAnimationFrame(() => mobileMenuTrigger.focus());
       }
       restoreMobileTriggerRef.current = true;
     };
