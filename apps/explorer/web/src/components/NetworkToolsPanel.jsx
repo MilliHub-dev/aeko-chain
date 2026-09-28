@@ -17,17 +17,17 @@ export default function NetworkToolsPanel({ network }) {
   const cards = [
     {
       label: 'Network access',
-      icon: Waypoints,
+      icon: <Waypoints size={14} />,
       content: <Status available={Boolean(config.rpcUrl)} availableLabel="Connected" />,
     },
     {
       label: 'Live updates',
-      icon: Radio,
+      icon: <Radio size={14} />,
       content: <Status available={Boolean(config.websocketUrl)} />,
     },
     {
       label: 'Aeko Scan',
-      icon: Activity,
+      icon: <Activity size={14} />,
       content: (
         <Link
           to="/explorer"
@@ -39,7 +39,7 @@ export default function NetworkToolsPanel({ network }) {
     },
     {
       label: 'Test AEKO',
-      icon: WalletCards,
+      icon: <WalletCards size={14} />,
       content: isTestnet
         ? <Status available={config.fundingEnabled} availableLabel="Available below" />
         : <div className="text-sm font-medium text-gray-500">Not available on Mainnet</div>,
@@ -48,10 +48,10 @@ export default function NetworkToolsPanel({ network }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {cards.map(({ label, icon: Icon, content }) => (
+      {cards.map(({ label, icon, content }) => (
         <div key={label} className="rounded-xl border border-white/10 bg-white/5 p-5">
           <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500">
-            <Icon size={14} />
+            {icon}
             {label}
           </div>
           {content}
