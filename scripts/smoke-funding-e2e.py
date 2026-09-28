@@ -107,7 +107,16 @@ def http_json(
             return decode_json(response, url)
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", "replace")[:800]
-        raise SmokeFailure(f"{url} returned HTTP {exc.code}: {detail}") from exc
+        content_type = exc.headers.get("Content-Type", "unknown")
+        request_id = (
+            exc.headers.get("X-Request-Id")
+            or exc.headers.get("CF-Ray")
+            or "unavailable"
+        )
+        raise SmokeFailure(
+            f"{url} returned HTTP {exc.code} with {content_type}; "
+            f"request-id={request_id}: {detail}"
+        ) from exc
     except OSError as exc:
         raise SmokeFailure(f"cannot reach {url}: {exc}") from exc
 

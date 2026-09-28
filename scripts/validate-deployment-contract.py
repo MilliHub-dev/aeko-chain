@@ -433,13 +433,24 @@ def main() -> int:
     )
     require(
         "target.network !== 'testnet'" in explorer_proxy
-        and "return FUNDING_WRITE_PATHS.has(suffix)" in explorer_proxy,
+        and "return FUNDING_WRITE_PATHS.has(explorerSuffix(target, pathname))" in explorer_proxy,
         "Scan proxy must allow funding writes only on Testnet and reject all non-funding POSTs",
     )
     require(
         "MAX_PROXY_BODY_BYTES" in explorer_proxy
         and "Funding writes require application/json" in explorer_proxy,
         "Scan proxy must bound and type-check public funding bodies",
+    )
+    require(
+        "AEKO_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy
+        and "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy
+        and "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy,
+        "Scan proxy must support server-only Explorer origins for split deployments",
+    )
+    require(
+        "EXPLORER_UPSTREAM_INVALID_RESPONSE" in explorer_proxy
+        and "funding_upstream_contract_violation" in explorer_proxy,
+        "Scan must normalize non-JSON funding upstream failures into its JSON contract",
     )
 
     # Raw bootstrap registry and product-facing registry discovery are distinct.

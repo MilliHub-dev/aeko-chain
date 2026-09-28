@@ -934,6 +934,11 @@ async fn submit_and_observe_grant(
     let signature = match submit {
         Ok(Ok(signature)) => signature,
         Ok(Err(error)) => {
+            tracing::warn!(
+                request_id = %request.id,
+                error = %error,
+                "grant submission produced no durable transaction signature; persisted intent remains recoverable"
+            );
             state
                 .repository
                 .mark_funding_request_submission_error(
@@ -945,7 +950,7 @@ async fn submit_and_observe_grant(
             return Err(FundingHttpError::new(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "FUNDING_SUBMISSION_RETRY_PENDING",
-                "The grant submission response was not obtained. The backend will safely replay the same persisted transaction intent; no second grant will be created.",
+                "The grant submission did not produce a durable transaction signature. The backend will safely replay the same persisted transaction intent; no second grant will be created.",
             ));
         }
         Err(error) => {
@@ -1147,6 +1152,11 @@ async fn submit_and_observe_airdrop(
     let signature = match submit {
         Ok(Ok(signature)) => signature,
         Ok(Err(error)) => {
+            tracing::warn!(
+                airdrop_id = %airdrop.id,
+                error = %error,
+                "developer airdrop produced no durable transaction signature; persisted intent remains recoverable"
+            );
             state
                 .repository
                 .mark_funding_airdrop_error(
@@ -1158,7 +1168,7 @@ async fn submit_and_observe_airdrop(
             return Err(FundingHttpError::new(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "AIRDROP_SUBMISSION_RETRY_PENDING",
-                "The developer airdrop response was not obtained. The backend will safely replay the same persisted transaction intent.",
+                "The developer airdrop did not produce a durable transaction signature. The backend will safely replay the same persisted transaction intent.",
             ));
         }
         Err(error) => {

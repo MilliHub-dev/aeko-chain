@@ -21,14 +21,18 @@ if (!ACTIVE_NETWORK) {
   throw new Error('AEKO_NETWORK for public Scan must be mainnet or testnet')
 }
 
-const ACTIVE_UPSTREAM = clean('AEKO_EXPLORER_API_URL')
+const ACTIVE_UPSTREAM = clean('AEKO_EXPLORER_PROXY_UPSTREAM_URL') || clean('AEKO_EXPLORER_API_URL')
 if (!ACTIVE_UPSTREAM) {
   throw new Error('AEKO_EXPLORER_API_URL is required for the active Scan network')
 }
 
 const UPSTREAMS = {
-  mainnet: clean('AEKO_MAINNET_EXPLORER_API_URL'),
-  testnet: clean('AEKO_TESTNET_EXPLORER_API_URL'),
+  mainnet:
+    clean('AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL')
+    || clean('AEKO_MAINNET_EXPLORER_API_URL'),
+  testnet:
+    clean('AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL')
+    || clean('AEKO_TESTNET_EXPLORER_API_URL'),
 }
 UPSTREAMS[ACTIVE_NETWORK] = ACTIVE_UPSTREAM
 
@@ -125,11 +129,23 @@ function telemetryAllowed() {
   return true
 }
 
+function explorerSuffix(target, pathname) {
+  return pathname.slice(target.prefix.length) || '/'
+}
+
+function isFundingApiPath(target, pathname) {
+  if (target.network !== 'testnet') return false
+  const suffix = explorerSuffix(target, pathname)
+  return suffix === '/funding/policy'
+    || suffix === '/funding/request'
+    || suffix.startsWith('/funding/request/')
+    || suffix === '/funding/airdrop'
+}
+
 function explorerProxyMethodAllowed(method, target, pathname) {
   if (method === 'GET' || method === 'HEAD') return true
   if (method !== 'POST' || target.network !== 'testnet') return false
-  const suffix = pathname.slice(target.prefix.length) || '/'
-  return FUNDING_WRITE_PATHS.has(suffix)
+  return FUNDING_WRITE_PATHS.has(explorerSuffix(target, pathname))
 }
 
 function readProxyBody(req, maxBytes = MAX_PROXY_BODY_BYTES) {
@@ -237,6 +253,30 @@ async function proxyExplorer(req, res, url, target, id) {
         error: {
           code: 'EXPLORER_UPSTREAM_REDIRECT',
           message: 'Explorer backend returned an unexpected redirect',
+        },
+      })
+      return
+    }
+
+    const upstreamContentType = String(upstream.headers.get('content-type') || '')
+    if (
+      isFundingApiPath(target, url.pathname)
+      && !upstreamContentType.toLowerCase().includes('application/json')
+    ) {
+      log('error', 'funding_upstream_contract_violation', {
+        request_id: id,
+        method,
+        path: url.pathname,
+        target_network: target.network,
+        upstream_origin: upstreamUrl.origin,
+        upstream_status: upstream.status,
+        upstream_content_type: truncate(upstreamContentType || 'missing', 160),
+        latency_ms: Math.round(performance.now() - startedAt),
+      })
+      json(res, 502, {
+        error: {
+          code: 'EXPLORER_UPSTREAM_INVALID_RESPONSE',
+          message: 'Explorer funding upstream returned a non-JSON response. Check the Scan-to-Explorer origin route and edge/WAF configuration.',
         },
       })
       return

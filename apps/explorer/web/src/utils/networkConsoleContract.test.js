@@ -265,12 +265,15 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
     'AEKO_RPC_URL',
     'AEKO_WS_URL',
     'AEKO_EXPLORER_API_URL',
+    'AEKO_EXPLORER_PROXY_UPSTREAM_URL',
     'AEKO_MAINNET_RPC_URL',
     'AEKO_MAINNET_WS_URL',
     'AEKO_MAINNET_EXPLORER_API_URL',
+    'AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL',
     'AEKO_TESTNET_RPC_URL',
     'AEKO_TESTNET_WS_URL',
     'AEKO_TESTNET_EXPLORER_API_URL',
+    'AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL',
   ]) {
     assert.match(example, new RegExp('^' + key + '=', 'm'));
     assert.match(splitEnv, new RegExp('^' + key + '=', 'm'));
@@ -296,6 +299,11 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
   assert.doesNotMatch(server, /AEKO_DEVNET_EXPLORER_API_URL/);
   assert.doesNotMatch(server, /AEKO_LOCALNET_EXPLORER_API_URL/);
   assert.match(server, /target\.network !== 'testnet'/);
+  assert.match(server, /AEKO_EXPLORER_PROXY_UPSTREAM_URL/);
+  assert.match(server, /AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL/);
+  assert.match(server, /AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL/);
+  assert.match(server, /EXPLORER_UPSTREAM_INVALID_RESPONSE/);
+  assert.match(server, /funding_upstream_contract_violation/);
   assert.match(server, /RUNTIME_CONFIG_PATH = '\/runtime-config\.js'/);
   assert.match(server, /pathname === RUNTIME_CONFIG_PATH/);
   assert.match(server, /'no-store, max-age=0'/);
