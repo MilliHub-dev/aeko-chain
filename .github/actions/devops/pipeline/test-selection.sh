@@ -63,6 +63,14 @@ assert_full_validation_workflow_contract() {
   echo "[ok] every AEKO DevOps lane performs full validation when selected"
 }
 
+
+assert_vercel_git_deployments_disabled() {
+  local config="$PIPELINE_DIR/../../../../vercel.json"
+
+  jq -e '.git.deploymentEnabled == false' "$config" >/dev/null
+  echo "[ok] Vercel Git auto-deployments are disabled"
+}
+
 run_plan_case() {
   local label="$1" event_name="$2" ci_pipeline="$3" core="$4" expected_all="$5" explorer_web="${6:-false}"
   local output
@@ -225,6 +233,7 @@ assert_split_coolify_workflow_contract() {
 assert_node24_action_majors
 assert_split_coolify_workflow_contract
 assert_full_validation_workflow_contract
+assert_vercel_git_deployments_disabled
 
 run_plan_case "Explorer Web-only main push runs the full validation DAG" push false false true true
 run_plan_case "CI-only pull request runs images and all external SDK validation" pull_request true false true
