@@ -18,10 +18,10 @@ export default function NetworkToolsPanel({ network }) {
     {
       label: 'Network access',
       icon: <Waypoints size={14} />,
-      content: <Status available={Boolean(config.rpcUrl)} availableLabel="Connected" />,
+      content: <Status available={Boolean(config.rpcUrl)} availableLabel="Available" />,
     },
     {
-      label: 'Live updates',
+      label: 'Realtime tools',
       icon: <Radio size={14} />,
       content: <Status available={Boolean(config.websocketUrl)} />,
     },
