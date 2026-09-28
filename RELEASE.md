@@ -25,11 +25,12 @@ artifact.
 path. On a successful push to `main` it:
 
 1. detects which domains actually changed;
-2. validates only the affected application/network/SDK surfaces, including
-   package-version release readiness when SDK source changed;
-3. publishes immutable Docker image tags for changed deployable surfaces;
+2. runs the full application/network/SDK validation and image-build matrix while
+   retaining change classification for release/version eligibility;
+3. publishes immutable Docker image tags only for changed deployable surfaces;
 4. promotes only validated images to `latest`;
-5. triggers the configured deployment webhook after successful image promotion.
+5. triggers only the configured deployment webhook for the changed deployable
+   surface after successful image promotion.
 
 Native SDK package publication is deliberately not part of the runtime image
 pipeline. A package-registry credential outage must not strand already
@@ -55,14 +56,26 @@ publish packages or promote images.
 ## CLI binary releases
 
 `.github/workflows/cli-release.yml` owns cross-platform CLI binary releases.
-A `v*` tag must point to a commit already contained in `main`. The workflow
-builds `aeko` and `aeko-keygen`, verifies them, creates checksums, and uploads
-the resulting archives to the GitHub Release for that tag.
+After `AEKO DevOps (single runner)` completes successfully for a push to
+`main`, the workflow checks out the exact validated commit, builds `aeko` and
+`aeko-keygen` for Linux and Windows, verifies them, creates SHA-256 checksums,
+and publishes a GitHub Release tagged `cli-main-<12-character-commit>`. The
+newly published main release is explicitly marked as GitHub's latest release.
+
+Failed, cancelled, pull-request, and non-`main` DevOps runs cannot publish a
+CLI release. Re-running the successful main workflow for a commit is idempotent:
+if that commit's release already exists, the published assets are left
+unchanged.
+
+Explicit `v*` tags remain supported for operator-managed versioned releases
+and must point to a commit already contained in `main`. A direct
+`workflow_dispatch` builds and validates cross-platform artifacts but does not
+publish a release.
 
 The lightweight installers in `install/aeko-cli-install.sh` and
-`install/aeko-cli-install.ps1` consume those GitHub Release assets. Their
-repository/asset base can be overridden with environment variables when a
-mirror is required.
+`install/aeko-cli-install.ps1` consume the latest GitHub Release by default.
+Their repository/asset base and exact release tag can be overridden with
+environment variables when a mirror or pinned version is required.
 
 ## Docker deployment configuration
 
