@@ -153,7 +153,7 @@ jobs:
       - name: Prepare Operations Web runner
         uses: ./.github/actions/devops/pipeline/setup
         with:
-          node: ${{ needs.classify.outputs.admin }}
+          node: ${{ needs.classify.outputs.run_admin }}
           docker: "true"
 
       - name: Log in to Docker Hub
@@ -166,7 +166,7 @@ jobs:
       - name: Validate and build Operations Web
         uses: ./.github/actions/devops/admin
         with:
-          validate-source: ${{ needs.classify.outputs.admin }}
+          validate-source: ${{ needs.classify.outputs.run_admin }}
           build-image: "true"
           publish: ${{ needs.classify.outputs.publish }}
           registry-user: ${{ needs.classify.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
@@ -187,7 +187,7 @@ jobs:
       - name: Prepare Explorer Web runner
         uses: ./.github/actions/devops/pipeline/setup
         with:
-          node: ${{ needs.classify.outputs.explorer_web }}
+          node: ${{ needs.classify.outputs.run_explorer_web }}
           docker: "true"
 
       - name: Log in to Docker Hub
@@ -200,7 +200,7 @@ jobs:
       - name: Validate and build Explorer Web
         uses: ./.github/actions/devops/explorer-web
         with:
-          validate-source: ${{ needs.classify.outputs.explorer_web }}
+          validate-source: ${{ needs.classify.outputs.run_explorer_web }}
           build-image: "true"
           publish: ${{ needs.classify.outputs.publish }}
           registry-user: ${{ needs.classify.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
@@ -221,7 +221,7 @@ jobs:
       - name: Prepare CLI runner
         uses: ./.github/actions/devops/pipeline/setup
         with:
-          rust: ${{ needs.classify.outputs.cli }}
+          rust: ${{ needs.classify.outputs.run_cli }}
           docker: "true"
 
       - name: Log in to Docker Hub
@@ -234,7 +234,7 @@ jobs:
       - name: Validate and build CLI image
         uses: ./.github/actions/devops/cli
         with:
-          validate-source: ${{ needs.classify.outputs.cli }}
+          validate-source: ${{ needs.classify.outputs.run_cli }}
           host-build: "false"
           build-image: "true"
           publish: ${{ needs.classify.outputs.publish }}
@@ -256,7 +256,7 @@ jobs:
       - name: Prepare Explorer backend runner
         uses: ./.github/actions/devops/pipeline/setup
         with:
-          rust: ${{ needs.classify.outputs.explorer_backend }}
+          rust: ${{ needs.classify.outputs.run_explorer_backend }}
           docker: "true"
 
       - name: Log in to Docker Hub
@@ -269,7 +269,7 @@ jobs:
       - name: Validate and build Explorer backend image
         uses: ./.github/actions/devops/explorer-backend
         with:
-          validate-source: ${{ needs.classify.outputs.explorer_backend }}
+          validate-source: ${{ needs.classify.outputs.run_explorer_backend }}
           host-build: "false"
           build-image: "true"
           publish: ${{ needs.classify.outputs.publish }}
@@ -291,8 +291,8 @@ jobs:
       - name: Prepare network runner
         uses: ./.github/actions/devops/pipeline/setup
         with:
-          rust: ${{ needs.classify.outputs.core }}
-          python: ${{ needs.classify.outputs.core }}
+          rust: ${{ needs.classify.outputs.run_network }}
+          python: ${{ needs.classify.outputs.run_network }}
           docker: "true"
 
       - name: Log in to Docker Hub
@@ -305,8 +305,8 @@ jobs:
       - name: Validate and build network images
         uses: ./.github/actions/devops/network
         with:
-          run-preflight: ${{ (needs.classify.outputs.core == 'true' || needs.classify.outputs.packaging == 'true') && 'true' || 'false' }}
-          validate-source: ${{ needs.classify.outputs.core }}
+          run-preflight: ${{ needs.classify.outputs.run_network }}
+          validate-source: ${{ needs.classify.outputs.run_network }}
           build-image: "true"
           publish: ${{ needs.classify.outputs.publish }}
           registry-user: ${{ needs.classify.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
@@ -327,15 +327,15 @@ jobs:
       - name: Prepare non-Rust SDK runner
         uses: ./.github/actions/devops/pipeline/setup
         with:
-          node: ${{ (needs.classify.outputs.sdk_js == 'true' || needs.classify.outputs.sdk_node == 'true' || needs.classify.outputs.ci_pipeline == 'true') && 'true' || 'false' }}
-          python: ${{ (needs.classify.outputs.sdk_python == 'true' || needs.classify.outputs.ci_pipeline == 'true') && 'true' || 'false' }}
+          node: ${{ needs.classify.outputs.run_sdk_non_rust }}
+          python: ${{ needs.classify.outputs.run_sdk_non_rust }}
 
       - name: Validate selected non-Rust SDKs
         uses: ./.github/actions/devops/sdk
         with:
-          js: ${{ (needs.classify.outputs.sdk_js == 'true' || needs.classify.outputs.ci_pipeline == 'true') && 'true' || 'false' }}
-          node: ${{ (needs.classify.outputs.sdk_node == 'true' || needs.classify.outputs.ci_pipeline == 'true') && 'true' || 'false' }}
-          python: ${{ (needs.classify.outputs.sdk_python == 'true' || needs.classify.outputs.ci_pipeline == 'true') && 'true' || 'false' }}
+          js: ${{ needs.classify.outputs.run_sdk_non_rust }}
+          node: ${{ needs.classify.outputs.run_sdk_non_rust }}
+          python: ${{ needs.classify.outputs.run_sdk_non_rust }}
           rust: "false"
           release-js: "false"
           release-node: "false"

@@ -39,14 +39,38 @@ assert_node24_action_majors() {
   echo "[ok] active DevOps third-party actions use Node-24-backed majors"
 }
 
+
+assert_full_validation_workflow_contract() {
+  local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+
+  for selector in \
+    'node: ${{ needs.classify.outputs.run_admin }}' \
+    'validate-source: ${{ needs.classify.outputs.run_admin }}' \
+    'node: ${{ needs.classify.outputs.run_explorer_web }}' \
+    'validate-source: ${{ needs.classify.outputs.run_explorer_web }}' \
+    'rust: ${{ needs.classify.outputs.run_cli }}' \
+    'validate-source: ${{ needs.classify.outputs.run_cli }}' \
+    'rust: ${{ needs.classify.outputs.run_explorer_backend }}' \
+    'validate-source: ${{ needs.classify.outputs.run_explorer_backend }}' \
+    'run-preflight: ${{ needs.classify.outputs.run_network }}' \
+    'validate-source: ${{ needs.classify.outputs.run_network }}' \
+    'js: ${{ needs.classify.outputs.run_sdk_non_rust }}' \
+    'node: ${{ needs.classify.outputs.run_sdk_non_rust }}' \
+    'python: ${{ needs.classify.outputs.run_sdk_non_rust }}'; do
+    grep -Fq "$selector" "$workflow"
+  done
+
+  echo "[ok] every AEKO DevOps lane performs full validation when selected"
+}
+
 run_plan_case() {
-  local label="$1" event_name="$2" ci_pipeline="$3" core="$4" expected_all="$5"
+  local label="$1" event_name="$2" ci_pipeline="$3" core="$4" expected_all="$5" explorer_web="${6:-false}"
   local output
   output="$(mktemp)"
 
   GITHUB_OUTPUT="$output" GITHUB_EVENT_NAME="$event_name" \
   ADMIN=false CLI=false CORE="$core" PACKAGING=false \
-  EXPLORER_BACKEND=false EXPLORER_WEB=false \
+  EXPLORER_BACKEND=false EXPLORER_WEB="$explorer_web" \
   SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false \
   CI_PIPELINE="$ci_pipeline" bash "$PIPELINE_DIR/plan.sh"
 
@@ -56,9 +80,6 @@ run_plan_case() {
     assert_output "$output" "run_explorer_backend=true"
     assert_output "$output" "run_explorer_web=true"
     assert_output "$output" "run_network=true"
-  fi
-
-  if [ "$ci_pipeline" = "true" ]; then
     assert_output "$output" "run_sdk_non_rust=true"
     assert_output "$output" "run_sdk_rust=true"
   fi
@@ -203,7 +224,9 @@ assert_split_coolify_workflow_contract() {
 
 assert_node24_action_majors
 assert_split_coolify_workflow_contract
+assert_full_validation_workflow_contract
 
+run_plan_case "Explorer Web-only main push runs the full validation DAG" push false false true true
 run_plan_case "CI-only pull request runs images and all external SDK validation" pull_request true false true
 run_plan_case "CI-only main push runs images and all external SDK validation" push true false true
 run_plan_case "core main push still rebuilds the full image DAG" push false true true
