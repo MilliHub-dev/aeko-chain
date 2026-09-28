@@ -577,6 +577,7 @@ def main() -> int:
         '"program"',
         '"deploy"',
         '"getAccountInfo"',
+        '"commitment": "finalized"',
         '"getSignatureStatuses"',
         '"getTransaction"',
         '"Hello from AEKO!"',

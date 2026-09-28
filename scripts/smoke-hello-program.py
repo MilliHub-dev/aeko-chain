@@ -39,13 +39,19 @@ def run(args: list[str], *, env: dict[str, str] | None = None) -> str:
         args,
         cwd=REPO_ROOT,
         env=env,
-        check=True,
+        check=False,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
     if result.stdout:
         print(result.stdout, end="")
+    if result.returncode != 0:
+        raise subprocess.CalledProcessError(
+            result.returncode,
+            args,
+            output=result.stdout,
+        )
     return result.stdout
 
 
@@ -86,17 +92,21 @@ run(
     ]
 )
 
+# The Rust developer client submits without an explicit preflight commitment,
+# so the RPC default is finalized. Do not invoke a just-deployed program while
+# it exists only in the confirmed bank: preflight can legitimately evaluate
+# against the finalized bank and report the program as unavailable.
 for _ in range(120):
     account = rpc(
         "getAccountInfo",
-        [program_id, {"encoding": "base64", "commitment": "confirmed"}],
+        [program_id, {"encoding": "base64", "commitment": "finalized"}],
     )["value"]
     if account is not None and account.get("executable") is True:
         break
     time.sleep(0.5)
 else:
     raise RuntimeError(
-        f"deployed Hello World program {program_id} did not become executable"
+        f"deployed Hello World program {program_id} did not become finalized and executable"
     )
 
 print(f"[ok] deployed Hello World SBF program {program_id}")
