@@ -23,7 +23,8 @@ const docsData = {
         "javascript-sdk",
         "node-sdk",
         "python-sdk",
-        "rust-sdk"
+        "rust-sdk",
+        "examples"
       ]
     },
     {
@@ -54,7 +55,8 @@ const docsData = {
       "description": "User signing and scoped delegated authority.",
       "items": [
         "browser-wallets",
-        "wallet-permissions"
+        "wallet-permissions",
+        "identity-clearance"
       ]
     },
     {
@@ -64,7 +66,8 @@ const docsData = {
       "items": [
         "aeko20",
         "aeko721",
-        "nft-flow"
+        "nft-flow",
+        "creator-coins"
       ]
     },
     {
@@ -94,7 +97,8 @@ const docsData = {
       "description": "Only the protocol detail application developers need.",
       "items": [
         "accounts-transactions",
-        "fees-finality"
+        "fees-finality",
+        "governance-status"
       ]
     },
     {
@@ -1709,7 +1713,8 @@ const docsData = {
       "related": [
         "browser-wallets",
         "application-security",
-        "javascript-sdk"
+        "javascript-sdk",
+        "identity-clearance"
       ],
       "sources": [
         {
@@ -1809,7 +1814,8 @@ const docsData = {
       "related": [
         "explorer-api",
         "aeko721",
-        "application-security"
+        "application-security",
+        "creator-coins"
       ],
       "sources": [
         {
@@ -2046,7 +2052,8 @@ const docsData = {
         "posts-engagement",
         "rewards-staking",
         "monetization",
-        "social-backend"
+        "social-backend",
+        "creator-coins"
       ],
       "sources": [
         {
@@ -2607,7 +2614,8 @@ const docsData = {
       "related": [
         "first-transaction",
         "transaction-failures",
-        "rpc-quickstart"
+        "rpc-quickstart",
+        "governance-status"
       ],
       "sources": [
         {
@@ -2819,6 +2827,307 @@ const docsData = {
         {
           "label": "explorer-api.md",
           "path": "docs/rpc-and-apis/explorer-api.md"
+        }
+      ]
+    },
+    {
+      "id": "examples",
+      "title": "Examples & recipes",
+      "section": "tooling",
+      "summary": "Jump from a verified SDK or contract example instead of starting from an empty file.",
+      "status": "available",
+      "tags": [
+        "examples",
+        "recipes",
+        "starter"
+      ],
+      "prerequisites": [
+        "Choose the SDK or program path that matches your application."
+      ],
+      "outcomes": [
+        "Know where the repository's runnable/copyable developer examples live."
+      ],
+      "blocks": [
+        {
+          "type": "table",
+          "title": "Example sets",
+          "headers": [
+            "Surface",
+            "Repository examples",
+            "What to learn"
+          ],
+          "rows": [
+            [
+              "JavaScript / TypeScript",
+              "apps/sdk/js/examples",
+              "Connection, wallet/permission, NFT and transaction patterns."
+            ],
+            [
+              "Node.js",
+              "apps/sdk/node/examples",
+              "Backend-oriented client and SocialFi service patterns."
+            ],
+            [
+              "Python",
+              "apps/sdk/python/examples",
+              "Basic RPC usage and account watching."
+            ],
+            [
+              "Rust client",
+              "apps/sdk/rust-client/examples",
+              "Typed client and NFT/permission flows."
+            ],
+            [
+              "Task recipes",
+              "docs/developer-sdk/examples",
+              "Wallet creation, transactions, token/NFT recipes."
+            ],
+            [
+              "On-chain starter",
+              "contracts/hello-aeko-program",
+              "Minimal program build/deploy/invoke path."
+            ]
+          ]
+        },
+        {
+          "type": "callout",
+          "title": "Examples are starting points, not trust policy",
+          "body": "Copy the API shape, then add your own network validation, error handling, authorization, secrets management and confirmation policy before production use.",
+          "tone": "security"
+        }
+      ],
+      "related": [
+        "javascript-sdk",
+        "node-sdk",
+        "python-sdk",
+        "rust-sdk",
+        "first-program"
+      ],
+      "sources": [
+        {
+          "label": "examples",
+          "path": "docs/developer-sdk/examples"
+        },
+        {
+          "label": "examples",
+          "path": "apps/sdk/js/examples"
+        },
+        {
+          "label": "examples",
+          "path": "apps/sdk/node/examples"
+        },
+        {
+          "label": "examples",
+          "path": "apps/sdk/python/examples"
+        },
+        {
+          "label": "examples",
+          "path": "apps/sdk/rust-client/examples"
+        },
+        {
+          "label": "hello-aeko-program",
+          "path": "contracts/hello-aeko-program"
+        }
+      ]
+    },
+    {
+      "id": "identity-clearance",
+      "title": "Identity & clearance status",
+      "section": "wallets-permissions",
+      "summary": "AEKO has implemented permission-registry and clearance types, but identity issuance is an authority-managed boundary rather than a general wallet self-service flow.",
+      "status": "operator",
+      "tags": [
+        "identity",
+        "clearance",
+        "permission",
+        "registry"
+      ],
+      "prerequisites": [
+        "Understand whether your deployment/environment actually provisions identity and clearance credentials."
+      ],
+      "outcomes": [
+        "Avoid presenting privileged clearance issuance as a normal public dApp action.",
+        "Know when wallet permissions and identity clearance are different concerns."
+      ],
+      "blocks": [
+        {
+          "type": "table",
+          "title": "What is implemented vs. app-facing",
+          "headers": [
+            "Surface",
+            "Current evidence",
+            "Developer implication"
+          ],
+          "rows": [
+            [
+              "Clearance types",
+              "`programs/permission-types` defines the clearance model.",
+              "Apps may consume clearance semantics when the environment exposes them."
+            ],
+            [
+              "Permission registry",
+              "`programs/permission-registry` implements issuer/clearance/role instructions.",
+              "Issuance and registry authority are privileged; do not let arbitrary clients self-issue clearance."
+            ],
+            [
+              "Wallet permissions",
+              "High-level JS/Rust builders exist for wallet delegation.",
+              "Use wallet-permission builders for app delegation; do not confuse delegation with identity clearance."
+            ],
+            [
+              "Public high-level identity SDK",
+              "No equivalent general-purpose identity/clearance builder was verified in the inspected external SDKs.",
+              "Do not invent a browser self-service KYC/clearance API."
+            ]
+          ]
+        },
+        {
+          "type": "callout",
+          "title": "Operator-managed",
+          "body": "A deployment can expose verified identity/clearance outcomes to an application, but issuer onboarding, clearance issuance and privileged registry changes belong to the configured authority model. This portal intentionally does not publish a fake self-service issuance recipe.",
+          "tone": "warning"
+        },
+        {
+          "type": "paragraph",
+          "title": "Privacy boundary",
+          "body": "When an application only needs an eligibility decision, request the smallest useful clearance/attestation result. Avoid collecting raw credential payloads merely because the chain has a permission layer."
+        }
+      ],
+      "related": [
+        "wallet-permissions",
+        "application-security"
+      ],
+      "sources": [
+        {
+          "label": "clearance.rs",
+          "path": "programs/permission-types/src/clearance.rs"
+        },
+        {
+          "label": "instruction.rs",
+          "path": "programs/permission-registry/src/instruction.rs"
+        },
+        {
+          "label": "identity-and-clearance.md",
+          "path": "docs/permission-layer/identity-and-clearance.md"
+        },
+        {
+          "label": "security.md",
+          "path": "docs/wallet/security.md"
+        }
+      ]
+    },
+    {
+      "id": "creator-coins",
+      "title": "Creator coins status",
+      "section": "tokens-nfts",
+      "summary": "Creator coins are documented as an AEKO-20-based SocialFi concept, but a verified public bonding-curve SDK/program workflow is not exposed by the inspected consumer surfaces.",
+      "status": "design",
+      "tags": [
+        "creator-coin",
+        "aeko-20",
+        "socialfi",
+        "status"
+      ],
+      "prerequisites": [
+        "None for the status page."
+      ],
+      "outcomes": [
+        "Know what is implemented today and what should not be presented as a ready creator-coin API."
+      ],
+      "blocks": [
+        {
+          "type": "callout",
+          "title": "Design / not public",
+          "body": "AEKO-20 is implemented, but the repository documentation's creator-coin bonding-curve product model is not backed by a verified high-level public create/buy/sell integration path in the current external SDKs. Do not synthesize one from the concept document.",
+          "tone": "warning"
+        },
+        {
+          "type": "bullets",
+          "title": "Safe integration boundary",
+          "items": [
+            "Use AEKO-20 documentation for implemented fungible-token primitives.",
+            "Treat creator-coin pricing/bonding-curve behavior as unavailable until a deployed program/interface and release-specific contract details are published.",
+            "Do not infer creator-coin economics from SocialFi prose and hard-code them into an application."
+          ]
+        }
+      ],
+      "related": [
+        "aeko20",
+        "socialfi-overview"
+      ],
+      "sources": [
+        {
+          "label": "creator-coins.md",
+          "path": "docs/token-standards/creator-coins.md"
+        },
+        {
+          "label": "creator-economy.md",
+          "path": "docs/socialfi/creator-economy.md"
+        },
+        {
+          "label": "instruction.rs",
+          "path": "programs/token-20/src/instruction.rs"
+        }
+      ]
+    },
+    {
+      "id": "governance-status",
+      "title": "Governance status",
+      "section": "protocol-concepts",
+      "summary": "The repository defines a target governance model, but the documented two-house proposal/voting/timelock execution path is not currently implemented as a public application workflow.",
+      "status": "design",
+      "tags": [
+        "governance",
+        "proposal",
+        "voting",
+        "status"
+      ],
+      "prerequisites": [
+        "None for the status page."
+      ],
+      "outcomes": [
+        "Distinguish validator vote-account tooling from the future application governance model."
+      ],
+      "blocks": [
+        {
+          "type": "callout",
+          "title": "Design / not public",
+          "body": "The governance documents explicitly state that the target two-house governance executor is not currently implemented. Public applications must not present proposal execution, treasury spending, or parameter mutation as governed on-chain functionality until the corresponding program and enforcement path exist.",
+          "tone": "warning"
+        },
+        {
+          "type": "paragraph",
+          "title": "Do not confuse CLI vote tooling with app governance",
+          "body": "The AEKO CLI includes vote-account/validator commands inherited by the chain runtime. Those commands are not evidence that the documented Citizen House / proposal lifecycle exists as a consumer governance API."
+        },
+        {
+          "type": "bullets",
+          "title": "What to wait for before integrating",
+          "items": [
+            "A deployed governance program ID and versioned instruction/account contract.",
+            "Proposal creation, voting, quorum/timelock and execution rules enforced on chain.",
+            "A public SDK or documented RPC/transaction construction path.",
+            "Release-specific treasury/authority boundaries and security review."
+          ]
+        }
+      ],
+      "related": [
+        "accounts-transactions",
+        "fees-finality",
+        "application-security"
+      ],
+      "sources": [
+        {
+          "label": "governance-overview.md",
+          "path": "docs/governance/governance-overview.md"
+        },
+        {
+          "label": "proposals.md",
+          "path": "docs/governance/proposals.md"
+        },
+        {
+          "label": "clap_app.rs",
+          "path": "apps/cli/src/clap_app.rs"
         }
       ]
     }
