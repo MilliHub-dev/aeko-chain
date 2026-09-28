@@ -96,7 +96,7 @@ aeko balance <YOUR_WALLET_PUBKEY> --url testnet
 ## Step 4. Build The Starter Program
 
 From the repository root, use the repository's AEKO SBF wrapper. This is the
-same build path exercised by the network integration pipeline:
+same build path exercised by the dedicated smart-contract CI lane:
 
 ```bash
 ./cargo-build-sbf \
@@ -176,8 +176,8 @@ A successful upload alone is not enough. The invocation transaction must have
 
 ## Repository CI Acceptance
 
-The network integration pipeline runs this same starter against a real
-`aeko-test-validator`:
+The dedicated `Smart contracts (SBF → AEKO SVM)` job runs this same starter
+against a real isolated `aeko-test-validator`:
 
 ```text
 contracts/hello-aeko-program
@@ -189,8 +189,8 @@ contracts/hello-aeko-program
   -> "Hello from AEKO!" program log
 ```
 
-The gate lives in
-[`scripts/ci-protocol-stack-integration.sh`](../../scripts/ci-protocol-stack-integration.sh)
+The job is implemented by
+[`.github/actions/devops/smart-contracts/run.sh`](../../.github/actions/devops/smart-contracts/run.sh)
 and delegates the deployment/invocation assertions to
 [`scripts/smoke-hello-program.py`](../../scripts/smoke-hello-program.py).
 This CI test uses an isolated TestValidator; it does not deploy the starter to

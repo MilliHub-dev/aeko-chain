@@ -32,6 +32,7 @@ REGISTRY_RESOLVER = ROOT / "apps" / "explorer" / "backend" / "src" / "infrastruc
 REGISTRY_FEATURE = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "registry.rs"
 SPLIT_BOOTSTRAP = ROOT / "docker" / "coolify" / "bootstrap" / "compose.yml"
 PROTOCOL_INTEGRATION = ROOT / "scripts" / "ci-protocol-stack-integration.sh"
+SMART_CONTRACT_RUN = ROOT / ".github" / "actions" / "devops" / "smart-contracts" / "run.sh"
 FUNDING_SMOKE = ROOT / "scripts" / "smoke-funding-e2e.py"
 HELLO_PROGRAM_SMOKE = ROOT / "scripts" / "smoke-hello-program.py"
 README = ROOT / "README.md"
@@ -117,6 +118,7 @@ def main() -> int:
     registry_feature = read(REGISTRY_FEATURE)
     split_bootstrap = read(SPLIT_BOOTSTRAP)
     protocol_integration = read(PROTOCOL_INTEGRATION)
+    smart_contract_run = read(SMART_CONTRACT_RUN)
     funding_smoke = read(FUNDING_SMOKE)
     hello_program_smoke = read(HELLO_PROGRAM_SMOKE)
     readme = read(README)
@@ -559,19 +561,28 @@ def main() -> int:
             f"live protocol-stack funding dogfood missing contract: {required}",
         )
 
-    # The external developer contract path is part of the same live network
-    # acceptance gate. A compile-only example is insufficient: CI must build
-    # SBF, deploy the generated program keypair, invoke it and inspect the
-    # confirmed transaction logs.
+    # Deployable SBF contracts have an independent CI ownership boundary.
+    # A compile-only example is insufficient: the smart-contract lane must build
+    # SBF and delegate real CLI deploy/invoke verification to the Hello smoke.
+    for forbidden in (
+        "contracts/hello-aeko-program",
+        "cargo-build-sbf",
+        "smoke-hello-program.py",
+    ):
+        require(
+            forbidden not in protocol_integration,
+            f"network protocol integration must not own deployable smart-contract work: {forbidden}",
+        )
     for required in (
         "contracts/hello-aeko-program/Cargo.toml",
         "cargo-build-sbf",
         "hello_aeko_program.so",
+        "aeko-test-validator",
         "smoke-hello-program.py",
     ):
         require(
-            required in protocol_integration,
-            f"live protocol-stack Hello World gate missing contract: {required}",
+            required in smart_contract_run,
+            f"smart-contract CI gate missing contract: {required}",
         )
     for required in (
         '"program"',
@@ -729,9 +740,9 @@ def main() -> int:
     )
     require(
         "./cargo-build-sbf" in write_first_program
-        and "ci-protocol-stack-integration.sh" in write_first_program
+        and "Smart contracts (SBF → AEKO SVM)" in write_first_program
         and "Hello from AEKO!" in write_first_program,
-        "write-first-program guide must match the live Hello World compatibility gate",
+        "write-first-program guide must match the dedicated Hello World smart-contract gate",
     )
     require(
         "./cargo-build-sbf" in rust_sdk_guide
@@ -741,8 +752,8 @@ def main() -> int:
     )
     require(
         "Smart-contract build/deploy/invoke works in CI." in testnet_runbook
-        and "scripts/ci-protocol-stack-integration.sh" in testnet_runbook,
-        "testnet runbook must document the live smart-contract compatibility gate",
+        and "Smart contracts (SBF → AEKO SVM)" in testnet_runbook,
+        "testnet runbook must document the dedicated smart-contract compatibility gate",
     )
     require(
         "explorer-ui:4000" in testnet_runbook

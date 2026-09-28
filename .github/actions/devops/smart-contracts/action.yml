@@ -1,0 +1,16 @@
+name: AEKO smart-contract DevOps
+description: Build deployable SBF contracts and prove AEKO CLI deploy/invoke behavior against an isolated AEKO SVM.
+
+inputs:
+  validate-source:
+    description: Build, deploy, invoke, and verify the repository smart-contract starter.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Build and exercise smart contract on AEKO SVM
+      if: ${{ inputs.validate-source == 'true' }}
+      shell: bash
+      run: bash "$GITHUB_ACTION_PATH/run.sh"

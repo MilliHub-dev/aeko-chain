@@ -54,6 +54,9 @@ assert_full_validation_workflow_contract() {
     'validate-source: ${{ needs.classify.outputs.run_explorer_backend }}' \
     'run-preflight: ${{ needs.classify.outputs.run_network }}' \
     'validate-source: ${{ needs.classify.outputs.run_network }}' \
+    'rust: ${{ needs.classify.outputs.run_smart_contracts }}' \
+    'python: ${{ needs.classify.outputs.run_smart_contracts }}' \
+    'validate-source: ${{ needs.classify.outputs.run_smart_contracts }}' \
     'js: ${{ needs.classify.outputs.run_sdk_non_rust }}' \
     'node: ${{ needs.classify.outputs.run_sdk_non_rust }}' \
     'python: ${{ needs.classify.outputs.run_sdk_non_rust }}'; do
@@ -63,6 +66,42 @@ assert_full_validation_workflow_contract() {
   echo "[ok] every AEKO DevOps lane performs full validation when selected"
 }
 
+
+
+assert_smart_contract_pipeline_separation() {
+  local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+  local classifier="$PIPELINE_DIR/../detect-changes/action.yml"
+  local network_run="$PIPELINE_DIR/../network/run.sh"
+  local network_integration="$PIPELINE_DIR/../../../../scripts/ci-protocol-stack-integration.sh"
+  local contract_run="$PIPELINE_DIR/../smart-contracts/run.sh"
+  local smoke="$PIPELINE_DIR/../../../../scripts/smoke-hello-program.py"
+
+  grep -Fq 'smart_contracts:' "$classifier"
+  grep -Fq 'contracts/*|scripts/smoke-hello-program.py)' "$classifier"
+  grep -Fq 'smart_contracts=true' "$classifier"
+  grep -Fq 'Smart contracts (SBF → AEKO SVM)' "$workflow"
+
+  if grep -Fq 'contracts/hello-aeko-program' "$network_run"; then
+    echo "Blockchain network action still owns deployable smart-contract build logic." >&2
+    exit 1
+  fi
+  if grep -Fq 'smoke-hello-program.py' "$network_run"; then
+    echo "Blockchain network action still owns smart-contract deploy/invoke logic." >&2
+    exit 1
+  fi
+  if grep -Eq 'contracts/hello-aeko-program|cargo-build-sbf|smoke-hello-program.py' "$network_integration"; then
+    echo "Blockchain protocol integration still contains deployable smart-contract responsibilities." >&2
+    exit 1
+  fi
+
+  grep -Fq 'cargo-build-sbf' "$contract_run"
+  grep -Fq 'aeko-test-validator' "$contract_run"
+  grep -Fq 'smoke-hello-program.py' "$contract_run"
+  grep -Fq '"program",' "$smoke"
+  grep -Fq '"deploy",' "$smoke"
+
+  echo "[ok] deployable SBF contracts have an independent build -> AEKO CLI deploy -> AEKO SVM invoke lane"
+}
 
 assert_vercel_git_deployments_disabled() {
   local config="$PIPELINE_DIR/../../../../vercel.json"
@@ -100,7 +139,7 @@ run_plan_case() {
   output="$(mktemp)"
 
   GITHUB_OUTPUT="$output" GITHUB_EVENT_NAME="$event_name" \
-  ADMIN=false CLI=false CORE="$core" PACKAGING=false \
+  ADMIN=false CLI=false CORE="$core" PACKAGING=false SMART_CONTRACTS=false \
   EXPLORER_BACKEND=false EXPLORER_WEB="$explorer_web" \
   SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false \
   CI_PIPELINE="$ci_pipeline" bash "$PIPELINE_DIR/plan.sh"
@@ -111,6 +150,7 @@ run_plan_case() {
     assert_output "$output" "run_explorer_backend=true"
     assert_output "$output" "run_explorer_web=true"
     assert_output "$output" "run_network=true"
+    assert_output "$output" "run_smart_contracts=true"
     assert_output "$output" "run_sdk_non_rust=true"
     assert_output "$output" "run_sdk_rust=true"
   fi
@@ -158,7 +198,7 @@ run_deploy_plan_case() {
   output="$(mktemp)"
 
   GITHUB_OUTPUT="$output" GITHUB_EVENT_NAME=push \
-  ADMIN="$admin" CLI=false CORE="$core" PACKAGING=false \
+  ADMIN="$admin" CLI=false CORE="$core" PACKAGING=false SMART_CONTRACTS=false \
   EXPLORER_BACKEND="$explorer_backend" EXPLORER_WEB="$explorer_web" \
   COOLIFY_BOOTSTRAP="$coolify_bootstrap" \
   COOLIFY_FAUCET_TOOLS="$coolify_faucet_tools" \
@@ -256,6 +296,7 @@ assert_split_coolify_workflow_contract() {
 assert_node24_action_majors
 assert_split_coolify_workflow_contract
 assert_full_validation_workflow_contract
+assert_smart_contract_pipeline_separation
 assert_vercel_git_deployments_disabled
 assert_cli_release_after_main_contract
 
