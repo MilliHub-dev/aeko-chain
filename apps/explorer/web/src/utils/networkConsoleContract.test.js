@@ -134,7 +134,8 @@ test('accounts workspace keeps public funding approval separate from direct Test
 
   assert.match(networkTools, /<TestnetFundingRequest fundingUrl=\{config\.fundingUrl\} \/>/);
   assert.match(funding, /Your AEKO wallet address/);
-  assert.match(funding, /Enter your Testnet wallet address to request test AEKO/i);\n  assert.doesNotMatch(funding, /authenticated Admin must approve or reject/i);
+  assert.match(funding, /Enter your Testnet wallet address to request test AEKO/i);
+  assert.doesNotMatch(funding, /authenticated Admin must approve or reject/i);
   assert.match(funding, /requestFundingApproval\(fundingUrl, address\.trim\(\)\)/);
   assert.match(funding, /getFundingRequestStatus\(fundingUrl, request\.id\)/);
   assert.match(funding, /waiting for an Admin decision/i);
