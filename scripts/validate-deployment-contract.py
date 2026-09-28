@@ -315,8 +315,16 @@ def main() -> int:
         "Aeko Scan public selector must expose Mainnet and Testnet only",
     )
     require(
-        "devnet" in network_config and "localnet" in network_config,
-        "Devnet/Localnet must remain valid independently configured development environments",
+        "name: 'Devnet'" not in network_config,
+        "public Scan network configuration must not expose Devnet",
+    )
+    require(
+        "PUBLIC_NETWORK_ORDER = ['mainnet', 'testnet']" in network_config,
+        "public Scan runtime must normalize only Mainnet and Testnet",
+    )
+    require(
+        "pathname === '/runtime-config.js'" in explorer_proxy and "'no-store'" in explorer_proxy,
+        "Scan runtime configuration must not be cached across deployments",
     )
 
     # Native token and permission programs stay feature-gated.
