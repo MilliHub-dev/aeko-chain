@@ -102,15 +102,16 @@ cargo run -p aeko-cli --bin aeko -- \
 
 ## CI Compatibility Gate
 
-The dedicated `Smart contracts (SBF → AEKO SVM)` CI job builds this starter
-as SBF, starts an isolated AEKO TestValidator, deploys the generated artifact
-through the real `aeko program deploy` CLI path, verifies the program account
-is executable, runs `examples/invoke_hello.rs`, and requires a confirmed
-transaction whose logs contain `Hello from AEKO!`.
+The standalone `AEKO Smart Contracts (non-blocking)` workflow builds this
+starter as SBF, verifies the public AEKO Testnet RPC, creates an ephemeral
+deployer keypair, obtains test AEKO through the live Test Console airdrop API,
+then deploys the generated artifact through the real `aeko program deploy`
+CLI path. It verifies the program account is executable, runs
+`examples/invoke_hello.rs`, and requires a confirmed transaction whose logs
+contain `Hello from AEKO!`.
 
-That smart-contract gate is intentionally separate from validator/Faucet/
-bootstrap image validation, while still proving compatibility with the AEKO SVM
-and CLI.
+That workflow builds no Validator/Faucet/bootstrap image and does not gate the
+core AEKO DevOps release workflow if the public Testnet or contract smoke fails.
 
 ## Suggested Next Steps After Hello World
 

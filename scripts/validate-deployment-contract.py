@@ -577,7 +577,10 @@ def main() -> int:
         "contracts/hello-aeko-program/Cargo.toml",
         "cargo-build-sbf",
         "hello_aeko_program.so",
-        "aeko-test-validator",
+        "https://rpc.aeko.online",
+        "https://scan.aeko.online/api/explorer/testnet",
+        "/funding/airdrop",
+        "aeko-keygen new",
         "smoke-hello-program.py",
     ):
         require(
@@ -752,8 +755,10 @@ def main() -> int:
     )
     require(
         "Smart-contract build/deploy/invoke works in CI." in testnet_runbook
-        and "Smart contracts (SBF → AEKO SVM)" in testnet_runbook,
-        "testnet runbook must document the dedicated smart-contract compatibility gate",
+        and "AEKO Smart Contracts (non-blocking)" in testnet_runbook
+        and "https://rpc.aeko.online" in testnet_runbook
+        and "/funding/airdrop" in testnet_runbook,
+        "testnet runbook must document the non-blocking live smart-contract compatibility gate",
     )
     require(
         "explorer-ui:4000" in testnet_runbook
