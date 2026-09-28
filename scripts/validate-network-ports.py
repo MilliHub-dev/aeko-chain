@@ -329,7 +329,9 @@ def main() -> int:
             f"split Scan must not expose {private_prefix} variables",
         )
     require(
-        "pathname === '/runtime-config.js'" in scan_server and "'no-store'" in scan_server,
+        "RUNTIME_CONFIG_PATH = '/runtime-config.js'" in scan_server
+        and "pathname === RUNTIME_CONFIG_PATH" in scan_server
+        and "'no-store, max-age=0'" in scan_server,
         "Scan runtime-config.js must bypass browser caching",
     )
 
