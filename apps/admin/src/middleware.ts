@@ -24,6 +24,12 @@ function nextWithRequestId(req: NextRequest, requestId: string) {
 async function adminRole(req: NextRequest, requestId: string) {
   const { pathname } = req.nextUrl
 
+  // Infrastructure health probes are intentionally quiet. They prove process
+  // liveness without exercising Admin authentication or flooding request logs.
+  if (pathname === '/healthz') {
+    return nextWithRequestId(req, requestId)
+  }
+
   if (matchesPrefix(pathname, ADMIN_PUBLIC_PREFIXES)) {
     logger.info('http_request_accepted', {
       request_id: requestId,

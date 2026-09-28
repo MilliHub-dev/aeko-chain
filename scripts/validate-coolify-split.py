@@ -193,6 +193,24 @@ def main() -> int:
         )
         require('restart: "no"' in block, f"{name} bootstrap must remain one-shot")
 
+    for label, block, binary in (
+        ("Social", social, "aeko-social-bootstrap"),
+        ("Protocol", protocol, "aeko-protocol-bootstrap"),
+    ):
+        require(
+            'entrypoint: ["/bin/sh", "-ec"]' in block,
+            f"{label} bootstrap must wrap the one-shot binary with split-runtime readiness gating",
+        )
+        require(
+            "rm -f /state/.aeko-bootstrap-runtime-ready" in block,
+            f"{label} bootstrap must invalidate stale runtime readiness before verification",
+        )
+        require(binary in block, f"{label} bootstrap wrapper must execute {binary}")
+        require(
+            "cp /state/.aeko-chain-binding /state/.aeko-bootstrap-runtime-ready" in block,
+            f"{label} bootstrap may publish runtime readiness only after lifecycle completion",
+        )
+
     require("image: nginx:1.27-alpine" in registry, "registry must use the pinned minimal nginx image")
     require("source: /data/aeko/social-state" in registry, "registry must read Social state")
     require("source: /data/aeko/protocol-state" in registry, "registry must read Protocol state")
@@ -200,6 +218,18 @@ def main() -> int:
     require(registry.count("read_only: true") >= 2, "registry state mounts must be read-only")
     require("location = /social-registry.env" in registry, "registry must expose the Social registry")
     require("location = /protocol-registry.env" in registry, "registry must expose the Protocol registry")
+    for required_health_guard in (
+        "/registry/social/.aeko-bootstrap-runtime-ready",
+        "/registry/protocol/.aeko-bootstrap-runtime-ready",
+        "/registry/social/social-registry.env",
+        "/registry/protocol/protocol-registry.env",
+    ):
+        require(
+            required_health_guard in registry,
+            f"registry /healthz must fail closed when {required_health_guard} is unavailable",
+        )
+    require('return 503 "social bootstrap not verified' in registry, "registry health must surface failed Social verification")
+    require('return 503 "protocol bootstrap not verified' in registry, "registry health must surface failed Protocol verification")
     require("location / {" in registry and "return 404;" in registry, "registry must deny every other path")
     require('"8089"' in registry, "registry must expose container port 8089")
 
@@ -294,6 +324,8 @@ def main() -> int:
     )
 
     operations = loaded["operations-web"]
+    admin_middleware = read(ROOT / "apps" / "admin" / "src" / "middleware.ts")
+    admin_health_route = read(ROOT / "apps" / "admin" / "src" / "app" / "healthz" / "route.ts")
     require(
         "AEKO_LOG_FORMAT:" in operations and "AEKO_LOG_LEVEL:" in operations,
         "Operations Web split resource must configure production application logging",
@@ -305,6 +337,20 @@ def main() -> int:
         "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
     ):
         require(expected in operations, f"Operations Web missing active-environment contract: {expected}")
+    require(
+        "http://127.0.0.1:3001/healthz" in operations,
+        "Operations Web container healthcheck must use the dedicated public /healthz route",
+    )
+    require(
+        "pathname === '/healthz'" in admin_middleware
+        and "return nextWithRequestId(req, requestId)" in admin_middleware,
+        "Operations Web middleware must bypass Admin authentication and request logging for /healthz",
+    )
+    require(
+        "return new Response('ok\\n'" in admin_health_route
+        and "'cache-control': 'no-store'" in admin_health_route,
+        "Operations Web /healthz route must return a non-cacheable liveness response",
+    )
 
     print("split Coolify single-network + Scan multi-network contract: ok")
     return 0

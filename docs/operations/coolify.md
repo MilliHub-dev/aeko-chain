@@ -205,6 +205,11 @@ Configure these Coolify domains against the listed services/container ports:
 | `https://scan.aeko.online` | `explorer-ui` | `4000` |
 | `https://admin.aeko.online` | `operations-web` | `3001` |
 
+For the Operations Web resource, set Coolify's HTTP health-check path to
+`/healthz`. The Admin root `/` is intentionally session-protected and is not
+a liveness endpoint; probing it produces `admin_sign_in_required` redirects and
+warning logs.
+
 `api.aeko.online` is the server-side Explorer API origin used by Scan's
 same-origin read proxy and Operations Web. Browser navigation still uses
 `scan.aeko.online`; the browser is not required to call the API origin
@@ -213,6 +218,12 @@ directly.
 `registry.aeko.online/` returns a non-secret JSON discovery manifest.
 `/healthz`, `/social-registry.env`, and `/protocol-registry.env` expose
 the health and two read-only registry documents; unknown paths return 404.
+
+In the split Bootstrap resource, `/healthz` is also the lifecycle gate. Social
+and Protocol each invalidate a runtime-readiness marker before verification and
+republish it only after their canonical chain binding completes. The registry
+returns 503 when either latest one-shot verification is incomplete/failed or a
+registry document is missing; it does not mutate or recreate canonical state.
 
 Do not configure `gossip.aeko.online` as an HTTP route. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record
 directly to the Validator host and allow inbound TCP+UDP `8000-8050`.
