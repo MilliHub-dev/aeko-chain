@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth'
 import { logger, requestIdFromHeaders } from '@/lib/logger'
 
-const ADMIN_PUBLIC_PREFIXES = ['/healthz', '/login', '/api/login', '/api/logout', '/api/telemetry/client']
+const ADMIN_PUBLIC_PREFIXES = ['/login', '/api/login', '/api/logout', '/api/telemetry/client']
 
 const matchesPrefix = (pathname: string, prefixes: string[]) =>
   prefixes.some((prefix) =>
@@ -23,6 +23,12 @@ function nextWithRequestId(req: NextRequest, requestId: string) {
 
 async function adminRole(req: NextRequest, requestId: string) {
   const { pathname } = req.nextUrl
+
+  // Infrastructure health probes are intentionally quiet. They prove process
+  // liveness without exercising Admin authentication or flooding request logs.
+  if (pathname === '/healthz') {
+    return nextWithRequestId(req, requestId)
+  }
 
   if (matchesPrefix(pathname, ADMIN_PUBLIC_PREFIXES)) {
     logger.info('http_request_accepted', {
