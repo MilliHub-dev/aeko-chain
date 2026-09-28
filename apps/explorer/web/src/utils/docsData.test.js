@@ -28,6 +28,7 @@ test('documentation navigation resolves every page exactly once', () => {
     assert.ok(section.items.length > 0, `section ${section.id} must contain pages`);
     for (const pageId of section.items) {
       assert.ok(docsPagesById[pageId], `section ${section.id} references missing page ${pageId}`);
+      assert.equal(docsPagesById[pageId].section, section.id, `${pageId} page.section must match ${section.id}`);
     }
   }
 });
@@ -132,4 +133,38 @@ test('docs page shell moves keyboard context with guide navigation', async () =>
   assert.match(docsPage, /document\.title = .*AEKO Developer Docs/);
   assert.match(docsPage, /restoreMobileTriggerRef/);
   assert.match(docsPage, /if \(isMobileMenuOpen\) restoreMobileTriggerRef\.current = false/);
+});
+
+
+test('phase 5 developer journeys are migrated as task-oriented guides', () => {
+  const expected = [
+    ['smart-contracts', 'build-sbf', 'available'],
+    ['wallets-permissions', 'transaction-signing', 'available'],
+    ['tokens-nfts', 'asset-metadata', 'available'],
+    ['protocol-concepts', 'transaction-lifecycle', 'available'],
+  ];
+
+  for (const [sectionId, pageId, status] of expected) {
+    const section = docsSections.find((item) => item.id === sectionId);
+    const page = docsPagesById[pageId];
+    assert.ok(section?.items.includes(pageId), `${pageId} must be reachable from ${sectionId}`);
+    assert.equal(page?.status, status, `${pageId} must keep its public capability status`);
+    assert.ok(page?.prerequisites?.length > 0, `${pageId} requires prerequisites`);
+    assert.ok(page?.outcomes?.length > 0, `${pageId} requires expected outcomes`);
+    assert.ok(page?.blocks?.length >= 3, `${pageId} requires a complete task guide`);
+  }
+
+  assert.ok(docsPagesById['build-sbf'].blocks.some((block) => block.type === 'steps'));
+  assert.ok(docsPagesById['transaction-signing'].blocks.some((block) => block.type === 'code'));
+  assert.ok(docsPagesById['asset-metadata'].blocks.some((block) => block.type === 'table'));
+  assert.ok(docsPagesById['transaction-lifecycle'].blocks.some((block) => block.type === 'steps'));
+});
+
+
+test('browser signing guide scopes injected-wallet Mainnet support', () => {
+  const page = docsPagesById['transaction-signing'];
+  const serialized = JSON.stringify(page);
+  assert.match(serialized, /Testnet flow/);
+  assert.match(serialized, /before Mainnet/i);
+  assert.match(serialized, /wallet explicitly supports the production network/i);
 });

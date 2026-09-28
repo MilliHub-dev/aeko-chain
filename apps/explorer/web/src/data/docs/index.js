@@ -45,6 +45,7 @@ const docsData = {
       "items": [
         "program-model",
         "first-program",
+        "build-sbf",
         "deploy-invoke",
         "program-lifecycle",
         "program-security"
@@ -56,6 +57,7 @@ const docsData = {
       "description": "User signing and scoped delegated authority.",
       "items": [
         "browser-wallets",
+        "transaction-signing",
         "wallet-permissions",
         "identity-clearance"
       ]
@@ -68,6 +70,7 @@ const docsData = {
         "aeko20",
         "public-mint",
         "aeko721",
+        "asset-metadata",
         "nft-flow",
         "creator-coins"
       ]
@@ -100,6 +103,7 @@ const docsData = {
       "description": "Only the protocol detail application developers need.",
       "items": [
         "accounts-transactions",
+        "transaction-lifecycle",
         "fees-finality",
         "governance-status"
       ]
@@ -498,7 +502,9 @@ const docsData = {
       "related": [
         "verify-scan",
         "fees-finality",
-        "transaction-failures"
+        "transaction-failures",
+        "transaction-signing",
+        "transaction-lifecycle"
       ]
     },
     {
@@ -1223,7 +1229,8 @@ const docsData = {
       "related": [
         "deploy-invoke",
         "program-lifecycle",
-        "application-security"
+        "application-security",
+        "build-sbf"
       ]
     },
     {
@@ -1285,7 +1292,9 @@ const docsData = {
       "related": [
         "first-program",
         "program-lifecycle",
-        "verify-scan"
+        "verify-scan",
+        "build-sbf",
+        "transaction-signing"
       ]
     },
     {
@@ -1360,7 +1369,8 @@ const docsData = {
         "deploy-invoke",
         "application-security",
         "cli-reference",
-        "program-security"
+        "program-security",
+        "build-sbf"
       ]
     },
     {
@@ -1409,7 +1419,8 @@ const docsData = {
       "related": [
         "javascript-sdk",
         "wallet-permissions",
-        "application-security"
+        "application-security",
+        "transaction-signing"
       ]
     },
     {
@@ -1487,7 +1498,8 @@ const docsData = {
         "browser-wallets",
         "application-security",
         "javascript-sdk",
-        "identity-clearance"
+        "identity-clearance",
+        "transaction-signing"
       ]
     },
     {
@@ -1635,7 +1647,8 @@ const docsData = {
       ],
       "related": [
         "nft-flow",
-        "browser-wallets"
+        "browser-wallets",
+        "asset-metadata"
       ]
     },
     {
@@ -1698,7 +1711,9 @@ const docsData = {
       "related": [
         "aeko721",
         "browser-wallets",
-        "verify-scan"
+        "verify-scan",
+        "asset-metadata",
+        "transaction-signing"
       ]
     },
     {
@@ -2065,7 +2080,8 @@ const docsData = {
       "related": [
         "wallet-permissions",
         "transaction-failures",
-        "program-lifecycle"
+        "program-lifecycle",
+        "transaction-signing"
       ]
     },
     {
@@ -2130,7 +2146,8 @@ const docsData = {
       "related": [
         "rpc-quickstart",
         "fees-finality",
-        "program-model"
+        "program-model",
+        "transaction-lifecycle"
       ]
     },
     {
@@ -2189,7 +2206,8 @@ const docsData = {
         "first-transaction",
         "transaction-failures",
         "rpc-quickstart",
-        "governance-status"
+        "governance-status",
+        "transaction-lifecycle"
       ]
     },
     {
@@ -2308,7 +2326,8 @@ const docsData = {
       "related": [
         "errors-rate-limits",
         "indexing-delay",
-        "fees-finality"
+        "fees-finality",
+        "transaction-lifecycle"
       ]
     },
     {
@@ -2839,11 +2858,354 @@ const docsData = {
         "rewards-staking",
         "application-security"
       ]
+    },
+    {
+      "id": "build-sbf",
+      "title": "Build an SBF program",
+      "section": "smart-contracts",
+      "summary": "Compile an AEKO Rust program into the deployable SBF artifact used by the program deployment workflow.",
+      "status": "available",
+      "tags": [
+        "sbf",
+        "build",
+        "rust",
+        "smart-contract"
+      ],
+      "prerequisites": [
+        "A Rust program that passes normal Rust checks.",
+        "AEKO SBF build tooling available in your development environment."
+      ],
+      "outcomes": [
+        "Produce a deployable `.so` artifact.",
+        "Know which build output belongs in the deployment step."
+      ],
+      "blocks": [
+        {
+          "type": "steps",
+          "title": "Build sequence",
+          "items": [
+            {
+              "title": "Check the Rust program first",
+              "body": "Resolve ordinary compiler errors before invoking the SBF build. This keeps Rust issues separate from target-specific build failures.",
+              "code": "cargo check --manifest-path ./my-program/Cargo.toml"
+            },
+            {
+              "title": "Compile for SBF",
+              "body": "Run the AEKO SBF build tool against your program manifest and choose a dedicated deployment output directory.",
+              "code": "./cargo-build-sbf \\\n  --manifest-path ./my-program/Cargo.toml \\\n  --sbf-out-dir ./my-program/target/deploy"
+            },
+            {
+              "title": "Locate the deployable artifact",
+              "body": "Use the generated `.so` from the SBF output directory for `aeko program deploy`. Do not substitute a normal host build artifact."
+            },
+            {
+              "title": "Keep network configuration out of the build",
+              "body": "Building is local. Select Mainnet or Testnet only when you deploy, invoke, or query the resulting program."
+            }
+          ]
+        },
+        {
+          "type": "callout",
+          "title": "Host builds and SBF builds serve different purposes",
+          "body": "`cargo check` and a normal Rust build are useful development checks, but the network deploys the SBF artifact produced by the AEKO SBF toolchain.",
+          "tone": "warning"
+        },
+        {
+          "type": "bullets",
+          "title": "Before you deploy",
+          "items": [
+            "Keep the exact artifact you intend to deploy identifiable in your release process.",
+            "Confirm the deployer wallet is configured for the intended network.",
+            "Deploy to Testnet first when changing program logic or account behavior.",
+            "Record the returned program ID and upgrade authority after deployment."
+          ]
+        }
+      ],
+      "related": [
+        "first-program",
+        "deploy-invoke",
+        "program-lifecycle",
+        "program-security"
+      ]
+    },
+    {
+      "id": "transaction-signing",
+      "title": "Signing transactions",
+      "section": "wallets-permissions",
+      "summary": "Keep transaction construction separate from authorization so browser users, services, and CLI workflows sign at the correct trust boundary.",
+      "status": "available",
+      "tags": [
+        "signing",
+        "transaction",
+        "wallet",
+        "backend"
+      ],
+      "prerequisites": [
+        "A prepared transaction or a client flow that can produce one.",
+        "A signer whose authority matches the accounts required by the transaction."
+      ],
+      "outcomes": [
+        "Choose the correct signing boundary for browser, backend, or CLI flows.",
+        "Avoid moving user secrets into application code."
+      ],
+      "blocks": [
+        {
+          "type": "table",
+          "title": "Choose the signing boundary",
+          "headers": [
+            "Context",
+            "Recommended signer",
+            "Application responsibility"
+          ],
+          "rows": [
+            [
+              "Browser user",
+              "Injected AEKO wallet",
+              "Prepare the transaction, show intent, request wallet approval, then track the returned transaction result."
+            ],
+            [
+              "Backend service",
+              "Server-side signer behind a protected service boundary",
+              "Validate business authorization before signing and keep signing material outside browser/client payloads."
+            ],
+            [
+              "CLI workflow",
+              "Configured CLI keypair or explicit signer",
+              "Make the target network and signer explicit before transfers, deployment, or authority changes."
+            ]
+          ]
+        },
+        {
+          "type": "code",
+          "label": "Browser wallet signing (Testnet flow)",
+          "language": "javascript",
+          "value": "import { detectInjectedAekoWalletAdapter } from '@aeko-chain/web3.js';\n\nconst wallet = detectInjectedAekoWalletAdapter();\nif (!wallet?.capabilities.signAndSendTransaction) {\n  throw new Error('Transaction signing is unavailable in this wallet');\n}\n\nconst result = await wallet.signAndSendTransaction(preparedTransactionBase64);\nconsole.log(result);"
+        },
+        {
+          "type": "steps",
+          "title": "Safe signing flow",
+          "items": [
+            {
+              "title": "Resolve the network first",
+              "body": "Build and display the request for the same network the application is connected to. Never reuse a prepared transaction after silently switching networks."
+            },
+            {
+              "title": "Show what the user is authorizing",
+              "body": "Display the action, recipient or program, amount where relevant, and permission scope before asking a wallet to approve."
+            },
+            {
+              "title": "Sign only the prepared bytes you reviewed",
+              "body": "Do not collect seed phrases or raw private keys to bypass the wallet or service signer boundary."
+            },
+            {
+              "title": "Treat the signature as the tracking handle",
+              "body": "After submission, retain the transaction signature and move into confirmation/status checks instead of assuming signing equals settlement."
+            }
+          ]
+        },
+        {
+          "type": "callout",
+          "title": "Check browser-wallet network support before Mainnet",
+          "body": "The injected-wallet transaction request currently follows the Testnet signing flow. Before enabling the same browser action on Mainnet, confirm the connected wallet explicitly supports the production network and presents the intended network to the user.",
+          "tone": "warning"
+        },
+        {
+          "type": "callout",
+          "title": "Browser signing and service signing are different trust models",
+          "body": "A browser wallet represents the user's authority. A backend signer represents service authority. Do not substitute one for the other merely to simplify the UI.",
+          "tone": "security"
+        }
+      ],
+      "related": [
+        "browser-wallets",
+        "first-transaction",
+        "transaction-lifecycle",
+        "application-security"
+      ]
+    },
+    {
+      "id": "asset-metadata",
+      "title": "NFT metadata",
+      "section": "tokens-nfts",
+      "summary": "Model collection and NFT metadata consistently so wallet, minting, transfer, and indexed-display flows agree on the same asset identity.",
+      "status": "available",
+      "tags": [
+        "nft",
+        "metadata",
+        "aeko-721",
+        "collection"
+      ],
+      "prerequisites": [
+        "An AEKO-721 collection or a mint flow that will create one.",
+        "A stable metadata URI policy for your application."
+      ],
+      "outcomes": [
+        "Know the metadata fields used by AEKO-721 collection and token flows.",
+        "Keep display metadata separate from ownership and authority state."
+      ],
+      "blocks": [
+        {
+          "type": "table",
+          "title": "Metadata model",
+          "headers": [
+            "Scope",
+            "Fields",
+            "Use"
+          ],
+          "rows": [
+            [
+              "Collection",
+              "name, symbol, optional base URI",
+              "Identifies the collection and provides an optional shared URI base."
+            ],
+            [
+              "NFT",
+              "name, optional description, URI, optional image URI, attributes",
+              "Describes the individual item shown by wallets and applications."
+            ],
+            [
+              "Ownership",
+              "collection, token ID, owner, creator",
+              "Defines chain identity and ownership; do not infer these values from display metadata."
+            ],
+            [
+              "Royalties",
+              "royalty basis points",
+              "Stores the royalty setting associated with the token."
+            ]
+          ]
+        },
+        {
+          "type": "code",
+          "label": "Metadata object",
+          "language": "javascript",
+          "value": "const metadata = {\n  name: 'AEKO Pioneer',\n  description: 'Early community collectible',\n  uri: 'https://example.com/nft/42.json',\n  imageUri: 'https://example.com/nft/42.png',\n  attributes: [\n    { traitType: 'Series', value: 'Genesis' },\n    { traitType: 'Tier', value: 'Pioneer' },\n  ],\n};"
+        },
+        {
+          "type": "bullets",
+          "title": "Metadata design rules",
+          "items": [
+            "Treat on-chain owner, creator, collection, token ID and frozen state as authoritative asset state.",
+            "Keep metadata URIs stable enough that previously minted items do not unexpectedly change meaning.",
+            "Validate remote metadata before rendering it in your application; do not trust text, links or media solely because a token references them.",
+            "Use the metadata update flow only when the signing authority and product policy allow the asset description to change."
+          ]
+        },
+        {
+          "type": "callout",
+          "title": "Metadata is descriptive, not authority",
+          "body": "Changing a name, image, attribute, or URI does not transfer ownership. Ownership and authorization are controlled by the token account state and signed program actions.",
+          "tone": "security"
+        }
+      ],
+      "related": [
+        "aeko721",
+        "nft-flow",
+        "browser-wallets",
+        "application-security"
+      ]
+    },
+    {
+      "id": "transaction-lifecycle",
+      "title": "Transaction lifecycle",
+      "section": "protocol-concepts",
+      "summary": "Follow a transaction from preparation through signing, submission, confirmation, and the final state read your product depends on.",
+      "status": "available",
+      "tags": [
+        "transaction",
+        "signature",
+        "confirmation",
+        "lifecycle"
+      ],
+      "prerequisites": [
+        "A client connected to the intended AEKO network.",
+        "A signer authorized for the transaction you intend to submit."
+      ],
+      "outcomes": [
+        "Separate preparation, signing, submission, confirmation, and state verification.",
+        "Recover safely from uncertain submission outcomes."
+      ],
+      "blocks": [
+        {
+          "type": "steps",
+          "title": "From intent to verified state",
+          "items": [
+            {
+              "title": "Prepare",
+              "body": "Read any required recent blockhash and account state, then construct the transaction for the intended network."
+            },
+            {
+              "title": "Sign",
+              "body": "Have every required signer authorize the exact transaction bytes. Keep the signing boundary appropriate for the user or service performing the action."
+            },
+            {
+              "title": "Submit",
+              "body": "Send the signed base64 transaction through RPC and capture the returned signature."
+            },
+            {
+              "title": "Observe status",
+              "body": "Use signature-status checks to distinguish an accepted transaction, an explicit chain error, and a transaction that is still unresolved."
+            },
+            {
+              "title": "Verify resulting state",
+              "body": "Read the account, asset, permission, program, or indexed view your product actually depends on before presenting the workflow as complete."
+            }
+          ]
+        },
+        {
+          "type": "code",
+          "label": "Submit and check status",
+          "language": "javascript",
+          "value": "import { AekoConnection } from '@aeko-chain/web3.js';\n\nconst connection = new AekoConnection('{{rpcUrl}}');\nconst signature = await connection.sendTransaction(signedTransactionBase64);\nconst [status] = await connection.getSignatureStatuses([signature]);\n\nconsole.log({ signature, status });"
+        },
+        {
+          "type": "table",
+          "title": "What each result means",
+          "headers": [
+            "Observation",
+            "Interpretation",
+            "Next action"
+          ],
+          "rows": [
+            [
+              "Submission returns a signature",
+              "The request was accepted for processing.",
+              "Track the signature; do not present final settlement yet."
+            ],
+            [
+              "Status contains an error",
+              "The transaction was observed but failed.",
+              "Surface the chain error and fix the underlying state or instruction."
+            ],
+            [
+              "Status is unresolved after a client timeout",
+              "The client does not yet know whether the original write landed.",
+              "Check the known signature before constructing a replacement."
+            ],
+            [
+              "Confirmed/finalized plus expected state",
+              "The network and application state agree.",
+              "Complete the user workflow at the confirmation level your product requires."
+            ]
+          ]
+        },
+        {
+          "type": "callout",
+          "title": "A retry can become a duplicate write",
+          "body": "When submission outcome is uncertain, investigate the original signature first. Rebuilding and resubmitting a transfer, mint, permission change, or SocialFi write can duplicate user intent.",
+          "tone": "security"
+        }
+      ],
+      "related": [
+        "transaction-signing",
+        "first-transaction",
+        "transaction-failures",
+        "fees-finality",
+        "verify-scan"
+      ]
     }
   ]
 };
-
-
 export const DOC_STATUS = Object.freeze({
   available: { label: 'Available', tone: 'success' },
   testnet: { label: 'Testnet', tone: 'testnet' },
