@@ -5,11 +5,6 @@
 //! for a given time time_slice.
 
 use {
-    bincode::{deserialize, serialize, serialized_size},
-    byteorder::{ByteOrder, LittleEndian},
-    crossbeam_channel::{unbounded, Sender},
-    log::*,
-    serde_derive::{Deserialize, Serialize},
     aeko_metrics::datapoint_info,
     aeko_sdk::{
         hash::Hash,
@@ -22,6 +17,11 @@ use {
         system_instruction,
         transaction::Transaction,
     },
+    bincode::{deserialize, serialize, serialized_size},
+    byteorder::{ByteOrder, LittleEndian},
+    crossbeam_channel::{unbounded, Sender},
+    log::*,
+    serde_derive::{Deserialize, Serialize},
     std::{
         collections::{HashMap, HashSet},
         io::{Read, Write},
