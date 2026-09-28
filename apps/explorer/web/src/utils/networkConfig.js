@@ -1,7 +1,9 @@
-// Aeko Scan is the only application that knows about multiple independently
-// deployed chain environments. Each backend/Admin/validator deployment owns a
-// single AEKO_NETWORK and generic service URLs; Scan receives a normalized
-// network map so users can switch which remote chain they are viewing.
+// Aeko Scan is the public multi-network presentation boundary.
+//
+// Production Scan intentionally exposes only Mainnet and Testnet. Devnet remains
+// a valid independently deployed chain environment for engineering work, but it
+// is not a public Scan target. Localnet exists only as a Vite development
+// convenience and is never injected by the production Coolify contract.
 
 const injectedRuntime = globalThis.__AEKO_RUNTIME_CONFIG__ || {};
 const devRuntime = globalThis.__AEKO_DEV_RUNTIME_CONFIG__ || {};
@@ -10,8 +12,12 @@ const runtime =
 
 const browserOrigin =
   typeof globalThis.location?.origin === 'string' ? globalThis.location.origin : '';
+const viteDev = Boolean(import.meta.env?.DEV);
 
-const NETWORK_ORDER = ['mainnet', 'testnet', 'devnet', 'localnet'];
+const PUBLIC_NETWORK_ORDER = ['mainnet', 'testnet'];
+const NETWORK_ORDER = viteDev
+  ? [...PUBLIC_NETWORK_ORDER, 'localnet']
+  : PUBLIC_NETWORK_ORDER;
 
 const NETWORK_PRESENTATION = Object.freeze({
   mainnet: Object.freeze({
@@ -19,32 +25,24 @@ const NETWORK_PRESENTATION = Object.freeze({
     badge: 'Mainnet',
     stateLabel: 'Production network',
     explorerSummary: 'Browse confirmed Mainnet blocks, transactions, assets, accounts, and social activity.',
-    developerSummary: 'The selected endpoints and commands target Mainnet. Test-only funding and simulation tools are hidden.',
-    fundingSummary: 'Mainnet does not expose test funding or developer airdrops.',
+    developerSummary: 'Developer commands on this page target the selected Mainnet deployment.',
+    fundingSummary: 'Mainnet does not provide test funding.',
   }),
   testnet: Object.freeze({
     name: 'Testnet',
-    badge: 'Testnet Live',
+    badge: 'Testnet',
     stateLabel: 'Public test network',
     explorerSummary: 'Browse live Testnet blocks, transactions, assets, accounts, and social activity.',
-    developerSummary: 'The selected endpoints and commands target the public Testnet.',
-    fundingSummary: 'Test funding requests require Admin approval; developer airdrops are a separate test utility.',
-  }),
-  devnet: Object.freeze({
-    name: 'Devnet',
-    badge: 'Development network',
-    stateLabel: 'Private development network',
-    explorerSummary: 'Browse the configured Devnet deployment.',
-    developerSummary: 'The selected endpoints and commands target this explicitly provisioned Devnet.',
-    fundingSummary: 'Devnet funding is test-only and belongs to this Devnet deployment.',
+    developerSummary: 'Developer commands on this page target the public Testnet deployment.',
+    fundingSummary: 'Test AEKO is available through the funding request below.',
   }),
   localnet: Object.freeze({
-    name: 'Localnet',
-    badge: 'Local development',
-    stateLabel: 'Local development network',
-    explorerSummary: 'Browse the local AEKO development validator and indexed state.',
-    developerSummary: 'The selected endpoints and commands target the local development stack.',
-    fundingSummary: 'Local funding is development-only and never represents a public network allocation.',
+    name: 'Local development',
+    badge: 'Local',
+    stateLabel: 'Local development',
+    explorerSummary: 'Browse the locally running AEKO development stack.',
+    developerSummary: 'Developer commands on this page target the local development stack.',
+    fundingSummary: 'Local funding is for development only.',
   }),
 });
 
@@ -57,18 +55,10 @@ function normalizeNetworkKey(value) {
   if (!key) return '';
   if (key === 'mainnet' || key === 'main') return 'mainnet';
   if (key === 'testnet' || key === 'test') return 'testnet';
-  if (key === 'devnet' || key === 'dev' || key === 'development') return 'devnet';
-  if (key === 'localnet' || key === 'local' || key === 'localhost') return 'localnet';
-  return '';
-}
-
-function explorerLabel() {
-  if (!browserOrigin) return 'Aeko Scan';
-  try {
-    return new URL(browserOrigin).host;
-  } catch {
-    return 'Aeko Scan';
+  if (viteDev && (key === 'localnet' || key === 'local' || key === 'localhost')) {
+    return 'localnet';
   }
+  return '';
 }
 
 function normalizeNetwork(value, { funding = false } = {}) {
@@ -108,23 +98,23 @@ const configured = {
     'Testnet',
     normalizeNetwork(runtimeNetworks.testnet, { funding: true }),
   ),
-  devnet: validateNetwork(
-    'Devnet',
-    normalizeNetwork(runtimeNetworks.devnet, { funding: true }),
-  ),
-  localnet: validateNetwork(
-    'Localnet',
-    normalizeNetwork(runtimeNetworks.localnet, { funding: true }),
-  ),
 };
 
+if (viteDev) {
+  configured.localnet = validateNetwork(
+    'Local development',
+    normalizeNetwork(runtimeNetworks.localnet, { funding: true }),
+  );
+}
+
 const requestedActiveNetwork = normalizeNetworkKey(runtime.network);
-const viteDev = Boolean(import.meta.env?.DEV);
 const activeNetwork =
   requestedActiveNetwork || (viteDev ? 'localnet' : 'testnet');
 
 const useBuiltInLocalFallback =
-  activeNetwork === 'localnet' && !configured.localnet.configured;
+  viteDev
+  && activeNetwork === 'localnet'
+  && !configured.localnet?.configured;
 
 if (useBuiltInLocalFallback) {
   configured.localnet = {
@@ -138,35 +128,41 @@ if (useBuiltInLocalFallback) {
   };
 }
 
-function networkLabel(network, available) {
-  if (!available) {
-    return `${network[0].toUpperCase() + network.slice(1)} (not configured)`;
+function explorerUrl() {
+  if (!browserOrigin) return '/explorer';
+  try {
+    return new URL('/explorer', browserOrigin).toString();
+  } catch {
+    return '/explorer';
   }
-  if (network === 'mainnet') return 'Mainnet · Live';
-  if (network === 'testnet') return 'Testnet · Test';
-  if (network === 'devnet') return 'Devnet · Development';
-  return 'Localnet · Local';
 }
 
 function networkRecord(network) {
-  const state = configured[network];
+  const state = configured[network] || { configured: false, value: {} };
   const value = state.value;
   const isMainnet = network === 'mainnet';
+  const isTestnet = network === 'testnet';
+  const fundingUrl = isTestnet
+    ? value.fundingUrl || value.explorerApiUrl || ''
+    : '';
+
   return {
     key: network,
-    label: networkLabel(network, state.configured),
+    label: NETWORK_PRESENTATION[network]?.name || network,
     available: state.configured,
-    rpcUrl: value.rpcUrl,
-    websocketUrl: value.websocketUrl,
-    explorerUrl: browserOrigin || 'http://127.0.0.1:4000',
-    explorerApiUrl: value.explorerApiUrl,
-    explorerLabel: explorerLabel(),
-    fundingUrl: isMainnet ? '' : value.fundingUrl || '',
+    rpcUrl: value.rpcUrl || '',
+    websocketUrl: value.websocketUrl || '',
+    explorerUrl: explorerUrl(),
+    explorerApiUrl: value.explorerApiUrl || '',
+    explorerLabel: 'Open Aeko Scan',
+    fundingUrl,
     fundingLabel: isMainnet
-      ? 'No test funding on mainnet'
-      : `${network} funding through the selected Explorer API`,
-    fundingEnabled: !isMainnet && Boolean(value.fundingUrl),
-    cliCluster: value.rpcUrl,
+      ? 'Not available on Mainnet'
+      : isTestnet
+        ? 'Request test AEKO below'
+        : 'Development funding only',
+    fundingEnabled: Boolean(fundingUrl),
+    cliCluster: value.rpcUrl || '',
     isActiveEnvironment: network === activeNetwork,
     isLoopbackFallback: network === 'localnet' && useBuiltInLocalFallback,
   };
@@ -187,7 +183,7 @@ export function getActiveNetwork() {
 
 export function getDefaultExplorerNetwork() {
   if (NETWORKS[activeNetwork]?.available) return activeNetwork;
-  return NETWORK_ORDER.find((network) => NETWORKS[network].available) || activeNetwork;
+  return NETWORK_ORDER.find((network) => NETWORKS[network]?.available) || activeNetwork;
 }
 
 export function getDefaultNetwork() {
@@ -195,25 +191,18 @@ export function getDefaultNetwork() {
 }
 
 export function getTestNetwork() {
-  if (
-    ['testnet', 'devnet', 'localnet'].includes(activeNetwork)
-    && NETWORKS[activeNetwork]?.available
-  ) {
-    return activeNetwork;
-  }
-  for (const network of ['testnet', 'devnet', 'localnet']) {
-    if (NETWORKS[network].available) return network;
-  }
+  if (NETWORKS.testnet?.available) return 'testnet';
+  if (viteDev && NETWORKS.localnet?.available) return 'localnet';
   return 'testnet';
 }
 
 export function getTestNetworkConfig() {
-  return NETWORKS[getTestNetwork()];
+  return NETWORKS[getTestNetwork()] || networkRecord('testnet');
 }
 
 export function isTestSurfaceNetwork(network) {
   const key = normalizeNetworkKey(network) || clean(network).toLowerCase();
-  return key === 'testnet' || key === 'devnet' || key === 'localnet';
+  return key === 'testnet' || (viteDev && key === 'localnet');
 }
 
 export function resolveExplorerNetwork(requested) {
@@ -231,18 +220,8 @@ export function getNetworkConfig(network) {
   return NETWORKS[getDefaultExplorerNetwork()];
 }
 
-export function getDemoConfig() {
-  const demo = runtime.demo && typeof runtime.demo === 'object' ? runtime.demo : {};
-  return {
-    rpcUrl: clean(demo.rpcUrl),
-    collection: clean(demo.collection),
-    token: clean(demo.token),
-    metadataUri: clean(demo.metadataUri),
-  };
-}
-
 export function isLocalNetworkConfig(config) {
-  return config?.key === 'localnet';
+  return viteDev && config?.key === 'localnet';
 }
 
 export function isMainnetNetwork(network) {
