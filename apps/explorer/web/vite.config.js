@@ -77,7 +77,7 @@ export default defineConfig(({ command, mode }) => {
           rpcUrl: value.rpcUrl,
           websocketUrl: value.websocketUrl,
           explorerApiUrl: `/api/explorer/${network}`,
-          ...(network === 'testnet' ? { fundingUrl: '/api/explorer/testnet' } : {}),
+          fundingUrl: `/api/explorer/${network}`,
         },
       ]),
   )

@@ -16,7 +16,7 @@ use {
     },
     aeko_client::connection_cache::{ConnectionCache, Protocol},
     aeko_entry::entry::Entry,
-    aeko_faucet::faucet::request_airdrop_transaction,
+    aeko_faucet::faucet::{request_airdrop_transaction, request_grant_transaction},
     aeko_gossip::{cluster_info::ClusterInfo, contact_info::ContactInfo},
     aeko_ledger::{
         blockstore::{Blockstore, SignatureInfosForAddress},
@@ -147,7 +147,11 @@ pub struct JsonRpcConfig {
     pub enable_rpc_transaction_history: bool,
     pub enable_extended_tx_metadata_storage: bool,
     pub faucet_addr: Option<SocketAddr>,
-    /// When set, requestAirdrop is reserved for the trusted funding service.
+    /// When set, `requestGrant` (approval-gated funding) requires the matching
+    /// `fundingAuthorization` credential. `requestAirdrop` stays instant and
+    /// open: no admin approval, dispatched immediately subject only to faucet
+    /// caps. The trusted Explorer settlement service supplies the credential
+    /// for grants; public CLI/SDK airdrops never need it.
     pub funding_authorization_key: Option<String>,
     pub health_check_slot_distance: u64,
     pub rpc_bigtable_config: Option<RpcBigtableConfig>,
@@ -3414,6 +3418,15 @@ pub mod rpc_full {
             config: Option<RpcRequestAirdropConfig>,
         ) -> Result<String>;
 
+        #[rpc(meta, name = "requestGrant")]
+        fn request_grant(
+            &self,
+            meta: Self::Metadata,
+            pubkey_str: String,
+            lamports: u64,
+            config: Option<RpcRequestGrantConfig>,
+        ) -> Result<String>;
+
         #[rpc(meta, name = "sendTransaction")]
         fn send_transaction(
             &self,
@@ -3660,13 +3673,9 @@ pub mod rpc_full {
                 config.commitment.is_some()
             );
 
-            if let Some(expected_key) = meta.config.funding_authorization_key.as_deref() {
-                if config.funding_authorization.as_deref() != Some(expected_key) {
-                    info!("request_airdrop rejected: funding authorization required");
-                    return Err(Error::invalid_request());
-                }
-            }
-
+            // Instant developer path: no admin approval, no funding_authorization
+            // gate. A supplied credential is accepted but ignored for backward
+            // compatibility with settlement callers that still send one.
             let faucet_addr = meta.config.faucet_addr.ok_or_else(Error::invalid_request)?;
             let pubkey = verify_pubkey(&pubkey_str)?;
             let bank = meta.bank(config.commitment);
@@ -3690,6 +3699,75 @@ pub mod rpc_full {
 
             let wire_transaction = serialize(&transaction).map_err(|err| {
                 info!("request_airdrop: serialize error: {:?}", err);
+                Error::internal_error()
+            })?;
+
+            let signature = if !transaction.signatures.is_empty() {
+                transaction.signatures[0]
+            } else {
+                return Err(RpcCustomError::TransactionSignatureVerificationFailure.into());
+            };
+
+            _send_transaction(
+                meta,
+                signature,
+                wire_transaction,
+                last_valid_block_height,
+                None,
+                None,
+            )
+        }
+
+        fn request_grant(
+            &self,
+            meta: Self::Metadata,
+            pubkey_str: String,
+            lamports: u64,
+            config: Option<RpcRequestGrantConfig>,
+        ) -> Result<String> {
+            debug!("request_grant rpc request received");
+            let config = config.unwrap_or_default();
+            trace!(
+                "request_grant id={} lamports={} recent_blockhash_supplied={} commitment_supplied={}",
+                pubkey_str,
+                lamports,
+                config.recent_blockhash.is_some(),
+                config.commitment.is_some()
+            );
+
+            // Approval-gated funding path: when the validator configures a
+            // funding authorization key, only the trusted settlement service
+            // (Explorer backend / admin tooling holding the key) may mint
+            // grants. CLI/SDK funding pollers must wait for admin approval;
+            // they never call this directly without the credential.
+            if let Some(expected_key) = meta.config.funding_authorization_key.as_deref() {
+                if config.funding_authorization.as_deref() != Some(expected_key) {
+                    info!("request_grant rejected: funding authorization required");
+                    return Err(Error::invalid_request());
+                }
+            }
+
+            let faucet_addr = meta.config.faucet_addr.ok_or_else(Error::invalid_request)?;
+            let pubkey = verify_pubkey(&pubkey_str)?;
+            let bank = meta.bank(config.commitment);
+
+            let blockhash = if let Some(blockhash) = config.recent_blockhash {
+                verify_hash(&blockhash)?
+            } else {
+                bank.confirmed_last_blockhash()
+            };
+            let last_valid_block_height = bank
+                .get_blockhash_last_valid_block_height(&blockhash)
+                .unwrap_or(0);
+
+            let transaction = request_grant_transaction(&faucet_addr, &pubkey, lamports, blockhash)
+                .map_err(|err| {
+                    info!("request_grant_transaction failed: {:?}", err);
+                    Error::internal_error()
+                })?;
+
+            let wire_transaction = serialize(&transaction).map_err(|err| {
+                info!("request_grant: serialize error: {:?}", err);
                 Error::internal_error()
             })?;
 
@@ -7601,7 +7679,34 @@ pub mod tests {
     }
 
     #[test]
-    fn test_rpc_request_airdrop_requires_funding_authorization() {
+    fn test_rpc_request_airdrop_is_instant_without_authorization() {
+        // Airdrop is the instant developer path: no admin approval, no funding
+        // authorization gate. Even when the validator configures a funding key
+        // for grants, plain requestAirdrop must reach the faucet.
+        let RpcHandler { meta, io, .. } = RpcHandler::start_with_config(JsonRpcConfig {
+            faucet_addr: Some("127.0.0.1:1".parse().unwrap()),
+            funding_authorization_key: Some("test-funding-authorization-key".to_string()),
+            ..JsonRpcConfig::default()
+        });
+        let bob_pubkey = aeko_sdk::pubkey::new_rand();
+
+        let instant = format!(
+            r#"{{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["{bob_pubkey}",50]}}"#
+        );
+        let instant_response = io
+            .handle_request_sync(&instant, meta.clone())
+            .expect("instant airdrop response");
+        let instant: Response =
+            serde_json::from_str(&instant_response).expect("instant JSON response");
+        let (code, _) = parse_failure_response(instant);
+        assert_eq!(
+            code, -32603,
+            "unauthenticated airdrop should reach the configured faucet"
+        );
+    }
+
+    #[test]
+    fn test_rpc_request_grant_requires_funding_authorization() {
         let RpcHandler { meta, io, .. } = RpcHandler::start_with_config(JsonRpcConfig {
             faucet_addr: Some("127.0.0.1:1".parse().unwrap()),
             funding_authorization_key: Some("test-funding-authorization-key".to_string()),
@@ -7610,7 +7715,7 @@ pub mod tests {
         let bob_pubkey = aeko_sdk::pubkey::new_rand();
 
         let unauthorized = format!(
-            r#"{{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["{bob_pubkey}",50]}}"#
+            r#"{{"jsonrpc":"2.0","id":1,"method":"requestGrant","params":["{bob_pubkey}",50]}}"#
         );
         let unauthorized_response = io
             .handle_request_sync(&unauthorized, meta.clone())
@@ -7623,7 +7728,7 @@ pub mod tests {
         );
 
         let authorized = format!(
-            r#"{{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["{bob_pubkey}",50,{{"fundingAuthorization":"test-funding-authorization-key"}}]}}"#
+            r#"{{"jsonrpc":"2.0","id":1,"method":"requestGrant","params":["{bob_pubkey}",50,{{"fundingAuthorization":"test-funding-authorization-key"}}]}}"#
         );
         let authorized_response = io
             .handle_request_sync(&authorized, meta)
@@ -7633,7 +7738,7 @@ pub mod tests {
         let (code, _) = parse_failure_response(authorized);
         assert_eq!(
             code, -32603,
-            "authorized call should reach the configured faucet"
+            "authorized grant should reach the configured faucet"
         );
     }
 
@@ -7649,7 +7754,7 @@ pub mod tests {
         let persisted_blockhash = Hash::new_unique().to_string();
 
         let request = format!(
-            r#"{{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["{recipient}",50,{{"fundingAuthorization":"test-funding-authorization-key","recentBlockhash":"{persisted_blockhash}"}}]}}"#
+            r#"{{"jsonrpc":"2.0","id":1,"method":"requestGrant","params":["{recipient}",50,{{"fundingAuthorization":"test-funding-authorization-key","recentBlockhash":"{persisted_blockhash}"}}]}}"#
         );
 
         let first = io
@@ -7670,6 +7775,39 @@ pub mod tests {
             first_signature, replay_signature,
             "the same recipient/amount/blockhash intent must recover the same signature even when the blockhash is no longer in the bank queue"
         );
+    }
+
+    #[test]
+    fn test_rpc_request_grant_replays_same_expired_intent_signature() {
+        let faucet_addr = run_local_faucet(Keypair::new(), None);
+        let RpcHandler { meta, io, .. } = RpcHandler::start_with_config(JsonRpcConfig {
+            faucet_addr: Some(faucet_addr),
+            funding_authorization_key: None,
+            ..JsonRpcConfig::default()
+        });
+        // Without a configured key, grants are open (local/test validators).
+        let recipient = aeko_sdk::pubkey::new_rand();
+        let persisted_blockhash = Hash::new_unique().to_string();
+
+        let request = format!(
+            r#"{{"jsonrpc":"2.0","id":1,"method":"requestGrant","params":["{recipient}",50,{{"recentBlockhash":"{persisted_blockhash}"}}]}}"#
+        );
+
+        let first = io
+            .handle_request_sync(&request, meta.clone())
+            .expect("first grant replay response");
+        let first: Response =
+            serde_json::from_str(&first).expect("first grant replay JSON response");
+        let first_signature: String = parse_success_result(first);
+
+        let replay = io
+            .handle_request_sync(&request, meta)
+            .expect("second grant replay response");
+        let replay: Response =
+            serde_json::from_str(&replay).expect("second grant replay JSON response");
+        let replay_signature: String = parse_success_result(replay);
+
+        assert_eq!(first_signature, replay_signature,);
     }
 
     #[test]

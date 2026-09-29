@@ -1693,6 +1693,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "aeko-protocol-bootstrap"
+version = "2.0.0"
+dependencies = [
+ "aeko-emergency-multisig-program",
+ "aeko-finality-oracle-program",
+ "aeko-nft-marketplace-program",
+ "aeko-permission-registry-program",
+ "aeko-public-mint-program",
+ "aeko-revocation-registry-program",
+ "aeko-rpc-client",
+ "aeko-sdk",
+ "aeko-subnet-registry-program",
+ "aeko-token-20-program",
+ "aeko-token-721-program",
+ "aeko-tokenomics-program",
+ "aeko-wallet-permissions-program",
+ "anyhow",
+ "bincode",
+ "tempfile",
+]
+
+[[package]]
 name = "aeko-public-mint-program"
 version = "2.0.0"
 dependencies = [
@@ -10566,26 +10588,3 @@ dependencies = [
  "cc",
  "libc",
 ]
-
-[[package]]
-name = "aeko-protocol-bootstrap"
-version = "2.0.0"
-dependencies = [
- "aeko-emergency-multisig-program",
- "aeko-finality-oracle-program",
- "aeko-nft-marketplace-program",
- "aeko-permission-registry-program",
- "aeko-public-mint-program",
- "aeko-revocation-registry-program",
- "aeko-rpc-client",
- "aeko-sdk",
- "aeko-subnet-registry-program",
- "aeko-token-20-program",
- "aeko-token-721-program",
- "aeko-tokenomics-program",
- "aeko-wallet-permissions-program",
- "anyhow",
- "bincode",
- "tempfile",
-]
-

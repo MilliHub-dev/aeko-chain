@@ -61,7 +61,6 @@ remain supported as independently configured development environments and may
 be used by dedicated developer/operator deployments.
 
 Changing the selected public network changes the Explorer/API target and the
-visible environment terminology. Mainnet hides test-only funding and console
-capabilities; Testnet exposes the policy-controlled request workflow where
-Scan submits the request and authenticated Operations Admin makes the grant
-decision.
+visible environment terminology. Each network exposes the funding workflow
+served by its own Explorer API deployment: Scan submits the request and
+authenticated Operations Admin makes the grant decision.

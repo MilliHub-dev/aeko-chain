@@ -103,6 +103,166 @@ impl AekoDeveloperClient {
         .await
     }
 
+    /// Instant developer airdrop: no admin approval, dispatched immediately
+    /// subject only to faucet caps.
+    pub async fn request_airdrop(&self, pubkey: &str, lamports: u64) -> AekoRustSdkResult<String> {
+        self.rpc("requestAirdrop", json!([pubkey, lamports, {}]))
+            .await
+    }
+
+    pub async fn request_airdrop_with_blockhash(
+        &self,
+        pubkey: &str,
+        lamports: u64,
+        recent_blockhash: &str,
+    ) -> AekoRustSdkResult<String> {
+        self.rpc(
+            "requestAirdrop",
+            json!([pubkey, lamports, {"recentBlockhash": recent_blockhash}]),
+        )
+        .await
+    }
+
+    /// Approval-gated funding grant via direct RPC. Requires the server-only
+    /// funding authorization credential when the validator configures one.
+    /// Public clients should use the Explorer `/funding/request` queue with
+    /// polling instead; trusted settlement code uses this.
+    pub async fn request_grant(
+        &self,
+        pubkey: &str,
+        lamports: u64,
+        funding_authorization: Option<&str>,
+        recent_blockhash: Option<&str>,
+    ) -> AekoRustSdkResult<String> {
+        self.rpc(
+            "requestGrant",
+            json!([pubkey, lamports, {
+                "fundingAuthorization": funding_authorization,
+                "recentBlockhash": recent_blockhash,
+            }]),
+        )
+        .await
+    }
+
+    /// Public funding request via the Explorer approval queue. Submits
+    /// `POST {explorer}/funding/request` then polls until confirmed,
+    /// failed/rejected, or timeout. Returns `(request_id, signature)`.
+    pub async fn request_funding(
+        &self,
+        explorer_api_url: &str,
+        address: &str,
+        timeout_secs: u64,
+        poll_interval_secs: u64,
+    ) -> AekoRustSdkResult<(String, String)> {
+        let base = explorer_api_url.trim_end_matches('/');
+        let response = self
+            .http
+            .post(format!("{base}/funding/request"))
+            .json(&json!({"address": address}))
+            .send()
+            .await
+            .map_err(|e| AekoRustSdkError::Rpc(format!("funding request failed: {e}")))?;
+        let request_id = if response.status().is_success() {
+            let created: serde_json::Value = response.json().await.map_err(|e| {
+                AekoRustSdkError::Rpc(format!("funding request decode failed: {e}"))
+            })?;
+            created
+                .pointer("/data/id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| {
+                    AekoRustSdkError::Rpc(
+                        "funding request succeeded but returned no request id".to_string(),
+                    )
+                })?
+                .to_string()
+        } else {
+            // The wallet already has an in-flight request: adopt it and poll
+            // it instead of dead-ending on REQUEST_PENDING.
+            let failure: serde_json::Value = response.json().await.map_err(|e| {
+                AekoRustSdkError::Rpc(format!("funding request decode failed: {e}"))
+            })?;
+            let pending =
+                failure.pointer("/error/code").and_then(|v| v.as_str()) == Some("REQUEST_PENDING");
+            let adopted = failure
+                .pointer("/error/requestId")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .map(ToString::to_string);
+            match (pending, adopted) {
+                (true, Some(id)) => id,
+                _ => {
+                    let message = failure
+                        .pointer("/error/message")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("funding request failed");
+                    return Err(AekoRustSdkError::Rpc(message.to_string()));
+                }
+            }
+        };
+
+        let deadline =
+            std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs.max(1));
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(poll_interval_secs.max(1))).await;
+            let status: serde_json::Value = self
+                .http
+                .get(format!("{base}/funding/request/{request_id}"))
+                .send()
+                .await
+                .map_err(|e| AekoRustSdkError::Rpc(format!("funding status poll failed: {e}")))?
+                .json()
+                .await
+                .map_err(|e| AekoRustSdkError::Rpc(format!("funding status decode failed: {e}")))?;
+            let state = status
+                .pointer("/data/status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            match state {
+                "confirmed" => {
+                    let signature = status
+                        .pointer("/data/signature")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string();
+                    return Ok((request_id, signature));
+                }
+                "rejected" | "failed" => {
+                    return Err(AekoRustSdkError::Rpc(format!(
+                        "funding request {request_id} ended with status {state}"
+                    )))
+                }
+                _ => {
+                    if std::time::Instant::now() >= deadline {
+                        return Err(AekoRustSdkError::Rpc(format!(
+                            "timed out waiting for admin approval of {request_id} (last status: {state})"
+                        )));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Admin direct grant via the Explorer API (bypasses approval).
+    pub async fn create_grant(
+        &self,
+        explorer_api_url: &str,
+        address: &str,
+        amount_aeko: f64,
+        admin_token: &str,
+    ) -> AekoRustSdkResult<serde_json::Value> {
+        let base = explorer_api_url.trim_end_matches('/');
+        self.http
+            .post(format!("{base}/admin/funding/grant"))
+            .header("x-aeko-settings-token", admin_token)
+            .json(&json!({"address": address, "amountAeko": amount_aeko}))
+            .send()
+            .await
+            .map_err(|e| AekoRustSdkError::Rpc(format!("direct grant failed: {e}")))?
+            .json()
+            .await
+            .map_err(|e| AekoRustSdkError::Rpc(format!("direct grant decode failed: {e}")))
+    }
+
     pub async fn get_wallet_permission_account(
         &self,
         pubkey: &str,

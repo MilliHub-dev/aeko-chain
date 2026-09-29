@@ -59,7 +59,10 @@ function developerQuickCommands(config) {
       '# developer Test Console airdrops are a separate capped utility',
     ];
   } else {
-    funding = ['# Mainnet has no test funding or developer airdrop path'];
+    funding = [
+      '# use the funding request form above (admin approval required)',
+      '# or, with funding authorization: aeko grant <amount> <recipient-address>',
+    ];
   }
 
   const programs = [
@@ -139,7 +142,7 @@ export default function NetworkTools() {
         <NetworkToolsPanel network={network} />
       </div>
 
-      {isTestNetwork ? (
+      {config.fundingEnabled ? (
         <TestnetFundingRequest fundingUrl={config.fundingUrl} />
       ) : null}
 
@@ -196,14 +199,14 @@ export default function NetworkTools() {
             <h2 className="text-2xl font-bold">{config.label} access</h2>
           </div>
           <p className="text-gray-400 mb-6">
-            {isTestNetwork
+            {config.fundingEnabled
               ? config.key === 'localnet'
-                ? 'Local development can add test funds directly with the airdrop command below.'
-                : 'Use the Testnet funding request form below to request test AEKO. Approved requests are delivered to the wallet address you provide.'
-              : 'The live network has no test funding. Use your normal treasury, exchange, or operational distribution flow.'}
+                ? 'Local development can add funds directly with the airdrop command below.'
+                : 'Use the funding request form below to request AEKO. Approved requests are delivered to the wallet address you provide.'
+              : 'This network has no funding service configured. Use your normal treasury, exchange, or operational distribution flow.'}
           </p>
 
-          {isTestNetwork ? (
+          {config.fundingEnabled ? (
             <div className="rounded-xl border border-white/15 bg-black/20 p-5">
               <div className="text-sm font-medium text-white mb-1">Funding path</div>
               <div className="text-sm text-green-400 flex items-center gap-2">
@@ -211,7 +214,7 @@ export default function NetworkTools() {
                 Managed funding service
               </div>
               <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-white/10">
-                Submit a Testnet request below and track its status in Aeko Scan. Approval and
+                Submit a funding request below and track its status in Aeko Scan. Approval and
                 settlement happen securely behind the service boundary.
               </div>
             </div>

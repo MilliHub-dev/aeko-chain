@@ -76,7 +76,7 @@ The bootstrap flow on first boot:
 2. `aeko-validator` starts, loads from genesis, immediately begins producing slots because `--no-wait-for-vote-to-start-leader` is set.
 3. The PoH thread ticks ~3 slots per second. The banking stage processes any transactions in the mempool. The blockstore records the resulting shreds. With one validator, that's the entire pipeline — no network broadcast needed.
 4. `aeko-faucet` independently listens on TCP `9900` with the faucet keypair loaded. It is never a browser/application API. When Faucet and Validator share a Compose network, the Validator may use `faucet:9900`; when they are deployed on separate hosts/resources, `AEKO_FAUCET_ADDRESS` points to that testnet Faucet host and TCP `9900` is firewall-restricted to the matching Validator.
-5. On the public testnet, the Explorer API funding module applies the off-chain queue policy. Approved or constrained developer funding flows call the Validator's protected low-level `requestAirdrop` path, and the Validator connects to the private Faucet Daemon on TCP `9900` to obtain the signed transfer transaction. Funding queue state is policy accounting only; supply accounting follows `tokenomics.md`.
+5. On the public testnet, the Explorer API funding module applies the off-chain queue policy. Approved grants call the Validator's protected low-level `requestGrant` path (funding-authorization gated), while constrained developer airdrops dispatch instantly through the open `requestAirdrop` path with no approval. The Validator connects to the private Faucet Daemon on TCP `9900` to obtain the signed transfer transaction. Funding queue state is policy accounting only; supply accounting follows `tokenomics.md`.
 6. `aeko-explorer-backend` reads finalized chain data from validator RPC, persists durable Explorer projections in PostgreSQL, and serves the REST API on `:8088`. The HTTP server binds while historical catch-up runs in a background task, so indexed history grows toward the finalized chain tip without substituting in-memory production state.
 7. `aeko-explorer-ui` serves the deployment-neutral Vite SPA from `/app/dist` via `node /app/explorer-ui-server.mjs` (same-origin Scan API proxy, not `serve -s`). At container startup, `docker/explorer-ui-entrypoint.sh` injects the canonical `AEKO_*` endpoint values into `/app/dist/runtime-config.js`; public API calls use that runtime configuration.
 
@@ -156,9 +156,9 @@ From this point every CLI command (`aeko balance`, `aeko transfer`, `aeko progra
 
 `aeko-keygen new --outfile ~/my-dev-wallet.json` generates a fresh keypair and writes it to disk. `aeko address --keypair ~/my-dev-wallet.json` prints the public key. The same JSON file works for any Solana-compatible tooling (Phantom, Solflare, Anchor, Web3.js) that supports importing a keypair file.
 
-### 4.3 Receiving public-testnet funding
+### 4.3 Receiving funding on any network
 
-Public testnet funding uses the managed Explorer funding flow. Submit the wallet address through Aeko Scan:
+Public testnet funding uses the managed Explorer funding flow. The same flow is served on every network, including mainnet: each deployment owns its faucet, credential, caps, budgets, and approval queue. Submit the wallet address through Aeko Scan:
 
 ```bash
 curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
@@ -166,7 +166,7 @@ curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
   -d '{"address":"<pubkey>"}'
 ```
 
-The request starts as `pending`. An authenticated Operations Admin must approve it. Operations Web sends the decision to Explorer API; Explorer owns settlement and calls the Validator's protected low-level `requestAirdrop` path. The Validator then uses the Faucet to obtain the signed transfer.
+The request starts as `pending`. An authenticated Operations Admin must approve it. Operations Web sends the decision to Explorer API; Explorer owns settlement and calls the Validator's protected low-level `requestGrant` path (instant developer airdrops use the open `requestAirdrop` path with no approval). The Validator then uses the Faucet to obtain the signed transfer.
 
 Use the returned request id to poll the public status endpoint until it becomes `confirmed`:
 
@@ -175,7 +175,7 @@ curl https://scan.aeko.online/api/explorer/testnet/funding/request/<REQUEST_ID>
 aeko balance <pubkey> --url https://rpc.aeko.online
 ```
 
-Direct `aeko airdrop` / `Connection.requestAirdrop()` is reserved for local or custom test validators that are explicitly configured without managed funding protection. It is not the public-testnet funding contract.
+Instant `aeko airdrop` / SDK `requestAirdrop()` / Test Console airdrops dispatch immediately with no approval, subject only to faucet caps. Approval-gated funding uses `aeko funding` / SDK `requestFunding()` / Scan funding requests, which wait for admin approval, while admin direct grants (`aeko funding --admin-token`, SDK `createGrant`, Explorer `/admin/funding/grant`) bypass approval.
 
 ### 4.4 Subscribing to live updates
 
@@ -224,7 +224,7 @@ Coolify-proxy (Traefik) handles all TLS termination and HTTP routing. You do not
 | `gossip.aeko.online` | validator gossip | raw TCP+UDP | validator discovery/peer entrypoint only |
 | `cloud.aeko.online` | Coolify dashboard (port 8000, managed by Coolify) | `http://`/`https://` | Operator UI |
 
-The Faucet Daemon on TCP `9900` is **not a public application API**. In an all-in-one deployment the Validator reaches it over private service networking; in split deployments it may use a raw TCP hostname such as `faucet.aeko.online:9900`, which must be firewall-restricted to the matching Validator. User applications use Aeko Scan's same-origin test-network funding routes, and only the matching Explorer API receives the server-side authorization required to invoke the Validator's low-level `requestAirdrop` path.
+The Faucet Daemon on TCP `9900` is **not a public application API**. In an all-in-one deployment the Validator reaches it over private service networking; in split deployments it may use a raw TCP hostname such as `faucet.aeko.online:9900`, which must be firewall-restricted to the matching Validator. User applications use Aeko Scan's same-origin test-network funding routes for approval-gated grants (and instant `requestAirdrop`/Test Console airdrops for capped developer needs), and only the matching Explorer API receives the server-side authorization required to invoke the Validator's protected low-level `requestGrant` path.
 
 ### 5.2 Namecheap DNS records
 

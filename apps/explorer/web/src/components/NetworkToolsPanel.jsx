@@ -29,7 +29,6 @@ function EndpointCard({ label, value, icon, hint }) {
 
 export default function NetworkToolsPanel({ network }) {
   const config = getNetworkConfig(network);
-  const isTestnet = config.key === 'testnet';
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -68,14 +67,14 @@ export default function NetworkToolsPanel({ network }) {
       <div className="rounded-xl border border-white/10 bg-white/5 p-5">
         <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500">
           <WalletCards size={14} />
-          Test AEKO
+          AEKO funding
         </div>
-        {isTestnet ? (
-          <div className={`text-sm font-medium ${config.fundingEnabled ? 'text-green-300' : 'text-gray-500'}`}>
-            {config.fundingEnabled ? 'Funding workflow available below' : 'Funding is not configured'}
+        {config.fundingEnabled ? (
+          <div className="text-sm font-medium text-green-300">
+            Funding workflow available below
           </div>
         ) : (
-          <div className="text-sm font-medium text-gray-500">Not available on Mainnet</div>
+          <div className="text-sm font-medium text-gray-500">Funding is not configured</div>
         )}
       </div>
     </div>

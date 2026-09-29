@@ -21,8 +21,6 @@ use {
         nonblocking::{self, rpc_client::get_rpc_request_str},
         rpc_sender::*,
     },
-    serde::Serialize,
-    serde_json::Value,
     aeko_account_decoder::{
         parse_token::{UiTokenAccount, UiTokenAmount},
         UiAccount, UiAccountEncoding,
@@ -51,6 +49,8 @@ use {
         EncodedConfirmedBlock, EncodedConfirmedTransactionWithStatusMeta, TransactionStatus,
         UiConfirmedBlock, UiTransactionEncoding,
     },
+    serde::Serialize,
+    serde_json::Value,
     std::{net::SocketAddr, str::FromStr, sync::Arc, time::Duration},
 };
 
@@ -3928,6 +3928,47 @@ impl RpcClient {
         )
     }
 
+    pub fn request_grant(&self, pubkey: &Pubkey, lamports: u64) -> ClientResult<Signature> {
+        self.invoke((self.rpc_client.as_ref()).request_grant(pubkey, lamports))
+    }
+
+    pub fn request_grant_with_blockhash(
+        &self,
+        pubkey: &Pubkey,
+        lamports: u64,
+        recent_blockhash: &Hash,
+    ) -> ClientResult<Signature> {
+        self.invoke((self.rpc_client.as_ref()).request_grant_with_blockhash(
+            pubkey,
+            lamports,
+            recent_blockhash,
+        ))
+    }
+
+    pub fn request_grant_with_authorization(
+        &self,
+        pubkey: &Pubkey,
+        lamports: u64,
+        recent_blockhash: &Hash,
+        funding_authorization: Option<String>,
+    ) -> ClientResult<Signature> {
+        self.invoke((self.rpc_client.as_ref()).request_grant_with_authorization(
+            pubkey,
+            lamports,
+            recent_blockhash,
+            funding_authorization,
+        ))
+    }
+
+    pub fn request_grant_with_config(
+        &self,
+        pubkey: &Pubkey,
+        lamports: u64,
+        config: RpcRequestGrantConfig,
+    ) -> ClientResult<Signature> {
+        self.invoke((self.rpc_client.as_ref()).request_grant_with_config(pubkey, lamports, config))
+    }
+
     pub fn poll_get_balance_with_commitment(
         &self,
         pubkey: &Pubkey,
@@ -4094,11 +4135,6 @@ mod tests {
     use {
         super::*,
         crate::mock_sender::PUBKEY,
-        assert_matches::assert_matches,
-        crossbeam_channel::unbounded,
-        jsonrpc_core::{futures::prelude::*, Error, IoHandler, Params},
-        jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder},
-        serde_json::{json, Number},
         aeko_rpc_client_api::client_error::ErrorKind,
         aeko_sdk::{
             instruction::InstructionError,
@@ -4106,6 +4142,11 @@ mod tests {
             system_transaction,
             transaction::TransactionError,
         },
+        assert_matches::assert_matches,
+        crossbeam_channel::unbounded,
+        jsonrpc_core::{futures::prelude::*, Error, IoHandler, Params},
+        jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder},
+        serde_json::{json, Number},
         std::{io, thread},
     };
 

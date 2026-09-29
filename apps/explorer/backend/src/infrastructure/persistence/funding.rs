@@ -653,6 +653,51 @@ impl PostgresRepository {
         }
     }
 
+    /// Cancels a stuck approval whose submission never produced a durable
+    /// transaction signature (`status = 'processing' AND signature IS NULL`).
+    /// With no durable signature there is no transfer the settlement pipeline
+    /// can observe or confirm, so releasing the wallet back to `rejected`
+    /// lets the user submit a fresh request. Callers must attempt one safe
+    /// replay of the persisted intent first: if the replay recovers a
+    /// signature, the request must be observed to its terminal on-chain
+    /// outcome instead of being cancelled.
+    pub async fn cancel_processing_funding_request(
+        &self,
+        id: &str,
+        code: Option<&str>,
+        message: Option<&str>,
+    ) -> Result<FundingRequestRecord, FundingStoreError> {
+        let sql = format!(
+            r#"
+            UPDATE funding_requests
+            SET
+                status = 'rejected',
+                decided_at = NOW(),
+                confirmed = FALSE,
+                error_code = $2,
+                error_message = $3
+            WHERE id = $1::uuid AND status = 'processing' AND signature IS NULL
+            RETURNING {REQUEST_COLUMNS}
+            "#
+        );
+        if let Some(request) = sqlx::query_as::<_, FundingRequestRecord>(&sql)
+            .bind(id)
+            .bind(code)
+            .bind(message)
+            .fetch_optional(&self.pool)
+            .await?
+        {
+            return Ok(request);
+        }
+        let existing = self.funding_request(id).await?;
+        match existing {
+            Some(request) => Err(FundingStoreError::RequestAlreadyDecided {
+                status: request.status,
+            }),
+            None => Err(FundingStoreError::RequestNotFound),
+        }
+    }
+
     pub async fn confirm_funding_request(
         &self,
         id: &str,

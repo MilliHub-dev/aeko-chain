@@ -10,7 +10,12 @@ The canonical product and trust boundaries are:
 1. **Aeko Scan is the public request surface.** A user may request test funding and read the resulting request status from Scan.
 2. **Operations Admin is the only grant decision surface.** Scan never approves or rejects a grant.
 3. **A grant is not an airdrop.** Public/Admin grants use an approval queue; developer Test Console airdrops are direct, capped test utilities with their own ledger.
-4. **Mainnet is not a Faucet environment.** Test funding and `requestAirdrop` are not treasury, ecosystem allocation, TGE, vesting, validator emission, or governed mainnet distribution.
+4. **Every network serves funding.** Test funding, `requestAirdrop`, and
+   `requestGrant` are operational distribution rails available on each
+   deployed network, including mainnet; they are not treasury, ecosystem
+   allocation, TGE, vesting, validator emission, or governed mainnet
+   distribution by themselves — each deployment's operator capitalizes and
+   constrains them.
 5. **Each network is deployed independently.** Every Validator, Explorer API, database, registry and Operations Web deployment owns one `AEKO_NETWORK`. Aeko Scan may be configured with prefixed URLs for several independently deployed networks so the browser can switch between them. Those prefixes are routing metadata, not a monolithic multi-chain backend.
 6. **Explorer backend owns test-funding policy and durable settlement state.** PostgreSQL is the only funding queue/ledger store. JSON funding state and the historic Funding Gateway role are retired.
 
@@ -128,7 +133,9 @@ Rules:
   blockhash expires because the signed transaction is reconstructed from the
   persisted intent; Explorer then searches transaction history for the recovered
   signature to distinguish an original transfer that landed from an intent that
-  never landed. Neither Scan nor Admin may manually retry it. The backend never
+  never landed. Admin (and only Admin, via decide/reconcile on `processing`)
+  may trigger the same safe replay of the persisted intent; neither Scan nor
+  Admin may submit a fresh intent with a new blockhash. The backend never
   substitutes a fresh blockhash for that logical grant.
 - If a signature is known but absent from transaction history, the backend
   checks the persisted submission blockhash. While that blockhash is valid the
@@ -173,25 +180,19 @@ injected into Aeko Scan JavaScript or exposed through Operations Web responses.
 Managed test funding must never fall back to a browser direct
 `requestAirdrop` call.
 
-## 6. Mainnet boundary
+## 6. Network scope
 
-For `AEKO_NETWORK=mainnet`:
-
-- public funding policy/request/status routes are unavailable;
-- developer airdrop is unavailable;
-- Admin funding settings, queue, manual Faucet grant and reconciliation are
-  unavailable;
-- `AEKO_FUNDING_AUTHORIZATION_KEY` is not a mainnet distribution authority.
+Funding, grants, and airdrops are served on every deployed network, including
+`mainnet`. Each network deployment owns its faucet keypair and balance, its
+`AEKO_FUNDING_AUTHORIZATION_KEY`, its caps/budgets/cooldowns, and its approval
+queue — a network only dispenses what its operator configured and funded.
 
 The economic target model in `tokenomics.md` defines Treasury,
 Ecosystem/Grants, Community, Validator Rewards, Team and Public Sale
-allocations. Mainnet distribution must debit a real governed allocation and be
-authorized by the real governance/treasury execution path.
-
-The repository does not yet implement the complete two-house governance
-executor or provision those documented allocation buckets as spendable governed
-reserves. Therefore mainnet grant/distribution UI must remain fail-closed rather
-than reuse test funding.
+allocations. Operators funding a mainnet Faucet should capitalize it from an
+explicitly governed allocation; the repository does not yet implement the
+complete two-house governance executor, so that capitalization step remains a
+manual operator responsibility.
 
 ## 7. Persistence
 
@@ -237,7 +238,9 @@ Repository validation must prove:
 - confirmation creates exactly one grant;
 - failed transfers create no grant;
 - developer airdrops never enter the grant ledger or public grant budget;
-- mainnet funding/airdrop routes fail closed;
+- funding, grant, and airdrop routes are available on every deployed network,
+  including mainnet, each constrained by its own faucet, credential, caps,
+  budgets, and approval queue;
 - each backend uses only its active network config;
 - Scan may route to independently deployed network APIs.
 

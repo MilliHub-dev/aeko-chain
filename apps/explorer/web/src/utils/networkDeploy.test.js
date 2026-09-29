@@ -45,6 +45,22 @@ test('Testnet funding follows the selected Testnet Explorer boundary', async () 
   assert.match(testnet.explorerUrl, /\/explorer$/);
 });
 
+test('Mainnet funding follows the selected Mainnet Explorer boundary', async () => {
+  const m = await load({
+    network: 'mainnet',
+    networks: {
+      mainnet: { ...MAINNET, fundingUrl: '/api/explorer/mainnet' },
+      testnet: TESTNET,
+    },
+  });
+  const mainnet = m.getNetworkConfig('mainnet');
+
+  assert.equal(m.getActiveNetwork(), 'mainnet');
+  assert.equal(mainnet.explorerApiUrl, '/api/explorer/mainnet');
+  assert.equal(mainnet.fundingUrl, '/api/explorer/mainnet');
+  assert.equal(mainnet.fundingEnabled, true);
+});
+
 test('public presentation uses Mainnet and Testnet terminology', async () => {
   const m = await load({
     network: 'testnet',

@@ -424,8 +424,8 @@ def main() -> int:
         "server-only funding/settings secrets must never enter browser runtime configuration",
     )
 
-    # Scan is a constrained same-origin proxy: reads plus two explicit
-    # test-network funding writes only, with all mainnet writes denied.
+    # Scan is a constrained same-origin proxy: reads plus the two explicit
+    # funding writes, allowed on every deployed network with mainnet included.
     require(
         "const FUNDING_WRITE_PATHS = new Set(['/funding/request', '/funding/airdrop'])"
         in explorer_proxy,
@@ -433,8 +433,9 @@ def main() -> int:
     )
     require(
         "target.network !== 'testnet'" in explorer_proxy
+        and "target.network !== 'mainnet'" in explorer_proxy
         and "return FUNDING_WRITE_PATHS.has(explorerSuffix(target, pathname))" in explorer_proxy,
-        "Scan proxy must allow funding writes only on Testnet and reject all non-funding POSTs",
+        "Scan proxy must allow funding writes on all deployed networks and reject all non-funding POSTs",
     )
     require(
         "MAX_PROXY_BODY_BYTES" in explorer_proxy
@@ -485,15 +486,16 @@ def main() -> int:
         '"/admin/funding/requests"',
         '"/admin/funding/grant"',
         "authorize_admin",
-        "ensure_test_environment",
+        "ensure_funding_available",
         "run_settlement_reconciler",
         "reconcile_submitted_settlements_once",
     ):
         require(required in funding_feature, f"Explorer funding module missing {required}")
+    funding_state = read(ROOT / "apps" / "explorer" / "backend" / "src" / "http" / "state.rs")
     require(
-        'matches!(self.network.as_str(), "testnet" | "devnet" | "localnet")'
-        in read(ROOT / "apps" / "explorer" / "backend" / "src" / "http" / "state.rs"),
-        "Explorer funding must distinguish test environments from mainnet",
+        "pub fn is_funding_available(&self) -> bool" in funding_state
+        and "never branches on the deployment network" in funding_state,
+        "Explorer funding must be available on every deployed network",
     )
     for required in (
         "submission_blockhash",
@@ -530,7 +532,7 @@ def main() -> int:
         and "same transaction signature" in funding_design_flat
         and "after that blockhash expires" in funding_design_flat
         and "searches transaction history" in funding_design_flat
-        and "Neither Scan nor Admin may manually retry it" in funding_design_flat
+        and "may trigger the same safe replay of the persisted intent" in funding_design_flat
         and "never substitutes a fresh blockhash" in funding_design_flat,
         "funding design must document backend-owned deterministic replay",
     )
@@ -556,7 +558,8 @@ def main() -> int:
     # Real CI dogfood must exercise the protected chain path, not only mocks.
     for required in (
         "AEKO_FUNDING_AUTHORIZATION_KEY",
-        "protected requestAirdrop unexpectedly accepted",
+        "protected requestGrant unexpectedly accepted",
+        "instant airdrop without approval",
         '"/funding/request"',
         '"/admin/funding/requests/{request_id}/decide"',
         "before = balance(recipient)",
@@ -712,8 +715,8 @@ def main() -> int:
         "README must explicitly document Explorer-owned funding",
     )
     require(
-        "mainnet funding controls fail closed" in readme,
-        "README must preserve the mainnet governance boundary",
+        "a network only dispenses what its operator configured and funded" in readme,
+        "README must document per-network funding ownership",
     )
     require(
         "scripts/smoke-funding-e2e.py" in testnet_runbook,
@@ -721,8 +724,9 @@ def main() -> int:
     )
     require(
         "Public testnet funding uses the managed Explorer funding flow." in testnet_runbook
-        and "It is not the public-testnet funding contract." in testnet_runbook,
-        "testnet runbook must route public funding through Explorer and reserve direct airdrop for local/custom validators",
+        and "Instant `aeko airdrop`" in testnet_runbook
+        and "wait for admin approval" in testnet_runbook,
+        "testnet runbook must route public funding through Explorer, document instant airdrops, and describe approval-gated funding",
     )
     require(
         "The Explorer backend owns settlement" in sdk_testnet_guide,

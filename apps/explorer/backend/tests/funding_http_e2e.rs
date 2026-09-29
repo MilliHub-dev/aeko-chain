@@ -4,7 +4,7 @@ use {
         http::{build_router, state::AppState},
         ExplorerBackendConfig, PostgresRepository, RpcChainClient, ServerConfig,
     },
-    aeko_sdk::{pubkey::Pubkey, signature::Signature},
+    aeko_sdk::pubkey::Pubkey,
     anyhow::{Context, Result},
     axum::{
         body::{to_bytes, Body},
@@ -39,7 +39,21 @@ struct FakeRpcState {
     blockhash_valid: Arc<AtomicBool>,
     pending_signature_statuses: Arc<AtomicUsize>,
     blockhash: String,
-    airdrop_signature: String,
+}
+
+/// Deterministic stand-in for Faucet signing: the same submission intent
+/// (destination, amount, blockhash) recovers the same signature so
+/// response-loss replay tests can prove idempotency, while distinct intents
+/// settle as distinct transfers — mirroring the real Faucet/RPC behavior and
+/// the `funding_grants_signature_unique` ledger constraint.
+fn intent_signature(address: &str, lamports: u64, blockhash: &str) -> String {
+    let mut bytes = [0u8; 64];
+    for (i, chunk) in bytes.chunks_mut(8).enumerate() {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        std::hash::Hash::hash(&(address, lamports, blockhash, i), &mut hasher);
+        chunk.copy_from_slice(&std::hash::Hasher::finish(&hasher).to_le_bytes());
+    }
+    bs58::encode(bytes).into_string()
 }
 
 async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>) -> Json<Value> {
@@ -79,13 +93,17 @@ async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>)
                 }
             }))
         }
-        "requestAirdrop" => {
+        "requestAirdrop" | "requestGrant" => {
             let authorization = request
                 .pointer("/params/2/fundingAuthorization")
                 .and_then(Value::as_str);
             let recent_blockhash = request
                 .pointer("/params/2/recentBlockhash")
                 .and_then(Value::as_str);
+            // Grants require the settlement credential; airdrops forward it for
+            // backward compatibility (the validator ignores it for airdrops).
+            // The fake enforces it for both to prove the backend forwards the
+            // persisted intent verbatim on safe replay.
             if authorization != Some(state.authorization.as_str())
                 || recent_blockhash != Some(state.blockhash.as_str())
             {
@@ -108,10 +126,21 @@ async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>)
                     }
                 }));
             }
+            let address = request
+                .pointer("/params/0")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let lamports = request
+                .pointer("/params/1")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            // The auth/blockhash gate above guarantees these match the
+            // persisted intent the backend will replay verbatim.
+            let intent_blockhash = recent_blockhash.unwrap_or_default();
             Json(json!({
                 "jsonrpc": "2.0",
                 "id": id,
-                "result": state.airdrop_signature
+                "result": intent_signature(address, lamports, intent_blockhash)
             }))
         }
         "getSignatureStatuses" => {
@@ -237,7 +266,6 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         blockhash_valid: Arc::new(AtomicBool::new(true)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
         blockhash: Pubkey::new_unique().to_string(),
-        airdrop_signature: Signature::new_unique().to_string(),
     };
     let rpc_observer = fake_state.clone();
 
@@ -385,11 +413,10 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         .to_string();
     assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 2);
 
-    // This fake RPC deliberately returns one deterministic signature for every
-    // accepted submission so response-loss replay tests can prove idempotency.
-    // Ledger separation must therefore be asserted by the durable domain
-    // identity/address, not by assuming the fake signer manufactures a unique
-    // signature for unrelated requests.
+    // The fake signer derives one deterministic signature per submission
+    // intent, so response-loss replays recover the same signature while
+    // unrelated requests settle distinctly. Ledger separation is asserted by
+    // the durable domain identity/address all the same.
     let (status, grants_after_airdrop) = request_json(
         &app,
         Method::GET,
@@ -450,7 +477,6 @@ async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() 
         blockhash_valid: Arc::new(AtomicBool::new(false)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(usize::MAX)),
         blockhash: Pubkey::new_unique().to_string(),
-        airdrop_signature: Signature::new_unique().to_string(),
     };
     let rpc_observer = fake_state.clone();
 
@@ -564,7 +590,6 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
 
     let authorization = "test-funding-authorization-key-replay-0001".to_string();
     let blockhash = Pubkey::new_unique().to_string();
-    let expected_signature = Signature::new_unique().to_string();
     let fake_state = FakeRpcState {
         authorization: authorization.clone(),
         saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
@@ -574,7 +599,6 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
         blockhash_valid: Arc::new(AtomicBool::new(true)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
         blockhash: blockhash.clone(),
-        airdrop_signature: expected_signature.clone(),
     };
     let rpc_observer = fake_state.clone();
 
@@ -622,6 +646,9 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
     let app = build_router(state.clone(), &server_config());
 
     let address = Pubkey::new_unique().to_string();
+    // The fake signer derives its signature from the submission intent, so
+    // the replayed settlement must recover exactly this signature.
+    let expected_signature = intent_signature(&address, 5_000_000_000, &blockhash);
     let (status, created) = request_json(
         &app,
         Method::POST,
@@ -714,7 +741,6 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
 
     let authorization = "test-funding-authorization-key-expired-replay-0001".to_string();
     let blockhash = Pubkey::new_unique().to_string();
-    let expected_signature = Signature::new_unique().to_string();
     let fake_state = FakeRpcState {
         authorization: authorization.clone(),
         saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
@@ -724,7 +750,6 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
         blockhash_valid: Arc::new(AtomicBool::new(false)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
         blockhash: blockhash.clone(),
-        airdrop_signature: expected_signature.clone(),
     };
     let rpc_observer = fake_state.clone();
 
@@ -772,6 +797,9 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
     let app = build_router(state.clone(), &server_config());
 
     let address = Pubkey::new_unique().to_string();
+    // The fake signer derives its signature from the submission intent, so
+    // the replayed settlement must recover exactly this signature.
+    let expected_signature = intent_signature(&address, 5_000_000_000, &blockhash);
     let (status, created) = request_json(
         &app,
         Method::POST,
@@ -863,7 +891,6 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
         blockhash_valid: Arc::new(AtomicBool::new(true)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(12)),
         blockhash: Pubkey::new_unique().to_string(),
-        airdrop_signature: Signature::new_unique().to_string(),
     };
     let rpc_observer = fake_state.clone();
 
@@ -983,14 +1010,17 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
 }
 
 #[tokio::test]
-async fn mainnet_funding_and_airdrop_routes_fail_closed() -> Result<()> {
+async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> {
+    // Funding, grants, and airdrops are served on every network, including
+    // mainnet. Each deployment owns its faucet, credential, caps, budgets,
+    // and approval queue.
     let _guard = TEST_DB_LOCK.lock().await;
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
 
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let rpc_addr = listener.local_addr()?;
-    let authorization = "unused-mainnet-funding-key-00000001".to_string();
+    let authorization = "mainnet-funding-authorization-key-00000001".to_string();
     let fake_server = Router::new()
         .route("/", post(fake_rpc))
         .with_state(FakeRpcState {
@@ -1002,7 +1032,6 @@ async fn mainnet_funding_and_airdrop_routes_fail_closed() -> Result<()> {
             blockhash_valid: Arc::new(AtomicBool::new(true)),
             pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
             blockhash: Pubkey::new_unique().to_string(),
-            airdrop_signature: Signature::new_unique().to_string(),
         });
     tokio::spawn(async move {
         axum::serve(listener, fake_server).await.unwrap();
@@ -1011,6 +1040,20 @@ async fn mainnet_funding_and_airdrop_routes_fail_closed() -> Result<()> {
     let mut config = backend_config(database_url, format!("http://{rpc_addr}"));
     config.network = "mainnet".to_string();
     let repository = PostgresRepository::connect(&config).await?;
+    let settings = repository.funding_settings().await?;
+    repository
+        .update_funding_settings(
+            settings.revision,
+            &aeko_explorer_backend::infrastructure::persistence::funding::FundingSettingsUpdate {
+                enabled: Some(true),
+                amount_aeko: Some(5.0),
+                cooldown_hours: Some(0.0),
+                daily_budget_aeko: Some(1_000_000.0),
+                max_manual_grant_aeko: Some(100.0),
+                console_airdrop_cap_aeko: Some(25.0),
+            },
+        )
+        .await?;
     let admin_token = "test-settings-admin-token-0000000002";
     let rpc_owner = build_rpc_owner(config).await?;
     let state = AppState::new(
@@ -1021,40 +1064,98 @@ async fn mainnet_funding_and_airdrop_routes_fail_closed() -> Result<()> {
         128,
         true,
         admin_token,
-        None,
+        Some(authorization),
         100,
         100.0,
     )
     .shared();
-    let app = build_router(state, &server_config());
+    let app = build_router(state.clone(), &server_config());
     let address = Pubkey::new_unique().to_string();
 
-    for (method, uri, body, token) in [
-        (Method::GET, "/funding/policy", None, None),
-        (
-            Method::POST,
-            "/funding/request",
-            Some(json!({"address": address})),
-            None,
-        ),
-        (
-            Method::POST,
-            "/funding/airdrop",
-            Some(json!({"address": address, "amountAeko": 1.0})),
-            None,
-        ),
-        (
-            Method::POST,
-            "/admin/funding/grant",
-            Some(json!({"address": address, "amountAeko": 1.0})),
-            Some(admin_token),
-        ),
-    ] {
-        let (status, payload) = request_json(&app, method, uri, body, token).await;
-        assert_eq!(status, StatusCode::NOT_FOUND, "{uri}: {payload}");
-    }
+    let (status, policy) = request_json(&app, Method::GET, "/funding/policy", None, None).await;
+    assert_eq!(status, StatusCode::OK, "{policy}");
+    assert_eq!(policy["data"]["enabled"], true);
+
+    let (status, created) = request_json(
+        &app,
+        Method::POST,
+        "/funding/request",
+        Some(json!({"address": address})),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{created}");
+    assert_eq!(created["data"]["status"], "pending");
+    let request_id = created["data"]["id"]
+        .as_str()
+        .expect("request id")
+        .to_string();
+
+    let (status, approved) = request_json(
+        &app,
+        Method::POST,
+        &format!("/admin/funding/requests/{request_id}/decide"),
+        Some(json!({"approved": true})),
+        Some(admin_token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{approved}");
+    assert!(
+        approved["data"]["signature"]
+            .as_str()
+            .is_some_and(|s| !s.is_empty()),
+        "mainnet approval must settle with a durable signature: {approved}"
+    );
+
+    let (status, airdrop) = request_json(
+        &app,
+        Method::POST,
+        "/funding/airdrop",
+        Some(json!({"address": address, "amountAeko": 1.0})),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{airdrop}");
+    assert!(
+        airdrop["data"]["signature"]
+            .as_str()
+            .is_some_and(|s| !s.is_empty()),
+        "mainnet airdrop must dispatch with a durable signature: {airdrop}"
+    );
+
+    let grant_address = Pubkey::new_unique().to_string();
+    let (status, grant) = request_json(
+        &app,
+        Method::POST,
+        "/admin/funding/grant",
+        Some(json!({"address": grant_address, "amountAeko": 1.0})),
+        Some(admin_token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{grant}");
+    assert!(
+        grant["data"]["signature"]
+            .as_str()
+            .is_some_and(|s| !s.is_empty()),
+        "mainnet direct grant must settle with a durable signature: {grant}"
+    );
+
+    let grants = state.repository.list_funding_grants(500).await?;
+    assert!(
+        grants
+            .iter()
+            .any(|g| g.request_id.as_deref() == Some(request_id.as_str())),
+        "mainnet approval must record exactly one confirmed grant"
+    );
+    assert!(
+        !grants
+            .iter()
+            .any(|g| g.signature.as_deref() == airdrop["data"]["signature"].as_str()),
+        "mainnet airdrop must stay out of the confirmed grant ledger"
+    );
 
     drop(app);
+    drop(state);
     drop_rpc_owner(rpc_owner).await?;
     Ok(())
 }

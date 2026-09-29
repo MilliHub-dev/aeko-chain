@@ -114,7 +114,7 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
     )
     .shared();
 
-    if state.is_test_environment() {
+    if state.is_funding_available() {
         let reconciliation_state = state.clone();
         tokio::spawn(async move {
             funding::run_settlement_reconciler(reconciliation_state, reconcile_interval).await;

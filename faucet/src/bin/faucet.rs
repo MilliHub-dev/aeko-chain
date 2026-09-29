@@ -1,12 +1,12 @@
 use {
-    clap::{crate_description, crate_name, values_t, App, Arg},
-    log::*,
     aeko_clap_utils::input_parsers::{lamports_of_aeko, value_of},
     aeko_faucet::{
         faucet::{run_faucet, Faucet, FAUCET_PORT},
         socketaddr,
     },
     aeko_sdk::signature::read_keypair_file,
+    clap::{crate_description, crate_name, values_t, App, Arg},
+    log::*,
     std::{
         collections::HashSet,
         net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -47,14 +47,16 @@ async fn main() {
                 .alias("cap")
                 .value_name("NUM")
                 .takes_value(true)
-                .help("Request limit for time slice, in AEKO"),
+                .help("Request limit for time slice, in AEKO (applies to airdrops and grants)"),
         )
         .arg(
             Arg::with_name("per_request_cap")
                 .long("per-request-cap")
                 .value_name("NUM")
                 .takes_value(true)
-                .help("Request limit for a single request, in AEKO"),
+                .help(
+                    "Request limit for a single request, in AEKO (applies to airdrops and grants)",
+                ),
         )
         .arg(
             Arg::with_name("allowed_ip")
