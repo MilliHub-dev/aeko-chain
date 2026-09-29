@@ -21,10 +21,12 @@ services:
       AEKO_FAUCET_FILE: /keys/faucet-keypair.json
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-1}
-      AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet.aeko.online:9900}
-      # Testnet/devnet protect requestAirdrop with the same server-side secret
-      # configured on Explorer API. Mainnet leaves this empty and exposes no
-      # application funding surface.
+      # Raw TCP endpoint only. This must resolve directly to the Faucet host;
+      # do not use a Cloudflare HTTP/TLS proxy or an HTTP reverse proxy.
+      AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:?Set a direct raw-TCP Faucet endpoint}
+      # requestAirdrop is instant/open (subject to Faucet caps). requestGrant is
+      # authorization-gated when this key is configured; Explorer settlement
+      # must use the exact same server-side credential.
       AEKO_FUNDING_AUTHORIZATION_KEY: ${AEKO_FUNDING_AUTHORIZATION_KEY:-}
       AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-gossip.aeko.online}
       AEKO_GOSSIP_PORT: "8001"

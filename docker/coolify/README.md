@@ -49,7 +49,7 @@ Use these names in Coolify and DNS:
 | Explorer API | `https://api.aeko.online` | `explorer-api:8088` |
 | Aeko Scan | `https://scan.aeko.online` | `explorer-ui:4000` |
 | Operations Web | `https://admin.aeko.online` | `operations-web:3001` |
-| Faucet | `faucet.aeko.online:9900` | direct TCP `9900` on the Faucet host |
+| Faucet | `faucet.aeko.online:9900` | direct/DNS-only TCP `9900` on the Faucet host |
 | Validator gossip/transport | `gossip.aeko.online` | direct TCP+UDP `8000-8050` |
 
 For HTTP/WebSocket services, configure the Coolify Domain against the listed
@@ -81,6 +81,7 @@ AEKO_RPC_URL=https://rpc.aeko.online
 AEKO_WS_URL=wss://ws.aeko.online
 AEKO_EXPLORER_API_URL=https://api.aeko.online
 AEKO_REGISTRY_URL=https://registry.aeko.online
+# faucet.aeko.online must be DNS-only/direct to the Faucet host.
 AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900
 ```
 
@@ -209,7 +210,7 @@ Explorer API host ------------------> rpc.aeko.online:443
 Scan host        Admin host
 scan.aeko...     admin.aeko...
 
-Validator host ---------------------> faucet.aeko.online:9900 (raw TCP)
+Validator host ---------------------> faucet.aeko.online:9900 (raw TCP, DNS-only/direct)
 rpc/ws/gossip
 ```
 

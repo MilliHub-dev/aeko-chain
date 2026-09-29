@@ -223,7 +223,7 @@ def main() -> int:
         "split Validator",
         split["validator"],
         (
-            "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet.aeko.online:9900}",
+            "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:?Set a direct raw-TCP Faucet endpoint}",
             "AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-gossip.aeko.online}",
             '- "8000-8050:8000-8050/tcp"',
             '- "8000-8050:8000-8050/udp"',

@@ -29,7 +29,9 @@ services:
     ports:
       - "${AEKO_FAUCET_HOST_PORT:-9900}:9900"
     healthcheck:
-      test: ["CMD-SHELL", "test -s /keys/faucet-keypair.json"]
+      # Raw TCP liveness: key custody alone is not enough if the daemon failed
+      # to bind or stopped accepting connections.
+      test: ["CMD-SHELL", "test -s /keys/faucet-keypair.json && nc -z -w 3 127.0.0.1 9900"]
       interval: 30s
       timeout: 5s
       retries: 3

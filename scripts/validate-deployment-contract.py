@@ -424,6 +424,11 @@ def main() -> int:
         "server-only funding/settings secrets must never enter browser runtime configuration",
     )
 
+    require(
+        "netcat-openbsd" in dockerfile,
+        "runtime images must include netcat for raw Faucet TCP liveness checks",
+    )
+
     # Scan is a constrained same-origin proxy: reads plus the two explicit
     # funding writes, allowed on every deployed network with mainnet included.
     require(
@@ -445,8 +450,10 @@ def main() -> int:
     require(
         "AEKO_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy
         and "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy
-        and "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy,
-        "Scan proxy must support server-only Explorer origins for split deployments",
+        and "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy
+        and "EXPLORER_FUNDING_UPSTREAM_UNAVAILABLE" in explorer_proxy
+        and "funding_upstream_not_configured" in explorer_proxy,
+        "Scan funding routes must require a server-only Explorer origin and never fall back through the public edge",
     )
     require(
         "EXPLORER_UPSTREAM_INVALID_RESPONSE" in explorer_proxy

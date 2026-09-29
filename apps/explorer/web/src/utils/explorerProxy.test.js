@@ -90,3 +90,57 @@ test('funding proxy converts an upstream HTML 403 into the Explorer JSON error c
   assert.match(payload.error?.message || '', /non-JSON response/i);
   assert.match(stderr.value, /funding_upstream_contract_violation/);
 });
+
+
+test('funding proxy never falls back to the public Explorer origin', async (t) => {
+  let publicUpstreamRequests = 0;
+  const publicUpstream = createServer((_req, res) => {
+    publicUpstreamRequests += 1;
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ data: { id: 'should-not-be-reached' } }));
+  });
+  const publicUpstreamPort = await listen(publicUpstream);
+  t.after(() => publicUpstream.close());
+
+  const scanPort = await unusedPort();
+  const stderr = { value: '' };
+  const serverPath = fileURLToPath(
+    new URL('../../../../../docker/explorer-ui-server.mjs', import.meta.url),
+  );
+  const child = spawn(process.execPath, [serverPath], {
+    env: {
+      ...process.env,
+      PORT: String(scanPort),
+      AEKO_NETWORK: 'testnet',
+      AEKO_EXPLORER_API_URL: `http://127.0.0.1:${publicUpstreamPort}`,
+      AEKO_EXPLORER_PROXY_UPSTREAM_URL: '',
+      AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL: '',
+      AEKO_LOG_LEVEL: 'error',
+    },
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk) => {
+    stderr.value += chunk;
+  });
+  t.after(() => child.kill('SIGTERM'));
+
+  await waitForScan(scanPort, child, stderr);
+
+  const response = await fetch(
+    `http://127.0.0.1:${scanPort}/api/explorer/testnet/funding/request`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ address: 'test-address' }),
+    },
+  );
+
+  assert.equal(publicUpstreamRequests, 0, 'funding must not cross the public Explorer/WAF origin');
+  assert.equal(response.status, 503);
+  assert.match(response.headers.get('content-type') || '', /application\/json/i);
+  const payload = await response.json();
+  assert.equal(payload.error?.code, 'EXPLORER_FUNDING_UPSTREAM_UNAVAILABLE');
+  assert.match(payload.error?.message || '', /direct server-only Explorer origin/i);
+  assert.match(stderr.value, /funding_upstream_not_configured/);
+});

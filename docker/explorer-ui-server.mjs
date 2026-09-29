@@ -21,20 +21,27 @@ if (!ACTIVE_NETWORK) {
   throw new Error('AEKO_NETWORK for public Scan must be mainnet or testnet')
 }
 
-const ACTIVE_UPSTREAM = clean('AEKO_EXPLORER_PROXY_UPSTREAM_URL') || clean('AEKO_EXPLORER_API_URL')
-if (!ACTIVE_UPSTREAM) {
+const ACTIVE_PUBLIC_UPSTREAM = clean('AEKO_EXPLORER_API_URL')
+if (!ACTIVE_PUBLIC_UPSTREAM) {
   throw new Error('AEKO_EXPLORER_API_URL is required for the active Scan network')
 }
+const ACTIVE_DIRECT_UPSTREAM = clean('AEKO_EXPLORER_PROXY_UPSTREAM_URL')
+
+const DIRECT_UPSTREAMS = {
+  mainnet: clean('AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL'),
+  testnet: clean('AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL'),
+}
+DIRECT_UPSTREAMS[ACTIVE_NETWORK] = ACTIVE_DIRECT_UPSTREAM
 
 const UPSTREAMS = {
   mainnet:
-    clean('AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL')
+    DIRECT_UPSTREAMS.mainnet
     || clean('AEKO_MAINNET_EXPLORER_API_URL'),
   testnet:
-    clean('AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL')
+    DIRECT_UPSTREAMS.testnet
     || clean('AEKO_TESTNET_EXPLORER_API_URL'),
 }
-UPSTREAMS[ACTIVE_NETWORK] = ACTIVE_UPSTREAM
+UPSTREAMS[ACTIVE_NETWORK] = ACTIVE_DIRECT_UPSTREAM || ACTIVE_PUBLIC_UPSTREAM
 
 const MIME = {
   '.css': 'text/css; charset=utf-8',
@@ -65,7 +72,12 @@ function upstreamFor(pathname) {
   for (const network of ['mainnet', 'testnet']) {
     const prefix = `/api/explorer/${network}`
     if (pathname === prefix || pathname.startsWith(prefix + '/')) {
-      return { prefix, upstream: UPSTREAMS[network], network }
+      return {
+        prefix,
+        upstream: UPSTREAMS[network],
+        fundingUpstream: DIRECT_UPSTREAMS[network],
+        network,
+      }
     }
   }
   return null
@@ -184,18 +196,29 @@ async function proxyExplorer(req, res, url, target, id) {
     })
     return
   }
-  if (!target.upstream) {
-    json(res, 503, {
-      error: {
-        code: 'EXPLORER_UPSTREAM_UNAVAILABLE',
-        message: `${target.network} Explorer backend is not configured`,
-      },
-    })
+  const fundingPath = isFundingApiPath(target, url.pathname)
+  const selectedUpstream = fundingPath ? target.fundingUpstream : target.upstream
+  if (!selectedUpstream) {
+    const code = fundingPath
+      ? 'EXPLORER_FUNDING_UPSTREAM_UNAVAILABLE'
+      : 'EXPLORER_UPSTREAM_UNAVAILABLE'
+    const message = fundingPath
+      ? `${target.network} funding requires a direct server-only Explorer origin`
+      : `${target.network} Explorer backend is not configured`
+    if (fundingPath) {
+      log('error', 'funding_upstream_not_configured', {
+        request_id: id,
+        method,
+        path: url.pathname,
+        target_network: target.network,
+      })
+    }
+    json(res, 503, { error: { code, message } })
     return
   }
 
   const suffix = url.pathname.slice(target.prefix.length) || '/'
-  const upstreamUrl = new URL(target.upstream)
+  const upstreamUrl = new URL(selectedUpstream)
   const upstreamBasePath = upstreamUrl.pathname.replace(/\/+$/, '')
   upstreamUrl.pathname = upstreamBasePath + (suffix.startsWith('/') ? suffix : '/' + suffix)
   upstreamUrl.search = url.search

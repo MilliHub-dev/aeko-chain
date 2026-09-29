@@ -89,6 +89,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     libudev1 \
+    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
 FROM rust-runtime AS validator

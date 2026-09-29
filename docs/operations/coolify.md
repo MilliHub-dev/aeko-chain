@@ -107,8 +107,9 @@ Aeko Scan is the only multi-network boundary. Its generic values define the
 active/default public network; optional complete `AEKO_MAINNET_*` and
 `AEKO_TESTNET_*` RPC/WS/Explorer-API triplets describe the other independently
 deployed public network. The production Scan resource accepts Mainnet and
-Testnet only. Scan may additionally set the server-only
-`AEKO_EXPLORER_PROXY_UPSTREAM_URL` (and matching network-prefixed overrides)
+Testnet only. Scan must set the server-only
+`AEKO_EXPLORER_PROXY_UPSTREAM_URL` for its active network; matching
+network-prefixed overrides are required before funding routes for another public network are used
 to a private or DNS-only Explorer origin. This keeps same-origin browser funding
 requests away from bot challenges/WAF HTML pages between Scan and Explorer
 without exposing that origin in `runtime-config.js`. Devnet and Localnet remain explicit development environments and
@@ -214,13 +215,13 @@ For the Operations Web resource, set Coolify's HTTP health-check path to
 a liveness endpoint; probing it produces `admin_sign_in_required` redirects and
 warning logs.
 
-`api.aeko.online` is the normal server-side Explorer API origin used by Scan's
-same-origin proxy and Operations Web. Browser navigation still uses
-`scan.aeko.online`; the browser is not required to call the API origin
-directly. If an edge/WAF on the public API hostname challenges server-to-server
-funding requests with HTML, configure Scan's
-`AEKO_EXPLORER_PROXY_UPSTREAM_URL` to a reachable private or DNS-only Explorer
-origin instead. If the edge in front of `scan.aeko.online` itself applies bot
+`api.aeko.online` remains the public Explorer API identity and Operations Web
+may call it directly. Browser navigation still uses `scan.aeko.online`.
+Funding requests proxied by Scan must not loop back through that public
+Cloudflare/WAF edge: configure `AEKO_EXPLORER_PROXY_UPSTREAM_URL` to a
+reachable private or DNS-only Explorer origin. If that direct origin is absent,
+Scan returns `EXPLORER_FUNDING_UPSTREAM_UNAVAILABLE` instead of silently
+falling back to the public API hostname. If the edge in front of `scan.aeko.online` itself applies bot
 challenges, exempt the exact `/api/explorer/testnet/funding/*` API routes from
 HTML challenges; API failures must remain JSON.
 
@@ -238,11 +239,13 @@ Do not configure `gossip.aeko.online` as an HTTP route. Set `AEKO_GOSSIP_HOST=go
 directly to the Validator host and allow inbound TCP+UDP `8000-8050`.
 Gossip starts on `8001`.
 
-Faucet is also not an HTTP Coolify Domain. Point `faucet.aeko.online` to the
-Faucet host, publish TCP `9900`, and firewall it to Validator source
-addresses. Do not attach an HTTP health probe, Cloudflare HTTP proxy, or
-Traefik HTTP router to port `9900`; the Faucet listener accepts only its
-binary TCP protocol and rejects HTTP-like traffic. PostgreSQL `5432` should remain private.
+Faucet is also not an HTTP Coolify Domain. Point `faucet.aeko.online` directly
+to the Faucet host with a DNS-only record, publish TCP `9900`, and firewall it
+to Validator source addresses. The Validator split deployment requires
+`AEKO_FAUCET_ADDRESS` explicitly and has no public-hostname fallback. Do not
+attach an HTTP health probe, Cloudflare HTTP/TLS proxy, or Traefik HTTP router
+to port `9900`; the Faucet listener accepts only its binary TCP protocol and
+the container healthcheck verifies that raw TCP `9900` is accepting connections. PostgreSQL `5432` should remain private.
 
 ## First deployment
 
@@ -331,16 +334,16 @@ Funding, grants, and airdrops work the same on every network; the flow never
 branches on the deployment network. When production funding fails while
 localhost works, check these in order:
 
-1. **HTML 502 on `/api/explorer/{network}/funding/*` (Cloudflare error page,
-   not JSON).** The Scan proxy reached its Explorer upstream and got a
-   non-JSON error page, usually because the upstream Explorer origin itself
-   goes through Cloudflare/WAF to a dead or unreachable backend. Point the
-   Scan server at a private origin instead:
-   `AEKO_EXPLORER_PROXY_UPSTREAM_URL=http://explorer-api:8088` (and the
-   matching `AEKO_<NETWORK>_EXPLORER_PROXY_UPSTREAM_URL` overrides). The proxy
-   now reports `upstreamStatus` in its `EXPLORER_UPSTREAM_INVALID_RESPONSE`
-   body so you can tell an upstream HTML 502 apart from a backend JSON error.
-   Do not attach bot challenges or WAF HTML pages between Scan and Explorer.
+1. **Funding returns `EXPLORER_FUNDING_UPSTREAM_UNAVAILABLE` or an upstream
+   502.** Scan intentionally refuses to send funding traffic through its public
+   Explorer/WAF fallback. Configure
+   `AEKO_EXPLORER_PROXY_UPSTREAM_URL=https://<dns-only-explorer-origin>` (and
+   matching `AEKO_<NETWORK>_EXPLORER_PROXY_UPSTREAM_URL` overrides) to a
+   directly reachable private or DNS-only Explorer origin. If that direct
+   origin itself returns HTML, it is still crossing an edge/WAF or dead backend.
+   The proxy reports `upstreamStatus` in its
+   `EXPLORER_UPSTREAM_INVALID_RESPONSE` body. Do not attach bot challenges or
+   WAF HTML pages between Scan and Explorer.
 2. **Approvals stuck in `processing` ("submission response was not
    obtained").** The validator's faucet path is broken: the validator needs
    `--rpc-faucet-address <faucet:9900>` with a reachable Faucet, a funded

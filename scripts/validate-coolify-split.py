@@ -243,6 +243,10 @@ def main() -> int:
     require("AEKO_FAUCET_BIND_IP" not in faucet_tools, "Faucet must not require an IP-specific bind variable")
     require("source: /data/aeko/keys" in faucet, "Faucet must read the persistent key store")
     require("curl " not in faucet and "wget " not in faucet, "Faucet healthcheck must never send HTTP to raw TCP 9900")
+    require(
+        "nc -z -w 3 127.0.0.1 9900" in faucet,
+        "Faucet healthcheck must prove the raw TCP listener is accepting connections",
+    )
     require("traefik.http" not in faucet, "Faucet must never declare an HTTP reverse-proxy route")
     require('profiles: ["ops"]' in wallet_tools, "wallet tools must remain opt-in operator tooling")
     require("AEKO_NETWORK=" in envs["faucet-tools"], "Faucet env example must identify its chain environment")
@@ -254,8 +258,8 @@ def main() -> int:
     validator = loaded["validator"]
     require("AEKO_NETWORK: ${AEKO_NETWORK:?" in validator, "Validator must declare one active chain environment")
     require(
-        "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet.aeko.online:9900}" in validator,
-        "Validator must use the generic active-environment Faucet address",
+        "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:?Set a direct raw-TCP Faucet endpoint}" in validator,
+        "Validator must require an explicit direct raw-TCP Faucet address",
     )
     require("source: /data/aeko/validator-ledger" in validator, "Validator ledger must use stable host storage")
     require("source: /data/aeko/keys" in validator, "Validator must mount persistent identities")
@@ -315,7 +319,7 @@ def main() -> int:
         "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
         "AEKO_WS_URL: ${AEKO_WS_URL:?",
         "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
-        "AEKO_EXPLORER_PROXY_UPSTREAM_URL:",
+        "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?",
         "AEKO_MAINNET_RPC_URL:",
         "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
         "AEKO_TESTNET_RPC_URL:",
