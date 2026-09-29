@@ -204,17 +204,19 @@ cat <<EOF2
     RPC          http://${AEKO_DOMAIN}:8899
     PubSub WS    ws://${AEKO_DOMAIN}:8900
     Explorer UI  http://${AEKO_DOMAIN}:4000
-    Funding      http://${AEKO_DOMAIN}:4000/api/explorer/${AEKO_NETWORK}/funding/*
+    Explorer API http://${AEKO_DOMAIN}:8088
+    Funding      http://${AEKO_DOMAIN}:8088/funding/*
     Admin        http://${AEKO_DOMAIN}:3001
 
   Configured public browser endpoints:
     RPC          ${AEKO_RPC_URL:-<not configured>}
     PubSub WS    ${AEKO_WS_URL:-<not configured>}
-    Funding      same-origin under the configured Aeko Scan deployment
+    Explorer API ${AEKO_EXPLORER_API_URL:-<not configured>}
+    Funding      ${AEKO_EXPLORER_API_URL:-<not configured>}/funding/*
     Gossip       ${AEKO_PUBLIC_GOSSIP_ADDRESS:-<not configured>} (raw TCP/UDP, not HTTP)
 
-  Explorer indexed reads are served through the Explorer UI same-origin
-  /api/explorer/testnet proxy. The explorer-api container is not a public
+  Explorer indexed reads and public funding requests are served by the
+  configured Explorer API directly. Aeko Scan is the static browser UI. The explorer-api container is not a public
   browser endpoint.
 
   Complete deployment + SocialFi read-path smoke test:
