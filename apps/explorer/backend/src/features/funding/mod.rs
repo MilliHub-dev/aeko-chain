@@ -12,7 +12,7 @@ use {
     },
     aeko_sdk::{native_token::LAMPORTS_PER_AEKO, pubkey::Pubkey},
     axum::{
-        extract::{Path, Query, State},
+        extract::{ConnectInfo, Path, Query, State},
         http::{HeaderMap, HeaderValue, StatusCode},
         response::{IntoResponse, Response},
         routing::{get, post},
@@ -20,7 +20,7 @@ use {
     },
     serde::{Deserialize, Serialize},
     serde_json::{json, Value},
-    std::time::Duration,
+    std::{net::SocketAddr, time::Duration},
 };
 
 const ADMIN_HEADER: &str = "x-aeko-settings-token";
@@ -497,11 +497,12 @@ async fn get_policy(
 async fn create_request(
     State(state): State<SharedState>,
     headers: HeaderMap,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
     Json(body): Json<FundingRequestBody>,
 ) -> FundingResult<(StatusCode, Json<DataEnvelope<FundingRequestView>>)> {
     ensure_funding_available(&state)?;
     let address = validate_address(&body.address)?;
-    apply_rate_limit(&state, &headers, "public-request-origin").await?;
+    apply_rate_limit(&state, &headers, peer_addr, "public-request-origin").await?;
     apply_subject_rate_limit(&state, "public-request-wallet", &address).await?;
     let request = state
         .repository
@@ -536,11 +537,12 @@ async fn get_public_request_status(
 async fn create_airdrop(
     State(state): State<SharedState>,
     headers: HeaderMap,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
     Json(body): Json<DirectGrantBody>,
 ) -> FundingResult<Json<DataEnvelope<FundingAirdropView>>> {
     ensure_funding_available(&state)?;
     let address = validate_address(&body.address)?;
-    apply_rate_limit(&state, &headers, "console-airdrop-origin").await?;
+    apply_rate_limit(&state, &headers, peer_addr, "console-airdrop-origin").await?;
     apply_subject_rate_limit(&state, "console-airdrop-wallet", &address).await?;
     let settings = state
         .repository
@@ -1762,9 +1764,10 @@ async fn funding_transfer_status_once(
 async fn apply_rate_limit(
     state: &SharedState,
     headers: &HeaderMap,
+    peer_addr: SocketAddr,
     scope: &str,
 ) -> FundingResult<()> {
-    let subject = requester_subject(headers);
+    let subject = requester_subject(headers, peer_addr, state.trust_proxy_headers);
     state
         .repository
         .record_funding_rate_event(
@@ -1794,16 +1797,22 @@ async fn apply_subject_rate_limit(
     Ok(())
 }
 
-fn requester_subject(headers: &HeaderMap) -> String {
-    for name in ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"] {
-        if let Some(value) = headers.get(name).and_then(|value| value.to_str().ok()) {
-            let first = value.split(',').next().unwrap_or_default().trim();
-            if !first.is_empty() {
-                return first.chars().take(128).collect();
+fn requester_subject(
+    headers: &HeaderMap,
+    peer_addr: SocketAddr,
+    trust_proxy_headers: bool,
+) -> String {
+    if trust_proxy_headers {
+        for name in ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"] {
+            if let Some(value) = headers.get(name).and_then(|value| value.to_str().ok()) {
+                let first = value.split(',').next().unwrap_or_default().trim();
+                if let Ok(ip) = first.parse::<std::net::IpAddr>() {
+                    return ip.to_string();
+                }
             }
         }
     }
-    "unknown".to_string()
+    peer_addr.ip().to_string()
 }
 
 fn ensure_funding_available(_state: &SharedState) -> FundingResult<()> {

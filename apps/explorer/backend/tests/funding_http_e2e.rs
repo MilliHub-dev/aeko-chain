@@ -8,8 +8,8 @@ use {
     anyhow::{Context, Result},
     axum::{
         body::{to_bytes, Body},
-        extract::State,
-        http::{Method, Request, StatusCode},
+        extract::{ConnectInfo, State},
+        http::{HeaderValue, Method, Request, StatusCode},
         routing::post,
         Json, Router,
     },
@@ -204,6 +204,8 @@ fn server_config() -> ServerConfig {
         request_timeout: Duration::from_secs(30),
         max_body_bytes: 1024 * 1024,
         sync_interval: Duration::from_secs(1),
+        cors_allowed_origins: vec![HeaderValue::from_static("https://scan.aeko.online")],
+        trust_proxy_headers: true,
     }
 }
 
@@ -235,12 +237,13 @@ async fn request_json(
     if let Some(token) = admin_token {
         builder = builder.header("x-aeko-settings-token", token);
     }
-    let request = builder
+    let mut request = builder
         .body(match body {
             Some(value) => Body::from(serde_json::to_vec(&value).unwrap()),
             None => Body::empty(),
         })
         .unwrap();
+    request.extensions_mut().insert(ConnectInfo(SocketAddr::from(([203, 0, 113, 10], 443))));
 
     let response = app.clone().oneshot(request).await.unwrap();
     let status = response.status();
@@ -308,6 +311,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         Some(authorization),
         100,
         100.0,
+        true,
     )
     .shared();
     let app = build_router(state.clone(), &server_config());
@@ -536,6 +540,7 @@ async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() 
         Some(authorization),
         100,
         100.0,
+        true,
     )
     .shared();
     let app = build_router(state.clone(), &server_config());
@@ -663,6 +668,7 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
         Some(authorization),
         100,
         100.0,
+        true,
     )
     .shared();
     let app = build_router(state.clone(), &server_config());
@@ -814,6 +820,7 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
         Some(authorization),
         100,
         100.0,
+        true,
     )
     .shared();
     let app = build_router(state.clone(), &server_config());
@@ -955,6 +962,7 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
         Some(authorization),
         100,
         100.0,
+        true,
     )
     .shared();
     let app = build_router(state.clone(), &server_config());
@@ -1089,6 +1097,7 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
         Some(authorization),
         100,
         100.0,
+        true,
     )
     .shared();
     let app = build_router(state.clone(), &server_config());

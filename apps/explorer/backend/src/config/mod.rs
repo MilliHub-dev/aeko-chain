@@ -6,7 +6,8 @@
 
 use {
     anyhow::{anyhow, Context, Result},
-    std::{env, net::SocketAddr, time::Duration},
+    axum::http::HeaderValue,
+    std::{env, net::SocketAddr, str::FromStr, time::Duration},
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -176,6 +177,8 @@ pub struct ServerConfig {
     pub request_timeout: Duration,
     pub max_body_bytes: usize,
     pub sync_interval: Duration,
+    pub cors_allowed_origins: Vec<HeaderValue>,
+    pub trust_proxy_headers: bool,
 }
 
 impl ServerConfig {
@@ -189,8 +192,31 @@ impl ServerConfig {
             request_timeout: required_duration("AEKO_EXPLORER_REQUEST_TIMEOUT_SECS")?,
             max_body_bytes: required_nonzero::<usize>("AEKO_EXPLORER_MAX_BODY_BYTES")?,
             sync_interval: required_duration("AEKO_EXPLORER_SYNC_INTERVAL_SECS")?,
+            cors_allowed_origins: required_header_values("AEKO_EXPLORER_CORS_ALLOWED_ORIGINS")?,
+            trust_proxy_headers: required_parse_env::<bool>("AEKO_EXPLORER_TRUST_PROXY_HEADERS")?,
         })
     }
+}
+
+fn required_header_values(key: &str) -> Result<Vec<HeaderValue>> {
+    let raw = required_env(key)?;
+    let mut values = Vec::new();
+    for item in raw.split(',').map(str::trim).filter(|value| !value.is_empty()) {
+        if item == "*" {
+            return Err(anyhow!("{key} must list explicit browser origins; wildcard CORS is not allowed"));
+        }
+        if !(item.starts_with("https://") || item.starts_with("http://")) {
+            return Err(anyhow!("{key} contains invalid origin {item:?}; expected http:// or https://"));
+        }
+        values.push(
+            HeaderValue::from_str(item)
+                .with_context(|| format!("{key} contains invalid HTTP origin {item:?}"))?,
+        );
+    }
+    if values.is_empty() {
+        return Err(anyhow!("{key} must contain at least one allowed browser origin"));
+    }
+    Ok(values)
 }
 
 fn validate_network(network: &str) -> Result<()> {

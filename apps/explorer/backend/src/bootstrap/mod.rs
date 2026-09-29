@@ -13,7 +13,7 @@ use {
         observability,
     },
     anyhow::{anyhow, Context, Result},
-    std::sync::Arc,
+    std::{net::SocketAddr, sync::Arc},
     tokio::net::TcpListener,
 };
 
@@ -111,6 +111,7 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
         funding_control.authorization_key,
         funding_control.requests_per_10_min,
         funding_control.faucet_per_request_cap_aeko,
+        server.trust_proxy_headers,
     )
     .shared();
 
@@ -127,7 +128,10 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
         .with_context(|| format!("binding Explorer API to {}", server.bind_addr))?;
     tracing::info!(addr = %server.bind_addr, "serving Explorer API");
 
-    axum::serve(listener, router)
+    axum::serve(
+        listener,
+        router.into_make_service_with_connect_info::<SocketAddr>(),
+    )
         .with_graceful_shutdown(shutdown_signal())
         .await
         .context("Explorer HTTP server failed")?;
