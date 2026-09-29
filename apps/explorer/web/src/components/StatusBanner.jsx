@@ -16,6 +16,15 @@ const PALETTES = {
     aria: 'assertive',
     role: 'alert',
   },
+  warning: {
+    Icon: AlertTriangle,
+    ring: 'border-amber-400/30',
+    bg: 'bg-amber-500/10',
+    text: 'text-amber-50',
+    accent: 'text-amber-200',
+    aria: 'polite',
+    role: 'status',
+  },
   success: {
     Icon: CheckCircle2,
     ring: 'border-emerald-400/30',

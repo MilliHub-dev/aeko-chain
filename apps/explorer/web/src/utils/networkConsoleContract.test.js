@@ -144,6 +144,11 @@ test('accounts workspace keeps public funding approval separate from direct Test
   assert.match(funding, /getFundingRequestStatus\(fundingUrl, request\.id\)/);
   assert.match(funding, /waiting for an Admin decision/i);
   assert.match(funding, /Admin approved the grant/i);
+  assert.match(funding, /useToaster/);
+  assert.match(funding, /StatusBanner/);
+  assert.match(funding, /Funding request submitted/);
+  assert.match(funding, /Grant confirmed/);
+  assert.doesNotMatch(funding, /requestError/);
   assert.doesNotMatch(funding, /decideRequest|approve.*fetch|\/admin\/funding/);
 });
 
@@ -196,6 +201,10 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
   const adminProxy = await source('../../../admin/src/lib/funding-api.ts');
   const settingsRoute = await source('../../../admin/src/app/api/admin/funding/settings/route.ts');
   const requestsRoute = await source('../../../admin/src/app/api/admin/funding/requests/route.ts');
+  const adminRoot = await source('../../../admin/src/app/layout.tsx');
+  const adminToaster = await source('../../../admin/src/components/toaster.tsx');
+  const adminAlert = await source('../../../admin/src/components/feedback-alert.tsx');
+  const statusBanner = await source('components/StatusBanner.jsx');
 
   assert.match(adminPage, /setInterval/);
   assert.match(adminPage, /expectedRevision: settings\.revision/);
@@ -206,6 +215,14 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
   assert.match(adminPage, /Manual operator grant/);
   assert.match(adminPage, /Check confirmation/);
   assert.match(adminPage, /Airdrop history/);
+  assert.match(adminPage, /useToaster/);
+  assert.match(adminPage, /FeedbackAlert/);
+  assert.doesNotMatch(adminPage, /const \[notice, setNotice\]/);
+  assert.match(adminRoot, /ToasterProvider/);
+  assert.match(adminToaster, /role=\{toast\.kind === 'error' \? 'alert' : 'status'\}/);
+  assert.match(adminToaster, /aria-label="Notifications"/);
+  assert.match(adminAlert, /role=\{tone === 'error' \? 'alert' : 'status'\}/);
+  assert.match(statusBanner, /warning:/);
   assert.match(adminProxy, /x-aeko-settings-token/);
   assert.match(settingsRoute, /method: 'PATCH'/);
   assert.match(requestsRoute, /approved: action === 'approve'/);
@@ -234,9 +251,9 @@ test('Operations Web paginates long datasets and keeps dense control pages focus
   assert.match(fundingPage, /Airdrop history/);
   assert.match(fundingPage, /syncError/);
   assert.match(fundingPage, /lastSyncedAt/);
-  assert.match(fundingPage, /notice\.ok \? 5_000 : 9_000/);
   assert.match(fundingPage, /Live funding data could not refresh/);
   assert.match(fundingPage, /Retry sync/);
+  assert.doesNotMatch(fundingPage, /notice\.ok \? 5_000 : 9_000/);
   assert.match(dataTable, /md:hidden/);
   assert.match(dataTable, /hidden overflow-x-auto md:block/);
   assert.match(dataTable, /min-w-\[760px\]/);

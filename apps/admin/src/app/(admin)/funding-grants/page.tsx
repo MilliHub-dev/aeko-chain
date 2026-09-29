@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import DataTable from '@/components/data-table'
+import FeedbackAlert from '@/components/feedback-alert'
 import SectionTabs from '@/components/section-tabs'
 import StatCard from '@/components/stat-card'
+import { useToaster } from '@/components/toaster'
 
 type Settings = {
   enabled: boolean
@@ -93,12 +95,12 @@ export default function FundingGrantsPage() {
   const [requestBusy, setRequestBusy] = useState('')
   const [address, setAddress] = useState('')
   const [amount, setAmount] = useState('10')
-  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const [syncError, setSyncError] = useState('')
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [view, setView] = useState<FundingView>('queue')
+  const toast = useToaster()
 
   const refresh = useCallback(async (showProgress = false) => {
     if (showProgress) setSyncing(true)
@@ -149,18 +151,11 @@ export default function FundingGrantsPage() {
     return () => window.clearInterval(timer)
   }, [refresh])
 
-  useEffect(() => {
-    if (!notice) return undefined
-    const timer = window.setTimeout(() => setNotice(null), notice.ok ? 5_000 : 9_000)
-    return () => window.clearTimeout(timer)
-  }, [notice])
-
   async function saveSettings(e: React.FormEvent) {
     e.preventDefault()
     if (!draft || !settings || snapshot?.mode !== 'test-funding') return
 
     setBusy(true)
-    setNotice(null)
     try {
       const response = await fetch('/api/admin/funding/settings', {
         method: 'PUT',
@@ -181,10 +176,10 @@ export default function FundingGrantsPage() {
         setSettings(json.data.settings)
         setDraft(json.data.settings)
       }
-      setNotice({ ok: true, text: 'Funding policy saved.' })
+      toast.success('Funding policy saved.', { title: 'Policy updated' })
       await refresh()
     } catch (error) {
-      setNotice({ ok: false, text: error instanceof Error ? error.message : 'Save failed' })
+      toast.error(error instanceof Error ? error.message : 'Save failed', { title: 'Policy update failed' })
     } finally {
       setBusy(false)
     }
@@ -194,7 +189,6 @@ export default function FundingGrantsPage() {
     if (!settings || snapshot?.mode !== 'test-funding') return
     const nextEnabled = !settings.enabled
     setBusy(true)
-    setNotice(null)
     try {
       const json = await readJson(await fetch('/api/admin/funding/settings', {
         method: 'PUT',
@@ -209,9 +203,9 @@ export default function FundingGrantsPage() {
         setSettings(json.data.settings)
         setDraft(json.data.settings)
       }
-      setNotice({ ok: true, text: nextEnabled ? 'Public funding resumed.' : 'Public funding paused.' })
+      toast.success(nextEnabled ? 'Public funding resumed.' : 'Public funding paused.', { title: 'Funding policy updated' })
     } catch (error) {
-      setNotice({ ok: false, text: error instanceof Error ? error.message : 'Policy update failed' })
+      toast.error(error instanceof Error ? error.message : 'Policy update failed', { title: 'Funding policy update failed' })
     } finally {
       setBusy(false)
     }
@@ -219,27 +213,31 @@ export default function FundingGrantsPage() {
 
   async function decideRequest(id: string, action: 'approve' | 'reject' | 'reconcile') {
     setRequestBusy(id)
-    setNotice(null)
     try {
       const json = await readJson(await fetch('/api/admin/funding/requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, action }),
       }))
-      setNotice({
-        ok: true,
-        text: action === 'reject'
-          ? 'Funding request rejected'
-          : json.data.status === 'confirmed'
-            ? `Grant confirmed: ${json.data.amountAeko} AEKO to ${json.data.address}`
-            : `Grant is ${json.data.status}; no duplicate transfer will be submitted while confirmation is unresolved.`,
-      })
+      if (action === 'reject') {
+        toast.success('Funding request rejected.', { title: 'Request updated' })
+      } else if (json.data.status === 'confirmed') {
+        toast.success(
+          `Grant confirmed: ${json.data.amountAeko} AEKO to ${json.data.address}`,
+          { title: 'Grant confirmed' },
+        )
+      } else {
+        toast.info(
+          `Grant is ${json.data.status}; no duplicate transfer will be submitted while confirmation is unresolved.`,
+          { title: 'Settlement submitted' },
+        )
+      }
       await refresh()
     } catch (error) {
-      setNotice({
-        ok: false,
-        text: error instanceof Error ? error.message : `Funding request ${action} failed`,
-      })
+      toast.error(
+        error instanceof Error ? error.message : `Funding request ${action} failed`,
+        { title: 'Funding action failed' },
+      )
     } finally {
       setRequestBusy('')
     }
@@ -250,7 +248,6 @@ export default function FundingGrantsPage() {
     if (snapshot?.mode !== 'test-funding') return
 
     setBusy(true)
-    setNotice(null)
     try {
       const json = await readJson(await fetch('/api/admin/funding/grant', {
         method: 'POST',
@@ -258,14 +255,16 @@ export default function FundingGrantsPage() {
         body: JSON.stringify({ address: address.trim(), amountAeko: Number(amount) }),
       }))
       const signature = String(json.data?.signature ?? '')
-      setNotice({
-        ok: true,
-        text: `Sent ${json.data.amountAeko} AEKO — ${json.data.confirmed ? 'confirmed' : 'submitted'}${signature ? ` (${signature.slice(0, 16)}…)` : ''}`,
-      })
+      const message = `Sent ${json.data.amountAeko} AEKO — ${json.data.confirmed ? 'confirmed' : 'submitted'}${signature ? ` (${signature.slice(0, 16)}…)` : ''}`
+      if (json.data.confirmed) {
+        toast.success(message, { title: 'Grant confirmed' })
+      } else {
+        toast.info(message, { title: 'Grant submitted' })
+      }
       setAddress('')
       await refresh()
     } catch (error) {
-      setNotice({ ok: false, text: error instanceof Error ? error.message : 'Grant failed' })
+      toast.error(error instanceof Error ? error.message : 'Grant failed', { title: 'Grant failed' })
     } finally {
       setBusy(false)
     }
@@ -394,42 +393,22 @@ export default function FundingGrantsPage() {
       ) : null}
 
       {syncError ? (
-        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-red-400/25 bg-red-500/10 p-4 text-sm text-red-100 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <div className="font-semibold">Live funding data could not refresh</div>
-            <p className="mt-1 break-words text-xs leading-5 text-red-100/75">{syncError}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void refresh(true)}
-            disabled={syncing}
-            className="min-h-[40px] rounded-lg border border-red-300/25 px-3 text-xs font-semibold transition-colors hover:bg-red-300/10 disabled:opacity-40"
-          >
-            {syncing ? 'Retrying…' : 'Retry sync'}
-          </button>
-        </div>
-      ) : null}
-
-      {notice ? (
-        <div
-          role={notice.ok ? 'status' : 'alert'}
-          aria-live="polite"
-          className={
-            'flex flex-col gap-3 rounded-xl border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ' +
-            (notice.ok
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-              : 'border-red-500/30 bg-red-500/10 text-red-200')
+        <FeedbackAlert
+          tone="error"
+          title="Live funding data could not refresh"
+          action={
+            <button
+              type="button"
+              onClick={() => void refresh(true)}
+              disabled={syncing}
+              className="min-h-[40px] rounded-lg border border-red-300/25 px-3 text-xs font-semibold transition-colors hover:bg-red-300/10 disabled:opacity-40"
+            >
+              {syncing ? 'Retrying…' : 'Retry sync'}
+            </button>
           }
         >
-          <span className="min-w-0 break-words">{notice.text}</span>
-          <button
-            type="button"
-            onClick={() => setNotice(null)}
-            className="min-h-[36px] shrink-0 rounded-lg border border-current px-3 text-xs font-semibold opacity-80 transition-opacity hover:opacity-100"
-          >
-            Dismiss
-          </button>
-        </div>
+          {syncError}
+        </FeedbackAlert>
       ) : null}
 
       {isFundingAvailable ? (

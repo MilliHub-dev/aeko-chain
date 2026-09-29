@@ -1,5 +1,7 @@
 import { AlertTriangle, CheckCircle2, Droplets, Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import StatusBanner from './StatusBanner';
+import { useToaster } from './Toaster';
 import {
   getFundingPolicy,
   getFundingRequestStatus,
@@ -38,7 +40,9 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
   const [request, setRequest] = useState(
     /** @type {{ id: string, amountAeko: number, status: string, signature?: string | null, confirmed?: boolean, errorCode?: string | null } | null} */ (null),
   );
-  const [requestError, setRequestError] = useState('');
+  const { push: pushToast, dismiss: dismissToast } = useToaster();
+  const pollErrorToastRef = useRef(null);
+  const terminalToastRef = useRef('');
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +50,11 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
     setPolicy(null);
     setPolicyError('');
     setRequest(null);
-    setRequestError('');
+    terminalToastRef.current = '';
+    if (pollErrorToastRef.current) {
+      dismissToast(pollErrorToastRef.current);
+      pollErrorToastRef.current = null;
+    }
 
     if (!fundingUrl) {
       setPolicyError(`${networkName} funding is temporarily unavailable. Please try again later.`);
@@ -70,7 +78,7 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
     return () => {
       cancelled = true;
     };
-  }, [fundingUrl, networkName]);
+  }, [dismissToast, fundingUrl, networkName]);
 
   useEffect(() => {
     if (!fundingUrl || !request?.id || TERMINAL_STATUSES.has(request.status)) return undefined;
@@ -83,13 +91,23 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
         const next = await getFundingRequestStatus(fundingUrl, request.id);
         if (cancelled) return;
         setRequest(next);
-        setRequestError('');
+        if (pollErrorToastRef.current) {
+          dismissToast(pollErrorToastRef.current);
+          pollErrorToastRef.current = null;
+        }
         if (!TERMINAL_STATUSES.has(next.status)) {
           timer = globalThis.setTimeout(refreshStatus, 4_000);
         }
       } catch (error) {
         if (cancelled) return;
-        setRequestError(error.message || String(error));
+        const message = error.message || String(error);
+        if (!pollErrorToastRef.current) {
+          pollErrorToastRef.current = pushToast({
+            kind: 'error',
+            title: 'Status check interrupted',
+            message: `${message} Your request id is retained and status checks will retry automatically.`,
+          });
+        }
         timer = globalThis.setTimeout(refreshStatus, 8_000);
       }
     }
@@ -99,7 +117,29 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
       cancelled = true;
       if (timer) globalThis.clearTimeout(timer);
     };
-  }, [fundingUrl, request?.id, request?.status]);
+  }, [dismissToast, fundingUrl, pushToast, request?.id, request?.status]);
+
+  useEffect(() => {
+    if (!request?.id || !TERMINAL_STATUSES.has(request.status)) return;
+    const key = `${request.id}:${request.status}`;
+    if (terminalToastRef.current === key) return;
+    terminalToastRef.current = key;
+
+    if (request.status === 'confirmed') {
+      pushToast({
+        kind: 'success',
+        title: 'Grant confirmed',
+        message: `${request.amountAeko} AEKO is confirmed on-chain.`,
+      });
+      return;
+    }
+
+    pushToast({
+      kind: 'error',
+      title: request.status === 'rejected' ? 'Funding request rejected' : 'Grant transfer failed',
+      message: requestMessage(request),
+    });
+  }, [pushToast, request?.amountAeko, request?.id, request?.status]);
 
   const valid = ADDRESS_RE.test(address.trim());
 
@@ -109,10 +149,14 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
 
     setBusy(true);
     setRequest(null);
-    setRequestError('');
     try {
       const created = await requestFundingApproval(fundingUrl, address.trim());
       setRequest(created);
+      pushToast({
+        kind: 'info',
+        title: 'Funding request submitted',
+        message: `Request ${created.id} is waiting for an Admin decision.`,
+      });
     } catch (error) {
       // The wallet already has an in-flight request: adopt it and resume
       // polling instead of dead-ending on REQUEST_PENDING.
@@ -121,13 +165,21 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
         try {
           const existing = await getFundingRequestStatus(fundingUrl, pendingId);
           setRequest(existing);
-          setRequestError('');
+          pushToast({
+            kind: 'info',
+            title: 'Existing request resumed',
+            message: `Request ${existing.id} is still in progress and status polling has resumed.`,
+          });
           return;
         } catch {
           // Fall through to the original error below.
         }
       }
-      setRequestError(error.message || String(error));
+      pushToast({
+        kind: 'error',
+        title: 'Funding request failed',
+        message: error.message || String(error),
+      });
     } finally {
       setBusy(false);
     }
@@ -154,16 +206,18 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
           </div>
 
           {policy && !policy.enabled ? (
-            <div className="mb-4 flex gap-2 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3 text-sm text-amber-100">
-              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-              Public funding is currently paused by the Admin.
+            <div className="mb-4">
+              <StatusBanner kind="warning" title="Public funding paused">
+                Public funding is currently paused by the Admin.
+              </StatusBanner>
             </div>
           ) : null}
 
           {policyError ? (
-            <div className="mb-4 flex gap-2 rounded-xl border border-red-400/25 bg-red-500/10 p-3 text-sm text-red-100">
-              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-              {policyError}
+            <div className="mb-4">
+              <StatusBanner kind="error" title={`${networkName} funding unavailable`}>
+                {policyError}
+              </StatusBanner>
             </div>
           ) : null}
 
@@ -230,19 +284,7 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
             </div>
           ) : null}
 
-          {requestError ? (
-            <div className="mt-4 flex gap-2 rounded-xl border border-red-400/25 bg-red-500/10 p-4 text-sm text-red-100">
-              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-              <div>
-                <div>{requestError}</div>
-                {request?.id ? (
-                  <div className="mt-1 text-xs text-red-100/70">
-                    Your request id is retained and status checks will retry automatically.
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
+
         </div>
 
         <aside className="border-t border-white/10 bg-black/20 p-6 sm:p-8 lg:border-l lg:border-t-0">
