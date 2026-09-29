@@ -75,50 +75,44 @@ public network choices.
 
 ## Single-network co-located/local Compose defaults and overrides
 
-The all-in-one Compose files keep Docker service DNS as **server-side defaults**
-where that is correct, but every dependency remains operator-overridable.
+Local development keeps the generic runtime endpoint variables directly
+overridable. Production all-in-one Dokploy/Coolify stacks separate public Scan
+endpoints from backend service routing so server traffic cannot accidentally
+hairpin through Cloudflare/WAF.
 
-Co-locating these services on one host does **not** make AEKO a multi-network monolith. This Compose file represents one `AEKO_NETWORK`; mainnet, testnet, devnet, and localnet remain independently configured/deployed network stacks even when an operator chooses to place more than one stack on the same physical server.
-
-| Consumer | Default inside same Compose network | Override |
+| Consumer | Runtime target inside the container | Production deployment input |
 | --- | --- | --- |
-| Social bootstrap -> Validator RPC | `http://validator:8899` | `AEKO_RPC_URL` |
-| Protocol bootstrap -> Validator RPC | `http://validator:8899` | `AEKO_RPC_URL` |
-| Explorer API -> Validator RPC | `http://validator:8899` | `AEKO_RPC_URL` |
-| Explorer API -> Validator WS | `ws://validator:8900` | `AEKO_WS_URL` |
-| Operations Web -> Validator RPC | `http://validator:8899` | `AEKO_RPC_URL` |
-| Operations Web -> Explorer API | `http://explorer-api:8088` | `AEKO_EXPLORER_API_URL` |
-| Validator -> Faucet | `faucet:9900` | `AEKO_FAUCET_ADDRESS` |
-| Scan server -> Explorer API | `http://explorer-api:8088` | `AEKO_EXPLORER_API_URL` |
+| Social bootstrap -> Validator RPC | `AEKO_RPC_URL` | `AEKO_INTERNAL_RPC_URL` |
+| Protocol bootstrap -> Validator RPC | `AEKO_RPC_URL` | `AEKO_INTERNAL_RPC_URL` |
+| Explorer API -> Validator RPC | `AEKO_RPC_URL` | `AEKO_INTERNAL_RPC_URL` |
+| Explorer API -> Validator WS | `AEKO_WS_URL` | `AEKO_INTERNAL_WS_URL` |
+| Operations Web -> Validator RPC | `AEKO_RPC_URL` | `AEKO_INTERNAL_RPC_URL` |
+| Operations Web -> Explorer API | `AEKO_EXPLORER_API_URL` | `AEKO_INTERNAL_EXPLORER_API_URL` |
+| Validator -> Faucet | `AEKO_FAUCET_ADDRESS` | `AEKO_INTERNAL_FAUCET_ADDRESS` |
+| Scan server -> Explorer API | private proxy upstream | `AEKO_EXPLORER_PROXY_UPSTREAM_URL` |
+| Scan browser -> Validator RPC/WS | public runtime config | `AEKO_RPC_URL`, `AEKO_WS_URL` |
+| Scan browser -> indexed Explorer reads | same-origin `/api/explorer/{network}` | public Scan origin |
 
-The Scan browser cannot resolve Docker service names. Public/testnet Compose
-therefore gives Scan browser RPC/WS public-domain defaults while its server-side
-Explorer proxy can still use `explorer-api:8088`. If you set the generic
-endpoint variables in the deployment environment, those values override the
-defaults.
-
-Example: force every server-side consumer in one co-located testnet stack to use the routed
-testnet domains instead of Docker DNS:
-
-```text
-AEKO_NETWORK=testnet
-AEKO_RPC_URL=https://rpc.aeko.online
-AEKO_WS_URL=wss://ws.aeko.online
-AEKO_EXPLORER_API_URL=https://api.aeko.online
-AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900
-```
+For an all-in-one production stack the defaults are Docker service DNS
+(`validator:8899`, `validator:8900`, `explorer-api:8088`, `faucet:9900`).
+Operators may override those with reachable private URLs. Do not replace them
+with Cloudflare-proxied public endpoints merely because the public hostname is
+reachable from a browser.
 
 ## Split Coolify resources
 
 Split resources do not share Docker service DNS across resource boundaries.
-Configure their adjacent `.env.example` values with reachable domains. For
-HTTP/WebSocket services, Coolify should route the domain directly to the
-container port, so a cross-instance consumer does **not** require a host
-`ports:` mapping.
+Configure each adjacent `.env.example` with a reachable private URL or a
+DNS-only Coolify origin. The HTTP/WS origin may still be routed by Coolify to
+the service's exposed container port; the important requirement is that
+server-to-server funding traffic bypasses public bot/WAF handling. A raw
+cross-host `host:8899`, `:8900`, `:8088`, or `:8089` URL works only when
+the operator explicitly publishes that port and restricts it appropriately.
 
 Raw Faucet and validator transport are exceptions:
 
 - publish Faucet TCP `9900` and firewall it to Validator source addresses;
+- use `AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900`;
 - do not attach HTTP/WAF routing or HTTP health probes to Faucet `9900`;
 - publish Validator TCP+UDP `8000-8050`;
 - point `gossip.aeko.online` directly at the Validator host;
