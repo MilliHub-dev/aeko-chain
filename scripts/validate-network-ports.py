@@ -89,8 +89,8 @@ def main() -> int:
     port_doc = read(PORT_DOC)
     shared_env = read(SHARED_ENV)
 
-    # One authoritative domain/port map. Funding is same-origin through Scan,
-    # not a resurrected separate Funding Gateway service.
+    # One authoritative domain/port map. Funding is served by the public
+    # Explorer API directly, not a resurrected separate Funding Gateway service.
     require_contains_all(
         "network port/domain documentation",
         port_doc,
@@ -311,9 +311,8 @@ def main() -> int:
     scan_vite = read(ROOT / "apps" / "explorer" / "web" / "vite.config.js")
 
     # Runtime config generation and Vite dev mode consume chain RPC/WS plus the
-    # public Explorer API identity. The production proxy server uses only
-    # server-side Explorer proxy origins and must not depend on browser-facing
-    # RPC/WS or public Explorer API URLs.
+    # public Explorer API identity. The production Scan server is static/telemetry
+    # only and must not own a second Explorer transport contract.
     for label, text in (
         ("Scan entrypoint", scan_entrypoint),
         ("Scan Vite config", scan_vite),
@@ -328,27 +327,26 @@ def main() -> int:
                 "AEKO_EXPLORER_API_URL",
             ),
         )
+    require(
+        "/api/explorer/" not in scan_server
+        and "AEKO_EXPLORER_PROXY_UPSTREAM_URL" not in scan_server,
+        "Scan server must not retain the Explorer reverse proxy",
+    )
     require_contains_all(
-        "Scan proxy server",
+        "Scan static server",
         scan_server,
         (
             "AEKO_NETWORK",
-            "AEKO_EXPLORER_PROXY_UPSTREAM_URL",
-            "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL",
-            "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL",
+            "CLIENT_TELEMETRY_PATH",
+            "RUNTIME_CONFIG_PATH",
         ),
     )
-    require(
-        "AEKO_EXPLORER_API_URL" not in scan_server,
-        "Scan proxy server must not fall back to the browser-facing Explorer API URL",
-    )
-
     for name in (
         "AEKO_MAINNET_EXPLORER_API_URL",
         "AEKO_TESTNET_EXPLORER_API_URL",
     ):
         require(
-            name in scan_server or "network.toUpperCase()" in scan_entrypoint or "network.toUpperCase()" in scan_vite,
+            "network.toUpperCase()" in scan_entrypoint or "network.toUpperCase()" in scan_vite,
             f"Scan public-network runtime must support {name}",
         )
     for private_prefix in ("AEKO_DEVNET_", "AEKO_LOCALNET_", "AEKO_DEMO_"):

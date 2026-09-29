@@ -619,7 +619,7 @@ def main() -> int:
         "cargo-build-sbf",
         "hello_aeko_program.so",
         "https://rpc.aeko.online",
-        "https://scan.aeko.online/api/explorer/testnet",
+        "https://api.aeko.online",
         "/funding/airdrop",
         "aeko-keygen new",
         "smoke-hello-program.py",
