@@ -682,12 +682,32 @@ def balance(address):
 
 
 # The running TestValidator is configured with the server-only authorization
-# key. A browser-style direct requestAirdrop without that key must fail.
-unauthorized_body = json.dumps(
+# key for approval-gated grants. Instant airdrops dispatch with no approval;
+# direct requestGrant without that key must fail while requestAirdrop succeeds.
+instant_body = json.dumps(
     {
         "jsonrpc": "2.0",
         "id": 1,
         "method": "requestAirdrop",
+        "params": [recipient, 1],
+    }
+).encode()
+instant_request = urllib.request.Request(
+    rpc_url,
+    data=instant_body,
+    headers={"Content-Type": "application/json"},
+)
+with urllib.request.urlopen(instant_request, timeout=30) as response:
+    instant = json.load(response)
+if instant.get("error"):
+    raise RuntimeError(f"instant requestAirdrop unexpectedly failed: {instant}")
+print("[ok] live Validator dispatches instant airdrop without approval")
+
+unauthorized_body = json.dumps(
+    {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "requestGrant",
         "params": [recipient, 1],
     }
 ).encode()
@@ -699,10 +719,10 @@ unauthorized_request = urllib.request.Request(
 with urllib.request.urlopen(unauthorized_request, timeout=30) as response:
     unauthorized = json.load(response)
 if not unauthorized.get("error"):
-    raise RuntimeError("protected requestAirdrop unexpectedly accepted a request without authorization")
+    raise RuntimeError("protected requestGrant unexpectedly accepted a request without authorization")
 if int(unauthorized["error"].get("code", 0)) != -32600:
-    raise RuntimeError(f"protected requestAirdrop returned unexpected error: {unauthorized}")
-print("[ok] live Validator rejects unauthorized direct requestAirdrop")
+    raise RuntimeError(f"protected requestGrant returned unexpected error: {unauthorized}")
+print("[ok] live Validator rejects unauthorized direct requestGrant")
 
 policy = request_json("GET", "/funding/policy")["data"]
 if policy.get("enabled") is not True:

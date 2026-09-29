@@ -105,7 +105,10 @@ impl std::fmt::Debug for FundingControlConfig {
 impl FundingControlConfig {
     pub fn from_env(network: &str) -> Result<Self> {
         let authorization_key = optional_env("AEKO_FUNDING_AUTHORIZATION_KEY");
-        if matches!(network, "testnet" | "devnet") {
+        // The funding flow is network-agnostic: it never branches on the
+        // deployment network. The settlement credential is required everywhere
+        // except localnet, where developers run an open faucet for iteration.
+        if network != "localnet" {
             let key = authorization_key.as_deref().ok_or_else(|| {
                 anyhow!(
                     "AEKO_FUNDING_AUTHORIZATION_KEY is required for {network} funding settlement"

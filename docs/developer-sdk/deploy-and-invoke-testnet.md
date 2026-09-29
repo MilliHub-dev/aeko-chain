@@ -77,9 +77,9 @@ curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
   -d '{"address":"<YOUR_WALLET_PUBKEY>"}'
 ```
 
-The public request is queued for operator approval. Operations Web authenticates the operator decision and forwards it to the active Explorer backend. The Explorer backend owns settlement: it submits the approved policy amount through the Validator's protected low-level `requestAirdrop` path, and the Validator obtains the signed transfer from the Faucet.
+The public request is queued for operator approval. Operations Web authenticates the operator decision and forwards it to the active Explorer backend. The Explorer backend owns settlement: it submits the approved policy amount through the Validator's protected low-level `requestGrant` path, and the Validator obtains the signed transfer from the Faucet.
 
-The public testnet does not expose browser/CLI direct airdrops as the managed funding path. The `aeko airdrop` command is appropriate only for local/custom test validators that are explicitly configured without the managed funding authorization requirement.
+Instant developer airdrops (`aeko airdrop`, SDK `requestAirdrop`, Test Console) dispatch immediately with no approval, subject only to faucet caps. Approval-gated funding (`aeko funding`, SDK `requestFunding`, Scan funding requests) waits for admin approval; admin direct grants bypass approval.
 
 Use the request id returned above to check settlement status:
 

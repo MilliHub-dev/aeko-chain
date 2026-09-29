@@ -53,4 +53,13 @@ impl AppState {
     pub fn is_test_environment(&self) -> bool {
         matches!(self.network.as_str(), "testnet" | "devnet" | "localnet")
     }
+
+    /// Funding, grants, and airdrops unconditionally work. The funding flow
+    /// never branches on the deployment network: every backend serves the
+    /// same `/funding/*` and `/admin/funding/*` contract, and each deployment
+    /// constrains itself through its own faucet balance, authorization
+    /// credential, caps, budgets, and approval queue.
+    pub fn is_funding_available(&self) -> bool {
+        true
+    }
 }

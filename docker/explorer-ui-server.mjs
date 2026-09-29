@@ -134,7 +134,7 @@ function explorerSuffix(target, pathname) {
 }
 
 function isFundingApiPath(target, pathname) {
-  if (target.network !== 'testnet') return false
+  if (target.network !== 'testnet' && target.network !== 'mainnet') return false
   const suffix = explorerSuffix(target, pathname)
   return suffix === '/funding/policy'
     || suffix === '/funding/request'
@@ -144,7 +144,8 @@ function isFundingApiPath(target, pathname) {
 
 function explorerProxyMethodAllowed(method, target, pathname) {
   if (method === 'GET' || method === 'HEAD') return true
-  if (method !== 'POST' || target.network !== 'testnet') return false
+  if (method !== 'POST') return false
+  if (target.network !== 'testnet' && target.network !== 'mainnet') return false
   return FUNDING_WRITE_PATHS.has(explorerSuffix(target, pathname))
 }
 
@@ -178,7 +179,7 @@ async function proxyExplorer(req, res, url, target, id) {
     json(res, 405, {
       error: {
         code: 'METHOD_NOT_ALLOWED',
-        message: 'Scan only proxies Explorer reads and the explicit test-network funding request/airdrop writes',
+        message: 'Scan only proxies Explorer reads and the explicit funding request/airdrop writes',
       },
     })
     return
@@ -277,6 +278,8 @@ async function proxyExplorer(req, res, url, target, id) {
         error: {
           code: 'EXPLORER_UPSTREAM_INVALID_RESPONSE',
           message: 'Explorer funding upstream returned a non-JSON response. Check the Scan-to-Explorer origin route and edge/WAF configuration.',
+          upstreamStatus: upstream.status,
+          upstreamContentType: String(upstreamContentType || 'missing').slice(0, 160),
         },
       })
       return

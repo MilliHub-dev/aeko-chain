@@ -45,7 +45,7 @@ function readAlternative(network) {
     rpcUrl,
     websocketUrl,
     explorerApiUrl: `/api/explorer/${network}`,
-    ...(network === 'testnet' ? { fundingUrl: '/api/explorer/testnet' } : {}),
+    fundingUrl: `/api/explorer/${network}`,
   };
 }
 
@@ -59,7 +59,7 @@ networks[activeNetwork] = {
   rpcUrl: optional('AEKO_RPC_URL'),
   websocketUrl: optional('AEKO_WS_URL'),
   explorerApiUrl: `/api/explorer/${activeNetwork}`,
-  ...(activeNetwork === 'testnet' ? { fundingUrl: '/api/explorer/testnet' } : {}),
+  fundingUrl: `/api/explorer/${activeNetwork}`,
 };
 
 fs.writeFileSync(

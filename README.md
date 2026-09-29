@@ -123,10 +123,12 @@ The funding domains are intentionally distinct:
   Operations Admin is the only product surface that may approve/reject it;
 - **developer airdrop:** direct capped Test Console utility, tracked separately
   from the grant queue/ledger;
-- **mainnet distribution:** not a Faucet operation. Treasury, ecosystem grants,
-  launch allocation, vesting and validator emissions must follow the governed
-  tokenomics path. The complete two-house governance/treasury executor is not
-  implemented yet, so mainnet funding controls fail closed.
+- **operator grant:** authenticated Operations Admin releases funds directly
+  through the Explorer admin API or the `grant` settlement path; no public
+  approval queue is involved;
+- **network scope:** funding, grants, and airdrops are served on every deployed network, including mainnet. Each deployment owns its faucet, funding authorization credential, caps, budgets, and approval queue: a network only dispenses what its operator configured and funded. Mainnet
+  treasury/ecosystem/vesting allocations remain governed tokenomics concerns;
+  the Faucet flow is the operational distribution rail shared by all networks.
 
 Each chain environment is deployed independently. Scan's
 `/api/explorer/{network}` prefixes route to independently configured remote
@@ -456,7 +458,7 @@ curl -s https://rpc.aeko.online \
   }'
 ```
 
-Public testnet funding is policy-controlled by the Explorer API funding module; the Faucet Daemon on TCP `:9900` remains private and the deployed public RPC protects low-level `requestAirdrop`. Browser/client requests use the same Aeko Scan origin:
+Public testnet funding is policy-controlled by the Explorer API funding module; the Faucet Daemon on TCP `:9900` remains private and the deployed public RPC protects approval-gated `requestGrant` with funding authorization, while instant `requestAirdrop` dispatches with no approval subject only to faucet caps. Browser/client requests use the same Aeko Scan origin:
 
 ```bash
 curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
@@ -464,7 +466,7 @@ curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
   -d '{"address":"<WALLET_ADDRESS>"}'
 ```
 
-Local/custom test validators may still expose a direct development airdrop flow when explicitly configured for local testing.
+Local/custom test validators may still expose a direct development airdrop flow when explicitly configured for local testing. Instant `aeko airdrop` / SDK `requestAirdrop` needs no approval anywhere; approval-gated funding uses `aeko funding` / SDK `requestFunding` (waits for admin) and admin direct grants bypass approval.
 
 ## WebSocket / PubSub
 

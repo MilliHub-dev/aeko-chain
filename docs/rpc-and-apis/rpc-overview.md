@@ -11,7 +11,7 @@ AEKO uses **JSON-RPC 2.0** for direct chain interaction and a separate WebSocket
 
 Indexed Explorer data is exposed to the browser only through the Explorer UI origin, for example `https://scan.aeko.online/api/explorer/testnet/...`. The raw `explorer-api:8088` service is private deployment infrastructure and is not a public developer endpoint.
 
-Testnet funding is owned by the Explorer API. Browser clients use the Aeko Scan same-origin path `https://scan.aeko.online/api/explorer/testnet/funding/*`; the direct server-side Explorer origin is `https://api.aeko.online`. Public funding requests enter the Explorer-backed approval queue, while the Scan Test Console uses the separately constrained `/funding/airdrop` route. The private Faucet Daemon remains the low-level TCP signer used by the Validator funding path.
+Funding on every network is owned by that network's Explorer API. Browser clients use the Aeko Scan same-origin path `https://scan.aeko.online/api/explorer/{network}/funding/*` (for example `.../testnet/funding/*`); the direct server-side Explorer origin is `https://api.aeko.online`. Public funding requests enter the Explorer-backed approval queue, while instant airdrops use the direct `requestAirdrop` path or the separately constrained `/funding/airdrop` route, and approval-gated grants settle through `requestGrant`. The private Faucet Daemon remains the low-level TCP signer used by the Validator funding path.
 
 ## Other networks
 

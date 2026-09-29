@@ -34,6 +34,32 @@ export class AekoRpcError extends Error {
   }
 }
 
+export interface AirdropOptions {
+  commitment?: 'processed' | 'confirmed' | 'finalized';
+  recentBlockhash?: string;
+}
+
+export interface FundingRequestOptions {
+  /** Explorer API base URL, e.g. https://api.aeko.online */
+  explorerApiUrl: string;
+  fetchImpl?: typeof fetch;
+  /** Seconds to wait for admin approval before giving up. Default 300. */
+  timeoutSecs?: number;
+  /** Poll interval in ms. Default 4000. */
+  pollIntervalMs?: number;
+  /** Return after submission without waiting for approval. */
+  noWait?: boolean;
+  /** AbortSignal to stop waiting (request stays pending for admin). */
+  signal?: AbortSignal;
+}
+
+export interface DirectGrantOptions {
+  explorerApiUrl: string;
+  /** Admin settings token; bypasses approval. Never expose in browser public flows. */
+  adminToken: string;
+  fetchImpl?: typeof fetch;
+}
+
 export class AekoConnection {
   readonly endpoint: string;
   readonly websocketEndpoint: string;
@@ -148,6 +174,161 @@ export class AekoConnection {
       { searchTransactionHistory: true },
     ]);
     return result.value;
+  }
+
+  /**
+   * Instant developer airdrop: no admin approval, dispatched immediately
+   * subject only to faucet caps. Works from CLI, SDK, or Test Console.
+   */
+  async requestAirdrop(
+    address: PublicKeyString,
+    lamports: number,
+    options: AirdropOptions = {},
+  ): Promise<string> {
+    const config: Record<string, unknown> = {
+      commitment: options.commitment ?? this.defaultCommitment,
+    };
+    if (options.recentBlockhash) {
+      config.recentBlockhash = options.recentBlockhash;
+    }
+    return this.rpc<string>('requestAirdrop', [address, lamports, config]);
+  }
+
+  /**
+   * Instant airdrop with explicit recent blockhash (safe-replay friendly).
+   */
+  async requestAirdropWithBlockhash(
+    address: PublicKeyString,
+    lamports: number,
+    recentBlockhash: string,
+  ): Promise<string> {
+    return this.requestAirdrop(address, lamports, { recentBlockhash });
+  }
+
+  /**
+   * Approval-gated funding grant via direct RPC. Requires the server-only
+   * funding authorization credential when the validator configures one.
+   * Prefer the Explorer approval-queue flow (`requestFunding`) for public
+   * clients; use this only from trusted settlement service code holding the
+   * credential. Replays of the same intent recover the same signature.
+   */
+  async requestGrant(
+    address: PublicKeyString,
+    lamports: number,
+    fundingAuthorization?: string,
+    recentBlockhash?: string,
+  ): Promise<string> {
+    const config: Record<string, unknown> = {
+      commitment: this.defaultCommitment,
+      fundingAuthorization: fundingAuthorization ?? null,
+    };
+    if (recentBlockhash) {
+      config.recentBlockhash = recentBlockhash;
+    }
+    return this.rpc<string>('requestGrant', [address, lamports, config]);
+  }
+
+  /**
+   * Public funding request via the Explorer approval queue.
+   * Submits `POST {explorerApiUrl}/funding/request` then polls
+   * `GET {explorerApiUrl}/funding/request/:id` until `confirmed`,
+   * `failed`/`rejected`, timeout, or abort. Returns the confirmed signature.
+   */
+  async requestFunding(
+    address: PublicKeyString,
+    options: FundingRequestOptions,
+  ): Promise<{ requestId: string; signature: string }> {
+    const fetchImpl = options.fetchImpl ?? this.fetchImpl;
+    const base = options.explorerApiUrl.replace(/\/$/, '');
+    const timeoutSecs = options.timeoutSecs ?? 300;
+    const pollIntervalMs = options.pollIntervalMs ?? 4000;
+
+    const submit = await fetchImpl(`${base}/funding/request`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ address }),
+    });
+    let requestId;
+    if (!submit.ok) {
+      // The wallet already has an in-flight request: adopt it and poll it
+      // instead of dead-ending on REQUEST_PENDING.
+      const failure = (await submit.json().catch(() => null)) as {
+        error?: { code?: string; requestId?: string };
+      } | null;
+      if (failure?.error?.code === 'REQUEST_PENDING' && failure.error.requestId) {
+        requestId = failure.error.requestId;
+      } else {
+        const body = JSON.stringify(failure ?? '');
+        throw new AekoRpcError(`Funding request failed (HTTP ${submit.status}): ${body}`);
+      }
+    } else {
+      const created = (await submit.json()) as { data?: { id?: string } };
+      requestId = created?.data?.id;
+      if (!requestId) {
+        throw new AekoRpcError('Funding request succeeded but returned no request id');
+      }
+    }
+    if (options.noWait) {
+      return { requestId, signature: '' };
+    }
+
+    const deadline = Date.now() + timeoutSecs * 1000;
+    for (;;) {
+      if (options.signal?.aborted) {
+        throw new AekoRpcError(
+          `Funding wait aborted for ${requestId}; request stays pending for admin review`,
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+      const res = await fetchImpl(`${base}/funding/request/${requestId}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new AekoRpcError(`Funding status poll failed (HTTP ${res.status}): ${body}`);
+      }
+      const status = (await res.json()) as {
+        data?: { status?: string; signature?: string; errorCode?: string };
+      };
+      const state = status?.data?.status ?? 'unknown';
+      if (state === 'confirmed') {
+        return { requestId, signature: status?.data?.signature ?? '' };
+      }
+      if (state === 'rejected' || state === 'failed') {
+        throw new AekoRpcError(
+          `Funding request ${requestId} ended with status ${state} (${status?.data?.errorCode ?? state})`,
+        );
+      }
+      if (Date.now() >= deadline) {
+        throw new AekoRpcError(
+          `Timed out after ${timeoutSecs}s waiting for admin approval of ${requestId} (last status: ${state})`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Admin direct grant via the Explorer API. Bypasses the approval queue
+   * (caller is the admin). Returns the confirmed grant record.
+   */
+  async createGrant(
+    address: PublicKeyString,
+    amountAeko: number,
+    options: DirectGrantOptions,
+  ): Promise<unknown> {
+    const fetchImpl = options.fetchImpl ?? this.fetchImpl;
+    const base = options.explorerApiUrl.replace(/\/$/, '');
+    const res = await fetchImpl(`${base}/admin/funding/grant`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-aeko-settings-token': options.adminToken,
+      },
+      body: JSON.stringify({ address, amountAeko }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new AekoRpcError(`Direct grant failed (HTTP ${res.status}): ${body}`);
+    }
+    return res.json();
   }
 
   subscribeAccount(

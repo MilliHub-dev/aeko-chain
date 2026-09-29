@@ -183,7 +183,7 @@ test('funding runtime is owned by the Scan backend after the Admin gateway remov
   assert.match(fundingFeature, /reserve_public_funding_request/);
   assert.match(fundingFeature, /confirm_funding_request/);
   assert.match(fundingFeature, /create_funding_airdrop/);
-  assert.match(fundingFeature, /mainnet-disabled/);
+  assert.match(fundingFeature, /is_funding_available/);
   assert.doesNotMatch(fundingFeature, /finalize_funding_request/);
 });
 

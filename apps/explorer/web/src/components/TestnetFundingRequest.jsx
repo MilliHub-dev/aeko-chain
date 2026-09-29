@@ -110,6 +110,19 @@ export default function TestnetFundingRequest({ fundingUrl }) {
       const created = await requestFundingApproval(fundingUrl, address.trim());
       setRequest(created);
     } catch (error) {
+      // The wallet already has an in-flight request: adopt it and resume
+      // polling instead of dead-ending on REQUEST_PENDING.
+      const pendingId = error?.requestId;
+      if (error?.code === 'REQUEST_PENDING' && pendingId) {
+        try {
+          const existing = await getFundingRequestStatus(fundingUrl, pendingId);
+          setRequest(existing);
+          setRequestError('');
+          return;
+        } catch {
+          // Fall through to the original error below.
+        }
+      }
       setRequestError(error.message || String(error));
     } finally {
       setBusy(false);

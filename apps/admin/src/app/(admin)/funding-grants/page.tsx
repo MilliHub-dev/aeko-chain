@@ -451,9 +451,30 @@ export default function FundingGrantsPage() {
                         {requestBusy === request.id ? 'Checking…' : 'Check confirmation'}
                       </button>
                     ) : request.status === 'processing' ? (
-                      <span className="max-w-xs text-xs leading-5 text-amber-200">
-                        Submission response is unresolved. The backend safely replays only the persisted transaction intent; do not approve, reject, or manually resubmit it.
-                      </span>
+                      <div key={request.id} className="flex max-w-xs flex-col gap-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => decideRequest(request.id, 'reconcile')}
+                            disabled={Boolean(requestBusy)}
+                            className="min-h-[36px] rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
+                          >
+                            {requestBusy === request.id ? 'Retrying…' : 'Retry submission'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => decideRequest(request.id, 'reject')}
+                            disabled={Boolean(requestBusy)}
+                            className="min-h-[36px] rounded-lg border border-[#2b3048] px-3 text-xs text-gray-300 transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Cancel request
+                          </button>
+                        </div>
+                        <span className="text-xs leading-5 text-amber-200">
+                          Submission response was not obtained yet. Retrying safely replays only the persisted transaction intent; no second grant will be created. Cancelling first replays once and only releases the wallet when no signature exists.
+                          {request.errorMessage ? ` Detail: ${request.errorMessage}` : ''}
+                        </span>
+                      </div>
                     ) : (
                       <span className="max-w-xs text-xs leading-5 text-red-300">
                         Transfer failed on-chain. No grant was recorded.

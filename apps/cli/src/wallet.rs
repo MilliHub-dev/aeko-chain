@@ -1,8 +1,9 @@
 use {
     crate::{
         cli::{
-            log_instruction_custom_error, request_and_confirm_airdrop, CliCommand, CliCommandInfo,
-            CliConfig, CliError, ProcessResult,
+            log_instruction_custom_error, request_and_confirm_airdrop,
+            request_and_confirm_grant, CliCommand, CliCommandInfo, CliConfig, CliError,
+            ProcessResult,
         },
         compute_unit_price::WithComputeUnitPrice,
         memo::WithMemo,
@@ -94,7 +95,7 @@ impl WalletSubCommands for App<'_, '_> {
         )
         .subcommand(
             SubCommand::with_name("airdrop")
-                .about("Request AEKO from a faucet")
+                .about("Request instant AEKO airdrop from a faucet (no approval)")
                 .arg(
                     Arg::with_name("amount")
                         .index(1)
@@ -110,6 +111,99 @@ impl WalletSubCommands for App<'_, '_> {
                         .value_name("RECIPIENT_ADDRESS"),
                     "Account of airdrop recipient."
                 )),
+        )
+        .subcommand(
+            SubCommand::with_name("funding")
+                .about(
+                    "Request approval-gated testnet funding via the Explorer API. \
+                    Waits for admin approval unless --no-wait or interrupted. \
+                    Admin direct grants (--admin-token) bypass approval.",
+                )
+                .arg(
+                    Arg::with_name("amount")
+                        .index(1)
+                        .value_name("AMOUNT")
+                        .takes_value(true)
+                        .validator(is_amount)
+                        .required(true)
+                        .help("The funding amount to request, in AEKO"),
+                )
+                .arg(pubkey!(
+                    Arg::with_name("to")
+                        .index(2)
+                        .value_name("RECIPIENT_ADDRESS"),
+                    "Account of funding recipient."
+                ))
+                .arg(
+                    Arg::with_name("explorer_url")
+                        .long("explorer-url")
+                        .value_name("URL")
+                        .takes_value(true)
+                        .help(
+                            "Explorer API base URL for funding queue \
+                            [default: AEKO_EXPLORER_API_URL env or https://api.aeko.online]",
+                        ),
+                )
+                .arg(
+                    Arg::with_name("timeout")
+                        .long("timeout")
+                        .value_name("SECONDS")
+                        .takes_value(true)
+                        .default_value("300")
+                        .validator(is_parsable::<u64>)
+                        .help("Seconds to wait for admin approval before giving up"),
+                )
+                .arg(
+                    Arg::with_name("no_wait")
+                        .long("no-wait")
+                        .takes_value(false)
+                        .help("Submit the funding request and return immediately without waiting for approval"),
+                )
+                .arg(
+                    Arg::with_name("admin_token")
+                        .long("admin-token")
+                        .value_name("TOKEN")
+                        .takes_value(true)
+                        .help(
+                            "Admin settings token for direct grants (bypasses approval). \
+                            Falls back to AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN env.",
+                        ),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("grant")
+                .about(
+                    "Request a funding grant directly from the faucet via RPC (like airdrop). \
+                    Requires funding authorization when the validator enforces it; \
+                    public users should use `funding` (approval queue) instead. \
+                    Admin/settlement tooling holds the credential.",
+                )
+                .arg(
+                    Arg::with_name("amount")
+                        .index(1)
+                        .value_name("AMOUNT")
+                        .takes_value(true)
+                        .validator(is_amount)
+                        .required(true)
+                        .help("The grant amount to request, in AEKO"),
+                )
+                .arg(pubkey!(
+                    Arg::with_name("to")
+                        .index(2)
+                        .value_name("RECIPIENT_ADDRESS"),
+                    "Account of grant recipient."
+                ))
+                .arg(
+                    Arg::with_name("funding_authorization")
+                        .long("funding-authorization")
+                        .value_name("TOKEN")
+                        .takes_value(true)
+                        .help(
+                            "Server-side funding authorization credential for protected validators. \
+                            Falls back to AEKO_FUNDING_AUTHORIZATION_KEY env. \
+                            Not needed on local/open validators.",
+                        ),
+                ),
         )
         .subcommand(
             SubCommand::with_name("balance")
@@ -435,6 +529,75 @@ pub fn parse_airdrop(
     })
 }
 
+pub fn parse_funding(
+    matches: &ArgMatches<'_>,
+    default_signer: &DefaultSigner,
+    wallet_manager: &mut Option<Rc<RemoteWalletManager>>,
+) -> Result<CliCommandInfo, CliError> {
+    let pubkey = pubkey_of_signer(matches, "to", wallet_manager)?;
+    let signers = if pubkey.is_some() {
+        vec![]
+    } else {
+        vec![default_signer.signer_from_path(matches, wallet_manager)?]
+    };
+    let lamports = lamports_of_aeko(matches, "amount").unwrap();
+    let explorer_url = matches
+        .value_of("explorer_url")
+        .map(ToString::to_string)
+        .or_else(|| std::env::var("AEKO_EXPLORER_API_URL").ok().filter(|v| !v.is_empty()));
+    let timeout_secs: u64 = value_of(matches, "timeout").unwrap_or(300);
+    let no_wait = matches.is_present("no_wait");
+    let admin_token = matches
+        .value_of("admin_token")
+        .map(ToString::to_string)
+        .or_else(|| {
+            std::env::var("AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN")
+                .ok()
+                .filter(|v| !v.is_empty())
+        });
+    Ok(CliCommandInfo {
+        command: CliCommand::Funding {
+            pubkey,
+            lamports,
+            explorer_url,
+            timeout_secs,
+            no_wait,
+            admin_token,
+        },
+        signers,
+    })
+}
+
+pub fn parse_grant(
+    matches: &ArgMatches<'_>,
+    default_signer: &DefaultSigner,
+    wallet_manager: &mut Option<Rc<RemoteWalletManager>>,
+) -> Result<CliCommandInfo, CliError> {
+    let pubkey = pubkey_of_signer(matches, "to", wallet_manager)?;
+    let signers = if pubkey.is_some() {
+        vec![]
+    } else {
+        vec![default_signer.signer_from_path(matches, wallet_manager)?]
+    };
+    let lamports = lamports_of_aeko(matches, "amount").unwrap();
+    let funding_authorization = matches
+        .value_of("funding_authorization")
+        .map(ToString::to_string)
+        .or_else(|| {
+            std::env::var("AEKO_FUNDING_AUTHORIZATION_KEY")
+                .ok()
+                .filter(|v| !v.is_empty())
+        });
+    Ok(CliCommandInfo {
+        command: CliCommand::Grant {
+            pubkey,
+            lamports,
+            funding_authorization,
+        },
+        signers,
+    })
+}
+
 pub fn parse_balance(
     matches: &ArgMatches<'_>,
     default_signer: &DefaultSigner,
@@ -725,6 +888,269 @@ pub fn process_airdrop(
         }
     } else {
         log_instruction_custom_error::<SystemError>(result, config)
+    }
+}
+
+pub fn process_grant(
+    rpc_client: &RpcClient,
+    config: &CliConfig,
+    pubkey: &Option<Pubkey>,
+    lamports: u64,
+    funding_authorization: &Option<String>,
+) -> ProcessResult {
+    let pubkey = if let Some(pubkey) = pubkey {
+        *pubkey
+    } else {
+        config.pubkey()?
+    };
+    println!(
+        "Requesting grant of {}",
+        build_balance_message(lamports, false, true),
+    );
+
+    let pre_balance = rpc_client.get_balance(&pubkey)?;
+
+    let result = request_and_confirm_grant(
+        rpc_client,
+        config,
+        &pubkey,
+        lamports,
+        funding_authorization.clone(),
+    );
+    if let Ok(signature) = result {
+        let signature_cli_message = log_instruction_custom_error::<SystemError>(result, config)?;
+        println!("{signature_cli_message}");
+
+        let current_balance = rpc_client.get_balance(&pubkey)?;
+
+        if current_balance < pre_balance.saturating_add(lamports) {
+            println!("Balance unchanged");
+            println!("Run `aeko confirm -v {signature:?}` for more info");
+            Ok("".to_string())
+        } else {
+            Ok(build_balance_message(current_balance, false, true))
+        }
+    } else {
+        log_instruction_custom_error::<SystemError>(result, config)
+    }
+}
+
+fn resolve_funding_base_url(explorer_url: &Option<String>) -> String {
+    let base = explorer_url
+        .clone()
+        .or_else(|| std::env::var("AEKO_EXPLORER_API_URL").ok().filter(|v| !v.is_empty()))
+        .unwrap_or_else(|| "https://api.aeko.online".to_string());
+    base.trim_end_matches('/').to_string()
+}
+
+fn explorer_error_message(body: &str) -> String {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| {
+            v.pointer("/error/message")
+                .and_then(|m| m.as_str())
+                .map(ToString::to_string)
+                .or_else(|| {
+                    v.pointer("/error/code")
+                        .and_then(|c| c.as_str())
+                        .map(|c| format!("Explorer funding error: {c}"))
+                })
+        })
+        .unwrap_or_else(|| format!("Explorer funding error: {body}"))
+}
+
+/// Extracts the in-flight request id from a REQUEST_PENDING rejection body,
+/// so callers can adopt and poll the existing request instead of dead-ending.
+fn explorer_pending_request_id(body: &str) -> Option<String> {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| {
+            let code = v.pointer("/error/code").and_then(|c| c.as_str())?;
+            if code != "REQUEST_PENDING" {
+                return None;
+            }
+            v.pointer("/error/requestId")
+                .and_then(|s| s.as_str())
+                .map(ToString::to_string)
+        })
+        .filter(|s| !s.is_empty())
+}
+
+/// Approval-gated funding via the Explorer API.
+///
+/// * Without an admin token: submits `POST /funding/request`, then polls
+///   `GET /funding/request/:id` until `confirmed` (success), `failed`/`rejected`
+///   (error), or `timeout_secs` elapses. `--no-wait` returns after submission.
+///   Interrupt with Ctrl-C; the pending request stays in the queue.
+/// * With an admin token (`--admin-token` or `AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN`):
+///   submits `POST /admin/funding/grant` directly with no approval wait.
+#[allow(clippy::too_many_arguments)]
+pub fn process_funding(
+    rpc_client: &RpcClient,
+    config: &CliConfig,
+    pubkey: &Option<Pubkey>,
+    lamports: u64,
+    explorer_url: Option<String>,
+    timeout_secs: u64,
+    no_wait: bool,
+    admin_token: Option<String>,
+) -> ProcessResult {
+    use aeko_sdk::native_token::LAMPORTS_PER_AEKO;
+
+    let pubkey = if let Some(pubkey) = pubkey {
+        *pubkey
+    } else {
+        config.pubkey()?
+    };
+    let base = resolve_funding_base_url(&explorer_url);
+    let amount_aeko = lamports as f64 / LAMPORTS_PER_AEKO as f64;
+    let http = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("failed to build funding HTTP client: {e}"))?;
+
+    if let Some(token) = admin_token.filter(|t| !t.is_empty()) {
+        println!(
+            "Submitting direct admin grant of {} to {} (no approval)",
+            build_balance_message(lamports, false, true),
+            pubkey,
+        );
+        let res = http
+            .post(format!("{base}/admin/funding/grant"))
+            .header("x-aeko-settings-token", token)
+            .header("content-type", "application/json")
+            .body(
+                serde_json::json!({"address": pubkey.to_string(), "amountAeko": amount_aeko})
+                    .to_string(),
+            )
+            .send()
+            .map_err(|e| format!("admin grant submission failed: {e}"))?;
+        let status = res.status();
+        let body = res.text().unwrap_or_default();
+        if !status.is_success() {
+            return Err(explorer_error_message(&body).into());
+        }
+        let signature = serde_json::from_str::<serde_json::Value>(&body)
+            .ok()
+            .and_then(|v| {
+                v.pointer("/data/signature")
+                    .and_then(|s| s.as_str())
+                    .map(ToString::to_string)
+            })
+            .filter(|s| !s.is_empty());
+        if let Some(sig) = signature {
+            println!("Grant signature: {sig}");
+        }
+        let current_balance = rpc_client.get_balance(&pubkey)?;
+        return Ok(build_balance_message(current_balance, false, true));
+    }
+
+    println!(
+        "Requesting funding of {} to {} (waiting for admin approval)",
+        build_balance_message(lamports, false, true),
+        pubkey,
+    );
+    let res = http
+        .post(format!("{base}/funding/request"))
+        .header("content-type", "application/json")
+        .body(serde_json::json!({"address": pubkey.to_string()}).to_string())
+        .send()
+        .map_err(|e| format!("funding request submission failed: {e}. Is the Explorer API reachable at {base}?"))?;
+    let status = res.status();
+    let body = res.text().unwrap_or_default();
+    if !status.is_success() {
+        // The wallet already has an in-flight request: adopt it and poll it
+        // instead of dead-ending on REQUEST_PENDING.
+        if let Some(pending_id) = explorer_pending_request_id(&body) {
+            println!("Found in-flight funding request {pending_id}; resuming wait for admin approval...");
+            if no_wait {
+                return Ok(format!("Funding request {pending_id} already pending approval"));
+            }
+            println!("(Press Ctrl-C to stop waiting; the request stays pending for admin review)");
+            return poll_funding_request(&http, &base, rpc_client, &pubkey, &pending_id, timeout_secs);
+        }
+        return Err(explorer_error_message(&body).into());
+    }
+    let request_id = serde_json::from_str::<serde_json::Value>(&body)
+        .ok()
+        .and_then(|v| {
+            v.pointer("/data/id")
+                .and_then(|s| s.as_str())
+                .map(ToString::to_string)
+        })
+        .ok_or_else(|| {
+            CliError::BadParameter(
+                "funding request succeeded but returned no request id".to_string(),
+            )
+        })?;
+    println!("Funding request {request_id} submitted. Waiting for admin approval...");
+    if no_wait {
+        return Ok(format!("Funding request {request_id} submitted (pending approval)"));
+    }
+    println!("(Press Ctrl-C to stop waiting; the request stays pending for admin review)");
+
+    poll_funding_request(&http, &base, rpc_client, &pubkey, &request_id, timeout_secs)
+}
+
+/// Polls `GET {base}/funding/request/{request_id}` until the request reaches
+/// a terminal state (`confirmed`/`rejected`/`failed`), the timeout elapses,
+/// or the user interrupts with Ctrl-C.
+fn poll_funding_request(
+    http: &reqwest::blocking::Client,
+    base: &str,
+    rpc_client: &RpcClient,
+    pubkey: &Pubkey,
+    request_id: &str,
+    timeout_secs: u64,
+) -> ProcessResult {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs.max(1));
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(4));
+        let res = http
+            .get(format!("{base}/funding/request/{request_id}"))
+            .send()
+            .map_err(|e| format!("funding status poll failed: {e}"))?;
+        let status = res.status();
+        let body = res.text().unwrap_or_default();
+        if !status.is_success() {
+            return Err(explorer_error_message(&body).into());
+        }
+        let data: serde_json::Value =
+            serde_json::from_str(&body).map_err(|e| format!("invalid funding status: {e}"))?;
+        let req_status = data
+            .pointer("/data/status")
+            .and_then(|s| s.as_str())
+            .unwrap_or("unknown");
+        match req_status {
+            "confirmed" => {
+                let sig = data
+                    .pointer("/data/signature")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("");
+                if !sig.is_empty() {
+                    println!("Funding approved. Signature: {sig}");
+                } else {
+                    println!("Funding approved and confirmed.");
+                }
+                let current_balance = rpc_client.get_balance(&pubkey)?;
+                return Ok(build_balance_message(current_balance, false, true));
+            }
+            "rejected" | "failed" => {
+                let detail = data
+                    .pointer("/data/errorCode")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or(req_status);
+                return Err(format!("Funding request {request_id} ended with status {req_status} ({detail})").into());
+            }
+            _ => {
+                if std::time::Instant::now() >= deadline {
+                    return Err(format!(
+                        "Timed out after {timeout_secs}s waiting for admin approval of {request_id} (last status: {req_status}). Re-run without --no-wait to keep waiting."
+                    )
+                    .into());
+                }
+            }
+        }
     }
 }
 

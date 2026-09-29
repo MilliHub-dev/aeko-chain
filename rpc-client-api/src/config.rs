@@ -54,8 +54,21 @@ pub struct RpcRequestAirdropConfig {
     pub recent_blockhash: Option<String>, // base-58 encoded blockhash
     #[serde(flatten)]
     pub commitment: Option<CommitmentConfig>,
-    /// Optional server-to-server credential for policy-controlled testnet funding.
-    /// Public deployments may require this; local/test validators leave it unset.
+    /// Optional server-to-server credential. Kept for backward compatibility:
+    /// `requestAirdrop` is the instant developer path and ignores it, while
+    /// `requestGrant` (approval-gated funding) requires it when the validator
+    /// configures `funding_authorization_key`.
+    pub funding_authorization: Option<String>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcRequestGrantConfig {
+    pub recent_blockhash: Option<String>, // base-58 encoded blockhash
+    #[serde(flatten)]
+    pub commitment: Option<CommitmentConfig>,
+    /// Server-side credential for approval-gated testnet funding grants.
+    /// Required when the validator sets `funding_authorization_key`.
     pub funding_authorization: Option<String>,
 }
 

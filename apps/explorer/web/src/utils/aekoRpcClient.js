@@ -1,4 +1,4 @@
-import { getTestNetworkConfig, isLocalNetworkConfig } from './networkConfig.js';
+import { getTestNetworkConfig, isLocalNetworkConfig, NETWORKS } from './networkConfig.js';
 
 // Thin JSON-RPC client for the AEKO testnet validator.
 //
@@ -113,7 +113,14 @@ async function readFundingResponse(response, label) {
   }
   const body = await response.json();
   if (!response.ok || !body?.data) {
-    throw new Error(body?.error?.message || `${label} failed with HTTP ${response.status}`);
+    const error = new Error(body?.error?.message || `${label} failed with HTTP ${response.status}`);
+    // Preserve machine-readable fields so callers can resume: a
+    // REQUEST_PENDING rejection carries the existing request id, letting the
+    // UI poll the in-flight request instead of dead-ending.
+    error.code = body?.error?.code;
+    error.requestId = body?.error?.requestId ?? body?.error?.request_id ?? null;
+    error.status = response.status;
+    throw error;
   }
   return body.data;
 }
@@ -156,7 +163,10 @@ export async function requestConsoleAirdrop(fundingUrl, address, amountAeko) {
 }
 
 export async function requestTestnetFunding(rpcUrl, address, lamports) {
-  const config = getTestNetworkConfig();
+  const wanted = normalizedUrl(rpcUrl);
+  const config = Object.values(NETWORKS).find(
+    (entry) => entry?.available && entry?.fundingUrl && normalizedUrl(entry.rpcUrl) === wanted,
+  ) ?? getTestNetworkConfig();
   if (
     !config.available
     || !config.fundingUrl

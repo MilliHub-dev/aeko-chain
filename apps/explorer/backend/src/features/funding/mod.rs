@@ -460,7 +460,7 @@ pub fn router() -> Router<SharedState> {
 async fn get_policy(
     State(state): State<SharedState>,
 ) -> FundingResult<Json<DataEnvelope<FundingPolicyView>>> {
-    ensure_test_environment(&state)?;
+    ensure_funding_available(&state)?;
     let snapshot = state
         .repository
         .funding_policy_snapshot()
@@ -496,7 +496,7 @@ async fn create_request(
     headers: HeaderMap,
     Json(body): Json<FundingRequestBody>,
 ) -> FundingResult<(StatusCode, Json<DataEnvelope<FundingRequestView>>)> {
-    ensure_test_environment(&state)?;
+    ensure_funding_available(&state)?;
     let address = validate_address(&body.address)?;
     apply_rate_limit(&state, &headers, "public-request-origin").await?;
     apply_subject_rate_limit(&state, "public-request-wallet", &address).await?;
@@ -514,7 +514,7 @@ async fn get_public_request_status(
     State(state): State<SharedState>,
     Path(id): Path<String>,
 ) -> FundingResult<Json<DataEnvelope<PublicFundingRequestStatusView>>> {
-    ensure_test_environment(&state)?;
+    ensure_funding_available(&state)?;
     let request = state
         .repository
         .funding_request(&id)
@@ -535,7 +535,7 @@ async fn create_airdrop(
     headers: HeaderMap,
     Json(body): Json<DirectGrantBody>,
 ) -> FundingResult<Json<DataEnvelope<FundingAirdropView>>> {
-    ensure_test_environment(&state)?;
+    ensure_funding_available(&state)?;
     let address = validate_address(&body.address)?;
     apply_rate_limit(&state, &headers, "console-airdrop-origin").await?;
     apply_subject_rate_limit(&state, "console-airdrop-wallet", &address).await?;
@@ -565,22 +565,10 @@ async fn get_admin_settings(
     headers: HeaderMap,
 ) -> FundingResult<Json<DataEnvelope<AdminFundingSnapshot>>> {
     authorize_admin(&headers, &state.settings_admin_token)?;
-    if !state.is_test_environment() {
-        return Ok(response::data_from_source(
-            &state.network,
-            AdminFundingSnapshot {
-                network: state.network.clone(),
-                mode: "mainnet-disabled",
-                settings: None,
-                daily_remaining_aeko: None,
-                public_spent_aeko: None,
-                public_reserved_aeko: None,
-                console_airdrop_aggregate_unlimited: false,
-                faucet_per_request_cap_aeko: None,
-            },
-            "funding-policy",
-        ));
-    }
+    // Funding is network-agnostic: every deployment serves the same funding
+    // contract. The `mode` stays `test-funding` on all networks; each
+    // deployment constrains itself through its own faucet, credential, caps,
+    // budgets, and approval queue.
     let snapshot = state
         .repository
         .funding_policy_snapshot()
@@ -612,7 +600,7 @@ async fn update_admin_settings(
     Json(patch): Json<FundingSettingsPatch>,
 ) -> FundingResult<Json<DataEnvelope<AdminFundingSnapshot>>> {
     authorize_admin(&headers, &state.settings_admin_token)?;
-    ensure_test_environment(&state)?;
+    ensure_funding_available(&state)?;
     patch.validate(state.faucet_per_request_cap_aeko)?;
     let expected_revision = i64::try_from(patch.expected_revision).map_err(|_| {
         FundingHttpError::new(
@@ -634,7 +622,7 @@ async fn list_requests(
     Query(query): Query<ListQuery>,
 ) -> FundingResult<Json<DataEnvelope<Vec<FundingRequestView>>>> {
     authorize_admin(&headers, &state.settings_admin_token)?;
-    ensure_test_environment(&state)?;
+    ensure_funding_available(&state)?;
     let limit = query.limit.unwrap_or(100).clamp(1, 500);
     let requests = state
         .repository
@@ -656,7 +644,7 @@ async fn get_request(
     Path(id): Path<String>,
 ) -> FundingResult<Json<DataEnvelope<FundingRequestView>>> {
     authorize_admin(&headers, &state.settings_admin_token)?;
-    ensure_test_environment(&state)?;
+    ensure_funding_available(&state)?;
     let request = state
         .repository
         .funding_request(&id)
@@ -676,13 +664,35 @@ async fn decide_request(
     Json(body): Json<FundingDecisionBody>,
 ) -> FundingResult<Json<DataEnvelope<FundingRequestView>>> {
     authorize_admin(&headers, &state.settings_admin_token)?;
-    ensure_test_environment(&state)?;
+    ensure_funding_available(&state)?;
 
     if !body.approved {
-        let request = state
+        let existing = state
             .repository
-            .reject_funding_request(&id, Some("OPERATOR_REJECTED"), Some("Rejected by Admin"))
-            .await?;
+            .funding_request(&id)
+            .await?
+            .ok_or_else(|| FundingHttpError::from(FundingStoreError::RequestNotFound))?;
+        let request = match existing.status.as_str() {
+            "pending" => {
+                state
+                    .repository
+                    .reject_funding_request(&id, Some("OPERATOR_REJECTED"), Some("Rejected by Admin"))
+                    .await?
+            }
+            // A stuck approval (submission never produced a durable
+            // signature) can be cancelled: one safe replay runs first, and
+            // only if no signature exists afterwards is the wallet released.
+            // This unblocks the wallet from REQUEST_PENDING so the user can
+            // submit a fresh request.
+            "processing" => cancel_stuck_grant(&state, existing).await?,
+            status => {
+                return Err(FundingHttpError::from(
+                    FundingStoreError::RequestAlreadyDecided {
+                        status: status.to_string(),
+                    },
+                ))
+            }
+        };
         return Ok(response::data_from_source(
             &state.network,
             request.into(),
@@ -704,11 +714,12 @@ async fn decide_request(
         "submitted" => observe_grant(&state, existing).await?,
         "confirmed" => existing,
         "processing" => {
-            return Err(FundingHttpError::new(
-                StatusCode::CONFLICT,
-                "FUNDING_SUBMISSION_UNCERTAIN",
-                "This grant is already being submitted and has no durable transaction signature yet. Do not submit it again; investigate the original RPC attempt.",
-            ))
+            // Safe retry: the persisted blockhash intent is replayed verbatim
+            // (same destination/amount/authorization/blockhash) so the faucet
+            // recovers the same signature; no second grant is created. This
+            // lets an admin re-drive an approval whose RPC response was lost
+            // instead of wedging on FUNDING_SUBMISSION_UNCERTAIN.
+            submit_and_observe_grant(&state, existing).await?
         }
         status => {
             return Err(FundingHttpError::from(
@@ -726,19 +737,101 @@ async fn decide_request(
     ))
 }
 
+/// Cancels a stuck approval whose submission never produced a durable
+/// transaction signature. Runs one safe replay of the persisted intent
+/// first: if the replay recovers a signature (or confirms), the request
+/// follows its on-chain outcome instead of being cancelled. Only when no
+/// signature exists afterwards is the request released to `rejected`, which
+/// frees the wallet from REQUEST_PENDING so a fresh request can be made.
+async fn cancel_stuck_grant(
+    state: &SharedState,
+    request: FundingRequestRecord,
+) -> FundingResult<FundingRequestRecord> {
+    let request_id = request.id.clone();
+    match submit_and_observe_grant(state, request).await {
+        Ok(settled) => {
+            if settled.status == "confirmed" {
+                tracing::info!(
+                    request_id = %request_id,
+                    "cancel recovered a confirmed grant; keeping the confirmation"
+                );
+                return Ok(settled);
+            }
+            Err(FundingHttpError::new(
+                StatusCode::CONFLICT,
+                "FUNDING_SUBMISSION_RECOVERED",
+                format!(
+                    "The replay recovered a durable transaction signature for {request_id}; \
+                    the transfer may still confirm on-chain, so it cannot be cancelled. \
+                    Track it to confirmation instead."
+                ),
+            ))
+        }
+        Err(error) => {
+            let current = state
+                .repository
+                .funding_request(&request_id)
+                .await?
+                .ok_or_else(|| FundingHttpError::from(FundingStoreError::RequestNotFound))?;
+            match current.status.as_str() {
+                "pending" => Ok(state
+                    .repository
+                    .reject_funding_request(
+                        &request_id,
+                        Some("OPERATOR_CANCELLED"),
+                        Some("Cancelled by Admin after submission produced no durable signature"),
+                    )
+                    .await?),
+                "processing" => {
+                    if current.signature.is_some() {
+                        return Err(FundingHttpError::new(
+                            StatusCode::CONFLICT,
+                            "FUNDING_SUBMISSION_RECOVERED",
+                            format!(
+                                "The replay recovered a durable transaction signature for {request_id}; \
+                                the transfer may still confirm on-chain, so it cannot be cancelled. \
+                                Track it to confirmation instead."
+                            ),
+                        ));
+                    }
+                    tracing::warn!(
+                        request_id = %request_id,
+                        previous_error = %error.message,
+                        "cancelling stuck grant submission that produced no durable signature"
+                    );
+                    Ok(state
+                        .repository
+                        .cancel_processing_funding_request(
+                            &request_id,
+                            Some("OPERATOR_CANCELLED"),
+                            Some("Cancelled by Admin after submission produced no durable signature"),
+                        )
+                        .await?)
+                }
+                status => Err(FundingHttpError::from(
+                    FundingStoreError::RequestAlreadyDecided {
+                        status: status.to_string(),
+                    },
+                )),
+            }
+        }
+    }
+}
+
 async fn reconcile_request(
     State(state): State<SharedState>,
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> FundingResult<Json<DataEnvelope<FundingRequestView>>> {
     authorize_admin(&headers, &state.settings_admin_token)?;
-    ensure_test_environment(&state)?;
+    ensure_funding_available(&state)?;
     let request = state
         .repository
         .funding_request(&id)
         .await?
         .ok_or_else(|| FundingHttpError::from(FundingStoreError::RequestNotFound))?;
     let reconciled = match request.status.as_str() {
+        "processing" => submit_and_observe_grant(&state, request).await?,
         "submitted" => observe_grant(&state, request).await?,
         "confirmed" => request,
         status => {
@@ -762,7 +855,7 @@ async fn list_grants(
     Query(query): Query<ListQuery>,
 ) -> FundingResult<Json<DataEnvelope<Vec<FundingGrantView>>>> {
     authorize_admin(&headers, &state.settings_admin_token)?;
-    ensure_test_environment(&state)?;
+    ensure_funding_available(&state)?;
     let limit = query.limit.unwrap_or(100).clamp(1, 500);
     let grants = state
         .repository
@@ -784,7 +877,7 @@ async fn create_grant(
     Json(body): Json<DirectGrantBody>,
 ) -> FundingResult<Json<DataEnvelope<FundingRequestView>>> {
     authorize_admin(&headers, &state.settings_admin_token)?;
-    ensure_test_environment(&state)?;
+    ensure_funding_available(&state)?;
     let address = validate_address(&body.address)?;
     let settings = state
         .repository
@@ -813,7 +906,7 @@ async fn list_airdrops(
     Query(query): Query<ListQuery>,
 ) -> FundingResult<Json<DataEnvelope<Vec<FundingAirdropView>>>> {
     authorize_admin(&headers, &state.settings_admin_token)?;
-    ensure_test_environment(&state)?;
+    ensure_funding_available(&state)?;
     let limit = query.limit.unwrap_or(100).clamp(1, 500);
     let airdrops = state
         .repository
@@ -922,7 +1015,7 @@ async fn submit_and_observe_grant(
     let authorization = state.funding_authorization_key.clone();
     let submit_blockhash = blockhash.clone();
     let submit = tokio::task::spawn_blocking(move || {
-        rpc.request_funding_airdrop(
+        rpc.request_funding_grant(
             &address,
             lamports,
             authorization.as_deref(),
@@ -950,7 +1043,9 @@ async fn submit_and_observe_grant(
             return Err(FundingHttpError::new(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "FUNDING_SUBMISSION_RETRY_PENDING",
-                "The grant submission did not produce a durable transaction signature. The backend will safely replay the same persisted transaction intent; no second grant will be created.",
+                format!(
+                    "The grant submission response was not obtained ({error}). The persisted transaction intent was kept and will be safely replayed with the same blockhash; no second grant will be created. Wait a few seconds then call reconcile, or wait for the background reconciler."
+                ),
             ));
         }
         Err(error) => {
@@ -965,7 +1060,9 @@ async fn submit_and_observe_grant(
             return Err(FundingHttpError::new(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "FUNDING_SUBMISSION_RETRY_PENDING",
-                "The grant submission worker ended unexpectedly. The backend will safely replay the same persisted transaction intent.",
+                format!(
+                    "The grant submission worker ended unexpectedly ({error}). The persisted transaction intent was kept and will be safely replayed; no second grant will be created. Reconcile the request to resume."
+                ),
             ));
         }
     };
@@ -1270,7 +1367,7 @@ async fn observe_airdrop(
 }
 
 pub async fn run_settlement_reconciler(state: SharedState, interval: Duration) {
-    if !state.is_test_environment() {
+    if !state.is_funding_available() {
         return;
     }
 
@@ -1291,7 +1388,7 @@ pub async fn run_settlement_reconciler(state: SharedState, interval: Duration) {
 }
 
 pub async fn reconcile_submitted_settlements_once(state: &SharedState) -> usize {
-    if !state.is_test_environment() {
+    if !state.is_funding_available() {
         return 0;
     }
 
@@ -1404,7 +1501,7 @@ async fn recover_processing_grant_submission(
     let authorization = state.funding_authorization_key.clone();
     let submit_blockhash = blockhash.clone();
     let result = tokio::task::spawn_blocking(move || {
-        rpc.request_funding_airdrop(
+        rpc.request_funding_grant(
             &address,
             lamports,
             authorization.as_deref(),
@@ -1764,16 +1861,12 @@ fn requester_subject(headers: &HeaderMap) -> String {
     "unknown".to_string()
 }
 
-fn ensure_test_environment(state: &SharedState) -> FundingResult<()> {
-    if state.is_test_environment() {
-        Ok(())
-    } else {
-        Err(FundingHttpError::new(
-            StatusCode::NOT_FOUND,
-            "FUNDING_NOT_AVAILABLE",
-            "Faucet funding is not available on mainnet; mainnet distributions use governed treasury/grant allocation",
-        ))
-    }
+fn ensure_funding_available(_state: &SharedState) -> FundingResult<()> {
+    // Funding, grants, and airdrops unconditionally work on every deployment.
+    // The flow never branches on the network name; each deployment constrains
+    // itself through its own faucet balance, authorization credential, caps,
+    // budgets, and approval queue.
+    Ok(())
 }
 
 fn authorize_admin(headers: &HeaderMap, expected: &str) -> FundingResult<()> {

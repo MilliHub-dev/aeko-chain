@@ -26,7 +26,7 @@ const NETWORK_PRESENTATION = Object.freeze({
     stateLabel: 'Production network',
     explorerSummary: 'Browse confirmed Mainnet blocks, transactions, assets, accounts, and social activity.',
     developerSummary: 'Developer commands on this page target the selected Mainnet deployment.',
-    fundingSummary: 'Mainnet does not provide test funding.',
+    fundingSummary: 'Funding, grants, and airdrops are available through the funding request below.',
   }),
   testnet: Object.freeze({
     name: 'Testnet',
@@ -93,7 +93,10 @@ const runtimeNetworks =
   runtime.networks && typeof runtime.networks === 'object' ? runtime.networks : {};
 
 const configured = {
-  mainnet: validateNetwork('Mainnet', normalizeNetwork(runtimeNetworks.mainnet)),
+  mainnet: validateNetwork(
+    'Mainnet',
+    normalizeNetwork(runtimeNetworks.mainnet, { funding: true }),
+  ),
   testnet: validateNetwork(
     'Testnet',
     normalizeNetwork(runtimeNetworks.testnet, { funding: true }),
@@ -142,7 +145,7 @@ function networkRecord(network) {
   const value = state.value;
   const isMainnet = network === 'mainnet';
   const isTestnet = network === 'testnet';
-  const fundingUrl = isTestnet
+  const fundingUrl = (isTestnet || isMainnet)
     ? value.fundingUrl || value.explorerApiUrl || ''
     : '';
 
@@ -156,11 +159,9 @@ function networkRecord(network) {
     explorerApiUrl: value.explorerApiUrl || '',
     explorerLabel: 'Open Aeko Scan',
     fundingUrl,
-    fundingLabel: isMainnet
-      ? 'Not available on Mainnet'
-      : isTestnet
-        ? 'Request test AEKO below'
-        : 'Development funding only',
+    fundingLabel: (isMainnet || isTestnet)
+      ? 'Request AEKO below'
+      : 'Development funding only',
     fundingEnabled: Boolean(fundingUrl),
     cliCluster: value.rpcUrl || '',
     isActiveEnvironment: network === activeNetwork,

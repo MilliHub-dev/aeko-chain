@@ -5059,12 +5059,100 @@ impl RpcClient {
                 ClientErrorKind::Custom(format!("signature deserialization failed: {err}")).into()
             })
         })
-        .map_err(|_| {
-            RpcError::ForUser(
-                "airdrop request failed. \
-                    This can happen when the rate limit is reached."
-                    .to_string(),
-            )
+        .map_err(|err| {
+            RpcError::ForUser(format!(
+                "airdrop request failed ({err}). \
+                    This can happen when the rate limit is reached, the faucet has no funds, \
+                    or the RPC has no faucet configured."
+            ))
+            .into()
+        })
+    }
+
+    /// Instant developer airdrop is handled by `request_airdrop*` above.
+    ///
+    /// Approval-gated funding grants use `request_grant*` below: the caller must
+    /// have obtained admin approval (Explorer `/funding/request` poll loop or
+    /// admin direct `/admin/funding/grant`) before submitting, except when the
+    /// caller itself is the admin direct-grant path which bypasses approval.
+    pub async fn request_grant(&self, pubkey: &Pubkey, lamports: u64) -> ClientResult<Signature> {
+        self.request_grant_with_config(
+            pubkey,
+            lamports,
+            RpcRequestGrantConfig {
+                commitment: Some(self.commitment()),
+                ..RpcRequestGrantConfig::default()
+            },
+        )
+        .await
+    }
+
+    pub async fn request_grant_with_blockhash(
+        &self,
+        pubkey: &Pubkey,
+        lamports: u64,
+        recent_blockhash: &Hash,
+    ) -> ClientResult<Signature> {
+        self.request_grant_with_config(
+            pubkey,
+            lamports,
+            RpcRequestGrantConfig {
+                commitment: Some(self.commitment()),
+                recent_blockhash: Some(recent_blockhash.to_string()),
+                ..RpcRequestGrantConfig::default()
+            },
+        )
+        .await
+    }
+
+    pub async fn request_grant_with_authorization(
+        &self,
+        pubkey: &Pubkey,
+        lamports: u64,
+        recent_blockhash: &Hash,
+        funding_authorization: Option<String>,
+    ) -> ClientResult<Signature> {
+        self.request_grant_with_config(
+            pubkey,
+            lamports,
+            RpcRequestGrantConfig {
+                commitment: Some(self.commitment()),
+                recent_blockhash: Some(recent_blockhash.to_string()),
+                funding_authorization,
+            },
+        )
+        .await
+    }
+
+    pub async fn request_grant_with_config(
+        &self,
+        pubkey: &Pubkey,
+        lamports: u64,
+        config: RpcRequestGrantConfig,
+    ) -> ClientResult<Signature> {
+        let commitment = config.commitment.unwrap_or_default();
+        let commitment = self.maybe_map_commitment(commitment).await?;
+        let config = RpcRequestGrantConfig {
+            commitment: Some(commitment),
+            ..config
+        };
+        self.send(
+            RpcRequest::RequestGrant,
+            json!([pubkey.to_string(), lamports, config]),
+        )
+        .await
+        .and_then(|signature: String| {
+            Signature::from_str(&signature).map_err(|err| {
+                ClientErrorKind::Custom(format!("signature deserialization failed: {err}")).into()
+            })
+        })
+        .map_err(|err| {
+            RpcError::ForUser(format!(
+                "grant request failed ({err}). \
+                    Grants require admin approval unless submitted with funding authorization \
+                    by the trusted settlement service; the persisted intent is safely replayable \
+                    and no second grant will be created."
+            ))
             .into()
         })
     }
