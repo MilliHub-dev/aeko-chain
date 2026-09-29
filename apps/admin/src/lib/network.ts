@@ -28,5 +28,10 @@ export function resolveAdminRpcUrl(): string {
 }
 
 export function resolveAdminExplorerUrl(): string {
-  return clean('AEKO_EXPLORER_API_URL') || HARDCODED_LOCAL_EXPLORER
+  return clean('AEKO_EXPLORER_UPSTREAM_URL') || clean('AEKO_EXPLORER_API_URL') || HARDCODED_LOCAL_EXPLORER
+}
+
+export function resolveAdminExplorerTimeoutMs(): number {
+  const configured = Number(clean('AEKO_EXPLORER_PROXY_TIMEOUT_MS'))
+  return Number.isFinite(configured) && configured >= 1_000 ? configured : 45_000
 }
