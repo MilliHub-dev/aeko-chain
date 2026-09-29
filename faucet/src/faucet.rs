@@ -538,7 +538,10 @@ async fn process(
         }
 
         if looks_like_tls_handshake(&request) {
-            debug!("Rejected TLS-like traffic on faucet TCP listener from {:?}", peer);
+            debug!(
+                "Rejected TLS-like traffic on faucet TCP listener from {:?}",
+                peer
+            );
             return Ok(());
         }
 
@@ -549,7 +552,10 @@ async fn process(
         if let Some(variant) = faucet_request_discriminant(&request)
             .filter(|variant| *variant >= FAUCET_REQUEST_VARIANTS)
         {
-            debug!("Rejected unknown faucet variant {} from {:?}", variant, peer);
+            debug!(
+                "Rejected unknown faucet variant {} from {:?}",
+                variant, peer
+            );
             let _ = stream.write_all(&ERROR_RESPONSE).await;
             return Ok(());
         }
@@ -564,7 +570,11 @@ async fn process(
                     let ip = peer_addr.ip();
                     debug!("Request IP: {:?}", ip);
 
-                    match faucet.lock().unwrap().process_faucet_request(&request, ip) {
+                    // Evaluate the faucet request while holding the lock, but
+                    // release the guard before any await below: holding a std
+                    // MutexGuard across `.await` is not Send-safe.
+                    let result = faucet.lock().unwrap().process_faucet_request(&request, ip);
+                    match result {
                         Ok(response_bytes) => {
                             trace!("Faucet response_bytes: {:?}", response_bytes);
                             response_bytes
@@ -574,7 +584,7 @@ async fn process(
                             // a legitimate faucet request: log at debug and
                             // close the connection instead of spinning on it.
                             debug!("Error in request from {:?}: {}", ip, e);
-                            let _ = stream.write_all(&ERROR_RESPONSE).await;
+                            stream.write_all(&ERROR_RESPONSE).await?;
                             return Ok(());
                         }
                     }
@@ -883,7 +893,10 @@ mod tests {
         LittleEndian::write_u32(&mut unknown, FAUCET_REQUEST_VARIANTS);
         assert!(!looks_like_tls_handshake(&unknown));
         assert!(!looks_like_http_request(&unknown));
-        assert_eq!(faucet_request_discriminant(&unknown), Some(FAUCET_REQUEST_VARIANTS));
+        assert_eq!(
+            faucet_request_discriminant(&unknown),
+            Some(FAUCET_REQUEST_VARIANTS)
+        );
         let keypair = Keypair::new();
         let mut faucet = Faucet::new(keypair, None, None, None);
         let ip = socketaddr!([203, 0, 113, 1], 1234).ip();
