@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import DataTable from '@/components/data-table'
 import FeedbackAlert from '@/components/feedback-alert'
 import SectionTabs from '@/components/section-tabs'
@@ -77,148 +78,161 @@ const inputClass =
 async function readJson(response: Response) {
   const payload = await response.json().catch(() => null)
   if (!payload) {
-    throw new Error(`Funding control plane returned HTTP ${response.status} without JSON`)
+    const error = new Error(`Funding control plane returned HTTP ${response.status} without JSON`) as Error & { status?: number }
+    error.status = response.status
+    throw error
   }
   if (!response.ok) {
-    throw new Error(payload.error?.message ?? `Funding request failed with HTTP ${response.status}`)
+    const error = new Error(payload.error?.message ?? `Funding request failed with HTTP ${response.status}`) as Error & { status?: number }
+    error.status = response.status
+    throw error
   }
   return payload
 }
 
+async function adminJson(path: string, init: RequestInit = {}) {
+  return readJson(await fetch(path, { cache: 'no-store', ...init }))
+}
+
 export default function FundingGrantsPage() {
-  const [snapshot, setSnapshot] = useState<FundingSnapshot | null>(null)
-  const [settings, setSettings] = useState<Settings | null>(null)
+  const queryClient = useQueryClient()
+  const toast = useToaster()
   const [draft, setDraft] = useState<Settings | null>(null)
-  const [grants, setGrants] = useState<Grant[]>([])
-  const [airdrops, setAirdrops] = useState<Airdrop[]>([])
-  const [requests, setRequests] = useState<FundingRequest[]>([])
   const [requestBusy, setRequestBusy] = useState('')
   const [address, setAddress] = useState('')
   const [amount, setAmount] = useState('10')
-  const [syncError, setSyncError] = useState('')
-  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
-  const [syncing, setSyncing] = useState(false)
-  const [busy, setBusy] = useState(false)
   const [view, setView] = useState<FundingView>('queue')
-  const toast = useToaster()
 
-  const refresh = useCallback(async (showProgress = false) => {
-    if (showProgress) setSyncing(true)
-    try {
-      const s = await readJson(await fetch('/api/admin/funding/settings', { cache: 'no-store' }))
-      const nextSnapshot = s.data as FundingSnapshot
-      setSnapshot(nextSnapshot)
-      setSettings(nextSnapshot.settings)
-      setDraft((current) => {
-        if (!nextSnapshot.settings) return null
-        if (!current || current.revision !== nextSnapshot.settings.revision) {
-          return nextSnapshot.settings
-        }
-        return current
-      })
+  const snapshotQuery = useQuery({
+    queryKey: ['admin', 'funding', 'snapshot'],
+    queryFn: () => adminJson('/api/admin/funding/settings'),
+    refetchInterval: 15_000,
+  })
+  const snapshot = (snapshotQuery.data?.data as FundingSnapshot | undefined) ?? null
+  const settings = snapshot?.settings ?? null
+  const isFundingAvailable = snapshot?.mode === 'test-funding'
 
-      if (nextSnapshot.mode !== 'test-funding') {
-        setGrants([])
-        setAirdrops([])
-        setRequests([])
-        setSyncError('')
-        setLastSyncedAt(new Date())
-        return
-      }
+  const grantsQuery = useQuery({
+    queryKey: ['admin', 'funding', 'grants'],
+    queryFn: () => adminJson('/api/admin/funding/grants?limit=100'),
+    enabled: isFundingAvailable,
+    refetchInterval: 15_000,
+  })
+  const airdropsQuery = useQuery({
+    queryKey: ['admin', 'funding', 'airdrops'],
+    queryFn: () => adminJson('/api/admin/funding/airdrops?limit=100'),
+    enabled: isFundingAvailable,
+    refetchInterval: 15_000,
+  })
+  const requestsQuery = useQuery({
+    queryKey: ['admin', 'funding', 'requests'],
+    queryFn: () => adminJson('/api/admin/funding/requests?limit=100'),
+    enabled: isFundingAvailable,
+    refetchInterval: 15_000,
+  })
 
-      const [g, a, r] = await Promise.all([
-        readJson(await fetch('/api/admin/funding/grants?limit=100', { cache: 'no-store' })),
-        readJson(await fetch('/api/admin/funding/airdrops?limit=100', { cache: 'no-store' })),
-        readJson(await fetch('/api/admin/funding/requests?limit=100', { cache: 'no-store' })),
-      ])
-      setGrants(g.data ?? [])
-      setAirdrops(a.data ?? [])
-      setRequests(r.data ?? [])
-      setSyncError('')
-      setLastSyncedAt(new Date())
-    } catch (error) {
-      setSyncError(error instanceof Error ? error.message : 'Funding control plane is unavailable')
-    } finally {
-      if (showProgress) setSyncing(false)
-    }
-  }, [])
+  const grants = (grantsQuery.data?.data as Grant[] | undefined) ?? []
+  const airdrops = (airdropsQuery.data?.data as Airdrop[] | undefined) ?? []
+  const requests = (requestsQuery.data?.data as FundingRequest[] | undefined) ?? []
+  const allQueries = [snapshotQuery, grantsQuery, airdropsQuery, requestsQuery]
+  const firstError = allQueries.find((query) => query.error)?.error
+  const syncError = firstError instanceof Error ? firstError.message : ''
+  const syncing = allQueries.some((query) => query.isFetching)
+  const latestUpdate = Math.max(...allQueries.map((query) => query.dataUpdatedAt || 0))
+  const lastSyncedAt = latestUpdate > 0 ? new Date(latestUpdate) : null
 
   useEffect(() => {
-    void refresh(true)
-    const timer = window.setInterval(() => {
-      void refresh()
-    }, 15_000)
-    return () => window.clearInterval(timer)
-  }, [refresh])
+    if (!settings) {
+      setDraft(null)
+      return
+    }
+    setDraft((current) => {
+      if (!current || current.revision !== settings.revision) return settings
+      return current
+    })
+  }, [settings])
+
+  async function refresh(_showProgress = false) {
+    await Promise.all([
+      snapshotQuery.refetch(),
+      isFundingAvailable ? grantsQuery.refetch() : Promise.resolve(),
+      isFundingAvailable ? airdropsQuery.refetch() : Promise.resolve(),
+      isFundingAvailable ? requestsQuery.refetch() : Promise.resolve(),
+    ])
+  }
+
+  async function invalidateFunding() {
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'funding'] })
+  }
+
+  const policyMutation = useMutation({
+    mutationFn: (payload: Record<string, unknown>) => adminJson('/api/admin/funding/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+    onSuccess: invalidateFunding,
+  })
+
+  const requestMutation = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'approve' | 'reject' | 'reconcile' }) =>
+      adminJson('/api/admin/funding/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action }),
+      }),
+    onSuccess: invalidateFunding,
+  })
+
+  const grantMutation = useMutation({
+    mutationFn: (payload: { address: string; amountAeko: number }) => adminJson('/api/admin/funding/grant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+    onSuccess: invalidateFunding,
+  })
+
+  const busy = policyMutation.isPending || grantMutation.isPending
 
   async function saveSettings(e: React.FormEvent) {
     e.preventDefault()
     if (!draft || !settings || snapshot?.mode !== 'test-funding') return
-
-    setBusy(true)
     try {
-      const response = await fetch('/api/admin/funding/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          expectedRevision: settings.revision,
-          enabled: draft.enabled,
-          amountAeko: draft.amountAeko,
-          cooldownHours: draft.cooldownHours,
-          dailyBudgetAeko: draft.dailyBudgetAeko,
-          maxManualGrantAeko: draft.maxManualGrantAeko,
-          consoleAirdropCapAeko: draft.consoleAirdropCapAeko,
-        }),
+      const json = await policyMutation.mutateAsync({
+        expectedRevision: settings.revision,
+        enabled: draft.enabled,
+        amountAeko: draft.amountAeko,
+        cooldownHours: draft.cooldownHours,
+        dailyBudgetAeko: draft.dailyBudgetAeko,
+        maxManualGrantAeko: draft.maxManualGrantAeko,
+        consoleAirdropCapAeko: draft.consoleAirdropCapAeko,
       })
-      const json = await readJson(response)
-      if (json.data?.settings) {
-        setSnapshot(json.data)
-        setSettings(json.data.settings)
-        setDraft(json.data.settings)
-      }
+      if (json.data?.settings) setDraft(json.data.settings)
       toast.success('Funding policy saved.', { title: 'Policy updated' })
-      await refresh()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Save failed', { title: 'Policy update failed' })
-    } finally {
-      setBusy(false)
     }
   }
 
   async function toggleEnabled() {
     if (!settings || snapshot?.mode !== 'test-funding') return
     const nextEnabled = !settings.enabled
-    setBusy(true)
     try {
-      const json = await readJson(await fetch('/api/admin/funding/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          expectedRevision: settings.revision,
-          enabled: nextEnabled,
-        }),
-      }))
-      if (json.data?.settings) {
-        setSnapshot(json.data)
-        setSettings(json.data.settings)
-        setDraft(json.data.settings)
-      }
+      await policyMutation.mutateAsync({
+        expectedRevision: settings.revision,
+        enabled: nextEnabled,
+      })
       toast.success(nextEnabled ? 'Public funding resumed.' : 'Public funding paused.', { title: 'Funding policy updated' })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Policy update failed', { title: 'Funding policy update failed' })
-    } finally {
-      setBusy(false)
     }
   }
 
   async function decideRequest(id: string, action: 'approve' | 'reject' | 'reconcile') {
     setRequestBusy(id)
     try {
-      const json = await readJson(await fetch('/api/admin/funding/requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action }),
-      }))
+      const json = await requestMutation.mutateAsync({ id, action })
       if (action === 'reject') {
         toast.success('Funding request rejected.', { title: 'Request updated' })
       } else if (json.data.status === 'confirmed') {
@@ -232,7 +246,6 @@ export default function FundingGrantsPage() {
           { title: 'Settlement submitted' },
         )
       }
-      await refresh()
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : `Funding request ${action} failed`,
@@ -246,27 +259,15 @@ export default function FundingGrantsPage() {
   async function manualGrant(e: React.FormEvent) {
     e.preventDefault()
     if (snapshot?.mode !== 'test-funding') return
-
-    setBusy(true)
     try {
-      const json = await readJson(await fetch('/api/admin/funding/grant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: address.trim(), amountAeko: Number(amount) }),
-      }))
+      const json = await grantMutation.mutateAsync({ address: address.trim(), amountAeko: Number(amount) })
       const signature = String(json.data?.signature ?? '')
       const message = `Sent ${json.data.amountAeko} AEKO — ${json.data.confirmed ? 'confirmed' : 'submitted'}${signature ? ` (${signature.slice(0, 16)}…)` : ''}`
-      if (json.data.confirmed) {
-        toast.success(message, { title: 'Grant confirmed' })
-      } else {
-        toast.info(message, { title: 'Grant submitted' })
-      }
+      if (json.data.confirmed) toast.success(message, { title: 'Grant confirmed' })
+      else toast.info(message, { title: 'Grant submitted' })
       setAddress('')
-      await refresh()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Grant failed', { title: 'Grant failed' })
-    } finally {
-      setBusy(false)
     }
   }
 
@@ -288,8 +289,6 @@ export default function FundingGrantsPage() {
   const attentionRequests = requests.filter((request) =>
     ['pending', 'processing', 'submitted', 'failed'].includes(request.status),
   )
-  const isFundingAvailable = snapshot?.mode === 'test-funding'
-
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 p-3 sm:space-y-6 sm:p-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
