@@ -179,6 +179,8 @@ def main() -> int:
                 "AEKO_WS_URL: ${AEKO_WS_URL:-wss://ws.aeko.online}",
                 "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-http://explorer-api:8088}",
                 "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:-http://explorer-api:8088}",
+                "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
+                "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL:",
             ),
         )
         operations = service_block(compose, "operations-web")
