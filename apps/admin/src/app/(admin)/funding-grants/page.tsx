@@ -18,7 +18,7 @@ type Settings = {
 
 type FundingSnapshot = {
   network: 'mainnet' | 'testnet' | 'devnet' | 'localnet'
-  mode: 'test-funding' | 'mainnet-disabled'
+  mode: 'test-funding'
   settings: Settings | null
   dailyRemainingAeko: number | null
   publicSpentAeko: number | null
@@ -181,7 +181,7 @@ export default function FundingGrantsPage() {
         setSettings(json.data.settings)
         setDraft(json.data.settings)
       }
-      setNotice({ ok: true, text: 'Testnet funding policy saved.' })
+      setNotice({ ok: true, text: 'Funding policy saved.' })
       await refresh()
     } catch (error) {
       setNotice({ ok: false, text: error instanceof Error ? error.message : 'Save failed' })
@@ -209,7 +209,7 @@ export default function FundingGrantsPage() {
         setSettings(json.data.settings)
         setDraft(json.data.settings)
       }
-      setNotice({ ok: true, text: nextEnabled ? 'Public test funding resumed.' : 'Public test funding paused.' })
+      setNotice({ ok: true, text: nextEnabled ? 'Public funding resumed.' : 'Public funding paused.' })
     } catch (error) {
       setNotice({ ok: false, text: error instanceof Error ? error.message : 'Policy update failed' })
     } finally {
@@ -289,7 +289,7 @@ export default function FundingGrantsPage() {
   const attentionRequests = requests.filter((request) =>
     ['pending', 'processing', 'submitted', 'failed'].includes(request.status),
   )
-  const isTestFunding = snapshot?.mode === 'test-funding'
+  const isFundingAvailable = snapshot?.mode === 'test-funding'
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 p-3 sm:space-y-6 sm:p-6">
@@ -298,9 +298,9 @@ export default function FundingGrantsPage() {
           <div className="text-xs uppercase tracking-[0.22em] text-emerald-400">Funding operations</div>
           <h1 className="mt-1 text-2xl font-bold text-white">Funding, grants & airdrops</h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-gray-500">
-            {isTestFunding
-              ? 'Review public test-funding requests, maintain testnet policy, and keep operator grants separate from direct developer airdrops.'
-              : 'This Operations Web deployment does not expose mainnet Faucet funding or grant release. Mainnet treasury/allocation distribution is a separate governed protocol workflow and is not represented here as implemented.'}
+            {!snapshot
+              ? 'Loading the live funding policy and settlement state for this network.'
+              : 'Review public funding requests, maintain network policy, and keep operator grants separate from direct developer airdrops.'}
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
@@ -329,7 +329,7 @@ export default function FundingGrantsPage() {
               {syncing ? 'Syncing…' : 'Refresh'}
             </button>
           </div>
-          {isTestFunding && settings ? (
+          {isFundingAvailable && settings ? (
             <button
               type="button"
               onClick={toggleEnabled}
@@ -347,15 +347,6 @@ export default function FundingGrantsPage() {
         </div>
       </div>
 
-      {snapshot?.mode === 'mainnet-disabled' ? (
-        <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-5 text-sm leading-6 text-amber-100">
-          <div className="font-semibold">Mainnet test funding is disabled</div>
-          <p className="mt-1 text-amber-100/80">
-            This page cannot mint, faucet, approve, or release mainnet AEKO. A future mainnet grant must execute through the separately implemented governance and treasury allocation path; these test-funding controls intentionally fail closed.
-          </p>
-        </div>
-      ) : null}
-
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-6 2xl:gap-4">
         <StatCard
           label="Network"
@@ -364,22 +355,22 @@ export default function FundingGrantsPage() {
         />
         <StatCard
           label="Public funding"
-          value={isTestFunding && settings ? (settings.enabled ? 'Open' : 'Paused') : snapshot ? 'Unavailable' : '—'}
-          accent={isTestFunding ? settings?.enabled : undefined}
+          value={isFundingAvailable && settings ? (settings.enabled ? 'Open' : 'Paused') : snapshot ? 'Unavailable' : '—'}
+          accent={isFundingAvailable ? settings?.enabled : undefined}
         />
-        <StatCard label="Per request" value={isTestFunding && settings ? `${settings.amountAeko} AEKO` : '—'} />
+        <StatCard label="Per request" value={isFundingAvailable && settings ? `${settings.amountAeko} AEKO` : '—'} />
         <StatCard
           label="Left today"
-          value={isTestFunding && snapshot?.dailyRemainingAeko !== null && snapshot?.dailyRemainingAeko !== undefined
+          value={isFundingAvailable && snapshot?.dailyRemainingAeko !== null && snapshot?.dailyRemainingAeko !== undefined
             ? `${snapshot.dailyRemainingAeko.toLocaleString()} AEKO`
             : '—'}
-          sub={isTestFunding && settings ? `of ${settings.dailyBudgetAeko.toLocaleString()}` : undefined}
+          sub={isFundingAvailable && settings ? `of ${settings.dailyBudgetAeko.toLocaleString()}` : undefined}
         />
-        <StatCard label="Needs attention" value={isTestFunding ? attentionRequests.length : '—'} />
-        <StatCard label="Grant history" value={isTestFunding ? grants.length : '—'} />
+        <StatCard label="Needs attention" value={isFundingAvailable ? attentionRequests.length : '—'} />
+        <StatCard label="Grant history" value={isFundingAvailable ? grants.length : '—'} />
       </div>
 
-      {isTestFunding ? (
+      {isFundingAvailable ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-xl border border-[#1e2135] bg-[#12141f] p-4">
             <div className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Public spent today</div>
@@ -441,7 +432,7 @@ export default function FundingGrantsPage() {
         </div>
       ) : null}
 
-      {isTestFunding ? (
+      {isFundingAvailable ? (
         <>
           <SectionTabs
             label="Funding administration sections"
@@ -556,7 +547,7 @@ export default function FundingGrantsPage() {
             <div className="grid gap-5 2xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
               <form onSubmit={saveSettings} className="rounded-2xl border border-[#1e2135] bg-[#12141f] p-5 sm:p-6">
                 <div className="mb-5">
-                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">Public test-funding policy</div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">Public funding policy</div>
                   <h2 className="mt-1 font-semibold text-white">Approval limits</h2>
                   <p className="mt-1 text-sm leading-6 text-gray-500">
                     The public queue has a request amount, wallet cooldown, and daily allocation. Direct developer airdrops do not consume that aggregate allocation; they remain bounded by the Test Console and Faucet per-request caps.
@@ -580,9 +571,9 @@ export default function FundingGrantsPage() {
               <form onSubmit={manualGrant} className="rounded-2xl border border-[#1e2135] bg-[#12141f] p-5 sm:p-6">
                 <div className="mb-5">
                   <div className="text-xs uppercase tracking-[0.18em] text-amber-300">Operator action</div>
-                  <h2 className="mt-1 font-semibold text-white">Manual testnet grant</h2>
+                  <h2 className="mt-1 font-semibold text-white">Manual operator grant</h2>
                   <p className="mt-1 text-sm leading-6 text-gray-500">
-                    Sends a test AEKO transfer without consuming the public-request daily allocation. The operator grant cap and the private Faucet hard cap still apply.
+                    Sends an AEKO transfer without consuming the public-request daily allocation. The operator grant cap and the private Faucet hard cap still apply.
                   </p>
                 </div>
                 <div>
@@ -612,7 +603,7 @@ export default function FundingGrantsPage() {
               <div className="mb-4">
                 <h2 className="font-semibold text-white">Developer Test Console airdrops</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Direct developer airdrops bypass the public grant approval queue, but remain test-network-only, rate-limited, capped per request, and durably tracked.
+                  Direct developer airdrops bypass the public grant approval queue, but remain rate-limited, capped per request, and durably tracked.
                 </p>
               </div>
               <DataTable
@@ -645,7 +636,7 @@ export default function FundingGrantsPage() {
           {view === 'history' ? (
             <section className="rounded-2xl border border-[#1e2135] bg-[#12141f] p-4 sm:p-5">
               <div className="mb-4">
-                <h2 className="font-semibold text-white">Confirmed testnet grants</h2>
+                <h2 className="font-semibold text-white">Confirmed grants</h2>
                 <p className="mt-1 text-sm text-gray-500">
                   Only confirmed public requests approved by Admin and confirmed manual Admin grants appear here. Developer airdrops are deliberately separate.
                 </p>

@@ -196,8 +196,10 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
   assert.match(adminPage, /setInterval/);
   assert.match(adminPage, /expectedRevision: settings\.revision/);
   assert.match(adminPage, /consoleAirdropAggregateUnlimited/);
-  assert.match(adminPage, /mainnet-disabled/);
-  assert.match(adminPage, /Mainnet test funding is disabled/);
+  assert.doesNotMatch(adminPage, /mainnet-disabled/);
+  assert.doesNotMatch(adminPage, /Mainnet test funding is disabled/);
+  assert.match(adminPage, /Loading the live funding policy and settlement state/);
+  assert.match(adminPage, /Manual operator grant/);
   assert.match(adminPage, /Check confirmation/);
   assert.match(adminPage, /Airdrop history/);
   assert.match(adminProxy, /x-aeko-settings-token/);
