@@ -112,22 +112,23 @@ Do not copy the same value into multiple configuration surfaces merely because s
 | Protocol feature identities | compile-time feature IDs | Fresh/reset genesis activates the mandatory protocol runtime features automatically; only an older preserved chain uses the compatibility activation helper. |
 | Protocol authority and canonical state addresses | persistent protocol authority plus generated `protocol-registry.env` / continuity anchor | Bootstrap automatically when no established protocol identity exists; preserve and verify thereafter. |
 | Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads it through the same-origin read proxy. |
-| Blockchain service endpoints | active deployment environment | Every chain server uses `AEKO_NETWORK` plus generic `AEKO_RPC_URL`, `AEKO_WS_URL`, `AEKO_EXPLORER_API_URL`, `AEKO_REGISTRY_URL`, and `AEKO_FAUCET_ADDRESS` as applicable. Only Aeko Scan carries optional network-prefixed RPC/WS/Explorer-API triplets for remote network switching. |
+| Blockchain service endpoints | active deployment environment | Public clients/Scan use the public `AEKO_RPC_URL`, `AEKO_WS_URL`, and `AEKO_EXPLORER_API_URL`. Production server resources receive `AEKO_INTERNAL_RPC_URL`, `AEKO_INTERNAL_WS_URL`, `AEKO_INTERNAL_EXPLORER_API_URL`, `AEKO_INTERNAL_REGISTRY_URL`, `AEKO_INTERNAL_FAUCET_ADDRESS`, or `AEKO_EXPLORER_PROXY_UPSTREAM_URL` as applicable; Compose maps them to the existing generic runtime names inside each container. |
 | Bootstrap registry | generated `social-registry.env` + `protocol-registry.env`, served read-only by `registry.aeko.online` | Explorer API fetches the pair and verifies schema/genesis before use; Scan/Admin consume Explorer API instead of bootstrap storage. |
 | Recovery address overrides | Explorer process environment | Use only for explicit recovery; never as a parallel normal source of truth. |
 
-For the currently deployed testnet, the active-environment values are
+For the currently deployed testnet, the public client endpoints remain
 `AEKO_NETWORK=testnet`, `AEKO_RPC_URL=https://rpc.aeko.online`,
-`AEKO_WS_URL=wss://ws.aeko.online`,
-`AEKO_EXPLORER_API_URL=https://api.aeko.online`,
-`AEKO_REGISTRY_URL=https://registry.aeko.online`, and
-`AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900`.
+`AEKO_WS_URL=wss://ws.aeko.online`, and
+`AEKO_EXPLORER_API_URL=https://api.aeko.online`. Production server resources
+must separately configure reachable private or DNS-only origins using the
+`AEKO_INTERNAL_*` variables and Scan's
+`AEKO_EXPLORER_PROXY_UPSTREAM_URL`. These server-only origins must bypass
+public Cloudflare/WAF handling.
 
-A future mainnet or devnet deployment uses the same variable names on its own
-servers with that network's domains. These are independent stacks even when an
-operator happens to place several stacks on the same physical host. They do not
-share an Explorer process, Admin process, database, chain identity, or active
-`AEKO_NETWORK`.
+A future mainnet or devnet deployment follows the same separation on its own
+servers. These are independent stacks even when an operator happens to place
+several stacks on the same physical host. They do not share an Explorer
+process, Admin process, database, chain identity, or active `AEKO_NETWORK`.
 
 Aeko Scan is the exception: its generic values define the default network, and
 optional `AEKO_MAINNET_*`, `AEKO_TESTNET_*`, and `AEKO_DEVNET_*`
@@ -140,11 +141,20 @@ evidence that the target networks run inside one server process.
 
 ```text
 AEKO_NETWORK=testnet
+
+# Public/browser/client endpoints
 AEKO_RPC_URL=https://rpc.aeko.online
 AEKO_WS_URL=wss://ws.aeko.online
 AEKO_EXPLORER_API_URL=https://api.aeko.online
-AEKO_REGISTRY_URL=https://registry.aeko.online
-AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900
+
+# Server-only routing inputs. Use reachable private URLs or DNS-only origins.
+AEKO_INTERNAL_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_INTERNAL_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
+AEKO_INTERNAL_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
+AEKO_INTERNAL_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
+AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
+AEKO_EXPLORER_PROXY_UPSTREAM_URL=https://<private-or-dns-only-explorer-api-origin>
+
 AEKO_GOSSIP_HOST=gossip.aeko.online
 AEKO_KEYS_DIR=<Dokploy/local persistent host directory; Coolify uses fixed /data/aeko/keys>
 EXPLORER_DATABASE_URL=postgres://user:password@host:5432/aeko_explorer
@@ -155,8 +165,9 @@ AEKO_ALLOW_CHAIN_KEY_GENERATION=0
 ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=<private Admin-to-Explorer settings token>
-# Required on testnet/devnet; configure the identical secret on this network's
-# Validator and Explorer API. Mainnet leaves it empty because Faucet funding is disabled.
+# Required on every non-local funding deployment; configure the identical
+# secret on this network's Validator and Explorer API. requestGrant validates
+# it, while the instant requestAirdrop path remains approval-free.
 AEKO_FUNDING_AUTHORIZATION_KEY=<32-plus-character-server-secret>
 AEKO_FUNDING_REQUESTS_PER_10_MIN=5
 AEKO_FAUCET_PER_REQUEST_CAP=100

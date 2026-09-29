@@ -141,56 +141,74 @@ def main() -> int:
         split[resource] = compose
         split_envs[resource] = env_text
 
-    # Same-Compose deployments keep service-DNS defaults while allowing the
-    # operator to override the same generic env variable with a routed domain.
-    for path in SHARED_COMPOSES:
+    # Local Compose may still override generic endpoints for custom developer
+    # topologies. Public all-in-one deployments use a separate internal
+    # namespace so public URLs cannot redirect server traffic through the edge.
+    local_compose = read(ROOT / "docker" / "compose.local.yml")
+    require_contains_all(
+        "docker/compose.local.yml",
+        local_compose,
+        (
+            "AEKO_RPC_URL: ${AEKO_RPC_URL:-http://validator:8899}",
+            "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-http://explorer-api:8088}",
+            "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet:9900}",
+        ),
+    )
+
+    for path in (ROOT / "docker" / "compose.dokploy.yml", ROOT / "docker" / "compose.coolify.yml"):
         compose = read(path)
         require_contains_all(
             str(path.relative_to(ROOT)),
             compose,
             (
-                "AEKO_RPC_URL: ${AEKO_RPC_URL:-http://validator:8899}",
-                "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-http://explorer-api:8088}",
-                "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet:9900}",
+                "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}",
+                "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-faucet:9900}",
             ),
         )
         explorer = service_block(compose, "explorer-api")
         require(
-            "AEKO_WS_URL: ${AEKO_WS_URL:-ws://validator:8900}" in explorer,
-            f"{path.name} Explorer API must keep an overridable validator WebSocket default",
+            "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-ws://validator:8900}" in explorer,
+            f"{path.name} Explorer API must use the internal validator WebSocket namespace",
         )
         operations = service_block(compose, "operations-web")
         require(
-            "AEKO_NETWORK:" in operations,
-            f"{path.name} Operations Web must receive the same AEKO_NETWORK consumed by Admin code",
+            "AEKO_NETWORK:" in operations
+            and "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in operations,
+            f"{path.name} Operations Web must use the private Explorer API",
         )
-
-    # Public Scan cannot send browser RPC/WS traffic to Docker-only validator
-    # service names. Its active defaults are the routed testnet domains, while
-    # the server-side Explorer API upstream remains independently overrideable.
-    for path in (ROOT / "docker" / "compose.dokploy.yml", ROOT / "docker" / "compose.coolify.yml"):
-        scan = service_block(read(path), "explorer-ui")
+        scan = service_block(compose, "explorer-ui")
         require_contains_all(
             f"{path.name} Scan",
             scan,
             (
                 "AEKO_RPC_URL: ${AEKO_RPC_URL:-https://rpc.aeko.online}",
                 "AEKO_WS_URL: ${AEKO_WS_URL:-wss://ws.aeko.online}",
-                "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-http://explorer-api:8088}",
+                "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-https://api.aeko.online}",
+                "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:-http://explorer-api:8088}",
             ),
         )
 
-    # Split Coolify cross-resource dependencies use explicit active-environment
-    # endpoints; Coolify domains route HTTP/WSS straight to exposed container
-    # ports. Faucet and gossip remain raw transport.
+    # Split server-to-server dependencies use private or DNS-only origins.
+    # Public RPC/WS/API domains are for clients and browser runtime only.
+    bootstrap_social = service_block(split["bootstrap"], "social-bootstrap")
+    bootstrap_protocol = service_block(split["bootstrap"], "protocol-bootstrap")
+    for label, block in (
+        ("split Social bootstrap", bootstrap_social),
+        ("split Protocol bootstrap", bootstrap_protocol),
+    ):
+        require(
+            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?Set private or DNS-only Validator RPC URL}" in block,
+            f"{label} must use the private Validator RPC contract",
+        )
+
     require_contains_all(
         "split Explorer API",
         split["explorer-api"],
         (
             "AEKO_NETWORK: ${AEKO_NETWORK:?",
-            "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
-            "AEKO_WS_URL: ${AEKO_WS_URL:-}",
-            "AEKO_REGISTRY_URL: ${AEKO_REGISTRY_URL:?",
+            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
+            "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}",
+            "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:?",
             '- "8088"',
         ),
     )
@@ -203,7 +221,7 @@ def main() -> int:
             "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
             "AEKO_WS_URL: ${AEKO_WS_URL:?",
             "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
-            "AEKO_EXPLORER_PROXY_UPSTREAM_URL:",
+            "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?",
             "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
             "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL:",
             '- "4000"',
@@ -214,8 +232,8 @@ def main() -> int:
         split["operations-web"],
         (
             "AEKO_NETWORK: ${AEKO_NETWORK:?",
-            "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
-            "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
+            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
+            "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?",
             '- "3001"',
         ),
     )
@@ -223,7 +241,7 @@ def main() -> int:
         "split Validator",
         split["validator"],
         (
-            "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet.aeko.online:9900}",
+            "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:?",
             "AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-gossip.aeko.online}",
             '- "8000-8050:8000-8050/tcp"',
             '- "8000-8050:8000-8050/udp"',

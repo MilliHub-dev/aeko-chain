@@ -33,6 +33,7 @@ REGISTRY_FEATURE = ROOT / "apps" / "explorer" / "backend" / "src" / "features" /
 SPLIT_BOOTSTRAP = ROOT / "docker" / "coolify" / "bootstrap" / "compose.yml"
 PROTOCOL_INTEGRATION = ROOT / "scripts" / "ci-protocol-stack-integration.sh"
 SMART_CONTRACT_RUN = ROOT / ".github" / "actions" / "devops" / "smart-contracts" / "run.sh"
+LIVE_NETWORK_DIAGNOSTICS = ROOT / ".github" / "workflows" / "live-network-diagnostics.yml"
 FUNDING_SMOKE = ROOT / "scripts" / "smoke-funding-e2e.py"
 HELLO_PROGRAM_SMOKE = ROOT / "scripts" / "smoke-hello-program.py"
 README = ROOT / "README.md"
@@ -119,6 +120,7 @@ def main() -> int:
     split_bootstrap = read(SPLIT_BOOTSTRAP)
     protocol_integration = read(PROTOCOL_INTEGRATION)
     smart_contract_run = read(SMART_CONTRACT_RUN)
+    live_network_diagnostics = read(LIVE_NETWORK_DIAGNOSTICS)
     funding_smoke = read(FUNDING_SMOKE)
     hello_program_smoke = read(HELLO_PROGRAM_SMOKE)
     readme = read(README)
@@ -573,6 +575,18 @@ def main() -> int:
         require(
             required in protocol_integration,
             f"live protocol-stack funding dogfood missing contract: {required}",
+        )
+
+    for required in (
+        'rpc("requestAirdrop"',
+        'rpc("getBalance"',
+        "direct Faucet-backed airdrop",
+        'api_url + "/funding/airdrop"',
+        "Scan funding airdrop",
+    ):
+        require(
+            required in live_network_diagnostics,
+            f"live network diagnostics missing Faucet-backed RPC probe: {required}",
         )
 
     # Deployable SBF contracts have an independent CI ownership boundary.

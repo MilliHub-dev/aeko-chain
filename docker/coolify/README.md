@@ -72,29 +72,43 @@ Every chain deployment is one blockchain environment. A mainnet server does
 not carry testnet/devnet service URLs, and a testnet server does not carry
 mainnet/devnet service URLs.
 
-Use generic active-environment names on Validator, bootstrap, Explorer API,
-Faucet and Operations Web:
+Public/browser endpoints and backend service origins are deliberately separate.
+Aeko Scan exposes the public active-network values:
 
 ```text
 AEKO_NETWORK=testnet
 AEKO_RPC_URL=https://rpc.aeko.online
 AEKO_WS_URL=wss://ws.aeko.online
 AEKO_EXPLORER_API_URL=https://api.aeko.online
-AEKO_REGISTRY_URL=https://registry.aeko.online
-AEKO_FAUCET_ADDRESS=faucet.aeko.online:9900
 ```
 
-Deploying the same resource set for mainnet or devnet means changing
-`AEKO_NETWORK` and those generic URLs to that network's domains. It does not
-mean adding the other networks to the server.
+Split server resources use their adjacent `.env.example` files to provide
+reachable private or DNS-only origins that bypass public Cloudflare/WAF
+handling:
 
-**Aeko Scan is the exception.** It is the public multi-network presentation
-layer. Its generic URLs describe the active/default public network, while
-optional complete `AEKO_MAINNET_*` and `AEKO_TESTNET_*` RPC/WS/Explorer-API
-triplets describe the other independently deployed public network. The
-production Scan resource accepts Mainnet and Testnet only. Devnet remains a
-dedicated engineering deployment and Localnet remains local development; they
-are not browser-selectable production Scan targets.
+```text
+AEKO_INTERNAL_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_INTERNAL_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
+AEKO_INTERNAL_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
+AEKO_INTERNAL_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
+AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
+AEKO_EXPLORER_PROXY_UPSTREAM_URL=https://<private-or-dns-only-explorer-api-origin>
+```
+
+Compose maps those server-only inputs back to the generic runtime names
+(`AEKO_RPC_URL`, `AEKO_WS_URL`, `AEKO_EXPLORER_API_URL`,
+`AEKO_REGISTRY_URL`, and `AEKO_FAUCET_ADDRESS`) inside each container, so
+application contracts do not change. A raw cross-host `host:port` URL is valid
+only when that port is explicitly published and firewall-restricted; otherwise
+use a private overlay URL or a DNS-only Coolify origin.
+
+**Aeko Scan is the multi-network exception.** Its generic URLs describe the
+active/default public network, while optional complete `AEKO_MAINNET_*` and
+`AEKO_TESTNET_*` RPC/WS/Explorer-API triplets describe the other independently
+deployed public network. The production Scan resource accepts Mainnet and
+Testnet only. Devnet remains a dedicated engineering deployment and Localnet
+remains local development; they are not browser-selectable production Scan
+targets.
 
 Whether an active URL resolves to the same Docker network, another Ubuntu
 machine, or another provider is deployment topology. That is not encoded as

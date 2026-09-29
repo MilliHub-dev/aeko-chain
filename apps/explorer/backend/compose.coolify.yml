@@ -1,5 +1,6 @@
 # Coolify split resource owned by apps/explorer/backend.
-# Network dependencies use reachable URLs so Explorer API may run on a separate host.
+# Server dependencies use private addresses or DNS-only origins. Public edge
+# domains are intentionally not used for Explorer -> Validator/Registry traffic.
 x-logging: &default-logging
   driver: json-file
   options:
@@ -13,10 +14,10 @@ services:
     restart: unless-stopped
     environment:
       AEKO_NETWORK: ${AEKO_NETWORK:?Set mainnet, testnet, devnet, or localnet}
-      AEKO_RPC_URL: ${AEKO_RPC_URL:?Set the active chain RPC URL}
-      AEKO_WS_URL: ${AEKO_WS_URL:-}
+      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?Set private or DNS-only Validator RPC URL}
+      AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}
       AEKO_EXPLORER_BIND: 0.0.0.0:8088
-      AEKO_REGISTRY_URL: ${AEKO_REGISTRY_URL:?Set the active chain registry URL}
+      AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:?Set private or DNS-only registry URL}
       AEKO_REGISTRY_REFRESH_SECONDS: ${AEKO_REGISTRY_REFRESH_SECONDS:-30}
       AEKO_REGISTRY_FETCH_TIMEOUT_SECONDS: ${AEKO_REGISTRY_FETCH_TIMEOUT_SECONDS:-10}
       AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?Set the Explorer settings admin token}
