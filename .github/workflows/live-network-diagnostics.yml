@@ -68,10 +68,10 @@ jobs:
                   parsed = None
               return status, parsed, raw
 
-          def rpc(method):
+          def rpc(method, params=None):
               status, payload, raw = request_json(
                   rpc_url,
-                  {"jsonrpc": "2.0", "id": 1, "method": method, "params": []},
+                  {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []},
               )
               print(f"\n::group::RPC {method}")
               print(f"HTTP {status}")
@@ -98,6 +98,38 @@ jobs:
                   failures.append(f"RPC slot did not advance: {slot_a} -> {slot_b}")
           except (TypeError, ValueError):
               failures.append(f"RPC slot values were invalid: {slot_a!r}, {slot_b!r}")
+
+          alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+          def base58_encode(raw):
+              number = int.from_bytes(raw, "big")
+              encoded = ""
+              while number:
+                  number, remainder = divmod(number, 58)
+                  encoded = alphabet[remainder] + encoded
+              leading_zeroes = len(raw) - len(raw.lstrip(b"\x00"))
+              return ("1" * leading_zeroes) + (encoded or "1")
+
+          airdrop_recipient = base58_encode(os.urandom(32))
+          before_balance = rpc("getBalance", [airdrop_recipient, {"commitment": "confirmed"}])
+          airdrop_signature = rpc("requestAirdrop", [airdrop_recipient, 1])
+          if not isinstance(airdrop_signature, str) or not airdrop_signature:
+              failures.append("RPC requestAirdrop did not return a transaction signature")
+          else:
+              before_value = before_balance.get("value", 0) if isinstance(before_balance, dict) else before_balance
+              funded = False
+              for _ in range(10):
+                  time.sleep(1)
+                  current = rpc("getBalance", [airdrop_recipient, {"commitment": "confirmed"}])
+                  current_value = current.get("value", 0) if isinstance(current, dict) else current
+                  try:
+                      if int(current_value or 0) > int(before_value or 0):
+                          funded = True
+                          break
+                  except (TypeError, ValueError):
+                      pass
+              if not funded:
+                  failures.append("RPC requestAirdrop returned a signature but the recipient balance did not increase")
 
           endpoints = [
               "/liveness",
@@ -140,7 +172,7 @@ jobs:
               raise SystemExit(1)
 
           print(
-              f"\n[PASS] public RPC and control-plane probes are healthy; "
+              f"\n[PASS] public RPC, Faucet-backed airdrop, and control-plane probes are healthy; "
               f"genesis={genesis}, slot={slot_a}->{slot_b}"
           )
           PY
