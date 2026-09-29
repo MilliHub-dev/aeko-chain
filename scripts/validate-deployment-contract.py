@@ -580,7 +580,9 @@ def main() -> int:
     for required in (
         'rpc("requestAirdrop"',
         'rpc("getBalance"',
-        "Faucet-backed airdrop",
+        "direct Faucet-backed airdrop",
+        'api_url + "/funding/airdrop"',
+        "Scan funding airdrop",
     ):
         require(
             required in live_network_diagnostics,

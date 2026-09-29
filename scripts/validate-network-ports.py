@@ -188,17 +188,27 @@ def main() -> int:
             ),
         )
 
-    # Split Coolify cross-resource dependencies use explicit active-environment
-    # endpoints; Coolify domains route HTTP/WSS straight to exposed container
-    # ports. Faucet and gossip remain raw transport.
+    # Split server-to-server dependencies use private or DNS-only origins.
+    # Public RPC/WS/API domains are for clients and browser runtime only.
+    bootstrap_social = service_block(split["bootstrap"], "social-bootstrap")
+    bootstrap_protocol = service_block(split["bootstrap"], "protocol-bootstrap")
+    for label, block in (
+        ("split Social bootstrap", bootstrap_social),
+        ("split Protocol bootstrap", bootstrap_protocol),
+    ):
+        require(
+            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?Set private or DNS-only Validator RPC URL}" in block,
+            f"{label} must use the private Validator RPC contract",
+        )
+
     require_contains_all(
         "split Explorer API",
         split["explorer-api"],
         (
             "AEKO_NETWORK: ${AEKO_NETWORK:?",
-            "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
-            "AEKO_WS_URL: ${AEKO_WS_URL:-}",
-            "AEKO_REGISTRY_URL: ${AEKO_REGISTRY_URL:?",
+            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
+            "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}",
+            "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:?",
             '- "8088"',
         ),
     )
@@ -222,8 +232,8 @@ def main() -> int:
         split["operations-web"],
         (
             "AEKO_NETWORK: ${AEKO_NETWORK:?",
-            "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
-            "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
+            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
+            "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?",
             '- "3001"',
         ),
     )
@@ -231,7 +241,7 @@ def main() -> int:
         "split Validator",
         split["validator"],
         (
-            "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:?",
+            "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:?",
             "AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-gossip.aeko.online}",
             '- "8000-8050:8000-8050/tcp"',
             '- "8000-8050:8000-8050/udp"',

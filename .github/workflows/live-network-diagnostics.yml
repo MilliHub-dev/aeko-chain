@@ -131,6 +131,66 @@ jobs:
               if not funded:
                   failures.append("RPC requestAirdrop returned a signature but the recipient balance did not increase")
 
+          scan_airdrop_recipient = base58_encode(os.urandom(32))
+          scan_before_balance = rpc(
+              "getBalance",
+              [scan_airdrop_recipient, {"commitment": "confirmed"}],
+          )
+          scan_status, scan_payload, scan_raw = request_json(
+              api_url + "/funding/airdrop",
+              {"address": scan_airdrop_recipient, "amountAeko": 0.000001},
+          )
+          print("\n::group::Scan funding airdrop")
+          print(f"HTTP {scan_status}")
+          print(
+              json.dumps(scan_payload, indent=2, sort_keys=True)
+              if scan_payload is not None
+              else scan_raw
+          )
+          print("::endgroup::")
+          scan_data = (
+              scan_payload.get("data")
+              if isinstance(scan_payload, dict)
+              else None
+          )
+          scan_signature = (
+              scan_data.get("signature")
+              if isinstance(scan_data, dict)
+              else None
+          )
+          if scan_status != 200 or not isinstance(scan_signature, str) or not scan_signature:
+              failures.append(
+                  "Scan /funding/airdrop did not return a durable transaction signature"
+              )
+          else:
+              scan_before_value = (
+                  scan_before_balance.get("value", 0)
+                  if isinstance(scan_before_balance, dict)
+                  else scan_before_balance
+              )
+              scan_funded = False
+              for _ in range(10):
+                  time.sleep(1)
+                  current = rpc(
+                      "getBalance",
+                      [scan_airdrop_recipient, {"commitment": "confirmed"}],
+                  )
+                  current_value = (
+                      current.get("value", 0)
+                      if isinstance(current, dict)
+                      else current
+                  )
+                  try:
+                      if int(current_value or 0) > int(scan_before_value or 0):
+                          scan_funded = True
+                          break
+                  except (TypeError, ValueError):
+                      pass
+              if not scan_funded:
+                  failures.append(
+                      "Scan /funding/airdrop returned a signature but the recipient balance did not increase"
+                  )
+
           endpoints = [
               "/liveness",
               "/readiness",
@@ -172,7 +232,7 @@ jobs:
               raise SystemExit(1)
 
           print(
-              f"\n[PASS] public RPC, Faucet-backed airdrop, and control-plane probes are healthy; "
+              f"\n[PASS] public RPC, direct Faucet-backed airdrop, Scan funding airdrop, and control-plane probes are healthy; "
               f"genesis={genesis}, slot={slot_a}->{slot_b}"
           )
           PY
