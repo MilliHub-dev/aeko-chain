@@ -155,8 +155,9 @@ AEKO_ALLOW_CHAIN_KEY_GENERATION=0
 ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=<private Admin-to-Explorer settings token>
-# Required on testnet/devnet; configure the identical secret on this network's
-# Validator and Explorer API. Mainnet leaves it empty because Faucet funding is disabled.
+# Required on every non-localnet deployment that serves funding. Configure the
+# identical secret on this network's Validator and Explorer API. Localnet may
+# leave it unset for an explicitly open development Faucet.
 AEKO_FUNDING_AUTHORIZATION_KEY=<32-plus-character-server-secret>
 AEKO_FUNDING_REQUESTS_PER_10_MIN=5
 AEKO_FAUCET_PER_REQUEST_CAP=100

@@ -30,7 +30,7 @@ Aeko Scan --------> Explorer API --------> PostgreSQL
    |                     |
    | public request      +------> Validator RPC
    | status read                     |
-   |                                  +------> private Faucet (test/dev/local only)
+   |                                  +------> private per-network Faucet
    |
 Operations Admin ---- authenticated server-side Explorer Admin API
 ```
@@ -64,7 +64,7 @@ POST /funding/request
 
 The Explorer backend validates:
 
-- test/dev/local environment only;
+- active independently deployed network;
 - address shape;
 - funding enabled;
 - per-wallet cooldown;
@@ -157,7 +157,7 @@ POST /funding/airdrop
 
 They are:
 
-- test/dev/local only;
+- available only when the active network operator configured and capitalized its funding rail;
 - rate-limited;
 - capped by both policy and Faucet hard ceiling;
 - submitted directly without Admin approval;
@@ -169,15 +169,16 @@ Web.
 
 ## 5. Settlement authorization
 
-The Explorer backend is the application settlement authority for test funding.
-It sends the server-only `AEKO_FUNDING_AUTHORIZATION_KEY` in the
-`requestAirdrop` RPC config. The matching Validator deployment validates that
-key before using its private Faucet.
+The Explorer backend is the application settlement authority for approval-gated grants.
+It sends the server-only `AEKO_FUNDING_AUTHORIZATION_KEY` in the protected
+`requestGrant` RPC config. The matching Validator deployment validates that
+key before using its private Faucet. Instant developer `requestAirdrop` remains
+a separate capped path and does not use this approval credential.
 
 The secret is configured independently per network deployment. It must not be
 injected into Aeko Scan JavaScript or exposed through Operations Web responses.
 
-Managed test funding must never fall back to a browser direct
+Managed approval-gated funding must never fall back to a browser direct
 `requestAirdrop` call.
 
 ## 6. Network scope
