@@ -51,8 +51,8 @@ export default function StatusBanner({
   kind = 'info',
   title,
   children,
-  onDismiss,
-  autoDismissMs,
+  onDismiss = undefined,
+  autoDismissMs = undefined,
 }) {
   const palette = PALETTES[kind] || PALETTES.info;
   const { Icon } = palette;
