@@ -401,8 +401,13 @@ def main() -> int:
             f"{label} settings token must never reach Scan browser runtime",
         )
         require(
-            "AEKO_EXPLORER_API_URL:" in operations,
-            f"{label} Operations must call Explorer API directly",
+            "AEKO_EXPLORER_API_URL:" in operations
+            and "AEKO_EXPLORER_UPSTREAM_URL:" in operations,
+            f"{label} Operations must keep browser/API identity separate from its server-only Explorer upstream",
+        )
+        require(
+            "AEKO_EXPLORER_PROXY_UPSTREAM_URL:" in explorer_ui,
+            f"{label} Scan must have a server-only Explorer proxy upstream",
         )
 
     require(

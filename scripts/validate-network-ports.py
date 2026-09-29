@@ -177,6 +177,16 @@ def main() -> int:
                 "AEKO_RPC_URL: ${AEKO_RPC_URL:-https://rpc.aeko.online}",
                 "AEKO_WS_URL: ${AEKO_WS_URL:-wss://ws.aeko.online}",
                 "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-http://explorer-api:8088}",
+                "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:-http://explorer-api:8088}",
+            ),
+        )
+        operations = service_block(compose, "operations-web")
+        require_contains_all(
+            f"{path.name} Operations Web",
+            operations,
+            (
+                "AEKO_EXPLORER_UPSTREAM_URL: ${AEKO_EXPLORER_UPSTREAM_URL:-http://explorer-api:8088}",
+                "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
             ),
         )
 
