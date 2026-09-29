@@ -203,7 +203,7 @@ def main() -> int:
             "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
             "AEKO_WS_URL: ${AEKO_WS_URL:?",
             "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
-            "AEKO_EXPLORER_PROXY_UPSTREAM_URL:",
+            "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?",
             "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
             "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL:",
             '- "4000"',
@@ -216,6 +216,8 @@ def main() -> int:
             "AEKO_NETWORK: ${AEKO_NETWORK:?",
             "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
             "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
+            "AEKO_EXPLORER_UPSTREAM_URL: ${AEKO_EXPLORER_UPSTREAM_URL:?",
+            "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
             '- "3001"',
         ),
     )
@@ -223,7 +225,7 @@ def main() -> int:
         "split Validator",
         split["validator"],
         (
-            "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet.aeko.online:9900}",
+            "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:?",
             "AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-gossip.aeko.online}",
             '- "8000-8050:8000-8050/tcp"',
             '- "8000-8050:8000-8050/udp"',
