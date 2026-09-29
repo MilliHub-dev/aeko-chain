@@ -203,6 +203,9 @@ def main() -> int:
             "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
             "AEKO_WS_URL: ${AEKO_WS_URL:?",
             "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
+            "AEKO_EXPLORER_PROXY_UPSTREAM_URL:",
+            "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
+            "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL:",
             '- "4000"',
         ),
     )
@@ -312,6 +315,9 @@ def main() -> int:
         (
             "AEKO_NETWORK",
             "AEKO_EXPLORER_API_URL",
+            "AEKO_EXPLORER_PROXY_UPSTREAM_URL",
+            "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL",
+            "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL",
         ),
     )
 

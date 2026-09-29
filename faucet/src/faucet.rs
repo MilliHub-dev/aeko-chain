@@ -5,11 +5,6 @@
 //! for a given time time_slice.
 
 use {
-    bincode::{deserialize, serialize, serialized_size},
-    byteorder::{ByteOrder, LittleEndian},
-    crossbeam_channel::{unbounded, Sender},
-    log::*,
-    serde_derive::{Deserialize, Serialize},
     aeko_metrics::datapoint_info,
     aeko_sdk::{
         hash::Hash,
@@ -22,6 +17,11 @@ use {
         system_instruction,
         transaction::Transaction,
     },
+    bincode::{deserialize, serialize, serialized_size},
+    byteorder::{ByteOrder, LittleEndian},
+    crossbeam_channel::{unbounded, Sender},
+    log::*,
+    serde_derive::{Deserialize, Serialize},
     std::{
         collections::{HashMap, HashSet},
         io::{Read, Write},
@@ -402,6 +402,21 @@ pub async fn run_faucet(
     }
 }
 
+fn looks_like_http_request(bytes: &[u8]) -> bool {
+    const HTTP_PREFIXES: &[&[u8]] = &[
+        b"GET ",
+        b"POST ",
+        b"HEAD ",
+        b"PUT ",
+        b"PATCH ",
+        b"DELETE ",
+        b"OPTIONS ",
+        b"CONNECT ",
+        b"PRI * HTTP/2.0",
+    ];
+    HTTP_PREFIXES.iter().any(|prefix| bytes.starts_with(prefix))
+}
+
 async fn process(
     mut stream: TokioTcpStream,
     faucet: Arc<Mutex<Faucet>>,
@@ -417,6 +432,14 @@ async fn process(
     ];
     while stream.read_exact(&mut request).await.is_ok() {
         trace!("{:?}", request);
+
+        if looks_like_http_request(&request) {
+            warn!(
+                "Rejected HTTP-like traffic on raw TCP Faucet listener from {:?}",
+                stream.peer_addr().ok().map(|peer| peer.ip())
+            );
+            return Ok(());
+        }
 
         let response = {
             match stream.peer_addr() {
@@ -645,6 +668,26 @@ mod tests {
         } else {
             panic!("airdrop attempt should result in memo tx");
         }
+    }
+
+    #[test]
+    fn http_like_requests_are_rejected_before_bincode_deserialization() {
+        for request in [
+            b"GET / HTTP/1.1".as_slice(),
+            b"POST /faucet HTTP/1.1".as_slice(),
+            b"HEAD / HTTP/1.1".as_slice(),
+            b"PRI * HTTP/2.0".as_slice(),
+        ] {
+            assert!(looks_like_http_request(request));
+        }
+
+        let binary = serialize(&FaucetRequest::GetAirdrop {
+            lamports: 1,
+            to: Pubkey::new_unique(),
+            blockhash: Hash::new_unique(),
+        })
+        .unwrap();
+        assert!(!looks_like_http_request(&binary));
     }
 
     #[test]

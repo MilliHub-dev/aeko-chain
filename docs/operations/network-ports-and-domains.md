@@ -62,7 +62,11 @@ and devnet endpoints into every backend/validator deployment.
 Aeko Scan is the multi-network exception. Its generic variables describe the
 active/default network. Optional complete alternate triplets use
 `AEKO_<NETWORK>_RPC_URL`, `AEKO_<NETWORK>_WS_URL`, and
-`AEKO_<NETWORK>_EXPLORER_API_URL`.
+`AEKO_<NETWORK>_EXPLORER_API_URL`. The Scan server may also set
+`AEKO_EXPLORER_PROXY_UPSTREAM_URL` or
+`AEKO_<NETWORK>_EXPLORER_PROXY_UPSTREAM_URL` to a private/DNS-only Explorer
+origin. These values are server-only and are not published to browser runtime
+configuration.
 
 The standard public selector exposes **Mainnet** and **Testnet** only. Devnet
 and Localnet remain valid independently deployed/operator development
@@ -115,6 +119,7 @@ container port, so a cross-instance consumer does **not** require a host
 Raw Faucet and validator transport are exceptions:
 
 - publish Faucet TCP `9900` and firewall it to Validator source addresses;
+- do not attach HTTP/WAF routing or HTTP health probes to Faucet `9900`;
 - publish Validator TCP+UDP `8000-8050`;
 - point `gossip.aeko.online` directly at the Validator host;
 - do not put gossip or Faucet behind an HTTP-only proxy.
@@ -141,6 +146,8 @@ Raw Faucet and validator transport are exceptions:
   addresses.
 - Browsers use `scan.aeko.online`; they do not need direct knowledge of the
   raw Explorer backend origin.
+- Edge/WAF rules on Scan's `/api/explorer/testnet/funding/*` routes must not
+  replace API responses with HTML challenges; keep the funding boundary JSON.
 - Gossip and dynamic validator transport are node networking, not dApp APIs.
 - `api.aeko.online` and `registry.aeko.online` must use TLS when routed over
   the public Internet.

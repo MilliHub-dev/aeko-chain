@@ -241,7 +241,7 @@ impl RpcChainClient {
             blockhash,
             parent_slot,
             transaction_count: transactions.len() as u64,
-            producer: Some(producer),
+            producer,
             unix_timestamp,
         };
 
@@ -395,8 +395,24 @@ impl RpcChainClient {
         })
     }
 
-    fn slot_producer(&self, slot: u64) -> Result<String> {
-        let leaders: Vec<String> = self.rpc_request("getSlotLeaders", json!([slot, 1u64]))?;
+    fn slot_producer(&self, slot: u64) -> Result<Option<String>> {
+        let leaders: Vec<String> = match self.rpc_request("getSlotLeaders", json!([slot, 1u64])) {
+            Ok(leaders) => leaders,
+            Err(error) => {
+                if let Some(rpc) = error.downcast_ref::<RpcRequestError>() {
+                    if rpc.method == "getSlotLeaders" && rpc.code == -32602 {
+                        tracing::warn!(
+                            slot,
+                            rpc_code = rpc.code,
+                            rpc_message = %rpc.message,
+                            "historical leader schedule is unavailable; indexing block without optional producer metadata"
+                        );
+                        return Ok(None);
+                    }
+                }
+                return Err(error).with_context(|| format!("resolving producer for slot {slot}"));
+            }
+        };
         let producer = leaders
             .first()
             .filter(|value| !value.is_empty())
@@ -404,7 +420,7 @@ impl RpcChainClient {
         let _: Pubkey = producer.parse().with_context(|| {
             format!("getSlotLeaders({slot}, 1) returned invalid pubkey {producer:?}")
         })?;
-        Ok(producer.clone())
+        Ok(Some(producer.clone()))
     }
 
     fn fetch_program_accounts(&self, program_id: &Pubkey) -> Result<Vec<Value>> {
@@ -930,6 +946,64 @@ mod tests {
     fn malformed_block_fields_are_errors_not_defaults() {
         let value = json!({"parentSlot": 1, "transactions": []});
         assert!(required_str(&value, "blockhash", "getBlock").is_err());
+    }
+
+    #[test]
+    fn historical_block_indexes_when_epoch_leader_schedule_has_expired() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let responses = [
+                json!({
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "result": {
+                        "blockhash": "historical-blockhash",
+                        "parentSlot": 0,
+                        "transactions": [],
+                        "blockTime": null
+                    }
+                }),
+                json!({
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "error": {
+                        "code": -32602,
+                        "message": "Invalid slot range: leader schedule for epoch 0 is unavailable"
+                    }
+                }),
+            ];
+
+            for body in responses {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+                    .unwrap();
+                let mut request = [0u8; 8192];
+                let _ = std::io::Read::read(&mut stream, &mut request).unwrap();
+                let body = body.to_string();
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                std::io::Write::write_all(&mut stream, response.as_bytes()).unwrap();
+            }
+        });
+
+        let config = ExplorerBackendConfig {
+            rpc_url: format!("http://{address}"),
+            ..ExplorerBackendConfig::default()
+        };
+        let client = RpcChainClient::new(config).unwrap();
+        let record = client.fetch_core_slot(0).unwrap();
+        server.join().unwrap();
+
+        let block = record
+            .block
+            .expect("historical block should still be indexed");
+        assert_eq!(block.slot, 0);
+        assert_eq!(block.producer, None);
     }
 
     #[test]

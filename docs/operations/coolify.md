@@ -107,7 +107,11 @@ Aeko Scan is the only multi-network boundary. Its generic values define the
 active/default public network; optional complete `AEKO_MAINNET_*` and
 `AEKO_TESTNET_*` RPC/WS/Explorer-API triplets describe the other independently
 deployed public network. The production Scan resource accepts Mainnet and
-Testnet only. Devnet and Localnet remain explicit development environments and
+Testnet only. Scan may additionally set the server-only
+`AEKO_EXPLORER_PROXY_UPSTREAM_URL` (and matching network-prefixed overrides)
+to a private or DNS-only Explorer origin. This keeps same-origin browser funding
+requests away from bot challenges/WAF HTML pages between Scan and Explorer
+without exposing that origin in `runtime-config.js`. Devnet and Localnet remain explicit development environments and
 are configured outside the public Scan deployment contract.
 
 Explorer API additionally owns `EXPLORER_DATABASE_URL` and the Explorer
@@ -210,10 +214,15 @@ For the Operations Web resource, set Coolify's HTTP health-check path to
 a liveness endpoint; probing it produces `admin_sign_in_required` redirects and
 warning logs.
 
-`api.aeko.online` is the server-side Explorer API origin used by Scan's
-same-origin read proxy and Operations Web. Browser navigation still uses
+`api.aeko.online` is the normal server-side Explorer API origin used by Scan's
+same-origin proxy and Operations Web. Browser navigation still uses
 `scan.aeko.online`; the browser is not required to call the API origin
-directly.
+directly. If an edge/WAF on the public API hostname challenges server-to-server
+funding requests with HTML, configure Scan's
+`AEKO_EXPLORER_PROXY_UPSTREAM_URL` to a reachable private or DNS-only Explorer
+origin instead. If the edge in front of `scan.aeko.online` itself applies bot
+challenges, exempt the exact `/api/explorer/testnet/funding/*` API routes from
+HTML challenges; API failures must remain JSON.
 
 `registry.aeko.online/` returns a non-secret JSON discovery manifest.
 `/healthz`, `/social-registry.env`, and `/protocol-registry.env` expose
@@ -231,7 +240,9 @@ Gossip starts on `8001`.
 
 Faucet is also not an HTTP Coolify Domain. Point `faucet.aeko.online` to the
 Faucet host, publish TCP `9900`, and firewall it to Validator source
-addresses. PostgreSQL `5432` should remain private.
+addresses. Do not attach an HTTP health probe, Cloudflare HTTP proxy, or
+Traefik HTTP router to port `9900`; the Faucet listener accepts only its
+binary TCP protocol and rejects HTTP-like traffic. PostgreSQL `5432` should remain private.
 
 ## First deployment
 
