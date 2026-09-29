@@ -254,8 +254,8 @@ def main() -> int:
     validator = loaded["validator"]
     require("AEKO_NETWORK: ${AEKO_NETWORK:?" in validator, "Validator must declare one active chain environment")
     require(
-        "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet.aeko.online:9900}" in validator,
-        "Validator must use the generic active-environment Faucet address",
+        "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:?" in validator,
+        "Validator must require an explicit raw-TCP Faucet address",
     )
     require("source: /data/aeko/validator-ledger" in validator, "Validator ledger must use stable host storage")
     require("source: /data/aeko/keys" in validator, "Validator must mount persistent identities")
@@ -315,7 +315,7 @@ def main() -> int:
         "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
         "AEKO_WS_URL: ${AEKO_WS_URL:?",
         "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
-        "AEKO_EXPLORER_PROXY_UPSTREAM_URL:",
+        "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?",
         "AEKO_MAINNET_RPC_URL:",
         "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
         "AEKO_TESTNET_RPC_URL:",
@@ -340,6 +340,8 @@ def main() -> int:
         "AEKO_NETWORK: ${AEKO_NETWORK:?",
         "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
         "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
+        "AEKO_EXPLORER_UPSTREAM_URL: ${AEKO_EXPLORER_UPSTREAM_URL:?",
+        "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
     ):
         require(expected in operations, f"Operations Web missing active-environment contract: {expected}")
     require(
