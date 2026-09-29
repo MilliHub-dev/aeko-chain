@@ -105,11 +105,7 @@ impl AekoDeveloperClient {
 
     /// Instant developer airdrop: no admin approval, dispatched immediately
     /// subject only to faucet caps.
-    pub async fn request_airdrop(
-        &self,
-        pubkey: &str,
-        lamports: u64,
-    ) -> AekoRustSdkResult<String> {
+    pub async fn request_airdrop(&self, pubkey: &str, lamports: u64) -> AekoRustSdkResult<String> {
         self.rpc("requestAirdrop", json!([pubkey, lamports, {}]))
             .await
     }
@@ -185,8 +181,8 @@ impl AekoDeveloperClient {
             let failure: serde_json::Value = response.json().await.map_err(|e| {
                 AekoRustSdkError::Rpc(format!("funding request decode failed: {e}"))
             })?;
-            let pending = failure.pointer("/error/code").and_then(|v| v.as_str())
-                == Some("REQUEST_PENDING");
+            let pending =
+                failure.pointer("/error/code").and_then(|v| v.as_str()) == Some("REQUEST_PENDING");
             let adopted = failure
                 .pointer("/error/requestId")
                 .and_then(|v| v.as_str())
@@ -216,9 +212,7 @@ impl AekoDeveloperClient {
                 .map_err(|e| AekoRustSdkError::Rpc(format!("funding status poll failed: {e}")))?
                 .json()
                 .await
-                .map_err(|e| {
-                    AekoRustSdkError::Rpc(format!("funding status decode failed: {e}"))
-                })?;
+                .map_err(|e| AekoRustSdkError::Rpc(format!("funding status decode failed: {e}")))?;
             let state = status
                 .pointer("/data/status")
                 .and_then(|v| v.as_str())

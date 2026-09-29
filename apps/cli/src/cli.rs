@@ -3,10 +3,6 @@ use {
         address_lookup_table::*, clap_app::*, cluster_query::*, feature::*, inflation::*, nonce::*,
         program::*, program_v4::*, spend_utils::*, stake::*, validator_info::*, vote::*, wallet::*,
     },
-    clap::{crate_description, crate_name, value_t_or_exit, ArgMatches, Shell},
-    log::*,
-    num_traits::FromPrimitive,
-    serde_json::{self, Value},
     aeko_clap_utils::{self, input_parsers::*, keypair::*},
     aeko_cli_config::ConfigInput,
     aeko_cli_output::{
@@ -33,6 +29,10 @@ use {
     },
     aeko_tpu_client::tpu_client::DEFAULT_TPU_ENABLE_UDP,
     aeko_vote_program::vote_state::VoteAuthorize,
+    clap::{crate_description, crate_name, value_t_or_exit, ArgMatches, Shell},
+    log::*,
+    num_traits::FromPrimitive,
+    serde_json::{self, Value},
     std::{
         collections::HashMap, error, io::stdout, rc::Rc, str::FromStr, sync::Arc, time::Duration,
     },
@@ -1614,7 +1614,13 @@ pub fn process_command(config: &CliConfig) -> ProcessResult {
             pubkey,
             lamports,
             funding_authorization,
-        } => process_grant(&rpc_client, config, pubkey, *lamports, funding_authorization),
+        } => process_grant(
+            &rpc_client,
+            config,
+            pubkey,
+            *lamports,
+            funding_authorization,
+        ),
         // Approval-gated funding via the Explorer API. Waits for admin
         // approval unless --no-wait; admin direct grants bypass approval.
         CliCommand::Funding {
@@ -1802,7 +1808,6 @@ where
 mod tests {
     use {
         super::*,
-        serde_json::json,
         aeko_rpc_client::mock_sender_for_cli::SIGNATURE,
         aeko_rpc_client_api::{
             request::RpcRequest,
@@ -1818,6 +1823,7 @@ mod tests {
             transaction::TransactionError,
         },
         aeko_transaction_status::TransactionConfirmationStatus,
+        serde_json::json,
     };
 
     fn make_tmp_path(name: &str) -> String {

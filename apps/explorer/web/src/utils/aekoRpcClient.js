@@ -106,23 +106,42 @@ async function readFundingResponse(response, label) {
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.toLowerCase().includes('application/json')) {
     const text = await response.text().catch(() => '');
-    throw new Error(
+    throw new FundingResponseError(
       `${label} returned HTTP ${response.status} with ${contentType || 'non-JSON'} content. `
         + `The same-origin Scan proxy did not return the Explorer funding API JSON contract. ${text.slice(0, 100)}`,
+      { status: response.status },
     );
   }
   const body = await response.json();
   if (!response.ok || !body?.data) {
-    const error = new Error(body?.error?.message || `${label} failed with HTTP ${response.status}`);
     // Preserve machine-readable fields so callers can resume: a
     // REQUEST_PENDING rejection carries the existing request id, letting the
     // UI poll the in-flight request instead of dead-ending.
-    error.code = body?.error?.code;
-    error.requestId = body?.error?.requestId ?? body?.error?.request_id ?? null;
-    error.status = response.status;
-    throw error;
+    throw new FundingResponseError(
+      body?.error?.message || `${label} failed with HTTP ${response.status}`,
+      {
+        code: body?.error?.code,
+        requestId: body?.error?.requestId ?? body?.error?.request_id ?? null,
+        status: response.status,
+      },
+    );
   }
   return body.data;
+}
+
+/**
+ * Error from the Explorer funding API (or the Scan same-origin proxy) that
+ * preserves the machine-readable `code`/`requestId` fields alongside the
+ * human-readable message.
+ */
+export class FundingResponseError extends Error {
+  constructor(message, { code, requestId = null, status } = {}) {
+    super(message);
+    this.name = 'FundingResponseError';
+    this.code = code;
+    this.requestId = requestId;
+    this.status = status;
+  }
 }
 
 export async function getFundingPolicy(fundingUrl) {

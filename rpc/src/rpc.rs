@@ -3760,13 +3760,11 @@ pub mod rpc_full {
                 .get_blockhash_last_valid_block_height(&blockhash)
                 .unwrap_or(0);
 
-            let transaction =
-                request_grant_transaction(&faucet_addr, &pubkey, lamports, blockhash).map_err(
-                    |err| {
-                        info!("request_grant_transaction failed: {:?}", err);
-                        Error::internal_error()
-                    },
-                )?;
+            let transaction = request_grant_transaction(&faucet_addr, &pubkey, lamports, blockhash)
+                .map_err(|err| {
+                    info!("request_grant_transaction failed: {:?}", err);
+                    Error::internal_error()
+                })?;
 
             let wire_transaction = serialize(&transaction).map_err(|err| {
                 info!("request_grant: serialize error: {:?}", err);

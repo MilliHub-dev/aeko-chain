@@ -621,7 +621,8 @@ impl PostgresRepository {
         id: &str,
         code: Option<&str>,
         message: Option<&str>,
-    ) -> Result<FundingRequestRecord, FundingStoreError> {        let sql = format!(
+    ) -> Result<FundingRequestRecord, FundingStoreError> {
+        let sql = format!(
             r#"
             UPDATE funding_requests
             SET

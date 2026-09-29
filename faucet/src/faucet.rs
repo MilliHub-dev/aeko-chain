@@ -261,8 +261,7 @@ impl Faucet {
             }
             self.check_time_request_limit(lamports, to)?;
 
-            let transfer_instruction =
-                system_instruction::transfer(&mint_pubkey, &to, lamports);
+            let transfer_instruction = system_instruction::transfer(&mint_pubkey, &to, lamports);
             let message = Message::new(&[transfer_instruction], Some(&mint_pubkey));
             let tx = Transaction::new(&[&self.faucet_keypair], message, blockhash);
             if is_grant {
@@ -366,10 +365,7 @@ fn request_faucet_transaction(
     req: FaucetRequest,
     label: &str,
 ) -> Result<Transaction, FaucetError> {
-    info!(
-        "{}: faucet_addr={} req={:?}",
-        label, faucet_addr, req,
-    );
+    info!("{}: faucet_addr={} req={:?}", label, faucet_addr, req,);
 
     let mut stream = TcpStream::connect_timeout(faucet_addr, Duration::new(3, 0))?;
     stream.set_read_timeout(Some(Duration::new(10, 0)))?;
@@ -379,10 +375,7 @@ fn request_faucet_transaction(
     // Read length of transaction
     let mut buffer = [0; 2];
     stream.read_exact(&mut buffer).map_err(|err| {
-        info!(
-            "{}: buffer length read_exact error: {:?}",
-            label, err
-        );
+        info!("{}: buffer length read_exact error: {:?}", label, err);
         err
     })?;
     let transaction_length = LittleEndian::read_u16(&buffer) as usize;
@@ -395,10 +388,7 @@ fn request_faucet_transaction(
     // Read the transaction
     let mut buffer = vec![0; transaction_length];
     stream.read_exact(&mut buffer).map_err(|err| {
-        info!(
-            "{}: buffer read_exact error: {:?}",
-            label, err
-        );
+        info!("{}: buffer read_exact error: {:?}", label, err);
         err
     })?;
 

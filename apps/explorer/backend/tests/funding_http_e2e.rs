@@ -1064,7 +1064,10 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
     .await;
     assert_eq!(status, StatusCode::ACCEPTED, "{created}");
     assert_eq!(created["data"]["status"], "pending");
-    let request_id = created["data"]["id"].as_str().expect("request id").to_string();
+    let request_id = created["data"]["id"]
+        .as_str()
+        .expect("request id")
+        .to_string();
 
     let (status, approved) = request_json(
         &app,
@@ -1076,7 +1079,9 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
     .await;
     assert_eq!(status, StatusCode::OK, "{approved}");
     assert!(
-        approved["data"]["signature"].as_str().is_some_and(|s| !s.is_empty()),
+        approved["data"]["signature"]
+            .as_str()
+            .is_some_and(|s| !s.is_empty()),
         "mainnet approval must settle with a durable signature: {approved}"
     );
 
@@ -1090,7 +1095,9 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
     .await;
     assert_eq!(status, StatusCode::OK, "{airdrop}");
     assert!(
-        airdrop["data"]["signature"].as_str().is_some_and(|s| !s.is_empty()),
+        airdrop["data"]["signature"]
+            .as_str()
+            .is_some_and(|s| !s.is_empty()),
         "mainnet airdrop must dispatch with a durable signature: {airdrop}"
     );
 
@@ -1105,17 +1112,23 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
     .await;
     assert_eq!(status, StatusCode::OK, "{grant}");
     assert!(
-        grant["data"]["signature"].as_str().is_some_and(|s| !s.is_empty()),
+        grant["data"]["signature"]
+            .as_str()
+            .is_some_and(|s| !s.is_empty()),
         "mainnet direct grant must settle with a durable signature: {grant}"
     );
 
     let grants = state.repository.list_funding_grants(500).await?;
     assert!(
-        grants.iter().any(|g| g.request_id.as_deref() == Some(request_id.as_str())),
+        grants
+            .iter()
+            .any(|g| g.request_id.as_deref() == Some(request_id.as_str())),
         "mainnet approval must record exactly one confirmed grant"
     );
     assert!(
-        !grants.iter().any(|g| g.signature.as_deref() == airdrop["data"]["signature"].as_str()),
+        !grants
+            .iter()
+            .any(|g| g.signature.as_deref() == airdrop["data"]["signature"].as_str()),
         "mainnet airdrop must stay out of the confirmed grant ledger"
     );
 

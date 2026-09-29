@@ -676,7 +676,11 @@ async fn decide_request(
             "pending" => {
                 state
                     .repository
-                    .reject_funding_request(&id, Some("OPERATOR_REJECTED"), Some("Rejected by Admin"))
+                    .reject_funding_request(
+                        &id,
+                        Some("OPERATOR_REJECTED"),
+                        Some("Rejected by Admin"),
+                    )
                     .await?
             }
             // A stuck approval (submission never produced a durable
@@ -804,7 +808,9 @@ async fn cancel_stuck_grant(
                         .cancel_processing_funding_request(
                             &request_id,
                             Some("OPERATOR_CANCELLED"),
-                            Some("Cancelled by Admin after submission produced no durable signature"),
+                            Some(
+                                "Cancelled by Admin after submission produced no durable signature",
+                            ),
                         )
                         .await?)
                 }

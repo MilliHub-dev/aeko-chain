@@ -1,17 +1,14 @@
 use {
     crate::{
         cli::{
-            log_instruction_custom_error, request_and_confirm_airdrop,
-            request_and_confirm_grant, CliCommand, CliCommandInfo, CliConfig, CliError,
-            ProcessResult,
+            log_instruction_custom_error, request_and_confirm_airdrop, request_and_confirm_grant,
+            CliCommand, CliCommandInfo, CliConfig, CliError, ProcessResult,
         },
         compute_unit_price::WithComputeUnitPrice,
         memo::WithMemo,
         nonce::check_nonce_account,
         spend_utils::{resolve_spend_tx_and_check_account_balances, SpendAmount},
     },
-    clap::{value_t_or_exit, App, Arg, ArgMatches, SubCommand},
-    hex::FromHex,
     aeko_clap_utils::{
         compute_unit_price::{compute_unit_price_arg, COMPUTE_UNIT_PRICE_ARG},
         fee_payer::*,
@@ -48,6 +45,8 @@ use {
         EncodableWithMeta, EncodedConfirmedTransactionWithStatusMeta, EncodedTransaction,
         TransactionBinaryEncoding, UiTransactionEncoding,
     },
+    clap::{value_t_or_exit, App, Arg, ArgMatches, SubCommand},
+    hex::FromHex,
     std::{fmt::Write as FmtWrite, fs::File, io::Write, rc::Rc, str::FromStr},
 };
 
@@ -544,7 +543,11 @@ pub fn parse_funding(
     let explorer_url = matches
         .value_of("explorer_url")
         .map(ToString::to_string)
-        .or_else(|| std::env::var("AEKO_EXPLORER_API_URL").ok().filter(|v| !v.is_empty()));
+        .or_else(|| {
+            std::env::var("AEKO_EXPLORER_API_URL")
+                .ok()
+                .filter(|v| !v.is_empty())
+        });
     let timeout_secs: u64 = value_of(matches, "timeout").unwrap_or(300);
     let no_wait = matches.is_present("no_wait");
     let admin_token = matches
@@ -938,7 +941,11 @@ pub fn process_grant(
 fn resolve_funding_base_url(explorer_url: &Option<String>) -> String {
     let base = explorer_url
         .clone()
-        .or_else(|| std::env::var("AEKO_EXPLORER_API_URL").ok().filter(|v| !v.is_empty()))
+        .or_else(|| {
+            std::env::var("AEKO_EXPLORER_API_URL")
+                .ok()
+                .filter(|v| !v.is_empty())
+        })
         .unwrap_or_else(|| "https://api.aeko.online".to_string());
     base.trim_end_matches('/').to_string()
 }
@@ -1055,19 +1062,34 @@ pub fn process_funding(
         .header("content-type", "application/json")
         .body(serde_json::json!({"address": pubkey.to_string()}).to_string())
         .send()
-        .map_err(|e| format!("funding request submission failed: {e}. Is the Explorer API reachable at {base}?"))?;
+        .map_err(|e| {
+            format!(
+                "funding request submission failed: {e}. Is the Explorer API reachable at {base}?"
+            )
+        })?;
     let status = res.status();
     let body = res.text().unwrap_or_default();
     if !status.is_success() {
         // The wallet already has an in-flight request: adopt it and poll it
         // instead of dead-ending on REQUEST_PENDING.
         if let Some(pending_id) = explorer_pending_request_id(&body) {
-            println!("Found in-flight funding request {pending_id}; resuming wait for admin approval...");
+            println!(
+                "Found in-flight funding request {pending_id}; resuming wait for admin approval..."
+            );
             if no_wait {
-                return Ok(format!("Funding request {pending_id} already pending approval"));
+                return Ok(format!(
+                    "Funding request {pending_id} already pending approval"
+                ));
             }
             println!("(Press Ctrl-C to stop waiting; the request stays pending for admin review)");
-            return poll_funding_request(&http, &base, rpc_client, &pubkey, &pending_id, timeout_secs);
+            return poll_funding_request(
+                &http,
+                &base,
+                rpc_client,
+                &pubkey,
+                &pending_id,
+                timeout_secs,
+            );
         }
         return Err(explorer_error_message(&body).into());
     }
@@ -1085,7 +1107,9 @@ pub fn process_funding(
         })?;
     println!("Funding request {request_id} submitted. Waiting for admin approval...");
     if no_wait {
-        return Ok(format!("Funding request {request_id} submitted (pending approval)"));
+        return Ok(format!(
+            "Funding request {request_id} submitted (pending approval)"
+        ));
     }
     println!("(Press Ctrl-C to stop waiting; the request stays pending for admin review)");
 
@@ -1140,7 +1164,10 @@ fn poll_funding_request(
                     .pointer("/data/errorCode")
                     .and_then(|s| s.as_str())
                     .unwrap_or(req_status);
-                return Err(format!("Funding request {request_id} ended with status {req_status} ({detail})").into());
+                return Err(format!(
+                    "Funding request {request_id} ended with status {req_status} ({detail})"
+                )
+                .into());
             }
             _ => {
                 if std::time::Instant::now() >= deadline {
