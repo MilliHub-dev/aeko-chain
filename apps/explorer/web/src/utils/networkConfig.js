@@ -125,7 +125,7 @@ if (useBuiltInLocalFallback) {
     value: {
       rpcUrl: 'http://127.0.0.1:8899',
       websocketUrl: 'ws://127.0.0.1:8900',
-      explorerApiUrl: '/api/explorer/localnet',
+      explorerApiUrl: 'http://127.0.0.1:8088',
       fundingUrl: '',
     },
   };

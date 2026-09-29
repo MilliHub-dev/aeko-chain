@@ -76,8 +76,8 @@ export default defineConfig(({ command, mode }) => {
         {
           rpcUrl: value.rpcUrl,
           websocketUrl: value.websocketUrl,
-          explorerApiUrl: `/api/explorer/${network}`,
-          fundingUrl: `/api/explorer/${network}`,
+          explorerApiUrl: value.upstream,
+          fundingUrl: value.upstream,
         },
       ]),
   )
@@ -86,23 +86,10 @@ export default defineConfig(({ command, mode }) => {
     ? { network: activeNetwork, networks: runtimeNetworks }
     : {}
 
-  const proxy = {}
-  for (const [network, value] of Object.entries(alternatives)) {
-    const target = value?.upstream
-    if (!target) continue
-    const prefix = `/api/explorer/${network}`
-    proxy[prefix] = {
-      target,
-      changeOrigin: true,
-      rewrite: (path) => path.replace(new RegExp(`^${prefix}`), '') || '/',
-    }
-  }
-
   return {
     plugins: [react()],
     define: {
       'globalThis.__AEKO_DEV_RUNTIME_CONFIG__': JSON.stringify(devRuntimeConfig),
     },
-    server: { proxy },
   }
 })

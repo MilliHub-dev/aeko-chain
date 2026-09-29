@@ -95,9 +95,8 @@ function fundingEndpoint(fundingUrl, path) {
     throw new Error('Test AEKO is temporarily unavailable.');
   }
 
-  // Funding is now served by the Explorer/Scan backend. `fundingUrl` is the
-  // same-origin Explorer proxy base (for example
-  // `/api/explorer/testnet`), not a separate Funding Gateway address.
+  // Funding is served by the selected network's public Explorer API.
+  // `fundingUrl` is the canonical API origin, not a Scan-side proxy.
   const basePath = `${base.pathname.replace(/\/?$/, '/')}`;
   return new URL(path.replace(/^\//, ''), `${base.origin}${basePath}`).toString();
 }
@@ -108,7 +107,7 @@ async function readFundingResponse(response, label) {
     const text = await response.text().catch(() => '');
     throw new FundingResponseError(
       `${label} returned HTTP ${response.status} with ${contentType || 'non-JSON'} content. `
-        + `The same-origin Scan proxy did not return the Explorer funding API JSON contract. ${text.slice(0, 100)}`,
+        + `The Explorer API did not return its JSON contract. ${text.slice(0, 100)}`,
       { status: response.status },
     );
   }
@@ -130,7 +129,7 @@ async function readFundingResponse(response, label) {
 }
 
 /**
- * Error from the Explorer funding API (or the Scan same-origin proxy) that
+ * Error from the Explorer funding API that
  * preserves the machine-readable `code`/`requestId` fields alongside the
  * human-readable message.
  */

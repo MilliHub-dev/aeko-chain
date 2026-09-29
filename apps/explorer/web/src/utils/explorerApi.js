@@ -2,9 +2,6 @@ import { getFinalizedSlot } from './aekoRpcClient';
 import { normalizeSearchMatches } from './explorerData';
 import { getNetworkConfig } from './networkConfig';
 
-const OVERVIEW_CACHE_MS = 5_000;
-const overviewCache = new Map();
-
 class ExplorerApiError extends Error {
   constructor(message, { status = null, path = '', cause = null } = {}) {
     super(message);
@@ -163,14 +160,7 @@ async function readExplorerOverview(network) {
 }
 
 export async function fetchExplorerOverview(network) {
-  const cached = overviewCache.get(network);
-  if (cached && Date.now() - cached.receivedAt < OVERVIEW_CACHE_MS) {
-    return cached.value;
-  }
-
-  const value = await readExplorerOverview(network);
-  overviewCache.set(network, { receivedAt: Date.now(), value });
-  return value;
+  return readExplorerOverview(network);
 }
 
 export async function fetchExplorerHome(network, filters = {}, listSize = 6) {
