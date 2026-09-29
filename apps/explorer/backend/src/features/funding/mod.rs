@@ -307,6 +307,7 @@ struct FundingAirdropView {
     amount_aeko: f64,
     signature: Option<String>,
     status: String,
+    confirmed: bool,
     requested_at: String,
     submitted_at: Option<String>,
     confirmed_at: Option<String>,
@@ -316,12 +317,14 @@ struct FundingAirdropView {
 
 impl From<FundingAirdropRecord> for FundingAirdropView {
     fn from(value: FundingAirdropRecord) -> Self {
+        let confirmed = value.status == "confirmed";
         Self {
             id: value.id,
             address: value.address,
             amount_aeko: value.amount_aeko,
             signature: value.signature,
             status: value.status,
+            confirmed,
             requested_at: value.requested_at.to_rfc3339(),
             submitted_at: value.submitted_at.map(|value| value.to_rfc3339()),
             confirmed_at: value.confirmed_at.map(|value| value.to_rfc3339()),
