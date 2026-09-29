@@ -226,6 +226,14 @@ test('Operations Web paginates long datasets and keeps dense control pages focus
   assert.match(fundingPage, /Policy & manual grant/);
   assert.match(fundingPage, /Grant history/);
   assert.match(fundingPage, /Airdrop history/);
+  assert.match(fundingPage, /syncError/);
+  assert.match(fundingPage, /lastSyncedAt/);
+  assert.match(fundingPage, /notice\.ok \? 5_000 : 9_000/);
+  assert.match(fundingPage, /Live funding data could not refresh/);
+  assert.match(fundingPage, /Retry sync/);
+  assert.match(dataTable, /md:hidden/);
+  assert.match(dataTable, /hidden overflow-x-auto md:block/);
+  assert.match(dataTable, /min-w-\[760px\]/);
 
   assert.match(settingsPage, /Settings sections/);
   assert.match(settingsPage, /sticky top-14/);

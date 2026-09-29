@@ -94,10 +94,14 @@ export default function FundingGrantsPage() {
   const [address, setAddress] = useState('')
   const [amount, setAmount] = useState('10')
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
+  const [syncError, setSyncError] = useState('')
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
+  const [syncing, setSyncing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [view, setView] = useState<FundingView>('queue')
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (showProgress = false) => {
+    if (showProgress) setSyncing(true)
     try {
       const s = await readJson(await fetch('/api/admin/funding/settings', { cache: 'no-store' }))
       const nextSnapshot = s.data as FundingSnapshot
@@ -115,6 +119,8 @@ export default function FundingGrantsPage() {
         setGrants([])
         setAirdrops([])
         setRequests([])
+        setSyncError('')
+        setLastSyncedAt(new Date())
         return
       }
 
@@ -126,21 +132,28 @@ export default function FundingGrantsPage() {
       setGrants(g.data ?? [])
       setAirdrops(a.data ?? [])
       setRequests(r.data ?? [])
+      setSyncError('')
+      setLastSyncedAt(new Date())
     } catch (error) {
-      setNotice({
-        ok: false,
-        text: error instanceof Error ? error.message : 'Funding control plane is unavailable',
-      })
+      setSyncError(error instanceof Error ? error.message : 'Funding control plane is unavailable')
+    } finally {
+      if (showProgress) setSyncing(false)
     }
   }, [])
 
   useEffect(() => {
-    void refresh()
+    void refresh(true)
     const timer = window.setInterval(() => {
       void refresh()
     }, 15_000)
     return () => window.clearInterval(timer)
   }, [refresh])
+
+  useEffect(() => {
+    if (!notice) return undefined
+    const timer = window.setTimeout(() => setNotice(null), notice.ok ? 5_000 : 9_000)
+    return () => window.clearTimeout(timer)
+  }, [notice])
 
   async function saveSettings(e: React.FormEvent) {
     e.preventDefault()
@@ -279,8 +292,8 @@ export default function FundingGrantsPage() {
   const isTestFunding = snapshot?.mode === 'test-funding'
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="mx-auto max-w-[1600px] space-y-5 p-3 sm:space-y-6 sm:p-6">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <div className="text-xs uppercase tracking-[0.22em] text-emerald-400">Funding operations</div>
           <h1 className="mt-1 text-2xl font-bold text-white">Funding, grants & airdrops</h1>
@@ -290,21 +303,48 @@ export default function FundingGrantsPage() {
               : 'This Operations Web deployment does not expose mainnet Faucet funding or grant release. Mainnet treasury/allocation distribution is a separate governed protocol workflow and is not represented here as implemented.'}
           </p>
         </div>
-        {isTestFunding && settings ? (
-          <button
-            type="button"
-            onClick={toggleEnabled}
-            disabled={busy}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <div
             className={
-              'min-h-[44px] rounded-lg px-4 text-sm font-semibold transition-colors disabled:opacity-40 ' +
-              (settings.enabled
-                ? 'border border-red-500/25 bg-red-500/10 text-red-200 hover:bg-red-500/15'
-                : 'bg-emerald-400 text-black hover:bg-emerald-300')
+              'flex min-h-[44px] items-center justify-between gap-3 rounded-xl border px-3 text-xs sm:justify-start ' +
+              (syncError
+                ? 'border-red-400/25 bg-red-400/10 text-red-100'
+                : 'border-[#1e2135] bg-[#12141f] text-gray-400')
             }
           >
-            {settings.enabled ? 'Pause public funding' : 'Resume public funding'}
-          </button>
-        ) : null}
+            <span className={'size-2 rounded-full ' + (syncError ? 'bg-red-400' : lastSyncedAt ? 'bg-emerald-400' : 'bg-gray-600')} />
+            <span>
+              {syncError
+                ? 'Sync interrupted'
+                : lastSyncedAt
+                  ? 'Synced ' + lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : 'Waiting for sync'}
+            </span>
+            <button
+              type="button"
+              onClick={() => void refresh(true)}
+              disabled={syncing}
+              className="rounded-md px-2 py-1 font-semibold text-gray-200 transition-colors hover:bg-white/5 disabled:opacity-40"
+            >
+              {syncing ? 'Syncing…' : 'Refresh'}
+            </button>
+          </div>
+          {isTestFunding && settings ? (
+            <button
+              type="button"
+              onClick={toggleEnabled}
+              disabled={busy}
+              className={
+                'min-h-[44px] w-full rounded-lg px-4 text-sm font-semibold transition-colors disabled:opacity-40 sm:w-auto ' +
+                (settings.enabled
+                  ? 'border border-red-500/25 bg-red-500/10 text-red-200 hover:bg-red-500/15'
+                  : 'bg-emerald-400 text-black hover:bg-emerald-300')
+              }
+            >
+              {settings.enabled ? 'Pause public funding' : 'Resume public funding'}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {snapshot?.mode === 'mainnet-disabled' ? (
@@ -316,7 +356,7 @@ export default function FundingGrantsPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6 lg:gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-6 2xl:gap-4">
         <StatCard
           label="Network"
           value={snapshot?.network ?? '—'}
@@ -362,17 +402,42 @@ export default function FundingGrantsPage() {
         </div>
       ) : null}
 
+      {syncError ? (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-red-400/25 bg-red-500/10 p-4 text-sm text-red-100 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="font-semibold">Live funding data could not refresh</div>
+            <p className="mt-1 break-words text-xs leading-5 text-red-100/75">{syncError}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void refresh(true)}
+            disabled={syncing}
+            className="min-h-[40px] rounded-lg border border-red-300/25 px-3 text-xs font-semibold transition-colors hover:bg-red-300/10 disabled:opacity-40"
+          >
+            {syncing ? 'Retrying…' : 'Retry sync'}
+          </button>
+        </div>
+      ) : null}
+
       {notice ? (
         <div
+          role={notice.ok ? 'status' : 'alert'}
           aria-live="polite"
           className={
-            'rounded-xl border px-4 py-3 text-sm ' +
+            'flex flex-col gap-3 rounded-xl border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ' +
             (notice.ok
               ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
               : 'border-red-500/30 bg-red-500/10 text-red-200')
           }
         >
-          {notice.text}
+          <span className="min-w-0 break-words">{notice.text}</span>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            className="min-h-[36px] shrink-0 rounded-lg border border-current px-3 text-xs font-semibold opacity-80 transition-opacity hover:opacity-100"
+          >
+            Dismiss
+          </button>
         </div>
       ) : null}
 
@@ -428,7 +493,7 @@ export default function FundingGrantsPage() {
                           type="button"
                           onClick={() => decideRequest(request.id, 'approve')}
                           disabled={Boolean(requestBusy)}
-                          className="min-h-[36px] rounded-lg bg-emerald-400 px-3 text-xs font-semibold text-black transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+                          className="min-h-[40px] w-full rounded-lg bg-emerald-400 px-3 sm:w-auto text-xs font-semibold text-black transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           {requestBusy === request.id ? 'Working…' : 'Approve & release'}
                         </button>
@@ -436,7 +501,7 @@ export default function FundingGrantsPage() {
                           type="button"
                           onClick={() => decideRequest(request.id, 'reject')}
                           disabled={Boolean(requestBusy)}
-                          className="min-h-[36px] rounded-lg border border-[#2b3048] px-3 text-xs text-gray-300 transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
+                          className="min-h-[40px] w-full rounded-lg border border-[#2b3048] px-3 sm:w-auto text-xs text-gray-300 transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           Reject
                         </button>
@@ -446,7 +511,7 @@ export default function FundingGrantsPage() {
                         type="button"
                         onClick={() => decideRequest(request.id, 'reconcile')}
                         disabled={Boolean(requestBusy)}
-                        className="min-h-[36px] rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
+                        className="min-h-[40px] w-full rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 sm:w-auto text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
                       >
                         {requestBusy === request.id ? 'Checking…' : 'Check confirmation'}
                       </button>
@@ -457,7 +522,7 @@ export default function FundingGrantsPage() {
                             type="button"
                             onClick={() => decideRequest(request.id, 'reconcile')}
                             disabled={Boolean(requestBusy)}
-                            className="min-h-[36px] rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
+                            className="min-h-[40px] w-full rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 sm:w-auto text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
                           >
                             {requestBusy === request.id ? 'Retrying…' : 'Retry submission'}
                           </button>
@@ -465,7 +530,7 @@ export default function FundingGrantsPage() {
                             type="button"
                             onClick={() => decideRequest(request.id, 'reject')}
                             disabled={Boolean(requestBusy)}
-                            className="min-h-[36px] rounded-lg border border-[#2b3048] px-3 text-xs text-gray-300 transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="min-h-[40px] w-full rounded-lg border border-[#2b3048] px-3 sm:w-auto text-xs text-gray-300 transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             Cancel request
                           </button>
@@ -488,7 +553,7 @@ export default function FundingGrantsPage() {
           ) : null}
 
           {view === 'policy' ? (
-            <div className="grid gap-6 xl:grid-cols-2">
+            <div className="grid gap-5 2xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
               <form onSubmit={saveSettings} className="rounded-2xl border border-[#1e2135] bg-[#12141f] p-5 sm:p-6">
                 <div className="mb-5">
                   <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">Public test-funding policy</div>
