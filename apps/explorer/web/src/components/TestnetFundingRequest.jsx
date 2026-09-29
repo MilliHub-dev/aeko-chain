@@ -28,7 +28,7 @@ function requestMessage(request) {
   }
 }
 
-export default function TestnetFundingRequest({ fundingUrl }) {
+export default function TestnetFundingRequest({ fundingUrl, networkName = 'Network' }) {
   const [policy, setPolicy] = useState(
     /** @type {{ enabled: boolean, amountAeko: number, cooldownHours: number, dailyBudgetAeko: number, dailyRemainingAeko: number } | null} */ (null),
   );
@@ -43,9 +43,13 @@ export default function TestnetFundingRequest({ fundingUrl }) {
   useEffect(() => {
     let cancelled = false;
 
+    setPolicy(null);
+    setPolicyError('');
+    setRequest(null);
+    setRequestError('');
+
     if (!fundingUrl) {
-      setPolicy(null);
-      setPolicyError('Test AEKO is temporarily unavailable. Please try again later.');
+      setPolicyError(`${networkName} funding is temporarily unavailable. Please try again later.`);
       return () => {
         cancelled = true;
       };
@@ -66,7 +70,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
     return () => {
       cancelled = true;
     };
-  }, [fundingUrl]);
+  }, [fundingUrl, networkName]);
 
   useEffect(() => {
     if (!fundingUrl || !request?.id || TERMINAL_STATUSES.has(request.status)) return undefined;
@@ -141,10 +145,10 @@ export default function TestnetFundingRequest({ fundingUrl }) {
               <Droplets size={19} className="text-aeko-accent" />
             </div>
             <div>
-              <div className="text-xs font-medium uppercase tracking-[0.16em] text-aeko-accent">Test funding request</div>
-              <h2 className="mt-1 text-2xl font-bold text-white">Request test AEKO</h2>
+              <div className="text-xs font-medium uppercase tracking-[0.16em] text-aeko-accent">{networkName} funding request</div>
+              <h2 className="mt-1 text-2xl font-bold text-white">Request AEKO</h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-400">
-                Enter your Testnet wallet address to request test AEKO. You can leave this page open to follow the request until it is approved, rejected, or confirmed.
+                Enter your {networkName} wallet address to request AEKO from this network's operator-managed funding rail. You can leave this page open to follow the request until it is approved, rejected, or confirmed.
               </p>
             </div>
           </div>
@@ -152,7 +156,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
           {policy && !policy.enabled ? (
             <div className="mb-4 flex gap-2 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3 text-sm text-amber-100">
               <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-              Public test funding is currently paused by the Admin.
+              Public funding is currently paused by the Admin.
             </div>
           ) : null}
 
@@ -169,7 +173,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
               <input
                 value={address}
                 onChange={(event) => setAddress(event.target.value)}
-                placeholder="Paste a base58 AEKO test-network address"
+                placeholder={`Paste a base58 AEKO ${networkName} address`}
                 spellCheck={false}
                 autoComplete="off"
                 className="min-h-[48px] w-full rounded-xl border border-white/10 bg-black/30 px-4 font-mono text-sm text-white outline-none transition focus:border-aeko-accent"
@@ -244,7 +248,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
         <aside className="border-t border-white/10 bg-black/20 p-6 sm:p-8 lg:border-l lg:border-t-0">
           <div className="text-sm font-semibold text-white">Grant policy</div>
           <p className="mt-1 text-xs leading-relaxed text-gray-500">
-            Requests use the published Testnet funding policy. Limits and settlement checks are enforced automatically before test AEKO is released.
+            Requests use the published {networkName} funding policy. Limits and settlement checks are enforced automatically before AEKO is released.
           </p>
           <div className="mt-5 grid gap-3">
             <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">

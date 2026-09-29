@@ -132,9 +132,13 @@ test('accounts workspace keeps public funding approval separate from direct Test
   assert.doesNotMatch(implementation, /\brequestAirdrop\b|\brequestTestnetFunding\b|FUNDING_GATEWAY_KEY/);
   assert.match(networkTools, /fundingUrl=\{config\.fundingUrl\}/);
 
-  assert.match(networkTools, /<TestnetFundingRequest fundingUrl=\{config\.fundingUrl\} \/>/);
+  assert.match(networkTools, /<TestnetFundingRequest fundingUrl=\{config\.fundingUrl\} networkName=\{presentation\.name\} \/>/);
   assert.match(funding, /Your AEKO wallet address/);
-  assert.match(funding, /Enter your Testnet wallet address to request test AEKO/i);
+  assert.match(funding, /networkName = 'Network'/);
+  assert.match(funding, /Enter your \{networkName\} wallet address/);
+  assert.match(funding, /setPolicy\(null\)/);
+  assert.match(funding, /setRequest\(null\)/);
+  assert.doesNotMatch(funding, /Enter your Testnet wallet address to request test AEKO/i);
   assert.doesNotMatch(funding, /authenticated Admin must approve or reject/i);
   assert.match(funding, /requestFundingApproval\(fundingUrl, address\.trim\(\)\)/);
   assert.match(funding, /getFundingRequestStatus\(fundingUrl, request\.id\)/);
