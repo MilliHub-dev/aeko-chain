@@ -111,8 +111,8 @@ Do not copy the same value into multiple configuration surfaces merely because s
 | Social state and vault addresses | generated `social-state/social-registry.env` | Leave Explorer per-address overrides unset. |
 | Protocol feature identities | compile-time feature IDs | Fresh/reset genesis activates the mandatory protocol runtime features automatically; only an older preserved chain uses the compatibility activation helper. |
 | Protocol authority and canonical state addresses | persistent protocol authority plus generated `protocol-registry.env` / continuity anchor | Bootstrap automatically when no established protocol identity exists; preserve and verify thereafter. |
-| Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads it through the same-origin read proxy. |
-| Blockchain service endpoints | active deployment environment | Public clients/Scan use the public `AEKO_RPC_URL`, `AEKO_WS_URL`, and `AEKO_EXPLORER_API_URL`. Production server resources receive `AEKO_INTERNAL_RPC_URL`, `AEKO_INTERNAL_WS_URL`, `AEKO_INTERNAL_EXPLORER_API_URL`, `AEKO_INTERNAL_REGISTRY_URL`, `AEKO_INTERNAL_FAUCET_ADDRESS`, or `AEKO_EXPLORER_PROXY_UPSTREAM_URL` as applicable; Compose maps them to the existing generic runtime names inside each container. |
+| Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads it through the public Explorer API. |
+| Blockchain service endpoints | active deployment environment | Public clients/Scan use the public `AEKO_RPC_URL`, `AEKO_WS_URL`, and `AEKO_EXPLORER_API_URL`. Production server resources receive `AEKO_INTERNAL_RPC_URL`, `AEKO_INTERNAL_WS_URL`, `AEKO_INTERNAL_EXPLORER_API_URL`, `AEKO_INTERNAL_REGISTRY_URL`, `AEKO_INTERNAL_FAUCET_ADDRESS`, or `AEKO_EXPLORER_CORS_ALLOWED_ORIGINS` as applicable; Compose maps them to the existing generic runtime names inside each container. |
 | Bootstrap registry | generated `social-registry.env` + `protocol-registry.env`, served read-only by `registry.aeko.online` | Explorer API fetches the pair and verifies schema/genesis before use; Scan/Admin consume Explorer API instead of bootstrap storage. |
 | Recovery address overrides | Explorer process environment | Use only for explicit recovery; never as a parallel normal source of truth. |
 
@@ -122,8 +122,7 @@ For the currently deployed testnet, the public client endpoints remain
 `AEKO_EXPLORER_API_URL=https://api.aeko.online`. Production server resources
 must separately configure reachable private or DNS-only origins using the
 `AEKO_INTERNAL_*` variables and Scan's
-`AEKO_EXPLORER_PROXY_UPSTREAM_URL`. These server-only origins must bypass
-public Cloudflare/WAF handling.
+`AEKO_EXPLORER_CORS_ALLOWED_ORIGINS`. These server-only internal origins must bypass public Cloudflare/WAF handling. Browser Scan traffic intentionally uses the public Explorer API.
 
 A future mainnet or devnet deployment follows the same separation on its own
 servers. These are independent stacks even when an operator happens to place
@@ -153,7 +152,7 @@ AEKO_INTERNAL_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
 AEKO_INTERNAL_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
 AEKO_INTERNAL_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
 AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
-AEKO_EXPLORER_PROXY_UPSTREAM_URL=https://<private-or-dns-only-explorer-api-origin>
+AEKO_EXPLORER_CORS_ALLOWED_ORIGINS=https://<private-or-dns-only-explorer-api-origin>
 
 AEKO_GOSSIP_HOST=gossip.aeko.online
 AEKO_KEYS_DIR=<Dokploy/local persistent host directory; Coolify uses fixed /data/aeko/keys>

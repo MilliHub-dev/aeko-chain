@@ -108,7 +108,7 @@ AEKO_INTERNAL_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
 AEKO_INTERNAL_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
 AEKO_INTERNAL_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
 AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
-AEKO_EXPLORER_PROXY_UPSTREAM_URL=https://<private-or-dns-only-explorer-api-origin>
+AEKO_EXPLORER_CORS_ALLOWED_ORIGINS=https://<private-or-dns-only-explorer-api-origin>
 ~~~
 
 Those inputs are mapped to the existing generic runtime variables inside each
@@ -224,13 +224,13 @@ a liveness endpoint; probing it produces `admin_sign_in_required` redirects and
 warning logs.
 
 The public `api.aeko.online` hostname is a client-facing Explorer endpoint,
-not the required server-to-server funding path. Scan's same-origin proxy uses
-`AEKO_EXPLORER_PROXY_UPSTREAM_URL`, and Operations Web uses
-`AEKO_INTERNAL_EXPLORER_API_URL`; both must resolve to a reachable private or
-DNS-only Explorer origin that bypasses public Cloudflare/WAF challenges.
+not the required server-to-server funding path. Scan calls the public Explorer API directly. The API must allow the configured
+Scan origin and must not return interactive Cloudflare/WAF challenge HTML for
+API routes. Operations Web continues to use `AEKO_INTERNAL_EXPLORER_API_URL`
+so secret-bearing Admin mutations stay on the private server-to-server path.
 Browser navigation still uses `scan.aeko.online`. If the edge in front of
 `scan.aeko.online` itself applies bot challenges, exempt the exact
-`/api/explorer/testnet/funding/*` API routes from HTML challenges; API
+`https://api.aeko.online/funding/*` API routes from HTML challenges; API
 failures must remain JSON.
 
 `registry.aeko.online/` returns a non-secret JSON discovery manifest.
@@ -345,7 +345,7 @@ localhost works, check these in order:
    non-JSON error page, usually because the upstream Explorer origin itself
    goes through Cloudflare/WAF to a dead or unreachable backend. Point the
    Scan server at a private origin instead:
-   `AEKO_EXPLORER_PROXY_UPSTREAM_URL=https://<private-or-dns-only-explorer-api-origin>` (and the
+   `AEKO_EXPLORER_CORS_ALLOWED_ORIGINS=https://<private-or-dns-only-explorer-api-origin>` (and the
    matching `AEKO_<NETWORK>_EXPLORER_PROXY_UPSTREAM_URL` overrides). The proxy
    now reports `upstreamStatus` in its `EXPLORER_UPSTREAM_INVALID_RESPONSE`
    body so you can tell an upstream HTML 502 apart from a backend JSON error.

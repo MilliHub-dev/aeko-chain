@@ -6,9 +6,8 @@
 The current deployment has **one Admin role**. Public testnet funding is not a
 second Operations Web deployment and there is no separate funding origin/runtime.
 Funding policy, approval requests, manual grants, and constrained Test Console
-airdrops are owned by the Explorer API funding module. Browser clients reach
-those routes through Aeko Scan's same-origin
-`/api/explorer/testnet/funding/*` boundary.
+airdrops are owned by the Explorer API funding module. Browser clients call the selected network's public Explorer API directly. Operations
+Web keeps Admin-only Explorer credentials server-side behind its Next.js API routes.
 
 ## Network contract
 

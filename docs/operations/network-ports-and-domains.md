@@ -22,8 +22,8 @@ port `4101` is listed for context but is not deployed by these Compose files.
 
 There is **no separate public Funding Gateway service/domain in the current
 target topology**. Testnet funding endpoints are owned by Explorer API and are
-reached by browser clients through Aeko Scan's same-origin
-`/api/explorer/testnet/funding/*` proxy. The private Faucet on `9900` remains
+reached by browser clients through Aeko Scan's direct public Explorer API
+`https://api.aeko.online/funding/*` API. The private Faucet on `9900` remains
 the low-level signer used by the Validator funding path.
 
 The read-only registry exposes:
@@ -63,7 +63,7 @@ Aeko Scan is the multi-network exception. Its generic variables describe the
 active/default network. Optional complete alternate triplets use
 `AEKO_<NETWORK>_RPC_URL`, `AEKO_<NETWORK>_WS_URL`, and
 `AEKO_<NETWORK>_EXPLORER_API_URL`. The Scan server may also set
-`AEKO_EXPLORER_PROXY_UPSTREAM_URL` or
+`AEKO_EXPLORER_CORS_ALLOWED_ORIGINS` or
 `AEKO_<NETWORK>_EXPLORER_PROXY_UPSTREAM_URL` to a private/DNS-only Explorer
 origin. These values are server-only and are not published to browser runtime
 configuration.
@@ -89,7 +89,7 @@ hairpin through Cloudflare/WAF.
 | Operations Web -> Validator RPC | `AEKO_RPC_URL` | `AEKO_INTERNAL_RPC_URL` |
 | Operations Web -> Explorer API | `AEKO_EXPLORER_API_URL` | `AEKO_INTERNAL_EXPLORER_API_URL` |
 | Validator -> Faucet | `AEKO_FAUCET_ADDRESS` | `AEKO_INTERNAL_FAUCET_ADDRESS` |
-| Scan server -> Explorer API | private proxy upstream | `AEKO_EXPLORER_PROXY_UPSTREAM_URL` |
+| Scan browser -> Explorer API | public runtime config | `AEKO_EXPLORER_API_URL` |
 | Scan browser -> Validator RPC/WS | public runtime config | `AEKO_RPC_URL`, `AEKO_WS_URL` |
 | Scan browser -> indexed Explorer reads | same-origin `/api/explorer/{network}` | public Scan origin |
 
@@ -140,7 +140,7 @@ Raw Faucet and validator transport are exceptions:
   addresses.
 - Browsers use `scan.aeko.online`; they do not need direct knowledge of the
   raw Explorer backend origin.
-- Edge/WAF rules on Scan's `/api/explorer/testnet/funding/*` routes must not
+- Edge/WAF rules on Scan's `https://api.aeko.online/funding/*` routes must not
   replace API responses with HTML challenges; keep the funding boundary JSON.
 - Gossip and dynamic validator transport are node networking, not dApp APIs.
 - `api.aeko.online` and `registry.aeko.online` must use TLS when routed over
