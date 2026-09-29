@@ -308,8 +308,9 @@ def main() -> int:
     scan_vite = read(ROOT / "apps" / "explorer" / "web" / "vite.config.js")
 
     # Runtime config generation and Vite dev mode consume chain RPC/WS plus the
-    # Explorer API. The production proxy server only needs network identity and
-    # Explorer API upstreams; it must not require RPC/WS it never calls.
+    # public Explorer API identity. The production proxy server must use only
+    # server-side Explorer proxy origins; it must not depend on browser-facing
+    # RPC/WS or public Explorer API URLs.
     for label, text in (
         ("Scan entrypoint", scan_entrypoint),
         ("Scan Vite config", scan_vite),
@@ -329,11 +330,14 @@ def main() -> int:
         scan_server,
         (
             "AEKO_NETWORK",
-            "AEKO_EXPLORER_API_URL",
             "AEKO_EXPLORER_PROXY_UPSTREAM_URL",
             "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL",
             "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL",
         ),
+    )
+    require(
+        "AEKO_EXPLORER_API_URL" not in scan_server,
+        "Scan proxy server must not fall back to the browser-facing Explorer API URL",
     )
 
     for name in (
