@@ -1156,7 +1156,7 @@ fn poll_funding_request(
                 } else {
                     println!("Funding approved and confirmed.");
                 }
-                let current_balance = rpc_client.get_balance(&pubkey)?;
+                let current_balance = rpc_client.get_balance(pubkey)?;
                 return Ok(build_balance_message(current_balance, false, true));
             }
             "rejected" | "failed" => {

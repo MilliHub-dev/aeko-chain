@@ -4,7 +4,7 @@ use {
         http::{build_router, state::AppState},
         ExplorerBackendConfig, PostgresRepository, RpcChainClient, ServerConfig,
     },
-    aeko_sdk::{pubkey::Pubkey, signature::Signature},
+    aeko_sdk::pubkey::Pubkey,
     anyhow::{Context, Result},
     axum::{
         body::{to_bytes, Body},
@@ -39,7 +39,21 @@ struct FakeRpcState {
     blockhash_valid: Arc<AtomicBool>,
     pending_signature_statuses: Arc<AtomicUsize>,
     blockhash: String,
-    airdrop_signature: String,
+}
+
+/// Deterministic stand-in for Faucet signing: the same submission intent
+/// (destination, amount, blockhash) recovers the same signature so
+/// response-loss replay tests can prove idempotency, while distinct intents
+/// settle as distinct transfers — mirroring the real Faucet/RPC behavior and
+/// the `funding_grants_signature_unique` ledger constraint.
+fn intent_signature(address: &str, lamports: u64, blockhash: &str) -> String {
+    let mut bytes = [0u8; 64];
+    for (i, chunk) in bytes.chunks_mut(8).enumerate() {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        std::hash::Hash::hash(&(address, lamports, blockhash, i), &mut hasher);
+        chunk.copy_from_slice(&std::hash::Hasher::finish(&hasher).to_le_bytes());
+    }
+    bs58::encode(bytes).into_string()
 }
 
 async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>) -> Json<Value> {
@@ -112,10 +126,18 @@ async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>)
                     }
                 }));
             }
+            let address = request
+                .pointer("/params/0")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let lamports = request.pointer("/params/1").and_then(Value::as_u64).unwrap_or(0);
+            // The auth/blockhash gate above guarantees these match the
+            // persisted intent the backend will replay verbatim.
+            let intent_blockhash = recent_blockhash.unwrap_or_default();
             Json(json!({
                 "jsonrpc": "2.0",
                 "id": id,
-                "result": state.airdrop_signature
+                "result": intent_signature(address, lamports, intent_blockhash)
             }))
         }
         "getSignatureStatuses" => {
@@ -241,7 +263,6 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         blockhash_valid: Arc::new(AtomicBool::new(true)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
         blockhash: Pubkey::new_unique().to_string(),
-        airdrop_signature: Signature::new_unique().to_string(),
     };
     let rpc_observer = fake_state.clone();
 
@@ -389,11 +410,10 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         .to_string();
     assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 2);
 
-    // This fake RPC deliberately returns one deterministic signature for every
-    // accepted submission so response-loss replay tests can prove idempotency.
-    // Ledger separation must therefore be asserted by the durable domain
-    // identity/address, not by assuming the fake signer manufactures a unique
-    // signature for unrelated requests.
+    // The fake signer derives one deterministic signature per submission
+    // intent, so response-loss replays recover the same signature while
+    // unrelated requests settle distinctly. Ledger separation is asserted by
+    // the durable domain identity/address all the same.
     let (status, grants_after_airdrop) = request_json(
         &app,
         Method::GET,
@@ -454,7 +474,6 @@ async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() 
         blockhash_valid: Arc::new(AtomicBool::new(false)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(usize::MAX)),
         blockhash: Pubkey::new_unique().to_string(),
-        airdrop_signature: Signature::new_unique().to_string(),
     };
     let rpc_observer = fake_state.clone();
 
@@ -568,7 +587,6 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
 
     let authorization = "test-funding-authorization-key-replay-0001".to_string();
     let blockhash = Pubkey::new_unique().to_string();
-    let expected_signature = Signature::new_unique().to_string();
     let fake_state = FakeRpcState {
         authorization: authorization.clone(),
         saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
@@ -578,7 +596,6 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
         blockhash_valid: Arc::new(AtomicBool::new(true)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
         blockhash: blockhash.clone(),
-        airdrop_signature: expected_signature.clone(),
     };
     let rpc_observer = fake_state.clone();
 
@@ -626,6 +643,9 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
     let app = build_router(state.clone(), &server_config());
 
     let address = Pubkey::new_unique().to_string();
+    // The fake signer derives its signature from the submission intent, so
+    // the replayed settlement must recover exactly this signature.
+    let expected_signature = intent_signature(&address, 5_000_000_000, &blockhash);
     let (status, created) = request_json(
         &app,
         Method::POST,
@@ -718,7 +738,6 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
 
     let authorization = "test-funding-authorization-key-expired-replay-0001".to_string();
     let blockhash = Pubkey::new_unique().to_string();
-    let expected_signature = Signature::new_unique().to_string();
     let fake_state = FakeRpcState {
         authorization: authorization.clone(),
         saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
@@ -728,7 +747,6 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
         blockhash_valid: Arc::new(AtomicBool::new(false)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
         blockhash: blockhash.clone(),
-        airdrop_signature: expected_signature.clone(),
     };
     let rpc_observer = fake_state.clone();
 
@@ -776,6 +794,9 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
     let app = build_router(state.clone(), &server_config());
 
     let address = Pubkey::new_unique().to_string();
+    // The fake signer derives its signature from the submission intent, so
+    // the replayed settlement must recover exactly this signature.
+    let expected_signature = intent_signature(&address, 5_000_000_000, &blockhash);
     let (status, created) = request_json(
         &app,
         Method::POST,
@@ -867,7 +888,6 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
         blockhash_valid: Arc::new(AtomicBool::new(true)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(12)),
         blockhash: Pubkey::new_unique().to_string(),
-        airdrop_signature: Signature::new_unique().to_string(),
     };
     let rpc_observer = fake_state.clone();
 
@@ -1009,7 +1029,6 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
             blockhash_valid: Arc::new(AtomicBool::new(true)),
             pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
             blockhash: Pubkey::new_unique().to_string(),
-            airdrop_signature: Signature::new_unique().to_string(),
         });
     tokio::spawn(async move {
         axum::serve(listener, fake_server).await.unwrap();

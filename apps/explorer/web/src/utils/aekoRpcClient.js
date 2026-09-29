@@ -135,6 +135,10 @@ async function readFundingResponse(response, label) {
  * human-readable message.
  */
 export class FundingResponseError extends Error {
+  /**
+   * @param {string} message
+   * @param {{ code?: string, requestId?: string | null, status?: number }} [options]
+   */
   constructor(message, { code, requestId = null, status } = {}) {
     super(message);
     this.name = 'FundingResponseError';
