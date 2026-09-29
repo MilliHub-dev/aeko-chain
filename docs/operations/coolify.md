@@ -107,9 +107,10 @@ Aeko Scan is the only multi-network boundary. Its generic values define the
 active/default public network; optional complete `AEKO_MAINNET_*` and
 `AEKO_TESTNET_*` RPC/WS/Explorer-API triplets describe the other independently
 deployed public network. The production Scan resource accepts Mainnet and
-Testnet only. Scan may additionally set the server-only
-`AEKO_EXPLORER_PROXY_UPSTREAM_URL` (and matching network-prefixed overrides)
-to a private or DNS-only Explorer origin. This keeps same-origin browser funding
+Testnet only. Production Scan must set the server-only
+`AEKO_EXPLORER_PROXY_UPSTREAM_URL`, and every configured alternate network
+must set its matching network-prefixed proxy upstream, to a private or DNS-only
+Explorer origin. This keeps same-origin browser funding
 requests away from bot challenges/WAF HTML pages between Scan and Explorer
 without exposing that origin in `runtime-config.js`. Devnet and Localnet remain explicit development environments and
 are configured outside the public Scan deployment contract.
@@ -214,13 +215,12 @@ For the Operations Web resource, set Coolify's HTTP health-check path to
 a liveness endpoint; probing it produces `admin_sign_in_required` redirects and
 warning logs.
 
-`api.aeko.online` is the normal server-side Explorer API origin used by Scan's
-same-origin proxy and Operations Web. Browser navigation still uses
-`scan.aeko.online`; the browser is not required to call the API origin
-directly. If an edge/WAF on the public API hostname challenges server-to-server
-funding requests with HTML, configure Scan's
-`AEKO_EXPLORER_PROXY_UPSTREAM_URL` to a reachable private or DNS-only Explorer
-origin instead. If the edge in front of `scan.aeko.online` itself applies bot
+`AEKO_EXPLORER_API_URL` remains the network's public/API identity, while
+server-to-server traffic must use origins that bypass browser-facing edge
+challenges. Scan uses `AEKO_EXPLORER_PROXY_UPSTREAM_URL`; Operations Web uses
+`AEKO_EXPLORER_UPSTREAM_URL`. Point both at a reachable private service origin
+or DNS-only Explorer origin. Browser navigation still uses `scan.aeko.online`,
+and neither private origin is published in browser runtime configuration. If the edge in front of `scan.aeko.online` itself applies bot
 challenges, exempt the exact `/api/explorer/testnet/funding/*` API routes from
 HTML challenges; API failures must remain JSON.
 

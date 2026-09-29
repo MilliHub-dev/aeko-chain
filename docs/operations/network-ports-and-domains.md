@@ -60,13 +60,13 @@ sets. The values change to that network's domains. Do not put mainnet, testnet,
 and devnet endpoints into every backend/validator deployment.
 
 Aeko Scan is the multi-network exception. Its generic variables describe the
-active/default network. Optional complete alternate triplets use
+active/default network. Optional complete alternate public-network configurations use
 `AEKO_<NETWORK>_RPC_URL`, `AEKO_<NETWORK>_WS_URL`, and
-`AEKO_<NETWORK>_EXPLORER_API_URL`. The Scan server may also set
-`AEKO_EXPLORER_PROXY_UPSTREAM_URL` or
-`AEKO_<NETWORK>_EXPLORER_PROXY_UPSTREAM_URL` to a private/DNS-only Explorer
-origin. These values are server-only and are not published to browser runtime
-configuration.
+`AEKO_<NETWORK>_EXPLORER_API_URL`. Production Scan also requires
+`AEKO_EXPLORER_PROXY_UPSTREAM_URL` for the active network and the matching
+`AEKO_<NETWORK>_EXPLORER_PROXY_UPSTREAM_URL` for every configured alternate.
+These server-only origins bypass browser-facing edge/WAF routing and are never
+published to browser runtime configuration.
 
 The standard public selector exposes **Mainnet** and **Testnet** only. Devnet
 and Localnet remain valid independently deployed/operator development
@@ -87,9 +87,9 @@ Co-locating these services on one host does **not** make AEKO a multi-network mo
 | Explorer API -> Validator RPC | `http://validator:8899` | `AEKO_RPC_URL` |
 | Explorer API -> Validator WS | `ws://validator:8900` | `AEKO_WS_URL` |
 | Operations Web -> Validator RPC | `http://validator:8899` | `AEKO_RPC_URL` |
-| Operations Web -> Explorer API | `http://explorer-api:8088` | `AEKO_EXPLORER_API_URL` |
+| Operations Web -> Explorer API | `http://explorer-api:8088` | `AEKO_EXPLORER_UPSTREAM_URL` (server-side; `AEKO_EXPLORER_API_URL` remains the public identity) |
 | Validator -> Faucet | `faucet:9900` | `AEKO_FAUCET_ADDRESS` |
-| Scan server -> Explorer API | `http://explorer-api:8088` | `AEKO_EXPLORER_API_URL` |
+| Scan server -> Explorer API | `http://explorer-api:8088` | `AEKO_EXPLORER_PROXY_UPSTREAM_URL` |
 
 The Scan browser cannot resolve Docker service names. Public/testnet Compose
 therefore gives Scan browser RPC/WS public-domain defaults while its server-side

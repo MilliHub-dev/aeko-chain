@@ -3,7 +3,7 @@
 
 This test uses the same product boundaries as a real user/operator flow:
 Aeko Scan public request -> Operations Web Admin approval -> Explorer backend
-settlement -> protected Validator requestAirdrop -> Faucet -> chain confirmation
+settlement -> protected Validator requestGrant -> Faucet -> chain confirmation
 -> public request status -> Admin confirmed-grant ledger -> RPC balance.
 
 It intentionally does not test developer Test Console airdrops. Airdrops are a
@@ -277,7 +277,7 @@ def main() -> int:
         required("ADMIN_PASSWORD")
         if NETWORK not in {"testnet", "devnet", "localnet"}:
             raise SmokeFailure(
-                "AEKO_NETWORK must be testnet, devnet, or localnet; mainnet funding is intentionally unsupported"
+                "This destructive smoke is intentionally limited to testnet, devnet, or localnet; do not run it against a governed Mainnet deployment"
             )
 
         health = rpc("getHealth")
