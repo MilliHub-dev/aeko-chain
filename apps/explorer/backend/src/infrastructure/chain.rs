@@ -401,7 +401,11 @@ impl RpcChainClient {
             Err(error) => {
                 if let Some(rpc) = error.downcast_ref::<RpcRequestError>() {
                     if rpc.method == "getSlotLeaders" && rpc.code == -32602 {
-                        tracing::warn!(
+                        // Expected on young chains (e.g. epoch 0 has no
+                        // retrievable schedule): index the block without
+                        // optional producer metadata instead of warning once
+                        // per slot.
+                        tracing::debug!(
                             slot,
                             rpc_code = rpc.code,
                             rpc_message = %rpc.message,
