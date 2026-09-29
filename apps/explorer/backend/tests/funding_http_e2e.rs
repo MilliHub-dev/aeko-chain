@@ -130,7 +130,10 @@ async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>)
                 .pointer("/params/0")
                 .and_then(Value::as_str)
                 .unwrap_or_default();
-            let lamports = request.pointer("/params/1").and_then(Value::as_u64).unwrap_or(0);
+            let lamports = request
+                .pointer("/params/1")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
             // The auth/blockhash gate above guarantees these match the
             // persisted intent the backend will replay verbatim.
             let intent_blockhash = recent_blockhash.unwrap_or_default();
