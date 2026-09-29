@@ -33,6 +33,7 @@ REGISTRY_FEATURE = ROOT / "apps" / "explorer" / "backend" / "src" / "features" /
 SPLIT_BOOTSTRAP = ROOT / "docker" / "coolify" / "bootstrap" / "compose.yml"
 PROTOCOL_INTEGRATION = ROOT / "scripts" / "ci-protocol-stack-integration.sh"
 SMART_CONTRACT_RUN = ROOT / ".github" / "actions" / "devops" / "smart-contracts" / "run.sh"
+LIVE_NETWORK_DIAGNOSTICS = ROOT / ".github" / "workflows" / "live-network-diagnostics.yml"
 FUNDING_SMOKE = ROOT / "scripts" / "smoke-funding-e2e.py"
 HELLO_PROGRAM_SMOKE = ROOT / "scripts" / "smoke-hello-program.py"
 README = ROOT / "README.md"
@@ -119,6 +120,7 @@ def main() -> int:
     split_bootstrap = read(SPLIT_BOOTSTRAP)
     protocol_integration = read(PROTOCOL_INTEGRATION)
     smart_contract_run = read(SMART_CONTRACT_RUN)
+    live_network_diagnostics = read(LIVE_NETWORK_DIAGNOSTICS)
     funding_smoke = read(FUNDING_SMOKE)
     hello_program_smoke = read(HELLO_PROGRAM_SMOKE)
     readme = read(README)
@@ -401,13 +403,8 @@ def main() -> int:
             f"{label} settings token must never reach Scan browser runtime",
         )
         require(
-            "AEKO_EXPLORER_API_URL:" in operations
-            and "AEKO_EXPLORER_UPSTREAM_URL:" in operations,
-            f"{label} Operations must keep browser/API identity separate from its server-only Explorer upstream",
-        )
-        require(
-            "AEKO_EXPLORER_PROXY_UPSTREAM_URL:" in explorer_ui,
-            f"{label} Scan must have a server-only Explorer proxy upstream",
+            "AEKO_EXPLORER_API_URL:" in operations,
+            f"{label} Operations must call Explorer API directly",
         )
 
     require(
@@ -589,6 +586,18 @@ def main() -> int:
         require(
             required in protocol_integration,
             f"live protocol-stack funding dogfood missing contract: {required}",
+        )
+
+    for required in (
+        'rpc("requestAirdrop"',
+        'rpc("getBalance"',
+        "direct Faucet-backed airdrop",
+        'api_url + "/funding/airdrop"',
+        "Scan funding airdrop",
+    ):
+        require(
+            required in live_network_diagnostics,
+            f"live network diagnostics missing Faucet-backed RPC probe: {required}",
         )
 
     # Deployable SBF contracts have an independent CI ownership boundary.

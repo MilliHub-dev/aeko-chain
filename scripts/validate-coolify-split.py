@@ -44,9 +44,6 @@ RESOURCES = {
 
 RETIRED_ENDPOINT_NAMES = (
     "AEKO_ENV",
-    "AEKO_INTERNAL_RPC_URL",
-    "AEKO_INTERNAL_FAUCET_ADDRESS",
-    "AEKO_INTERNAL_EXPLORER_API_URL",
     "AEKO_PUBLIC_RPC_URL",
     "AEKO_PUBLIC_WS_URL",
 )
@@ -178,8 +175,8 @@ def main() -> int:
     )
     for name, block in (("Social", social), ("Protocol", protocol)):
         require(
-            "AEKO_RPC_URL: ${AEKO_RPC_URL:?Set the active chain RPC URL}" in block,
-            f"{name} bootstrap must consume only the active environment RPC",
+            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?Set private or DNS-only Validator RPC URL}" in block,
+            f"{name} bootstrap must use the private Validator RPC contract",
         )
         if name == "Protocol":
             require(
@@ -254,8 +251,8 @@ def main() -> int:
     validator = loaded["validator"]
     require("AEKO_NETWORK: ${AEKO_NETWORK:?" in validator, "Validator must declare one active chain environment")
     require(
-        "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:?" in validator,
-        "Validator must require an explicit raw-TCP Faucet address",
+        "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:?Set a private or DNS-only Faucet host:9900}" in validator,
+        "Validator must require the private raw Faucet endpoint",
     )
     require("source: /data/aeko/validator-ledger" in validator, "Validator ledger must use stable host storage")
     require("source: /data/aeko/keys" in validator, "Validator must mount persistent identities")
@@ -279,10 +276,11 @@ def main() -> int:
     )
     for expected in (
         "AEKO_NETWORK: ${AEKO_NETWORK:?",
-        "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
-        "AEKO_REGISTRY_URL: ${AEKO_REGISTRY_URL:?",
+        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
+        "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}",
+        "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:?",
     ):
-        require(expected in explorer_api, f"Explorer API missing active-environment contract: {expected}")
+        require(expected in explorer_api, f"Explorer API missing private upstream contract: {expected}")
     require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?" in explorer_api, "Explorer API must require PostgreSQL")
     require("volumes:" not in explorer_api, "Explorer API must not require bootstrap-host filesystem mounts")
     require("ports:" not in explorer_api, "Explorer API HTTP ingress must be routed by its domain")
@@ -301,7 +299,7 @@ def main() -> int:
         "AEKO_SCAN_AIRDROP_KEY" not in explorer_api,
         "Explorer API must not retain the retired Scan-only airdrop key",
     )
-    for name in ("AEKO_NETWORK", "AEKO_RPC_URL", "AEKO_EXPLORER_API_URL", "AEKO_REGISTRY_URL"):
+    for name in ("AEKO_NETWORK", "AEKO_INTERNAL_RPC_URL", "AEKO_INTERNAL_WS_URL", "AEKO_INTERNAL_REGISTRY_URL"):
         require(f"{name}=" in envs["explorer-api"], f"Explorer API env example missing {name}")
 
     explorer_ui = loaded["explorer-ui"]
@@ -316,6 +314,7 @@ def main() -> int:
         "AEKO_WS_URL: ${AEKO_WS_URL:?",
         "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
         "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?",
+        "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
         "AEKO_MAINNET_RPC_URL:",
         "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
         "AEKO_TESTNET_RPC_URL:",
@@ -338,12 +337,23 @@ def main() -> int:
     require("depends_on:" not in operations, "Operations Web must remain independently deployable")
     for expected in (
         "AEKO_NETWORK: ${AEKO_NETWORK:?",
-        "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
-        "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
-        "AEKO_EXPLORER_UPSTREAM_URL: ${AEKO_EXPLORER_UPSTREAM_URL:?",
+        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
+        "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?",
         "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
     ):
-        require(expected in operations, f"Operations Web missing active-environment contract: {expected}")
+        require(expected in operations, f"Operations Web missing private upstream contract: {expected}")
+
+    for label in ("bootstrap", "explorer-api", "operations-web"):
+        combined = loaded[label] + "\n" + envs[label]
+        require(
+            "https://rpc.aeko.online" not in combined,
+            f"{label} must not hairpin server RPC through the public edge",
+        )
+    require(
+        "https://api.aeko.online" not in envs["operations-web"],
+        "Operations Web must not hairpin Explorer mutations through the public edge",
+    )
+
     require(
         "http://127.0.0.1:3001/healthz" in operations,
         "Operations Web container healthcheck must use the dedicated public /healthz route",
