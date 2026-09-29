@@ -488,6 +488,22 @@ fn looks_like_http_request(bytes: &[u8]) -> bool {
     HTTP_PREFIXES.iter().any(|prefix| bytes.starts_with(prefix))
 }
 
+/// Number of `FaucetRequest` variants the running binary understands
+/// (`GetAirdrop` = 0, `GetGrant` = 1). Bump when adding a variant so
+/// mixed-version peers get a clear diagnostic instead of a bare decode error.
+const FAUCET_REQUEST_VARIANTS: u32 = 2;
+
+fn faucet_request_discriminant(bytes: &[u8]) -> Option<u32> {
+    bytes
+        .get(0..4)
+        .map(|prefix| u32::from_le_bytes([prefix[0], prefix[1], prefix[2], prefix[3]]))
+}
+
+fn looks_like_tls_handshake(bytes: &[u8]) -> bool {
+    // TLS ClientHello: content type 0x16 (handshake), major version 0x03.
+    bytes.len() >= 3 && bytes[0] == 0x16 && bytes[1] == 0x03
+}
+
 async fn process(
     mut stream: TokioTcpStream,
     faucet: Arc<Mutex<Faucet>>,
@@ -511,12 +527,30 @@ async fn process(
     let mut request = vec![0u8; request_len];
     while stream.read_exact(&mut request).await.is_ok() {
         trace!("{:?}", request);
+        let peer = stream.peer_addr().ok().map(|peer| peer.ip());
 
         if looks_like_http_request(&request) {
             warn!(
                 "Rejected HTTP-like traffic on raw TCP Faucet listener from {:?}",
-                stream.peer_addr().ok().map(|peer| peer.ip())
+                peer
             );
+            return Ok(());
+        }
+
+        if looks_like_tls_handshake(&request) {
+            debug!("Rejected TLS-like traffic on faucet TCP listener from {:?}", peer);
+            return Ok(());
+        }
+
+        // Drop unknown request variants (e.g. a newer peer speaking a faucet
+        // protocol this binary does not implement) with a clear diagnostic
+        // instead of a bare bincode decode error, then close the connection:
+        // legitimate clients send exactly one well-formed request each.
+        if let Some(variant) = faucet_request_discriminant(&request)
+            .filter(|variant| *variant >= FAUCET_REQUEST_VARIANTS)
+        {
+            debug!("Rejected unknown faucet variant {} from {:?}", variant, peer);
+            let _ = stream.write_all(&ERROR_RESPONSE).await;
             return Ok(());
         }
 
@@ -528,7 +562,7 @@ async fn process(
                 }
                 Ok(peer_addr) => {
                     let ip = peer_addr.ip();
-                    info!("Request IP: {:?}", ip);
+                    debug!("Request IP: {:?}", ip);
 
                     match faucet.lock().unwrap().process_faucet_request(&request, ip) {
                         Ok(response_bytes) => {
@@ -536,8 +570,12 @@ async fn process(
                             response_bytes
                         }
                         Err(e) => {
-                            info!("Error in request: {}", e);
-                            ERROR_RESPONSE.to_vec()
+                            // Malformed or over-limit payloads never represent
+                            // a legitimate faucet request: log at debug and
+                            // close the connection instead of spinning on it.
+                            debug!("Error in request from {:?}: {}", ip, e);
+                            let _ = stream.write_all(&ERROR_RESPONSE).await;
+                            return Ok(());
                         }
                     }
                 }
@@ -810,6 +848,46 @@ mod tests {
         })
         .unwrap();
         assert!(!looks_like_http_request(&binary));
+    }
+
+    #[test]
+    fn non_faucet_traffic_is_classified_before_deserialization() {
+        // TLS ClientHello bytes must never reach bincode deserialization.
+        let mut tls_hello = vec![0x16, 0x03, 0x01];
+        tls_hello.resize(76, 0);
+        assert!(looks_like_tls_handshake(&tls_hello));
+        assert!(!looks_like_http_request(&tls_hello));
+
+        for variant in [
+            FaucetRequest::GetAirdrop {
+                lamports: 1,
+                to: Pubkey::new_unique(),
+                blockhash: Hash::new_unique(),
+            },
+            FaucetRequest::GetGrant {
+                lamports: 1,
+                to: Pubkey::new_unique(),
+                blockhash: Hash::new_unique(),
+            },
+        ] {
+            let binary = serialize(&variant).unwrap();
+            assert!(!looks_like_tls_handshake(&binary));
+            assert!(!looks_like_http_request(&binary));
+            let discriminant = faucet_request_discriminant(&binary).unwrap();
+            assert!(discriminant < FAUCET_REQUEST_VARIANTS);
+        }
+
+        // A newer peer speaking an unknown variant is rejected with a clear
+        // diagnostic instead of a bare decode error downstream.
+        let mut unknown = vec![0u8; 76];
+        LittleEndian::write_u32(&mut unknown, FAUCET_REQUEST_VARIANTS);
+        assert!(!looks_like_tls_handshake(&unknown));
+        assert!(!looks_like_http_request(&unknown));
+        assert_eq!(faucet_request_discriminant(&unknown), Some(FAUCET_REQUEST_VARIANTS));
+        let keypair = Keypair::new();
+        let mut faucet = Faucet::new(keypair, None, None, None);
+        let ip = socketaddr!([203, 0, 113, 1], 1234).ip();
+        assert!(faucet.process_faucet_request(&unknown, ip).is_err());
     }
 
     #[test]
