@@ -169,7 +169,8 @@ def main() -> int:
     # service names. Its active defaults are the routed testnet domains, while
     # the server-side Explorer API upstream remains independently overrideable.
     for path in (ROOT / "docker" / "compose.dokploy.yml", ROOT / "docker" / "compose.coolify.yml"):
-        scan = service_block(read(path), "explorer-ui")
+        compose = read(path)
+        scan = service_block(compose, "explorer-ui")
         require_contains_all(
             f"{path.name} Scan",
             scan,
