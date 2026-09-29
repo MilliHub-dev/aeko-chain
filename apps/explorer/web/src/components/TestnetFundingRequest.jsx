@@ -1,3 +1,4 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Droplets, Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import StatusBanner from './StatusBanner';
@@ -7,185 +8,141 @@ import {
   getFundingRequestStatus,
   requestFundingApproval,
 } from '../utils/aekoRpcClient';
+import { queryKeys } from '../utils/queryKeys';
 
 const ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const TERMINAL_STATUSES = new Set(['confirmed', 'rejected', 'failed']);
 
 function requestMessage(request) {
   switch (request?.status) {
-    case 'pending':
-      return 'Request received. It is waiting for an Admin decision.';
-    case 'processing':
-      return 'Admin approved the grant and settlement started. No action is required from you.';
-    case 'submitted':
-      return 'Admin approved the grant. The transfer was submitted and is awaiting chain confirmation.';
-    case 'confirmed':
-      return `${request.amountAeko} AEKO grant confirmed on-chain.`;
-    case 'rejected':
-      return 'The Admin rejected this funding request.';
-    case 'failed':
-      return 'The approved grant transfer failed on-chain. No confirmed grant was recorded.';
-    default:
-      return 'Funding request status is being checked.';
+    case 'pending': return 'Request received. It is waiting for an Admin decision.';
+    case 'processing': return 'Admin approved the grant and settlement started. No action is required from you.';
+    case 'submitted': return 'Admin approved the grant. The transfer was submitted and is awaiting chain confirmation.';
+    case 'confirmed': return `${request.amountAeko} AEKO grant confirmed on-chain.`;
+    case 'rejected': return 'The Admin rejected this funding request.';
+    case 'failed': return 'The approved grant transfer failed on-chain. No confirmed grant was recorded.';
+    default: return 'Funding request status is being checked.';
   }
 }
 
 export default function TestnetFundingRequest({ fundingUrl, networkName = 'Network' }) {
-  const [policy, setPolicy] = useState(
-    /** @type {{ enabled: boolean, amountAeko: number, cooldownHours: number, dailyBudgetAeko: number, dailyRemainingAeko: number } | null} */ (null),
-  );
-  const [policyError, setPolicyError] = useState('');
   const [address, setAddress] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [request, setRequest] = useState(
-    /** @type {{ id: string, amountAeko: number, status: string, signature?: string | null, confirmed?: boolean, errorCode?: string | null } | null} */ (null),
-  );
+  const [requestId, setRequestId] = useState('');
   const { push: pushToast, dismiss: dismissToast } = useToaster();
+  const queryClient = useQueryClient();
   const pollErrorToastRef = useRef(null);
   const terminalToastRef = useRef('');
 
-  useEffect(() => {
-    let cancelled = false;
+  const policyQuery = useQuery({
+    queryKey: queryKeys.funding.policy(fundingUrl || ''),
+    queryFn: () => getFundingPolicy(fundingUrl),
+    enabled: Boolean(fundingUrl),
+    staleTime: 30_000,
+  });
 
-    setPolicy(null);
-    setPolicyError('');
-    setRequest(null);
+  const requestQuery = useQuery({
+    queryKey: queryKeys.funding.request(fundingUrl || '', requestId),
+    queryFn: () => getFundingRequestStatus(fundingUrl, requestId),
+    enabled: Boolean(fundingUrl && requestId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && TERMINAL_STATUSES.has(status) ? false : 4_000;
+    },
+    retry: 1,
+    retryDelay: 4_000,
+  });
+
+  const createRequest = useMutation({
+    mutationFn: async (walletAddress) => {
+      try {
+        return { request: await requestFundingApproval(fundingUrl, walletAddress), resumed: false };
+      } catch (error) {
+        if (error?.code === 'REQUEST_PENDING' && error?.requestId) {
+          return { request: await getFundingRequestStatus(fundingUrl, error.requestId), resumed: true };
+        }
+        throw error;
+      }
+    },
+    onSuccess: ({ request: nextRequest, resumed }) => {
+      setRequestId(nextRequest.id);
+      queryClient.setQueryData(queryKeys.funding.request(fundingUrl, nextRequest.id), nextRequest);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.funding.policy(fundingUrl) });
+      pushToast({
+        kind: 'info',
+        title: resumed ? 'Existing request resumed' : 'Funding request submitted',
+        message: resumed
+          ? `Request ${nextRequest.id} is still in progress and status polling has resumed.`
+          : `Request ${nextRequest.id} is waiting for an Admin decision.`,
+      });
+    },
+    onError: (error) => pushToast({
+      kind: 'error',
+      title: 'Funding request failed',
+      message: error instanceof Error ? error.message : String(error),
+    }),
+  });
+
+  const policy = policyQuery.data ?? null;
+  const policyError = !fundingUrl
+    ? `${networkName} funding is temporarily unavailable. Please try again later.`
+    : policyQuery.error instanceof Error ? policyQuery.error.message : '';
+  const request = requestQuery.data ?? createRequest.data?.request ?? null;
+  const busy = createRequest.isPending;
+
+  useEffect(() => {
+    setRequestId('');
     terminalToastRef.current = '';
     if (pollErrorToastRef.current) {
       dismissToast(pollErrorToastRef.current);
       pollErrorToastRef.current = null;
     }
-
-    if (!fundingUrl) {
-      setPolicyError(`${networkName} funding is temporarily unavailable. Please try again later.`);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    setPolicyError('');
-    getFundingPolicy(fundingUrl)
-      .then((nextPolicy) => {
-        if (!cancelled) setPolicy(nextPolicy);
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setPolicy(null);
-          setPolicyError(error.message || String(error));
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dismissToast, fundingUrl, networkName]);
+  }, [dismissToast, fundingUrl]);
 
   useEffect(() => {
-    if (!fundingUrl || !request?.id || TERMINAL_STATUSES.has(request.status)) return undefined;
-
-    let cancelled = false;
-    let timer;
-
-    async function refreshStatus() {
-      try {
-        const next = await getFundingRequestStatus(fundingUrl, request.id);
-        if (cancelled) return;
-        setRequest(next);
-        if (pollErrorToastRef.current) {
-          dismissToast(pollErrorToastRef.current);
-          pollErrorToastRef.current = null;
-        }
-        if (!TERMINAL_STATUSES.has(next.status)) {
-          timer = globalThis.setTimeout(refreshStatus, 4_000);
-        }
-      } catch (error) {
-        if (cancelled) return;
-        const message = error.message || String(error);
-        if (!pollErrorToastRef.current) {
-          pollErrorToastRef.current = pushToast({
-            kind: 'error',
-            title: 'Status check interrupted',
-            message: `${message} Your request id is retained and status checks will retry automatically.`,
-          });
-        }
-        timer = globalThis.setTimeout(refreshStatus, 8_000);
+    if (!requestQuery.error) {
+      if (pollErrorToastRef.current) {
+        dismissToast(pollErrorToastRef.current);
+        pollErrorToastRef.current = null;
       }
+      return;
     }
-
-    timer = globalThis.setTimeout(refreshStatus, 2_000);
-    return () => {
-      cancelled = true;
-      if (timer) globalThis.clearTimeout(timer);
-    };
-  }, [dismissToast, fundingUrl, pushToast, request?.id, request?.status]);
+    if (!pollErrorToastRef.current) {
+      const message = requestQuery.error instanceof Error ? requestQuery.error.message : String(requestQuery.error);
+      pollErrorToastRef.current = pushToast({
+        kind: 'error',
+        title: 'Status check interrupted',
+        message: `${message} Your request id is retained and status checks will retry automatically.`,
+      });
+    }
+  }, [dismissToast, pushToast, requestQuery.error]);
 
   useEffect(() => {
     if (!request?.id || !TERMINAL_STATUSES.has(request.status)) return;
     const key = `${request.id}:${request.status}`;
     if (terminalToastRef.current === key) return;
     terminalToastRef.current = key;
-
+    void queryClient.invalidateQueries({ queryKey: queryKeys.funding.policy(fundingUrl) });
     if (request.status === 'confirmed') {
-      pushToast({
-        kind: 'success',
-        title: 'Grant confirmed',
-        message: `${request.amountAeko} AEKO is confirmed on-chain.`,
-      });
+      pushToast({ kind: 'success', title: 'Grant confirmed', message: `${request.amountAeko} AEKO is confirmed on-chain.` });
       return;
     }
-
     pushToast({
       kind: 'error',
       title: request.status === 'rejected' ? 'Funding request rejected' : 'Grant transfer failed',
-      message:
-        request.status === 'rejected'
-          ? 'The Admin rejected this funding request.'
-          : 'The approved grant transfer failed on-chain. No confirmed grant was recorded.',
+      message: request.status === 'rejected'
+        ? 'The Admin rejected this funding request.'
+        : 'The approved grant transfer failed on-chain. No confirmed grant was recorded.',
     });
-  }, [pushToast, request?.amountAeko, request?.id, request?.status]);
+  }, [fundingUrl, pushToast, queryClient, request?.amountAeko, request?.id, request?.status]);
 
   const valid = ADDRESS_RE.test(address.trim());
 
-  async function submit(event) {
+  function submit(event) {
     event.preventDefault();
     if (!valid || !fundingUrl || !policy?.enabled) return;
-
-    setBusy(true);
-    setRequest(null);
-    try {
-      const created = await requestFundingApproval(fundingUrl, address.trim());
-      setRequest(created);
-      pushToast({
-        kind: 'info',
-        title: 'Funding request submitted',
-        message: `Request ${created.id} is waiting for an Admin decision.`,
-      });
-    } catch (error) {
-      // The wallet already has an in-flight request: adopt it and resume
-      // polling instead of dead-ending on REQUEST_PENDING.
-      const pendingId = error?.requestId;
-      if (error?.code === 'REQUEST_PENDING' && pendingId) {
-        try {
-          const existing = await getFundingRequestStatus(fundingUrl, pendingId);
-          setRequest(existing);
-          pushToast({
-            kind: 'info',
-            title: 'Existing request resumed',
-            message: `Request ${existing.id} is still in progress and status polling has resumed.`,
-          });
-          return;
-        } catch {
-          // Fall through to the original error below.
-        }
-      }
-      pushToast({
-        kind: 'error',
-        title: 'Funding request failed',
-        message: error.message || String(error),
-      });
-    } finally {
-      setBusy(false);
-    }
+    setRequestId('');
+    createRequest.reset();
+    createRequest.mutate(address.trim());
   }
 
   const requestSucceeded = request?.status === 'confirmed';
