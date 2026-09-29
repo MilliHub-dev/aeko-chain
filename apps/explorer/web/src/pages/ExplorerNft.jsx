@@ -1,33 +1,19 @@
-import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Image, Shield, UserRound } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
-import { fetchNftDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { fetchNftDetails } from '../utils/explorerApi';
+import { useExplorerResource } from '../utils/explorerQueries';
 
 export default function ExplorerNft() {
   const { tokenId } = useParams();
   const { network } = useNetwork();
-  const [state, setState] = useState({ loading: true, error: '', data: null });
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ loading: true, error: '', data: null });
-
-    fetchNftDetails(network, tokenId)
-      .then((data) => {
-        if (!cancelled) setState({ loading: false, error: '', data });
-      })
-      .catch((error) => {
-        if (!cancelled) setState({ loading: false, error: error.message, data: null });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [network, tokenId]);
-
-  const unavailable = !getExplorerAvailability(network);
+  const { unavailable, state } = useExplorerResource(
+    network,
+    'nft',
+    tokenId,
+    () => fetchNftDetails(network, tokenId),
+  );
   const nft = state.data;
 
   return (
