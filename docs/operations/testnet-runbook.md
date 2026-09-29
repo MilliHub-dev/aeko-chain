@@ -161,7 +161,7 @@ From this point every CLI command (`aeko balance`, `aeko transfer`, `aeko progra
 Public testnet funding uses the managed Explorer funding flow. The same flow is served on every network, including mainnet: each deployment owns its faucet, credential, caps, budgets, and approval queue. Submit the wallet address through Aeko Scan:
 
 ```bash
-curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
+curl -X POST https://api.aeko.online/funding/request \
   -H 'Content-Type: application/json' \
   -d '{"address":"<pubkey>"}'
 ```
@@ -171,7 +171,7 @@ The request starts as `pending`. An authenticated Operations Admin must approve 
 Use the returned request id to poll the public status endpoint until it becomes `confirmed`:
 
 ```bash
-curl https://scan.aeko.online/api/explorer/testnet/funding/request/<REQUEST_ID>
+curl https://api.aeko.online/funding/request/<REQUEST_ID>
 aeko balance <pubkey> --url https://rpc.aeko.online
 ```
 
@@ -224,7 +224,7 @@ Coolify-proxy (Traefik) handles all TLS termination and HTTP routing. You do not
 | `gossip.aeko.online` | validator gossip | raw TCP+UDP | validator discovery/peer entrypoint only |
 | `cloud.aeko.online` | Coolify dashboard (port 8000, managed by Coolify) | `http://`/`https://` | Operator UI |
 
-The Faucet Daemon on TCP `9900` is **not a public application API**. In an all-in-one deployment the Validator reaches it over private service networking; in split deployments it may use a raw TCP hostname such as `faucet.aeko.online:9900`, which must be firewall-restricted to the matching Validator. User applications use Aeko Scan's same-origin test-network funding routes for approval-gated grants (and instant `requestAirdrop`/Test Console airdrops for capped developer needs), and only the matching Explorer API receives the server-side authorization required to invoke the Validator's protected low-level `requestGrant` path.
+The Faucet Daemon on TCP `9900` is **not a public application API**. In an all-in-one deployment the Validator reaches it over private service networking; in split deployments it may use a raw TCP hostname such as `faucet.aeko.online:9900`, which must be firewall-restricted to the matching Validator. User applications use the selected network's public Explorer funding API for approval-gated grants (and instant `requestAirdrop`/Test Console airdrops for capped developer needs), and only the matching Explorer API receives the server-side authorization required to invoke the Validator's protected low-level `requestGrant` path.
 
 ### 5.2 Namecheap DNS records
 

@@ -113,8 +113,8 @@ For the complete authoritative mapping, including split-Coolify routing,
 same-Compose Docker DNS defaults, env overrides, and local host-port controls,
 see [Network ports, domains, and service discovery](./docs/operations/network-ports-and-domains.md).
 
-Test-network funding is served by that network's Explorer API and reached from
-Aeko Scan through the same-origin `/api/explorer/{network}/funding/*` proxy.
+Test-network funding is served by that network's Explorer API. Aeko Scan calls
+the configured public Explorer API directly from the browser.
 There is no separate Funding Gateway runtime.
 
 The funding domains are intentionally distinct:
@@ -131,7 +131,7 @@ The funding domains are intentionally distinct:
   the Faucet flow is the operational distribution rail shared by all networks.
 
 Each chain environment is deployed independently. Scan's
-`/api/explorer/{network}` prefixes route to independently configured remote
+configured Explorer API origins point to independently deployed remote
 Explorer APIs; they do not imply that mainnet/testnet/devnet share one backend
 instance or database.
 
@@ -461,7 +461,7 @@ curl -s https://rpc.aeko.online \
 Public testnet funding is policy-controlled by the Explorer API funding module; the Faucet Daemon on TCP `:9900` remains private and the deployed public RPC protects approval-gated `requestGrant` with funding authorization, while instant `requestAirdrop` dispatches with no approval subject only to faucet caps. Browser/client requests use the same Aeko Scan origin:
 
 ```bash
-curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
+curl -X POST https://api.aeko.online/funding/request \
   -H 'Content-Type: application/json' \
   -d '{"address":"<WALLET_ADDRESS>"}'
 ```
@@ -562,7 +562,7 @@ RPC          https://rpc.aeko.online
 WebSocket    wss://ws.aeko.online
 Explorer API https://api.aeko.online
 Explorer UI  https://scan.aeko.online
-Funding      https://scan.aeko.online/api/explorer/testnet/funding/*
+Funding      https://api.aeko.online/funding/*
 ```
 
 A validator operator additionally needs:

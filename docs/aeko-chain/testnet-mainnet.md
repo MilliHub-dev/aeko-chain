@@ -9,10 +9,10 @@ The repository currently defines and deploys one canonical public network: **AEK
 | JSON-RPC | `https://rpc.aeko.online` |
 | WebSocket PubSub | `wss://ws.aeko.online` |
 | Explorer UI + indexed reads | `https://scan.aeko.online` |
-| Testnet funding | `https://scan.aeko.online/api/explorer/testnet/funding/*` |
+| Testnet funding | `https://api.aeko.online/funding/*` |
 | Validator gossip | `gossip.aeko.online:8001` |
 
-Testnet AEKO has no asserted monetary value. Public funding requests use Aeko Scan's same-origin Explorer funding API and require authenticated Operations Admin approval before settlement. The Faucet Daemon on TCP `9900` is low-level infrastructure used by the Validator funding path, not a browser funding API.
+Testnet AEKO has no asserted monetary value. Aeko Scan calls the public Explorer API directly for indexed reads and public funding requests; approval-gated grants still require authenticated Operations Admin approval before settlement. The Faucet Daemon on TCP `9900` is low-level infrastructure used by the Validator funding path, not a browser funding API.
 
 ### Registry discovery
 
