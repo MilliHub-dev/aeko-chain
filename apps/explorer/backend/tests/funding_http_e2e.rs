@@ -310,7 +310,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         100.0,
     )
     .shared();
-    let app = build_router(state, &server_config());
+    let app = build_router(state.clone(), &server_config());
 
     let address = Pubkey::new_unique().to_string();
     let (status, created) = request_json(
@@ -350,14 +350,22 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{approved}");
-    assert_eq!(approved["data"]["status"], "confirmed");
-    assert_eq!(approved["data"]["confirmed"], true);
+    assert_eq!(approved["data"]["status"], "submitted");
+    assert_eq!(approved["data"]["confirmed"], false);
     let grant_signature = approved["data"]["signature"]
         .as_str()
-        .expect("confirmed grant signature")
+        .expect("submitted grant signature")
         .to_string();
     assert!(rpc_observer.saw_authorized_airdrop.load(Ordering::SeqCst));
     assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 1);
+
+    let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
+    assert_eq!(transitioned, 1);
+    assert_eq!(
+        rpc_observer.airdrop_calls.load(Ordering::SeqCst),
+        1,
+        "grant confirmation must not resubmit the durable transaction"
+    );
 
     let (status, public_status) = request_json(
         &app,
@@ -406,12 +414,21 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{airdrop}");
-    assert_eq!(airdrop["data"]["status"], "confirmed");
+    assert_eq!(airdrop["data"]["status"], "submitted");
+    assert_eq!(airdrop["data"]["confirmed"], false);
     let airdrop_signature = airdrop["data"]["signature"]
         .as_str()
         .expect("airdrop signature")
         .to_string();
     assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 2);
+
+    let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
+    assert_eq!(transitioned, 1);
+    assert_eq!(
+        rpc_observer.airdrop_calls.load(Ordering::SeqCst),
+        2,
+        "airdrop confirmation must not resubmit the durable transaction"
+    );
 
     // The fake signer derives one deterministic signature per submission
     // intent, so response-loss replays recover the same signature while
@@ -539,7 +556,7 @@ async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() 
         .to_string();
 
     let before = state.repository.funding_policy_snapshot().await?;
-    let (status, failed_response) = request_json(
+    let (status, submitted) = request_json(
         &app,
         Method::POST,
         &format!("/admin/funding/requests/{request_id}/decide"),
@@ -547,13 +564,18 @@ async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() 
         Some(admin_token),
     )
     .await;
-    assert_eq!(status, StatusCode::BAD_GATEWAY, "{failed_response}");
-    assert_eq!(
-        failed_response["error"]["code"],
-        "FUNDING_TRANSACTION_FAILED"
-    );
+    assert_eq!(status, StatusCode::OK, "{submitted}");
+    assert_eq!(submitted["data"]["status"], "submitted");
     assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 1);
     assert_eq!(rpc_observer.blockhash_calls.load(Ordering::SeqCst), 1);
+
+    let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
+    assert_eq!(transitioned, 1);
+    assert_eq!(
+        rpc_observer.airdrop_calls.load(Ordering::SeqCst),
+        1,
+        "expired confirmation must not resubmit the durable transaction"
+    );
 
     let failed = state
         .repository
@@ -889,7 +911,7 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
         airdrop_failures: Arc::new(AtomicUsize::new(0)),
         blockhash_calls: Arc::new(AtomicUsize::new(0)),
         blockhash_valid: Arc::new(AtomicBool::new(true)),
-        pending_signature_statuses: Arc::new(AtomicUsize::new(12)),
+        pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
         blockhash: Pubkey::new_unique().to_string(),
     };
     let rpc_observer = fake_state.clone();
@@ -1100,11 +1122,12 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{approved}");
+    assert_eq!(approved["data"]["status"], "submitted");
     assert!(
         approved["data"]["signature"]
             .as_str()
             .is_some_and(|s| !s.is_empty()),
-        "mainnet approval must settle with a durable signature: {approved}"
+        "mainnet approval must return a durable signature: {approved}"
     );
 
     let (status, airdrop) = request_json(
@@ -1116,11 +1139,12 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{airdrop}");
+    assert_eq!(airdrop["data"]["status"], "submitted");
     assert!(
         airdrop["data"]["signature"]
             .as_str()
             .is_some_and(|s| !s.is_empty()),
-        "mainnet airdrop must dispatch with a durable signature: {airdrop}"
+        "mainnet airdrop must return a durable signature: {airdrop}"
     );
 
     let grant_address = Pubkey::new_unique().to_string();
@@ -1133,12 +1157,16 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{grant}");
+    assert_eq!(grant["data"]["status"], "submitted");
     assert!(
         grant["data"]["signature"]
             .as_str()
             .is_some_and(|s| !s.is_empty()),
-        "mainnet direct grant must settle with a durable signature: {grant}"
+        "mainnet direct grant must return a durable signature: {grant}"
     );
+
+    let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
+    assert_eq!(transitioned, 3);
 
     let grants = state.repository.list_funding_grants(500).await?;
     assert!(

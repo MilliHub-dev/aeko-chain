@@ -552,7 +552,7 @@ async fn create_airdrop(
         .repository
         .create_funding_airdrop(&address, body.amount_aeko)
         .await?;
-    let settled = submit_and_observe_airdrop(&state, airdrop).await?;
+    let settled = submit_airdrop(&state, airdrop).await?;
     Ok(response::data_from_source(
         &state.network,
         settled.into(),
@@ -713,7 +713,7 @@ async fn decide_request(
     let settled = match existing.status.as_str() {
         "pending" => {
             let reserved = state.repository.reserve_public_funding_request(&id).await?;
-            submit_and_observe_grant(&state, reserved).await?
+            submit_grant(&state, reserved).await?
         }
         "submitted" => observe_grant(&state, existing).await?,
         "confirmed" => existing,
@@ -723,7 +723,7 @@ async fn decide_request(
             // recovers the same signature; no second grant is created. This
             // lets an admin re-drive an approval whose RPC response was lost
             // instead of wedging on FUNDING_SUBMISSION_UNCERTAIN.
-            submit_and_observe_grant(&state, existing).await?
+            submit_grant(&state, existing).await?
         }
         status => {
             return Err(FundingHttpError::from(
@@ -752,7 +752,7 @@ async fn cancel_stuck_grant(
     request: FundingRequestRecord,
 ) -> FundingResult<FundingRequestRecord> {
     let request_id = request.id.clone();
-    match submit_and_observe_grant(state, request).await {
+    match submit_grant(state, request).await {
         Ok(settled) => {
             if settled.status == "confirmed" {
                 tracing::info!(
@@ -837,7 +837,7 @@ async fn reconcile_request(
         .await?
         .ok_or_else(|| FundingHttpError::from(FundingStoreError::RequestNotFound))?;
     let reconciled = match request.status.as_str() {
-        "processing" => submit_and_observe_grant(&state, request).await?,
+        "processing" => submit_grant(&state, request).await?,
         "submitted" => observe_grant(&state, request).await?,
         "confirmed" => request,
         status => {
@@ -898,7 +898,7 @@ async fn create_grant(
         .repository
         .create_immediate_grant_request(&address, body.amount_aeko)
         .await?;
-    let settled = submit_and_observe_grant(&state, request).await?;
+    let settled = submit_grant(&state, request).await?;
     Ok(response::data_from_source(
         &state.network,
         settled.into(),
@@ -1007,7 +1007,7 @@ async fn prepare_grant_submission_intent(
         .await?)
 }
 
-async fn submit_and_observe_grant(
+async fn submit_grant(
     state: &SharedState,
     request: FundingRequestRecord,
 ) -> FundingResult<FundingRequestRecord> {
@@ -1077,7 +1077,12 @@ async fn submit_and_observe_grant(
         .repository
         .set_funding_request_signature(&request.id, &signature)
         .await?;
-    observe_grant(state, submitted).await
+    tracing::info!(
+        request_id = %request.id,
+        signature = %signature,
+        "grant submission returned a durable signature; confirmation continues in the reconciler"
+    );
+    Ok(submitted)
 }
 
 async fn observe_grant(
@@ -1227,7 +1232,7 @@ async fn prepare_airdrop_submission_intent(
         .await?)
 }
 
-async fn submit_and_observe_airdrop(
+async fn submit_airdrop(
     state: &SharedState,
     airdrop: FundingAirdropRecord,
 ) -> FundingResult<FundingAirdropRecord> {
@@ -1295,81 +1300,12 @@ async fn submit_and_observe_airdrop(
         .repository
         .set_funding_airdrop_signature(&airdrop.id, &signature)
         .await?;
-    observe_airdrop(state, submitted).await
-}
-
-async fn observe_airdrop(
-    state: &SharedState,
-    airdrop: FundingAirdropRecord,
-) -> FundingResult<FundingAirdropRecord> {
-    if airdrop.status == "confirmed" {
-        return Ok(airdrop);
-    }
-    if airdrop.status != "submitted" {
-        return Err(FundingHttpError::from(
-            FundingStoreError::RequestAlreadyDecided {
-                status: airdrop.status,
-            },
-        ));
-    }
-    let signature = airdrop.signature.clone().ok_or_else(|| {
-        FundingHttpError::internal("submitted developer airdrop has no transaction signature")
-    })?;
-
-    let rpc = state.rpc.clone();
-    let signature_for_wait = signature.clone();
-    let blockhash_for_wait = airdrop.submission_blockhash.clone();
-    let observation = tokio::task::spawn_blocking(move || {
-        rpc.wait_for_funding_transfer_with_blockhash(
-            &signature_for_wait,
-            blockhash_for_wait.as_deref(),
-            CONFIRMATION_ATTEMPTS,
-            Duration::from_millis(CONFIRMATION_INTERVAL_MS),
-        )
-    })
-    .await;
-
-    match observation {
-        Ok(Ok(FundingTransferStatus::Confirmed)) => Ok(state
-            .repository
-            .confirm_funding_airdrop(&airdrop.id)
-            .await?),
-        Ok(Ok(FundingTransferStatus::Failed(error))) => {
-            state
-                .repository
-                .mark_funding_airdrop_failed(&airdrop.id, "AIRDROP_TRANSACTION_FAILED", &error)
-                .await?;
-            Err(FundingHttpError::new(
-                StatusCode::BAD_GATEWAY,
-                "AIRDROP_TRANSACTION_FAILED",
-                format!("Developer airdrop transaction {signature} failed on-chain"),
-            ))
-        }
-        Ok(Ok(FundingTransferStatus::Pending)) => Ok(state
-            .repository
-            .mark_funding_airdrop_error(
-                &airdrop.id,
-                "AIRDROP_CONFIRMATION_PENDING",
-                "Transaction was submitted and is still awaiting chain confirmation",
-            )
-            .await?),
-        Ok(Err(error)) => Ok(state
-            .repository
-            .mark_funding_airdrop_error(
-                &airdrop.id,
-                "AIRDROP_CONFIRMATION_UNAVAILABLE",
-                &error.to_string(),
-            )
-            .await?),
-        Err(error) => Ok(state
-            .repository
-            .mark_funding_airdrop_error(
-                &airdrop.id,
-                "AIRDROP_CONFIRMATION_UNAVAILABLE",
-                &error.to_string(),
-            )
-            .await?),
-    }
+    tracing::info!(
+        airdrop_id = %airdrop.id,
+        signature = %signature,
+        "developer airdrop returned a durable signature; confirmation continues in the reconciler"
+    );
+    Ok(submitted)
 }
 
 pub async fn run_settlement_reconciler(state: SharedState, interval: Duration) {

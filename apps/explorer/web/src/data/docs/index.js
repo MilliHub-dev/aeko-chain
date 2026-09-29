@@ -273,7 +273,7 @@ const docsData = {
         {
           "type": "callout",
           "title": "Funding is network-specific",
-          "body": "Mainnet does not provide test funding. Testnet funding is shown only when it is available for the selected network. Use the live network panel above instead of copying an endpoint from another environment.",
+          "body": "Each independently deployed network may expose operator-capitalized funding rails when configured. Those rails are operational utilities, not Treasury, ecosystem, vesting, emission, or governed Mainnet distribution. Use the live network panel instead of copying an endpoint from another environment.",
           "tone": "warning"
         },
         {
@@ -419,8 +419,8 @@ const docsData = {
       "blocks": [
         {
           "type": "callout",
-          "title": "Testnet only",
-          "body": "Test funding is available only on supported Testnet environments. Mainnet intentionally has no test-funding path.",
+          "title": "Operational funding",
+          "body": "Funding availability follows the selected network's own Explorer policy and Faucet configuration. A Mainnet operational funding rail, if deliberately provisioned, is not a governed Treasury or allocation-distribution mechanism.",
           "tone": "warning"
         },
         {

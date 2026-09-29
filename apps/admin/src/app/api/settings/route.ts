@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { resolveAdminExplorerUrl } from '../../../lib/network'
+import { resolveAdminExplorerTimeoutMs, resolveAdminExplorerUrl } from '../../../lib/network'
 import { logger, requestIdFromHeaders } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
 const SETTINGS_TOKEN = process.env.AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN ?? ''
-const SETTINGS_TIMEOUT_MS = 20_000
+const SETTINGS_TIMEOUT_MS = resolveAdminExplorerTimeoutMs()
 
 async function explorerSettings(requestId: string, init?: RequestInit) {
   const explorerUrl = resolveAdminExplorerUrl()

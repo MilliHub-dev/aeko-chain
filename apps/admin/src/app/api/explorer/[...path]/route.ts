@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { resolveAdminExplorerUrl } from '../../../../lib/network'
+import { resolveAdminExplorerTimeoutMs, resolveAdminExplorerUrl } from '../../../../lib/network'
 import { logger, requestIdFromHeaders } from '@/lib/logger'
 
-const TIMEOUT_MS = 20_000
+const TIMEOUT_MS = resolveAdminExplorerTimeoutMs()
 
 export async function GET(req: NextRequest, { params }: { params: { path: string[] } }) {
   const requestId = requestIdFromHeaders(req.headers)

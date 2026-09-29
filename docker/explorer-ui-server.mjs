@@ -5,7 +5,7 @@ import { extname, resolve } from 'node:path'
 
 const PORT = Number(process.env.PORT || 4000)
 const ROOT = resolve('/app/dist')
-const UPSTREAM_TIMEOUT_MS = Number(process.env.AEKO_EXPLORER_PROXY_TIMEOUT_MS || 20_000)
+const UPSTREAM_TIMEOUT_MS = Number(process.env.AEKO_EXPLORER_PROXY_TIMEOUT_MS || 45_000)
 
 function clean(name) {
   return String(process.env[name] || '').trim().replace(/\/+$/, '')
@@ -21,18 +21,14 @@ if (!ACTIVE_NETWORK) {
   throw new Error('AEKO_NETWORK for public Scan must be mainnet or testnet')
 }
 
-const ACTIVE_UPSTREAM = clean('AEKO_EXPLORER_PROXY_UPSTREAM_URL') || clean('AEKO_EXPLORER_API_URL')
+const ACTIVE_UPSTREAM = clean('AEKO_EXPLORER_PROXY_UPSTREAM_URL')
 if (!ACTIVE_UPSTREAM) {
-  throw new Error('AEKO_EXPLORER_API_URL is required for the active Scan network')
+  throw new Error('AEKO_EXPLORER_PROXY_UPSTREAM_URL is required for the active Scan network')
 }
 
 const UPSTREAMS = {
-  mainnet:
-    clean('AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL')
-    || clean('AEKO_MAINNET_EXPLORER_API_URL'),
-  testnet:
-    clean('AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL')
-    || clean('AEKO_TESTNET_EXPLORER_API_URL'),
+  mainnet: clean('AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL'),
+  testnet: clean('AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL'),
 }
 UPSTREAMS[ACTIVE_NETWORK] = ACTIVE_UPSTREAM
 

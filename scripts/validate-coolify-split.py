@@ -313,7 +313,8 @@ def main() -> int:
         "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
         "AEKO_WS_URL: ${AEKO_WS_URL:?",
         "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
-        "AEKO_EXPLORER_PROXY_UPSTREAM_URL:",
+        "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?",
+        "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
         "AEKO_MAINNET_RPC_URL:",
         "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
         "AEKO_TESTNET_RPC_URL:",
@@ -338,6 +339,7 @@ def main() -> int:
         "AEKO_NETWORK: ${AEKO_NETWORK:?",
         "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
         "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?",
+        "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
     ):
         require(expected in operations, f"Operations Web missing private upstream contract: {expected}")
 

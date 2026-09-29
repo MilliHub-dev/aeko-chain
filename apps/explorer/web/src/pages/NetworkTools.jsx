@@ -143,7 +143,7 @@ export default function NetworkTools() {
       </div>
 
       {config.fundingEnabled ? (
-        <TestnetFundingRequest fundingUrl={config.fundingUrl} />
+        <TestnetFundingRequest fundingUrl={config.fundingUrl} networkName={presentation.name} />
       ) : null}
 
       {isTestNetwork && settings.networkConsoleEnabled && (
@@ -245,7 +245,7 @@ export default function NetworkTools() {
             ))}
           </div>
           <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
-            <Droplets size={13} /> Testnet funding and transaction results stay inside Aeko Scan.
+            <Droplets size={13} /> {presentation.name} funding and transaction results stay inside Aeko Scan.
           </div>
         </div>
       </div>

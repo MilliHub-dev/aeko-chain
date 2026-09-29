@@ -198,9 +198,9 @@ All SDK builder functions return a **base64-encoded unsigned transaction**. The 
 
 ---
 
-## Testnet Funding
+## Managed Funding
 
-Public applications use the Explorer API funding module through Aeko Scan's same-origin funding routes. They do not connect to the private Faucet Daemon or call unauthenticated public `requestAirdrop`:
+Public applications use the selected network's Explorer API funding module through Aeko Scan's same-origin funding routes. They do not connect to the private Faucet Daemon for approval-gated grants:
 
 ```bash
 curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
@@ -208,7 +208,7 @@ curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
   -d '{"address":"<pubkey>"}'
 ```
 
-The deployed validator requires a server-side funding authorization key for `requestAirdrop`. Only the matching Explorer API deployment receives that key. Operations Web and browser clients never receive it. Local/custom test validators may leave the protection unset for isolated developer-only airdrop flows.
+Approval-gated `requestGrant` settlement requires the server-side funding authorization key on every non-localnet deployment. Only the matching Explorer API receives that key; Operations Web and browser clients never do. Instant developer `requestAirdrop` is a separate capped path and does not use the approval credential. Funding rails are operational distribution utilities and do not represent governed Treasury or allocation spending.
 
 ---
 

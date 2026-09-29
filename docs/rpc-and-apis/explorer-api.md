@@ -35,8 +35,8 @@ Representative live routes include:
   - `GET /social/status`
   - `GET /protocol/status`
   - `GET /network/readiness`
-  - `GET /funding/policy` on non-mainnet test environments
-  - `POST /funding/request` on non-mainnet test environments
+  - `GET /funding/policy` on every configured network deployment
+  - `POST /funding/request` on every configured network deployment
 
 Current profile behavior:
 

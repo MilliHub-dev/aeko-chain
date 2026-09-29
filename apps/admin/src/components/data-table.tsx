@@ -66,8 +66,36 @@ export default function DataTable({
 
   return (
     <div className="overflow-hidden rounded-xl border border-[#1e2135] bg-[#12141f]">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="grid gap-3 p-3 md:hidden">
+        {rows.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-[#2b3048] bg-[#0d0e16]/70 px-4 py-8 text-center text-sm text-gray-600">
+            {empty}
+          </div>
+        ) : (
+          visibleRows.map((row, rowIndex) => (
+            <article key={start + rowIndex} className="rounded-xl border border-[#24283b] bg-[#0d0e16]/70 p-4">
+              <dl className="grid gap-3 sm:grid-cols-2">
+                {row.map((cell, cellIndex) => (
+                  <div
+                    key={cellIndex}
+                    className={cellIndex === row.length - 1 ? 'min-w-0 sm:col-span-2' : 'min-w-0'}
+                  >
+                    <dt className="text-[10px] font-medium uppercase tracking-[0.13em] text-gray-600">
+                      {columns[cellIndex] ?? 'Value'}
+                    </dt>
+                    <dd className="mt-1 break-words text-xs text-gray-200 mono">
+                      {cell}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </article>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
+        <table className="min-w-[760px] w-full text-sm">
           <thead>
             <tr className="border-b border-[#1e2135] bg-[#0d0e16]">
               {columns.map((col) => (

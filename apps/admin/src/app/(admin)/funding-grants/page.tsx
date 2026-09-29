@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import DataTable from '@/components/data-table'
+import FeedbackAlert from '@/components/feedback-alert'
 import SectionTabs from '@/components/section-tabs'
 import StatCard from '@/components/stat-card'
+import { useToaster } from '@/components/toaster'
 
 type Settings = {
   enabled: boolean
@@ -18,7 +20,7 @@ type Settings = {
 
 type FundingSnapshot = {
   network: 'mainnet' | 'testnet' | 'devnet' | 'localnet'
-  mode: 'test-funding' | 'mainnet-disabled'
+  mode: 'test-funding'
   settings: Settings | null
   dailyRemainingAeko: number | null
   publicSpentAeko: number | null
@@ -93,11 +95,15 @@ export default function FundingGrantsPage() {
   const [requestBusy, setRequestBusy] = useState('')
   const [address, setAddress] = useState('')
   const [amount, setAmount] = useState('10')
-  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
+  const [syncError, setSyncError] = useState('')
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
+  const [syncing, setSyncing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [view, setView] = useState<FundingView>('queue')
+  const toast = useToaster()
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (showProgress = false) => {
+    if (showProgress) setSyncing(true)
     try {
       const s = await readJson(await fetch('/api/admin/funding/settings', { cache: 'no-store' }))
       const nextSnapshot = s.data as FundingSnapshot
@@ -115,6 +121,8 @@ export default function FundingGrantsPage() {
         setGrants([])
         setAirdrops([])
         setRequests([])
+        setSyncError('')
+        setLastSyncedAt(new Date())
         return
       }
 
@@ -126,16 +134,17 @@ export default function FundingGrantsPage() {
       setGrants(g.data ?? [])
       setAirdrops(a.data ?? [])
       setRequests(r.data ?? [])
+      setSyncError('')
+      setLastSyncedAt(new Date())
     } catch (error) {
-      setNotice({
-        ok: false,
-        text: error instanceof Error ? error.message : 'Funding control plane is unavailable',
-      })
+      setSyncError(error instanceof Error ? error.message : 'Funding control plane is unavailable')
+    } finally {
+      if (showProgress) setSyncing(false)
     }
   }, [])
 
   useEffect(() => {
-    void refresh()
+    void refresh(true)
     const timer = window.setInterval(() => {
       void refresh()
     }, 15_000)
@@ -147,7 +156,6 @@ export default function FundingGrantsPage() {
     if (!draft || !settings || snapshot?.mode !== 'test-funding') return
 
     setBusy(true)
-    setNotice(null)
     try {
       const response = await fetch('/api/admin/funding/settings', {
         method: 'PUT',
@@ -168,10 +176,10 @@ export default function FundingGrantsPage() {
         setSettings(json.data.settings)
         setDraft(json.data.settings)
       }
-      setNotice({ ok: true, text: 'Testnet funding policy saved.' })
+      toast.success('Funding policy saved.', { title: 'Policy updated' })
       await refresh()
     } catch (error) {
-      setNotice({ ok: false, text: error instanceof Error ? error.message : 'Save failed' })
+      toast.error(error instanceof Error ? error.message : 'Save failed', { title: 'Policy update failed' })
     } finally {
       setBusy(false)
     }
@@ -181,7 +189,6 @@ export default function FundingGrantsPage() {
     if (!settings || snapshot?.mode !== 'test-funding') return
     const nextEnabled = !settings.enabled
     setBusy(true)
-    setNotice(null)
     try {
       const json = await readJson(await fetch('/api/admin/funding/settings', {
         method: 'PUT',
@@ -196,9 +203,9 @@ export default function FundingGrantsPage() {
         setSettings(json.data.settings)
         setDraft(json.data.settings)
       }
-      setNotice({ ok: true, text: nextEnabled ? 'Public test funding resumed.' : 'Public test funding paused.' })
+      toast.success(nextEnabled ? 'Public funding resumed.' : 'Public funding paused.', { title: 'Funding policy updated' })
     } catch (error) {
-      setNotice({ ok: false, text: error instanceof Error ? error.message : 'Policy update failed' })
+      toast.error(error instanceof Error ? error.message : 'Policy update failed', { title: 'Funding policy update failed' })
     } finally {
       setBusy(false)
     }
@@ -206,27 +213,31 @@ export default function FundingGrantsPage() {
 
   async function decideRequest(id: string, action: 'approve' | 'reject' | 'reconcile') {
     setRequestBusy(id)
-    setNotice(null)
     try {
       const json = await readJson(await fetch('/api/admin/funding/requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, action }),
       }))
-      setNotice({
-        ok: true,
-        text: action === 'reject'
-          ? 'Funding request rejected'
-          : json.data.status === 'confirmed'
-            ? `Grant confirmed: ${json.data.amountAeko} AEKO to ${json.data.address}`
-            : `Grant is ${json.data.status}; no duplicate transfer will be submitted while confirmation is unresolved.`,
-      })
+      if (action === 'reject') {
+        toast.success('Funding request rejected.', { title: 'Request updated' })
+      } else if (json.data.status === 'confirmed') {
+        toast.success(
+          `Grant confirmed: ${json.data.amountAeko} AEKO to ${json.data.address}`,
+          { title: 'Grant confirmed' },
+        )
+      } else {
+        toast.info(
+          `Grant is ${json.data.status}; no duplicate transfer will be submitted while confirmation is unresolved.`,
+          { title: 'Settlement submitted' },
+        )
+      }
       await refresh()
     } catch (error) {
-      setNotice({
-        ok: false,
-        text: error instanceof Error ? error.message : `Funding request ${action} failed`,
-      })
+      toast.error(
+        error instanceof Error ? error.message : `Funding request ${action} failed`,
+        { title: 'Funding action failed' },
+      )
     } finally {
       setRequestBusy('')
     }
@@ -237,7 +248,6 @@ export default function FundingGrantsPage() {
     if (snapshot?.mode !== 'test-funding') return
 
     setBusy(true)
-    setNotice(null)
     try {
       const json = await readJson(await fetch('/api/admin/funding/grant', {
         method: 'POST',
@@ -245,14 +255,16 @@ export default function FundingGrantsPage() {
         body: JSON.stringify({ address: address.trim(), amountAeko: Number(amount) }),
       }))
       const signature = String(json.data?.signature ?? '')
-      setNotice({
-        ok: true,
-        text: `Sent ${json.data.amountAeko} AEKO — ${json.data.confirmed ? 'confirmed' : 'submitted'}${signature ? ` (${signature.slice(0, 16)}…)` : ''}`,
-      })
+      const message = `Sent ${json.data.amountAeko} AEKO — ${json.data.confirmed ? 'confirmed' : 'submitted'}${signature ? ` (${signature.slice(0, 16)}…)` : ''}`
+      if (json.data.confirmed) {
+        toast.success(message, { title: 'Grant confirmed' })
+      } else {
+        toast.info(message, { title: 'Grant submitted' })
+      }
       setAddress('')
       await refresh()
     } catch (error) {
-      setNotice({ ok: false, text: error instanceof Error ? error.message : 'Grant failed' })
+      toast.error(error instanceof Error ? error.message : 'Grant failed', { title: 'Grant failed' })
     } finally {
       setBusy(false)
     }
@@ -276,47 +288,65 @@ export default function FundingGrantsPage() {
   const attentionRequests = requests.filter((request) =>
     ['pending', 'processing', 'submitted', 'failed'].includes(request.status),
   )
-  const isTestFunding = snapshot?.mode === 'test-funding'
+  const isFundingAvailable = snapshot?.mode === 'test-funding'
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="mx-auto max-w-[1600px] space-y-5 p-3 sm:space-y-6 sm:p-6">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <div className="text-xs uppercase tracking-[0.22em] text-emerald-400">Funding operations</div>
           <h1 className="mt-1 text-2xl font-bold text-white">Funding, grants & airdrops</h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-gray-500">
-            {isTestFunding
-              ? 'Review public test-funding requests, maintain testnet policy, and keep operator grants separate from direct developer airdrops.'
-              : 'This Operations Web deployment does not expose mainnet Faucet funding or grant release. Mainnet treasury/allocation distribution is a separate governed protocol workflow and is not represented here as implemented.'}
+            {!snapshot
+              ? 'Loading the live funding policy and settlement state for this network.'
+              : 'Review public funding requests, maintain network policy, and keep operator grants separate from direct developer airdrops.'}
           </p>
         </div>
-        {isTestFunding && settings ? (
-          <button
-            type="button"
-            onClick={toggleEnabled}
-            disabled={busy}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <div
             className={
-              'min-h-[44px] rounded-lg px-4 text-sm font-semibold transition-colors disabled:opacity-40 ' +
-              (settings.enabled
-                ? 'border border-red-500/25 bg-red-500/10 text-red-200 hover:bg-red-500/15'
-                : 'bg-emerald-400 text-black hover:bg-emerald-300')
+              'flex min-h-[44px] items-center justify-between gap-3 rounded-xl border px-3 text-xs sm:justify-start ' +
+              (syncError
+                ? 'border-red-400/25 bg-red-400/10 text-red-100'
+                : 'border-[#1e2135] bg-[#12141f] text-gray-400')
             }
           >
-            {settings.enabled ? 'Pause public funding' : 'Resume public funding'}
-          </button>
-        ) : null}
+            <span className={'size-2 rounded-full ' + (syncError ? 'bg-red-400' : lastSyncedAt ? 'bg-emerald-400' : 'bg-gray-600')} />
+            <span>
+              {syncError
+                ? 'Sync interrupted'
+                : lastSyncedAt
+                  ? 'Synced ' + lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : 'Waiting for sync'}
+            </span>
+            <button
+              type="button"
+              onClick={() => void refresh(true)}
+              disabled={syncing}
+              className="rounded-md px-2 py-1 font-semibold text-gray-200 transition-colors hover:bg-white/5 disabled:opacity-40"
+            >
+              {syncing ? 'Syncing…' : 'Refresh'}
+            </button>
+          </div>
+          {isFundingAvailable && settings ? (
+            <button
+              type="button"
+              onClick={toggleEnabled}
+              disabled={busy}
+              className={
+                'min-h-[44px] w-full rounded-lg px-4 text-sm font-semibold transition-colors disabled:opacity-40 sm:w-auto ' +
+                (settings.enabled
+                  ? 'border border-red-500/25 bg-red-500/10 text-red-200 hover:bg-red-500/15'
+                  : 'bg-emerald-400 text-black hover:bg-emerald-300')
+              }
+            >
+              {settings.enabled ? 'Pause public funding' : 'Resume public funding'}
+            </button>
+          ) : null}
+        </div>
       </div>
 
-      {snapshot?.mode === 'mainnet-disabled' ? (
-        <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-5 text-sm leading-6 text-amber-100">
-          <div className="font-semibold">Mainnet test funding is disabled</div>
-          <p className="mt-1 text-amber-100/80">
-            This page cannot mint, faucet, approve, or release mainnet AEKO. A future mainnet grant must execute through the separately implemented governance and treasury allocation path; these test-funding controls intentionally fail closed.
-          </p>
-        </div>
-      ) : null}
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6 lg:gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-6 2xl:gap-4">
         <StatCard
           label="Network"
           value={snapshot?.network ?? '—'}
@@ -324,22 +354,22 @@ export default function FundingGrantsPage() {
         />
         <StatCard
           label="Public funding"
-          value={isTestFunding && settings ? (settings.enabled ? 'Open' : 'Paused') : snapshot ? 'Unavailable' : '—'}
-          accent={isTestFunding ? settings?.enabled : undefined}
+          value={isFundingAvailable && settings ? (settings.enabled ? 'Open' : 'Paused') : snapshot ? 'Unavailable' : '—'}
+          accent={isFundingAvailable ? settings?.enabled : undefined}
         />
-        <StatCard label="Per request" value={isTestFunding && settings ? `${settings.amountAeko} AEKO` : '—'} />
+        <StatCard label="Per request" value={isFundingAvailable && settings ? `${settings.amountAeko} AEKO` : '—'} />
         <StatCard
           label="Left today"
-          value={isTestFunding && snapshot?.dailyRemainingAeko !== null && snapshot?.dailyRemainingAeko !== undefined
+          value={isFundingAvailable && snapshot?.dailyRemainingAeko !== null && snapshot?.dailyRemainingAeko !== undefined
             ? `${snapshot.dailyRemainingAeko.toLocaleString()} AEKO`
             : '—'}
-          sub={isTestFunding && settings ? `of ${settings.dailyBudgetAeko.toLocaleString()}` : undefined}
+          sub={isFundingAvailable && settings ? `of ${settings.dailyBudgetAeko.toLocaleString()}` : undefined}
         />
-        <StatCard label="Needs attention" value={isTestFunding ? attentionRequests.length : '—'} />
-        <StatCard label="Grant history" value={isTestFunding ? grants.length : '—'} />
+        <StatCard label="Needs attention" value={isFundingAvailable ? attentionRequests.length : '—'} />
+        <StatCard label="Grant history" value={isFundingAvailable ? grants.length : '—'} />
       </div>
 
-      {isTestFunding ? (
+      {isFundingAvailable ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-xl border border-[#1e2135] bg-[#12141f] p-4">
             <div className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Public spent today</div>
@@ -362,21 +392,26 @@ export default function FundingGrantsPage() {
         </div>
       ) : null}
 
-      {notice ? (
-        <div
-          aria-live="polite"
-          className={
-            'rounded-xl border px-4 py-3 text-sm ' +
-            (notice.ok
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-              : 'border-red-500/30 bg-red-500/10 text-red-200')
+      {syncError ? (
+        <FeedbackAlert
+          tone="error"
+          title="Live funding data could not refresh"
+          action={
+            <button
+              type="button"
+              onClick={() => void refresh(true)}
+              disabled={syncing}
+              className="min-h-[40px] rounded-lg border border-red-300/25 px-3 text-xs font-semibold transition-colors hover:bg-red-300/10 disabled:opacity-40"
+            >
+              {syncing ? 'Retrying…' : 'Retry sync'}
+            </button>
           }
         >
-          {notice.text}
-        </div>
+          {syncError}
+        </FeedbackAlert>
       ) : null}
 
-      {isTestFunding ? (
+      {isFundingAvailable ? (
         <>
           <SectionTabs
             label="Funding administration sections"
@@ -428,7 +463,7 @@ export default function FundingGrantsPage() {
                           type="button"
                           onClick={() => decideRequest(request.id, 'approve')}
                           disabled={Boolean(requestBusy)}
-                          className="min-h-[36px] rounded-lg bg-emerald-400 px-3 text-xs font-semibold text-black transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+                          className="min-h-[40px] w-full rounded-lg bg-emerald-400 px-3 sm:w-auto text-xs font-semibold text-black transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           {requestBusy === request.id ? 'Working…' : 'Approve & release'}
                         </button>
@@ -436,7 +471,7 @@ export default function FundingGrantsPage() {
                           type="button"
                           onClick={() => decideRequest(request.id, 'reject')}
                           disabled={Boolean(requestBusy)}
-                          className="min-h-[36px] rounded-lg border border-[#2b3048] px-3 text-xs text-gray-300 transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
+                          className="min-h-[40px] w-full rounded-lg border border-[#2b3048] px-3 sm:w-auto text-xs text-gray-300 transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           Reject
                         </button>
@@ -446,7 +481,7 @@ export default function FundingGrantsPage() {
                         type="button"
                         onClick={() => decideRequest(request.id, 'reconcile')}
                         disabled={Boolean(requestBusy)}
-                        className="min-h-[36px] rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
+                        className="min-h-[40px] w-full rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 sm:w-auto text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
                       >
                         {requestBusy === request.id ? 'Checking…' : 'Check confirmation'}
                       </button>
@@ -457,7 +492,7 @@ export default function FundingGrantsPage() {
                             type="button"
                             onClick={() => decideRequest(request.id, 'reconcile')}
                             disabled={Boolean(requestBusy)}
-                            className="min-h-[36px] rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
+                            className="min-h-[40px] w-full rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 sm:w-auto text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
                           >
                             {requestBusy === request.id ? 'Retrying…' : 'Retry submission'}
                           </button>
@@ -465,7 +500,7 @@ export default function FundingGrantsPage() {
                             type="button"
                             onClick={() => decideRequest(request.id, 'reject')}
                             disabled={Boolean(requestBusy)}
-                            className="min-h-[36px] rounded-lg border border-[#2b3048] px-3 text-xs text-gray-300 transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="min-h-[40px] w-full rounded-lg border border-[#2b3048] px-3 sm:w-auto text-xs text-gray-300 transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             Cancel request
                           </button>
@@ -488,10 +523,10 @@ export default function FundingGrantsPage() {
           ) : null}
 
           {view === 'policy' ? (
-            <div className="grid gap-6 xl:grid-cols-2">
+            <div className="grid gap-5 2xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
               <form onSubmit={saveSettings} className="rounded-2xl border border-[#1e2135] bg-[#12141f] p-5 sm:p-6">
                 <div className="mb-5">
-                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">Public test-funding policy</div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">Public funding policy</div>
                   <h2 className="mt-1 font-semibold text-white">Approval limits</h2>
                   <p className="mt-1 text-sm leading-6 text-gray-500">
                     The public queue has a request amount, wallet cooldown, and daily allocation. Direct developer airdrops do not consume that aggregate allocation; they remain bounded by the Test Console and Faucet per-request caps.
@@ -515,9 +550,9 @@ export default function FundingGrantsPage() {
               <form onSubmit={manualGrant} className="rounded-2xl border border-[#1e2135] bg-[#12141f] p-5 sm:p-6">
                 <div className="mb-5">
                   <div className="text-xs uppercase tracking-[0.18em] text-amber-300">Operator action</div>
-                  <h2 className="mt-1 font-semibold text-white">Manual testnet grant</h2>
+                  <h2 className="mt-1 font-semibold text-white">Manual operator grant</h2>
                   <p className="mt-1 text-sm leading-6 text-gray-500">
-                    Sends a test AEKO transfer without consuming the public-request daily allocation. The operator grant cap and the private Faucet hard cap still apply.
+                    Sends an AEKO transfer without consuming the public-request daily allocation. The operator grant cap and the private Faucet hard cap still apply.
                   </p>
                 </div>
                 <div>
@@ -547,7 +582,7 @@ export default function FundingGrantsPage() {
               <div className="mb-4">
                 <h2 className="font-semibold text-white">Developer Test Console airdrops</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Direct developer airdrops bypass the public grant approval queue, but remain test-network-only, rate-limited, capped per request, and durably tracked.
+                  Direct developer airdrops bypass the public grant approval queue, but remain rate-limited, capped per request, and durably tracked.
                 </p>
               </div>
               <DataTable
@@ -580,7 +615,7 @@ export default function FundingGrantsPage() {
           {view === 'history' ? (
             <section className="rounded-2xl border border-[#1e2135] bg-[#12141f] p-4 sm:p-5">
               <div className="mb-4">
-                <h2 className="font-semibold text-white">Confirmed testnet grants</h2>
+                <h2 className="font-semibold text-white">Confirmed grants</h2>
                 <p className="mt-1 text-sm text-gray-500">
                   Only confirmed public requests approved by Admin and confirmed manual Admin grants appear here. Developer airdrops are deliberately separate.
                 </p>

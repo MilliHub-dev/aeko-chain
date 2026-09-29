@@ -23,6 +23,7 @@ AEKO_RPC_URL=https://rpc.ci.invalid \
 AEKO_WS_URL=wss://ws.ci.invalid \
 AEKO_EXPLORER_API_URL=https://api.ci.invalid \
 AEKO_EXPLORER_PROXY_UPSTREAM_URL=http://explorer-api.internal.ci.invalid:8088 \
+AEKO_EXPLORER_PROXY_TIMEOUT_MS=45000 \
 AEKO_REGISTRY_URL=https://registry.ci.invalid \
 AEKO_INTERNAL_RPC_URL=http://validator.internal.ci.invalid:8899 \
 AEKO_INTERNAL_WS_URL=ws://validator.internal.ci.invalid:8900 \

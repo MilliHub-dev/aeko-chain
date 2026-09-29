@@ -90,3 +90,31 @@ test('funding proxy converts an upstream HTML 403 into the Explorer JSON error c
   assert.match(payload.error?.message || '', /non-JSON response/i);
   assert.match(stderr.value, /funding_upstream_contract_violation/);
 });
+
+
+test('production Scan refuses to fall back through the public Explorer edge', async () => {
+  const scanPort = await unusedPort();
+  const stderr = { value: '' };
+  const serverPath = fileURLToPath(
+    new URL('../../../../../docker/explorer-ui-server.mjs', import.meta.url),
+  );
+  const child = spawn(process.execPath, [serverPath], {
+    env: {
+      ...process.env,
+      PORT: String(scanPort),
+      AEKO_NETWORK: 'testnet',
+      AEKO_EXPLORER_API_URL: 'https://public-api.invalid',
+      AEKO_EXPLORER_PROXY_UPSTREAM_URL: '',
+      AEKO_LOG_LEVEL: 'error',
+    },
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk) => {
+    stderr.value += chunk;
+  });
+
+  const [code] = await once(child, 'exit');
+  assert.notEqual(code, 0);
+  assert.match(stderr.value, /AEKO_EXPLORER_PROXY_UPSTREAM_URL is required/);
+});

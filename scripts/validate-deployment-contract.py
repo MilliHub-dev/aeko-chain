@@ -451,6 +451,11 @@ def main() -> int:
         "Scan proxy must support server-only Explorer origins for split deployments",
     )
     require(
+        "AEKO_EXPLORER_PROXY_UPSTREAM_URL is required for the active Scan network" in explorer_proxy
+        and "clean('AEKO_EXPLORER_PROXY_UPSTREAM_URL') || clean('AEKO_EXPLORER_API_URL')" not in explorer_proxy,
+        "production Scan must fail closed instead of silently re-entering the public Explorer edge",
+    )
+    require(
         "EXPLORER_UPSTREAM_INVALID_RESPONSE" in explorer_proxy
         and "funding_upstream_contract_violation" in explorer_proxy,
         "Scan must normalize non-JSON funding upstream failures into its JSON contract",
@@ -520,6 +525,12 @@ def main() -> int:
             ROOT / "apps" / "explorer" / "backend" / "src" / "infrastructure" / "chain.rs"
         ),
         "funding E2E must prove an expired unobserved intent becomes terminal without a fresh transfer",
+    )
+    require(
+        "grant confirmation must not resubmit the durable transaction" in funding_http_e2e
+        and "airdrop confirmation must not resubmit the durable transaction" in funding_http_e2e
+        and "confirmation continues in the reconciler" in funding_feature,
+        "funding HTTP handlers must return after durable signature persistence and reconcile without a duplicate transfer",
     )
     require(
         "test_same_airdrop_intent_produces_same_signed_transaction" in faucet_replay_test

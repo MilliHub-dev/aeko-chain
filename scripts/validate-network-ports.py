@@ -173,8 +173,9 @@ def main() -> int:
         operations = service_block(compose, "operations-web")
         require(
             "AEKO_NETWORK:" in operations
-            and "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in operations,
-            f"{path.name} Operations Web must use the private Explorer API",
+            and "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in operations
+            and "AEKO_EXPLORER_PROXY_TIMEOUT_MS:" in operations,
+            f"{path.name} Operations Web must use the private Explorer API with the funding-safe timeout",
         )
         scan = service_block(compose, "explorer-ui")
         require_contains_all(
@@ -185,6 +186,7 @@ def main() -> int:
                 "AEKO_WS_URL: ${AEKO_WS_URL:-wss://ws.aeko.online}",
                 "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-https://api.aeko.online}",
                 "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:-http://explorer-api:8088}",
+                "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
             ),
         )
 
@@ -222,6 +224,7 @@ def main() -> int:
             "AEKO_WS_URL: ${AEKO_WS_URL:?",
             "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
             "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?",
+            "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
             "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
             "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL:",
             '- "4000"',
@@ -234,6 +237,7 @@ def main() -> int:
             "AEKO_NETWORK: ${AEKO_NETWORK:?",
             "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
             "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?",
+            "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
             '- "3001"',
         ),
     )
@@ -311,8 +315,9 @@ def main() -> int:
     scan_vite = read(ROOT / "apps" / "explorer" / "web" / "vite.config.js")
 
     # Runtime config generation and Vite dev mode consume chain RPC/WS plus the
-    # Explorer API. The production proxy server only needs network identity and
-    # Explorer API upstreams; it must not require RPC/WS it never calls.
+    # public Explorer API identity. The production proxy server uses only
+    # server-side Explorer proxy origins and must not depend on browser-facing
+    # RPC/WS or public Explorer API URLs.
     for label, text in (
         ("Scan entrypoint", scan_entrypoint),
         ("Scan Vite config", scan_vite),
@@ -332,11 +337,14 @@ def main() -> int:
         scan_server,
         (
             "AEKO_NETWORK",
-            "AEKO_EXPLORER_API_URL",
             "AEKO_EXPLORER_PROXY_UPSTREAM_URL",
             "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL",
             "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL",
         ),
+    )
+    require(
+        "AEKO_EXPLORER_API_URL" not in scan_server,
+        "Scan proxy server must not fall back to the browser-facing Explorer API URL",
     )
 
     for name in (

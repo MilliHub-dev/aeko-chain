@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { resolveAdminExplorerUrl } from './network'
+import { resolveAdminExplorerTimeoutMs, resolveAdminExplorerUrl } from './network'
 import { logger } from './logger'
 
 const SETTINGS_TOKEN = (process.env.AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN ?? '').trim()
-const TIMEOUT_MS = 20_000
+const TIMEOUT_MS = resolveAdminExplorerTimeoutMs()
 
 type ExplorerError = {
   error?: {

@@ -277,7 +277,7 @@ def main() -> int:
         required("ADMIN_PASSWORD")
         if NETWORK not in {"testnet", "devnet", "localnet"}:
             raise SmokeFailure(
-                "AEKO_NETWORK must be testnet, devnet, or localnet; mainnet funding is intentionally unsupported"
+                "This destructive smoke is intentionally limited to testnet, devnet, or localnet; do not run it against a governed Mainnet deployment"
             )
 
         health = rpc("getHealth")
