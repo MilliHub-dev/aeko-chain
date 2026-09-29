@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
 
+const MotionDiv = motion.div;
+
 // One banner component for all three states the explorer (and any other page)
 // needs to surface above content. Replaces the per-page red/amber/green
 // inline <div>s. Success banners auto-dismiss after 5s; errors stay until
@@ -62,7 +64,7 @@ export default function StatusBanner({
   }, [autoDismissMs, onDismiss]);
 
   return (
-    <motion.div
+    <MotionDiv
       role={palette.role}
       aria-live={palette.aria}
       initial={{ opacity: 0, y: -8 }}
@@ -86,7 +88,7 @@ export default function StatusBanner({
           <X size={14} />
         </button>
       )}
-    </motion.div>
+    </MotionDiv>
   );
 }
 

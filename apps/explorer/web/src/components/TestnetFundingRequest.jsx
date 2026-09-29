@@ -137,7 +137,10 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
     pushToast({
       kind: 'error',
       title: request.status === 'rejected' ? 'Funding request rejected' : 'Grant transfer failed',
-      message: requestMessage(request),
+      message:
+        request.status === 'rejected'
+          ? 'The Admin rejected this funding request.'
+          : 'The approved grant transfer failed on-chain. No confirmed grant was recorded.',
     });
   }, [pushToast, request?.amountAeko, request?.id, request?.status]);
 
