@@ -15,7 +15,8 @@ DOCKERFILE = DOCKER / "Dockerfile"
 VALIDATOR_ENTRYPOINT = DOCKER / "validator-entrypoint.sh"
 KEY_PREFLIGHT = DOCKER / "key-preflight.sh"
 EXPLORER_ENTRYPOINT = DOCKER / "explorer-ui-entrypoint.sh"
-EXPLORER_PROXY = DOCKER / "explorer-ui-server.mjs"
+EXPLORER_SERVER = DOCKER / "explorer-ui-server.mjs"
+EXPLORER_HTTP = ROOT / "apps" / "explorer" / "backend" / "src" / "http" / "mod.rs"
 PUBLIC_ENV = DOCKER / "env.public.example"
 ADMIN_ENV = ROOT / "apps" / "admin" / ".env.local.example"
 EXPLORER_ENV = ROOT / "apps" / "explorer" / "backend" / ".env.example"
@@ -102,7 +103,8 @@ def main() -> int:
     validator_entrypoint = read(VALIDATOR_ENTRYPOINT)
     key_preflight = read(KEY_PREFLIGHT)
     explorer_entrypoint = read(EXPLORER_ENTRYPOINT)
-    explorer_proxy = read(EXPLORER_PROXY)
+    explorer_server = read(EXPLORER_SERVER)
+    explorer_http = read(EXPLORER_HTTP)
     public_env = read(PUBLIC_ENV)
     admin_env = read(ADMIN_ENV)
     explorer_env = read(EXPLORER_ENV)
@@ -327,9 +329,9 @@ def main() -> int:
         "public Scan runtime must normalize only Mainnet and Testnet",
     )
     require(
-        "RUNTIME_CONFIG_PATH = '/runtime-config.js'" in explorer_proxy
-        and "pathname === RUNTIME_CONFIG_PATH" in explorer_proxy
-        and "'no-store, max-age=0'" in explorer_proxy,
+        "RUNTIME_CONFIG_PATH = '/runtime-config.js'" in explorer_server
+        and "pathname === RUNTIME_CONFIG_PATH" in explorer_server
+        and "'no-store, max-age=0'" in explorer_server,
         "Scan runtime configuration must not be cached across deployments",
     )
 
@@ -426,39 +428,39 @@ def main() -> int:
         "server-only funding/settings secrets must never enter browser runtime configuration",
     )
 
-    # Scan is a constrained same-origin proxy: reads plus the two explicit
-    # funding writes, allowed on every deployed network with mainnet included.
+    # Scan is a static/browser runtime. Public Explorer traffic must use the
+    # configured API origin directly; Admin keeps its separate server-side BFF.
     require(
-        "const FUNDING_WRITE_PATHS = new Set(['/funding/request', '/funding/airdrop'])"
-        in explorer_proxy,
-        "Scan proxy must enumerate its two public funding writes",
+        "explorerApiUrl: upstream" in explorer_entrypoint
+        and "fundingUrl: upstream" in explorer_entrypoint,
+        "Scan runtime must inject the canonical public Explorer API directly",
     )
     require(
-        "target.network !== 'testnet'" in explorer_proxy
-        and "target.network !== 'mainnet'" in explorer_proxy
-        and "return FUNDING_WRITE_PATHS.has(explorerSuffix(target, pathname))" in explorer_proxy,
-        "Scan proxy must allow funding writes on all deployed networks and reject all non-funding POSTs",
+        "/api/explorer/" not in explorer_server
+        and "AEKO_EXPLORER_PROXY_UPSTREAM_URL" not in explorer_server
+        and "AEKO_EXPLORER_PROXY_UPSTREAM_URL" not in explorer_entrypoint,
+        "Scan must not retain the retired Explorer reverse-proxy path",
     )
     require(
-        "MAX_PROXY_BODY_BYTES" in explorer_proxy
-        and "Funding writes require application/json" in explorer_proxy,
-        "Scan proxy must bound and type-check public funding bodies",
+        "CLIENT_TELEMETRY_PATH = '/api/telemetry/client'" in explorer_server
+        and "RUNTIME_CONFIG_PATH = '/runtime-config.js'" in explorer_server,
+        "Scan server must retain telemetry and runtime-config responsibilities",
     )
     require(
-        "AEKO_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy
-        and "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy
-        and "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy,
-        "Scan proxy must support server-only Explorer origins for split deployments",
+        "AllowOrigin::list(server.cors_allowed_origins.clone())" in explorer_http
+        and "Method::POST" in explorer_http
+        and "header::RETRY_AFTER" in explorer_http,
+        "Explorer API must expose an explicit POST-capable browser CORS contract",
     )
     require(
-        "AEKO_EXPLORER_PROXY_UPSTREAM_URL is required for the active Scan network" in explorer_proxy
-        and "clean('AEKO_EXPLORER_PROXY_UPSTREAM_URL') || clean('AEKO_EXPLORER_API_URL')" not in explorer_proxy,
-        "production Scan must fail closed instead of silently re-entering the public Explorer edge",
+        "AEKO_EXPLORER_CORS_ALLOWED_ORIGINS" in funding_config
+        and "AEKO_EXPLORER_TRUST_PROXY_HEADERS" in funding_config,
+        "Explorer config must require explicit browser origins and trusted-proxy policy",
     )
     require(
-        "EXPLORER_UPSTREAM_INVALID_RESPONSE" in explorer_proxy
-        and "funding_upstream_contract_violation" in explorer_proxy,
-        "Scan must normalize non-JSON funding upstream failures into its JSON contract",
+        "AEKO_EXPLORER_CORS_ALLOWED_ORIGINS=" in public_env
+        and "AEKO_EXPLORER_TRUST_PROXY_HEADERS=" in public_env,
+        "deployment env must document the direct-browser API trust boundary",
     )
 
     # Raw bootstrap registry and product-facing registry discovery are distinct.
@@ -669,8 +671,8 @@ def main() -> int:
         "deploy-testnet helper must start Explorer API/UI and Operations Web without a funding sidecar",
     )
     require(
-        "/api/explorer/${AEKO_NETWORK}/funding/*" in deploy_helper,
-        "deploy-testnet helper must advertise the same-origin Scan funding route",
+        "AEKO_EXPLORER_API_URL" in deploy_helper and "/funding/*" in deploy_helper,
+        "deploy-testnet helper must advertise the direct Explorer funding route",
     )
 
     # Repository documentation must be portable and must not silently revive
@@ -758,7 +760,7 @@ def main() -> int:
         "SDK testnet guide must identify Explorer as the settlement authority",
     )
     require(
-        "Aeko Scan's same-origin Explorer funding API" in testnet_environment
+        "Aeko Scan calls the public Explorer API directly" in testnet_environment
         and "authenticated Operations Admin approval" in testnet_environment,
         "network environment docs must describe the current public grant boundary",
     )

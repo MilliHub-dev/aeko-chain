@@ -112,7 +112,7 @@ def main() -> int:
             "gossip.aeko.online:8001",
             "8000-8050/tcp+udp",
             "5432/tcp",
-            "/api/explorer/testnet/funding/*",
+            "https://api.aeko.online/funding/*",
             "There is **no separate public Funding Gateway service/domain",
         ),
     )
@@ -150,7 +150,7 @@ def main() -> int:
         local_compose,
         (
             "AEKO_RPC_URL: ${AEKO_RPC_URL:-http://validator:8899}",
-            "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-http://explorer-api:8088}",
+            "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-http://localhost:8088}",
             "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet:9900}",
         ),
     )
@@ -185,8 +185,6 @@ def main() -> int:
                 "AEKO_RPC_URL: ${AEKO_RPC_URL:-https://rpc.aeko.online}",
                 "AEKO_WS_URL: ${AEKO_WS_URL:-wss://ws.aeko.online}",
                 "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-https://api.aeko.online}",
-                "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:-http://explorer-api:8088}",
-                "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
             ),
         )
 
@@ -211,6 +209,8 @@ def main() -> int:
             "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
             "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}",
             "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:?",
+            "AEKO_EXPLORER_CORS_ALLOWED_ORIGINS:",
+            "AEKO_EXPLORER_TRUST_PROXY_HEADERS:",
             '- "8088"',
         ),
     )
@@ -223,10 +223,6 @@ def main() -> int:
             "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
             "AEKO_WS_URL: ${AEKO_WS_URL:?",
             "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
-            "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?",
-            "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
-            "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
-            "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL:",
             '- "4000"',
         ),
     )

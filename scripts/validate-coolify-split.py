@@ -279,6 +279,8 @@ def main() -> int:
         "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
         "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}",
         "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:?",
+        "AEKO_EXPLORER_CORS_ALLOWED_ORIGINS:",
+        "AEKO_EXPLORER_TRUST_PROXY_HEADERS:",
     ):
         require(expected in explorer_api, f"Explorer API missing private upstream contract: {expected}")
     require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?" in explorer_api, "Explorer API must require PostgreSQL")
@@ -299,7 +301,7 @@ def main() -> int:
         "AEKO_SCAN_AIRDROP_KEY" not in explorer_api,
         "Explorer API must not retain the retired Scan-only airdrop key",
     )
-    for name in ("AEKO_NETWORK", "AEKO_INTERNAL_RPC_URL", "AEKO_INTERNAL_WS_URL", "AEKO_INTERNAL_REGISTRY_URL"):
+    for name in ("AEKO_NETWORK", "AEKO_INTERNAL_RPC_URL", "AEKO_INTERNAL_WS_URL", "AEKO_INTERNAL_REGISTRY_URL", "AEKO_EXPLORER_CORS_ALLOWED_ORIGINS", "AEKO_EXPLORER_TRUST_PROXY_HEADERS"):
         require(f"{name}=" in envs["explorer-api"], f"Explorer API env example missing {name}")
 
     explorer_ui = loaded["explorer-ui"]
@@ -313,12 +315,8 @@ def main() -> int:
         "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
         "AEKO_WS_URL: ${AEKO_WS_URL:?",
         "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
-        "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?",
-        "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
         "AEKO_MAINNET_RPC_URL:",
-        "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
         "AEKO_TESTNET_RPC_URL:",
-        "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL:",
     ):
         require(expected in explorer_ui, f"Scan missing public-network contract: {expected}")
     for private_prefix in ("AEKO_DEVNET_", "AEKO_LOCALNET_", "AEKO_DEMO_"):
