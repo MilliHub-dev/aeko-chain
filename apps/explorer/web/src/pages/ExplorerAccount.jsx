@@ -1,37 +1,19 @@
-import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Boxes, FileText, ShieldCheck, Wallet } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
-import { fetchAccountDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { fetchAccountDetails } from '../utils/explorerApi';
+import { useExplorerResource } from '../utils/explorerQueries';
 
 export default function ExplorerAccount() {
   const { address } = useParams();
   const { network } = useNetwork();
-  const [state, setState] = useState({ loading: true, error: '', data: null });
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ loading: true, error: '', data: null });
-
-    fetchAccountDetails(network, address)
-      .then((data) => {
-        if (!cancelled) {
-          setState({ loading: false, error: '', data });
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setState({ loading: false, error: error.message, data: null });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [network, address]);
-
-  const unavailable = !getExplorerAvailability(network);
+  const { unavailable, state } = useExplorerResource(
+    network,
+    'account',
+    address,
+    () => fetchAccountDetails(network, address),
+  );
   const detail = state.data;
 
   return (

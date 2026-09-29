@@ -1,37 +1,19 @@
-import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Blocks, Clock3, Hash, Layers3 } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
-import { fetchBlockDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { fetchBlockDetails } from '../utils/explorerApi';
+import { useExplorerResource } from '../utils/explorerQueries';
 
 export default function BlockDetails() {
   const { height } = useParams();
   const { network } = useNetwork();
-  const [state, setState] = useState({ loading: true, error: '', data: null });
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ loading: true, error: '', data: null });
-
-    fetchBlockDetails(network, height)
-      .then((data) => {
-        if (!cancelled) {
-          setState({ loading: false, error: '', data });
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setState({ loading: false, error: error.message, data: null });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [network, height]);
-
-  const unavailable = !getExplorerAvailability(network);
+  const { unavailable, state } = useExplorerResource(
+    network,
+    'block',
+    height,
+    () => fetchBlockDetails(network, height),
+  );
   const block = state.data;
 
   return (
