@@ -136,12 +136,12 @@ test('accounts workspace keeps public funding approval separate from direct Test
   assert.match(funding, /Your AEKO wallet address/);
   assert.match(funding, /networkName = 'Network'/);
   assert.match(funding, /Enter your \{networkName\} wallet address/);
-  assert.match(funding, /setPolicy\(null\)/);
-  assert.match(funding, /setRequest\(null\)/);
   assert.doesNotMatch(funding, /Enter your Testnet wallet address to request test AEKO/i);
   assert.doesNotMatch(funding, /authenticated Admin must approve or reject/i);
-  assert.match(funding, /requestFundingApproval\(fundingUrl, address\.trim\(\)\)/);
-  assert.match(funding, /getFundingRequestStatus\(fundingUrl, request\.id\)/);
+  assert.match(funding, /requestFundingApproval\(fundingUrl, walletAddress\)/);
+  assert.match(funding, /getFundingRequestStatus\(fundingUrl, requestId\)/);
+  assert.match(funding, /refetchInterval/);
+  assert.match(funding, /TERMINAL_STATUSES/);
   assert.match(funding, /waiting for an Admin decision/i);
   assert.match(funding, /Admin approved the grant/i);
   assert.match(funding, /useToaster/);
@@ -158,7 +158,7 @@ test('funding API URLs resolve from the configured origin and reject HTML 200 re
 
   assert.match(rpcClient, /base\.origin/);
   assert.match(rpcClient, /new URL\(path\.replace\(/);
-  assert.match(rpcClient, /same-origin Explorer proxy base/);
+  assert.match(rpcClient, /canonical API origin/);
   assert.match(rpcClient, /content-type/);
   assert.match(rpcClient, /non-JSON/);
   assert.match(rpcClient, /requestFundingApproval/);
@@ -196,7 +196,7 @@ test('funding runtime is owned by the Scan backend after the Admin gateway remov
   assert.doesNotMatch(fundingFeature, /finalize_funding_request/);
 });
 
-test('Admin funding polling preserves persisted policy revisions and mainnet separation', async () => {
+test('Admin funding queries preserve persisted policy revisions and mainnet separation', async () => {
   const adminPage = await source('../../../admin/src/app/(admin)/funding-grants/page.tsx');
   const adminProxy = await source('../../../admin/src/lib/funding-api.ts');
   const settingsRoute = await source('../../../admin/src/app/api/admin/funding/settings/route.ts');
@@ -206,7 +206,9 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
   const adminAlert = await source('../../../admin/src/components/feedback-alert.tsx');
   const statusBanner = await source('components/StatusBanner.jsx');
 
-  assert.match(adminPage, /setInterval/);
+  assert.match(adminPage, /useQuery/);
+  assert.match(adminPage, /refetchInterval: 15_000/);
+  assert.match(adminPage, /useMutation/);
   assert.match(adminPage, /expectedRevision: settings\.revision/);
   assert.match(adminPage, /consoleAirdropAggregateUnlimited/);
   assert.doesNotMatch(adminPage, /mainnet-disabled/);
@@ -296,15 +298,12 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
     'AEKO_RPC_URL',
     'AEKO_WS_URL',
     'AEKO_EXPLORER_API_URL',
-    'AEKO_EXPLORER_PROXY_UPSTREAM_URL',
     'AEKO_MAINNET_RPC_URL',
     'AEKO_MAINNET_WS_URL',
     'AEKO_MAINNET_EXPLORER_API_URL',
-    'AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL',
     'AEKO_TESTNET_RPC_URL',
     'AEKO_TESTNET_WS_URL',
     'AEKO_TESTNET_EXPLORER_API_URL',
-    'AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL',
   ]) {
     assert.match(example, new RegExp('^' + key + '=', 'm'));
     assert.match(splitEnv, new RegExp('^' + key + '=', 'm'));
@@ -329,14 +328,11 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
   assert.match(server, /\['mainnet', 'testnet'\]/);
   assert.doesNotMatch(server, /AEKO_DEVNET_EXPLORER_API_URL/);
   assert.doesNotMatch(server, /AEKO_LOCALNET_EXPLORER_API_URL/);
-  assert.match(server, /target\.network !== 'testnet'/);
-  assert.match(server, /AEKO_EXPLORER_PROXY_UPSTREAM_URL/);
-  assert.doesNotMatch(server, /clean\('AEKO_EXPLORER_PROXY_UPSTREAM_URL'\) \|\| clean\('AEKO_EXPLORER_API_URL'\)/);
-  assert.match(entrypoint, /AEKO_EXPLORER_PROXY_UPSTREAM_URL:\?AEKO_EXPLORER_PROXY_UPSTREAM_URL is required/);
-  assert.match(server, /AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL/);
-  assert.match(server, /AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL/);
-  assert.match(server, /EXPLORER_UPSTREAM_INVALID_RESPONSE/);
-  assert.match(server, /funding_upstream_contract_violation/);
+  assert.doesNotMatch(server, /\/api\/explorer\//);
+  assert.doesNotMatch(server, /AEKO_EXPLORER_PROXY_UPSTREAM_URL/);
+  assert.doesNotMatch(entrypoint, /AEKO_EXPLORER_PROXY_UPSTREAM_URL/);
+  assert.match(entrypoint, /explorerApiUrl: upstream/);
+  assert.match(entrypoint, /fundingUrl: upstream/);
   assert.match(server, /RUNTIME_CONFIG_PATH = '\/runtime-config\.js'/);
   assert.match(server, /pathname === RUNTIME_CONFIG_PATH/);
   assert.match(server, /'no-store, max-age=0'/);
@@ -373,7 +369,8 @@ test('Explorer search is URL-driven, retryable and exposes a no-results state', 
   const transaction = await source('pages/TransactionDetails.jsx');
 
   assert.match(explorer, /urlSearchQuery/);
-  assert.match(explorer, /setSearchRetry/);
+  assert.match(explorer, /searchQuery\.refetch\(\)/);
+  assert.match(explorer, /queryKeys\.explorer\.search/);
   assert.match(explorer, /No matching saved or live record/);
   assert.match(explorer, /match\.kind === 'tokenMint'/);
   assert.match(explorer, /match\.kind === 'collection'/);
