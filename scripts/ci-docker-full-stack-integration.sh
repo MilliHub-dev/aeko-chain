@@ -260,7 +260,11 @@ def json_request(url, payload=None, client=None):
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=headers, method="POST" if data is not None else "GET")
     try:
-        with (client or urllib.request).open(req, timeout=30) as res:
+        if client is not None:
+            response = client.open(req, timeout=30)
+        else:
+            response = urllib.request.urlopen(req, timeout=30)
+        with response as res:
             return json.load(res)
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", "replace")
