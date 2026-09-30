@@ -18,7 +18,7 @@ type Settings = {
 
 type FundingSnapshot = {
   network: 'mainnet' | 'testnet' | 'devnet' | 'localnet'
-  mode: 'test-funding'
+  mode: 'funding'
   settings: Settings | null
   dailyRemainingAeko: number | null
   publicSpentAeko: number | null
@@ -117,7 +117,7 @@ export default function FundingPage() {
         return current
       })
 
-      if (nextSnapshot.mode !== 'test-funding') {
+      if (nextSnapshot.mode !== 'funding') {
         setFundingHistory([])
         setAirdrops([])
         setRequests([])
@@ -150,7 +150,7 @@ export default function FundingPage() {
 
   async function saveSettings(e: React.FormEvent) {
     e.preventDefault()
-    if (!draft || !settings || snapshot?.mode !== 'test-funding') return
+    if (!draft || !settings || snapshot?.mode !== 'funding') return
 
     setBusy(true)
     setNotice(null)
@@ -174,7 +174,7 @@ export default function FundingPage() {
         setSettings(json.data.settings)
         setDraft(json.data.settings)
       }
-      setNotice({ ok: true, text: 'Testnet funding policy saved.' })
+      setNotice({ ok: true, text: 'Funding policy saved.' })
       await refresh()
     } catch (error) {
       setNotice({ ok: false, text: error instanceof Error ? error.message : 'Save failed' })
@@ -184,7 +184,7 @@ export default function FundingPage() {
   }
 
   async function toggleEnabled() {
-    if (!settings || snapshot?.mode !== 'test-funding') return
+    if (!settings || snapshot?.mode !== 'funding') return
     const nextEnabled = !settings.enabled
     setBusy(true)
     setNotice(null)
@@ -202,7 +202,7 @@ export default function FundingPage() {
         setSettings(json.data.settings)
         setDraft(json.data.settings)
       }
-      setNotice({ ok: true, text: nextEnabled ? 'Public test funding resumed.' : 'Public test funding paused.' })
+      setNotice({ ok: true, text: nextEnabled ? 'Public funding resumed.' : 'Public funding paused.' })
     } catch (error) {
       setNotice({ ok: false, text: error instanceof Error ? error.message : 'Policy update failed' })
     } finally {
@@ -240,7 +240,7 @@ export default function FundingPage() {
 
   async function sendFunding(e: React.FormEvent) {
     e.preventDefault()
-    if (snapshot?.mode !== 'test-funding') return
+    if (snapshot?.mode !== 'funding') return
 
     setBusy(true)
     setNotice(null)
@@ -282,7 +282,7 @@ export default function FundingPage() {
   const attentionRequests = requests.filter((request) =>
     ['pending', 'processing', 'submitted', 'failed'].includes(request.status),
   )
-  const isTestFunding = snapshot?.mode === 'test-funding'
+  const isFunding = snapshot?.mode === 'funding'
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-6 p-4 sm:p-6">
@@ -291,12 +291,12 @@ export default function FundingPage() {
           <div className="text-xs uppercase tracking-[0.22em] text-emerald-400">Funding operations</div>
           <h1 className="mt-1 text-2xl font-bold text-white">Funding & developer airdrops</h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-gray-500">
-            {isTestFunding
+            {isFunding
               ? 'Review public funding requests, maintain network policy, send Admin funding directly, and keep developer airdrops as a separate test utility.'
               : 'Funding policy and direct Admin sends are controlled here. Developer airdrop is disabled on Mainnet.'}
           </p>
         </div>
-        {isTestFunding && settings ? (
+        {isFunding && settings ? (
           <button
             type="button"
             onClick={toggleEnabled}
@@ -321,22 +321,22 @@ export default function FundingPage() {
         />
         <StatCard
           label="Public funding"
-          value={isTestFunding && settings ? (settings.enabled ? 'Open' : 'Paused') : snapshot ? 'Unavailable' : '—'}
-          accent={isTestFunding ? settings?.enabled : undefined}
+          value={isFunding && settings ? (settings.enabled ? 'Open' : 'Paused') : snapshot ? 'Unavailable' : '—'}
+          accent={isFunding ? settings?.enabled : undefined}
         />
-        <StatCard label="Per request" value={isTestFunding && settings ? `${settings.amountAeko} AEKO` : '—'} />
+        <StatCard label="Per request" value={isFunding && settings ? `${settings.amountAeko} AEKO` : '—'} />
         <StatCard
           label="Left today"
-          value={isTestFunding && snapshot?.dailyRemainingAeko !== null && snapshot?.dailyRemainingAeko !== undefined
+          value={isFunding && snapshot?.dailyRemainingAeko !== null && snapshot?.dailyRemainingAeko !== undefined
             ? `${snapshot.dailyRemainingAeko.toLocaleString()} AEKO`
             : '—'}
-          sub={isTestFunding && settings ? `of ${settings.dailyBudgetAeko.toLocaleString()}` : undefined}
+          sub={isFunding && settings ? `of ${settings.dailyBudgetAeko.toLocaleString()}` : undefined}
         />
-        <StatCard label="Needs attention" value={isTestFunding ? attentionRequests.length : '—'} />
-        <StatCard label="Funding history" value={isTestFunding ? fundingHistory.length : '—'} />
+        <StatCard label="Needs attention" value={isFunding ? attentionRequests.length : '—'} />
+        <StatCard label="Funding history" value={isFunding ? fundingHistory.length : '—'} />
       </div>
 
-      {isTestFunding ? (
+      {isFunding ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-xl border border-[#1e2135] bg-[#12141f] p-4">
             <div className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Public spent today</div>
@@ -373,7 +373,7 @@ export default function FundingPage() {
         </div>
       ) : null}
 
-      {isTestFunding ? (
+      {isFunding ? (
         <>
           <SectionTabs
             label="Funding administration sections"
