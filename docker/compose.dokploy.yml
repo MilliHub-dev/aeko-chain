@@ -64,6 +64,7 @@ services:
     restart: unless-stopped
     environment:
       AEKO_NODE_ROLE: validator
+      AEKO_NETWORK: ${AEKO_NETWORK:-testnet}
       AEKO_BOOTSTRAP: "1"
       AEKO_IDENTITY_FILE: /keys/validator-1-keypair.json
       AEKO_VOTE_FILE: /keys/vote-1-keypair.json
