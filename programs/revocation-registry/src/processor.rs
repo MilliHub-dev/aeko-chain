@@ -3,8 +3,8 @@ use {
         error::RevocationRegistryError,
         instruction::RevocationRegistryInstruction,
         state::{
-            deserialize_key_record, deserialize_rotation_intent,
-            KeyRecord, RevRegistryConfig, RotationApproval, RotationIntent, KEY_RECORD_SEED,
+            deserialize_key_record, deserialize_rotation_intent, KeyRecord, RevRegistryConfig,
+            RotationApproval, RotationIntent, KEY_RECORD_SEED,
         },
     },
     aeko_permission_types::{emergency_multisig_program_id, KeyAlgorithm, KeyState, KeyType},
