@@ -48,6 +48,8 @@ bash -c '
   bash scripts/test-bootstrap-entrypoint.sh
   bash -n scripts/deploy-testnet.sh
   bash -n scripts/audit-validator-storage.sh
+  bash -n scripts/ci-docker-full-stack-integration.sh
+  python3 -m py_compile scripts/ci-rpc-ws-contract.py
   # Network topology is enforced by the focused current contract validators
   # below. Older broad validators still contain unrelated historical assertions
   # and are not used as the source of truth for service discovery.
