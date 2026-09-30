@@ -622,7 +622,7 @@ def main() -> int:
         'rpc("getBalance"',
         "direct Faucet-backed airdrop",
         'api_url + "/funding/airdrop"',
-        "Scan funding airdrop",
+        "Explorer API funding airdrop",
     ):
         require(
             required in live_network_diagnostics,
