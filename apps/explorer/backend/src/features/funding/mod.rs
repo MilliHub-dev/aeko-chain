@@ -197,6 +197,7 @@ struct FundingPolicyView {
     public_reserved_aeko: f64,
     console_airdrop_cap_aeko: f64,
     console_airdrop_aggregate_unlimited: bool,
+    developer_airdrop_enabled: bool,
     faucet_per_request_cap_aeko: f64,
     revision: u64,
 }
@@ -341,6 +342,7 @@ struct AdminFundingSnapshot {
     public_spent_aeko: Option<f64>,
     public_reserved_aeko: Option<f64>,
     console_airdrop_aggregate_unlimited: bool,
+    developer_airdrop_enabled: bool,
     faucet_per_request_cap_aeko: Option<f64>,
 }
 
@@ -452,8 +454,8 @@ pub fn router() -> Router<SharedState> {
             "/admin/funding/requests/:id/reconcile",
             post(reconcile_request),
         )
-        .route("/admin/funding/grants", get(list_grants))
-        .route("/admin/funding/grant", post(create_grant))
+        .route("/admin/funding/history", get(list_funding_history))
+        .route("/admin/funding/send", post(send_funding))
         .route("/admin/funding/airdrops", get(list_airdrops))
 }
 
@@ -480,7 +482,8 @@ async fn get_policy(
             .settings
             .console_airdrop_cap_aeko
             .min(state.faucet_per_request_cap_aeko),
-        console_airdrop_aggregate_unlimited: true,
+        console_airdrop_aggregate_unlimited: state.is_test_environment(),
+        developer_airdrop_enabled: state.is_test_environment(),
         faucet_per_request_cap_aeko: state.faucet_per_request_cap_aeko,
         revision,
     };
@@ -536,6 +539,7 @@ async fn create_airdrop(
     Json(body): Json<DirectGrantBody>,
 ) -> FundingResult<Json<DataEnvelope<FundingAirdropView>>> {
     ensure_funding_available(&state)?;
+    ensure_developer_airdrop_available(&state)?;
     let address = validate_address(&body.address)?;
     apply_rate_limit(&state, &headers, "console-airdrop-origin").await?;
     apply_subject_rate_limit(&state, "console-airdrop-wallet", &address).await?;
@@ -587,7 +591,8 @@ async fn get_admin_settings(
             daily_remaining_aeko: Some(daily_remaining_aeko),
             public_spent_aeko: Some(public_spent_aeko),
             public_reserved_aeko: Some(public_reserved_aeko),
-            console_airdrop_aggregate_unlimited: true,
+            console_airdrop_aggregate_unlimited: state.is_test_environment(),
+            developer_airdrop_enabled: state.is_test_environment(),
             faucet_per_request_cap_aeko: Some(state.faucet_per_request_cap_aeko),
         },
         "funding-policy",
@@ -855,7 +860,7 @@ async fn reconcile_request(
     ))
 }
 
-async fn list_grants(
+async fn list_funding_history(
     State(state): State<SharedState>,
     headers: HeaderMap,
     Query(query): Query<ListQuery>,
@@ -877,7 +882,7 @@ async fn list_grants(
     ))
 }
 
-async fn create_grant(
+async fn send_funding(
     State(state): State<SharedState>,
     headers: HeaderMap,
     Json(body): Json<DirectGrantBody>,
@@ -893,7 +898,7 @@ async fn create_grant(
     let cap = settings
         .max_manual_grant_aeko
         .min(state.faucet_per_request_cap_aeko);
-    validate_direct_amount(body.amount_aeko, cap, "Manual grant")?;
+    validate_direct_amount(body.amount_aeko, cap, "Admin funding")?;
     let request = state
         .repository
         .create_immediate_grant_request(&address, body.amount_aeko)
@@ -1873,6 +1878,17 @@ fn ensure_funding_available(_state: &SharedState) -> FundingResult<()> {
     // itself through its own faucet balance, authorization credential, caps,
     // budgets, and approval queue.
     Ok(())
+}
+
+fn ensure_developer_airdrop_available(state: &SharedState) -> FundingResult<()> {
+    if state.is_test_environment() {
+        return Ok(());
+    }
+    Err(FundingHttpError::new(
+        StatusCode::FORBIDDEN,
+        "AIRDROP_DISABLED_ON_MAINNET",
+        "Developer airdrop is disabled on mainnet",
+    ))
 }
 
 fn authorize_admin(headers: &HeaderMap, expected: &str) -> FundingResult<()> {
