@@ -139,7 +139,7 @@ test('accounts workspace keeps public funding approval separate from direct Test
   assert.match(funding, /requestFundingApproval\(fundingUrl, address\.trim\(\)\)/);
   assert.match(funding, /getFundingRequestStatus\(fundingUrl, request\.id\)/);
   assert.match(funding, /waiting for an Admin decision/i);
-  assert.match(funding, /Admin approved the grant/i);
+  assert.match(funding, /Admin approved the funding request/i);
   assert.doesNotMatch(funding, /decideRequest|approve.*fetch|\/admin\/funding/);
 });
 
@@ -188,7 +188,7 @@ test('funding runtime is owned by the Scan backend after the Admin gateway remov
 });
 
 test('Admin funding polling preserves persisted policy revisions and mainnet separation', async () => {
-  const adminPage = await source('../../../admin/src/app/(admin)/funding-grants/page.tsx');
+  const adminPage = await source('../../../admin/src/app/(admin)/funding/page.tsx');
   const adminProxy = await source('../../../admin/src/lib/funding-api.ts');
   const settingsRoute = await source('../../../admin/src/app/api/admin/funding/settings/route.ts');
   const requestsRoute = await source('../../../admin/src/app/api/admin/funding/requests/route.ts');
@@ -196,8 +196,8 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
   assert.match(adminPage, /setInterval/);
   assert.match(adminPage, /expectedRevision: settings\.revision/);
   assert.match(adminPage, /consoleAirdropAggregateUnlimited/);
-  assert.match(adminPage, /mainnet-disabled/);
-  assert.match(adminPage, /Mainnet test funding is disabled/);
+  assert.match(adminPage, /developerAirdropEnabled/);
+  assert.match(adminPage, /Disabled on Mainnet/);
   assert.match(adminPage, /Check confirmation/);
   assert.match(adminPage, /Airdrop history/);
   assert.match(adminProxy, /x-aeko-settings-token/);
@@ -210,7 +210,7 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
 
 test('Operations Web paginates long datasets and keeps dense control pages focused', async () => {
   const dataTable = await source('../../../admin/src/components/data-table.tsx');
-  const fundingPage = await source('../../../admin/src/app/(admin)/funding-grants/page.tsx');
+  const fundingPage = await source('../../../admin/src/app/(admin)/funding/page.tsx');
   const settingsPage = await source('../../../admin/src/app/(admin)/settings/page.tsx');
   const socialPage = await source('../../../admin/src/app/(admin)/social/page.tsx');
   const protocolPage = await source('../../../admin/src/app/(admin)/protocol/page.tsx');
@@ -222,9 +222,9 @@ test('Operations Web paginates long datasets and keeps dense control pages focus
   assert.match(dataTable, /Showing/);
 
   assert.match(fundingPage, /SectionTabs/);
-  assert.match(fundingPage, /Grant queue/);
-  assert.match(fundingPage, /Policy & manual grant/);
-  assert.match(fundingPage, /Grant history/);
+  assert.match(fundingPage, /Funding requests/);
+  assert.match(fundingPage, /Policy & direct funding/);
+  assert.match(fundingPage, /Funding history/);
   assert.match(fundingPage, /Airdrop history/);
 
   assert.match(settingsPage, /Settings sections/);
