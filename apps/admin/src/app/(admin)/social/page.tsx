@@ -1,9 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import DataTable from '@/components/data-table'
+import FeedbackAlert from '@/components/feedback-alert'
 import SectionTabs from '@/components/section-tabs'
 import StatCard from '@/components/stat-card'
+import { adminQueryKeys, explorerQuery } from '@/lib/client-query'
 
 type Post = { postId: string; creator: string; contentUri: string; postKind: string; visibility: string; createdAtUnix: number }
 type Stake = { positionId: string; staker: string; creator: string; stakedAmount: number; accumulatedYield: number; claimedYield: number; state: string }
@@ -64,56 +67,42 @@ function fmtTime(ts: number) {
   return new Date(ts * 1000).toLocaleDateString()
 }
 
-async function readEnvelope<T>(path: string, fallback: T): Promise<T> {
-  const response = await fetch('/api/explorer/' + path, { cache: 'no-store' })
-  if (!response.ok) return fallback
-  const payload = await response.json().catch(() => null)
-  return (payload?.data ?? fallback) as T
-}
-
 export default function SocialPage() {
-  const [posts, setPosts] = useState<Post[]>([])
-  const [stakes, setStakes] = useState<Stake[]>([])
-  const [engagement, setEngagement] = useState<Engagement[]>([])
-  const [registry, setRegistry] = useState<SocialRegistry | null>(null)
-  const [socialStatus, setSocialStatus] = useState<SocialStatus | null>(null)
   const [activityTab, setActivityTab] = useState<ActivityTab>('posts')
   const [view, setView] = useState<SocialView>('health')
-  const [loading, setLoading] = useState(true)
-  const [lastUpdate, setLastUpdate] = useState('')
-  const [statusError, setStatusError] = useState('')
 
-  const refresh = useCallback(async () => {
-    setStatusError('')
-    try {
-      const [nextPosts, nextStakes, nextEngagement, nextRegistry, nextStatus] = await Promise.all([
-        readEnvelope<Post[]>('posts?limit=50', []),
-        readEnvelope<Stake[]>('stakes?limit=50', []),
-        readEnvelope<Engagement[]>('engagement?limit=50', []),
-        readEnvelope<SocialRegistry | null>('registry/social', null),
-        readEnvelope<SocialStatus | null>('social/status', null),
+  const socialQuery = useQuery({
+    queryKey: adminQueryKeys.social,
+    queryFn: async () => {
+      const [posts, stakes, engagement, registry, socialStatus] = await Promise.all([
+        explorerQuery<Post[]>('/posts?limit=50'),
+        explorerQuery<Stake[]>('/stakes?limit=50'),
+        explorerQuery<Engagement[]>('/engagement?limit=50'),
+        explorerQuery<SocialRegistry>('/registry/social'),
+        explorerQuery<SocialStatus>('/social/status'),
       ])
-      setPosts(nextPosts)
-      setStakes(nextStakes)
-      setEngagement(nextEngagement)
-      setRegistry(nextRegistry)
-      setSocialStatus(nextStatus)
-      if (!nextRegistry || !nextStatus) {
-        setStatusError('Social registry or live SocialFi status is unavailable from Explorer.')
-      }
-      setLastUpdate(new Date().toLocaleTimeString())
-    } catch (err) {
-      setStatusError(err instanceof Error ? err.message : 'Unable to refresh SocialFi state')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      return { posts, stakes, engagement, registry, socialStatus }
+    },
+    refetchInterval: 15_000,
+  })
 
-  useEffect(() => {
-    void refresh()
-    const id = setInterval(refresh, 15_000)
-    return () => clearInterval(id)
-  }, [refresh])
+  const posts = socialQuery.data?.posts ?? []
+  const stakes = socialQuery.data?.stakes ?? []
+  const engagement = socialQuery.data?.engagement ?? []
+  const registry = socialQuery.data?.registry ?? null
+  const socialStatus = socialQuery.data?.socialStatus ?? null
+  const loading = socialQuery.isLoading
+  const lastUpdate = socialQuery.dataUpdatedAt
+    ? new Date(socialQuery.dataUpdatedAt).toLocaleTimeString()
+    : ''
+  const statusError = socialQuery.error
+    ? socialQuery.error instanceof Error
+      ? socialQuery.error.message
+      : 'Unable to refresh SocialFi state'
+    : !registry || !socialStatus
+      ? 'Social registry or live SocialFi status is unavailable from Explorer.'
+      : ''
+  const refresh = () => socialQuery.refetch()
 
   const totalStaked = stakes.filter((item) => item.state === 'active').reduce((sum, item) => sum + item.stakedAmount, 0)
   const uniqueCreators = new Set(posts.map((post) => post.creator)).size
@@ -132,15 +121,15 @@ export default function SocialPage() {
           </p>
           <p className="mt-1 text-xs text-gray-600">{lastUpdate ? 'Updated ' + lastUpdate : 'Loading…'}</p>
         </div>
-        <button onClick={refresh} disabled={loading} className="min-h-[42px] rounded-lg border border-[#1e2135] px-4 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40">
-          {loading ? 'Refreshing…' : 'Refresh'}
+        <button onClick={refresh} disabled={socialQuery.isFetching} className="min-h-[42px] rounded-lg border border-[#1e2135] px-4 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40">
+          {socialQuery.isFetching ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
 
       {statusError ? (
-        <div role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+        <FeedbackAlert tone={socialQuery.error ? 'error' : 'warning'} title="SocialFi status needs attention">
           {statusError}
-        </div>
+        </FeedbackAlert>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:gap-4">
