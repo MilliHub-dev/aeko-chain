@@ -11,13 +11,15 @@ import { queryKeys } from '../queryKeys.js';
 import {
   ActiveFiltersBar,
   ExplorerFiltersModal,
+} from '../components/ExplorerFilters';
+import {
   FILTER_FIELDS,
   sanitizeCursor,
   sanitizeSearchQuery,
   SEARCH_QUERY_MIN,
-} from '../components/ExplorerFilters';
+} from '../components/ExplorerFilterModel.js';
 import { StatusBannerStack } from '../components/StatusBanner';
-import { useToaster } from '../components/Toaster';
+import { useToaster } from '../components/ToasterContext.js';
 import { useAppSettings } from '../components/AppSettingsContext';
 
 // Wait this long after the last filter change before firing a new fetch.

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Droplets, Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import StatusBanner from './StatusBanner';
-import { useToaster } from './Toaster';
+import { useToaster } from './ToasterContext.js';
 import {
   getFundingPolicy,
   getFundingRequestStatus,
@@ -102,14 +102,15 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
     },
   });
 
-  useEffect(() => {
-    setRequestId('');
-    terminalToastRef.current = '';
-    if (pollErrorToastRef.current) {
-      dismissToast(pollErrorToastRef.current);
-      pollErrorToastRef.current = null;
-    }
-  }, [dismissToast, fundingUrl]);
+  useEffect(
+    () => () => {
+      if (pollErrorToastRef.current) {
+        dismissToast(pollErrorToastRef.current);
+        pollErrorToastRef.current = null;
+      }
+    },
+    [dismissToast],
+  );
 
   useEffect(() => {
     if (!requestQuery.isError) {
