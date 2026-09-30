@@ -77,7 +77,12 @@ jobs:
 
       - name: Stamp CLI source commit
         shell: bash
-        run: echo "CI_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+        run: |
+          set -euo pipefail
+          commit="$(git rev-parse HEAD)"
+          echo "CI_COMMIT=$commit" >> "$GITHUB_ENV"
+          mkdir -p dist
+          printf '%s\n' "$commit" > dist/ci-source-sha.txt
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
@@ -297,6 +302,7 @@ jobs:
           path: |
             dist/${{ matrix.archive }}
             dist/${{ matrix.archive }}.sha256
+            dist/ci-source-sha.txt
           if-no-files-found: error
           retention-days: 7
 
