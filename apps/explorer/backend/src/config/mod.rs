@@ -201,9 +201,14 @@ fn parse_cors_origins(value: &str) -> Result<Vec<HeaderValue>> {
     let mut seen = HashSet::new();
     let mut origins = Vec::new();
 
-    for raw in value.split(',').map(str::trim).filter(|value| !value.is_empty()) {
-        let parsed = Url::parse(raw)
-            .with_context(|| format!("AEKO_EXPLORER_CORS_ORIGINS contains invalid origin {raw:?}"))?;
+    for raw in value
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let parsed = Url::parse(raw).with_context(|| {
+            format!("AEKO_EXPLORER_CORS_ORIGINS contains invalid origin {raw:?}")
+        })?;
         if !matches!(parsed.scheme(), "http" | "https")
             || parsed.host_str().is_none()
             || parsed.path() != "/"
