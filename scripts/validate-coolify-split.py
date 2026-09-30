@@ -175,7 +175,7 @@ def main() -> int:
     )
     for name, block in (("Social", social), ("Protocol", protocol)):
         require(
-            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?Set private or DNS-only Validator RPC URL}" in block,
+            "AEKO_RPC_URL: ${AEKO_RPC_URL:-}" in block,
             f"{name} bootstrap must use the private Validator RPC contract",
         )
         if name == "Protocol":
@@ -251,8 +251,13 @@ def main() -> int:
     validator = loaded["validator"]
     require("AEKO_NETWORK: ${AEKO_NETWORK:?" in validator, "Validator must declare one active chain environment")
     require(
-        "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:?Set a private or DNS-only Faucet host:9900}" in validator,
-        "Validator must require the private raw Faucet endpoint",
+        "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-}" in validator
+        and 'AEKO_REQUIRE_REMOTE_FAUCET: "1"' in validator,
+        "Validator must pass the private raw Faucet endpoint and fail closed when it is absent",
+    )
+    require(
+        "AEKO_FAUCET_ADDRESS:?Set " not in validator,
+        "Validator must not use message-bearing Coolify interpolation for the Faucet endpoint",
     )
     require("source: /data/aeko/validator-ledger" in validator, "Validator ledger must use stable host storage")
     require("source: /data/aeko/keys" in validator, "Validator must mount persistent identities")
@@ -260,8 +265,14 @@ def main() -> int:
     require("AEKO_RPC_BIND_IP" not in validator and "AEKO_WS_BIND_IP" not in validator, "RPC/WS must use Coolify domains")
     require('"8899"' in validator and '"8900"' in validator, "Validator must expose RPC/WS container ports")
     require(
-        "AEKO_GOSSIP_HOST=gossip.aeko.online" in envs["validator"],
-        "Validator env example must advertise the canonical gossip DNS hostname",
+        "AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-}" in validator
+        and 'AEKO_REQUIRE_GOSSIP_HOST: "1"' in validator,
+        "split Validator must require an explicit network-specific gossip hostname",
+    )
+    require(
+        re.search(r"^AEKO_GOSSIP_HOST=$", envs["validator"], re.MULTILINE) is not None
+        and "Testnet uses gossip.aeko.online" in envs["validator"],
+        "Validator env example must leave gossip explicit while documenting the testnet hostname",
     )
     require(
         "AEKO_FUNDING_AUTHORIZATION_KEY:" in validator,
@@ -275,13 +286,14 @@ def main() -> int:
         "Explorer API split resource must configure production application logging",
     )
     for expected in (
-        "AEKO_NETWORK: ${AEKO_NETWORK:?",
-        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
-        "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}",
-        "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:?",
+        "AEKO_NETWORK: ${AEKO_NETWORK:-}",
+        "AEKO_RPC_URL: ${AEKO_RPC_URL:-}",
+        "AEKO_WS_URL: ${AEKO_WS_URL:-}",
+        "AEKO_REGISTRY_URL: ${AEKO_REGISTRY_URL:-}",
+        'AEKO_REQUIRE_REMOTE_REGISTRY: "1"',
     ):
         require(expected in explorer_api, f"Explorer API missing private upstream contract: {expected}")
-    require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?" in explorer_api, "Explorer API must require PostgreSQL")
+    require("DATABASE_URL: ${EXPLORER_DATABASE_URL:-}" in explorer_api, "Explorer API must pass PostgreSQL through for application validation")
     require("volumes:" not in explorer_api, "Explorer API must not require bootstrap-host filesystem mounts")
     require("ports:" not in explorer_api, "Explorer API HTTP ingress must be routed by its domain")
     require("AEKO_REGISTRY_SCHEMA_VERSION" not in explorer_api, "Explorer API must not require copied registry values")
@@ -299,8 +311,29 @@ def main() -> int:
         "AEKO_SCAN_AIRDROP_KEY" not in explorer_api,
         "Explorer API must not retain the retired Scan-only airdrop key",
     )
-    for name in ("AEKO_NETWORK", "AEKO_INTERNAL_RPC_URL", "AEKO_INTERNAL_WS_URL", "AEKO_INTERNAL_REGISTRY_URL"):
+    for name in (
+        "AEKO_NETWORK",
+        "AEKO_RPC_URL",
+        "AEKO_WS_URL",
+        "AEKO_REGISTRY_URL",
+        "AEKO_EXPLORER_CORS_ORIGINS",
+    ):
         require(f"{name}=" in envs["explorer-api"], f"Explorer API env example missing {name}")
+    require(
+        "AEKO_EXPLORER_CORS_ORIGINS: ${AEKO_EXPLORER_CORS_ORIGINS:-}" in explorer_api,
+        "Explorer API split resource must pass the browser CORS allowlist through for application validation",
+    )
+    for forbidden_prompt in (
+        "AEKO_RPC_URL:?Set ",
+        "AEKO_REGISTRY_URL:?Set ",
+        "AEKO_EXPLORER_CORS_ORIGINS:?Set ",
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?Set ",
+        "EXPLORER_DATABASE_URL:?Set ",
+    ):
+        require(
+            forbidden_prompt not in explorer_api,
+            f"Explorer API must not use message-bearing Coolify interpolation: {forbidden_prompt}",
+        )
 
     explorer_ui = loaded["explorer-ui"]
     require(
@@ -313,14 +346,21 @@ def main() -> int:
         "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
         "AEKO_WS_URL: ${AEKO_WS_URL:?",
         "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
-        "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?",
-        "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
         "AEKO_MAINNET_RPC_URL:",
-        "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
+        "AEKO_MAINNET_EXPLORER_API_URL:",
         "AEKO_TESTNET_RPC_URL:",
-        "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL:",
+        "AEKO_TESTNET_EXPLORER_API_URL:",
     ):
         require(expected in explorer_ui, f"Scan missing public-network contract: {expected}")
+    for retired_proxy_name in (
+        "AEKO_EXPLORER_PROXY_UPSTREAM_URL",
+        "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL",
+        "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL",
+    ):
+        require(
+            retired_proxy_name not in explorer_ui and retired_proxy_name not in envs["explorer-ui"],
+            f"public Scan must not expose retired proxy variable {retired_proxy_name}",
+        )
     for private_prefix in ("AEKO_DEVNET_", "AEKO_LOCALNET_", "AEKO_DEMO_"):
         require(
             private_prefix not in explorer_ui and private_prefix not in envs["explorer-ui"],
@@ -337,9 +377,9 @@ def main() -> int:
     require("depends_on:" not in operations, "Operations Web must remain independently deployable")
     for expected in (
         "AEKO_NETWORK: ${AEKO_NETWORK:?",
-        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
-        "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?",
-        "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
+        "AEKO_RPC_URL: ${AEKO_RPC_URL:-}",
+        "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-}",
+        "AEKO_ADMIN_EXPLORER_TIMEOUT_MS:",
     ):
         require(expected in operations, f"Operations Web missing private upstream contract: {expected}")
 

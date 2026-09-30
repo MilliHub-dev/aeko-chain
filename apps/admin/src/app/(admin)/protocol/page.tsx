@@ -1,9 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import DataTable from '@/components/data-table'
+import FeedbackAlert from '@/components/feedback-alert'
 import SectionTabs from '@/components/section-tabs'
 import StatCard from '@/components/stat-card'
+import { adminQueryKeys, explorerQuery } from '@/lib/client-query'
 
 type ProtocolRegistry = {
   schemaVersion: number | null
@@ -63,16 +66,6 @@ type ProtocolStatus = {
 
 type ProtocolView = 'overview' | 'programs' | 'states'
 
-async function readEnvelope<T>(path: string): Promise<T> {
-  const response = await fetch('/api/explorer/' + path, { cache: 'no-store' })
-  const payload = await response.json().catch(() => null)
-  if (!response.ok) {
-    throw new Error(payload?.error?.message ?? 'Request failed with status ' + response.status)
-  }
-  if (!payload?.data) throw new Error('Explorer response is missing data')
-  return payload.data as T
-}
-
 function shortAddress(value: string | null | undefined) {
   if (!value) return '—'
   if (value.length <= 20) return value
@@ -84,37 +77,27 @@ function stateLabel(ok: boolean, good = 'ready', bad = 'not ready') {
 }
 
 export default function ProtocolPage() {
-  const [registry, setRegistry] = useState<ProtocolRegistry | null>(null)
-  const [status, setStatus] = useState<ProtocolStatus | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [lastUpdate, setLastUpdate] = useState('')
   const [view, setView] = useState<ProtocolView>('overview')
-
-  const refresh = useCallback(async () => {
-    setError('')
-    try {
-      const [nextRegistry, nextStatus] = await Promise.all([
-        readEnvelope<ProtocolRegistry>('registry/protocol'),
-        readEnvelope<ProtocolStatus>('protocol/status'),
+  const protocolQuery = useQuery({
+    queryKey: adminQueryKeys.protocol,
+    queryFn: async () => {
+      const [registry, status] = await Promise.all([
+        explorerQuery<ProtocolRegistry>('/registry/protocol'),
+        explorerQuery<ProtocolStatus>('/protocol/status'),
       ])
-      setRegistry(nextRegistry)
-      setStatus(nextStatus)
-      setLastUpdate(new Date().toLocaleTimeString())
-    } catch (err) {
-      setRegistry(null)
-      setStatus(null)
-      setError(err instanceof Error ? err.message : 'Unable to load protocol state')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      return { registry, status }
+    },
+    refetchInterval: 15_000,
+  })
 
-  useEffect(() => {
-    void refresh()
-    const id = setInterval(refresh, 15_000)
-    return () => clearInterval(id)
-  }, [refresh])
+  const registry = protocolQuery.data?.registry ?? null
+  const status = protocolQuery.data?.status ?? null
+  const loading = protocolQuery.isLoading
+  const error = protocolQuery.error instanceof Error ? protocolQuery.error.message : ''
+  const lastUpdate = protocolQuery.dataUpdatedAt
+    ? new Date(protocolQuery.dataUpdatedAt).toLocaleTimeString()
+    : ''
+  const refresh = () => protocolQuery.refetch()
 
   const featureEntries = Object.entries(status?.features ?? {})
   const programEntries = Object.entries(status?.programs ?? {})
@@ -136,17 +119,17 @@ export default function ProtocolPage() {
         <button
           type="button"
           onClick={refresh}
-          disabled={loading}
+          disabled={protocolQuery.isFetching}
           className="min-h-[42px] rounded-lg border border-[#1e2135] px-4 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40"
         >
-          {loading ? 'Refreshing…' : 'Refresh'}
+          {protocolQuery.isFetching ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
 
       {error ? (
-        <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          Protocol status unavailable: {error}
-        </div>
+        <FeedbackAlert tone="error" title="Protocol status unavailable">
+          {error}
+        </FeedbackAlert>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:gap-4">

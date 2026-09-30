@@ -6,7 +6,9 @@
 
 use {
     anyhow::{anyhow, Context, Result},
-    std::{env, net::SocketAddr, time::Duration},
+    axum::http::HeaderValue,
+    std::{collections::HashSet, env, net::SocketAddr, time::Duration},
+    url::Url,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -176,6 +178,7 @@ pub struct ServerConfig {
     pub request_timeout: Duration,
     pub max_body_bytes: usize,
     pub sync_interval: Duration,
+    pub cors_origins: Vec<HeaderValue>,
 }
 
 impl ServerConfig {
@@ -189,8 +192,53 @@ impl ServerConfig {
             request_timeout: required_duration("AEKO_EXPLORER_REQUEST_TIMEOUT_SECS")?,
             max_body_bytes: required_nonzero::<usize>("AEKO_EXPLORER_MAX_BODY_BYTES")?,
             sync_interval: required_duration("AEKO_EXPLORER_SYNC_INTERVAL_SECS")?,
+            cors_origins: parse_cors_origins(&required_env("AEKO_EXPLORER_CORS_ORIGINS")?)?,
         })
     }
+}
+
+fn parse_cors_origins(value: &str) -> Result<Vec<HeaderValue>> {
+    let mut seen = HashSet::new();
+    let mut origins = Vec::new();
+
+    for raw in value
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let parsed = Url::parse(raw).with_context(|| {
+            format!("AEKO_EXPLORER_CORS_ORIGINS contains invalid origin {raw:?}")
+        })?;
+        if !matches!(parsed.scheme(), "http" | "https")
+            || parsed.host_str().is_none()
+            || parsed.path() != "/"
+            || parsed.query().is_some()
+            || parsed.fragment().is_some()
+            || !parsed.username().is_empty()
+            || parsed.password().is_some()
+        {
+            return Err(anyhow!(
+                "AEKO_EXPLORER_CORS_ORIGINS entry {raw:?} must be an http(s) origin without path, query, fragment, or credentials"
+            ));
+        }
+
+        let origin = parsed.origin().ascii_serialization();
+        if seen.insert(origin.clone()) {
+            origins.push(
+                origin
+                    .parse::<HeaderValue>()
+                    .with_context(|| format!("invalid CORS origin header value {origin:?}"))?,
+            );
+        }
+    }
+
+    if origins.is_empty() {
+        return Err(anyhow!(
+            "AEKO_EXPLORER_CORS_ORIGINS must contain at least one allowed browser origin"
+        ));
+    }
+
+    Ok(origins)
 }
 
 fn validate_network(network: &str) -> Result<()> {
@@ -287,7 +335,7 @@ impl Default for ExplorerBackendConfig {
 #[cfg(test)]
 mod config_tests {
     use {
-        super::{validate_network, FundingControlConfig},
+        super::{parse_cors_origins, validate_network, FundingControlConfig},
         std::time::Duration,
     };
 
@@ -297,6 +345,26 @@ mod config_tests {
             validate_network(network).unwrap();
         }
         assert!(validate_network("production").is_err());
+    }
+
+    #[test]
+    fn cors_origins_are_explicit_normalized_origins() {
+        let origins = parse_cors_origins(
+            "https://scan.aeko.online, http://localhost:5173, https://scan.aeko.online",
+        )
+        .unwrap();
+        let rendered = origins
+            .iter()
+            .map(|value| value.to_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            rendered,
+            vec!["https://scan.aeko.online", "http://localhost:5173"]
+        );
+
+        assert!(parse_cors_origins("https://scan.aeko.online/path").is_err());
+        assert!(parse_cors_origins("*").is_err());
+        assert!(parse_cors_origins(" ").is_err());
     }
 
     #[test]

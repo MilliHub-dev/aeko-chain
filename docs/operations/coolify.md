@@ -98,21 +98,25 @@ AEKO_WS_URL=wss://ws.aeko.online
 AEKO_EXPLORER_API_URL=https://api.aeko.online
 ~~~
 
-Split Bootstrap, Explorer API, Operations Web, Scan's server proxy, and
-Validator funding use explicit private or DNS-only origins from their adjacent
-env examples:
+Split Bootstrap, Explorer API, Operations Web, and Validator funding use
+resource-scoped canonical variables with private or DNS-only values:
 
 ~~~text
-AEKO_INTERNAL_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
-AEKO_INTERNAL_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
-AEKO_INTERNAL_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
-AEKO_INTERNAL_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
-AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
-AEKO_EXPLORER_PROXY_UPSTREAM_URL=https://<private-or-dns-only-explorer-api-origin>
+# Explorer API resource
+AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
+AEKO_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
+AEKO_EXPLORER_CORS_ORIGINS=https://scan.aeko.online
+
+# Operations Web resource
+AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
+
+# Validator resource
+AEKO_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
 ~~~
 
-Those inputs are mapped to the existing generic runtime variables inside each
-container. Do not point them at Cloudflare-proxied/WAF endpoints. A raw
+There is no parallel internal namespace: resource boundaries provide the scope. Do not point them at Cloudflare-proxied/WAF endpoints. A raw
 cross-host port is usable only if it is explicitly published and restricted;
 otherwise use a private overlay URL or a DNS-only Coolify origin.
 
@@ -223,15 +227,14 @@ For the Operations Web resource, set Coolify's HTTP health-check path to
 a liveness endpoint; probing it produces `admin_sign_in_required` redirects and
 warning logs.
 
-The public `api.aeko.online` hostname is a client-facing Explorer endpoint,
-not the required server-to-server funding path. Scan's same-origin proxy uses
-`AEKO_EXPLORER_PROXY_UPSTREAM_URL`, and Operations Web uses
-`AEKO_INTERNAL_EXPLORER_API_URL`; both must resolve to a reachable private or
-DNS-only Explorer origin that bypasses public Cloudflare/WAF challenges.
-Browser navigation still uses `scan.aeko.online`. If the edge in front of
-`scan.aeko.online` itself applies bot challenges, exempt the exact
-`/api/explorer/testnet/funding/*` API routes from HTML challenges; API
-failures must remain JSON.
+The public `api.aeko.online` hostname is the browser-facing Explorer API.
+Aeko Scan calls it directly, and Explorer API must set
+`AEKO_EXPLORER_CORS_ORIGINS=https://scan.aeko.online` (plus explicit
+development origins where appropriate). Operations Web uses its own
+server-side `AEKO_EXPLORER_API_URL` value pointed at a private or DNS-only
+Explorer origin so privileged Admin mutations do not traverse the public edge. Configure the edge in front of
+`api.aeko.online` as an API edge: Explorer routes, especially `/funding/*`,
+must return JSON rather than interactive bot-challenge HTML.
 
 `registry.aeko.online/` returns a non-secret JSON discovery manifest.
 `/healthz`, `/social-registry.env`, and `/protocol-registry.env` expose
@@ -243,15 +246,26 @@ republish it only after their canonical chain binding completes. The registry
 returns 503 when either latest one-shot verification is incomplete/failed or a
 registry document is missing; it does not mutate or recreate canonical state.
 
-Do not configure `gossip.aeko.online` as an HTTP route. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record
-directly to the Validator host and allow inbound TCP+UDP `8000-8050`.
-Gossip starts on `8001`.
+Do not configure gossip as an HTTP route. There is no separate Gossip Coolify
+application: the Validator process owns the gossip service. The split Validator
+requires `AEKO_GOSSIP_HOST` explicitly so a mainnet/devnet deployment cannot
+silently advertise the testnet hostname. For testnet set
+`AEKO_GOSSIP_HOST=gossip.aeko.online`, point that DNS record directly to the
+Validator host, and allow inbound TCP+UDP `8000-8050`. The Validator resolves
+the hostname at startup; gossip starts on `8001`. Mainnet/devnet must use their
+own network-specific gossip DNS name or public IP. Verify the real testnet
+protocol path with
+`AEKO_GOSSIP_ENTRYPOINT=gossip.aeko.online:8001 scripts/smoke-gossip.sh` or
+`aeko-gossip spy --entrypoint gossip.aeko.online:8001 --num-nodes 1 --timeout 20`.
 
 Faucet is also not an HTTP Coolify Domain. Point `faucet.aeko.online` to the
-Faucet host, publish TCP `9900`, and firewall it to Validator source
-addresses. Do not attach an HTTP health probe, Cloudflare HTTP proxy, or
-Traefik HTTP router to port `9900`; the Faucet listener accepts only its
-binary TCP protocol and rejects HTTP-like traffic. PostgreSQL `5432` should remain private.
+Faucet host only when a split Validator needs that raw TCP endpoint, publish
+TCP `9900`, and firewall it to Validator source addresses. In Coolify, leave
+the Faucet Domains field empty and do not configure an HTTP health path for
+`9900`; the Compose healthcheck validates the mounted key locally. Do not
+attach a Cloudflare HTTP proxy or Traefik HTTP router to the Faucet port. The
+Faucet listener accepts only its binary TCP protocol and deliberately rejects
+HTTP-like traffic. PostgreSQL `5432` should remain private.
 
 ## First deployment
 
@@ -315,20 +329,20 @@ The result must be `"ok"`, and repeated `getSlot` calls must advance.
 Then check the three Explorer health layers and both control planes:
 
 ```bash
-curl -s https://scan.aeko.online/api/explorer/testnet/liveness
-curl -s https://scan.aeko.online/api/explorer/testnet/readiness
-curl -s https://scan.aeko.online/api/explorer/testnet/network/readiness
-curl -s https://scan.aeko.online/api/explorer/testnet/registry/social
-curl -s https://scan.aeko.online/api/explorer/testnet/social/status
-curl -s https://scan.aeko.online/api/explorer/testnet/registry/protocol
-curl -s https://scan.aeko.online/api/explorer/testnet/protocol/status
+curl -s https://api.aeko.online/liveness
+curl -s https://api.aeko.online/readiness
+curl -s https://api.aeko.online/network/readiness
+curl -s https://api.aeko.online/registry/social
+curl -s https://api.aeko.online/social/status
+curl -s https://api.aeko.online/registry/protocol
+curl -s https://api.aeko.online/protocol/status
 ```
 
 Final acceptance requires `/network/readiness` HTTP 200, the registry genesis matching the live validator genesis, Social `5/5`, Protocol executable programs `11/11`, and Protocol canonical state `8/8`. For the full read-path smoke test:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-social.py
 ```
 
@@ -340,17 +354,20 @@ Funding, grants, and airdrops work the same on every network; the flow never
 branches on the deployment network. When production funding fails while
 localhost works, check these in order:
 
-1. **HTML 502 on `/api/explorer/{network}/funding/*` (Cloudflare error page,
-   not JSON).** The Scan proxy reached its Explorer upstream and got a
-   non-JSON error page, usually because the upstream Explorer origin itself
-   goes through Cloudflare/WAF to a dead or unreachable backend. Point the
-   Scan server at a private origin instead:
-   `AEKO_EXPLORER_PROXY_UPSTREAM_URL=https://<private-or-dns-only-explorer-api-origin>` (and the
-   matching `AEKO_<NETWORK>_EXPLORER_PROXY_UPSTREAM_URL` overrides). The proxy
-   now reports `upstreamStatus` in its `EXPLORER_UPSTREAM_INVALID_RESPONSE`
-   body so you can tell an upstream HTML 502 apart from a backend JSON error.
-   Do not attach bot challenges or WAF HTML pages between Scan and Explorer.
-2. **Approvals stuck in `processing` ("submission response was not
+1. **HTML/edge error from `https://api.aeko.online/funding/*` instead of the
+   Explorer JSON contract.** Scan calls Explorer API directly; there is no
+   Scan-side Explorer proxy to fix. Check the `api.aeko.online` route/origin,
+   Explorer API health, and Cloudflare/WAF policy. API routes must not receive
+   interactive bot challenges or HTML error replacements. The Explorer backend
+   must set `AEKO_EXPLORER_CORS_ORIGINS=https://scan.aeko.online` (plus any
+   explicitly approved local/browser origins), and preflight for public funding
+   must allow `POST`, `OPTIONS`, `Content-Type`, and `X-Request-Id`.
+2. **Faucet logs `Rejected HTTP-like traffic on raw TCP Faucet listener`.**
+   This is not a valid Validator funding request. The Validator client uses the
+   binary Faucet protocol over raw TCP. Remove any Coolify HTTP domain, HTTP
+   health probe, Traefik HTTP router, or Cloudflare HTTP proxy attached to port
+   `9900`; publish raw TCP only and firewall it to the Validator source.
+3. **Approvals stuck in `processing` ("submission response was not
    obtained").** The validator's faucet path is broken: the validator needs
    `--rpc-faucet-address <private-or-dns-only-faucet-host>:9900` with a reachable Faucet, a funded
    faucet keypair, caps above the grant amount, and an
@@ -362,7 +379,7 @@ localhost works, check these in order:
    the wallet when no durable signature exists, after which the user can
    submit a fresh request (CLI/SDK/explorer clients automatically adopt the
    in-flight request id and resume polling).
-3. **404 on `/accounts/:address`.** Expected for an address that never
+4. **404 on `/accounts/:address`.** Expected for an address that never
    received funds: the account does not exist on-chain yet. Fix funding first;
    the account appears once a transfer lands.
 

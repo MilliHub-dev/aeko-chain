@@ -1,33 +1,19 @@
-import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, FileText, Globe2, Shield } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
-import { fetchPostDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { fetchPostDetails } from '../utils/explorerApi';
+import { useExplorerResource } from '../utils/explorerQueries';
 
 export default function ExplorerPost() {
   const { postId } = useParams();
   const { network } = useNetwork();
-  const [state, setState] = useState({ loading: true, error: '', data: null });
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ loading: true, error: '', data: null });
-
-    fetchPostDetails(network, postId)
-      .then((data) => {
-        if (!cancelled) setState({ loading: false, error: '', data });
-      })
-      .catch((error) => {
-        if (!cancelled) setState({ loading: false, error: error.message, data: null });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [network, postId]);
-
-  const unavailable = !getExplorerAvailability(network);
+  const { unavailable, state } = useExplorerResource(
+    network,
+    'post',
+    postId,
+    () => fetchPostDetails(network, postId),
+  );
   const post = state.data;
 
   return (
@@ -84,7 +70,8 @@ export default function ExplorerPost() {
   );
 }
 
-function Metric({ icon: Icon, label, value }) {
+function Metric({ icon = null, label, value }) {
+  const Icon = icon;
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
       <div className="flex items-center gap-3 text-gray-400 mb-3">

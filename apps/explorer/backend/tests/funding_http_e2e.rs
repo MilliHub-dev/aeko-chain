@@ -9,7 +9,7 @@ use {
     axum::{
         body::{to_bytes, Body},
         extract::State,
-        http::{Method, Request, StatusCode},
+        http::{header, Method, Request, StatusCode},
         routing::post,
         Json, Router,
     },
@@ -204,6 +204,7 @@ fn server_config() -> ServerConfig {
         request_timeout: Duration::from_secs(30),
         max_body_bytes: 1024 * 1024,
         sync_interval: Duration::from_secs(1),
+        cors_origins: vec!["https://scan.aeko.online".parse().unwrap()],
     }
 }
 
@@ -311,6 +312,67 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     )
     .shared();
     let app = build_router(state.clone(), &server_config());
+
+    let preflight = Request::builder()
+        .method(Method::OPTIONS)
+        .uri("/funding/request")
+        .header("origin", "https://scan.aeko.online")
+        .header("access-control-request-method", "POST")
+        .header(
+            "access-control-request-headers",
+            "content-type,x-request-id",
+        )
+        .body(Body::empty())
+        .unwrap();
+    let preflight_response = app.clone().oneshot(preflight).await.unwrap();
+    assert_eq!(preflight_response.status(), StatusCode::OK);
+    assert_eq!(
+        preflight_response
+            .headers()
+            .get("access-control-allow-origin")
+            .and_then(|value| value.to_str().ok()),
+        Some("https://scan.aeko.online")
+    );
+    assert!(
+        preflight_response
+            .headers()
+            .get("access-control-allow-methods")
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| value.split(',').any(|method| method.trim() == "POST")),
+        "funding CORS preflight must allow POST"
+    );
+    assert!(
+        preflight_response
+            .headers()
+            .get("access-control-allow-headers")
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| {
+                let lower = value.to_ascii_lowercase();
+                lower.contains("content-type") && lower.contains("x-request-id")
+            }),
+        "funding CORS preflight must allow content-type and x-request-id"
+    );
+
+    let policy_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/funding/policy")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(policy_response.status(), StatusCode::OK);
+    assert_eq!(
+        policy_response
+            .headers()
+            .get(header::CACHE_CONTROL)
+            .and_then(|value| value.to_str().ok()),
+        Some("no-store"),
+        "funding state must never be served from a stale browser/edge cache"
+    );
 
     let address = Pubkey::new_unique().to_string();
     let (status, created) = request_json(

@@ -22,7 +22,7 @@ contract. Do not migrate an established chain by only changing a Compose path.
 | Faucet + tools | Faucet daemon, opt-in wallet/operator CLI | `docker/coolify/faucet-tools/compose.yml` |
 | Validator | voting Validator / RPC / WebSocket | `docker/coolify/validator/compose.yml` |
 | Explorer API | indexer, REST API, funding/readiness control plane | `apps/explorer/backend/compose.coolify.yml` |
-| Aeko Scan | Explorer UI and same-origin read proxy | `apps/explorer/web/compose.coolify.yml` |
+| Aeko Scan | Explorer UI; browser reads/funding call the selected Explorer API directly | `apps/explorer/web/compose.coolify.yml` |
 | Operations Web | authenticated Admin/operator UI | `apps/admin/compose.coolify.yml` |
 
 The three bootstrap jobs are deliberately one resource. Faucet and wallet tools
@@ -82,23 +82,27 @@ AEKO_WS_URL=wss://ws.aeko.online
 AEKO_EXPLORER_API_URL=https://api.aeko.online
 ```
 
-Split server resources use their adjacent `.env.example` files to provide
-reachable private or DNS-only origins that bypass public Cloudflare/WAF
-handling:
+Split server resources use their adjacent `.env.example` files and the same
+canonical runtime names consumed by the application. Configure each resource
+with the private or DNS-only origin it needs:
 
 ```text
-AEKO_INTERNAL_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
-AEKO_INTERNAL_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
-AEKO_INTERNAL_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
-AEKO_INTERNAL_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
-AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
-AEKO_EXPLORER_PROXY_UPSTREAM_URL=https://<private-or-dns-only-explorer-api-origin>
+# Explorer API resource
+AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
+AEKO_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
+
+# Operations Web resource
+AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
+
+# Validator resource
+AEKO_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
 ```
 
-Compose maps those server-only inputs back to the generic runtime names
-(`AEKO_RPC_URL`, `AEKO_WS_URL`, `AEKO_EXPLORER_API_URL`,
-`AEKO_REGISTRY_URL`, and `AEKO_FAUCET_ADDRESS`) inside each container, so
-application contracts do not change. A raw cross-host `host:port` URL is valid
+There is no second "internal" variable namespace. Resource isolation provides
+the scope: the same variable name may carry a public value in Scan and a
+private value in Explorer or Operations. A raw cross-host `host:port` URL is valid
 only when that port is explicitly published and firewall-restricted; otherwise
 use a private overlay URL or a DNS-only Coolify origin.
 
@@ -327,7 +331,7 @@ Do not accept a deployment from container state alone. Verify:
 - Explorer liveness/readiness/network-readiness are healthy;
 - Social registry/status is complete;
 - Protocol registry/status is complete;
-- Aeko Scan reads through its same-origin proxy;
+- Aeko Scan reads the selected `AEKO_EXPLORER_API_URL` directly and the Explorer API CORS preflight permits the Scan origin;
 - Operations Web can read Explorer API and perform authenticated settings
   operations;
 - Faucet TCP 9900 is reachable from Validator but not broadly exposed.

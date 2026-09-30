@@ -1,7 +1,10 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
-import StatCard from '@/components/stat-card'
+
+import { useQuery } from '@tanstack/react-query'
 import DataTable from '@/components/data-table'
+import FeedbackAlert from '@/components/feedback-alert'
+import StatCard from '@/components/stat-card'
+import { adminQueryKeys, explorerQuery, rpcQuery } from '@/lib/client-query'
 
 type Stats = {
   slot: number
@@ -17,6 +20,10 @@ type Stats = {
 
 type Block = { slot: number; transactionCount: number; unixTimestamp?: number }
 type Tx = { signature: string; slot: number; success: boolean; primaryProgram?: string }
+type EpochInfo = { absoluteSlot: number; epoch: number; slotIndex: number; slotsInEpoch: number }
+type SupplyResponse = { value: { total: number; circulating: number } }
+type VersionResponse = { 'aeko-core'?: string }
+type VoteAccounts = { current?: unknown[]; delinquent?: unknown[] }
 
 function shortSig(sig: string) { return sig.slice(0, 12) + '…' + sig.slice(-6) }
 function fmtTime(ts?: number) {
@@ -27,79 +34,55 @@ function fmtAeko(lamports: number) {
   return (lamports / 1e9).toLocaleString(undefined, { maximumFractionDigits: 2 }) + ' AEKO'
 }
 
-async function rpc(method: string, params: unknown[] = []) {
-  const res = await fetch('/api/rpc', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  })
-  const j = await res.json()
-  return j.result
-}
-
-async function explorer(path: string, query?: Record<string, string>) {
-  const url = new URL('/api/explorer' + path, location.origin)
-  if (query) Object.entries(query).forEach(([k, v]) => url.searchParams.set(k, v))
-  const res = await fetch(url.toString())
-  if (!res.ok) return null
-  const j = await res.json()
-  return j.data ?? null
-}
-
 export default function Dashboard() {
-  const [stats, setStats] = useState<Partial<Stats>>({})
-  const [blocks, setBlocks] = useState<Block[]>([])
-  const [txs, setTxs] = useState<Tx[]>([])
-  const [online, setOnline] = useState<boolean | null>(null)
-  const [lastUpdate, setLastUpdate] = useState('')
-
-  const refresh = useCallback(async () => {
-    try {
+  const dashboardQuery = useQuery({
+    queryKey: adminQueryKeys.dashboard,
+    queryFn: async () => {
       const [epochInfo, supply, txCount, version, voteAccounts, recentBlocks, recentTxs] =
         await Promise.all([
-          rpc('getEpochInfo'),
-          rpc('getSupply'),
-          rpc('getTransactionCount'),
-          rpc('getVersion'),
-          rpc('getVoteAccounts'),
-          explorer('/blocks', { limit: '8' }),
-          explorer('/transactions', { limit: '8' }),
+          rpcQuery<EpochInfo>('getEpochInfo'),
+          rpcQuery<SupplyResponse>('getSupply'),
+          rpcQuery<number>('getTransactionCount'),
+          rpcQuery<VersionResponse>('getVersion'),
+          rpcQuery<VoteAccounts>('getVoteAccounts'),
+          explorerQuery<Block[]>('/blocks?limit=8'),
+          explorerQuery<Tx[]>('/transactions?limit=8'),
         ])
 
-      setStats({
+      const stats: Partial<Stats> = {
         slot: epochInfo?.absoluteSlot,
         epoch: epochInfo?.epoch,
-        epochProgress: epochInfo ? Math.round((epochInfo.slotIndex / epochInfo.slotsInEpoch) * 100) : 0,
+        epochProgress: epochInfo
+          ? Math.round((epochInfo.slotIndex / epochInfo.slotsInEpoch) * 100)
+          : 0,
         supply: supply?.value?.total,
         circulating: supply?.value?.circulating,
         txCount,
         version: version?.['aeko-core'] ?? '—',
         validators: voteAccounts?.current?.length ?? 0,
         delinquent: voteAccounts?.delinquent?.length ?? 0,
-      })
-      setBlocks(recentBlocks ?? [])
-      setTxs(recentTxs ?? [])
-      setOnline(true)
-      setLastUpdate(new Date().toLocaleTimeString())
-    } catch {
-      setOnline(false)
-    }
-  }, [])
+      }
 
-  useEffect(() => {
-    refresh()
-    const id = setInterval(refresh, 10_000)
-    return () => clearInterval(id)
-  }, [refresh])
+      return { stats, blocks: recentBlocks ?? [], txs: recentTxs ?? [] }
+    },
+    refetchInterval: 10_000,
+  })
+
+  const stats = dashboardQuery.data?.stats ?? {}
+  const blocks = dashboardQuery.data?.blocks ?? []
+  const txs = dashboardQuery.data?.txs ?? []
+  const online = dashboardQuery.isError ? false : dashboardQuery.data ? true : null
+  const lastUpdate = dashboardQuery.dataUpdatedAt
+    ? new Date(dashboardQuery.dataUpdatedAt).toLocaleTimeString()
+    : ''
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Dashboard</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            {lastUpdate ? `Updated ${lastUpdate}` : 'Loading…'}
+            {lastUpdate ? `Updated ${lastUpdate}` : dashboardQuery.isLoading ? 'Loading…' : 'Waiting for data…'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -108,7 +91,25 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats grid */}
+      {dashboardQuery.error ? (
+        <FeedbackAlert
+          tone="error"
+          title="Dashboard data is unavailable"
+          action={
+            <button
+              type="button"
+              onClick={() => void dashboardQuery.refetch()}
+              disabled={dashboardQuery.isFetching}
+              className="min-h-[40px] rounded-lg border border-red-300/25 px-3 text-xs font-semibold hover:bg-red-300/10 disabled:opacity-40"
+            >
+              {dashboardQuery.isFetching ? 'Retrying…' : 'Retry'}
+            </button>
+          }
+        >
+          {dashboardQuery.error instanceof Error ? dashboardQuery.error.message : 'Operations data could not be loaded.'}
+        </FeedbackAlert>
+      ) : null}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Current Slot" value={stats.slot?.toLocaleString() ?? '—'} accent />
         <StatCard label="Total Supply" value={stats.supply ? fmtAeko(stats.supply) : '—'} sub={stats.circulating ? `Circulating: ${fmtAeko(stats.circulating)}` : undefined} />
@@ -119,10 +120,7 @@ export default function Dashboard() {
         <div className="col-span-2 bg-[#12141f] border border-[#1e2135] rounded-xl p-5">
           <div className="text-xs text-gray-500 uppercase tracking-widest mb-3">Epoch Progress</div>
           <div className="w-full bg-[#1e2135] rounded-full h-2">
-            <div
-              className="bg-emerald-500 h-2 rounded-full transition-all"
-              style={{ width: `${stats.epochProgress ?? 0}%` }}
-            />
+            <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: `${stats.epochProgress ?? 0}%` }} />
           </div>
           <div className="flex justify-between text-xs text-gray-600 mt-1.5">
             <span>Epoch {stats.epoch}</span>
@@ -131,7 +129,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Recent blocks + txs */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div>
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Blocks</h2>
@@ -142,7 +139,7 @@ export default function Dashboard() {
               b.transactionCount,
               fmtTime(b.unixTimestamp),
             ])}
-            empty="No blocks indexed yet"
+            empty={dashboardQuery.isLoading ? 'Loading blocks…' : 'No blocks indexed yet'}
           />
         </div>
         <div>
@@ -156,7 +153,7 @@ export default function Dashboard() {
                 {tx.success ? 'OK' : 'Fail'}
               </span>,
             ])}
-            empty="No transactions indexed yet"
+            empty={dashboardQuery.isLoading ? 'Loading transactions…' : 'No transactions indexed yet'}
           />
         </div>
       </div>

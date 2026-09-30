@@ -27,7 +27,8 @@ AEKO_IMAGE_TAG=${AEKO_IMAGE_TAG:-latest}
 AEKO_NETWORK=${AEKO_NETWORK:-testnet}
 AEKO_RPC_URL=${AEKO_RPC_URL:-}
 AEKO_WS_URL=${AEKO_WS_URL:-}
-AEKO_PUBLIC_GOSSIP_ADDRESS=${AEKO_PUBLIC_GOSSIP_ADDRESS:-}
+AEKO_GOSSIP_HOST=${AEKO_GOSSIP_HOST:-}
+AEKO_GOSSIP_PORT=${AEKO_GOSSIP_PORT:-8001}
 FORCE_REBUILD=${FORCE_REBUILD:-0}
 RESET_CHAIN=0
 
@@ -43,6 +44,12 @@ done
 log()  { printf '\033[1;36m[deploy]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[warn]\033[0m   %s\n' "$*" >&2; }
 err()  { printf '\033[1;31m[err]\033[0m    %s\n' "$*" >&2; }
+
+if [ -n "$AEKO_GOSSIP_HOST" ]; then
+  GOSSIP_DISPLAY="${AEKO_GOSSIP_HOST}:${AEKO_GOSSIP_PORT}"
+else
+  GOSSIP_DISPLAY="<not configured>"
+fi
 
 log "checking host prerequisites"
 command -v docker >/dev/null 2>&1 || { err "docker not installed"; exit 1; }
@@ -204,18 +211,20 @@ cat <<EOF2
     RPC          http://${AEKO_DOMAIN}:8899
     PubSub WS    ws://${AEKO_DOMAIN}:8900
     Explorer UI  http://${AEKO_DOMAIN}:4000
-    Funding      http://${AEKO_DOMAIN}:4000/api/explorer/${AEKO_NETWORK}/funding/*
+    Explorer API http://${AEKO_DOMAIN}:8088
+    Funding      http://${AEKO_DOMAIN}:8088/funding/*
     Admin        http://${AEKO_DOMAIN}:3001
 
   Configured public browser endpoints:
     RPC          ${AEKO_RPC_URL:-<not configured>}
     PubSub WS    ${AEKO_WS_URL:-<not configured>}
-    Funding      same-origin under the configured Aeko Scan deployment
-    Gossip       ${AEKO_PUBLIC_GOSSIP_ADDRESS:-<not configured>} (raw TCP/UDP, not HTTP)
+    Explorer API ${AEKO_EXPLORER_API_URL:-<not configured>}
+    Funding      ${AEKO_EXPLORER_API_URL:-<not configured>}/funding/*
+    Gossip       ${GOSSIP_DISPLAY} (raw TCP/UDP, not HTTP)
 
-  Explorer indexed reads are served through the Explorer UI same-origin
-  /api/explorer/testnet proxy. The explorer-api container is not a public
-  browser endpoint.
+  Aeko Scan calls the configured Explorer API directly from the browser.
+  Explorer API CORS must explicitly allow the Scan origin; Scan does not
+  forward /api/explorer/* traffic.
 
   Complete deployment + SocialFi read-path smoke test:
     python3 scripts/smoke-aeko-social.py

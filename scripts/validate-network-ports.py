@@ -89,8 +89,8 @@ def main() -> int:
     port_doc = read(PORT_DOC)
     shared_env = read(SHARED_ENV)
 
-    # One authoritative domain/port map. Funding is same-origin through Scan,
-    # not a resurrected separate Funding Gateway service.
+    # One authoritative domain/port map. Public Scan calls the Explorer API
+    # directly; there is no resurrected separate Funding Gateway service.
     require_contains_all(
         "network port/domain documentation",
         port_doc,
@@ -112,7 +112,7 @@ def main() -> int:
             "gossip.aeko.online:8001",
             "8000-8050/tcp+udp",
             "5432/tcp",
-            "/api/explorer/testnet/funding/*",
+            "https://api.aeko.online/funding/*",
             "There is **no separate public Funding Gateway service/domain",
         ),
     )
@@ -142,8 +142,8 @@ def main() -> int:
         split_envs[resource] = env_text
 
     # Local Compose may still override generic endpoints for custom developer
-    # topologies. Public all-in-one deployments use a separate internal
-    # namespace so public URLs cannot redirect server traffic through the edge.
+    # topologies. Public all-in-one deployments wire backend hops directly to
+    # Docker service DNS so public URLs cannot redirect server traffic through the edge.
     local_compose = read(ROOT / "docker" / "compose.local.yml")
     require_contains_all(
         "docker/compose.local.yml",
@@ -161,20 +161,24 @@ def main() -> int:
             str(path.relative_to(ROOT)),
             compose,
             (
-                "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}",
-                "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-faucet:9900}",
+                "AEKO_RPC_URL: http://validator:8899",
+                "AEKO_FAUCET_ADDRESS: faucet:9900",
             ),
         )
         explorer = service_block(compose, "explorer-api")
         require(
-            "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-ws://validator:8900}" in explorer,
+            "AEKO_WS_URL: ws://validator:8900" in explorer,
             f"{path.name} Explorer API must use the internal validator WebSocket namespace",
+        )
+        require(
+            "AEKO_EXPLORER_CORS_ORIGINS:" in explorer,
+            f"{path.name} Explorer API must declare the browser CORS allowlist",
         )
         operations = service_block(compose, "operations-web")
         require(
             "AEKO_NETWORK:" in operations
-            and "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in operations
-            and "AEKO_EXPLORER_PROXY_TIMEOUT_MS:" in operations,
+            and "AEKO_EXPLORER_API_URL: http://explorer-api:8088" in operations
+            and "AEKO_ADMIN_EXPLORER_TIMEOUT_MS:" in operations,
             f"{path.name} Operations Web must use the private Explorer API with the funding-safe timeout",
         )
         scan = service_block(compose, "explorer-ui")
@@ -185,8 +189,6 @@ def main() -> int:
                 "AEKO_RPC_URL: ${AEKO_RPC_URL:-https://rpc.aeko.online}",
                 "AEKO_WS_URL: ${AEKO_WS_URL:-wss://ws.aeko.online}",
                 "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-https://api.aeko.online}",
-                "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:-http://explorer-api:8088}",
-                "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
             ),
         )
 
@@ -199,7 +201,7 @@ def main() -> int:
         ("split Protocol bootstrap", bootstrap_protocol),
     ):
         require(
-            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?Set private or DNS-only Validator RPC URL}" in block,
+            "AEKO_RPC_URL: ${AEKO_RPC_URL:-}" in block,
             f"{label} must use the private Validator RPC contract",
         )
 
@@ -207,10 +209,12 @@ def main() -> int:
         "split Explorer API",
         split["explorer-api"],
         (
-            "AEKO_NETWORK: ${AEKO_NETWORK:?",
-            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
-            "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}",
-            "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:?",
+            "AEKO_NETWORK: ${AEKO_NETWORK:-}",
+            "AEKO_RPC_URL: ${AEKO_RPC_URL:-}",
+            "AEKO_WS_URL: ${AEKO_WS_URL:-}",
+            "AEKO_REGISTRY_URL: ${AEKO_REGISTRY_URL:-}",
+            'AEKO_REQUIRE_REMOTE_REGISTRY: "1"',
+            "AEKO_EXPLORER_CORS_ORIGINS: ${AEKO_EXPLORER_CORS_ORIGINS:-}",
             '- "8088"',
         ),
     )
@@ -223,10 +227,8 @@ def main() -> int:
             "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
             "AEKO_WS_URL: ${AEKO_WS_URL:?",
             "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
-            "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?",
-            "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
-            "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
-            "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL:",
+            "AEKO_MAINNET_EXPLORER_API_URL:",
+            "AEKO_TESTNET_EXPLORER_API_URL:",
             '- "4000"',
         ),
     )
@@ -235,9 +237,9 @@ def main() -> int:
         split["operations-web"],
         (
             "AEKO_NETWORK: ${AEKO_NETWORK:?",
-            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
-            "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?",
-            "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
+            "AEKO_RPC_URL: ${AEKO_RPC_URL:-}",
+            "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-}",
+            "AEKO_ADMIN_EXPLORER_TIMEOUT_MS:",
             '- "3001"',
         ),
     )
@@ -245,8 +247,10 @@ def main() -> int:
         "split Validator",
         split["validator"],
         (
-            "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:?",
-            "AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-gossip.aeko.online}",
+            "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-}",
+            'AEKO_REQUIRE_REMOTE_FAUCET: "1"',
+            "AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-}",
+            'AEKO_REQUIRE_GOSSIP_HOST: "1"',
             '- "8000-8050:8000-8050/tcp"',
             '- "8000-8050:8000-8050/udp"',
             '- "8899"',
@@ -261,6 +265,16 @@ def main() -> int:
             '"${AEKO_FAUCET_HOST_PORT:-9900}:9900"',
         ),
     )
+    split_faucet = service_block(split["faucet-tools"], "faucet")
+    require(
+        "test -s /keys/faucet-keypair.json" in split_faucet,
+        "split Faucet healthcheck must verify local key readiness without speaking HTTP to raw TCP 9900",
+    )
+    for forbidden in ("curl ", "wget ", "http://127.0.0.1:9900", "https://127.0.0.1:9900"):
+        require(
+            forbidden not in split_faucet,
+            f"split Faucet must not use HTTP-oriented probe {forbidden!r} on raw TCP 9900",
+        )
     require_contains_all(
         "split registry",
         split["bootstrap"],
@@ -293,8 +307,11 @@ def main() -> int:
         admin_network,
         (
             "clean('AEKO_NETWORK')",
-            "clean('AEKO_RPC_URL')",
-            "clean('AEKO_EXPLORER_API_URL')",
+            "serverUrl('AEKO_RPC_URL', HARDCODED_LOCAL_RPC)",
+            "serverUrl('AEKO_EXPLORER_API_URL', HARDCODED_LOCAL_EXPLORER)",
+            "process.env.NODE_ENV === 'production'",
+            "must be a valid http(s) URL",
+            "contains placeholder or guidance text",
         ),
     )
 
@@ -314,10 +331,9 @@ def main() -> int:
     scan_server = read(ROOT / "docker" / "explorer-ui-server.mjs")
     scan_vite = read(ROOT / "apps" / "explorer" / "web" / "vite.config.js")
 
-    # Runtime config generation and Vite dev mode consume chain RPC/WS plus the
-    # public Explorer API identity. The production proxy server uses only
-    # server-side Explorer proxy origins and must not depend on browser-facing
-    # RPC/WS or public Explorer API URLs.
+    # Runtime config generation and Vite dev mode publish chain RPC/WS plus the
+    # public Explorer API identity. The production Scan server serves only the
+    # SPA/runtime config/telemetry and never forwards Explorer API traffic.
     for label, text in (
         ("Scan entrypoint", scan_entrypoint),
         ("Scan Vite config", scan_vite),
@@ -333,19 +349,25 @@ def main() -> int:
             ),
         )
     require_contains_all(
-        "Scan proxy server",
+        "Scan static server",
         scan_server,
         (
             "AEKO_NETWORK",
-            "AEKO_EXPLORER_PROXY_UPSTREAM_URL",
-            "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL",
-            "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL",
+            "LEGACY_EXPLORER_PROXY_PREFIX",
+            "SCAN_EXPLORER_PROXY_REMOVED",
         ),
     )
-    require(
-        "AEKO_EXPLORER_API_URL" not in scan_server,
-        "Scan proxy server must not fall back to the browser-facing Explorer API URL",
-    )
+    for retired_proxy_name in (
+        "AEKO_EXPLORER_PROXY_UPSTREAM_URL",
+        "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL",
+        "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL",
+    ):
+        require(
+            retired_proxy_name not in scan_server
+            and retired_proxy_name not in split["explorer-ui"]
+            and retired_proxy_name not in split_envs["explorer-ui"],
+            f"Scan must not retain retired Explorer proxy input {retired_proxy_name}",
+        )
 
     for name in (
         "AEKO_MAINNET_EXPLORER_API_URL",

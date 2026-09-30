@@ -1,33 +1,19 @@
-import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Coins, Users, Repeat2 } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
-import { fetchTokenDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { fetchTokenDetails } from '../utils/explorerApi';
+import { useExplorerResource } from '../utils/explorerQueries';
 
 export default function ExplorerToken() {
   const { mint } = useParams();
   const { network } = useNetwork();
-  const [state, setState] = useState({ loading: true, error: '', data: null });
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ loading: true, error: '', data: null });
-
-    fetchTokenDetails(network, mint)
-      .then((data) => {
-        if (!cancelled) setState({ loading: false, error: '', data });
-      })
-      .catch((error) => {
-        if (!cancelled) setState({ loading: false, error: error.message, data: null });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [network, mint]);
-
-  const unavailable = !getExplorerAvailability(network);
+  const { unavailable, state } = useExplorerResource(
+    network,
+    'token',
+    mint,
+    () => fetchTokenDetails(network, mint),
+  );
   const token = state.data;
 
   return (

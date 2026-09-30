@@ -6,24 +6,27 @@
 The current deployment has **one Admin role**. Public testnet funding is not a
 second Operations Web deployment and there is no separate funding origin/runtime.
 Funding policy, approval requests, manual grants, and constrained Test Console
-airdrops are owned by the Explorer API funding module. Browser clients reach
-those routes through Aeko Scan's same-origin
-`/api/explorer/testnet/funding/*` boundary.
+airdrops are owned by the Explorer API funding module. Public Scan/browser
+funding calls the selected Explorer API directly under its explicit CORS
+allowlist. Privileged operator actions remain behind the authenticated
+Operations Web BFF and its server-only Explorer credential.
 
 ## Network contract
 
-One Operations Web deployment administers one blockchain environment:
+One Operations Web deployment administers one blockchain environment. In split
+production deployments, give Operations Web private or DNS-only upstreams:
 
 ```text
 AEKO_NETWORK=testnet
-AEKO_RPC_URL=https://rpc.aeko.online
-AEKO_EXPLORER_API_URL=https://api.aeko.online
+AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
+AEKO_ADMIN_EXPLORER_TIMEOUT_MS=45000
 ```
 
-For local development the same variables may point to loopback. In the
-all-in-one Compose topology the RPC/API variables can default to
-`http://validator:8899` and `http://explorer-api:8088`. Explicit environment
-values always override those Docker-DNS defaults.
+The split resource uses the same canonical `AEKO_RPC_URL` and
+`AEKO_EXPLORER_API_URL` runtime names directly. Local development may use
+loopback URLs, while all-in-one Compose uses Docker service names. Operations must not hairpin privileged traffic
+through the public Cloudflare/WAF edge.
 
 Admin does not load endpoint matrices for other networks. Cross-network
 selection belongs to Aeko Scan.

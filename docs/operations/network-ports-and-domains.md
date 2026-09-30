@@ -22,9 +22,10 @@ port `4101` is listed for context but is not deployed by these Compose files.
 
 There is **no separate public Funding Gateway service/domain in the current
 target topology**. Testnet funding endpoints are owned by Explorer API and are
-reached by browser clients through Aeko Scan's same-origin
-`/api/explorer/testnet/funding/*` proxy. The private Faucet on `9900` remains
-the low-level signer used by the Validator funding path.
+reached directly by Aeko Scan browser clients at
+`https://api.aeko.online/funding/*` under an explicit CORS allowlist. The
+private Faucet on `9900` remains the low-level signer used by the Validator
+funding path.
 
 The read-only registry exposes:
 
@@ -62,11 +63,8 @@ and devnet endpoints into every backend/validator deployment.
 Aeko Scan is the multi-network exception. Its generic variables describe the
 active/default network. Optional complete alternate triplets use
 `AEKO_<NETWORK>_RPC_URL`, `AEKO_<NETWORK>_WS_URL`, and
-`AEKO_<NETWORK>_EXPLORER_API_URL`. The Scan server may also set
-`AEKO_EXPLORER_PROXY_UPSTREAM_URL` or
-`AEKO_<NETWORK>_EXPLORER_PROXY_UPSTREAM_URL` to a private/DNS-only Explorer
-origin. These values are server-only and are not published to browser runtime
-configuration.
+`AEKO_<NETWORK>_EXPLORER_API_URL`. Those public Explorer API URLs are
+published in Scan runtime configuration and called directly by the browser.
 
 The standard public selector exposes **Mainnet** and **Testnet** only. Devnet
 and Localnet remain valid independently deployed/operator development
@@ -82,22 +80,21 @@ hairpin through Cloudflare/WAF.
 
 | Consumer | Runtime target inside the container | Production deployment input |
 | --- | --- | --- |
-| Social bootstrap -> Validator RPC | `AEKO_RPC_URL` | `AEKO_INTERNAL_RPC_URL` |
-| Protocol bootstrap -> Validator RPC | `AEKO_RPC_URL` | `AEKO_INTERNAL_RPC_URL` |
-| Explorer API -> Validator RPC | `AEKO_RPC_URL` | `AEKO_INTERNAL_RPC_URL` |
-| Explorer API -> Validator WS | `AEKO_WS_URL` | `AEKO_INTERNAL_WS_URL` |
-| Operations Web -> Validator RPC | `AEKO_RPC_URL` | `AEKO_INTERNAL_RPC_URL` |
-| Operations Web -> Explorer API | `AEKO_EXPLORER_API_URL` | `AEKO_INTERNAL_EXPLORER_API_URL` |
-| Validator -> Faucet | `AEKO_FAUCET_ADDRESS` | `AEKO_INTERNAL_FAUCET_ADDRESS` |
-| Scan server -> Explorer API | private proxy upstream | `AEKO_EXPLORER_PROXY_UPSTREAM_URL` |
+| Social bootstrap -> Validator RPC | `AEKO_RPC_URL` | `AEKO_RPC_URL` on Bootstrap resource |
+| Protocol bootstrap -> Validator RPC | `AEKO_RPC_URL` | `AEKO_RPC_URL` on Bootstrap resource |
+| Explorer API -> Validator RPC | `AEKO_RPC_URL` | `AEKO_RPC_URL` on Explorer resource |
+| Explorer API -> Validator WS | `AEKO_WS_URL` | `AEKO_WS_URL` on Explorer resource |
+| Operations Web -> Validator RPC | `AEKO_RPC_URL` | `AEKO_RPC_URL` on Operations resource |
+| Operations Web -> Explorer API | `AEKO_EXPLORER_API_URL` | `AEKO_EXPLORER_API_URL` on Operations resource |
+| Validator -> Faucet | `AEKO_FAUCET_ADDRESS` | `AEKO_FAUCET_ADDRESS` on Validator resource |
 | Scan browser -> Validator RPC/WS | public runtime config | `AEKO_RPC_URL`, `AEKO_WS_URL` |
-| Scan browser -> indexed Explorer reads | same-origin `/api/explorer/{network}` | public Scan origin |
+| Scan browser -> Explorer reads/funding | public Explorer API | `AEKO_EXPLORER_API_URL` plus Explorer `AEKO_EXPLORER_CORS_ORIGINS` |
 
-For an all-in-one production stack the defaults are Docker service DNS
+For an all-in-one production stack Compose wires Docker service DNS directly
 (`validator:8899`, `validator:8900`, `explorer-api:8088`, `faucet:9900`).
-Operators may override those with reachable private URLs. Do not replace them
-with Cloudflare-proxied public endpoints merely because the public hostname is
-reachable from a browser.
+Those backend hops are intentionally not inherited from public browser endpoint
+variables. Do not replace them with Cloudflare-proxied public endpoints merely
+because the public hostname is reachable from a browser.
 
 ## Split Coolify resources
 
@@ -112,10 +109,13 @@ the operator explicitly publishes that port and restricts it appropriately.
 Raw Faucet and validator transport are exceptions:
 
 - publish Faucet TCP `9900` and firewall it to Validator source addresses;
-- use `AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900`;
+- set `AEKO_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900` on the Validator resource;
 - do not attach HTTP/WAF routing or HTTP health probes to Faucet `9900`;
 - publish Validator TCP+UDP `8000-8050`;
-- point `gossip.aeko.online` directly at the Validator host;
+- point `gossip.aeko.online` directly at the Validator host; the Validator
+  process itself owns the gossip service, so no separate Gossip container is expected;
+- prove reachability with `scripts/smoke-gossip.sh` or
+  `aeko-gossip spy --entrypoint gossip.aeko.online:8001 --num-nodes 1 --timeout 20`;
 - do not put gossip or Faucet behind an HTTP-only proxy.
 
 ## Local host-published ports
@@ -138,10 +138,12 @@ Raw Faucet and validator transport are exceptions:
 - Never expose PostgreSQL `5432` to the public Internet.
 - Faucet `9900` is not a public funding API. Restrict it to Validator source
   addresses.
-- Browsers use `scan.aeko.online`; they do not need direct knowledge of the
-  raw Explorer backend origin.
-- Edge/WAF rules on Scan's `/api/explorer/testnet/funding/*` routes must not
-  replace API responses with HTML challenges; keep the funding boundary JSON.
+- Browsers load the SPA from `scan.aeko.online` and call the selected public
+  Explorer API (for example `api.aeko.online`) directly. They never receive
+  the private server-to-server Explorer origin used by Operations Web.
+- Edge/WAF rules on the public Explorer API must not replace REST/funding
+  responses with interactive HTML challenges. Keep API failures JSON and keep
+  the explicit Explorer CORS allowlist aligned with the approved Scan origin.
 - Gossip and dynamic validator transport are node networking, not dApp APIs.
 - `api.aeko.online` and `registry.aeko.online` must use TLS when routed over
   the public Internet.

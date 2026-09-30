@@ -17,28 +17,54 @@ export AEKO_ACTIVE_NETWORK
 : "${AEKO_RPC_URL:?AEKO_RPC_URL is required for the active Scan network}"
 : "${AEKO_WS_URL:?AEKO_WS_URL is required for the active Scan network}"
 : "${AEKO_EXPLORER_API_URL:?AEKO_EXPLORER_API_URL is required for the active Scan network}"
-: "${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?AEKO_EXPLORER_PROXY_UPSTREAM_URL is required for the active Scan network}"
 
 node <<'NODE'
 const fs = require('fs');
 
 const optional = (name) => String(process.env[name] || '').trim();
+
+function endpoint(name, allowedProtocols) {
+  const value = optional(name);
+  if (!value) return '';
+
+  if (/[<>]/.test(value) || /\bset\s/i.test(value)) {
+    throw new Error(`${name} contains placeholder or guidance text`);
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`${name} must be a valid URL`);
+  }
+
+  if (!allowedProtocols.includes(parsed.protocol)) {
+    throw new Error(
+      `${name} must use one of: ${allowedProtocols.map((value) => value.replace(':', '')).join(', ')}`,
+    );
+  }
+
+  return value.replace(/\/+$/, '');
+}
+
+const rpcEndpoint = (name) => endpoint(name, ['http:', 'https:']);
+const websocketEndpoint = (name) => endpoint(name, ['ws:', 'wss:']);
+const explorerEndpoint = (name) => endpoint(name, ['http:', 'https:']);
+
 const activeNetwork = optional('AEKO_ACTIVE_NETWORK');
 
 function readAlternative(network) {
   const prefix = `AEKO_${network.toUpperCase()}`;
-  const rpcUrl = optional(`${prefix}_RPC_URL`);
-  const websocketUrl = optional(`${prefix}_WS_URL`);
-  const upstream = optional(`${prefix}_EXPLORER_API_URL`);
-  const proxyUpstream = optional(`${prefix}_EXPLORER_PROXY_UPSTREAM_URL`);
-  const values = [rpcUrl, websocketUrl, upstream, proxyUpstream];
+  const rpcUrl = rpcEndpoint(`${prefix}_RPC_URL`);
+  const websocketUrl = websocketEndpoint(`${prefix}_WS_URL`);
+  const explorerApiUrl = explorerEndpoint(`${prefix}_EXPLORER_API_URL`);
+  const values = [rpcUrl, websocketUrl, explorerApiUrl];
 
   if (values.some(Boolean) && !values.every(Boolean)) {
     const missing = [
       [`${prefix}_RPC_URL`, rpcUrl],
       [`${prefix}_WS_URL`, websocketUrl],
-      [`${prefix}_EXPLORER_API_URL`, upstream],
-      [`${prefix}_EXPLORER_PROXY_UPSTREAM_URL`, proxyUpstream],
+      [`${prefix}_EXPLORER_API_URL`, explorerApiUrl],
     ].filter(([, value]) => !value).map(([name]) => name).join(', ');
     throw new Error(`${network} Scan configuration is partial. Missing: ${missing}.`);
   }
@@ -47,8 +73,8 @@ function readAlternative(network) {
   return {
     rpcUrl,
     websocketUrl,
-    explorerApiUrl: `/api/explorer/${network}`,
-    fundingUrl: `/api/explorer/${network}`,
+    explorerApiUrl,
+    fundingUrl: explorerApiUrl,
   };
 }
 
@@ -58,11 +84,12 @@ for (const network of ['mainnet', 'testnet']) {
   if (alternative) networks[network] = alternative;
 }
 
+const activeExplorerApiUrl = explorerEndpoint('AEKO_EXPLORER_API_URL');
 networks[activeNetwork] = {
-  rpcUrl: optional('AEKO_RPC_URL'),
-  websocketUrl: optional('AEKO_WS_URL'),
-  explorerApiUrl: `/api/explorer/${activeNetwork}`,
-  fundingUrl: `/api/explorer/${activeNetwork}`,
+  rpcUrl: rpcEndpoint('AEKO_RPC_URL'),
+  websocketUrl: websocketEndpoint('AEKO_WS_URL'),
+  explorerApiUrl: activeExplorerApiUrl,
+  fundingUrl: activeExplorerApiUrl,
 };
 
 fs.writeFileSync(

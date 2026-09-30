@@ -143,7 +143,11 @@ export default function NetworkTools() {
       </div>
 
       {config.fundingEnabled ? (
-        <TestnetFundingRequest fundingUrl={config.fundingUrl} networkName={presentation.name} />
+        <TestnetFundingRequest
+          key={`${config.key}:${config.fundingUrl}`}
+          fundingUrl={config.fundingUrl}
+          networkName={presentation.name}
+        />
       ) : null}
 
       {isTestNetwork && settings.networkConsoleEnabled && (

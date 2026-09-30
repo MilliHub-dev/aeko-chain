@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import ClientTelemetry from '@/components/ClientTelemetry'
+import QueryProvider from '@/components/query-provider'
 import { ToasterProvider } from '@/components/toaster'
 import './globals.css'
 
@@ -12,10 +13,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen bg-[#0d0e16] text-gray-100">
-        <ToasterProvider>
-          <ClientTelemetry />
-          {children}
-        </ToasterProvider>
+        <QueryProvider>
+          <ToasterProvider>
+            <ClientTelemetry />
+            {children}
+          </ToasterProvider>
+        </QueryProvider>
       </body>
     </html>
   )

@@ -1,7 +1,10 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
-import StatCard from '@/components/stat-card'
+
+import { useQuery } from '@tanstack/react-query'
 import DataTable from '@/components/data-table'
+import FeedbackAlert from '@/components/feedback-alert'
+import StatCard from '@/components/stat-card'
+import { adminQueryKeys, explorerQuery } from '@/lib/client-query'
 
 type Block = { slot: number; blockhash: string; parentSlot: number; transactionCount: number; unixTimestamp?: number; producer?: string }
 
@@ -12,29 +15,17 @@ function fmtTime(ts?: number) {
 }
 
 export default function BlocksPage() {
-  const [blocks, setBlocks] = useState<Block[]>([])
-  const [loading, setLoading] = useState(true)
-  const [lastUpdate, setLastUpdate] = useState('')
+  const blocksQuery = useQuery({
+    queryKey: adminQueryKeys.blocks,
+    queryFn: () => explorerQuery<Block[]>('/blocks?limit=50'),
+    refetchInterval: 10_000,
+  })
 
-  const refresh = useCallback(async () => {
-    try {
-      const res = await fetch('/api/explorer/blocks?limit=50')
-      if (!res.ok) return
-      const json = await res.json()
-      setBlocks(json.data ?? [])
-      setLastUpdate(new Date().toLocaleTimeString())
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    refresh()
-    const id = setInterval(refresh, 10_000)
-    return () => clearInterval(id)
-  }, [refresh])
-
-  const totalTxs = blocks.reduce((s, b) => s + b.transactionCount, 0)
+  const blocks = blocksQuery.data ?? []
+  const lastUpdate = blocksQuery.dataUpdatedAt
+    ? new Date(blocksQuery.dataUpdatedAt).toLocaleTimeString()
+    : ''
+  const totalTxs = blocks.reduce((sum, block) => sum + block.transactionCount, 0)
   const avgTxsPerBlock = blocks.length ? Math.round(totalTxs / blocks.length) : 0
 
   return (
@@ -42,12 +33,25 @@ export default function BlocksPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Blocks</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{lastUpdate ? `Updated ${lastUpdate}` : 'Loading…'}</p>
+          <p className="text-gray-500 text-sm mt-0.5">
+            {lastUpdate ? `Updated ${lastUpdate}` : blocksQuery.isLoading ? 'Loading…' : 'Waiting for data…'}
+          </p>
         </div>
-        <button onClick={refresh} className="text-sm text-gray-400 hover:text-white border border-[#1e2135] rounded-lg px-4 py-2 transition-colors">
-          Refresh
+        <button
+          type="button"
+          onClick={() => void blocksQuery.refetch()}
+          disabled={blocksQuery.isFetching}
+          className="text-sm text-gray-400 hover:text-white border border-[#1e2135] rounded-lg px-4 py-2 transition-colors disabled:opacity-40"
+        >
+          {blocksQuery.isFetching ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
+
+      {blocksQuery.error ? (
+        <FeedbackAlert tone="error" title="Blocks could not be refreshed">
+          {blocksQuery.error instanceof Error ? blocksQuery.error.message : 'Explorer blocks are unavailable.'}
+        </FeedbackAlert>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
         <StatCard label="Latest Slot" value={blocks[0]?.slot.toLocaleString() ?? '—'} accent />
@@ -55,23 +59,19 @@ export default function BlocksPage() {
         <StatCard label="Avg Txs / Block" value={avgTxsPerBlock} />
       </div>
 
-      {loading ? (
-        <div className="text-gray-600 text-sm py-12 text-center">Loading blocks…</div>
-      ) : (
-        <DataTable
-          paginationLabel="blocks"
-          columns={['Slot', 'Blockhash', 'Parent', 'Txs', 'Producer', 'Time']}
-          rows={blocks.map(b => [
-            <span key={b.slot} className="text-emerald-400 font-semibold">{b.slot.toLocaleString()}</span>,
-            shortHash(b.blockhash),
-            b.parentSlot.toLocaleString(),
-            b.transactionCount,
-            b.producer ? shortHash(b.producer) : '—',
-            fmtTime(b.unixTimestamp),
-          ])}
-          empty="No blocks indexed yet"
-        />
-      )}
+      <DataTable
+        paginationLabel="blocks"
+        columns={['Slot', 'Blockhash', 'Parent', 'Txs', 'Producer', 'Time']}
+        rows={blocks.map(block => [
+          <span key={block.slot} className="text-emerald-400 font-semibold">{block.slot.toLocaleString()}</span>,
+          shortHash(block.blockhash),
+          block.parentSlot.toLocaleString(),
+          block.transactionCount,
+          block.producer ? shortHash(block.producer) : '—',
+          fmtTime(block.unixTimestamp),
+        ])}
+        empty={blocksQuery.isLoading ? 'Loading blocks…' : 'No blocks indexed yet'}
+      />
     </div>
   )
 }

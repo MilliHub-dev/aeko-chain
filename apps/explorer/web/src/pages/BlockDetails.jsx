@@ -1,37 +1,19 @@
-import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Blocks, Clock3, Hash, Layers3 } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
-import { fetchBlockDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { fetchBlockDetails } from '../utils/explorerApi';
+import { useExplorerResource } from '../utils/explorerQueries';
 
 export default function BlockDetails() {
   const { height } = useParams();
   const { network } = useNetwork();
-  const [state, setState] = useState({ loading: true, error: '', data: null });
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ loading: true, error: '', data: null });
-
-    fetchBlockDetails(network, height)
-      .then((data) => {
-        if (!cancelled) {
-          setState({ loading: false, error: '', data });
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setState({ loading: false, error: error.message, data: null });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [network, height]);
-
-  const unavailable = !getExplorerAvailability(network);
+  const { unavailable, state } = useExplorerResource(
+    network,
+    'block',
+    height,
+    () => fetchBlockDetails(network, height),
+  );
   const block = state.data;
 
   return (
@@ -79,7 +61,8 @@ export default function BlockDetails() {
   );
 }
 
-function MetricCard({ icon: Icon, label, value }) {
+function MetricCard({ icon, label, value }) {
+  const Icon = icon;
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
       <div className="flex items-center gap-3 text-gray-400 mb-3">

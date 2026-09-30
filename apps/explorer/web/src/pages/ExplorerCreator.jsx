@@ -1,37 +1,19 @@
-import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Coins, FileText, Sparkles, Users } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
-import { fetchCreatorDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { fetchCreatorDetails } from '../utils/explorerApi';
+import { useExplorerResource } from '../utils/explorerQueries';
 
 export default function ExplorerCreator() {
   const { address } = useParams();
   const { network } = useNetwork();
-  const [state, setState] = useState({ loading: true, error: '', data: null });
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ loading: true, error: '', data: null });
-
-    fetchCreatorDetails(network, address)
-      .then((data) => {
-        if (!cancelled) {
-          setState({ loading: false, error: '', data });
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setState({ loading: false, error: error.message, data: null });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [network, address]);
-
-  const unavailable = !getExplorerAvailability(network);
+  const { unavailable, state } = useExplorerResource(
+    network,
+    'creator',
+    address,
+    () => fetchCreatorDetails(network, address),
+  );
   const detail = state.data;
 
   return (
@@ -101,7 +83,8 @@ export default function ExplorerCreator() {
   );
 }
 
-function MetricCard({ icon: Icon, label, value }) {
+function MetricCard({ icon, label, value }) {
+  const Icon = icon;
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
       <div className="flex items-center gap-3 text-gray-400 mb-3">

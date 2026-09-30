@@ -1,7 +1,8 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Droplets, Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import StatusBanner from './StatusBanner';
-import { useToaster } from './Toaster';
+import { useToaster } from './ToasterContext.js';
 import {
   getFundingPolicy,
   getFundingRequestStatus,
@@ -10,6 +11,11 @@ import {
 
 const ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const TERMINAL_STATUSES = new Set(['confirmed', 'rejected', 'failed']);
+
+const fundingKeys = {
+  policy: (fundingUrl) => ['funding', 'policy', fundingUrl],
+  request: (fundingUrl, requestId) => ['funding', 'request', fundingUrl, requestId],
+};
 
 function requestMessage(request) {
   switch (request?.status) {
@@ -30,94 +36,107 @@ function requestMessage(request) {
   }
 }
 
+function messageFrom(error, fallback) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function TestnetFundingRequest({ fundingUrl, networkName = 'Network' }) {
-  const [policy, setPolicy] = useState(
-    /** @type {{ enabled: boolean, amountAeko: number, cooldownHours: number, dailyBudgetAeko: number, dailyRemainingAeko: number } | null} */ (null),
-  );
-  const [policyError, setPolicyError] = useState('');
   const [address, setAddress] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [request, setRequest] = useState(
-    /** @type {{ id: string, amountAeko: number, status: string, signature?: string | null, confirmed?: boolean, errorCode?: string | null } | null} */ (null),
-  );
+  const [requestId, setRequestId] = useState('');
+  const queryClient = useQueryClient();
   const { push: pushToast, dismiss: dismissToast } = useToaster();
   const pollErrorToastRef = useRef(null);
   const terminalToastRef = useRef('');
 
-  useEffect(() => {
-    let cancelled = false;
+  const policyQuery = useQuery({
+    queryKey: fundingKeys.policy(fundingUrl),
+    queryFn: () => getFundingPolicy(fundingUrl),
+    enabled: Boolean(fundingUrl),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
 
-    setPolicy(null);
-    setPolicyError('');
-    setRequest(null);
-    terminalToastRef.current = '';
-    if (pollErrorToastRef.current) {
-      dismissToast(pollErrorToastRef.current);
-      pollErrorToastRef.current = null;
-    }
+  const requestQuery = useQuery({
+    queryKey: fundingKeys.request(fundingUrl, requestId),
+    queryFn: () => getFundingRequestStatus(fundingUrl, requestId),
+    enabled: Boolean(fundingUrl && requestId),
+    refetchInterval: (query) => {
+      const request = query.state.data;
+      if (request && TERMINAL_STATUSES.has(request.status)) return false;
+      return query.state.error ? 8_000 : 4_000;
+    },
+  });
 
-    if (!fundingUrl) {
-      setPolicyError(`${networkName} funding is temporarily unavailable. Please try again later.`);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    setPolicyError('');
-    getFundingPolicy(fundingUrl)
-      .then((nextPolicy) => {
-        if (!cancelled) setPolicy(nextPolicy);
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setPolicy(null);
-          setPolicyError(error.message || String(error));
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dismissToast, fundingUrl, networkName]);
-
-  useEffect(() => {
-    if (!fundingUrl || !request?.id || TERMINAL_STATUSES.has(request.status)) return undefined;
-
-    let cancelled = false;
-    let timer;
-
-    async function refreshStatus() {
+  const submitMutation = useMutation({
+    retry: false,
+    mutationFn: async (/** @type {string} */ walletAddress) => {
       try {
-        const next = await getFundingRequestStatus(fundingUrl, request.id);
-        if (cancelled) return;
-        setRequest(next);
-        if (pollErrorToastRef.current) {
-          dismissToast(pollErrorToastRef.current);
-          pollErrorToastRef.current = null;
-        }
-        if (!TERMINAL_STATUSES.has(next.status)) {
-          timer = globalThis.setTimeout(refreshStatus, 4_000);
-        }
+        const request = await requestFundingApproval(fundingUrl, walletAddress);
+        return { request, resumed: false };
       } catch (error) {
-        if (cancelled) return;
-        const message = error.message || String(error);
-        if (!pollErrorToastRef.current) {
-          pollErrorToastRef.current = pushToast({
-            kind: 'error',
-            title: 'Status check interrupted',
-            message: `${message} Your request id is retained and status checks will retry automatically.`,
-          });
+        const pendingId = error?.requestId;
+        if (error?.code === 'REQUEST_PENDING' && pendingId) {
+          const request = await getFundingRequestStatus(fundingUrl, pendingId);
+          return { request, resumed: true };
         }
-        timer = globalThis.setTimeout(refreshStatus, 8_000);
+        throw error;
       }
+    },
+    onSuccess: ({ request, resumed }) => {
+      setRequestId(request.id);
+      queryClient.setQueryData(fundingKeys.request(fundingUrl, request.id), request);
+      pushToast({
+        kind: 'info',
+        title: resumed ? 'Existing request resumed' : 'Funding request submitted',
+        message: resumed
+          ? `Request ${request.id} is still in progress and status polling has resumed.`
+          : `Request ${request.id} is waiting for an Admin decision.`,
+      });
+    },
+    onError: (error) => {
+      pushToast({
+        kind: 'error',
+        title: 'Funding request failed',
+        message: messageFrom(error, 'Funding request failed.'),
+      });
+    },
+  });
+
+  useEffect(
+    () => () => {
+      if (pollErrorToastRef.current) {
+        dismissToast(pollErrorToastRef.current);
+        pollErrorToastRef.current = null;
+      }
+    },
+    [dismissToast],
+  );
+
+  useEffect(() => {
+    if (!requestQuery.isError) {
+      if (pollErrorToastRef.current) {
+        dismissToast(pollErrorToastRef.current);
+        pollErrorToastRef.current = null;
+      }
+      return;
     }
 
-    timer = globalThis.setTimeout(refreshStatus, 2_000);
-    return () => {
-      cancelled = true;
-      if (timer) globalThis.clearTimeout(timer);
-    };
-  }, [dismissToast, fundingUrl, pushToast, request?.id, request?.status]);
+    if (!requestId || pollErrorToastRef.current) return;
+    pollErrorToastRef.current = pushToast({
+      kind: 'error',
+      title: 'Status check interrupted',
+      message: `${messageFrom(requestQuery.error, 'Funding status is temporarily unavailable.')} Your request id is retained and status checks will retry automatically.`,
+    });
+  }, [
+    dismissToast,
+    pushToast,
+    requestId,
+    requestQuery.error,
+    requestQuery.isError,
+    requestQuery.dataUpdatedAt,
+  ]);
+
+  const request = requestQuery.data;
 
   useEffect(() => {
     if (!request?.id || !TERMINAL_STATUSES.has(request.status)) return;
@@ -144,48 +163,20 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
     });
   }, [pushToast, request?.amountAeko, request?.id, request?.status]);
 
+  const policy = policyQuery.data ?? null;
+  const policyError = !fundingUrl
+    ? `${networkName} funding is temporarily unavailable. Please try again later.`
+    : policyQuery.isError
+      ? messageFrom(policyQuery.error, `${networkName} funding is temporarily unavailable.`)
+      : '';
   const valid = ADDRESS_RE.test(address.trim());
 
-  async function submit(event) {
+  function submit(event) {
     event.preventDefault();
-    if (!valid || !fundingUrl || !policy?.enabled) return;
-
-    setBusy(true);
-    setRequest(null);
-    try {
-      const created = await requestFundingApproval(fundingUrl, address.trim());
-      setRequest(created);
-      pushToast({
-        kind: 'info',
-        title: 'Funding request submitted',
-        message: `Request ${created.id} is waiting for an Admin decision.`,
-      });
-    } catch (error) {
-      // The wallet already has an in-flight request: adopt it and resume
-      // polling instead of dead-ending on REQUEST_PENDING.
-      const pendingId = error?.requestId;
-      if (error?.code === 'REQUEST_PENDING' && pendingId) {
-        try {
-          const existing = await getFundingRequestStatus(fundingUrl, pendingId);
-          setRequest(existing);
-          pushToast({
-            kind: 'info',
-            title: 'Existing request resumed',
-            message: `Request ${existing.id} is still in progress and status polling has resumed.`,
-          });
-          return;
-        } catch {
-          // Fall through to the original error below.
-        }
-      }
-      pushToast({
-        kind: 'error',
-        title: 'Funding request failed',
-        message: error.message || String(error),
-      });
-    } finally {
-      setBusy(false);
-    }
+    if (!valid || !fundingUrl || !policy?.enabled || submitMutation.isPending) return;
+    terminalToastRef.current = '';
+    setRequestId('');
+    submitMutation.mutate(address.trim());
   }
 
   const requestSucceeded = request?.status === 'confirmed';
@@ -241,11 +232,11 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
             ) : null}
             <button
               type="submit"
-              disabled={busy || !valid || !policy?.enabled}
+              disabled={submitMutation.isPending || !valid || !policy?.enabled}
               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-aeko-accent px-5 text-sm font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {busy ? <Loader2 size={15} className="animate-spin" /> : <Droplets size={15} />}
-              {busy ? 'Submitting…' : policy ? `Request ${policy.amountAeko} AEKO` : 'Loading funding policy…'}
+              {submitMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <Droplets size={15} />}
+              {submitMutation.isPending ? 'Submitting…' : policy ? `Request ${policy.amountAeko} AEKO` : 'Loading funding policy…'}
             </button>
           </form>
 
@@ -286,8 +277,6 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
               </div>
             </div>
           ) : null}
-
-
         </div>
 
         <aside className="border-t border-white/10 bg-black/20 p-6 sm:p-8 lg:border-l lg:border-t-0">

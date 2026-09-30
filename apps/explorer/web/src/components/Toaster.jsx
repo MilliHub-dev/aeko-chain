@@ -9,11 +9,10 @@
 // they just took is literally invisible. Toasts solve that by being
 // fixed-position, never scrolling off, and always above content.
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle2, Info, Loader2, X } from 'lucide-react';
-
-const ToasterContext = createContext(null);
+import { ToasterContext } from './ToasterContext.js';
 
 const DEFAULT_DURATION = { success: 5000, info: 4500, loading: null, error: null };
 
@@ -115,14 +114,6 @@ export function ToasterProvider({ children }) {
   );
 }
 
-export function useToaster() {
-  const ctx = useContext(ToasterContext);
-  if (!ctx) {
-    throw new Error('useToaster must be used within <ToasterProvider>');
-  }
-  return ctx;
-}
-
 function ToastViewport({ toasts, onDismiss }) {
   return (
     <div
@@ -158,7 +149,7 @@ function ToastCard({ toast, onDismiss }) {
   }, [toast.duration, paused, onDismiss]);
 
   return (
-    <motion.div
+    <Motion.div
       role={toast.kind === 'error' ? 'alert' : 'status'}
       aria-live={toast.kind === 'error' ? 'assertive' : 'polite'}
       initial={{ opacity: 0, y: -12, scale: 0.96 }}
@@ -209,7 +200,7 @@ function ToastCard({ toast, onDismiss }) {
       {toast.duration && (
         <ToastProgress duration={toast.duration} paused={paused} color={palette.progress} />
       )}
-    </motion.div>
+    </Motion.div>
   );
 }
 

@@ -1,6 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import FeedbackAlert from '@/components/feedback-alert'
+import { useToaster } from '@/components/toaster'
+import { adminQueryKeys, operationQuery } from '@/lib/client-query'
 
 type ApplicationSettings = {
   networkToolsEnabled: boolean
@@ -83,42 +87,21 @@ function toDraft(snapshot: SettingsSnapshot): SettingsDraft {
   }
 }
 
-async function readResponse(response: Response): Promise<SettingsSnapshot> {
-  const payload = await response.json()
-  if (!response.ok) {
-    throw new Error(payload?.error?.message ?? `Request failed with status ${response.status}`)
-  }
-  if (!payload?.data?.application || !payload?.data?.blockchain) {
-    throw new Error('Explorer settings response is incomplete')
-  }
-  return payload.data as SettingsSnapshot
-}
-
 export default function SettingsPage() {
-  const [snapshot, setSnapshot] = useState<SettingsSnapshot | null>(null)
   const [draft, setDraft] = useState<SettingsDraft>(SAFE_DRAFT)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const queryClient = useQueryClient()
+  const toast = useToaster()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const next = await readResponse(await fetch('/api/settings', { cache: 'no-store' }))
-      setSnapshot(next)
-      setDraft(toDraft(next))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load settings')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const settingsQuery = useQuery({
+    queryKey: adminQueryKeys.settings,
+    queryFn: () => operationQuery<SettingsSnapshot>('/api/settings'),
+    refetchOnWindowFocus: false,
+  })
+  const snapshot = settingsQuery.data ?? null
 
   useEffect(() => {
-    void load()
-  }, [load])
+    if (snapshot) setDraft(toDraft(snapshot))
+  }, [snapshot])
 
   const dirty = useMemo(
     () => Boolean(snapshot && JSON.stringify(toDraft(snapshot)) !== JSON.stringify(draft)),
@@ -127,7 +110,6 @@ export default function SettingsPage() {
 
   const update = <K extends keyof SettingsDraft>(key: K, value: SettingsDraft[K]) => {
     setDraft((current) => ({ ...current, [key]: value }))
-    setNotice('')
   }
 
   const updateToggle = (key: ToggleSetting, value: boolean) => {
@@ -140,33 +122,42 @@ export default function SettingsPage() {
       }
       return next
     })
-    setNotice('')
   }
+
+  const saveMutation = useMutation({
+    retry: false,
+    mutationFn: (body: SettingsDraft & { expectedRevision: number }) =>
+      operationQuery<SettingsSnapshot>('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+  })
 
   const save = async () => {
     if (!snapshot || !dirty) return
-    setSaving(true)
-    setError('')
-    setNotice('')
     try {
-      const response = await fetch('/api/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          expectedRevision: snapshot.revision,
-          ...draft,
-        }),
+      const next = await saveMutation.mutateAsync({
+        expectedRevision: snapshot.revision,
+        ...draft,
       })
-      const next = await readResponse(response)
-      setSnapshot(next)
+      queryClient.setQueryData(adminQueryKeys.settings, next)
       setDraft(toDraft(next))
-      setNotice('Settings saved. Explorer clients will pick up the new configuration automatically.')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to save settings')
-    } finally {
-      setSaving(false)
+      toast.success(
+        'Settings saved. Explorer clients will pick up the new configuration automatically.',
+        { title: 'Settings saved' },
+      )
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Unable to save settings',
+        { title: 'Settings update failed' },
+      )
     }
   }
+
+  const loading = settingsQuery.isLoading
+  const saving = saveMutation.isPending
+  const error = settingsQuery.error instanceof Error ? settingsQuery.error.message : ''
 
   const connected = snapshot !== null
   const controlsDisabled = !connected || loading || saving
@@ -232,26 +223,22 @@ export default function SettingsPage() {
       </div>
 
       {error ? (
-        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="font-semibold">Settings service unavailable</div>
-            <div className="mt-1">{error}</div>
-          </div>
-          <button
-            type="button"
-            onClick={load}
-            disabled={loading}
-            className="min-h-[44px] shrink-0 rounded-lg border border-red-400/30 px-4 font-medium hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {loading ? 'Retrying…' : 'Retry connection'}
-          </button>
-        </div>
-      ) : null}
-
-      {notice ? (
-        <div aria-live="polite" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-          {notice}
-        </div>
+        <FeedbackAlert
+          tone="error"
+          title="Settings service unavailable"
+          action={
+            <button
+              type="button"
+              onClick={() => void settingsQuery.refetch()}
+              disabled={settingsQuery.isFetching}
+              className="min-h-[44px] shrink-0 rounded-lg border border-red-400/30 px-4 font-medium hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {settingsQuery.isFetching ? 'Retrying…' : 'Retry connection'}
+            </button>
+          }
+        >
+          {error}
+        </FeedbackAlert>
       ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">

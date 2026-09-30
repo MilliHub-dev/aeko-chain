@@ -2,9 +2,6 @@ import { getFinalizedSlot } from './aekoRpcClient';
 import { normalizeSearchMatches } from './explorerData';
 import { getNetworkConfig } from './networkConfig';
 
-const OVERVIEW_CACHE_MS = 5_000;
-const overviewCache = new Map();
-
 class ExplorerApiError extends Error {
   constructor(message, { status = null, path = '', cause = null } = {}) {
     super(message);
@@ -83,6 +80,12 @@ async function fetchEnvelope(path, network) {
   return payload;
 }
 
+/**
+ * Explorer response payloads are runtime API data. Individual pages validate
+ * and render the documented fields they consume; keep this boundary dynamic
+ * instead of letting React Query collapse every result to unknown under checkJs.
+ * @returns {Promise<any>}
+ */
 async function fetchJson(path, network) {
   const payload = await fetchEnvelope(path, network);
   return payload?.data;
@@ -119,7 +122,7 @@ export function getExplorerAvailability(network) {
   return Boolean(getExplorerApiBase(network));
 }
 
-async function readExplorerOverview(network) {
+export async function fetchExplorerOverview(network) {
   try {
     const payload = await fetchEnvelope('/overview', network);
     return emptyOverview({
@@ -162,32 +165,23 @@ async function readExplorerOverview(network) {
   }
 }
 
-export async function fetchExplorerOverview(network) {
-  const cached = overviewCache.get(network);
-  if (cached && Date.now() - cached.receivedAt < OVERVIEW_CACHE_MS) {
-    return cached.value;
-  }
+/**
+ * @typedef {{
+ *   blocks: any[],
+ *   transactions: any[],
+ *   posts: any[],
+ *   stakes: any[],
+ *   nfts: any[],
+ * }} ExplorerHomeData
+ */
 
-  const value = await readExplorerOverview(network);
-  overviewCache.set(network, { receivedAt: Date.now(), value });
-  return value;
-}
-
+/**
+ * @returns {Promise<ExplorerHomeData>}
+ */
 export async function fetchExplorerHome(network, filters = {}, listSize = 6) {
   const limit = Number.isInteger(listSize) ? Math.min(12, Math.max(3, listSize)) : 6;
-  // Overview is informative and additive. If it is unavailable, preserve the
-  // primary indexed lists rather than turning a dashboard-summary failure into
-  // a total Explorer outage. The short cache also keeps filter changes from
-  // repeatedly running global count queries against PostgreSQL.
-  const overviewPromise = fetchExplorerOverview(network).catch((error) =>
-    emptyOverview({
-      overviewError: error.message,
-      dataSource: 'overview-error',
-    }),
-  );
 
-  const [overview, blocks, transactions, posts, stakes, nfts] = await Promise.all([
-    overviewPromise,
+  const [blocks, transactions, posts, stakes, nfts] = await Promise.all([
     fetchJson(`/blocks${buildQuery({ limit, before: filters.blockBefore, after: filters.blockAfter })}`, network),
     fetchJson(`/transactions${buildQuery({
       limit,
@@ -220,7 +214,7 @@ export async function fetchExplorerHome(network, filters = {}, listSize = 6) {
     })}`, network),
   ]);
 
-  return { overview, blocks, transactions, posts, stakes, nfts };
+  return { blocks, transactions, posts, stakes, nfts };
 }
 
 export async function fetchBlockDetails(network, slot) {

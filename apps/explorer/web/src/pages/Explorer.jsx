@@ -1,21 +1,25 @@
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Activity, Blocks, ChevronLeft, ChevronRight, Image, RotateCcw, Search, Sparkles, Wallet } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
-import { fetchExplorerHome, getExplorerAvailability, searchExplorer } from '../utils/explorerApi';
+import { fetchExplorerHome, fetchExplorerOverview, getExplorerAvailability, searchExplorer } from '../utils/explorerApi';
 import { formatExplorerMetric } from '../utils/explorerData';
 import { getNetworkPresentation } from '../utils/networkConfig';
+import { queryKeys } from '../queryKeys.js';
 import {
   ActiveFiltersBar,
   ExplorerFiltersModal,
+} from '../components/ExplorerFilters';
+import {
   FILTER_FIELDS,
   sanitizeCursor,
   sanitizeSearchQuery,
   SEARCH_QUERY_MIN,
-} from '../components/ExplorerFilters';
+} from '../components/ExplorerFilterModel.js';
 import { StatusBannerStack } from '../components/StatusBanner';
-import { useToaster } from '../components/Toaster';
+import { useToaster } from '../components/ToasterContext.js';
 import { useAppSettings } from '../components/AppSettingsContext';
 
 // Wait this long after the last filter change before firing a new fetch.
@@ -23,49 +27,20 @@ import { useAppSettings } from '../components/AppSettingsContext';
 // three. 250ms is short enough that single removals still feel instant.
 const FILTER_FETCH_DEBOUNCE_MS = 250;
 
-const EMPTY_HOME_STATE = Object.freeze({
-  loading: false,
-  error: '',
-  overview: null,
-  blocks: [],
-  transactions: [],
-  posts: [],
-  stakes: [],
-  nfts: [],
-});
-
-const INITIAL_HOME_STATE = { ...EMPTY_HOME_STATE, loading: true };
-
 export default function Explorer() {
   const { settings } = useAppSettings();
   // Global selection: one toggle switches every page.
   const { network } = useNetwork();
   const presentation = getNetworkPresentation(network);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [homeRefreshTick, setHomeRefreshTick] = useState(0);
-  const [homeState, setHomeState] = useState(INITIAL_HOME_STATE);
   const urlSearchQuery = sanitizeSearchQuery(searchParams.get('q') || '');
   const [query, setQuery] = useState(urlSearchQuery);
-  const [searchRetry, setSearchRetry] = useState(0);
-  const [searchState, setSearchState] = useState({
-    loading: false,
-    error: '',
-    matches: [],
-    searchedQuery: '',
-  });
+  const [searchValidationError, setSearchValidationError] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const toaster = useToaster();
 
   const unavailable = !getExplorerAvailability(network);
   const networkLabel = presentation.name;
-
-  useEffect(() => {
-    const interval = window.setInterval(
-      () => setHomeRefreshTick((current) => current + 1),
-      settings.explorerAutoRefreshSeconds * 1000,
-    );
-    return () => window.clearInterval(interval);
-  }, [settings.explorerAutoRefreshSeconds]);
 
   // Sanitize every URL-derived filter value before it can reach the backend.
   // Hand-edited URLs can carry anything — control chars, megabyte strings,
@@ -97,97 +72,59 @@ export default function Explorer() {
     };
   }, [searchParams]);
 
+  const [debouncedFilters, setDebouncedFilters] = useState(filters);
+
   useEffect(() => {
-    if (unavailable) {
-      const resetTimer = setTimeout(() => setHomeState(EMPTY_HOME_STATE), 0);
-      return () => clearTimeout(resetTimer);
-    }
+    const timer = window.setTimeout(() => setDebouncedFilters(filters), FILTER_FETCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [filters]);
 
-    let cancelled = false;
+  const overviewQuery = useQuery({
+    queryKey: queryKeys.explorer.overview(network),
+    queryFn: () => fetchExplorerOverview(network),
+    enabled: !unavailable,
+    refetchInterval: settings.explorerAutoRefreshSeconds * 1000,
+  });
 
-    // Debounce so rapid filter changes coalesce into a single backend call.
-    // The cleanup also cancels the in-flight fetch by flipping `cancelled`,
-    // so its callback is a no-op even if it resolves after the next request.
-    const timer = setTimeout(() => {
-      if (cancelled) return;
-      setHomeState((current) => ({ ...current, loading: true, error: '' }));
-      fetchExplorerHome(network, filters, settings.explorerListSize)
-        .then((data) => {
-          if (cancelled) return;
-          setHomeState({
-            loading: false,
-            error: '',
-            overview: data.overview || null,
-            blocks: data.blocks || [],
-            transactions: data.transactions || [],
-            posts: data.posts || [],
-            stakes: data.stakes || [],
-            nfts: data.nfts || [],
-          });
-        })
-        .catch((error) => {
-          if (cancelled) return;
-          setHomeState({
-            loading: false,
-            error: error.message,
-            overview: null,
-            blocks: [],
-            transactions: [],
-            posts: [],
-            stakes: [],
-            nfts: [],
-          });
-        });
-    }, FILTER_FETCH_DEBOUNCE_MS);
+  const homeQuery = useQuery({
+    queryKey: queryKeys.explorer.home(network, debouncedFilters, settings.explorerListSize),
+    queryFn: () => fetchExplorerHome(network, debouncedFilters, settings.explorerListSize),
+    enabled: !unavailable,
+    refetchInterval: settings.explorerAutoRefreshSeconds * 1000,
+    placeholderData: keepPreviousData,
+  });
 
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
+  const homeState = useMemo(() => {
+    const homeData = /** @type {Awaited<ReturnType<typeof fetchExplorerHome>>} */ (
+      homeQuery.data ?? { blocks: [], transactions: [], posts: [], stakes: [], nfts: [] }
+    );
+    return {
+      loading: homeQuery.isLoading,
+      error: homeQuery.error instanceof Error ? homeQuery.error.message : '',
+      overview: overviewQuery.data ?? null,
+      blocks: homeData.blocks ?? [],
+      transactions: homeData.transactions ?? [],
+      posts: homeData.posts ?? [],
+      stakes: homeData.stakes ?? [],
+      nfts: homeData.nfts ?? [],
     };
-  }, [network, unavailable, filters, settings.explorerListSize, homeRefreshTick]);
+  }, [homeQuery.data, homeQuery.error, homeQuery.isLoading, overviewQuery.data]);
 
   useEffect(() => {
     setQuery(urlSearchQuery);
   }, [urlSearchQuery]);
 
-  useEffect(() => {
-    if (unavailable || urlSearchQuery.length < SEARCH_QUERY_MIN) {
-      setSearchState({ loading: false, error: '', matches: [], searchedQuery: '' });
-      return undefined;
-    }
-
-    let cancelled = false;
-    setSearchState({
-      loading: true,
-      error: '',
-      matches: [],
-      searchedQuery: urlSearchQuery,
-    });
-
-    searchExplorer(network, urlSearchQuery, settings.explorerSearchResultLimit)
-      .then((payload) => {
-        if (cancelled) return;
-        setSearchState({
-          loading: false,
-          error: '',
-          matches: payload.matches || [],
-          searchedQuery: urlSearchQuery,
-        });
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setSearchState({
-          loading: false,
-          error: error.message,
-          matches: [],
-          searchedQuery: urlSearchQuery,
-        });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [network, unavailable, urlSearchQuery, searchRetry, settings.explorerSearchResultLimit]);
+  const searchQuery = useQuery({
+    queryKey: queryKeys.explorer.search(network, urlSearchQuery, settings.explorerSearchResultLimit),
+    queryFn: () => searchExplorer(network, urlSearchQuery, settings.explorerSearchResultLimit),
+    enabled: !unavailable && urlSearchQuery.length >= SEARCH_QUERY_MIN,
+  });
+  const searchState = {
+    loading: searchQuery.isLoading,
+    error: searchValidationError || (searchQuery.error instanceof Error ? searchQuery.error.message : ''),
+    matches: searchQuery.data?.matches ?? [],
+    searchedQuery: urlSearchQuery.length >= SEARCH_QUERY_MIN ? urlSearchQuery : '',
+  };
 
   function handleSearch(event) {
     event.preventDefault();
@@ -195,17 +132,13 @@ export default function Explorer() {
 
     const cleaned = sanitizeSearchQuery(query);
     if (cleaned.length < SEARCH_QUERY_MIN) {
-      setSearchState({
-        loading: false,
-        error: `Type at least ${SEARCH_QUERY_MIN} characters to search.`,
-        matches: [],
-        searchedQuery: '',
-      });
+      setSearchValidationError(`Type at least ${SEARCH_QUERY_MIN} characters to search.`);
       return;
     }
 
+    setSearchValidationError('');
     if (cleaned === urlSearchQuery) {
-      setSearchRetry((current) => current + 1);
+      void searchQuery.refetch();
       return;
     }
 
@@ -374,6 +307,7 @@ export default function Explorer() {
             // Control chars are stripped at submit, but trimming whitespace
             // here keeps the visible value clean too.
             setQuery(event.target.value.slice(0, 100));
+            if (searchValidationError) setSearchValidationError('');
           }}
           placeholder="Search blocks, transactions, addresses, posts, NFTs"
           maxLength={100}
@@ -419,8 +353,14 @@ export default function Explorer() {
             kind: 'error',
             title: 'Search failed',
             children: searchState.error,
-            onDismiss: () =>
-              setSearchState((s) => ({ ...s, error: '' })),
+            onDismiss: () => void searchQuery.refetch(),
+          },
+          !unavailable && overviewQuery.error && {
+            id: 'overview-error',
+            kind: 'error',
+            title: 'Summary request failed',
+            children: overviewQuery.error instanceof Error ? overviewQuery.error.message : 'Summary data is unavailable.',
+            onDismiss: () => void overviewQuery.refetch(),
           },
           !unavailable && overview?.overviewError && {
             id: 'overview-warning',
@@ -466,8 +406,7 @@ export default function Explorer() {
                 kind: 'error',
                 title: 'Couldn’t load network data',
                 children: homeState.error,
-                onDismiss: () =>
-                  setHomeState((s) => ({ ...s, error: '' })),
+                onDismiss: () => void homeQuery.refetch(),
               },
             ]}
           />

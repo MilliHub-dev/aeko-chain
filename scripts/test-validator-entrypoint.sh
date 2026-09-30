@@ -47,6 +47,61 @@ test ! -e "$TMP_DIR/established-genesis.log"
 grep -Fq -- "--rpc-faucet-address 10.20.30.40:9900" "$TMP_DIR/established-validator.args"
 echo "[ok] established validator does not require genesis-only stake/faucet keys"
 
+if env -u AEKO_FAUCET_ADDRESS AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/missing-remote-faucet.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_REQUIRE_REMOTE_FAUCET=1 bash "$ENTRYPOINT" >"$TMP_DIR/missing-remote-faucet.out" 2>&1; then
+  echo "split validator unexpectedly accepted a missing Faucet address" >&2
+  exit 1
+fi
+grep -Fq "AEKO_FAUCET_ADDRESS is required for this Validator deployment" "$TMP_DIR/missing-remote-faucet.out"
+echo "[ok] split validator fails closed when the remote Faucet address is missing"
+
+if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/http-faucet.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_REQUIRE_REMOTE_FAUCET=1 AEKO_FAUCET_ADDRESS="https://faucet.example.invalid:9900" bash "$ENTRYPOINT" >"$TMP_DIR/http-faucet.out" 2>&1; then
+  echo "split validator unexpectedly accepted an HTTP Faucet URL" >&2
+  exit 1
+fi
+grep -Fq "must be raw host:port, not a URL" "$TMP_DIR/http-faucet.out"
+echo "[ok] split validator rejects HTTP/WAF Faucet routing"
+
+if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/prompt-faucet.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_REQUIRE_REMOTE_FAUCET=1 AEKO_FAUCET_ADDRESS="Set a private or DNS-only Faucet host:9900" bash "$ENTRYPOINT" >"$TMP_DIR/prompt-faucet.out" 2>&1; then
+  echo "split validator unexpectedly accepted deployment prompt text as Faucet address" >&2
+  exit 1
+fi
+grep -Fq "AEKO_FAUCET_ADDRESS contains placeholder/guidance text" "$TMP_DIR/prompt-faucet.out"
+echo "[ok] split validator rejects literal deployment prompt text as Faucet address"
+
+if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/placeholder-faucet.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_REQUIRE_REMOTE_FAUCET=1 AEKO_FAUCET_ADDRESS="<private-faucet-host>:9900" bash "$ENTRYPOINT" >"$TMP_DIR/placeholder-faucet.out" 2>&1; then
+  echo "split validator unexpectedly accepted an angle-bracket Faucet placeholder" >&2
+  exit 1
+fi
+grep -Fq "AEKO_FAUCET_ADDRESS contains placeholder/guidance text" "$TMP_DIR/placeholder-faucet.out"
+echo "[ok] split validator rejects angle-bracket Faucet placeholders before startup"
+
+if env -u AEKO_GOSSIP_HOST AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/missing-gossip.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_FAUCET_ADDRESS="10.20.30.40:9900" AEKO_REQUIRE_GOSSIP_HOST=1 bash "$ENTRYPOINT" >"$TMP_DIR/missing-gossip.out" 2>&1; then
+  echo "split validator unexpectedly accepted a missing gossip host" >&2
+  exit 1
+fi
+grep -Fq "AEKO_GOSSIP_HOST is required for this Validator deployment" "$TMP_DIR/missing-gossip.out"
+echo "[ok] split validator fails closed when the gossip host is missing"
+
+if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/prompt-gossip.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_FAUCET_ADDRESS="10.20.30.40:9900" AEKO_REQUIRE_GOSSIP_HOST=1 AEKO_GOSSIP_HOST="Set gossip hostname" bash "$ENTRYPOINT" >"$TMP_DIR/prompt-gossip.out" 2>&1; then
+  echo "split validator unexpectedly accepted deployment prompt text as gossip host" >&2
+  exit 1
+fi
+grep -Fq "AEKO_GOSSIP_HOST contains placeholder/guidance text" "$TMP_DIR/prompt-gossip.out"
+echo "[ok] split validator rejects literal deployment prompt text as gossip host"
+
+if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/url-gossip.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_FAUCET_ADDRESS="10.20.30.40:9900" AEKO_REQUIRE_GOSSIP_HOST=1 AEKO_GOSSIP_HOST="https://gossip.example.invalid" bash "$ENTRYPOINT" >"$TMP_DIR/url-gossip.out" 2>&1; then
+  echo "split validator unexpectedly accepted a URL-shaped gossip host" >&2
+  exit 1
+fi
+grep -Fq "AEKO_GOSSIP_HOST must be a hostname or IP without a URL scheme" "$TMP_DIR/url-gossip.out"
+echo "[ok] split validator rejects URL-shaped gossip host values"
+
+AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/explicit-gossip.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_FAUCET_ADDRESS="10.20.30.40:9900" AEKO_REQUIRE_GOSSIP_HOST=1 AEKO_GOSSIP_HOST="gossip.example.invalid" AEKO_DYNAMIC_PORT_RANGE="8000-8050" bash "$ENTRYPOINT"
+grep -Fq -- "--gossip-host gossip.example.invalid" "$TMP_DIR/explicit-gossip.args"
+grep -Fq -- "--gossip-port 8001" "$TMP_DIR/explicit-gossip.args"
+grep -Fq -- "--dynamic-port-range 8000-8050" "$TMP_DIR/explicit-gossip.args"
+echo "[ok] split validator advertises the explicitly configured gossip endpoint and transport range"
+
 FRESH_LEDGER="$TMP_DIR/fresh-ledger"
 if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/fresh-validator.args"   AEKO_TEST_GENESIS_LOG="$TMP_DIR/fresh-genesis.log"   PATH="$FAKE_BIN:$PATH"   AEKO_LEDGER_PATH="$FRESH_LEDGER"   AEKO_IDENTITY_FILE="$KEYS/identity.json"   AEKO_VOTE_FILE="$KEYS/vote.json"   AEKO_STAKE_FILE="$KEYS/missing-stake.json"   AEKO_FAUCET_FILE="$KEYS/missing-faucet.json"   AEKO_BOOTSTRAP=1   AEKO_REQUIRE_EXISTING_LEDGER=0     bash "$ENTRYPOINT"; then
   echo "fresh genesis unexpectedly accepted missing stake/faucet keypairs" >&2

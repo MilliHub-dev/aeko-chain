@@ -13,14 +13,39 @@ case "$NETWORK" in
     ;;
 esac
 REGISTRY_BASE_URL="${AEKO_REGISTRY_URL:-}"
+REQUIRE_REMOTE_REGISTRY="${AEKO_REQUIRE_REMOTE_REGISTRY:-0}"
 
 REGISTRY_DIR="${AEKO_REGISTRY_CACHE_DIR:-/tmp/aeko-registry}"
 REFRESH_SECONDS="${AEKO_REGISTRY_REFRESH_SECONDS:-30}"
 FETCH_TIMEOUT_SECONDS="${AEKO_REGISTRY_FETCH_TIMEOUT_SECONDS:-10}"
 
+case "$REQUIRE_REMOTE_REGISTRY" in
+  0|1) ;;
+  *)
+    echo "error: AEKO_REQUIRE_REMOTE_REGISTRY must be 0 or 1" >&2
+    exit 64
+    ;;
+esac
+
 if [ -z "$REGISTRY_BASE_URL" ]; then
+  if [ "$REQUIRE_REMOTE_REGISTRY" = "1" ]; then
+    echo "error: AEKO_REGISTRY_URL is required for this Explorer deployment" >&2
+    exit 64
+  fi
   exec aeko-explorer-backend "$@"
 fi
+
+case "$REGISTRY_BASE_URL" in
+  *'<'*|*'>'*|*'Set '*|*'set '*)
+    echo "error: AEKO_REGISTRY_URL contains placeholder/guidance text; configure a real http(s) origin" >&2
+    exit 64
+    ;;
+  http://*|https://*) ;;
+  *)
+    echo "error: AEKO_REGISTRY_URL must be an http(s) URL, got: $REGISTRY_BASE_URL" >&2
+    exit 64
+    ;;
+esac
 
 positive_integer() {
   case "$2" in

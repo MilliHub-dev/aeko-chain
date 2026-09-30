@@ -85,12 +85,11 @@ export async function fetchPublicAppSettings() {
       cache: 'no-store',
     });
   } catch (cause) {
-    // The same-origin path above is proxied (Vite dev proxy or the
-    // production Explorer UI server) to the private Explorer backend.
-    // A network failure here almost always means no Explorer backend is
-    // reachable at the configured upstream — not a settings problem.
+    // Aeko Scan calls the public Explorer API directly. Network failures here
+    // therefore point to the API origin, its edge policy, CORS, or the backend
+    // itself rather than a Scan-side reverse proxy.
     throw new Error(
-      `Application settings are unreachable via ${settingsUrl}. Is the Explorer backend running and proxied? (${cause?.message || cause})`,
+      `Application settings are unreachable via ${settingsUrl}. Check the Explorer API origin, CORS/edge policy, and backend health. (${cause?.message || cause})`,
     );
   }
   const payload = await response.json().catch(() => null);

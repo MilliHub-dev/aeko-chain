@@ -1,7 +1,11 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
-import StatCard from '@/components/stat-card'
+
+import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import DataTable from '@/components/data-table'
+import FeedbackAlert from '@/components/feedback-alert'
+import StatCard from '@/components/stat-card'
+import { adminQueryKeys, explorerQuery } from '@/lib/client-query'
 
 type Tx = { signature: string; slot: number; blockTime?: number; success: boolean; fee: number; signer?: string; primaryProgram?: string }
 
@@ -10,36 +14,23 @@ function fmtTime(ts?: number) { return ts ? new Date(ts * 1000).toLocaleString()
 function fmtFee(lamports: number) { return (lamports / 1e9).toFixed(6) + ' AEKO' }
 
 export default function TransactionsPage() {
-  const [txs, setTxs] = useState<Tx[]>([])
   const [filter, setFilter] = useState<'all' | 'success' | 'failed'>('all')
-  const [loading, setLoading] = useState(true)
-  const [lastUpdate, setLastUpdate] = useState('')
+  const transactionsQuery = useQuery({
+    queryKey: adminQueryKeys.transactions,
+    queryFn: () => explorerQuery<Tx[]>('/transactions?limit=100'),
+    refetchInterval: 10_000,
+  })
 
-  const refresh = useCallback(async () => {
-    try {
-      const res = await fetch('/api/explorer/transactions?limit=100')
-      if (!res.ok) return
-      const json = await res.json()
-      setTxs(json.data ?? [])
-      setLastUpdate(new Date().toLocaleTimeString())
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    refresh()
-    const id = setInterval(refresh, 10_000)
-    return () => clearInterval(id)
-  }, [refresh])
-
+  const txs = transactionsQuery.data ?? []
+  const lastUpdate = transactionsQuery.dataUpdatedAt
+    ? new Date(transactionsQuery.dataUpdatedAt).toLocaleTimeString()
+    : ''
   const filtered = txs.filter(tx => {
     if (filter === 'success') return tx.success
     if (filter === 'failed') return !tx.success
     return true
   })
-
-  const successCount = txs.filter(t => t.success).length
+  const successCount = txs.filter(tx => tx.success).length
   const successRate = txs.length ? Math.round((successCount / txs.length) * 100) : 0
 
   return (
@@ -47,12 +38,25 @@ export default function TransactionsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Transactions</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{lastUpdate ? `Updated ${lastUpdate}` : 'Loading…'}</p>
+          <p className="text-gray-500 text-sm mt-0.5">
+            {lastUpdate ? `Updated ${lastUpdate}` : transactionsQuery.isLoading ? 'Loading…' : 'Waiting for data…'}
+          </p>
         </div>
-        <button onClick={refresh} className="text-sm text-gray-400 hover:text-white border border-[#1e2135] rounded-lg px-4 py-2 transition-colors">
-          Refresh
+        <button
+          type="button"
+          onClick={() => void transactionsQuery.refetch()}
+          disabled={transactionsQuery.isFetching}
+          className="text-sm text-gray-400 hover:text-white border border-[#1e2135] rounded-lg px-4 py-2 transition-colors disabled:opacity-40"
+        >
+          {transactionsQuery.isFetching ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
+
+      {transactionsQuery.error ? (
+        <FeedbackAlert tone="error" title="Transactions could not be refreshed">
+          {transactionsQuery.error instanceof Error ? transactionsQuery.error.message : 'Explorer transactions are unavailable.'}
+        </FeedbackAlert>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
         <StatCard label="Shown" value={txs.length} />
@@ -60,40 +64,34 @@ export default function TransactionsPage() {
         <StatCard label="Success Rate" value={`${successRate}%`} />
       </div>
 
-      {/* Filter bar */}
       <div className="flex gap-2">
-        {(['all', 'success', 'failed'] as const).map(f => (
+        {(['all', 'success', 'failed'] as const).map(value => (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-1.5 rounded-lg text-sm capitalize transition-colors ${
-              filter === f ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-500 hover:text-gray-300'
-            }`}
+            key={value}
+            type="button"
+            onClick={() => setFilter(value)}
+            className={`px-4 py-1.5 rounded-lg text-sm capitalize transition-colors ${filter === value ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-500 hover:text-gray-300'}`}
           >
-            {f}
+            {value}
           </button>
         ))}
       </div>
 
-      {loading ? (
-        <div className="text-gray-600 text-sm py-12 text-center">Loading transactions…</div>
-      ) : (
-        <DataTable
-          paginationLabel="transactions"
-          columns={['Signature', 'Slot', 'Status', 'Fee', 'Program', 'Time']}
-          rows={filtered.map(tx => [
-            shortSig(tx.signature),
-            tx.slot.toLocaleString(),
-            <span key={tx.signature} className={tx.success ? 'text-emerald-400' : 'text-red-400'}>
-              {tx.success ? '✓ OK' : '✗ Fail'}
-            </span>,
-            fmtFee(tx.fee),
-            tx.primaryProgram ?? '—',
-            fmtTime(tx.blockTime),
-          ])}
-          empty="No transactions found"
-        />
-      )}
+      <DataTable
+        paginationLabel="transactions"
+        columns={['Signature', 'Slot', 'Status', 'Fee', 'Program', 'Time']}
+        rows={filtered.map(tx => [
+          shortSig(tx.signature),
+          tx.slot.toLocaleString(),
+          <span key={tx.signature} className={tx.success ? 'text-emerald-400' : 'text-red-400'}>
+            {tx.success ? '✓ OK' : '✗ Fail'}
+          </span>,
+          fmtFee(tx.fee),
+          tx.primaryProgram ?? '—',
+          fmtTime(tx.blockTime),
+        ])}
+        empty={transactionsQuery.isLoading ? 'Loading transactions…' : 'No transactions found'}
+      />
     </div>
   )
 }

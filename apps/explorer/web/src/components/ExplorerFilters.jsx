@@ -12,7 +12,7 @@
 // reduced-motion respect all conform to the ui-ux-pro-max checklist.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
 import {
   Activity,
   Coins,
@@ -28,192 +28,15 @@ import {
 } from 'lucide-react';
 import { loadWallets, shortAddress } from '../utils/aekoTestKeypair';
 
-const BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]+$/;
+import {
+  FILTER_FIELDS,
+  PUBKEY_MAX,
+  PUBKEY_MIN,
+  TEXT_MAX,
+} from './ExplorerFilterModel.js';
+
 const RECENT_KEY = (field) => `aeko:explorerFilters:recent:${field}`;
 const RECENT_MAX = 10;
-
-// Per-field hard caps. Pubkey fields cap at 64 chars (base58 of 32 bytes is
-// ≤44; 64 gives safety margin against pasted whitespace without inviting
-// pathologically long inputs). Free-text fields are tighter so a bad paste
-// doesn't bloat the URL or the backend query parameter set.
-const PUBKEY_MAX = 64;
-const PUBKEY_MIN = 32;
-const TEXT_MAX = 128;
-
-function looksValidPubkey(value) {
-  if (!value) return true;
-  const v = value.trim();
-  return v.length >= PUBKEY_MIN && v.length <= PUBKEY_MAX && BASE58_RE.test(v);
-}
-
-// Sanitize a numeric cursor value pulled from the URL — used by Explorer.jsx
-// to defend against hand-edited URLs feeding the backend garbage like
-// `blockBefore=DROP%20TABLE` or `blockBefore=99999...` (huge integer).
-export function sanitizeCursor(value) {
-  if (!value) return '';
-  if (typeof value !== 'string') return '';
-  const trimmed = value.trim();
-  if (!/^\d{1,20}$/.test(trimmed)) return '';
-  // i64::MAX is 9223372036854775807 (19 digits); anything beyond that the
-  // backend will reject. Clip to 19 chars defensively.
-  return trimmed.slice(0, 19);
-}
-
-// Sanitize a search query before hitting `/search?q=`. Min 2 chars so we
-// don't ask the backend to enumerate every record matching 1 char; max 100
-// because the indexer's search path materializes intermediate result sets.
-const SEARCH_QUERY_MAX = 100;
-export const SEARCH_QUERY_MIN = 2;
-export function sanitizeSearchQuery(raw) {
-  if (typeof raw !== 'string') return '';
-  // Strip control characters and trim.
-  // eslint-disable-next-line no-control-regex
-  return raw.replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, SEARCH_QUERY_MAX);
-}
-
-// ---------- field schema ----------
-//
-// Source of truth for every filter input on the page. Adding a new filter is
-// one entry here; the modal renders, the chips bar labels, the autocomplete
-// pulls history, all from this list.
-//
-// `acceptsWallets`: whether the "Your wallets" suggestion section should
-//   appear on this field. We only enable it on roles a test wallet could
-//   plausibly play (signer of a tx, post creator, staker, NFT owner). Even
-//   on those fields, the wallet is only surfaced if it also appears in the
-//   page-context list — i.e., we've seen actual chain activity from it in
-//   that role. That keeps us from suggesting random unrelated wallets.
-// `maxLen` / `validate`: hard limits enforced at typing and apply time.
-export const FILTER_FIELDS = [
-  // Activity
-  {
-    key: 'txAddress',
-    label: 'Tx address',
-    group: 'activity',
-    kind: 'pubkey',
-    hint: 'Wallet, program, or signer',
-    acceptsWallets: true,
-    maxLen: PUBKEY_MAX,
-    validate: looksValidPubkey,
-  },
-  {
-    key: 'txType',
-    label: 'Tx program',
-    group: 'activity',
-    kind: 'text',
-    hint: 'Program name or pubkey',
-    acceptsWallets: false,
-    maxLen: TEXT_MAX,
-    validate: () => true,
-  },
-  {
-    key: 'txStatus',
-    label: 'Tx status',
-    group: 'activity',
-    kind: 'segment',
-    options: [
-      { value: '', label: 'All' },
-      { value: 'success', label: 'Success' },
-      { value: 'failed', label: 'Failed' },
-    ],
-  },
-  // SocialFi
-  {
-    key: 'postCreator',
-    label: 'Post creator',
-    group: 'social',
-    kind: 'pubkey',
-    acceptsWallets: true,
-    maxLen: PUBKEY_MAX,
-    validate: looksValidPubkey,
-  },
-  {
-    key: 'postKind',
-    label: 'Post kind',
-    group: 'social',
-    kind: 'segment',
-    options: [
-      { value: '', label: 'All' },
-      { value: 'original', label: 'Original' },
-      { value: 'reply', label: 'Reply' },
-      { value: 'repost', label: 'Repost' },
-      { value: 'quote', label: 'Quote' },
-    ],
-  },
-  {
-    key: 'postVisibility',
-    label: 'Visibility',
-    group: 'social',
-    kind: 'segment',
-    options: [
-      { value: '', label: 'All' },
-      { value: 'public', label: 'Public' },
-      { value: 'followers-only', label: 'Followers' },
-      { value: 'permissioned', label: 'Gated' },
-      { value: 'paid', label: 'Paid' },
-    ],
-  },
-  // Staking
-  {
-    key: 'stakeWallet',
-    label: 'Stake wallet',
-    group: 'staking',
-    kind: 'pubkey',
-    acceptsWallets: true,
-    maxLen: PUBKEY_MAX,
-    validate: looksValidPubkey,
-  },
-  {
-    key: 'stakeCreator',
-    label: 'Stake creator',
-    group: 'staking',
-    kind: 'pubkey',
-    acceptsWallets: false,
-    maxLen: PUBKEY_MAX,
-    validate: looksValidPubkey,
-  },
-  {
-    key: 'stakeState',
-    label: 'Stake state',
-    group: 'staking',
-    kind: 'segment',
-    options: [
-      { value: '', label: 'All' },
-      { value: 'active', label: 'Active' },
-      { value: 'cooling-down', label: 'Cooldown' },
-      { value: 'closed', label: 'Closed' },
-      { value: 'slashed', label: 'Slashed' },
-    ],
-  },
-  // NFTs
-  {
-    key: 'nftCollection',
-    label: 'NFT collection',
-    group: 'nfts',
-    kind: 'pubkey',
-    acceptsWallets: false,
-    maxLen: PUBKEY_MAX,
-    validate: looksValidPubkey,
-  },
-  {
-    key: 'nftOwner',
-    label: 'NFT owner',
-    group: 'nfts',
-    kind: 'pubkey',
-    acceptsWallets: true,
-    maxLen: PUBKEY_MAX,
-    validate: looksValidPubkey,
-  },
-  {
-    key: 'nftCreator',
-    label: 'NFT creator',
-    group: 'nfts',
-    kind: 'pubkey',
-    acceptsWallets: false,
-    maxLen: PUBKEY_MAX,
-    validate: looksValidPubkey,
-  },
-];
 
 const GROUPS = [
   { key: 'activity', label: 'Activity', icon: Activity },
@@ -292,7 +115,7 @@ export function ActiveFiltersBar({ filters, onOpen, onRemove, onClearAll }) {
         <>
           <AnimatePresence initial={false}>
             {active.map(({ field, value }, idx) => (
-              <motion.button
+              <Motion.button
                 key={field.key}
                 type="button"
                 onClick={() => onRemove(field.key)}
@@ -310,7 +133,7 @@ export function ActiveFiltersBar({ filters, onOpen, onRemove, onClearAll }) {
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-gray-400 group-hover:text-white group-hover:bg-white/10">
                   <X size={11} />
                 </span>
-              </motion.button>
+              </Motion.button>
             ))}
           </AnimatePresence>
           <button
@@ -345,15 +168,16 @@ export function ExplorerFiltersModal({
   const triggerRef = useRef(null);
   const firstFieldRef = useRef(null);
 
-  // Sync draft when modal opens with fresh applied state.
+  // Sync the draft just after the modal enters. Deferring the state update
+  // avoids a synchronous effect cascade while preserving the exit animation.
   useEffect(() => {
-    if (open) {
-      setDraft(initialFilters);
-      // Focus first field after the entrance animation settles.
-      const t = setTimeout(() => firstFieldRef.current?.focus(), 220);
-      return () => clearTimeout(t);
-    }
-    return undefined;
+    if (!open) return undefined;
+    const syncTimer = window.setTimeout(() => setDraft(initialFilters), 0);
+    const focusTimer = window.setTimeout(() => firstFieldRef.current?.focus(), 220);
+    return () => {
+      window.clearTimeout(syncTimer);
+      window.clearTimeout(focusTimer);
+    };
   }, [open, initialFilters]);
 
   // Escape closes; tab order kept inside the panel by the trap markup.
@@ -422,7 +246,7 @@ export function ExplorerFiltersModal({
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <Motion.div
           className="fixed inset-0 z-[1100] flex items-end sm:items-center justify-center p-0 sm:p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -438,7 +262,7 @@ export function ExplorerFiltersModal({
             onClick={onClose}
             className="absolute inset-0 bg-black/65 backdrop-blur-sm cursor-default"
           />
-          <motion.div
+          <Motion.div
             ref={triggerRef}
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -490,7 +314,7 @@ export function ExplorerFiltersModal({
                       </span>
                     )}
                     {active && (
-                      <motion.span
+                      <Motion.span
                         layoutId="filters-tab-underline"
                         className="absolute left-2 right-2 bottom-0 h-[2px] bg-aeko-accent rounded-full"
                       />
@@ -564,8 +388,8 @@ export function ExplorerFiltersModal({
                 )}
               </button>
             </footer>
-          </motion.div>
-        </motion.div>
+          </Motion.div>
+        </Motion.div>
       )}
     </AnimatePresence>
   );
@@ -628,10 +452,6 @@ function AutocompleteInput({ field, value, onChange, pageSuggestions, wallets, i
   const [focused, setFocused] = useState(false);
   const [recent, setRecent] = useState(() => readRecent(field.key));
   const containerRef = useRef(null);
-
-  useEffect(() => {
-    if (!focused) setRecent(readRecent(field.key));
-  }, [focused, field.key]);
 
   const validate = field.validate || (() => true);
   const isWarn = field.kind === 'pubkey' && value && !validate(value);
@@ -696,12 +516,13 @@ function AutocompleteInput({ field, value, onChange, pageSuggestions, wallets, i
     if (!focused) return undefined;
     const onDown = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setRecent(readRecent(field.key));
         setFocused(false);
       }
     };
     window.addEventListener('mousedown', onDown);
     return () => window.removeEventListener('mousedown', onDown);
-  }, [focused]);
+  }, [focused, field.key]);
 
   return (
     <div ref={containerRef}>
@@ -721,7 +542,10 @@ function AutocompleteInput({ field, value, onChange, pageSuggestions, wallets, i
               if (field.kind === 'pubkey') next = next.replace(/\s+/g, '');
               onChange(next);
             }}
-            onFocus={() => setFocused(true)}
+            onFocus={() => {
+              setRecent(readRecent(field.key));
+              setFocused(true);
+            }}
             placeholder={field.hint || 'Paste or type to search'}
             spellCheck="false"
             autoComplete="off"
@@ -768,7 +592,7 @@ function AutocompleteInput({ field, value, onChange, pageSuggestions, wallets, i
 
       <AnimatePresence>
         {showDropdown && (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
@@ -804,7 +628,7 @@ function AutocompleteInput({ field, value, onChange, pageSuggestions, wallets, i
                 </div>
               );
             })}
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
     </div>

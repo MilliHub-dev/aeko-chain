@@ -8,11 +8,12 @@ The repository currently defines and deploys one canonical public network: **AEK
 | --- | --- |
 | JSON-RPC | `https://rpc.aeko.online` |
 | WebSocket PubSub | `wss://ws.aeko.online` |
-| Explorer UI + indexed reads | `https://scan.aeko.online` |
-| Testnet funding | `https://scan.aeko.online/api/explorer/testnet/funding/*` |
+| Explorer UI | `https://scan.aeko.online` |
+| Explorer API + indexed reads | `https://api.aeko.online` |
+| Testnet funding | `https://api.aeko.online/funding/*` |
 | Validator gossip | `gossip.aeko.online:8001` |
 
-Testnet AEKO has no asserted monetary value. Public funding requests use Aeko Scan's same-origin Explorer funding API and require authenticated Operations Admin approval before settlement. The Faucet Daemon on TCP `9900` is low-level infrastructure used by the Validator funding path, not a browser funding API.
+Testnet AEKO has no asserted monetary value. Aeko Scan calls the Explorer API directly for public funding requests, and authenticated Operations Admin approval is required before settlement. The Explorer API CORS allowlist admits the Scan browser origin. The Faucet Daemon on TCP `9900` is low-level infrastructure used by the Validator funding path, not a browser funding API.
 
 ### Registry discovery
 
@@ -25,8 +26,8 @@ surfaces:
   `404` by design.
 - Aeko Scan, Operations Web, and application clients should use the selected
   network's Explorer API instead: `GET /registry`, `GET /registry/social`,
-  and `GET /registry/protocol`. On public Testnet those are available through
-  `https://scan.aeko.online/api/explorer/testnet/registry...`.
+  and `GET /registry/protocol`. On public Testnet those are available directly
+  from `https://api.aeko.online/registry...`.
 - A local Explorer backend exposes the same API contract at its configured
   Explorer origin (normally `http://127.0.0.1:8088`). A `404` from an
   arbitrary raw bootstrap-registry path is therefore not a signal to bypass the

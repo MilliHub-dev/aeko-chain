@@ -22,8 +22,8 @@ function readAlternative(env, network) {
   const prefix = `AEKO_${network.toUpperCase()}`
   const rpcUrl = clean(env[`${prefix}_RPC_URL`])
   const websocketUrl = clean(env[`${prefix}_WS_URL`])
-  const upstream = clean(env[`${prefix}_EXPLORER_API_URL`])
-  const values = [rpcUrl, websocketUrl, upstream]
+  const explorerApiUrl = clean(env[`${prefix}_EXPLORER_API_URL`])
+  const values = [rpcUrl, websocketUrl, explorerApiUrl]
 
   if (values.some(Boolean) && !values.every(Boolean)) {
     throw new Error(
@@ -33,7 +33,7 @@ function readAlternative(env, network) {
   }
 
   if (!values.every(Boolean)) return null
-  return { rpcUrl, websocketUrl, upstream }
+  return { rpcUrl, websocketUrl, explorerApiUrl }
 }
 
 export default defineConfig(({ command, mode }) => {
@@ -43,15 +43,15 @@ export default defineConfig(({ command, mode }) => {
 
   let activeRpc = clean(env.AEKO_RPC_URL)
   let activeWs = clean(env.AEKO_WS_URL)
-  let activeUpstream = clean(env.AEKO_EXPLORER_API_URL)
+  let activeExplorerApi = clean(env.AEKO_EXPLORER_API_URL)
 
   if (command === 'serve' && activeNetwork === 'localnet') {
     activeRpc ||= 'http://127.0.0.1:8899'
     activeWs ||= 'ws://127.0.0.1:8900'
-    activeUpstream ||= 'http://127.0.0.1:8088'
+    activeExplorerApi ||= 'http://127.0.0.1:8088'
   }
 
-  const activeValues = [activeRpc, activeWs, activeUpstream]
+  const activeValues = [activeRpc, activeWs, activeExplorerApi]
   if (command === 'serve' && !activeValues.every(Boolean)) {
     throw new Error(
       'Active Scan network is incomplete. Set AEKO_RPC_URL, AEKO_WS_URL and '
@@ -65,7 +65,7 @@ export default defineConfig(({ command, mode }) => {
   alternatives[activeNetwork] = {
     rpcUrl: activeRpc,
     websocketUrl: activeWs,
-    upstream: activeUpstream,
+    explorerApiUrl: activeExplorerApi,
   }
 
   const runtimeNetworks = Object.fromEntries(
@@ -76,8 +76,8 @@ export default defineConfig(({ command, mode }) => {
         {
           rpcUrl: value.rpcUrl,
           websocketUrl: value.websocketUrl,
-          explorerApiUrl: `/api/explorer/${network}`,
-          fundingUrl: `/api/explorer/${network}`,
+          explorerApiUrl: value.explorerApiUrl,
+          fundingUrl: value.explorerApiUrl,
         },
       ]),
   )
@@ -86,23 +86,10 @@ export default defineConfig(({ command, mode }) => {
     ? { network: activeNetwork, networks: runtimeNetworks }
     : {}
 
-  const proxy = {}
-  for (const [network, value] of Object.entries(alternatives)) {
-    const target = value?.upstream
-    if (!target) continue
-    const prefix = `/api/explorer/${network}`
-    proxy[prefix] = {
-      target,
-      changeOrigin: true,
-      rewrite: (path) => path.replace(new RegExp(`^${prefix}`), '') || '/',
-    }
-  }
-
   return {
     plugins: [react()],
     define: {
       'globalThis.__AEKO_DEV_RUNTIME_CONFIG__': JSON.stringify(devRuntimeConfig),
     },
-    server: { proxy },
   }
 })

@@ -1,8 +1,10 @@
 'use client'
 
+import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import FeedbackAlert from '@/components/feedback-alert'
 import StatCard from '@/components/stat-card'
+import { adminQueryKeys, explorerQuery } from '@/lib/client-query'
 
 type ProgramStatus = {
   programId: string
@@ -27,32 +29,13 @@ function shortAddr(value: string) {
 }
 
 export default function MarketplacePage() {
-  const [protocol, setProtocol] = useState<ProtocolStatus | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const protocolQuery = useQuery({
+    queryKey: adminQueryKeys.marketplace,
+    queryFn: () => explorerQuery<ProtocolStatus>('/protocol/status'),
+    refetchInterval: 15_000,
+  })
 
-  const refresh = useCallback(async () => {
-    setError('')
-    try {
-      const response = await fetch('/api/explorer/protocol/status', { cache: 'no-store' })
-      const payload = await response.json().catch(() => null)
-      if (!response.ok || !payload?.data) {
-        throw new Error(payload?.error?.message ?? 'Protocol status is unavailable')
-      }
-      setProtocol(payload.data as ProtocolStatus)
-    } catch (err) {
-      setProtocol(null)
-      setError(err instanceof Error ? err.message : 'Unable to load protocol status')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    refresh()
-    const id = setInterval(refresh, 15_000)
-    return () => clearInterval(id)
-  }, [refresh])
+  const protocol = protocolQuery.data ?? null
 
   const programs = MARKETPLACE_PROGRAMS.map(({ key, label }) => ({
     key,
@@ -70,11 +53,11 @@ export default function MarketplacePage() {
         </div>
         <button
           type="button"
-          onClick={refresh}
-          disabled={loading}
+          onClick={() => void protocolQuery.refetch()}
+          disabled={protocolQuery.isFetching}
           className="min-h-[42px] rounded-lg border border-[#1e2135] px-4 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40"
         >
-          {loading ? 'Refreshing…' : 'Refresh protocol'}
+          {protocolQuery.isFetching ? 'Refreshing…' : 'Refresh protocol'}
         </button>
       </div>
 
@@ -84,10 +67,10 @@ export default function MarketplacePage() {
         <StatCard label="Sales (24h)" value="—" />
       </div>
 
-      {error ? (
-        <div role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          {error}
-        </div>
+      {protocolQuery.error ? (
+        <FeedbackAlert tone="error" title="Marketplace protocol status is unavailable">
+          {protocolQuery.error instanceof Error ? protocolQuery.error.message : 'Protocol status is unavailable.'}
+        </FeedbackAlert>
       ) : null}
 
       <section className="rounded-xl border border-[#1e2135] bg-[#12141f] p-6">

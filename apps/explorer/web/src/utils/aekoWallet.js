@@ -20,11 +20,12 @@ function detectCandidates() {
     return [];
   }
 
+  const browser = /** @type {any} */ (window);
   return [
-    { key: 'window.aeko', label: 'AEKO Wallet', provider: window.aeko },
-    { key: 'window.aekoChain', label: 'AEKO Chain Wallet', provider: window.aekoChain },
-    { key: 'window.phantom.aeko', label: 'Phantom AEKO', provider: window.phantom?.aeko },
-    { key: 'window.backpack.aeko', label: 'Backpack AEKO', provider: window.backpack?.aeko },
+    { key: 'window.aeko', label: 'AEKO Wallet', provider: browser.aeko },
+    { key: 'window.aekoChain', label: 'AEKO Chain Wallet', provider: browser.aekoChain },
+    { key: 'window.phantom.aeko', label: 'Phantom AEKO', provider: browser.phantom?.aeko },
+    { key: 'window.backpack.aeko', label: 'Backpack AEKO', provider: browser.backpack?.aeko },
   ].filter((candidate) => Boolean(candidate.provider));
 }
 
@@ -119,7 +120,7 @@ function createAdapter({ provider, label, key }) {
             network: 'testnet',
           });
           return direct?.signature || direct?.hash || direct;
-        } catch (_error) {
+        } catch {
           const bytes = decodeBase64ToBytes(preparedTransactionBase64);
           const fallback = await provider.signAndSendTransaction(bytes, {
             network: 'testnet',
