@@ -52,7 +52,10 @@ pub enum EmergencyMultisigInstruction {
     ///   3. [signer]   voter (must be a multisig signer)
     ///   4. [writable, signer] payer
     ///   5. [] system program
-    ApproveAction { proposal_id: [u8; 32], current_slot: u64 },
+    ApproveAction {
+        proposal_id: [u8; 32],
+        current_slot: u64,
+    },
 
     /// Execute a proposal once quorum is reached.
     ///
@@ -71,7 +74,10 @@ pub enum EmergencyMultisigInstruction {
     /// Additional accounts for EmergencyRevokeKey:
     ///   3. [writable] key_record PDA
     ///   4. []         revocation-registry native program
-    ExecuteAction { proposal_id: [u8; 32], current_slot: u64 },
+    ExecuteAction {
+        proposal_id: [u8; 32],
+        current_slot: u64,
+    },
 
     /// Cancel a proposal (proposer or upgrade authority only).
     ///
@@ -154,7 +160,10 @@ pub fn approve_action(
 ) -> Instruction {
     Instruction::new_with_borsh(
         *program_id,
-        &EmergencyMultisigInstruction::ApproveAction { proposal_id, current_slot },
+        &EmergencyMultisigInstruction::ApproveAction {
+            proposal_id,
+            current_slot,
+        },
         vec![
             AccountMeta::new(*proposal_pda, false),
             AccountMeta::new(*vote_pda, false),
@@ -183,7 +192,10 @@ pub fn execute_action(
     accounts.extend(extra_accounts);
     Instruction::new_with_borsh(
         *program_id,
-        &EmergencyMultisigInstruction::ExecuteAction { proposal_id, current_slot },
+        &EmergencyMultisigInstruction::ExecuteAction {
+            proposal_id,
+            current_slot,
+        },
         accounts,
     )
 }

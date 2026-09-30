@@ -179,7 +179,10 @@ pub fn approve_rotation(
 ) -> Instruction {
     Instruction::new_with_borsh(
         *program_id,
-        &RevocationRegistryInstruction::ApproveRotation { key_id, current_slot },
+        &RevocationRegistryInstruction::ApproveRotation {
+            key_id,
+            current_slot,
+        },
         vec![
             AccountMeta::new(*rotation_intent_pda, false),
             AccountMeta::new(*rotation_approval_pda, false),
@@ -199,7 +202,10 @@ pub fn execute_rotation(
 ) -> Instruction {
     Instruction::new_with_borsh(
         *program_id,
-        &RevocationRegistryInstruction::ExecuteRotation { key_id, current_slot },
+        &RevocationRegistryInstruction::ExecuteRotation {
+            key_id,
+            current_slot,
+        },
         vec![
             AccountMeta::new(*old_key_record_pda, false),
             AccountMeta::new(*successor_key_record_pda, false),
@@ -235,7 +241,10 @@ pub fn mark_compromised(
 ) -> Instruction {
     Instruction::new_with_borsh(
         *program_id,
-        &RevocationRegistryInstruction::MarkCompromised { key_id, reason_code },
+        &RevocationRegistryInstruction::MarkCompromised {
+            key_id,
+            reason_code,
+        },
         vec![
             AccountMeta::new(*key_record_pda, false),
             AccountMeta::new_readonly(*registry_config_pda, false),
@@ -260,11 +269,7 @@ pub fn emergency_mark_compromised(
     )
 }
 
-pub fn is_revoked(
-    program_id: &Pubkey,
-    key_record_pda: &Pubkey,
-    key_id: [u8; 32],
-) -> Instruction {
+pub fn is_revoked(program_id: &Pubkey, key_record_pda: &Pubkey, key_id: [u8; 32]) -> Instruction {
     Instruction::new_with_borsh(
         *program_id,
         &RevocationRegistryInstruction::IsRevoked { key_id },

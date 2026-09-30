@@ -35,7 +35,10 @@ pub enum SubnetRegistryInstruction {
     /// Accounts:
     ///   0. [writable] subnet_record PDA
     ///   1. [signer]   owner or upgrade_authority
-    FreezeSubnet { subnet_id: [u8; 32], reason_code: u16 },
+    FreezeSubnet {
+        subnet_id: [u8; 32],
+        reason_code: u16,
+    },
 
     /// Unfreeze a previously frozen subnet.
     ///
@@ -48,7 +51,10 @@ pub enum SubnetRegistryInstruction {
     ///
     /// Accounts:
     ///   0. [writable] subnet_record PDA
-    EmergencyFreezeSubnet { subnet_id: [u8; 32], reason_code: u16 },
+    EmergencyFreezeSubnet {
+        subnet_id: [u8; 32],
+        reason_code: u16,
+    },
 
     /// Emergency unfreeze routed only through emergency-multisig CPI.
     ///
@@ -115,7 +121,11 @@ pub fn create_subnet(
 ) -> Instruction {
     Instruction::new_with_borsh(
         *program_id,
-        &SubnetRegistryInstruction::CreateSubnet { subnet_id, min_clearance, current_slot },
+        &SubnetRegistryInstruction::CreateSubnet {
+            subnet_id,
+            min_clearance,
+            current_slot,
+        },
         vec![
             AccountMeta::new(*subnet_record_pda, false),
             AccountMeta::new_readonly(*owner, true),
@@ -132,7 +142,10 @@ pub fn freeze_subnet(
 ) -> Instruction {
     Instruction::new_with_borsh(
         *program_id,
-        &SubnetRegistryInstruction::FreezeSubnet { subnet_id, reason_code },
+        &SubnetRegistryInstruction::FreezeSubnet {
+            subnet_id,
+            reason_code,
+        },
         vec![
             AccountMeta::new(*subnet_record_pda, false),
             AccountMeta::new_readonly(*authority, true),
@@ -196,7 +209,12 @@ pub fn add_subnet_member(
 ) -> Instruction {
     Instruction::new_with_borsh(
         *program_id,
-        &SubnetRegistryInstruction::AddSubnetMember { subnet_id, member, key_id, current_slot },
+        &SubnetRegistryInstruction::AddSubnetMember {
+            subnet_id,
+            member,
+            key_id,
+            current_slot,
+        },
         vec![
             AccountMeta::new(*subnet_record_pda, false),
             AccountMeta::new(*membership_pda, false),

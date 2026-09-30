@@ -10,11 +10,7 @@ use {
         },
     },
     aeko_program_runtime::invoke_context::InvokeContext,
-    aeko_sdk::{
-        instruction::InstructionError,
-        pubkey::Pubkey,
-        system_instruction, system_program,
-    },
+    aeko_sdk::{instruction::InstructionError, pubkey::Pubkey, system_instruction, system_program},
     borsh::{to_vec, BorshDeserialize},
 };
 
@@ -49,13 +45,17 @@ impl Processor {
                 action,
                 ttl_slots,
                 current_slot,
-            } => Self::process_propose(invoke_context, proposal_id, action, ttl_slots, current_slot),
-            EmergencyMultisigInstruction::ApproveAction { proposal_id, current_slot } => {
-                Self::process_approve(invoke_context, proposal_id, current_slot)
+            } => {
+                Self::process_propose(invoke_context, proposal_id, action, ttl_slots, current_slot)
             }
-            EmergencyMultisigInstruction::ExecuteAction { proposal_id, current_slot } => {
-                Self::process_execute(invoke_context, proposal_id, current_slot)
-            }
+            EmergencyMultisigInstruction::ApproveAction {
+                proposal_id,
+                current_slot,
+            } => Self::process_approve(invoke_context, proposal_id, current_slot),
+            EmergencyMultisigInstruction::ExecuteAction {
+                proposal_id,
+                current_slot,
+            } => Self::process_execute(invoke_context, proposal_id, current_slot),
             EmergencyMultisigInstruction::CancelAction { proposal_id } => {
                 Self::process_cancel(invoke_context, proposal_id)
             }
@@ -86,8 +86,8 @@ impl Processor {
     ) -> Result<MultisigConfig, InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        let account =
-            instruction_context.try_borrow_instruction_account(transaction_context, account_index)?;
+        let account = instruction_context
+            .try_borrow_instruction_account(transaction_context, account_index)?;
         if *account.get_key() != multisig_config_address() {
             return Err(InstructionError::InvalidArgument);
         }
@@ -132,8 +132,8 @@ impl Processor {
         let payer_key = {
             let transaction_context = &invoke_context.transaction_context;
             let instruction_context = transaction_context.get_current_instruction_context()?;
-            let payer =
-                instruction_context.try_borrow_instruction_account(transaction_context, payer_index)?;
+            let payer = instruction_context
+                .try_borrow_instruction_account(transaction_context, payer_index)?;
             if !payer.is_signer() {
                 return Err(InstructionError::MissingRequiredSignature);
             }
@@ -158,9 +158,10 @@ impl Processor {
     ) -> Result<(), InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        let account =
-            instruction_context.try_borrow_instruction_account(transaction_context, account_index)?;
-        if *account.get_key() != proposal_address(proposal_id) || account.get_owner() != &crate::id()
+        let account = instruction_context
+            .try_borrow_instruction_account(transaction_context, account_index)?;
+        if *account.get_key() != proposal_address(proposal_id)
+            || account.get_owner() != &crate::id()
         {
             return Err(InstructionError::InvalidArgument);
         }
@@ -173,8 +174,8 @@ impl Processor {
     ) -> Result<Pubkey, InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        let account =
-            instruction_context.try_borrow_instruction_account(transaction_context, account_index)?;
+        let account = instruction_context
+            .try_borrow_instruction_account(transaction_context, account_index)?;
         Ok(*account.get_key())
     }
 
@@ -185,8 +186,8 @@ impl Processor {
     ) -> Result<(), InstructionError> {
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        let account =
-            instruction_context.try_borrow_instruction_account(transaction_context, account_index)?;
+        let account = instruction_context
+            .try_borrow_instruction_account(transaction_context, account_index)?;
         if account.get_key() != expected_program || !account.is_executable() {
             return Err(InstructionError::IncorrectProgramId);
         }
@@ -399,8 +400,7 @@ impl Processor {
         }
 
         proposal.approval_count = proposal.approval_count.saturating_add(1);
-        let serialized =
-            to_vec(&proposal).map_err(|_| InstructionError::InvalidAccountData)?;
+        let serialized = to_vec(&proposal).map_err(|_| InstructionError::InvalidAccountData)?;
         Self::write_account(proposal_account.get_data_mut()?, &serialized)?;
         drop(proposal_account);
 
@@ -456,7 +456,9 @@ impl Processor {
             if proposal.proposal_id != proposal_id {
                 return Err(InstructionError::InvalidArgument);
             }
-            proposal.ensure_executable(current_slot).map_err(Self::map_err)?;
+            proposal
+                .ensure_executable(current_slot)
+                .map_err(Self::map_err)?;
             proposal
         };
 
@@ -503,13 +505,12 @@ impl Processor {
                     &aeko_revocation_registry_program::id(),
                 )?;
                 let key_record = Self::instruction_account_key(invoke_context, 3)?;
-                let cpi =
-                    aeko_revocation_registry_program::instruction::emergency_mark_compromised(
-                        &aeko_revocation_registry_program::id(),
-                        &key_record,
-                        *key_id,
-                        *reason_code,
-                    );
+                let cpi = aeko_revocation_registry_program::instruction::emergency_mark_compromised(
+                    &aeko_revocation_registry_program::id(),
+                    &key_record,
+                    *key_id,
+                    *reason_code,
+                );
                 invoke_context.native_invoke(cpi.into(), &[])?;
             }
             ProposedAction::UpgradeClearancePolicy { .. } => {
@@ -525,8 +526,7 @@ impl Processor {
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
         let mut executed = proposal;
         executed.status = ProposalStatus::Executed;
-        let serialized =
-            to_vec(&executed).map_err(|_| InstructionError::InvalidAccountData)?;
+        let serialized = to_vec(&executed).map_err(|_| InstructionError::InvalidAccountData)?;
         Self::write_account(proposal_account.get_data_mut()?, &serialized)?;
         drop(proposal_account);
 
@@ -581,8 +581,7 @@ impl Processor {
         }
 
         proposal.status = ProposalStatus::Cancelled;
-        let serialized =
-            to_vec(&proposal).map_err(|_| InstructionError::InvalidAccountData)?;
+        let serialized = to_vec(&proposal).map_err(|_| InstructionError::InvalidAccountData)?;
         Self::write_account(proposal_account.get_data_mut()?, &serialized)
     }
 }

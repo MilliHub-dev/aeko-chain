@@ -395,8 +395,7 @@ fn main() -> Result<()> {
 
     let (multisig_signers, freeze_quorum, revoke_quorum, policy_quorum) =
         parse_multisig_config(authority.pubkey())?;
-    let emergency_multisig =
-        aeko_emergency_multisig_program::state::multisig_config_address();
+    let emergency_multisig = aeko_emergency_multisig_program::state::multisig_config_address();
     let allow_multisig_pda_migration =
         parse_bool_flag_with_default("AEKO_PROTOCOL_MIGRATE_EMERGENCY_MULTISIG_PDA", false)?;
     ensure_emergency_multisig(

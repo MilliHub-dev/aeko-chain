@@ -28,29 +28,33 @@ impl Processor {
             SubnetRegistryInstruction::InitializeRegistry { current_slot } => {
                 Self::process_initialize_registry(invoke_context, current_slot)
             }
-            SubnetRegistryInstruction::CreateSubnet { subnet_id, min_clearance, current_slot } => {
+            SubnetRegistryInstruction::CreateSubnet {
+                subnet_id,
+                min_clearance,
+                current_slot,
+            } => {
                 Self::process_create_subnet(invoke_context, subnet_id, min_clearance, current_slot)
             }
-            SubnetRegistryInstruction::FreezeSubnet { subnet_id, reason_code } => {
-                Self::process_freeze_subnet(invoke_context, subnet_id, reason_code)
-            }
+            SubnetRegistryInstruction::FreezeSubnet {
+                subnet_id,
+                reason_code,
+            } => Self::process_freeze_subnet(invoke_context, subnet_id, reason_code),
             SubnetRegistryInstruction::UnfreezeSubnet { subnet_id } => {
                 Self::process_unfreeze_subnet(invoke_context, subnet_id)
             }
             SubnetRegistryInstruction::EmergencyFreezeSubnet {
                 subnet_id,
                 reason_code,
-            } => Self::process_emergency_freeze_subnet(
-                invoke_context,
-                subnet_id,
-                reason_code,
-            ),
+            } => Self::process_emergency_freeze_subnet(invoke_context, subnet_id, reason_code),
             SubnetRegistryInstruction::EmergencyUnfreezeSubnet { subnet_id } => {
                 Self::process_emergency_unfreeze_subnet(invoke_context, subnet_id)
             }
-            SubnetRegistryInstruction::AddSubnetMember { subnet_id, member, key_id, current_slot } => {
-                Self::process_add_member(invoke_context, subnet_id, member, key_id, current_slot)
-            }
+            SubnetRegistryInstruction::AddSubnetMember {
+                subnet_id,
+                member,
+                key_id,
+                current_slot,
+            } => Self::process_add_member(invoke_context, subnet_id, member, key_id, current_slot),
             SubnetRegistryInstruction::RemoveSubnetMember { subnet_id, member } => {
                 Self::process_remove_member(invoke_context, subnet_id, member)
             }
@@ -106,8 +110,7 @@ impl Processor {
         instruction_context.check_number_of_instruction_accounts(2)?;
 
         let upgrade_authority = {
-            let acc =
-                instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
+            let acc = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
             if !acc.is_signer() {
                 return Err(InstructionError::MissingRequiredSignature);
             }
@@ -270,7 +273,8 @@ impl Processor {
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
         let expected_record =
             Pubkey::find_program_address(&[SUBNET_RECORD_SEED, subnet_id.as_ref()], &crate::id()).0;
-        if *subnet_account.get_key() != expected_record || subnet_account.get_owner() != &crate::id()
+        if *subnet_account.get_key() != expected_record
+            || subnet_account.get_owner() != &crate::id()
         {
             return Err(InstructionError::InvalidArgument);
         }
@@ -297,7 +301,8 @@ impl Processor {
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
         let expected_record =
             Pubkey::find_program_address(&[SUBNET_RECORD_SEED, subnet_id.as_ref()], &crate::id()).0;
-        if *subnet_account.get_key() != expected_record || subnet_account.get_owner() != &crate::id()
+        if *subnet_account.get_key() != expected_record
+            || subnet_account.get_owner() != &crate::id()
         {
             return Err(InstructionError::InvalidArgument);
         }
@@ -358,8 +363,7 @@ impl Processor {
             joined_at_slot: current_slot,
             is_active: true,
         };
-        let serialized =
-            to_vec(&membership).map_err(|_| InstructionError::InvalidAccountData)?;
+        let serialized = to_vec(&membership).map_err(|_| InstructionError::InvalidAccountData)?;
         let mut membership_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         Self::write_account(membership_account.get_data_mut()?, &serialized)
@@ -406,8 +410,7 @@ impl Processor {
             instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         let data = membership_account.get_data();
         if !data.iter().all(|b| *b == 0) && !data.is_empty() {
-            let mut membership =
-                deserialize_subnet_membership(data).map_err(Self::map_err)?;
+            let mut membership = deserialize_subnet_membership(data).map_err(Self::map_err)?;
             membership.is_active = false;
             let serialized =
                 to_vec(&membership).map_err(|_| InstructionError::InvalidAccountData)?;
@@ -429,8 +432,7 @@ impl Processor {
 
         let subnet_acc =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
-        let record =
-            deserialize_subnet_record(subnet_acc.get_data()).map_err(Self::map_err)?;
+        let record = deserialize_subnet_record(subnet_acc.get_data()).map_err(Self::map_err)?;
 
         if record.subnet_id != subnet_id {
             return Err(InstructionError::InvalidArgument);

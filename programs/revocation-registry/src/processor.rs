@@ -7,9 +7,7 @@ use {
             KeyRecord, RevRegistryConfig, RotationApproval, RotationIntent, KEY_RECORD_SEED,
         },
     },
-    aeko_permission_types::{
-        emergency_multisig_program_id, KeyAlgorithm, KeyState, KeyType,
-    },
+    aeko_permission_types::{emergency_multisig_program_id, KeyAlgorithm, KeyState, KeyType},
     aeko_program_runtime::invoke_context::InvokeContext,
     aeko_sdk::{instruction::InstructionError, pubkey::Pubkey},
     borsh::{to_vec, BorshDeserialize},
@@ -60,26 +58,24 @@ impl Processor {
                 ttl_slots,
                 current_slot,
             ),
-            RevocationRegistryInstruction::ApproveRotation { key_id, current_slot } => {
-                Self::process_approve_rotation(invoke_context, key_id, current_slot)
-            }
-            RevocationRegistryInstruction::ExecuteRotation { key_id, current_slot } => {
-                Self::process_execute_rotation(invoke_context, key_id, current_slot)
-            }
+            RevocationRegistryInstruction::ApproveRotation {
+                key_id,
+                current_slot,
+            } => Self::process_approve_rotation(invoke_context, key_id, current_slot),
+            RevocationRegistryInstruction::ExecuteRotation {
+                key_id,
+                current_slot,
+            } => Self::process_execute_rotation(invoke_context, key_id, current_slot),
             RevocationRegistryInstruction::RevokeKey { key_id } => {
                 Self::process_revoke_key(invoke_context, key_id)
             }
-            RevocationRegistryInstruction::MarkCompromised { .. } => Err(
-                InstructionError::Custom(RevocationRegistryError::Unauthorized as u32),
-            ),
+            RevocationRegistryInstruction::MarkCompromised { .. } => Err(InstructionError::Custom(
+                RevocationRegistryError::Unauthorized as u32,
+            )),
             RevocationRegistryInstruction::EmergencyMarkCompromised {
                 key_id,
                 reason_code,
-            } => Self::process_emergency_mark_compromised(
-                invoke_context,
-                key_id,
-                reason_code,
-            ),
+            } => Self::process_emergency_mark_compromised(invoke_context, key_id, reason_code),
             RevocationRegistryInstruction::IsRevoked { key_id } => {
                 Self::process_is_revoked(invoke_context, key_id)
             }
@@ -95,10 +91,7 @@ impl Processor {
         }
     }
 
-    fn write_account(
-        account_data: &mut [u8],
-        serialized: &[u8],
-    ) -> Result<(), InstructionError> {
+    fn write_account(account_data: &mut [u8], serialized: &[u8]) -> Result<(), InstructionError> {
         if serialized.len() > account_data.len() {
             return Err(InstructionError::AccountDataTooSmall);
         }
@@ -135,8 +128,7 @@ impl Processor {
         instruction_context.check_number_of_instruction_accounts(2)?;
 
         let upgrade_authority = {
-            let acc =
-                instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
+            let acc = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
             if !acc.is_signer() {
                 return Err(InstructionError::MissingRequiredSignature);
             }
@@ -237,8 +229,7 @@ impl Processor {
         // Transition key record to PendingRotation.
         let mut key_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
-        let mut record =
-            deserialize_key_record(key_account.get_data()).map_err(Self::map_err)?;
+        let mut record = deserialize_key_record(key_account.get_data()).map_err(Self::map_err)?;
 
         if record.owner != signer_pubkey {
             return Err(InstructionError::IncorrectAuthority);
@@ -380,7 +371,9 @@ impl Processor {
         if old_record.key_id != key_id {
             return Err(InstructionError::InvalidArgument);
         }
-        old_record.complete_rotation(successor_key_id).map_err(Self::map_err)?;
+        old_record
+            .complete_rotation(successor_key_id)
+            .map_err(Self::map_err)?;
         let serialized = to_vec(&old_record).map_err(|_| InstructionError::InvalidAccountData)?;
         Self::write_account(old_account.get_data_mut()?, &serialized)?;
         drop(old_account);
@@ -398,8 +391,7 @@ impl Processor {
         // Ensure successor key exists and is Active (or was registered as Active).
         let mut succ_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
-        let succ_record =
-            deserialize_key_record(succ_account.get_data()).map_err(Self::map_err)?;
+        let succ_record = deserialize_key_record(succ_account.get_data()).map_err(Self::map_err)?;
         if succ_record.key_id != successor_key_id {
             return Err(InstructionError::InvalidArgument);
         }
@@ -430,8 +422,7 @@ impl Processor {
 
         let mut key_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
-        let mut record =
-            deserialize_key_record(key_account.get_data()).map_err(Self::map_err)?;
+        let mut record = deserialize_key_record(key_account.get_data()).map_err(Self::map_err)?;
 
         if record.key_id != key_id {
             return Err(InstructionError::InvalidArgument);
@@ -463,8 +454,7 @@ impl Processor {
         if *key_account.get_key() != expected_record || key_account.get_owner() != &crate::id() {
             return Err(InstructionError::InvalidArgument);
         }
-        let mut record =
-            deserialize_key_record(key_account.get_data()).map_err(Self::map_err)?;
+        let mut record = deserialize_key_record(key_account.get_data()).map_err(Self::map_err)?;
 
         if record.key_id != key_id {
             return Err(InstructionError::InvalidArgument);

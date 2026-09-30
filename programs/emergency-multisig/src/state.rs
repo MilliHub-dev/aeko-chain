@@ -44,13 +44,19 @@ pub const MAX_SIGNERS: usize = 11;
 #[derive(Clone, Debug, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub enum ProposedAction {
     /// Freeze a subnet immediately.
-    FreezeSubnet { subnet_id: [u8; 32], reason_code: u16 },
+    FreezeSubnet {
+        subnet_id: [u8; 32],
+        reason_code: u16,
+    },
     /// Unfreeze a previously frozen subnet.
     UnfreezeSubnet { subnet_id: [u8; 32] },
     /// Emergency-revoke a key (marks it Compromised, bypasses normal quorum).
     EmergencyRevokeKey { key_id: [u8; 32], reason_code: u16 },
     /// Upgrade the clearance policy hash for a tier (future-proofing).
-    UpgradeClearancePolicy { tier_byte: u8, new_policy_hash: [u8; 32] },
+    UpgradeClearancePolicy {
+        tier_byte: u8,
+        new_policy_hash: [u8; 32],
+    },
 }
 
 /// Status of a proposal.
@@ -223,7 +229,10 @@ mod tests {
         Proposal {
             proposal_id: [1u8; 32],
             proposer: Pubkey::new_unique(),
-            action: ProposedAction::FreezeSubnet { subnet_id: [2u8; 32], reason_code: 1 },
+            action: ProposedAction::FreezeSubnet {
+                subnet_id: [2u8; 32],
+                reason_code: 1,
+            },
             status: ProposalStatus::Pending,
             approval_count: 0,
             required_approvals: required,
@@ -238,7 +247,10 @@ mod tests {
         let voter = Pubkey::new_unique();
 
         assert_eq!(multisig_config_address(), multisig_config_address());
-        assert_eq!(proposal_address(&proposal_id), proposal_address(&proposal_id));
+        assert_eq!(
+            proposal_address(&proposal_id),
+            proposal_address(&proposal_id)
+        );
         assert_eq!(
             vote_address(&proposal_id, &voter),
             vote_address(&proposal_id, &voter)
@@ -298,11 +310,17 @@ mod tests {
     fn required_approvals_matches_action_type() {
         let config = dummy_config(3, 4);
         assert_eq!(
-            config.required_approvals(&ProposedAction::FreezeSubnet { subnet_id: [0u8; 32], reason_code: 0 }),
+            config.required_approvals(&ProposedAction::FreezeSubnet {
+                subnet_id: [0u8; 32],
+                reason_code: 0
+            }),
             3
         );
         assert_eq!(
-            config.required_approvals(&ProposedAction::EmergencyRevokeKey { key_id: [0u8; 32], reason_code: 0 }),
+            config.required_approvals(&ProposedAction::EmergencyRevokeKey {
+                key_id: [0u8; 32],
+                reason_code: 0
+            }),
             4
         );
     }
