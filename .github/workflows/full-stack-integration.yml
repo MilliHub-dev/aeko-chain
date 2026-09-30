@@ -37,7 +37,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
-          PR_SOURCE_SHA: ${{ github.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BUILD_SHA: ${{ github.sha }}
           WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
           WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
           WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
@@ -49,22 +50,27 @@ jobs:
               echo "CLI release producer did not succeed: $WORKFLOW_RUN_CONCLUSION" >&2
               exit 1
             fi
-            source_sha="$WORKFLOW_RUN_SHA"
+            lookup_sha="$WORKFLOW_RUN_SHA"
+            build_sha="$WORKFLOW_RUN_SHA"
             cli_run_id="$WORKFLOW_RUN_ID"
           else
-            source_sha="$PR_SOURCE_SHA"
+            lookup_sha="$PR_HEAD_SHA"
+            build_sha="$PR_BUILD_SHA"
             cli_run_id=""
           fi
 
-          test -n "$source_sha"
-          short_sha="${source_sha:0:12}"
+          test -n "$lookup_sha"
+          test -n "$build_sha"
+          short_sha="${build_sha:0:12}"
 
           find_run() {
             local workflow_file="$1"
-            gh api               -H "Accept: application/vnd.github+json"               "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?head_sha=${source_sha}&per_page=20"               --jq '.workflow_runs | sort_by(.created_at) | reverse | .[0]'
+            gh api               -H "Accept: application/vnd.github+json"               "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?head_sha=${lookup_sha}&per_page=20"               --jq '.workflow_runs | sort_by(.created_at) | reverse | .[0]'
           }
 
-          echo "Waiting for AEKO DevOps to validate and push immutable runtime images for $source_sha"
+          echo "Producer lookup SHA: $lookup_sha"
+          echo "Immutable build/image SHA: $build_sha"
+          echo "Waiting for AEKO DevOps to validate and push runtime images"
           devops_run_id=""
           for _ in $(seq 1 360); do
             run_json="$(find_run build-images.yml)"
@@ -83,12 +89,12 @@ jobs:
             sleep 10
           done
           test -n "$devops_run_id" || {
-            echo "No AEKO DevOps run found for $source_sha" >&2
+            echo "No AEKO DevOps run found for head $lookup_sha" >&2
             exit 1
           }
 
           if [ -z "$cli_run_id" ]; then
-            echo "Waiting for the Linux CLI release artifact for $source_sha"
+            echo "Waiting for the Linux CLI release artifact"
             for _ in $(seq 1 360); do
               run_json="$(find_run cli-release.yml)"
               if [ "$run_json" != "null" ] && [ -n "$run_json" ]; then
@@ -109,7 +115,7 @@ jobs:
           fi
 
           test -n "$cli_run_id" || {
-            echo "No CLI release run found for $source_sha" >&2
+            echo "No CLI release run found for head $lookup_sha" >&2
             exit 1
           }
 
@@ -120,16 +126,17 @@ jobs:
           fi
 
           {
-            echo "source_sha=$source_sha"
+            echo "lookup_sha=$lookup_sha"
+            echo "build_sha=$build_sha"
             echo "sha_tag=$short_sha"
             echo "devops_run_id=$devops_run_id"
             echo "cli_run_id=$cli_run_id"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Checkout validated source
+      - name: Checkout validated build commit
         uses: actions/checkout@v5
         with:
-          ref: ${{ steps.producers.outputs.source_sha }}
+          ref: ${{ steps.producers.outputs.build_sha }}
           fetch-depth: 0
 
       - name: Download Linux CLI release artifact
@@ -140,6 +147,20 @@ jobs:
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
           run-id: ${{ steps.producers.outputs.cli_run_id }}
+
+      - name: Verify CLI artifact provenance
+        shell: bash
+        env:
+          EXPECTED_BUILD_SHA: ${{ steps.producers.outputs.build_sha }}
+        run: |
+          set -euo pipefail
+          test -s artifacts/cli-release/ci-source-sha.txt
+          actual_sha="$(tr -d '\r\n' < artifacts/cli-release/ci-source-sha.txt)"
+          if [ "$actual_sha" != "$EXPECTED_BUILD_SHA" ]; then
+            echo "CLI artifact was built from $actual_sha, expected $EXPECTED_BUILD_SHA" >&2
+            exit 1
+          fi
+          echo "CLI artifact provenance matches $EXPECTED_BUILD_SHA"
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v4
