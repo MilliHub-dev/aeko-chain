@@ -144,7 +144,8 @@ assert_cli_release_after_main_contract() {
   grep -Fq -- '--target "$SOURCE_SHA"' "$workflow"
   grep -Fq 'git ls-remote --exit-code --tags origin "refs/tags/$TAG"' "$workflow"
   grep -Fq -- '--latest' "$workflow"
-  grep -Fq 'CI_COMMIT=$(git rev-parse HEAD)' "$workflow"
+  grep -Fq 'commit="$(git rev-parse HEAD)"' "$workflow"
+  grep -Fq 'ci-source-sha.txt' "$workflow"
   grep -Fq 'aeko" update --check' "$workflow"
   grep -Fq 'update --yes' "$workflow"
   grep -Fq "irm 'http://127.0.0.1:18766/mock/aeko-cli-install.ps1' | iex" "$workflow"
@@ -185,16 +186,18 @@ run_plan_case() {
 }
 
 run_release_case() {
-  local label="$1" event_name="$2" ref="$3" dockerized="$4" ci_pipeline="$5" expected_publish="$6"
+  local label="$1" event_name="$2" ref="$3" dockerized="$4" ci_pipeline="$5"
+  local internal_pr="$6" expected_publish="$7" expected_runtime_push="$8"
   local output
   output="$(mktemp)"
 
   GITHUB_OUTPUT="$output" GITHUB_EVENT_NAME="$event_name" GITHUB_REF="$ref" \
   GITHUB_SHA="1234567890abcdef1234567890abcdef12345678" \
-  DOCKERIZED="$dockerized" CI_PIPELINE="$ci_pipeline" \
+  DOCKERIZED="$dockerized" CI_PIPELINE="$ci_pipeline" INTERNAL_PR="$internal_pr" \
     bash "$PIPELINE_DIR/resolve-release.sh"
 
   assert_output "$output" "publish=$expected_publish"
+  assert_output "$output" "push_runtime_images=$expected_runtime_push"
   assert_output "$output" "sha_tag=1234567890ab"
   rm -f "$output"
   echo "[ok] $label"
@@ -349,11 +352,12 @@ run_deploy_plan_case "Core release remains stateful-manual despite broad validat
 
 test_split_deploy_trigger
 
-run_release_case "CI-only main push publishes verified images" push refs/heads/main false true true
-run_release_case "product main push publishes immutable images" push refs/heads/main true false true
-run_release_case "CI-only pull request never publishes" pull_request refs/pull/58/merge false true false
-run_release_case "product pull request never publishes" pull_request refs/pull/58/merge true false false
-run_release_case "SDK-only main push does not invent Docker publication" push refs/heads/main false false false
+run_release_case "CI-only main push promotes and publishes runtime validation images" push refs/heads/main false true false true true
+run_release_case "product main push promotes and publishes runtime validation images" push refs/heads/main true false false true true
+run_release_case "same-repository CI pull request pushes only immutable runtime validation images" pull_request refs/pull/58/merge false true true false true
+run_release_case "same-repository product pull request pushes only immutable runtime validation images" pull_request refs/pull/58/merge true false true false true
+run_release_case "fork pull request cannot push runtime images" pull_request refs/pull/58/merge true false false false false
+run_release_case "SDK-only main push publishes immutable validation images without promotion" push refs/heads/main false false false false true
 
 GITHUB_WORKSPACE="$PWD" PUBLISH_JS=true BEST_EFFORT=true NPM_TOKEN="" \
   bash "$SDK_PUBLISH_DIR/publish-selected.sh"
