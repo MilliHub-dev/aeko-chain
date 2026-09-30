@@ -3,7 +3,7 @@ use {
         error::RevocationRegistryError,
         instruction::RevocationRegistryInstruction,
         state::{
-            deserialize_key_record, deserialize_rotation_approval, deserialize_rotation_intent,
+            deserialize_key_record, deserialize_rotation_intent,
             KeyRecord, RevRegistryConfig, RotationApproval, RotationIntent, KEY_RECORD_SEED,
         },
     },
@@ -389,7 +389,7 @@ impl Processor {
         drop(intent_acc);
 
         // Ensure successor key exists and is Active (or was registered as Active).
-        let mut succ_account =
+        let succ_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         let succ_record = deserialize_key_record(succ_account.get_data()).map_err(Self::map_err)?;
         if succ_record.key_id != successor_key_id {
