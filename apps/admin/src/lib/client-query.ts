@@ -28,10 +28,17 @@ async function readJson(response: Response) {
   return payload
 }
 
-export async function explorerQuery<T>(path: string): Promise<T> {
-  const response = await fetch('/api/explorer' + path, { cache: 'no-store' })
+export async function operationQuery<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    cache: 'no-store',
+    ...init,
+  })
   const payload = await readJson(response)
   return payload.data as T
+}
+
+export async function explorerQuery<T>(path: string): Promise<T> {
+  return operationQuery<T>('/api/explorer' + path)
 }
 
 export async function rpcQuery<T>(method: string, params: unknown[] = []): Promise<T> {
