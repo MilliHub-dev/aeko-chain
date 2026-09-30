@@ -592,7 +592,7 @@ def main() -> int:
         '"/funding/airdrop"',
         '"/admin/funding/settings"',
         '"/admin/funding/requests"',
-        '"/admin/funding/grant"',
+        '"/admin/funding/send"',
         "authorize_admin",
         "ensure_funding_available",
         "run_settlement_reconciler",
@@ -608,7 +608,7 @@ def main() -> int:
     for required in (
         "submission_blockhash",
         "FUNDING_SUBMISSION_RETRY_PENDING",
-        "recover_processing_grant_submission",
+        "recover_processing_funding_submission",
         "recover_processing_airdrop_submission",
     ):
         require(
@@ -617,18 +617,18 @@ def main() -> int:
         )
     require(
         "blockhash_calls.load(Ordering::SeqCst),\n        1" in funding_http_e2e
-        and "processing_grant_replays_only_persisted_intent" in funding_http_e2e,
+        and "processing_funding_replays_only_persisted_intent" in funding_http_e2e,
         "funding HTTP E2E must prove response-loss recovery reuses the persisted blockhash",
     )
     require(
-        "expired_submitted_grant_becomes_terminal_failed_without_fresh_intent" in funding_http_e2e
+        "expired_submitted_funding_becomes_terminal_failed_without_fresh_intent" in funding_http_e2e
         and "isBlockhashValid" in read(
             ROOT / "apps" / "explorer" / "backend" / "src" / "infrastructure" / "chain.rs"
         ),
         "funding E2E must prove an expired unobserved intent becomes terminal without a fresh transfer",
     )
     require(
-        "grant confirmation must not resubmit the durable transaction" in funding_http_e2e
+        "funding confirmation must not resubmit the durable transaction" in funding_http_e2e
         and "airdrop confirmation must not resubmit the durable transaction" in funding_http_e2e
         and "confirmation continues in the reconciler" in funding_feature,
         "funding HTTP handlers must return after durable signature persistence and reconcile without a duplicate transfer",
@@ -666,23 +666,23 @@ def main() -> int:
         "approve" in admin_funding_route
         and "reject" in admin_funding_route
         and "reconcile" in admin_funding_route,
-        "Operations funding route must expose explicit grant decisions/reconciliation",
+        "Operations funding route must expose explicit funding decisions/reconciliation",
     )
 
     # Real CI dogfood must exercise the protected chain path, not only mocks.
     for required in (
         "AEKO_FUNDING_AUTHORIZATION_KEY",
-        "protected requestGrant unexpectedly accepted",
+        "protected requestFunding unexpectedly accepted",
         "instant airdrop without approval",
         '"/funding/request"',
         '"/admin/funding/requests/{request_id}/decide"',
         "before = balance(recipient)",
         "after = balance(recipient)",
-        "confirmed grant balance delta",
-        '"/admin/funding/grants?limit=500"',
+        "confirmed funding balance delta",
+        '"/admin/funding/history?limit=500"',
         '"/funding/airdrop"',
         '"/admin/funding/airdrops?limit=500"',
-        "developer airdrop leaked into the confirmed grant ledger",
+        "developer airdrop leaked into the confirmed funding history",
     ):
         require(
             required in protocol_integration,
@@ -771,9 +771,9 @@ def main() -> int:
         "AEKO_RPC_URL",
         "AEKO_FUNDING_SMOKE_ADDRESS",
         "ADMIN_PASSWORD",
-        "Public Explorer API cannot approve grants",
+        "Public Explorer API cannot approve funding",
         "starting balance=",
-        "Admin ledger contains exactly one confirmed grant",
+        "Admin funding history contains exactly one confirmed transfer",
     ):
         require(
             required in funding_smoke,
