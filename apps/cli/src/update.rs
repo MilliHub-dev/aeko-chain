@@ -232,13 +232,13 @@ fn cache_release(release: &GithubRelease) {
     let _ = fs::write(path, contents);
 }
 
-fn latest_release_for_notice() -> Result<GithubRelease, UpdateError> {
-    if let Some(release) = read_cached_release() {
-        return Ok(release);
+fn latest_release_for_notice() -> Result<Option<GithubRelease>, UpdateError> {
+    if read_cached_release().is_some() {
+        return Ok(None);
     }
     let release = fetch_latest_release()?;
     cache_release(&release);
-    Ok(release)
+    Ok(Some(release))
 }
 
 fn env_flag(name: &str) -> bool {
@@ -404,8 +404,8 @@ pub fn maybe_prompt_for_update() {
     }
 
     let release = match latest_release_for_notice() {
-        Ok(release) => release,
-        Err(_) => return,
+        Ok(Some(release)) => release,
+        Ok(None) | Err(_) => return,
     };
     if update_status(&release.tag_name) != Some(true) {
         return;
