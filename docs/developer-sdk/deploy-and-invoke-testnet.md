@@ -72,7 +72,7 @@ cargo run --bin aeko -- config set --url https://rpc.aeko.online
 Use the wallet public key from your keypair and submit a policy-controlled funding request:
 
 ```bash
-curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
+curl -X POST https://api.aeko.online/funding/request \
   -H 'Content-Type: application/json' \
   -d '{"address":"<YOUR_WALLET_PUBKEY>"}'
 ```
@@ -84,7 +84,7 @@ Instant developer airdrops (`aeko airdrop`, SDK `requestAirdrop`, Test Console) 
 Use the request id returned above to check settlement status:
 
 ```bash
-curl https://scan.aeko.online/api/explorer/testnet/funding/request/<REQUEST_ID>
+curl https://api.aeko.online/funding/request/<REQUEST_ID>
 ```
 
 Then confirm balance:
