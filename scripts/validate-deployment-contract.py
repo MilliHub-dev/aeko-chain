@@ -467,6 +467,17 @@ def main() -> int:
         and "fundingUrl: activeExplorerApiUrl" in explorer_entrypoint,
         "Scan runtime config must publish the direct Explorer API URL for reads and funding",
     )
+    require(
+        'AEKO_EXPLORER_API_URL=https://api.example' in funding_smoke
+        and 'AEKO_SCAN_URL' not in funding_smoke
+        and '/api/explorer/' not in funding_smoke,
+        "funding smoke must exercise the public Explorer API directly rather than the retired Scan proxy",
+    )
+    require(
+        "AEKO_EXPLORER_API_URL: https://api.aeko.online" in live_network_diagnostics
+        and "https://scan.aeko.online/api/explorer" not in live_network_diagnostics,
+        "live diagnostics must probe the public Explorer API directly",
+    )
 
     # Raw bootstrap registry and product-facing registry discovery are distinct.
     # The bootstrap root is a non-secret manifest; only its two generated env

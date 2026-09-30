@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 10
     env:
       AEKO_RPC_URL: https://rpc.aeko.online
-      AEKO_EXPLORER_API_URL: https://scan.aeko.online/api/explorer/testnet
+      AEKO_EXPLORER_API_URL: https://api.aeko.online
       AEKO_SMOKE_TIMEOUT_SECS: "15"
       AEKO_SMOKE_SLOT_WAIT_SECS: "10"
 
@@ -140,7 +140,7 @@ jobs:
               api_url + "/funding/airdrop",
               {"address": scan_airdrop_recipient, "amountAeko": 0.000001},
           )
-          print("\n::group::Scan funding airdrop")
+          print("\n::group::Explorer API funding airdrop")
           print(f"HTTP {scan_status}")
           print(
               json.dumps(scan_payload, indent=2, sort_keys=True)
@@ -160,7 +160,7 @@ jobs:
           )
           if scan_status != 200 or not isinstance(scan_signature, str) or not scan_signature:
               failures.append(
-                  "Scan /funding/airdrop did not return a durable transaction signature"
+                  "Explorer API /funding/airdrop did not return a durable transaction signature"
               )
           else:
               scan_before_value = (
@@ -188,7 +188,7 @@ jobs:
                       pass
               if not scan_funded:
                   failures.append(
-                      "Scan /funding/airdrop returned a signature but the recipient balance did not increase"
+                      "Explorer API /funding/airdrop returned a signature but the recipient balance did not increase"
                   )
 
           endpoints = [
@@ -232,7 +232,7 @@ jobs:
               raise SystemExit(1)
 
           print(
-              f"\n[PASS] public RPC, direct Faucet-backed airdrop, Scan funding airdrop, and control-plane probes are healthy; "
+              f"\n[PASS] public RPC, direct Faucet-backed airdrop, Explorer API funding airdrop, and control-plane probes are healthy; "
               f"genesis={genesis}, slot={slot_a}->{slot_b}"
           )
           PY
