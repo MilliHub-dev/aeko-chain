@@ -65,7 +65,7 @@ echo "[ok] Explorer entrypoint fetches a matching registry pair before startup"
 
 # Split Explorer must fail before curl/backend startup when the registry input is
 # missing or accidentally contains a Compose/Coolify human-readable prompt.
-if PATH="$BIN:$PATH" AEKO_NETWORK=testnet AEKO_REQUIRE_REMOTE_REGISTRY=1 AEKO_REGISTRY_CACHE_DIR="$CACHE" AEKO_REGISTRY_REFRESH_SECONDS=0 AEKO_TEST_BACKEND_MARKER="$TMP/backend-missing.ok" sh "$ENTRYPOINT" >"$TMP/missing.out" 2>&1; then
+if env -u AEKO_REGISTRY_URL PATH="$BIN:$PATH" AEKO_NETWORK=testnet AEKO_REQUIRE_REMOTE_REGISTRY=1 AEKO_REGISTRY_CACHE_DIR="$CACHE" AEKO_REGISTRY_REFRESH_SECONDS=0 AEKO_TEST_BACKEND_MARKER="$TMP/backend-missing.ok" sh "$ENTRYPOINT" >"$TMP/missing.out" 2>&1; then
   echo "error: split Explorer unexpectedly started without AEKO_REGISTRY_URL" >&2
   exit 1
 fi
