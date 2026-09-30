@@ -196,7 +196,6 @@ struct FundingPolicyView {
     public_spent_aeko: f64,
     public_reserved_aeko: f64,
     console_airdrop_cap_aeko: f64,
-    console_airdrop_aggregate_unlimited: bool,
     developer_airdrop_enabled: bool,
     faucet_per_request_cap_aeko: f64,
     revision: u64,
@@ -482,7 +481,6 @@ async fn get_policy(
             .settings
             .console_airdrop_cap_aeko
             .min(state.faucet_per_request_cap_aeko),
-        console_airdrop_aggregate_unlimited: state.is_test_environment(),
         developer_airdrop_enabled: state.is_test_environment(),
         faucet_per_request_cap_aeko: state.faucet_per_request_cap_aeko,
         revision,
@@ -591,7 +589,6 @@ async fn get_admin_settings(
             daily_remaining_aeko: Some(daily_remaining_aeko),
             public_spent_aeko: Some(public_spent_aeko),
             public_reserved_aeko: Some(public_reserved_aeko),
-            console_airdrop_aggregate_unlimited: state.is_test_environment(),
             developer_airdrop_enabled: state.is_test_environment(),
             faucet_per_request_cap_aeko: Some(state.faucet_per_request_cap_aeko),
         },
