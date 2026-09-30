@@ -513,6 +513,12 @@ def main() -> int:
         "deployment helper must advertise direct Explorer API funding for local and configured public endpoints",
     )
     require(
+        "AEKO_GOSSIP_HOST" in deploy_helper
+        and "AEKO_GOSSIP_PORT" in deploy_helper
+        and "AEKO_PUBLIC_GOSSIP_ADDRESS" not in deploy_helper,
+        "deployment helper must use the canonical Validator gossip variables without a second public-gossip namespace",
+    )
+    require(
         "AEKO_GOSSIP_ENTRYPOINT: gossip.aeko.online:8001" in live_network_diagnostics
         and "aeko-gossip spy" in live_network_diagnostics
         and "Validator gossip entrypoint" in live_network_diagnostics
