@@ -69,7 +69,7 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
 
   const submitMutation = useMutation({
     retry: false,
-    mutationFn: async (walletAddress) => {
+    mutationFn: async (/** @type {string} */ walletAddress) => {
       try {
         const request = await requestFundingApproval(fundingUrl, walletAddress);
         return { request, resumed: false };

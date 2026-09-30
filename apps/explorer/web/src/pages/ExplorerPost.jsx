@@ -70,7 +70,8 @@ export default function ExplorerPost() {
   );
 }
 
-function Metric({ icon: Icon, label, value }) {
+function Metric({ icon = null, label, value }) {
+  const Icon = icon;
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
       <div className="flex items-center gap-3 text-gray-400 mb-3">

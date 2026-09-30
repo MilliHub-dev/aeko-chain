@@ -80,6 +80,12 @@ async function fetchEnvelope(path, network) {
   return payload;
 }
 
+/**
+ * Explorer response payloads are runtime API data. Individual pages validate
+ * and render the documented fields they consume; keep this boundary dynamic
+ * instead of letting React Query collapse every result to unknown under checkJs.
+ * @returns {Promise<any>}
+ */
 async function fetchJson(path, network) {
   const payload = await fetchEnvelope(path, network);
   return payload?.data;

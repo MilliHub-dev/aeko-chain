@@ -522,7 +522,7 @@ function AutocompleteInput({ field, value, onChange, pageSuggestions, wallets, i
     };
     window.addEventListener('mousedown', onDown);
     return () => window.removeEventListener('mousedown', onDown);
-  }, [focused]);
+  }, [focused, field.key]);
 
   return (
     <div ref={containerRef}>
