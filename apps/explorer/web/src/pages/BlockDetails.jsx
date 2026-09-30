@@ -61,7 +61,8 @@ export default function BlockDetails() {
   );
 }
 
-function MetricCard({ icon: Icon, label, value }) {
+function MetricCard({ icon, label, value }) {
+  const Icon = icon;
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
       <div className="flex items-center gap-3 text-gray-400 mb-3">

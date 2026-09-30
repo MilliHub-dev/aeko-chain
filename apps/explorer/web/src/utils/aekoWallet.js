@@ -119,7 +119,7 @@ function createAdapter({ provider, label, key }) {
             network: 'testnet',
           });
           return direct?.signature || direct?.hash || direct;
-        } catch (_error) {
+        } catch {
           const bytes = decodeBase64ToBytes(preparedTransactionBase64);
           const fallback = await provider.signAndSendTransaction(bytes, {
             network: 'testnet',

@@ -94,17 +94,19 @@ export default function Explorer() {
     placeholderData: keepPreviousData,
   });
 
-  const homeData = homeQuery.data ?? {};
-  const homeState = {
-    loading: homeQuery.isLoading,
-    error: homeQuery.error instanceof Error ? homeQuery.error.message : '',
-    overview: overviewQuery.data ?? null,
-    blocks: homeData.blocks ?? [],
-    transactions: homeData.transactions ?? [],
-    posts: homeData.posts ?? [],
-    stakes: homeData.stakes ?? [],
-    nfts: homeData.nfts ?? [],
-  };
+  const homeState = useMemo(() => {
+    const homeData = homeQuery.data ?? {};
+    return {
+      loading: homeQuery.isLoading,
+      error: homeQuery.error instanceof Error ? homeQuery.error.message : '',
+      overview: overviewQuery.data ?? null,
+      blocks: homeData.blocks ?? [],
+      transactions: homeData.transactions ?? [],
+      posts: homeData.posts ?? [],
+      stakes: homeData.stakes ?? [],
+      nfts: homeData.nfts ?? [],
+    };
+  }, [homeQuery.data, homeQuery.error, homeQuery.isLoading, overviewQuery.data]);
 
   useEffect(() => {
     setQuery(urlSearchQuery);
