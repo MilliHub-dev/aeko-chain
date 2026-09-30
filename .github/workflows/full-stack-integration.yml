@@ -39,6 +39,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_BUILD_SHA: ${{ github.sha }}
+          DISPATCH_SHA: ${{ github.sha }}
           WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
           WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
           WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
@@ -53,9 +54,13 @@ jobs:
             lookup_sha="$WORKFLOW_RUN_SHA"
             build_sha="$WORKFLOW_RUN_SHA"
             cli_run_id="$WORKFLOW_RUN_ID"
-          else
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
             lookup_sha="$PR_HEAD_SHA"
             build_sha="$PR_BUILD_SHA"
+            cli_run_id=""
+          else
+            lookup_sha="$DISPATCH_SHA"
+            build_sha="$DISPATCH_SHA"
             cli_run_id=""
           fi
 
