@@ -14,17 +14,43 @@ function requestMessage(request) {
     case 'pending':
       return 'Request received. It is waiting for an Admin decision.';
     case 'processing':
-      return 'Admin approved the grant and settlement started. No action is required from you.';
+      return 'Admin approved the funding request and settlement started. No action is required from you.';
     case 'submitted':
-      return 'Admin approved the grant. The transfer was submitted and is awaiting chain confirmation.';
+      return 'Admin approved the funding request. The transfer was submitted and is awaiting chain confirmation.';
     case 'confirmed':
-      return `${request.amountAeko} AEKO grant confirmed on-chain.`;
+      return `${request.amountAeko} AEKO funding confirmed on-chain.`;
     case 'rejected':
       return 'The Admin rejected this funding request.';
     case 'failed':
-      return 'The approved grant transfer failed on-chain. No confirmed grant was recorded.';
+      return 'The approved funding transfer failed on-chain. No confirmed funding transfer was recorded.';
     default:
       return 'Funding request status is being checked.';
+  }
+}
+
+function fundingErrorMessage(error) {
+  switch (error?.code) {
+    case 'FUNDING_SUBMISSION_RETRY_PENDING':
+      return 'Funding submission is retrying safely. No duplicate transfer will be created.';
+    case 'REQUEST_PENDING':
+      return 'This wallet already has a funding request in progress.';
+    case 'COOLDOWN':
+      return 'This wallet is still in its funding cooldown.';
+    case 'BUDGET_EXHAUSTED':
+      return 'Today\'s public funding allocation has been used.';
+    default:
+      return error?.message || 'Funding request could not be completed.';
+  }
+}
+
+function settlementMessage(code) {
+  switch (code) {
+    case 'FUNDING_SUBMISSION_RETRY_PENDING':
+      return 'Funding submission is retrying safely.';
+    case 'FUNDING_CONFIRMATION_PENDING':
+      return 'Waiting for chain confirmation.';
+    default:
+      return '';
   }
 }
 
@@ -59,7 +85,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
       .catch((error) => {
         if (!cancelled) {
           setPolicy(null);
-          setPolicyError(error.message || String(error));
+          setPolicyError(fundingErrorMessage(error));
         }
       });
 
@@ -85,7 +111,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
         }
       } catch (error) {
         if (cancelled) return;
-        setRequestError(error.message || String(error));
+        setRequestError(fundingErrorMessage(error));
         timer = globalThis.setTimeout(refreshStatus, 8_000);
       }
     }
@@ -216,9 +242,9 @@ export default function TestnetFundingRequest({ fundingUrl }) {
                       Transaction {request.signature}
                     </div>
                   ) : null}
-                  {request.errorCode && !requestFailed ? (
+                  {request.errorCode && !requestFailed && settlementMessage(request.errorCode) ? (
                     <div className="mt-1 text-xs text-amber-200/80">
-                      Settlement observation: {request.errorCode}
+                      {settlementMessage(request.errorCode)}
                     </div>
                   ) : null}
                 </div>
@@ -242,7 +268,7 @@ export default function TestnetFundingRequest({ fundingUrl }) {
         </div>
 
         <aside className="border-t border-white/10 bg-black/20 p-6 sm:p-8 lg:border-l lg:border-t-0">
-          <div className="text-sm font-semibold text-white">Grant policy</div>
+          <div className="text-sm font-semibold text-white">Funding policy</div>
           <p className="mt-1 text-xs leading-relaxed text-gray-500">
             Requests use the published Testnet funding policy. Limits and settlement checks are enforced automatically before test AEKO is released.
           </p>
