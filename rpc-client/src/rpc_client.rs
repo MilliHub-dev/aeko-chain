@@ -3928,31 +3928,31 @@ impl RpcClient {
         )
     }
 
-    pub fn request_grant(&self, pubkey: &Pubkey, lamports: u64) -> ClientResult<Signature> {
-        self.invoke((self.rpc_client.as_ref()).request_grant(pubkey, lamports))
+    pub fn request_funding(&self, pubkey: &Pubkey, lamports: u64) -> ClientResult<Signature> {
+        self.invoke((self.rpc_client.as_ref()).request_funding(pubkey, lamports))
     }
 
-    pub fn request_grant_with_blockhash(
+    pub fn request_funding_with_blockhash(
         &self,
         pubkey: &Pubkey,
         lamports: u64,
         recent_blockhash: &Hash,
     ) -> ClientResult<Signature> {
-        self.invoke((self.rpc_client.as_ref()).request_grant_with_blockhash(
+        self.invoke((self.rpc_client.as_ref()).request_funding_with_blockhash(
             pubkey,
             lamports,
             recent_blockhash,
         ))
     }
 
-    pub fn request_grant_with_authorization(
+    pub fn request_funding_with_authorization(
         &self,
         pubkey: &Pubkey,
         lamports: u64,
         recent_blockhash: &Hash,
         funding_authorization: Option<String>,
     ) -> ClientResult<Signature> {
-        self.invoke((self.rpc_client.as_ref()).request_grant_with_authorization(
+        self.invoke((self.rpc_client.as_ref()).request_funding_with_authorization(
             pubkey,
             lamports,
             recent_blockhash,
@@ -3960,13 +3960,13 @@ impl RpcClient {
         ))
     }
 
-    pub fn request_grant_with_config(
+    pub fn request_funding_with_config(
         &self,
         pubkey: &Pubkey,
         lamports: u64,
-        config: RpcRequestGrantConfig,
+        config: RpcRequestFundingConfig,
     ) -> ClientResult<Signature> {
-        self.invoke((self.rpc_client.as_ref()).request_grant_with_config(pubkey, lamports, config))
+        self.invoke((self.rpc_client.as_ref()).request_funding_with_config(pubkey, lamports, config))
     }
 
     pub fn poll_get_balance_with_commitment(
