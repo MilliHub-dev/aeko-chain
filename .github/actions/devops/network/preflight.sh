@@ -7,9 +7,9 @@ PUBLISH="${PUBLISH:-false}"
 REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
 cd "${REPO_ROOT}"
 
-if [ "${PUBLISH}" = "true" ]; then
-  if [ "${GITHUB_REF}" != "refs/heads/main" ] || [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-    echo "Network publication is permitted only from the main branch." >&2
+if [ "${PUBLISH}" = "true" ] && [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+  if [ "${GITHUB_EVENT_NAME}" != "pull_request" ] || [ "${AEKO_ALLOW_INTERNAL_PR_IMAGE_PUSH:-0}" != "1" ]; then
+    echo "Network image publication is permitted only from main or an explicitly authorized same-repository PR." >&2
     exit 1
   fi
 fi
