@@ -14,7 +14,7 @@ services:
       AEKO_NETWORK: ${AEKO_NETWORK:?Set mainnet, testnet, devnet, or localnet}
       AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?Set private or DNS-only Validator RPC URL}
       AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?Set private or DNS-only Explorer API URL}
-      AEKO_EXPLORER_PROXY_TIMEOUT_MS: ${AEKO_EXPLORER_PROXY_TIMEOUT_MS:-45000}
+      AEKO_EXPLORER_UPSTREAM_TIMEOUT_MS: ${AEKO_EXPLORER_UPSTREAM_TIMEOUT_MS:-45000}
       AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?Set the Explorer settings admin token}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set the Admin password}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?Set a strong Admin session secret}

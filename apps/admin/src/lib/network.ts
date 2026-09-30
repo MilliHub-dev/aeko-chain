@@ -32,6 +32,6 @@ export function resolveAdminExplorerUrl(): string {
 }
 
 export function resolveAdminExplorerTimeoutMs(): number {
-  const configured = Number(clean('AEKO_EXPLORER_PROXY_TIMEOUT_MS'))
+  const configured = Number(clean('AEKO_EXPLORER_UPSTREAM_TIMEOUT_MS'))
   return Number.isFinite(configured) && configured >= 1_000 ? configured : 45_000
 }
