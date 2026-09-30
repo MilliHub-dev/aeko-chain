@@ -589,6 +589,7 @@ async fn get_admin_settings(
             daily_remaining_aeko: Some(daily_remaining_aeko),
             public_spent_aeko: Some(public_spent_aeko),
             public_reserved_aeko: Some(public_reserved_aeko),
+            console_airdrop_aggregate_unlimited: state.is_test_environment(),
             developer_airdrop_enabled: state.is_test_environment(),
             faucet_per_request_cap_aeko: Some(state.faucet_per_request_cap_aeko),
         },
@@ -1592,15 +1593,9 @@ async fn recover_processing_airdrop_submission(
 
     let rpc = state.rpc.clone();
     let address = airdrop.address.clone();
-    let authorization = state.funding_authorization_key.clone();
     let submit_blockhash = blockhash.clone();
     let result = tokio::task::spawn_blocking(move || {
-        rpc.request_funding_airdrop(
-            &address,
-            lamports,
-            authorization.as_deref(),
-            Some(&submit_blockhash),
-        )
+        rpc.request_funding_airdrop(&address, lamports, Some(&submit_blockhash))
     })
     .await;
 
