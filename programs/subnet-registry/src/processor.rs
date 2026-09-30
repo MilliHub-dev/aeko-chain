@@ -4,7 +4,7 @@ use {
         instruction::SubnetRegistryInstruction,
         state::{
             deserialize_subnet_membership, deserialize_subnet_record, SubnetMembership,
-            SubnetRecord, SubnetRegistryConfig,
+            SubnetRecord, SubnetRegistryConfig, SUBNET_RECORD_SEED,
         },
     },
     aeko_permission_types::{emergency_multisig_program_id, ClearanceTier},
@@ -268,6 +268,12 @@ impl Processor {
 
         let mut subnet_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        let expected_record =
+            Pubkey::find_program_address(&[SUBNET_RECORD_SEED, subnet_id.as_ref()], &crate::id()).0;
+        if *subnet_account.get_key() != expected_record || subnet_account.get_owner() != &crate::id()
+        {
+            return Err(InstructionError::InvalidArgument);
+        }
         let mut record =
             deserialize_subnet_record(subnet_account.get_data()).map_err(Self::map_err)?;
         if record.subnet_id != subnet_id {
@@ -289,6 +295,12 @@ impl Processor {
 
         let mut subnet_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        let expected_record =
+            Pubkey::find_program_address(&[SUBNET_RECORD_SEED, subnet_id.as_ref()], &crate::id()).0;
+        if *subnet_account.get_key() != expected_record || subnet_account.get_owner() != &crate::id()
+        {
+            return Err(InstructionError::InvalidArgument);
+        }
         let mut record =
             deserialize_subnet_record(subnet_account.get_data()).map_err(Self::map_err)?;
         if record.subnet_id != subnet_id {

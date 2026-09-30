@@ -4,7 +4,7 @@ use {
         instruction::RevocationRegistryInstruction,
         state::{
             deserialize_key_record, deserialize_rotation_approval, deserialize_rotation_intent,
-            KeyRecord, RevRegistryConfig, RotationApproval, RotationIntent,
+            KeyRecord, RevRegistryConfig, RotationApproval, RotationIntent, KEY_RECORD_SEED,
         },
     },
     aeko_permission_types::{
@@ -458,6 +458,11 @@ impl Processor {
 
         let mut key_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        let expected_record =
+            Pubkey::find_program_address(&[KEY_RECORD_SEED, key_id.as_ref()], &crate::id()).0;
+        if *key_account.get_key() != expected_record || key_account.get_owner() != &crate::id() {
+            return Err(InstructionError::InvalidArgument);
+        }
         let mut record =
             deserialize_key_record(key_account.get_data()).map_err(Self::map_err)?;
 
