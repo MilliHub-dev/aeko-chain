@@ -97,7 +97,7 @@ impl From<FundingStoreError> for FundingHttpError {
             FundingStoreError::Disabled => Self::new(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "FUNDING_DISABLED",
-                "Test funding is paused by the operator",
+                "Funding is paused by the operator",
             ),
             FundingStoreError::Cooldown {
                 retry_after_seconds,
@@ -117,7 +117,7 @@ impl From<FundingStoreError> for FundingHttpError {
             FundingStoreError::BudgetExhausted => Self::new(
                 StatusCode::TOO_MANY_REQUESTS,
                 "BUDGET_EXHAUSTED",
-                "Today's public testnet funding allocation is exhausted",
+                "Today's public funding allocation is exhausted",
             ),
             FundingStoreError::RequestNotFound => Self::new(
                 StatusCode::NOT_FOUND,
@@ -568,7 +568,7 @@ async fn get_admin_settings(
 ) -> FundingResult<Json<DataEnvelope<AdminFundingSnapshot>>> {
     authorize_admin(&headers, &state.settings_admin_token)?;
     // Funding is network-agnostic: every deployment serves the same funding
-    // contract. The `mode` stays `test-funding` on all networks; each
+    // contract. The `mode` stays `funding` on all networks; each
     // deployment constrains itself through its own faucet, credential, caps,
     // budgets, and approval queue.
     let snapshot = state
@@ -584,7 +584,7 @@ async fn get_admin_settings(
         &state.network,
         AdminFundingSnapshot {
             network: state.network.clone(),
-            mode: "test-funding",
+            mode: "funding",
             settings: Some(settings),
             daily_remaining_aeko: Some(daily_remaining_aeko),
             public_spent_aeko: Some(public_spent_aeko),
