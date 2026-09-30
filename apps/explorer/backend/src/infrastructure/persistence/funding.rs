@@ -10,7 +10,7 @@ pub struct PersistedFundingSettings {
     pub amount_aeko: f64,
     pub cooldown_hours: f64,
     pub daily_budget_aeko: f64,
-    pub max_manual_grant_aeko: f64,
+    pub max_admin_funding_aeko: f64,
     pub console_airdrop_cap_aeko: f64,
     pub revision: i64,
     pub updated_at: DateTime<Utc>,
@@ -22,7 +22,7 @@ pub struct FundingSettingsUpdate {
     pub amount_aeko: Option<f64>,
     pub cooldown_hours: Option<f64>,
     pub daily_budget_aeko: Option<f64>,
-    pub max_manual_grant_aeko: Option<f64>,
+    pub max_admin_funding_aeko: Option<f64>,
     pub console_airdrop_cap_aeko: Option<f64>,
 }
 
@@ -45,13 +45,13 @@ pub struct FundingRequestRecord {
 }
 
 #[derive(Clone, Debug, FromRow)]
-pub struct FundingGrantRecord {
+pub struct FundingTransferRecord {
     pub id: String,
     pub request_id: Option<String>,
     pub address: String,
     pub amount_aeko: f64,
     pub signature: Option<String>,
-    pub granted_at: DateTime<Utc>,
+    pub funded_at: DateTime<Utc>,
     pub source: String,
     pub confirmed: bool,
 }
@@ -114,7 +114,7 @@ const SETTINGS_COLUMNS: &str = r#"
     amount_aeko::double precision AS amount_aeko,
     cooldown_hours::double precision AS cooldown_hours,
     daily_budget_aeko::double precision AS daily_budget_aeko,
-    max_manual_grant_aeko::double precision AS max_manual_grant_aeko,
+    max_admin_funding_aeko::double precision AS max_admin_funding_aeko,
     console_airdrop_cap_aeko::double precision AS console_airdrop_cap_aeko,
     revision,
     updated_at
@@ -137,13 +137,13 @@ const REQUEST_COLUMNS: &str = r#"
     error_message
 "#;
 
-const GRANT_COLUMNS: &str = r#"
+const TRANSFER_COLUMNS: &str = r#"
     id::text AS id,
     request_id::text AS request_id,
     address,
     amount_aeko::double precision AS amount_aeko,
     signature,
-    granted_at,
+    funded_at,
     source,
     confirmed
 "#;
@@ -168,11 +168,11 @@ impl PostgresRepository {
         let public_spent_aeko: f64 = sqlx::query_scalar(
             r#"
             SELECT COALESCE(SUM(fg.amount_aeko), 0)::double precision
-            FROM funding_grants AS fg
+            FROM funding_transfers AS fg
             LEFT JOIN funding_requests AS fr ON fr.id = fg.request_id
             WHERE fg.source = 'public'
               AND fg.confirmed = TRUE
-              AND COALESCE(fr.decided_at, fg.granted_at)
+              AND COALESCE(fr.decided_at, fg.funded_at)
                     >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
             "#,
         )
@@ -216,7 +216,7 @@ impl PostgresRepository {
                 amount_aeko = CASE WHEN $2::double precision IS NULL THEN amount_aeko ELSE $2::double precision::numeric END,
                 cooldown_hours = CASE WHEN $3::double precision IS NULL THEN cooldown_hours ELSE $3::double precision::numeric END,
                 daily_budget_aeko = CASE WHEN $4::double precision IS NULL THEN daily_budget_aeko ELSE $4::double precision::numeric END,
-                max_manual_grant_aeko = CASE WHEN $5::double precision IS NULL THEN max_manual_grant_aeko ELSE $5::double precision::numeric END,
+                max_admin_funding_aeko = CASE WHEN $5::double precision IS NULL THEN max_admin_funding_aeko ELSE $5::double precision::numeric END,
                 console_airdrop_cap_aeko = CASE WHEN $6::double precision IS NULL THEN console_airdrop_cap_aeko ELSE $6::double precision::numeric END,
                 revision = revision + 1,
                 updated_at = NOW()
@@ -229,7 +229,7 @@ impl PostgresRepository {
             .bind(update.amount_aeko)
             .bind(update.cooldown_hours)
             .bind(update.daily_budget_aeko)
-            .bind(update.max_manual_grant_aeko)
+            .bind(update.max_admin_funding_aeko)
             .bind(update.console_airdrop_cap_aeko)
             .bind(expected_revision)
             .fetch_optional(&self.pool)
@@ -339,7 +339,7 @@ impl PostgresRepository {
         Ok(request)
     }
 
-    pub async fn create_immediate_grant_request(
+    pub async fn create_immediate_funding_request(
         &self,
         address: &str,
         amount_aeko: f64,
@@ -728,12 +728,12 @@ impl PostgresRepository {
                     status: "submitted-without-signature".to_string(),
                 })?;
 
-        // Pre-0012 rows already have a grant keyed by signature but no
+        // Pre-0012 rows may already have a funding transfer keyed by signature but no
         // request_id. Adopt that row inside the same transaction before the
         // request-id upsert so an upgraded database remains idempotent.
         sqlx::query(
             r#"
-            UPDATE funding_grants
+            UPDATE funding_transfers
             SET request_id = $1::uuid, confirmed = TRUE
             WHERE request_id IS NULL
               AND signature = $2
@@ -750,12 +750,12 @@ impl PostgresRepository {
 
         sqlx::query(
             r#"
-            INSERT INTO funding_grants (
+            INSERT INTO funding_transfers (
                 request_id,
                 address,
                 amount_aeko,
                 signature,
-                granted_at,
+                funded_at,
                 source,
                 confirmed
             )
@@ -866,20 +866,20 @@ impl PostgresRepository {
             .await?)
     }
 
-    pub async fn list_funding_grants(
+    pub async fn list_funding_transfers(
         &self,
         limit: i64,
-    ) -> Result<Vec<FundingGrantRecord>, FundingStoreError> {
+    ) -> Result<Vec<FundingTransferRecord>, FundingStoreError> {
         let sql = format!(
             r#"
-            SELECT {GRANT_COLUMNS}
-            FROM funding_grants
+            SELECT {TRANSFER_COLUMNS}
+            FROM funding_transfers
             WHERE source IN ('public', 'admin')
-            ORDER BY granted_at DESC
+            ORDER BY funded_at DESC
             LIMIT $1
             "#
         );
-        Ok(sqlx::query_as::<_, FundingGrantRecord>(&sql)
+        Ok(sqlx::query_as::<_, FundingTransferRecord>(&sql)
             .bind(limit)
             .fetch_all(&self.pool)
             .await?)
@@ -1140,8 +1140,8 @@ impl PostgresRepository {
     ) -> Result<(), FundingStoreError> {
         let seconds_since_last: Option<f64> = sqlx::query_scalar(
             r#"
-            SELECT EXTRACT(EPOCH FROM (NOW() - MAX(granted_at)))::double precision
-            FROM funding_grants
+            SELECT EXTRACT(EPOCH FROM (NOW() - MAX(funded_at)))::double precision
+            FROM funding_transfers
             WHERE address = $1 AND source = 'public' AND confirmed = TRUE
             "#,
         )
@@ -1166,11 +1166,11 @@ async fn public_spent_today(
     sqlx::query_scalar(
         r#"
         SELECT COALESCE(SUM(fg.amount_aeko), 0)::double precision
-        FROM funding_grants AS fg
+        FROM funding_transfers AS fg
         LEFT JOIN funding_requests AS fr ON fr.id = fg.request_id
         WHERE fg.source = 'public'
           AND fg.confirmed = TRUE
-          AND COALESCE(fr.decided_at, fg.granted_at)
+          AND COALESCE(fr.decided_at, fg.funded_at)
                 >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
         "#,
     )
