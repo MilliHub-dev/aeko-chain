@@ -40,4 +40,3 @@ fn test_local_faucet() {
     let result = request_airdrop_transaction(&faucet_addr, &to, lamports, blockhash);
     assert_eq!(expected_tx, result.unwrap());
 }
-
