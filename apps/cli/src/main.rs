@@ -1,6 +1,4 @@
 use {
-    clap::{crate_description, crate_name, value_t_or_exit, ArgMatches},
-    console::style,
     aeko_clap_utils::{
         input_validators::normalize_to_url_if_moniker,
         keypair::{CliSigners, DefaultSigner},
@@ -9,6 +7,7 @@ use {
     aeko_cli::{
         clap_app::get_clap_app,
         cli::{parse_command, process_command, CliCommandInfo, CliConfig},
+        update,
     },
     aeko_cli_config::{Config, ConfigInput},
     aeko_cli_output::{
@@ -18,6 +17,8 @@ use {
     aeko_remote_wallet::remote_wallet::RemoteWalletManager,
     aeko_rpc_client_api::config::RpcSendTransactionConfig,
     aeko_tpu_client::tpu_client::DEFAULT_TPU_ENABLE_UDP,
+    clap::{crate_description, crate_name, value_t_or_exit, ArgMatches},
+    console::style,
     std::{collections::HashMap, error, path::PathBuf, rc::Rc, time::Duration},
 };
 
@@ -249,6 +250,11 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 }
 
 fn do_main(matches: &ArgMatches<'_>) -> Result<(), Box<dyn error::Error>> {
+    if let ("update", Some(update_matches)) = matches.subcommand() {
+        update::run(update_matches)?;
+        return Ok(());
+    }
+
     if parse_settings(matches)? {
         let mut wallet_manager = None;
 
@@ -256,6 +262,8 @@ fn do_main(matches: &ArgMatches<'_>) -> Result<(), Box<dyn error::Error>> {
         config.signers = signers.iter().map(|s| s.as_ref()).collect();
         let result = process_command(&config)?;
         println!("{result}");
-    };
+    }
+
+    update::maybe_prompt_for_update();
     Ok(())
 }

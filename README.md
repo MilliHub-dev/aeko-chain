@@ -20,7 +20,14 @@ Windows x86_64 / PowerShell:
 irm https://raw.githubusercontent.com/MilliHub-dev/aeko-chain/main/install/aeko-cli-install.ps1 | iex
 ```
 
-See [`install/README.md`](./install/README.md) for version pinning, install-directory overrides, supported targets, and integrity details.
+After installation, `aeko --help` includes an AEKO-specific quick start and public endpoint guide. Check or install future CLI releases with:
+
+```bash
+aeko update --check
+aeko update
+```
+
+See [`install/README.md`](./install/README.md) for version pinning, install-directory overrides, supported targets, integrity details, and self-update behavior.
 
 ## Mental model
 

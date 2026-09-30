@@ -62,3 +62,18 @@ x86_64-pc-windows-msvc
 ```
 
 Other CPU architectures are intentionally rejected until matching release artifacts are built and validated.
+
+## Updating
+
+The installed `aeko` binary can check and apply the same checksum-verified GitHub Release bundle used by the fast installers:
+
+```text
+aeko update --check
+aeko update
+```
+
+`aeko update` shows the current and latest release and asks before installing. Use `aeko update --yes` for non-interactive automation and `aeko update --force` to reinstall the latest release when the current binary predates source-commit stamping.
+
+For interactive terminals, AEKO performs a non-fatal update check at most once every 24 hours. When a newer release is detected it offers to update after the requested command finishes. Set `AEKO_NO_UPDATE_CHECK=1` to disable that notice. Update-check failures never make normal wallet/RPC commands fail.
+
+On Windows, self-update launches Windows PowerShell to stage the new checksum-verified binaries and waits for the running `aeko.exe` process to exit before replacement. The public installer is runtime-tested with Windows PowerShell 5.1 as well as the release binary itself.
