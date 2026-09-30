@@ -22,13 +22,42 @@ node <<'NODE'
 const fs = require('fs');
 
 const optional = (name) => String(process.env[name] || '').trim();
+
+function endpoint(name, allowedProtocols) {
+  const value = optional(name);
+  if (!value) return '';
+
+  if (/[<>]/.test(value) || /\bset\s/i.test(value)) {
+    throw new Error(`${name} contains placeholder or guidance text`);
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`${name} must be a valid URL`);
+  }
+
+  if (!allowedProtocols.includes(parsed.protocol)) {
+    throw new Error(
+      `${name} must use one of: ${allowedProtocols.map((value) => value.replace(':', '')).join(', ')}`,
+    );
+  }
+
+  return value.replace(/\/+$/, '');
+}
+
+const rpcEndpoint = (name) => endpoint(name, ['http:', 'https:']);
+const websocketEndpoint = (name) => endpoint(name, ['ws:', 'wss:']);
+const explorerEndpoint = (name) => endpoint(name, ['http:', 'https:']);
+
 const activeNetwork = optional('AEKO_ACTIVE_NETWORK');
 
 function readAlternative(network) {
   const prefix = `AEKO_${network.toUpperCase()}`;
-  const rpcUrl = optional(`${prefix}_RPC_URL`);
-  const websocketUrl = optional(`${prefix}_WS_URL`);
-  const explorerApiUrl = optional(`${prefix}_EXPLORER_API_URL`);
+  const rpcUrl = rpcEndpoint(`${prefix}_RPC_URL`);
+  const websocketUrl = websocketEndpoint(`${prefix}_WS_URL`);
+  const explorerApiUrl = explorerEndpoint(`${prefix}_EXPLORER_API_URL`);
   const values = [rpcUrl, websocketUrl, explorerApiUrl];
 
   if (values.some(Boolean) && !values.every(Boolean)) {
@@ -55,10 +84,10 @@ for (const network of ['mainnet', 'testnet']) {
   if (alternative) networks[network] = alternative;
 }
 
-const activeExplorerApiUrl = optional('AEKO_EXPLORER_API_URL');
+const activeExplorerApiUrl = explorerEndpoint('AEKO_EXPLORER_API_URL');
 networks[activeNetwork] = {
-  rpcUrl: optional('AEKO_RPC_URL'),
-  websocketUrl: optional('AEKO_WS_URL'),
+  rpcUrl: rpcEndpoint('AEKO_RPC_URL'),
+  websocketUrl: websocketEndpoint('AEKO_WS_URL'),
   explorerApiUrl: activeExplorerApiUrl,
   fundingUrl: activeExplorerApiUrl,
 };

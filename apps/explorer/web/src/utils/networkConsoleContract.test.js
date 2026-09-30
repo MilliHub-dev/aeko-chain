@@ -399,6 +399,11 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
   assert.doesNotMatch(entrypoint, /AEKO_EXPLORER_PROXY_UPSTREAM_URL/);
   assert.match(entrypoint, /explorerApiUrl: activeExplorerApiUrl/);
   assert.match(entrypoint, /fundingUrl: activeExplorerApiUrl/);
+  assert.match(entrypoint, /contains placeholder or guidance text/);
+  assert.match(entrypoint, /must be a valid URL/);
+  assert.match(entrypoint, /rpcEndpoint\('AEKO_RPC_URL'\)/);
+  assert.match(entrypoint, /websocketEndpoint\('AEKO_WS_URL'\)/);
+  assert.match(entrypoint, /explorerEndpoint\('AEKO_EXPLORER_API_URL'\)/);
   assert.match(server, /SCAN_EXPLORER_PROXY_REMOVED/);
   assert.match(server, /LEGACY_EXPLORER_PROXY_PREFIX/);
   assert.match(server, /RUNTIME_CONFIG_PATH = '\/runtime-config\.js'/);
