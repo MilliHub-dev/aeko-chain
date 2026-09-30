@@ -3743,7 +3743,7 @@ pub mod rpc_full {
             // Approval-gated funding path: when the validator configures a
             // funding authorization key, only the trusted settlement service
             // (Explorer backend / admin tooling holding the key) may mint
-            // grants. CLI/SDK funding pollers must wait for admin approval;
+            // funding transfers. CLI/SDK funding pollers must wait for admin approval;
             // they never call this directly without the credential.
             if let Some(expected_key) = meta.config.funding_authorization_key.as_deref() {
                 if config.funding_authorization.as_deref() != Some(expected_key) {
@@ -7770,7 +7770,7 @@ pub mod tests {
         let (code, _) = parse_failure_response(authorized);
         assert_eq!(
             code, -32603,
-            "authorized grant should reach the configured faucet"
+            "authorized funding should reach the configured faucet"
         );
     }
 
@@ -7817,7 +7817,7 @@ pub mod tests {
             funding_authorization_key: None,
             ..JsonRpcConfig::default()
         });
-        // Without a configured key, grants are open (local/test validators).
+        // Without a configured key, protected Funding is open on local/test validators.
         let recipient = aeko_sdk::pubkey::new_rand();
         let persisted_blockhash = Hash::new_unique().to_string();
 
@@ -7827,16 +7827,16 @@ pub mod tests {
 
         let first = io
             .handle_request_sync(&request, meta.clone())
-            .expect("first grant replay response");
+            .expect("first funding replay response");
         let first: Response =
-            serde_json::from_str(&first).expect("first grant replay JSON response");
+            serde_json::from_str(&first).expect("first funding replay JSON response");
         let first_signature: String = parse_success_result(first);
 
         let replay = io
             .handle_request_sync(&request, meta)
-            .expect("second grant replay response");
+            .expect("second funding replay response");
         let replay: Response =
-            serde_json::from_str(&replay).expect("second grant replay JSON response");
+            serde_json::from_str(&replay).expect("second funding replay JSON response");
         let replay_signature: String = parse_success_result(replay);
 
         assert_eq!(first_signature, replay_signature,);
