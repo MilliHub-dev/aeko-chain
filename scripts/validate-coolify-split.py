@@ -231,15 +231,15 @@ def main() -> int:
         ("Protocol", protocol, "aeko-protocol-bootstrap"),
     ):
         require(
-            "entrypoint:" not in block,
-            f"{label} bootstrap must preserve the image-owned bootstrap entrypoint",
+            "entrypoint: null" in block,
+            f"{label} bootstrap must explicitly restore the image-owned entrypoint so stale platform overrides are cleared",
         )
         require(
             f'command: ["{binary}"]' in block,
             f"{label} bootstrap must set an explicit exec-form binary command so stale platform commands are replaced",
         )
         require(
-            "/bin/sh" not in block and "\n      - -ec\n" not in block,
+            'entrypoint: ["/bin/sh", "-ec"]' not in block and "\n      - -ec\n" not in block,
             f"{label} bootstrap command must not reintroduce a Compose shell wrapper",
         )
         require(
