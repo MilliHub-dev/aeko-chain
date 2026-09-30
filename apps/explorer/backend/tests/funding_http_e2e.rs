@@ -377,22 +377,22 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     let (status, grants) = request_json(
         &app,
         Method::GET,
-        "/admin/funding/grants?limit=500",
+        "/admin/funding/history?limit=500",
         None,
         Some(admin_token),
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{grants}");
-    let matching_grants = grants["data"]
+    let matching_funding = grants["data"]
         .as_array()
-        .expect("grant list")
+        .expect("funding history")
         .iter()
         .filter(|grant| grant["requestId"].as_str() == Some(request_id.as_str()))
         .collect::<Vec<_>>();
-    assert_eq!(matching_grants.len(), 1);
-    assert_eq!(matching_grants[0]["confirmed"], true);
+    assert_eq!(matching_funding.len(), 1);
+    assert_eq!(matching_funding[0]["confirmed"], true);
     assert_eq!(
-        matching_grants[0]["signature"].as_str(),
+        matching_funding[0]["signature"].as_str(),
         Some(grant_signature.as_str())
     );
 
@@ -417,24 +417,24 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     // intent, so response-loss replays recover the same signature while
     // unrelated requests settle distinctly. Ledger separation is asserted by
     // the durable domain identity/address all the same.
-    let (status, grants_after_airdrop) = request_json(
+    let (status, funding_after_airdrop) = request_json(
         &app,
         Method::GET,
-        "/admin/funding/grants?limit=500",
+        "/admin/funding/history?limit=500",
         None,
         Some(admin_token),
     )
     .await;
-    assert_eq!(status, StatusCode::OK, "{grants_after_airdrop}");
-    let grant_rows = grants_after_airdrop["data"].as_array().expect("grant list");
+    assert_eq!(status, StatusCode::OK, "{funding_after_airdrop}");
+    let funding_rows = funding_after_airdrop["data"].as_array().expect("funding history");
     assert_eq!(
-        grant_rows
+        funding_rows
             .iter()
             .filter(|grant| grant["requestId"].as_str() == Some(request_id.as_str()))
             .count(),
         1
     );
-    assert!(!grant_rows
+    assert!(!funding_rows
         .iter()
         .any(|grant| grant["address"].as_str() == Some(airdrop_address.as_str())));
 
@@ -455,6 +455,74 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     assert!(!airdrop_rows
         .iter()
         .any(|entry| entry["address"].as_str() == Some(address.as_str())));
+
+    drop(app);
+    drop_rpc_owner(rpc_owner).await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn developer_airdrop_is_forbidden_on_mainnet() -> Result<()> {
+    let _guard = TEST_DB_LOCK.lock().await;
+    let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
+        .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
+
+    let authorization = "test-funding-authorization-key-mainnet-0001".to_string();
+    let fake_state = FakeRpcState {
+        authorization: authorization.clone(),
+        saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
+        airdrop_calls: Arc::new(AtomicUsize::new(0)),
+        airdrop_failures: Arc::new(AtomicUsize::new(0)),
+        blockhash_calls: Arc::new(AtomicUsize::new(0)),
+        blockhash_valid: Arc::new(AtomicBool::new(true)),
+        pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
+        blockhash: Pubkey::new_unique().to_string(),
+    };
+    let rpc_observer = fake_state.clone();
+
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let rpc_addr = listener.local_addr()?;
+    let fake_server = Router::new()
+        .route("/", post(fake_rpc))
+        .with_state(fake_state);
+    tokio::spawn(async move {
+        axum::serve(listener, fake_server).await.unwrap();
+    });
+
+    let config = backend_config(database_url, format!("http://{rpc_addr}"));
+    let repository = PostgresRepository::connect(&config).await?;
+    let admin_token = "test-settings-admin-token-mainnet-000001";
+    let rpc_owner = build_rpc_owner(config).await?;
+    let state = AppState::new(
+        repository,
+        rpc_owner.clone(),
+        "mainnet",
+        "test-mainnet-genesis",
+        128,
+        true,
+        admin_token,
+        Some(authorization),
+        100,
+        100.0,
+    )
+    .shared();
+    let app = build_router(state, &server_config());
+
+    let (status, payload) = request_json(
+        &app,
+        Method::POST,
+        "/funding/airdrop",
+        Some(json!({
+            "address": Pubkey::new_unique().to_string(),
+            "amountAeko": 1.0
+        })),
+        None,
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::FORBIDDEN, "{payload}");
+    assert_eq!(payload["error"]["code"], "AIRDROP_DISABLED_ON_MAINNET");
+    assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 0);
 
     drop(app);
     drop_rpc_owner(rpc_owner).await?;
@@ -987,7 +1055,7 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
     let (status, grants) = request_json(
         &app,
         Method::GET,
-        "/admin/funding/grants?limit=500",
+        "/admin/funding/history?limit=500",
         None,
         Some(admin_token),
     )
@@ -996,7 +1064,7 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
     assert_eq!(
         grants["data"]
             .as_array()
-            .expect("grant list")
+            .expect("funding history")
             .iter()
             .filter(|grant| grant["requestId"].as_str() == Some(request_id.as_str()))
             .count(),
