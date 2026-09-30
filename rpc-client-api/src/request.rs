@@ -124,7 +124,7 @@ pub enum RpcRequest {
     MinimumLedgerSlot,
     RegisterNode,
     RequestAirdrop,
-    RequestGrant,
+    RequestFunding,
     SendTransaction,
     SimulateTransaction,
     SignVote,
@@ -214,7 +214,7 @@ impl fmt::Display for RpcRequest {
             RpcRequest::MinimumLedgerSlot => "minimumLedgerSlot",
             RpcRequest::RegisterNode => "registerNode",
             RpcRequest::RequestAirdrop => "requestAirdrop",
-            RpcRequest::RequestGrant => "requestGrant",
+            RpcRequest::RequestFunding => "requestFunding",
             RpcRequest::SendTransaction => "sendTransaction",
             RpcRequest::SimulateTransaction => "simulateTransaction",
             RpcRequest::SignVote => "signVote",
@@ -355,9 +355,9 @@ mod tests {
         let request = test_request.build_request_json(1, Value::Null);
         assert_eq!(request["method"], "requestAirdrop");
 
-        let test_request = RpcRequest::RequestGrant;
+        let test_request = RpcRequest::RequestFunding;
         let request = test_request.build_request_json(1, Value::Null);
-        assert_eq!(request["method"], "requestGrant");
+        assert_eq!(request["method"], "requestFunding");
 
         let test_request = RpcRequest::SendTransaction;
         let request = test_request.build_request_json(1, Value::Null);
