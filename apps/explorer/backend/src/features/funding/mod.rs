@@ -19,9 +19,9 @@ use {
         Json, Router,
     },
     serde::{Deserialize, Serialize},
-    tower_http::set_header::SetResponseHeaderLayer,
     serde_json::{json, Value},
     std::time::Duration,
+    tower_http::set_header::SetResponseHeaderLayer,
 };
 
 const ADMIN_HEADER: &str = "x-aeko-settings-token";
