@@ -674,14 +674,14 @@ def main() -> int:
         )
 
     for required in (
-        "AEKO_SCAN_URL",
+        "AEKO_EXPLORER_API_URL",
         "AEKO_OPERATIONS_URL",
         "AEKO_RPC_URL",
         "AEKO_FUNDING_SMOKE_ADDRESS",
         "ADMIN_PASSWORD",
-        "Scan cannot approve grants",
-        "wallet balance increased",
-        "exactly one confirmed grant",
+        "Public Explorer API cannot approve grants",
+        "starting balance=",
+        "Admin ledger contains exactly one confirmed grant",
     ):
         require(
             required in funding_smoke,

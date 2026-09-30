@@ -165,6 +165,19 @@ export async function fetchExplorerOverview(network) {
   }
 }
 
+/**
+ * @typedef {{
+ *   blocks: any[],
+ *   transactions: any[],
+ *   posts: any[],
+ *   stakes: any[],
+ *   nfts: any[],
+ * }} ExplorerHomeData
+ */
+
+/**
+ * @returns {Promise<ExplorerHomeData>}
+ */
 export async function fetchExplorerHome(network, filters = {}, listSize = 6) {
   const limit = Number.isInteger(listSize) ? Math.min(12, Math.max(3, listSize)) : 6;
 
