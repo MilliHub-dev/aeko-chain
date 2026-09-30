@@ -202,6 +202,7 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
   const settingsRoute = await source('../../../admin/src/app/api/admin/funding/settings/route.ts');
   const requestsRoute = await source('../../../admin/src/app/api/admin/funding/requests/route.ts');
   const adminRoot = await source('../../../admin/src/app/layout.tsx');
+  const adminQueryProvider = await source('../../../admin/src/components/query-provider.tsx');
   const adminToaster = await source('../../../admin/src/components/toaster.tsx');
   const adminAlert = await source('../../../admin/src/components/feedback-alert.tsx');
   const statusBanner = await source('components/StatusBanner.jsx');
@@ -218,7 +219,10 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
   assert.match(adminPage, /useToaster/);
   assert.match(adminPage, /FeedbackAlert/);
   assert.doesNotMatch(adminPage, /const \[notice, setNotice\]/);
+  assert.match(adminRoot, /QueryProvider/);
   assert.match(adminRoot, /ToasterProvider/);
+  assert.match(adminQueryProvider, /QueryClientProvider/);
+  assert.match(adminQueryProvider, /mutations: \{\s*retry: false/s);
   assert.match(adminToaster, /role=\{toast\.kind === 'error' \? 'alert' : 'status'\}/);
   assert.match(adminToaster, /aria-label="Notifications"/);
   assert.match(adminAlert, /role=\{tone === 'error' \? 'alert' : 'status'\}/);
@@ -284,6 +288,8 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
   const splitCompose = await source('../compose.coolify.yml');
   const viteConfig = await source('../vite.config.js');
   const networkConfig = await source('utils/networkConfig.js');
+  const main = await source('main.jsx');
+  const queryClient = await source('queryClient.js');
   const entrypoint = await source('../../../../docker/explorer-ui-entrypoint.sh');
   const server = await source('../../../../docker/explorer-ui-server.mjs');
   const explorer = await source('pages/Explorer.jsx');
@@ -322,6 +328,9 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
   assert.match(viteConfig, /activeNetwork = configuredActive \|\| 'localnet'/);
   assert.doesNotMatch(viteConfig, /devnet/);
   assert.match(viteConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
+  assert.match(main, /QueryClientProvider/);
+  assert.match(queryClient, /mutations: \{\s*retry: false/s);
+  assert.match(queryClient, /failureCount < 2/);
   assert.doesNotMatch(viteConfig, /server: \{ proxy \}/);
   assert.match(viteConfig, /explorerApiUrl: value\.explorerApiUrl/);
   assert.match(viteConfig, /fundingUrl: value\.explorerApiUrl/);
