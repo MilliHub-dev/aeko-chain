@@ -3,8 +3,8 @@ use {
         infrastructure::{
             chain::FundingTransferStatus,
             persistence::funding::{
-                FundingAirdropRecord, FundingTransferRecord, FundingRequestRecord,
-                FundingSettingsUpdate, FundingStoreError, PersistedFundingSettings,
+                FundingAirdropRecord, FundingRequestRecord, FundingSettingsUpdate,
+                FundingStoreError, FundingTransferRecord, PersistedFundingSettings,
             },
         },
         response::{self, DataEnvelope},
