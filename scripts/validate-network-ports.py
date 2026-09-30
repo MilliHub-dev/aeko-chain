@@ -306,8 +306,11 @@ def main() -> int:
         admin_network,
         (
             "clean('AEKO_NETWORK')",
-            "clean('AEKO_RPC_URL')",
-            "clean('AEKO_EXPLORER_API_URL')",
+            "serverUrl('AEKO_RPC_URL', HARDCODED_LOCAL_RPC)",
+            "serverUrl('AEKO_EXPLORER_API_URL', HARDCODED_LOCAL_EXPLORER)",
+            "process.env.NODE_ENV === 'production'",
+            "must be a valid http(s) URL",
+            "contains placeholder or guidance text",
         ),
     )
 
