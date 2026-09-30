@@ -336,6 +336,7 @@ import sys
 from pathlib import Path
 
 text = Path("rpc/src/rpc.rs").read_text(encoding="utf-8")
+text = text.split("pub mod rpc_obsolete_v1_7", 1)[0]
 methods = sorted(set(re.findall(
     r'#\[\s*rpc\([^\]]*?name\s*=\s*"([^"]+)"[^\]]*\)\s*\]',
     text,
