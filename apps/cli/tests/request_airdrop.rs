@@ -40,4 +40,3 @@ fn test_cli_request_airdrop() {
         .unwrap();
     assert_eq!(balance, aeko_to_lamports(50.0));
 }
-
