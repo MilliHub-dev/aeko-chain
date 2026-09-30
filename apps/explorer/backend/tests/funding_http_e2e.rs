@@ -1272,6 +1272,9 @@ async fn mainnet_public_and_admin_funding_remain_available() -> Result<()> {
         "mainnet direct Admin Funding must settle with a durable signature: {direct}"
     );
 
+    let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
+    assert_eq!(transitioned, 2);
+
     let transfers = state.repository.list_funding_transfers(500).await?;
     assert!(
         transfers
