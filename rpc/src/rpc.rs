@@ -7692,7 +7692,7 @@ pub mod tests {
     fn test_rpc_request_airdrop_is_instant_without_authorization() {
         // Airdrop is the instant developer path: no admin approval, no funding
         // authorization gate. Even when the validator configures a funding key
-        // for grants, plain requestAirdrop must reach the faucet.
+        // for protected Funding, plain requestAirdrop must reach the faucet.
         let RpcHandler { meta, io, .. } = RpcHandler::start_with_config(JsonRpcConfig {
             faucet_addr: Some("127.0.0.1:1".parse().unwrap()),
             funding_authorization_key: Some("test-funding-authorization-key".to_string()),
@@ -7786,7 +7786,7 @@ pub mod tests {
         let persisted_blockhash = Hash::new_unique().to_string();
 
         let request = format!(
-            r#"{{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["{recipient}",50,{{"fundingAuthorization":"test-funding-authorization-key","recentBlockhash":"{persisted_blockhash}"}}]}}"#
+            r#"{{"jsonrpc":"2.0","id":1,"method":"requestAirdrop","params":["{recipient}",50,{{"recentBlockhash":"{persisted_blockhash}"}}]}}"#
         );
 
         let first = io
