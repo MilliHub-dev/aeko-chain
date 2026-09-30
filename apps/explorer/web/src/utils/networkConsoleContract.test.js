@@ -246,6 +246,27 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
 });
 
 
+test('Operations high-frequency views use TanStack Query instead of manual polling', async () => {
+  const helper = await source('../../../admin/src/lib/client-query.ts');
+  assert.match(helper, /explorerQuery/);
+  assert.match(helper, /rpcQuery/);
+  assert.match(helper, /cache: 'no-store'/);
+  assert.match(helper, /ClientApiError/);
+
+  for (const path of [
+    '../../../admin/src/app/(admin)/page.tsx',
+    '../../../admin/src/app/(admin)/blocks/page.tsx',
+    '../../../admin/src/app/(admin)/transactions/page.tsx',
+  ]) {
+    const page = await source(path);
+    assert.match(page, /useQuery/);
+    assert.match(page, /refetchInterval:/);
+    assert.doesNotMatch(page, /setInterval/);
+    assert.doesNotMatch(page, /useEffect\(/);
+  }
+});
+
+
 test('Operations Web paginates long datasets and keeps dense control pages focused', async () => {
   const dataTable = await source('../../../admin/src/components/data-table.tsx');
   const fundingPage = await source('../../../admin/src/app/(admin)/funding-grants/page.tsx');
