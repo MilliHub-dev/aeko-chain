@@ -80,21 +80,21 @@ hairpin through Cloudflare/WAF.
 
 | Consumer | Runtime target inside the container | Production deployment input |
 | --- | --- | --- |
-| Social bootstrap -> Validator RPC | `AEKO_RPC_URL` | `AEKO_INTERNAL_RPC_URL` |
-| Protocol bootstrap -> Validator RPC | `AEKO_RPC_URL` | `AEKO_INTERNAL_RPC_URL` |
-| Explorer API -> Validator RPC | `AEKO_RPC_URL` | `AEKO_INTERNAL_RPC_URL` |
-| Explorer API -> Validator WS | `AEKO_WS_URL` | `AEKO_INTERNAL_WS_URL` |
-| Operations Web -> Validator RPC | `AEKO_RPC_URL` | `AEKO_INTERNAL_RPC_URL` |
-| Operations Web -> Explorer API | `AEKO_EXPLORER_API_URL` | `AEKO_INTERNAL_EXPLORER_API_URL` |
-| Validator -> Faucet | `AEKO_FAUCET_ADDRESS` | `AEKO_INTERNAL_FAUCET_ADDRESS` |
+| Social bootstrap -> Validator RPC | `AEKO_RPC_URL` | `AEKO_RPC_URL` on Bootstrap resource |
+| Protocol bootstrap -> Validator RPC | `AEKO_RPC_URL` | `AEKO_RPC_URL` on Bootstrap resource |
+| Explorer API -> Validator RPC | `AEKO_RPC_URL` | `AEKO_RPC_URL` on Explorer resource |
+| Explorer API -> Validator WS | `AEKO_WS_URL` | `AEKO_WS_URL` on Explorer resource |
+| Operations Web -> Validator RPC | `AEKO_RPC_URL` | `AEKO_RPC_URL` on Operations resource |
+| Operations Web -> Explorer API | `AEKO_EXPLORER_API_URL` | `AEKO_EXPLORER_API_URL` on Operations resource |
+| Validator -> Faucet | `AEKO_FAUCET_ADDRESS` | `AEKO_FAUCET_ADDRESS` on Validator resource |
 | Scan browser -> Validator RPC/WS | public runtime config | `AEKO_RPC_URL`, `AEKO_WS_URL` |
 | Scan browser -> Explorer reads/funding | public Explorer API | `AEKO_EXPLORER_API_URL` plus Explorer `AEKO_EXPLORER_CORS_ORIGINS` |
 
-For an all-in-one production stack the defaults are Docker service DNS
+For an all-in-one production stack Compose wires Docker service DNS directly
 (`validator:8899`, `validator:8900`, `explorer-api:8088`, `faucet:9900`).
-Operators may override those with reachable private URLs. Do not replace them
-with Cloudflare-proxied public endpoints merely because the public hostname is
-reachable from a browser.
+Those backend hops are intentionally not inherited from public browser endpoint
+variables. Do not replace them with Cloudflare-proxied public endpoints merely
+because the public hostname is reachable from a browser.
 
 ## Split Coolify resources
 
@@ -109,7 +109,7 @@ the operator explicitly publishes that port and restricts it appropriately.
 Raw Faucet and validator transport are exceptions:
 
 - publish Faucet TCP `9900` and firewall it to Validator source addresses;
-- use `AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900`;
+- set `AEKO_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900` on the Validator resource;
 - do not attach HTTP/WAF routing or HTTP health probes to Faucet `9900`;
 - publish Validator TCP+UDP `8000-8050`;
 - point `gossip.aeko.online` directly at the Validator host;

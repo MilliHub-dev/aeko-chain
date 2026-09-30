@@ -99,19 +99,24 @@ AEKO_EXPLORER_API_URL=https://api.aeko.online
 ~~~
 
 Split Bootstrap, Explorer API, Operations Web, and Validator funding use
-explicit private or DNS-only origins from their adjacent env examples:
+resource-scoped canonical variables with private or DNS-only values:
 
 ~~~text
-AEKO_INTERNAL_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
-AEKO_INTERNAL_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
-AEKO_INTERNAL_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
-AEKO_INTERNAL_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
-AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
+# Explorer API resource
+AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
+AEKO_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
 AEKO_EXPLORER_CORS_ORIGINS=https://scan.aeko.online
+
+# Operations Web resource
+AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
+
+# Validator resource
+AEKO_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
 ~~~
 
-Those inputs are mapped to the existing generic runtime variables inside each
-container. Do not point them at Cloudflare-proxied/WAF endpoints. A raw
+There is no parallel internal namespace: resource boundaries provide the scope. Do not point them at Cloudflare-proxied/WAF endpoints. A raw
 cross-host port is usable only if it is explicitly published and restricted;
 otherwise use a private overlay URL or a DNS-only Coolify origin.
 
@@ -225,9 +230,9 @@ warning logs.
 The public `api.aeko.online` hostname is the browser-facing Explorer API.
 Aeko Scan calls it directly, and Explorer API must set
 `AEKO_EXPLORER_CORS_ORIGINS=https://scan.aeko.online` (plus explicit
-development origins where appropriate). Operations Web still uses
-`AEKO_INTERNAL_EXPLORER_API_URL` server-side so privileged Admin mutations do
-not traverse the public edge. Configure the edge in front of
+development origins where appropriate). Operations Web uses its own
+server-side `AEKO_EXPLORER_API_URL` value pointed at a private or DNS-only
+Explorer origin so privileged Admin mutations do not traverse the public edge. Configure the edge in front of
 `api.aeko.online` as an API edge: Explorer routes, especially `/funding/*`,
 must return JSON rather than interactive bot-challenge HTML.
 

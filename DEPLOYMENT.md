@@ -112,17 +112,18 @@ Do not copy the same value into multiple configuration surfaces merely because s
 | Protocol feature identities | compile-time feature IDs | Fresh/reset genesis activates the mandatory protocol runtime features automatically; only an older preserved chain uses the compatibility activation helper. |
 | Protocol authority and canonical state addresses | persistent protocol authority plus generated `protocol-registry.env` / continuity anchor | Bootstrap automatically when no established protocol identity exists; preserve and verify thereafter. |
 | Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads it directly from the selected Explorer API. |
-| Blockchain service endpoints | active deployment environment | Public clients/Scan use the public `AEKO_RPC_URL`, `AEKO_WS_URL`, and `AEKO_EXPLORER_API_URL`. Production server resources receive `AEKO_INTERNAL_RPC_URL`, `AEKO_INTERNAL_WS_URL`, `AEKO_INTERNAL_EXPLORER_API_URL`, `AEKO_INTERNAL_REGISTRY_URL`, and `AEKO_INTERNAL_FAUCET_ADDRESS` as applicable; Compose maps them to the existing generic runtime names inside each container. |
+| Blockchain service endpoints | resource-scoped deployment environment | Every split resource uses the canonical runtime names (`AEKO_RPC_URL`, `AEKO_WS_URL`, `AEKO_EXPLORER_API_URL`, `AEKO_REGISTRY_URL`, `AEKO_FAUCET_ADDRESS`) with values appropriate to that resource. Same-stack Compose wires backend hops directly to Docker service DNS; only Scan/client runtime config receives public browser endpoints. |
 | Bootstrap registry | generated `social-registry.env` + `protocol-registry.env`, served read-only by `registry.aeko.online` | Explorer API fetches the pair and verifies schema/genesis before use; Scan/Admin consume Explorer API instead of bootstrap storage. |
 | Recovery address overrides | Explorer process environment | Use only for explicit recovery; never as a parallel normal source of truth. |
 
 For the currently deployed testnet, the public client endpoints remain
 `AEKO_NETWORK=testnet`, `AEKO_RPC_URL=https://rpc.aeko.online`,
 `AEKO_WS_URL=wss://ws.aeko.online`, and
-`AEKO_EXPLORER_API_URL=https://api.aeko.online`. Production server resources
-must separately configure reachable private or DNS-only origins using the
-`AEKO_INTERNAL_*` variables. These server-only origins must bypass public
-Cloudflare/WAF handling. Scan itself uses the public Explorer API directly; the
+`AEKO_EXPLORER_API_URL=https://api.aeko.online`. Production split resources configure reachable private or DNS-only origins
+using the same canonical variable names consumed by the application. Values are
+scoped to each resource, so Explorer's `AEKO_RPC_URL` may be private while
+Scan's `AEKO_RPC_URL` is public. Same-stack Compose uses Docker service DNS
+directly. Server-to-server origins must bypass public Cloudflare/WAF handling. Scan itself uses the public Explorer API directly; the
 API edge must return API responses rather than interactive challenge HTML.
 
 A future mainnet or devnet deployment follows the same separation on its own
@@ -146,13 +147,18 @@ AEKO_RPC_URL=https://rpc.aeko.online
 AEKO_WS_URL=wss://ws.aeko.online
 AEKO_EXPLORER_API_URL=https://api.aeko.online
 
-# Server-only routing inputs. Use reachable private URLs or DNS-only origins.
-AEKO_INTERNAL_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
-AEKO_INTERNAL_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
-AEKO_INTERNAL_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
-AEKO_INTERNAL_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
-AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
+# Resource-scoped server values. Set these on the named split resource rather
+# than creating a second namespace.
+# Explorer API resource:
+AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
+AEKO_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
 AEKO_EXPLORER_CORS_ORIGINS=https://scan.aeko.online
+# Operations Web resource:
+AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
+# Validator resource:
+AEKO_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
 
 AEKO_GOSSIP_HOST=gossip.aeko.online
 AEKO_KEYS_DIR=<Dokploy/local persistent host directory; Coolify uses fixed /data/aeko/keys>

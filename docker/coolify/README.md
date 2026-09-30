@@ -82,22 +82,27 @@ AEKO_WS_URL=wss://ws.aeko.online
 AEKO_EXPLORER_API_URL=https://api.aeko.online
 ```
 
-Split server resources use their adjacent `.env.example` files to provide
-reachable private or DNS-only origins that bypass public Cloudflare/WAF
-handling:
+Split server resources use their adjacent `.env.example` files and the same
+canonical runtime names consumed by the application. Configure each resource
+with the private or DNS-only origin it needs:
 
 ```text
-AEKO_INTERNAL_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
-AEKO_INTERNAL_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
-AEKO_INTERNAL_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
-AEKO_INTERNAL_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
-AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
+# Explorer API resource
+AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
+AEKO_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
+
+# Operations Web resource
+AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
+
+# Validator resource
+AEKO_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
 ```
 
-Compose maps those server-only inputs back to the generic runtime names
-(`AEKO_RPC_URL`, `AEKO_WS_URL`, `AEKO_EXPLORER_API_URL`,
-`AEKO_REGISTRY_URL`, and `AEKO_FAUCET_ADDRESS`) inside each container, so
-application contracts do not change. A raw cross-host `host:port` URL is valid
+There is no second "internal" variable namespace. Resource isolation provides
+the scope: the same variable name may carry a public value in Scan and a
+private value in Explorer or Operations. A raw cross-host `host:port` URL is valid
 only when that port is explicitly published and firewall-restricted; otherwise
 use a private overlay URL or a DNS-only Coolify origin.
 
