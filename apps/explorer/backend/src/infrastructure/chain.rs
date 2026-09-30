@@ -548,7 +548,7 @@ impl RpcChainClient {
 
     /// Protected funding transfer path. Requires the server-only
     /// `AEKO_FUNDING_AUTHORIZATION_KEY` when the validator configures one.
-    /// Used for public-request approvals and admin direct grants. Replays of
+    /// Used for public-request approvals and direct Admin funding. Replays of
     /// the same persisted (address, lamports, blockhash) intent recover the
     /// same signature so safe retry never creates a duplicate funding transfer.
     pub fn request_funding_transfer(
