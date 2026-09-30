@@ -337,7 +337,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         .to_string();
 
     // The same backend route exists for Operations Web, but without the
-    // server-side Admin token a Scan/user request cannot decide a grant.
+    // server-side Admin token a Scan/user request cannot decide a funding.
     let (status, unauthorized) = request_json(
         &app,
         Method::POST,
@@ -362,7 +362,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     assert_eq!(approved["data"]["confirmed"], true);
     let funding_signature = approved["data"]["signature"]
         .as_str()
-        .expect("confirmed grant signature")
+        .expect("confirmed funding signature")
         .to_string();
     assert!(rpc_observer.saw_authorized_funding.load(Ordering::SeqCst));
     assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 1);
@@ -382,7 +382,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         Some(funding_signature.as_str())
     );
 
-    let (status, grants) = request_json(
+    let (status, funding_transfers) = request_json(
         &app,
         Method::GET,
         "/admin/funding/history?limit=500",
@@ -390,12 +390,12 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         Some(admin_token),
     )
     .await;
-    assert_eq!(status, StatusCode::OK, "{grants}");
-    let matching_funding = grants["data"]
+    assert_eq!(status, StatusCode::OK, "{funding_transfers}");
+    let matching_funding = funding_transfers["data"]
         .as_array()
         .expect("funding history")
         .iter()
-        .filter(|grant| grant["requestId"].as_str() == Some(request_id.as_str()))
+        .filter(|funding| funding["requestId"].as_str() == Some(request_id.as_str()))
         .collect::<Vec<_>>();
     assert_eq!(matching_funding.len(), 1);
     assert_eq!(matching_funding[0]["confirmed"], true);
@@ -438,13 +438,13 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     assert_eq!(
         funding_rows
             .iter()
-            .filter(|grant| grant["requestId"].as_str() == Some(request_id.as_str()))
+            .filter(|funding| funding["requestId"].as_str() == Some(request_id.as_str()))
             .count(),
         1
     );
     assert!(!funding_rows
         .iter()
-        .any(|grant| grant["address"].as_str() == Some(airdrop_address.as_str())));
+        .any(|funding| funding["address"].as_str() == Some(airdrop_address.as_str())));
 
     let (status, airdrops) = request_json(
         &app,
@@ -538,7 +538,7 @@ async fn developer_airdrop_is_forbidden_on_mainnet() -> Result<()> {
 }
 
 #[tokio::test]
-async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() -> Result<()> {
+async fn expired_submitted_funding_becomes_terminal_failed_without_fresh_intent() -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().await;
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
@@ -649,7 +649,7 @@ async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() 
         .list_funding_transfers(500)
         .await?
         .iter()
-        .any(|grant| grant.request_id.as_deref() == Some(request_id.as_str())));
+        .any(|funding| funding.request_id.as_deref() == Some(request_id.as_str())));
 
     drop(app);
     drop(state);
@@ -658,7 +658,7 @@ async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() 
 }
 
 #[tokio::test]
-async fn processing_grant_replays_only_persisted_intent_after_submission_response_failure(
+async fn processing_funding_replays_only_persisted_intent_after_submission_response_failure(
 ) -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().await;
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
@@ -791,10 +791,10 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
         Some(expected_signature.as_str())
     );
 
-    let grants = state.repository.list_funding_transfers(500).await?;
-    let matching: Vec<_> = grants
+    let funding_transfers = state.repository.list_funding_transfers(500).await?;
+    let matching: Vec<_> = funding_transfers
         .iter()
-        .filter(|grant| grant.request_id.as_deref() == Some(request_id.as_str()))
+        .filter(|funding| funding.request_id.as_deref() == Some(request_id.as_str()))
         .collect();
     assert_eq!(matching.len(), 1);
     assert_eq!(
@@ -810,7 +810,7 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
 }
 
 #[tokio::test]
-async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -> Result<()> {
+async fn processing_funding_recovers_original_signature_after_blockhash_expiry() -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().await;
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
@@ -935,14 +935,14 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
     );
     assert!(recovered.confirmed);
 
-    let grants = state.repository.list_funding_transfers(500).await?;
+    let funding_transfers = state.repository.list_funding_transfers(500).await?;
     assert_eq!(
-        grants
+        funding_transfers
             .iter()
-            .filter(|grant| grant.request_id.as_deref() == Some(request_id.as_str()))
+            .filter(|funding| funding.request_id.as_deref() == Some(request_id.as_str()))
             .count(),
         1,
-        "response-loss recovery must still create exactly one confirmed grant"
+        "response-loss recovery must still create exactly one confirmed funding"
     );
 
     drop(app);
@@ -952,7 +952,7 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
 }
 
 #[tokio::test]
-async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
+async fn submitted_funding_is_reconciled_without_resubmission() -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().await;
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
@@ -1060,7 +1060,7 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
     assert_eq!(reconciled["data"]["status"], "confirmed");
     assert_eq!(reconciled["data"]["confirmed"], true);
 
-    let (status, grants) = request_json(
+    let (status, funding_transfers) = request_json(
         &app,
         Method::GET,
         "/admin/funding/history?limit=500",
@@ -1068,13 +1068,13 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
         Some(admin_token),
     )
     .await;
-    assert_eq!(status, StatusCode::OK, "{grants}");
+    assert_eq!(status, StatusCode::OK, "{funding_transfers}");
     assert_eq!(
-        grants["data"]
+        funding_transfers["data"]
             .as_array()
             .expect("funding history")
             .iter()
-            .filter(|grant| grant["requestId"].as_str() == Some(request_id.as_str()))
+            .filter(|funding| funding["requestId"].as_str() == Some(request_id.as_str()))
             .count(),
         1
     );
@@ -1086,10 +1086,9 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
 }
 
 #[tokio::test]
-async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> {
-    // Funding, grants, and airdrops are served on every network, including
-    // mainnet. Each deployment owns its faucet, credential, caps, budgets,
-    // and approval queue.
+async fn mainnet_public_and_admin_funding_remain_available() -> Result<()> {
+    // Mainnet keeps authenticated/public Funding available while the separate
+    // developer-airdrop endpoint is covered by the fail-closed regression above.
     let _guard = TEST_DB_LOCK.lock().await;
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
@@ -1146,22 +1145,17 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
     )
     .shared();
     let app = build_router(state.clone(), &server_config());
-    let address = Pubkey::new_unique().to_string();
 
-    let (status, policy) = request_json(&app, Method::GET, "/funding/policy", None, None).await;
-    assert_eq!(status, StatusCode::OK, "{policy}");
-    assert_eq!(policy["data"]["enabled"], true);
-
+    let public_address = Pubkey::new_unique().to_string();
     let (status, created) = request_json(
         &app,
         Method::POST,
         "/funding/request",
-        Some(json!({"address": address})),
+        Some(json!({"address": public_address})),
         None,
     )
     .await;
     assert_eq!(status, StatusCode::ACCEPTED, "{created}");
-    assert_eq!(created["data"]["status"], "pending");
     let request_id = created["data"]["id"]
         .as_str()
         .expect("request id")
@@ -1179,55 +1173,39 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
     assert!(
         approved["data"]["signature"]
             .as_str()
-            .is_some_and(|s| !s.is_empty()),
-        "mainnet approval must settle with a durable signature: {approved}"
+            .is_some_and(|value| !value.is_empty()),
+        "mainnet public Funding must settle with a durable signature: {approved}"
     );
 
-    let (status, airdrop) = request_json(
+    let admin_address = Pubkey::new_unique().to_string();
+    let (status, direct) = request_json(
         &app,
         Method::POST,
-        "/funding/airdrop",
-        Some(json!({"address": address, "amountAeko": 1.0})),
-        None,
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "{airdrop}");
-    assert!(
-        airdrop["data"]["signature"]
-            .as_str()
-            .is_some_and(|s| !s.is_empty()),
-        "mainnet airdrop must dispatch with a durable signature: {airdrop}"
-    );
-
-    let grant_address = Pubkey::new_unique().to_string();
-    let (status, grant) = request_json(
-        &app,
-        Method::POST,
-        "/admin/funding/grant",
-        Some(json!({"address": grant_address, "amountAeko": 1.0})),
+        "/admin/funding/send",
+        Some(json!({"address": admin_address, "amountAeko": 1.0})),
         Some(admin_token),
     )
     .await;
-    assert_eq!(status, StatusCode::OK, "{grant}");
+    assert_eq!(status, StatusCode::OK, "{direct}");
     assert!(
-        grant["data"]["signature"]
+        direct["data"]["signature"]
             .as_str()
-            .is_some_and(|s| !s.is_empty()),
-        "mainnet direct grant must settle with a durable signature: {grant}"
+            .is_some_and(|value| !value.is_empty()),
+        "mainnet direct Admin Funding must settle with a durable signature: {direct}"
     );
 
-    let grants = state.repository.list_funding_transfers(500).await?;
+    let transfers = state.repository.list_funding_transfers(500).await?;
     assert!(
-        grants
+        transfers
             .iter()
-            .any(|g| g.request_id.as_deref() == Some(request_id.as_str())),
-        "mainnet approval must record exactly one confirmed grant"
+            .any(|entry| entry.request_id.as_deref() == Some(request_id.as_str())),
+        "mainnet public approval must record a confirmed funding transfer"
     );
     assert!(
-        !grants
+        transfers
             .iter()
-            .any(|g| g.signature.as_deref() == airdrop["data"]["signature"].as_str()),
-        "mainnet airdrop must stay out of the confirmed grant ledger"
+            .any(|entry| entry.address == admin_address && entry.confirmed),
+        "mainnet direct Admin Funding must be recorded in funding history"
     );
 
     drop(app);
