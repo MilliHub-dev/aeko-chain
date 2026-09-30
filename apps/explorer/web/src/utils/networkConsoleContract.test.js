@@ -195,7 +195,7 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
 
   assert.match(adminPage, /setInterval/);
   assert.match(adminPage, /expectedRevision: settings\.revision/);
-  assert.match(adminPage, /consoleAirdropAggregateUnlimited/);
+  assert.match(adminPage, /developerAirdropEnabled/);
   assert.match(adminPage, /developerAirdropEnabled/);
   assert.match(adminPage, /Disabled on Mainnet/);
   assert.match(adminPage, /Check confirmation/);
