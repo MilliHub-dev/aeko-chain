@@ -487,7 +487,7 @@ export default function FundingPage() {
             <div className="grid gap-6 xl:grid-cols-2">
               <form onSubmit={saveSettings} className="rounded-2xl border border-[#1e2135] bg-[#12141f] p-5 sm:p-6">
                 <div className="mb-5">
-                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">Public test-funding policy</div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">Public funding policy</div>
                   <h2 className="mt-1 font-semibold text-white">Approval limits</h2>
                   <p className="mt-1 text-sm leading-6 text-gray-500">
                     The public queue has a request amount, wallet cooldown, and daily allocation. Direct developer airdrops do not consume that aggregate allocation; they remain bounded by the Test Console and Faucet per-request caps.
