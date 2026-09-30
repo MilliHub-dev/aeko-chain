@@ -226,10 +226,21 @@ def main() -> int:
         )
         require('restart: "no"' in block, f"{name} bootstrap must remain one-shot")
 
-    for label, block in (("Social", social), ("Protocol", protocol)):
+    for label, block, binary in (
+        ("Social", social, "aeko-social-bootstrap"),
+        ("Protocol", protocol, "aeko-protocol-bootstrap"),
+    ):
         require(
-            "entrypoint:" not in block and "command:" not in block,
-            f"{label} bootstrap must use the image-owned bootstrap entrypoint without Compose shell overrides",
+            "entrypoint:" not in block,
+            f"{label} bootstrap must preserve the image-owned bootstrap entrypoint",
+        )
+        require(
+            f'command: ["{binary}"]' in block,
+            f"{label} bootstrap must set an explicit exec-form binary command so stale platform commands are replaced",
+        )
+        require(
+            "/bin/sh" not in block and "\n      - -ec\n" not in block,
+            f"{label} bootstrap command must not reintroduce a Compose shell wrapper",
         )
         require(
             ".aeko-bootstrap-runtime-ready" not in block,
