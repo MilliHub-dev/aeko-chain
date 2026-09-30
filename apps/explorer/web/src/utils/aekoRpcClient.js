@@ -95,9 +95,9 @@ function fundingEndpoint(fundingUrl, path) {
     throw new Error('Test AEKO is temporarily unavailable.');
   }
 
-  // Funding is now served by the Explorer/Scan backend. `fundingUrl` is the
-  // same-origin Explorer proxy base (for example
-  // `/api/explorer/testnet`), not a separate Funding Gateway address.
+  // Funding is served directly by the selected network's Explorer API.
+  // `fundingUrl` is an absolute Explorer API origin, not a Scan proxy path
+  // and not a separate Funding Gateway address.
   const basePath = `${base.pathname.replace(/\/?$/, '/')}`;
   return new URL(path.replace(/^\//, ''), `${base.origin}${basePath}`).toString();
 }
@@ -108,7 +108,7 @@ async function readFundingResponse(response, label) {
     const text = await response.text().catch(() => '');
     throw new FundingResponseError(
       `${label} returned HTTP ${response.status} with ${contentType || 'non-JSON'} content. `
-        + `The same-origin Scan proxy did not return the Explorer funding API JSON contract. ${text.slice(0, 100)}`,
+        + `The Explorer API did not return the funding JSON contract. Check the API edge/WAF and CORS configuration. ${text.slice(0, 100)}`,
       { status: response.status },
     );
   }

@@ -158,7 +158,7 @@ test('funding API URLs resolve from the configured origin and reject HTML 200 re
 
   assert.match(rpcClient, /base\.origin/);
   assert.match(rpcClient, /new URL\(path\.replace\(/);
-  assert.match(rpcClient, /same-origin Explorer proxy base/);
+  assert.match(rpcClient, /absolute Explorer API origin/);
   assert.match(rpcClient, /content-type/);
   assert.match(rpcClient, /non-JSON/);
   assert.match(rpcClient, /requestFundingApproval/);
@@ -296,15 +296,12 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
     'AEKO_RPC_URL',
     'AEKO_WS_URL',
     'AEKO_EXPLORER_API_URL',
-    'AEKO_EXPLORER_PROXY_UPSTREAM_URL',
     'AEKO_MAINNET_RPC_URL',
     'AEKO_MAINNET_WS_URL',
     'AEKO_MAINNET_EXPLORER_API_URL',
-    'AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL',
     'AEKO_TESTNET_RPC_URL',
     'AEKO_TESTNET_WS_URL',
     'AEKO_TESTNET_EXPLORER_API_URL',
-    'AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL',
   ]) {
     assert.match(example, new RegExp('^' + key + '=', 'm'));
     assert.match(splitEnv, new RegExp('^' + key + '=', 'm'));
@@ -325,18 +322,19 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
   assert.match(viteConfig, /activeNetwork = configuredActive \|\| 'localnet'/);
   assert.doesNotMatch(viteConfig, /devnet/);
   assert.match(viteConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
+  assert.doesNotMatch(viteConfig, /server: \{ proxy \}/);
+  assert.match(viteConfig, /explorerApiUrl: value\.explorerApiUrl/);
+  assert.match(viteConfig, /fundingUrl: value\.explorerApiUrl/);
 
   assert.match(server, /\['mainnet', 'testnet'\]/);
   assert.doesNotMatch(server, /AEKO_DEVNET_EXPLORER_API_URL/);
   assert.doesNotMatch(server, /AEKO_LOCALNET_EXPLORER_API_URL/);
-  assert.match(server, /target\.network !== 'testnet'/);
-  assert.match(server, /AEKO_EXPLORER_PROXY_UPSTREAM_URL/);
-  assert.doesNotMatch(server, /clean\('AEKO_EXPLORER_PROXY_UPSTREAM_URL'\) \|\| clean\('AEKO_EXPLORER_API_URL'\)/);
-  assert.match(entrypoint, /AEKO_EXPLORER_PROXY_UPSTREAM_URL:\?AEKO_EXPLORER_PROXY_UPSTREAM_URL is required/);
-  assert.match(server, /AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL/);
-  assert.match(server, /AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL/);
-  assert.match(server, /EXPLORER_UPSTREAM_INVALID_RESPONSE/);
-  assert.match(server, /funding_upstream_contract_violation/);
+  assert.doesNotMatch(server, /AEKO_EXPLORER_PROXY_UPSTREAM_URL/);
+  assert.doesNotMatch(entrypoint, /AEKO_EXPLORER_PROXY_UPSTREAM_URL/);
+  assert.match(entrypoint, /explorerApiUrl: activeExplorerApiUrl/);
+  assert.match(entrypoint, /fundingUrl: activeExplorerApiUrl/);
+  assert.match(server, /SCAN_EXPLORER_PROXY_REMOVED/);
+  assert.match(server, /LEGACY_EXPLORER_PROXY_PREFIX/);
   assert.match(server, /RUNTIME_CONFIG_PATH = '\/runtime-config\.js'/);
   assert.match(server, /pathname === RUNTIME_CONFIG_PATH/);
   assert.match(server, /'no-store, max-age=0'/);
