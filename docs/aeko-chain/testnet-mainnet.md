@@ -26,7 +26,7 @@ surfaces:
 - Aeko Scan, Operations Web, and application clients should use the selected
   network's Explorer API instead: `GET /registry`, `GET /registry/social`,
   and `GET /registry/protocol`. On public Testnet those are available through
-  `https://scan.aeko.online/api/explorer/testnet/registry...`.
+  `https://api.aeko.online/registry...`.
 - A local Explorer backend exposes the same API contract at its configured
   Explorer origin (normally `http://127.0.0.1:8088`). A `404` from an
   arbitrary raw bootstrap-registry path is therefore not a signal to bypass the

@@ -64,7 +64,7 @@ active/default network. Optional complete alternate triplets use
 `AEKO_<NETWORK>_RPC_URL`, `AEKO_<NETWORK>_WS_URL`, and
 `AEKO_<NETWORK>_EXPLORER_API_URL`. The Scan server may also set
 `AEKO_EXPLORER_CORS_ALLOWED_ORIGINS` or
-`AEKO_<NETWORK>_EXPLORER_PROXY_UPSTREAM_URL` to a private/DNS-only Explorer
+`AEKO_<NETWORK>_EXPLORER_API_URL` to a private/DNS-only Explorer
 origin. These values are server-only and are not published to browser runtime
 configuration.
 
@@ -91,7 +91,7 @@ hairpin through Cloudflare/WAF.
 | Validator -> Faucet | `AEKO_FAUCET_ADDRESS` | `AEKO_INTERNAL_FAUCET_ADDRESS` |
 | Scan browser -> Explorer API | public runtime config | `AEKO_EXPLORER_API_URL` |
 | Scan browser -> Validator RPC/WS | public runtime config | `AEKO_RPC_URL`, `AEKO_WS_URL` |
-| Scan browser -> indexed Explorer reads | same-origin `/api/explorer/{network}` | public Scan origin |
+| Scan browser -> indexed Explorer reads/funding | selected public Explorer API origin | `AEKO_EXPLORER_API_URL` |
 
 For an all-in-one production stack the defaults are Docker service DNS
 (`validator:8899`, `validator:8900`, `explorer-api:8088`, `faucet:9900`).

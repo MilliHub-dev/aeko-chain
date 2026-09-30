@@ -480,12 +480,12 @@ for chain subscriptions such as account, signature, slot and log notifications. 
 
 ## Explorer and SocialFi registry
 
-Explorer users and browser clients use `https://scan.aeko.online`. Indexed reads stay same-origin under `/api/explorer/testnet/*`; the Scan server proxies those reads to the server-side Explorer API domain `https://api.aeko.online`. Operations Web uses the same API domain directly for authenticated operator/server actions.
+Explorer users open `https://scan.aeko.online`, while indexed browser reads go directly to the configured public Explorer API at `https://api.aeko.online`. Operations Web keeps authenticated operator actions behind its server-side BFF and private Explorer origin.
 
 Registry acceptance:
 
 ```bash
-curl -s https://scan.aeko.online/api/explorer/testnet/registry/social
+curl -s https://api.aeko.online/registry/social
 ```
 
 Explorer uses a common response envelope. A ready deployment has the logical shape:
@@ -547,7 +547,7 @@ Automated deployment/read-path verification:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-social.py
 ```
 

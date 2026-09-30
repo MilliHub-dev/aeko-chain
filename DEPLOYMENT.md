@@ -57,9 +57,9 @@ Bootstrap host                                             |
 registry.aeko.online <--- social-registry.env              +--> registry.aeko.online
                      <--- protocol-registry.env
 
-scan.aeko.online  -> explorer-ui :4000 -> api.aeko.online via /api/explorer/testnet
-                    -> /api/explorer/testnet/funding/* for testnet funding
-admin.aeko.online -> operations-web :3001 -> api.aeko.online + rpc.aeko.online
+scan.aeko.online  -> explorer-ui :4000 (static SPA/runtime config)
+browser            -> api.aeko.online directly for Explorer reads + public funding
+admin.aeko.online  -> operations-web :3001 -> private Explorer API + private RPC
 
 gossip.aeko.online:8001 -> validator gossip entrypoint
 validator host TCP+UDP 8000-8050 -> public validator transport range
@@ -130,11 +130,10 @@ several stacks on the same physical host. They do not share an Explorer
 process, Admin process, database, chain identity, or active `AEKO_NETWORK`.
 
 Aeko Scan is the exception: its generic values define the default network, and
-optional `AEKO_MAINNET_*`, `AEKO_TESTNET_*`, and `AEKO_DEVNET_*`
-RPC/WS/Explorer-API triplets let the UI switch to other independent
-deployments. Browser indexed reads remain same-origin under
-`/api/explorer/{network}`; those prefixes are Scan routing labels, not
-evidence that the target networks run inside one server process.
+optional `AEKO_MAINNET_*` and `AEKO_TESTNET_*` RPC/WS/Explorer-API triplets
+let the UI switch to other independent deployments. Browser indexed reads use
+the selected network's configured Explorer API origin directly; no
+`/api/explorer/{network}` transport prefix exists in the Scan server.
 
 ## Required production environment
 
@@ -485,11 +484,11 @@ The rollback boundary is the feature activation itself: before activation, resto
 Verify the live Protocol registry and state:
 
 ```bash
-curl -s https://scan.aeko.online/api/explorer/testnet/registry/protocol
-curl -s https://scan.aeko.online/api/explorer/testnet/protocol/status
+curl -s https://api.aeko.online/registry/protocol
+curl -s https://api.aeko.online/protocol/status
 
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-protocol.py
 ```
 
@@ -502,9 +501,9 @@ Do not certify the public network merely because containers are `running` or bec
 First distinguish process and dependency health:
 
 ```bash
-curl -s https://scan.aeko.online/api/explorer/testnet/liveness
-curl -s https://scan.aeko.online/api/explorer/testnet/readiness
-curl -s https://scan.aeko.online/api/explorer/testnet/network/readiness
+curl -s https://api.aeko.online/liveness
+curl -s https://api.aeko.online/readiness
+curl -s https://api.aeko.online/network/readiness
 ```
 
 `/liveness` only proves the Explorer process is serving. `/readiness` proves PostgreSQL/RPC/indexer dependencies. Final network acceptance requires `/network/readiness` HTTP 200 with the registry genesis equal to the live validator genesis, Social `5/5`, Protocol executable programs `11/11`, and Protocol canonical states `8/8`.
@@ -522,7 +521,7 @@ It must return `result: "ok"`. Call `getSlot` twice and confirm it advances.
 ### SocialFi registry
 
 ```bash
-curl -s https://scan.aeko.online/api/explorer/testnet/registry/social
+curl -s https://api.aeko.online/registry/social
 ```
 
 The response is wrapped under `data`. Acceptance requires:
@@ -543,7 +542,7 @@ The response is wrapped under `data`. Acceptance requires:
 Also check live state verification:
 
 ```bash
-curl -s https://scan.aeko.online/api/explorer/testnet/social/status
+curl -s https://api.aeko.online/social/status
 ```
 
 Acceptance requires `data.complete == true`. A healthy Explorer with `complete: false` is intentionally a degraded/diagnostic state, not SocialFi success.
@@ -552,7 +551,7 @@ Acceptance requires `data.complete == true`. A healthy Explorer with `complete: 
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-social.py
 ```
 
@@ -560,7 +559,7 @@ Also run the mandatory Protocol smoke:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-protocol.py
 ```
 

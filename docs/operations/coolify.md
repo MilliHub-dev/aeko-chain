@@ -315,20 +315,20 @@ The result must be `"ok"`, and repeated `getSlot` calls must advance.
 Then check the three Explorer health layers and both control planes:
 
 ```bash
-curl -s https://scan.aeko.online/api/explorer/testnet/liveness
-curl -s https://scan.aeko.online/api/explorer/testnet/readiness
-curl -s https://scan.aeko.online/api/explorer/testnet/network/readiness
-curl -s https://scan.aeko.online/api/explorer/testnet/registry/social
-curl -s https://scan.aeko.online/api/explorer/testnet/social/status
-curl -s https://scan.aeko.online/api/explorer/testnet/registry/protocol
-curl -s https://scan.aeko.online/api/explorer/testnet/protocol/status
+curl -s https://api.aeko.online/liveness
+curl -s https://api.aeko.online/readiness
+curl -s https://api.aeko.online/network/readiness
+curl -s https://api.aeko.online/registry/social
+curl -s https://api.aeko.online/social/status
+curl -s https://api.aeko.online/registry/protocol
+curl -s https://api.aeko.online/protocol/status
 ```
 
 Final acceptance requires `/network/readiness` HTTP 200, the registry genesis matching the live validator genesis, Social `5/5`, Protocol executable programs `11/11`, and Protocol canonical state `8/8`. For the full read-path smoke test:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-social.py
 ```
 
@@ -337,34 +337,23 @@ The signed browser write path in the Explorer test console remains the final end
 ## Funding troubleshooting
 
 Funding, grants, and airdrops work the same on every network; the flow never
-branches on the deployment network. When production funding fails while
-localhost works, check these in order:
+branches on the deployment network. When browser funding works locally but
+fails in production, check these boundaries in order:
 
-1. **HTML 502 on `/api/explorer/{network}/funding/*` (Cloudflare error page,
-   not JSON).** The Scan proxy reached its Explorer upstream and got a
-   non-JSON error page, usually because the upstream Explorer origin itself
-   goes through Cloudflare/WAF to a dead or unreachable backend. Point the
-   Scan server at a private origin instead:
-   `AEKO_EXPLORER_CORS_ALLOWED_ORIGINS=https://<private-or-dns-only-explorer-api-origin>` (and the
-   matching `AEKO_<NETWORK>_EXPLORER_PROXY_UPSTREAM_URL` overrides). The proxy
-   now reports `upstreamStatus` in its `EXPLORER_UPSTREAM_INVALID_RESPONSE`
-   body so you can tell an upstream HTML 502 apart from a backend JSON error.
-   Do not attach bot challenges or WAF HTML pages between Scan and Explorer.
-2. **Approvals stuck in `processing` ("submission response was not
-   obtained").** The validator's faucet path is broken: the validator needs
-   `--rpc-faucet-address <private-or-dns-only-faucet-host>:9900` with a reachable Faucet, a funded
-   faucet keypair, caps above the grant amount, and an
-   `AEKO_FUNDING_AUTHORIZATION_KEY` identical to the Explorer backend's. The
-   persisted intent is replayed verbatim (same blockhash, same signature), so
-   retrying never creates a second grant. If the wallet is wedged on
-   `REQUEST_PENDING`, use Admin **Retry submission**; if the faucet cannot be
-   restored, use Admin **Cancel request** — it replays once and only releases
-   the wallet when no durable signature exists, after which the user can
-   submit a fresh request (CLI/SDK/explorer clients automatically adopt the
-   in-flight request id and resume polling).
-3. **404 on `/accounts/:address`.** Expected for an address that never
-   received funds: the account does not exist on-chain yet. Fix funding first;
-   the account appears once a transfer lands.
+1. **Public API edge:** `api.aeko.online` must route to the Explorer backend
+   and return API JSON, not an interactive Cloudflare/WAF challenge page.
+2. **CORS:** `AEKO_EXPLORER_CORS_ALLOWED_ORIGINS` must include the exact Scan
+   origin and Explorer must allow `POST` + `Content-Type`.
+3. **Trusted client identity:** set `AEKO_EXPLORER_TRUST_PROXY_HEADERS=true`
+   only when the Explorer origin is reachable exclusively through the trusted
+   edge that overwrites forwarded-IP headers.
+4. **Admin operations:** Operations Web must continue to use
+   `AEKO_INTERNAL_EXPLORER_API_URL`; never expose the settings token in the
+   browser.
+5. **Settlement:** if the API returns JSON but settlement fails, inspect the
+   Explorer funding state, Validator authorization, Faucet reachability, caps,
+   persisted request state, and reconciliation logs.
+
 
 ## Volume parsing failures
 If Coolify reports an error such as `Invalid Docker volume definition` or `Invalid volume source` before containers start:
