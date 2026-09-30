@@ -56,14 +56,22 @@ aeko update
 
 ## Common Commands
 
-### Wallet Management
+### Wallet and Testnet Funding
 *   `aeko-keygen new`: Create a new wallet.
 *   `aeko balance`: Check current balance.
-*   `aeko transfer <RECIPIENT> <AMOUNT>`: Send tokens.
+*   `aeko transfer <RECIPIENT> <AMOUNT>`: Send AEKO.
+*   `aeko airdrop <AMOUNT>`: Request the instant developer Testnet airdrop.
+*   `aeko funding <AMOUNT>`: Submit an approval-gated Testnet funding request through the Explorer API.
 
-### Cluster Configuration
-*   `aeko config set --url devnet`: Switch to Devnet.
-*   `aeko config set --url mainnet-beta`: Switch to Mainnet.
+### Network Configuration and Inspection
+*   `aeko config set --url https://rpc.aeko.online`: Use the public AEKO Testnet RPC.
+*   `aeko config set --url localhost`: Use a local validator on `http://localhost:8899`.
+*   `aeko genesis-hash`: Read the active chain genesis hash.
+*   `aeko slot`: Read the current slot.
+*   `aeko validators`: Inspect validator state.
+*   `aeko gossip`: Inspect gossip-visible nodes.
+
+Mainnet and Devnet monikers are intentionally not hardcoded until those deployments have canonical endpoints. For either network, provide its explicit RPC URL when provisioned.
 
 ### Program Deployment
 *   `aeko program deploy <PATH>`: Deploy an on-chain program (smart contract).
