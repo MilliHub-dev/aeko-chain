@@ -246,9 +246,9 @@ Use `aeko <COMMAND> --help` for command-specific instructions.",
                         .help("Install without asking for confirmation"),
                 )
                 .arg(
-                    Arg::with_name("force")
-                        .long("force")
-                        .help("Reinstall the latest release even when this build cannot be compared"),
+                    Arg::with_name("force").long("force").help(
+                        "Reinstall the latest release even when this build cannot be compared",
+                    ),
                 ),
         )
         .subcommand(

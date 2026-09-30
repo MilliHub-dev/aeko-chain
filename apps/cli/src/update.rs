@@ -6,8 +6,7 @@ use {
     std::{
         env,
         error::Error,
-        fmt,
-        fs,
+        fmt, fs,
         io::{self, IsTerminal, Write},
         path::{Path, PathBuf},
         process::{self, Command, Stdio},
@@ -102,9 +101,9 @@ fn fetch_latest_release() -> Result<GithubRelease, UpdateError> {
 
 fn validate_release_tag(tag: &str) -> Result<(), UpdateError> {
     let safe = !tag.is_empty()
-        && tag
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '-'));
+        && tag.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '-')
+        });
     if !safe {
         return Err(UpdateError::InvalidRelease(format!(
             "unsupported release tag {tag:?}"

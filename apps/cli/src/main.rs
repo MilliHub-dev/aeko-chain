@@ -1,6 +1,4 @@
 use {
-    clap::{crate_description, crate_name, value_t_or_exit, ArgMatches},
-    console::style,
     aeko_clap_utils::{
         input_validators::normalize_to_url_if_moniker,
         keypair::{CliSigners, DefaultSigner},
@@ -19,6 +17,8 @@ use {
     aeko_remote_wallet::remote_wallet::RemoteWalletManager,
     aeko_rpc_client_api::config::RpcSendTransactionConfig,
     aeko_tpu_client::tpu_client::DEFAULT_TPU_ENABLE_UDP,
+    clap::{crate_description, crate_name, value_t_or_exit, ArgMatches},
+    console::style,
     std::{collections::HashMap, error, path::PathBuf, rc::Rc, time::Duration},
 };
 
