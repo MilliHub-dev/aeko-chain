@@ -550,12 +550,12 @@ impl RpcChainClient {
         self.request_airdrop_inner(address, lamports, funding_authorization, recent_blockhash)
     }
 
-    /// Approval-gated funding grant path. Requires the server-only
+    /// Protected funding transfer path. Requires the server-only
     /// `AEKO_FUNDING_AUTHORIZATION_KEY` when the validator configures one.
     /// Used for public-request approvals and admin direct grants. Replays of
     /// the same persisted (address, lamports, blockhash) intent recover the
-    /// same signature so safe retry never creates a second grant.
-    pub fn request_funding_grant(
+    /// same signature so safe retry never creates a duplicate funding transfer.
+    pub fn request_funding_transfer(
         &self,
         address: &str,
         lamports: u64,
@@ -575,7 +575,7 @@ impl RpcChainClient {
             "fundingAuthorization": funding_authorization,
             "recentBlockhash": recent_blockhash,
         });
-        self.rpc_request("requestGrant", json!([address, lamports, config]))
+        self.rpc_request("requestFunding", json!([address, lamports, config]))
     }
 
     fn request_airdrop_inner(
