@@ -18,6 +18,8 @@ jobs:
     env:
       AEKO_RPC_URL: https://rpc.aeko.online
       AEKO_EXPLORER_API_URL: https://api.aeko.online
+      AEKO_GOSSIP_ENTRYPOINT: gossip.aeko.online:8001
+      AEKO_TOOLS_IMAGE: surdma/aeko-tools:latest
       AEKO_SMOKE_TIMEOUT_SECS: "15"
       AEKO_SMOKE_SLOT_WAIT_SECS: "10"
 
@@ -290,6 +292,15 @@ jobs:
           )
           PY
 
+      - name: Probe public gossip entrypoint
+        id: gossip
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull "$AEKO_TOOLS_IMAGE"
+          docker run --rm "$AEKO_TOOLS_IMAGE"             aeko-gossip spy               --entrypoint "$AEKO_GOSSIP_ENTRYPOINT"               --num-nodes 1               --timeout 20
+
       - name: Run Social live smoke
         id: social
         continue-on-error: true
@@ -305,6 +316,7 @@ jobs:
         shell: bash
         env:
           PROBE_OUTCOME: ${{ steps.probe.outcome }}
+          GOSSIP_OUTCOME: ${{ steps.gossip.outcome }}
           SOCIAL_OUTCOME: ${{ steps.social.outcome }}
           PROTOCOL_OUTCOME: ${{ steps.protocol.outcome }}
         run: |
@@ -314,11 +326,12 @@ jobs:
             echo "| Check | Outcome |"
             echo "| --- | --- |"
             echo "| RPC + API control plane | $PROBE_OUTCOME |"
+            echo "| Validator gossip entrypoint | $GOSSIP_OUTCOME |"
             echo "| Aeko Social smoke | $SOCIAL_OUTCOME |"
             echo "| AEKO Protocol smoke | $PROTOCOL_OUTCOME |"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "$PROBE_OUTCOME" != "success" ] || [ "$SOCIAL_OUTCOME" != "success" ] || [ "$PROTOCOL_OUTCOME" != "success" ]; then
+          if [ "$PROBE_OUTCOME" != "success" ] || [ "$GOSSIP_OUTCOME" != "success" ] || [ "$SOCIAL_OUTCOME" != "success" ] || [ "$PROTOCOL_OUTCOME" != "success" ]; then
             echo "One or more live network diagnostics failed. Review the grouped probe output above." >&2
             exit 1
           fi

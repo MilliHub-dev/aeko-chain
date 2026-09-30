@@ -494,6 +494,13 @@ def main() -> int:
         "live diagnostics must probe the public Explorer API directly",
     )
     require(
+        "AEKO_GOSSIP_ENTRYPOINT: gossip.aeko.online:8001" in live_network_diagnostics
+        and "aeko-gossip spy" in live_network_diagnostics
+        and "Validator gossip entrypoint" in live_network_diagnostics
+        and 'GOSSIP_OUTCOME: ${{ steps.gossip.outcome }}' in live_network_diagnostics,
+        "live diagnostics must prove the public gossip DNS/transport path with the real gossip protocol",
+    )
+    require(
         "AEKO_EXPLORER_API_URL=https://api.aeko.online" in testnet_runbook
         and "AEKO_SCAN_URL" not in testnet_runbook
         and "https://scan.aeko.online/api/explorer" not in testnet_runbook,
