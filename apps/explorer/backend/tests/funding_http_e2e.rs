@@ -32,9 +32,9 @@ static TEST_DB_LOCK: Mutex<()> = Mutex::const_new(());
 #[derive(Clone)]
 struct FakeRpcState {
     authorization: String,
-    saw_authorized_airdrop: Arc<AtomicBool>,
-    airdrop_calls: Arc<AtomicUsize>,
-    airdrop_failures: Arc<AtomicUsize>,
+    saw_authorized_funding: Arc<AtomicBool>,
+    transfer_calls: Arc<AtomicUsize>,
+    transfer_failures: Arc<AtomicUsize>,
     blockhash_calls: Arc<AtomicUsize>,
     blockhash_valid: Arc<AtomicBool>,
     pending_signature_statuses: Arc<AtomicUsize>,
@@ -45,7 +45,7 @@ struct FakeRpcState {
 /// (destination, amount, blockhash) recovers the same signature so
 /// response-loss replay tests can prove idempotency, while distinct intents
 /// settle as distinct transfers — mirroring the real Faucet/RPC behavior and
-/// the `funding_grants_signature_unique` ledger constraint.
+/// the `funding_transfers_signature_unique` ledger constraint.
 fn intent_signature(address: &str, lamports: u64, blockhash: &str) -> String {
     let mut bytes = [0u8; 64];
     for (i, chunk) in bytes.chunks_mut(8).enumerate() {
@@ -93,30 +93,40 @@ async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>)
                 }
             }))
         }
-        "requestAirdrop" | "requestGrant" => {
-            let authorization = request
-                .pointer("/params/2/fundingAuthorization")
-                .and_then(Value::as_str);
+        "requestFunding" | "requestAirdrop" => {
             let recent_blockhash = request
                 .pointer("/params/2/recentBlockhash")
                 .and_then(Value::as_str);
-            // Grants require the settlement credential; airdrops forward it for
-            // backward compatibility (the validator ignores it for airdrops).
-            // The fake enforces it for both to prove the backend forwards the
-            // persisted intent verbatim on safe replay.
-            if authorization != Some(state.authorization.as_str())
-                || recent_blockhash != Some(state.blockhash.as_str())
-            {
+            if recent_blockhash != Some(state.blockhash.as_str()) {
                 return Json(json!({
                     "jsonrpc": "2.0",
                     "id": id,
                     "error": {"code": -32600, "message": "Invalid request"}
                 }));
             }
-            state.saw_authorized_airdrop.store(true, Ordering::SeqCst);
-            state.airdrop_calls.fetch_add(1, Ordering::SeqCst);
-            if state.airdrop_failures.load(Ordering::SeqCst) > 0 {
-                state.airdrop_failures.fetch_sub(1, Ordering::SeqCst);
+            if method == "requestFunding" {
+                let authorization = request
+                    .pointer("/params/2/fundingAuthorization")
+                    .and_then(Value::as_str);
+                if authorization != Some(state.authorization.as_str()) {
+                    return Json(json!({
+                        "jsonrpc": "2.0",
+                        "id": id,
+                        "error": {"code": -32600, "message": "Invalid request"}
+                    }));
+                }
+                state.saw_authorized_funding.store(true, Ordering::SeqCst);
+            } else if request.pointer("/params/2/fundingAuthorization").is_some() {
+                return Json(json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "error": {"code": -32602, "message": "Developer airdrop must not carry funding authorization"}
+                }));
+            }
+
+            state.transfer_calls.fetch_add(1, Ordering::SeqCst);
+            if state.transfer_failures.load(Ordering::SeqCst) > 0 {
+                state.transfer_failures.fetch_sub(1, Ordering::SeqCst);
                 return Json(json!({
                     "jsonrpc": "2.0",
                     "id": id,
@@ -134,8 +144,6 @@ async fn fake_rpc(State(state): State<FakeRpcState>, Json(request): Json<Value>)
                 .pointer("/params/1")
                 .and_then(Value::as_u64)
                 .unwrap_or(0);
-            // The auth/blockhash gate above guarantees these match the
-            // persisted intent the backend will replay verbatim.
             let intent_blockhash = recent_blockhash.unwrap_or_default();
             Json(json!({
                 "jsonrpc": "2.0",
@@ -259,9 +267,9 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     let authorization = "test-funding-authorization-key-0001".to_string();
     let fake_state = FakeRpcState {
         authorization: authorization.clone(),
-        saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
-        airdrop_calls: Arc::new(AtomicUsize::new(0)),
-        airdrop_failures: Arc::new(AtomicUsize::new(0)),
+        saw_authorized_funding: Arc::new(AtomicBool::new(false)),
+        transfer_calls: Arc::new(AtomicUsize::new(0)),
+        transfer_failures: Arc::new(AtomicUsize::new(0)),
         blockhash_calls: Arc::new(AtomicUsize::new(0)),
         blockhash_valid: Arc::new(AtomicBool::new(true)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
@@ -289,7 +297,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
                 amount_aeko: Some(5.0),
                 cooldown_hours: Some(0.0),
                 daily_budget_aeko: Some(1_000_000.0),
-                max_manual_grant_aeko: Some(100.0),
+                max_admin_funding_aeko: Some(100.0),
                 console_airdrop_cap_aeko: Some(25.0),
             },
         )
@@ -339,7 +347,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     )
     .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED, "{unauthorized}");
-    assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 0);
 
     let (status, approved) = request_json(
         &app,
@@ -352,12 +360,12 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     assert_eq!(status, StatusCode::OK, "{approved}");
     assert_eq!(approved["data"]["status"], "confirmed");
     assert_eq!(approved["data"]["confirmed"], true);
-    let grant_signature = approved["data"]["signature"]
+    let funding_signature = approved["data"]["signature"]
         .as_str()
         .expect("confirmed grant signature")
         .to_string();
-    assert!(rpc_observer.saw_authorized_airdrop.load(Ordering::SeqCst));
-    assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 1);
+    assert!(rpc_observer.saw_authorized_funding.load(Ordering::SeqCst));
+    assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 1);
 
     let (status, public_status) = request_json(
         &app,
@@ -371,7 +379,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     assert_eq!(public_status["data"]["status"], "confirmed");
     assert_eq!(
         public_status["data"]["signature"].as_str(),
-        Some(grant_signature.as_str())
+        Some(funding_signature.as_str())
     );
 
     let (status, grants) = request_json(
@@ -393,7 +401,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     assert_eq!(matching_funding[0]["confirmed"], true);
     assert_eq!(
         matching_funding[0]["signature"].as_str(),
-        Some(grant_signature.as_str())
+        Some(funding_signature.as_str())
     );
 
     let airdrop_address = Pubkey::new_unique().to_string();
@@ -411,7 +419,7 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         .as_str()
         .expect("airdrop signature")
         .to_string();
-    assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 2);
+    assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 2);
 
     // The fake signer derives one deterministic signature per submission
     // intent, so response-loss replays recover the same signature while
@@ -470,9 +478,9 @@ async fn developer_airdrop_is_forbidden_on_mainnet() -> Result<()> {
     let authorization = "test-funding-authorization-key-mainnet-0001".to_string();
     let fake_state = FakeRpcState {
         authorization: authorization.clone(),
-        saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
-        airdrop_calls: Arc::new(AtomicUsize::new(0)),
-        airdrop_failures: Arc::new(AtomicUsize::new(0)),
+        saw_authorized_funding: Arc::new(AtomicBool::new(false)),
+        transfer_calls: Arc::new(AtomicUsize::new(0)),
+        transfer_failures: Arc::new(AtomicUsize::new(0)),
         blockhash_calls: Arc::new(AtomicUsize::new(0)),
         blockhash_valid: Arc::new(AtomicBool::new(true)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
@@ -522,7 +530,7 @@ async fn developer_airdrop_is_forbidden_on_mainnet() -> Result<()> {
 
     assert_eq!(status, StatusCode::FORBIDDEN, "{payload}");
     assert_eq!(payload["error"]["code"], "AIRDROP_DISABLED_ON_MAINNET");
-    assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 0);
 
     drop(app);
     drop_rpc_owner(rpc_owner).await?;
@@ -538,9 +546,9 @@ async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() 
     let authorization = "test-funding-authorization-key-expired-0001".to_string();
     let fake_state = FakeRpcState {
         authorization: authorization.clone(),
-        saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
-        airdrop_calls: Arc::new(AtomicUsize::new(0)),
-        airdrop_failures: Arc::new(AtomicUsize::new(0)),
+        saw_authorized_funding: Arc::new(AtomicBool::new(false)),
+        transfer_calls: Arc::new(AtomicUsize::new(0)),
+        transfer_failures: Arc::new(AtomicUsize::new(0)),
         blockhash_calls: Arc::new(AtomicUsize::new(0)),
         blockhash_valid: Arc::new(AtomicBool::new(false)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(usize::MAX)),
@@ -568,7 +576,7 @@ async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() 
                 amount_aeko: Some(5.0),
                 cooldown_hours: Some(0.0),
                 daily_budget_aeko: Some(1_000_000.0),
-                max_manual_grant_aeko: Some(100.0),
+                max_admin_funding_aeko: Some(100.0),
                 console_airdrop_cap_aeko: Some(25.0),
             },
         )
@@ -620,7 +628,7 @@ async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() 
         failed_response["error"]["code"],
         "FUNDING_TRANSACTION_FAILED"
     );
-    assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 1);
     assert_eq!(rpc_observer.blockhash_calls.load(Ordering::SeqCst), 1);
 
     let failed = state
@@ -638,7 +646,7 @@ async fn expired_submitted_grant_becomes_terminal_failed_without_fresh_intent() 
     );
     assert!(!state
         .repository
-        .list_funding_grants(500)
+        .list_funding_transfers(500)
         .await?
         .iter()
         .any(|grant| grant.request_id.as_deref() == Some(request_id.as_str())));
@@ -660,9 +668,9 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
     let blockhash = Pubkey::new_unique().to_string();
     let fake_state = FakeRpcState {
         authorization: authorization.clone(),
-        saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
-        airdrop_calls: Arc::new(AtomicUsize::new(0)),
-        airdrop_failures: Arc::new(AtomicUsize::new(1)),
+        saw_authorized_funding: Arc::new(AtomicBool::new(false)),
+        transfer_calls: Arc::new(AtomicUsize::new(0)),
+        transfer_failures: Arc::new(AtomicUsize::new(1)),
         blockhash_calls: Arc::new(AtomicUsize::new(0)),
         blockhash_valid: Arc::new(AtomicBool::new(true)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
@@ -690,7 +698,7 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
                 amount_aeko: Some(5.0),
                 cooldown_hours: Some(0.0),
                 daily_budget_aeko: Some(1_000_000.0),
-                max_manual_grant_aeko: Some(100.0),
+                max_admin_funding_aeko: Some(100.0),
                 console_airdrop_cap_aeko: Some(25.0),
             },
         )
@@ -744,7 +752,7 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
         failed_response["error"]["code"],
         "FUNDING_SUBMISSION_RETRY_PENDING"
     );
-    assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 1);
     assert_eq!(rpc_observer.blockhash_calls.load(Ordering::SeqCst), 1);
 
     let persisted = state
@@ -762,7 +770,7 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
     let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
     assert!(transitioned >= 1);
     assert_eq!(
-        rpc_observer.airdrop_calls.load(Ordering::SeqCst),
+        rpc_observer.transfer_calls.load(Ordering::SeqCst),
         2,
         "recovery should replay the persisted transaction intent exactly once"
     );
@@ -783,7 +791,7 @@ async fn processing_grant_replays_only_persisted_intent_after_submission_respons
         Some(expected_signature.as_str())
     );
 
-    let grants = state.repository.list_funding_grants(500).await?;
+    let grants = state.repository.list_funding_transfers(500).await?;
     let matching: Vec<_> = grants
         .iter()
         .filter(|grant| grant.request_id.as_deref() == Some(request_id.as_str()))
@@ -811,9 +819,9 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
     let blockhash = Pubkey::new_unique().to_string();
     let fake_state = FakeRpcState {
         authorization: authorization.clone(),
-        saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
-        airdrop_calls: Arc::new(AtomicUsize::new(0)),
-        airdrop_failures: Arc::new(AtomicUsize::new(1)),
+        saw_authorized_funding: Arc::new(AtomicBool::new(false)),
+        transfer_calls: Arc::new(AtomicUsize::new(0)),
+        transfer_failures: Arc::new(AtomicUsize::new(1)),
         blockhash_calls: Arc::new(AtomicUsize::new(0)),
         blockhash_valid: Arc::new(AtomicBool::new(false)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
@@ -841,7 +849,7 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
                 amount_aeko: Some(5.0),
                 cooldown_hours: Some(0.0),
                 daily_budget_aeko: Some(1_000_000.0),
-                max_manual_grant_aeko: Some(100.0),
+                max_admin_funding_aeko: Some(100.0),
                 console_airdrop_cap_aeko: Some(25.0),
             },
         )
@@ -895,7 +903,7 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
         failed_response["error"]["code"],
         "FUNDING_SUBMISSION_RETRY_PENDING"
     );
-    assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 1);
     assert_eq!(rpc_observer.blockhash_calls.load(Ordering::SeqCst), 1);
 
     // The original request may have reached the Validator/Faucet and landed
@@ -905,7 +913,7 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
     let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
     assert!(transitioned >= 2);
     assert_eq!(
-        rpc_observer.airdrop_calls.load(Ordering::SeqCst),
+        rpc_observer.transfer_calls.load(Ordering::SeqCst),
         2,
         "expired recovery must replay the persisted intent exactly once"
     );
@@ -927,7 +935,7 @@ async fn processing_grant_recovers_original_signature_after_blockhash_expiry() -
     );
     assert!(recovered.confirmed);
 
-    let grants = state.repository.list_funding_grants(500).await?;
+    let grants = state.repository.list_funding_transfers(500).await?;
     assert_eq!(
         grants
             .iter()
@@ -952,9 +960,9 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
     let authorization = "test-funding-authorization-key-0002".to_string();
     let fake_state = FakeRpcState {
         authorization: authorization.clone(),
-        saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
-        airdrop_calls: Arc::new(AtomicUsize::new(0)),
-        airdrop_failures: Arc::new(AtomicUsize::new(0)),
+        saw_authorized_funding: Arc::new(AtomicBool::new(false)),
+        transfer_calls: Arc::new(AtomicUsize::new(0)),
+        transfer_failures: Arc::new(AtomicUsize::new(0)),
         blockhash_calls: Arc::new(AtomicUsize::new(0)),
         blockhash_valid: Arc::new(AtomicBool::new(true)),
         pending_signature_statuses: Arc::new(AtomicUsize::new(12)),
@@ -982,7 +990,7 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
                 amount_aeko: Some(5.0),
                 cooldown_hours: Some(0.0),
                 daily_budget_aeko: Some(1_000_000.0),
-                max_manual_grant_aeko: Some(100.0),
+                max_admin_funding_aeko: Some(100.0),
                 console_airdrop_cap_aeko: Some(25.0),
             },
         )
@@ -1030,12 +1038,12 @@ async fn submitted_grant_is_reconciled_without_resubmission() -> Result<()> {
     .await;
     assert_eq!(status, StatusCode::OK, "{approved}");
     assert_eq!(approved["data"]["status"], "submitted");
-    assert_eq!(rpc_observer.airdrop_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 1);
 
     let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
     assert_eq!(transitioned, 1);
     assert_eq!(
-        rpc_observer.airdrop_calls.load(Ordering::SeqCst),
+        rpc_observer.transfer_calls.load(Ordering::SeqCst),
         1,
         "reconciliation must observe the stored signature without resubmitting"
     );
@@ -1093,9 +1101,9 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
         .route("/", post(fake_rpc))
         .with_state(FakeRpcState {
             authorization: authorization.clone(),
-            saw_authorized_airdrop: Arc::new(AtomicBool::new(false)),
-            airdrop_calls: Arc::new(AtomicUsize::new(0)),
-            airdrop_failures: Arc::new(AtomicUsize::new(0)),
+            saw_authorized_funding: Arc::new(AtomicBool::new(false)),
+            transfer_calls: Arc::new(AtomicUsize::new(0)),
+            transfer_failures: Arc::new(AtomicUsize::new(0)),
             blockhash_calls: Arc::new(AtomicUsize::new(0)),
             blockhash_valid: Arc::new(AtomicBool::new(true)),
             pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
@@ -1117,7 +1125,7 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
                 amount_aeko: Some(5.0),
                 cooldown_hours: Some(0.0),
                 daily_budget_aeko: Some(1_000_000.0),
-                max_manual_grant_aeko: Some(100.0),
+                max_admin_funding_aeko: Some(100.0),
                 console_airdrop_cap_aeko: Some(25.0),
             },
         )
@@ -1208,7 +1216,7 @@ async fn mainnet_funding_grant_and_airdrop_routes_are_available() -> Result<()> 
         "mainnet direct grant must settle with a durable signature: {grant}"
     );
 
-    let grants = state.repository.list_funding_grants(500).await?;
+    let grants = state.repository.list_funding_transfers(500).await?;
     assert!(
         grants
             .iter()
