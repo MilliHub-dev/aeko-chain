@@ -171,7 +171,6 @@ def main() -> int:
         "AEKO_FUNDING_GATEWAY_KEY",
         "FUNDING_ADMIN_API_KEY",
         "FUNDING_CLIENT_API_KEY",
-        "AEKO_INTERNAL_FUNDING_URL",
         "AEKO_OPERATIONS_ROLE",
         "admin-state",
     )
@@ -726,7 +725,6 @@ def main() -> int:
             for retired_doc_contract in (
                 "AEKO_OPERATIONS_ROLE",
                 "FUNDING_GATEWAY_KEY",
-                "AEKO_INTERNAL_FUNDING_URL",
                 "AEKO_PUBLIC_FUNDING_URL",
                 "AEKO_LOCALNET_FUNDING_URL",
             ):
@@ -752,7 +750,6 @@ def main() -> int:
     ):
         reject(text, "fund.aeko.online", where)
         reject(text, "FUNDING_GATEWAY_KEY", where)
-        reject(text, "AEKO_INTERNAL_FUNDING_URL", where)
         reject(text, "AEKO_OPERATIONS_ROLE", where)
 
     reject(testnet_environment, "Funding Portal", "testnet environment")

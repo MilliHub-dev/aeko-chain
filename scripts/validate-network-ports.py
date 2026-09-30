@@ -161,13 +161,13 @@ def main() -> int:
             str(path.relative_to(ROOT)),
             compose,
             (
-                "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}",
-                "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-faucet:9900}",
+                "AEKO_RPC_URL: http://validator:8899",
+                "AEKO_FAUCET_ADDRESS: faucet:9900",
             ),
         )
         explorer = service_block(compose, "explorer-api")
         require(
-            "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-ws://validator:8900}" in explorer,
+            "AEKO_WS_URL: ws://validator:8900 in explorer,
             f"{path.name} Explorer API must use the internal validator WebSocket namespace",
         )
         require(
@@ -177,7 +177,7 @@ def main() -> int:
         operations = service_block(compose, "operations-web")
         require(
             "AEKO_NETWORK:" in operations
-            and "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in operations
+            and "AEKO_EXPLORER_API_URL: http://explorer-api:8088 in operations
             and "AEKO_ADMIN_EXPLORER_TIMEOUT_MS:" in operations,
             f"{path.name} Operations Web must use the private Explorer API with the funding-safe timeout",
         )
@@ -201,7 +201,7 @@ def main() -> int:
         ("split Protocol bootstrap", bootstrap_protocol),
     ):
         require(
-            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?Set private or DNS-only Validator RPC URL}" in block,
+            "AEKO_RPC_URL: ${AEKO_RPC_URL:-}" in block,
             f"{label} must use the private Validator RPC contract",
         )
 
@@ -210,9 +210,9 @@ def main() -> int:
         split["explorer-api"],
         (
             "AEKO_NETWORK: ${AEKO_NETWORK:-}",
-            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-}",
-            "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}",
-            "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:-}",
+            "AEKO_RPC_URL: ${AEKO_RPC_URL:-}",
+            "AEKO_WS_URL: ${AEKO_WS_URL:-}",
+            "AEKO_REGISTRY_URL: ${AEKO_REGISTRY_URL:-}",
             'AEKO_REQUIRE_REMOTE_REGISTRY: "1"',
             "AEKO_EXPLORER_CORS_ORIGINS: ${AEKO_EXPLORER_CORS_ORIGINS:-}",
             '- "8088"',
@@ -237,8 +237,8 @@ def main() -> int:
         split["operations-web"],
         (
             "AEKO_NETWORK: ${AEKO_NETWORK:?",
-            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
-            "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?",
+            "AEKO_RPC_URL: ${AEKO_RPC_URL:-}",
+            "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-}",
             "AEKO_ADMIN_EXPLORER_TIMEOUT_MS:",
             '- "3001"',
         ),
@@ -247,7 +247,7 @@ def main() -> int:
         "split Validator",
         split["validator"],
         (
-            "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-}",
+            "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-}",
             'AEKO_REQUIRE_REMOTE_FAUCET: "1"',
             "AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-gossip.aeko.online}",
             '- "8000-8050:8000-8050/tcp"',

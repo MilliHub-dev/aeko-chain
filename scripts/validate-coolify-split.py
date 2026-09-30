@@ -175,7 +175,7 @@ def main() -> int:
     )
     for name, block in (("Social", social), ("Protocol", protocol)):
         require(
-            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?Set private or DNS-only Validator RPC URL}" in block,
+            "AEKO_RPC_URL: ${AEKO_RPC_URL:-}" in block,
             f"{name} bootstrap must use the private Validator RPC contract",
         )
         if name == "Protocol":
@@ -251,12 +251,12 @@ def main() -> int:
     validator = loaded["validator"]
     require("AEKO_NETWORK: ${AEKO_NETWORK:?" in validator, "Validator must declare one active chain environment")
     require(
-        "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-}" in validator
+        "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-}" in validator
         and 'AEKO_REQUIRE_REMOTE_FAUCET: "1"' in validator,
         "Validator must pass the private raw Faucet endpoint and fail closed when it is absent",
     )
     require(
-        "AEKO_INTERNAL_FAUCET_ADDRESS:?Set " not in validator,
+        "AEKO_FAUCET_ADDRESS:?Set " not in validator,
         "Validator must not use message-bearing Coolify interpolation for the Faucet endpoint",
     )
     require("source: /data/aeko/validator-ledger" in validator, "Validator ledger must use stable host storage")
@@ -281,9 +281,9 @@ def main() -> int:
     )
     for expected in (
         "AEKO_NETWORK: ${AEKO_NETWORK:-}",
-        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-}",
-        "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}",
-        "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:-}",
+        "AEKO_RPC_URL: ${AEKO_RPC_URL:-}",
+        "AEKO_WS_URL: ${AEKO_WS_URL:-}",
+        "AEKO_REGISTRY_URL: ${AEKO_REGISTRY_URL:-}",
         'AEKO_REQUIRE_REMOTE_REGISTRY: "1"',
     ):
         require(expected in explorer_api, f"Explorer API missing private upstream contract: {expected}")
@@ -307,9 +307,9 @@ def main() -> int:
     )
     for name in (
         "AEKO_NETWORK",
-        "AEKO_INTERNAL_RPC_URL",
-        "AEKO_INTERNAL_WS_URL",
-        "AEKO_INTERNAL_REGISTRY_URL",
+        "AEKO_RPC_URL",
+        "AEKO_WS_URL",
+        "AEKO_REGISTRY_URL",
         "AEKO_EXPLORER_CORS_ORIGINS",
     ):
         require(f"{name}=" in envs["explorer-api"], f"Explorer API env example missing {name}")
@@ -318,8 +318,8 @@ def main() -> int:
         "Explorer API split resource must pass the browser CORS allowlist through for application validation",
     )
     for forbidden_prompt in (
-        "AEKO_INTERNAL_RPC_URL:?Set ",
-        "AEKO_INTERNAL_REGISTRY_URL:?Set ",
+        "AEKO_RPC_URL:?Set ",
+        "AEKO_REGISTRY_URL:?Set ",
         "AEKO_EXPLORER_CORS_ORIGINS:?Set ",
         "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?Set ",
         "EXPLORER_DATABASE_URL:?Set ",
@@ -371,8 +371,8 @@ def main() -> int:
     require("depends_on:" not in operations, "Operations Web must remain independently deployable")
     for expected in (
         "AEKO_NETWORK: ${AEKO_NETWORK:?",
-        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
-        "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?",
+        "AEKO_RPC_URL: ${AEKO_RPC_URL:-}",
+        "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-}",
         "AEKO_ADMIN_EXPLORER_TIMEOUT_MS:",
     ):
         require(expected in operations, f"Operations Web missing private upstream contract: {expected}")
