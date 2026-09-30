@@ -225,7 +225,7 @@ export default function FundingPage() {
         text: action === 'reject'
           ? 'Funding request rejected'
           : json.data.status === 'confirmed'
-            ? `Grant confirmed: ${json.data.amountAeko} AEKO to ${json.data.address}`
+            ? `Funding confirmed: ${json.data.amountAeko} AEKO to ${json.data.address}`
             : `Funding is ${json.data.status}; no duplicate transfer will be submitted while confirmation is unresolved.`,
       })
       await refresh()
@@ -318,7 +318,7 @@ export default function FundingPage() {
         <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-5 text-sm leading-6 text-amber-100">
           <div className="font-semibold">Mainnet test funding is disabled</div>
           <p className="mt-1 text-amber-100/80">
-            This page cannot mint, faucet, approve, or release mainnet AEKO. A future mainnet grant must execute through the separately implemented governance and treasury allocation path; these test-funding controls intentionally fail closed.
+            Developer airdrop is disabled on Mainnet. Admin funding remains an authenticated operator action and public funding remains governed by the active funding policy.
           </p>
         </div>
       ) : null}
