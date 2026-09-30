@@ -174,7 +174,7 @@ def main() -> int:
         require(
             "AEKO_NETWORK:" in operations
             and "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}" in operations
-            and "AEKO_EXPLORER_PROXY_TIMEOUT_MS:" in operations,
+            and "AEKO_EXPLORER_UPSTREAM_TIMEOUT_MS:" in operations,
             f"{path.name} Operations Web must use the private Explorer API with the funding-safe timeout",
         )
         scan = service_block(compose, "explorer-ui")
@@ -233,7 +233,7 @@ def main() -> int:
             "AEKO_NETWORK: ${AEKO_NETWORK:?",
             "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
             "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?",
-            "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
+            "AEKO_EXPLORER_UPSTREAM_TIMEOUT_MS:",
             '- "3001"',
         ),
     )

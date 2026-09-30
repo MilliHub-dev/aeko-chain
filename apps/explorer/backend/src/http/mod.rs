@@ -62,7 +62,7 @@ pub fn build_router(state: SharedState, server: &ServerConfig) -> Router {
 
     // SetRequestIdLayer stays outside TraceLayer so the generated/incoming ID
     // is present when the request span is created. Propagation adds the same ID
-    // to the response for end-to-end correlation through Scan/Admin proxies.
+    // to the response for end-to-end correlation through the public API edge and Operations Web BFF.
     features::router()
         .with_state(state)
         .layer(PropagateRequestIdLayer::new(request_id_header.clone()))

@@ -28,6 +28,7 @@ AEKO_REGISTRY_URL=https://registry.ci.invalid \
 AEKO_INTERNAL_RPC_URL=http://validator.internal.ci.invalid:8899 \
 AEKO_INTERNAL_WS_URL=ws://validator.internal.ci.invalid:8900 \
 AEKO_INTERNAL_EXPLORER_API_URL=http://explorer-api.internal.ci.invalid:8088 \
+AEKO_EXPLORER_UPSTREAM_TIMEOUT_MS=45000 \
 AEKO_INTERNAL_REGISTRY_URL=http://registry.internal.ci.invalid:8089 \
 EXPLORER_DATABASE_URL=postgres://aeko:aeko@postgres:5432/aeko_explorer \
 AEKO_IMAGE_TAG=ci \
