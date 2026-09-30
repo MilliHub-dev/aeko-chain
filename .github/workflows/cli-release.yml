@@ -192,6 +192,18 @@ jobs:
           grep -Fq "AEKO CLI is up to date." "$RUNNER_TEMP/aeko-update-check.log"
           "target/$TARGET/release/aeko" --help | grep -Fq "AEKO QUICK START"
 
+          self_update_dir="$RUNNER_TEMP/aeko-cli-self-update-test"
+          mkdir -p "$self_update_dir"
+          cp "target/$TARGET/release/aeko" "$self_update_dir/aeko"
+          cp "target/$TARGET/release/aeko-keygen" "$self_update_dir/aeko-keygen"
+          printf '{"tag_name":"cli-main-ffffffffffff","html_url":"https://example.invalid/aeko-cli-update"}\n' > dist/mock/update.json
+          AEKO_CLI_RELEASE_API_URL=http://127.0.0.1:18765/mock/update.json \
+            AEKO_CLI_ASSET_BASE_URL=http://127.0.0.1:18765 \
+            "$self_update_dir/aeko" update --yes | tee "$RUNNER_TEMP/aeko-self-update.log"
+          grep -Fq "AEKO CLI is updated to cli-main-ffffffffffff." "$RUNNER_TEMP/aeko-self-update.log"
+          "$self_update_dir/aeko" --version
+          "$self_update_dir/aeko-keygen" --version
+
           curl -fsSL http://127.0.0.1:18765/mock/aeko-cli-install.sh | \
             AEKO_CLI_ASSET_BASE_URL=http://127.0.0.1:18765 \
             AEKO_INSTALL_DIR="$install_dir" \
@@ -234,6 +246,26 @@ jobs:
             $help = (& "target/$env:TARGET/release/aeko.exe" --help 2>&1 | Out-String)
             if ($LASTEXITCODE -ne 0 -or $help -notmatch 'AEKO QUICK START') { throw 'AEKO CLI rich help is missing' }
 
+            $selfUpdateDir = Join-Path $env:RUNNER_TEMP 'aeko-cli-self-update-test'
+            New-Item -ItemType Directory -Force -Path $selfUpdateDir | Out-Null
+            Copy-Item "target/$env:TARGET/release/aeko.exe" (Join-Path $selfUpdateDir 'aeko.exe')
+            Copy-Item "target/$env:TARGET/release/aeko-keygen.exe" (Join-Path $selfUpdateDir 'aeko-keygen.exe')
+            @{
+              tag_name = 'cli-main-ffffffffffff'
+              html_url = 'https://example.invalid/aeko-cli-update'
+            } | ConvertTo-Json -Compress | Set-Content -Encoding ascii dist/mock/update.json
+            $env:AEKO_CLI_RELEASE_API_URL = 'http://127.0.0.1:18766/mock/update.json'
+            $env:AEKO_CLI_ASSET_BASE_URL = 'http://127.0.0.1:18766'
+            $selfUpdate = (& (Join-Path $selfUpdateDir 'aeko.exe') update --yes 2>&1 | Out-String)
+            if ($LASTEXITCODE -ne 0) { throw "aeko update --yes failed: $selfUpdate" }
+            if ($selfUpdate -notmatch 'AEKO update cli-main-ffffffffffff started') { throw "unexpected self-update output: $selfUpdate" }
+            Start-Sleep -Seconds 5
+            & (Join-Path $selfUpdateDir 'aeko.exe') --version
+            if ($LASTEXITCODE -ne 0) { throw 'self-updated aeko.exe failed' }
+            & (Join-Path $selfUpdateDir 'aeko-keygen.exe') --version
+            if ($LASTEXITCODE -ne 0) { throw 'self-updated aeko-keygen.exe failed' }
+
+            $env:AEKO_CLI_RELEASE_API_URL = 'http://127.0.0.1:18766/mock/latest.json'
             $env:AEKO_CLI_ASSET_BASE_URL = 'http://127.0.0.1:18766'
             $env:AEKO_INSTALL_DIR = $installDir
             & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "irm 'http://127.0.0.1:18766/mock/aeko-cli-install.ps1' | iex"
