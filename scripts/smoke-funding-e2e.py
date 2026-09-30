@@ -2,7 +2,7 @@
 """Destructive end-to-end smoke test for AEKO test-network funding.
 
 This test uses the same product boundaries as a real user/operator flow:
-Aeko Scan public request -> Operations Web Admin approval -> Explorer backend
+Public Explorer API request -> Operations Web Admin approval -> Explorer backend
 settlement -> protected Validator requestFunding -> Faucet -> chain confirmation
 -> public request status -> Admin funding history -> RPC balance.
 
@@ -11,7 +11,7 @@ separate workflow and ledger.
 
 Required environment:
   AEKO_NETWORK=testnet|devnet|localnet
-  AEKO_SCAN_URL=https://scan.example
+  AEKO_EXPLORER_API_URL=https://api.example
   AEKO_OPERATIONS_URL=https://admin.example
   AEKO_RPC_URL=https://rpc.example
   AEKO_FUNDING_SMOKE_ADDRESS=<dedicated wallet address>
@@ -50,7 +50,7 @@ def required(name: str) -> str:
 
 
 NETWORK = os.environ.get("AEKO_NETWORK", "").strip().lower()
-SCAN_URL = os.environ.get("AEKO_SCAN_URL", "").strip().rstrip("/")
+EXPLORER_API_URL = os.environ.get("AEKO_EXPLORER_API_URL", "").strip().rstrip("/")
 OPERATIONS_URL = os.environ.get("AEKO_OPERATIONS_URL", "").strip().rstrip("/")
 RPC_URL = os.environ.get("AEKO_RPC_URL", "").strip().rstrip("/")
 ADDRESS = os.environ.get("AEKO_FUNDING_SMOKE_ADDRESS", "").strip()
@@ -97,9 +97,13 @@ def http_json(
         headers=headers,
         method=method,
     )
-    client = opener or urllib.request
     try:
-        with client.open(request, timeout=TIMEOUT) as response:
+        response = (
+            opener.open(request, timeout=TIMEOUT)
+            if opener is not None
+            else urllib.request.urlopen(request, timeout=TIMEOUT)
+        )
+        with response:
             if response.status != expected_status:
                 raise SmokeFailure(
                     f"{url} returned HTTP {response.status}, expected {expected_status}"
@@ -154,7 +158,7 @@ def balance(address: str) -> int:
 
 
 def funding_url(path: str) -> str:
-    return f"{SCAN_URL}/api/explorer/{NETWORK}/funding{path}"
+    return f"{EXPLORER_API_URL}/funding{path}"
 
 
 def admin_url(path: str) -> str:
@@ -172,9 +176,9 @@ def login_admin() -> None:
     print("[ok] authenticated to Operations Web")
 
 
-def ensure_scan_cannot_decide_funding(request_id: str) -> None:
+def ensure_public_api_cannot_decide_funding(request_id: str) -> None:
     url = (
-        f"{SCAN_URL}/api/explorer/{NETWORK}/admin/funding/requests/"
+        f"{EXPLORER_API_URL}/admin/funding/requests/"
         f"{request_id}/decide"
     )
     request = urllib.request.Request(
@@ -189,11 +193,11 @@ def ensure_scan_cannot_decide_funding(request_id: str) -> None:
         if exc.code not in (403, 404, 405):
             detail = exc.read().decode("utf-8", "replace")[:500]
             raise SmokeFailure(
-                f"Scan funding-decision path failed with unexpected HTTP {exc.code}: {detail}"
+                f"Public Explorer API funding-decision path failed with unexpected HTTP {exc.code}: {detail}"
             ) from exc
-        print(f"[ok] Scan cannot approve funding (HTTP {exc.code})")
+        print(f"[ok] Public Explorer API cannot approve funding without Admin credentials (HTTP {exc.code})")
         return
-    raise SmokeFailure("Scan unexpectedly accepted an Admin funding-decision request")
+    raise SmokeFailure("Public Explorer API unexpectedly accepted an unauthenticated Admin funding-decision request")
 
 
 def approve_from_admin(request_id: str) -> dict[str, Any]:
@@ -223,7 +227,7 @@ def wait_for_terminal(request_id: str) -> dict[str, Any]:
         last = data
         status = str(data.get("status", ""))
         if status == "confirmed":
-            print("[ok] public Scan request status reached confirmed")
+            print("[ok] public Explorer API request status reached confirmed")
             return data
         if status in {"failed", "rejected"}:
             raise SmokeFailure(f"funding ended in {status}: {data}")
@@ -270,14 +274,14 @@ def verify_not_in_airdrop_ledger(signature: str) -> None:
 
 def main() -> int:
     try:
-        required("AEKO_SCAN_URL")
+        required("AEKO_EXPLORER_API_URL")
         required("AEKO_OPERATIONS_URL")
         required("AEKO_RPC_URL")
         required("AEKO_FUNDING_SMOKE_ADDRESS")
         required("ADMIN_PASSWORD")
         if NETWORK not in {"testnet", "devnet", "localnet"}:
             raise SmokeFailure(
-                "AEKO_NETWORK must be testnet, devnet, or localnet; mainnet funding is intentionally unsupported"
+                "This destructive smoke is intentionally limited to testnet, devnet, or localnet; do not run it against a governed Mainnet deployment"
             )
 
         health = rpc("getHealth")
@@ -308,9 +312,9 @@ def main() -> int:
         request_id = str(created.get("id", "")).strip()
         if not request_id:
             raise SmokeFailure("public request did not return an id")
-        print(f"[ok] Scan created pending request {request_id}")
+        print(f"[ok] Explorer API created pending request {request_id}")
 
-        ensure_scan_cannot_decide_funding(request_id)
+        ensure_public_api_cannot_decide_funding(request_id)
         login_admin()
         approve_from_admin(request_id)
         confirmed = wait_for_terminal(request_id)
@@ -334,7 +338,7 @@ def main() -> int:
         return 1
 
     print(
-        "[PASS] Scan request -> Admin approval -> protected settlement -> "
+        "[PASS] Explorer API request -> Admin approval -> protected settlement -> "
         "chain confirmation -> funding history is end-to-end coherent"
     )
     return 0
