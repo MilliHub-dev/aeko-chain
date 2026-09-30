@@ -288,11 +288,12 @@ generate_smoke_key() {
 }
 PUBLIC_ADDRESS="$(generate_smoke_key public-funding)"
 ADMIN_ADDRESS="$(generate_smoke_key admin-funding)"
-AIRDROP_ADDRESS="$(generate_smoke_key developer-airdrop)"
+RPC_AIRDROP_ADDRESS="$(generate_smoke_key rpc-airdrop)"
+API_AIRDROP_ADDRESS="$(generate_smoke_key api-airdrop)"
 RPC_FUNDING_ADDRESS="$(generate_smoke_key rpc-funding)"
 CLI_SENDER_ADDRESS="$(generate_smoke_key cli-sender)"
 CLI_RECIPIENT_ADDRESS="$(generate_smoke_key cli-recipient)"
-export PUBLIC_ADDRESS ADMIN_ADDRESS AIRDROP_ADDRESS RPC_FUNDING_ADDRESS CLI_SENDER_ADDRESS CLI_RECIPIENT_ADDRESS
+export PUBLIC_ADDRESS ADMIN_ADDRESS RPC_AIRDROP_ADDRESS API_AIRDROP_ADDRESS RPC_FUNDING_ADDRESS CLI_SENDER_ADDRESS CLI_RECIPIENT_ADDRESS
 
 echo "==> Exercising critical JSON-RPC semantics with curl"
 test "$(rpc_result getHealth | jq -r '.')" = "ok" || fail "getHealth != ok"
@@ -320,10 +321,10 @@ RPC_FUNDING_SIGNATURE="$(rpc_result requestFunding "$funding_params" | jq -r '.'
 test -n "$RPC_FUNDING_SIGNATURE" || fail "authorized requestFunding returned no signature"
 wait_balance_at_least "$RPC_FUNDING_ADDRESS" 1000000000 "protected RPC Funding reached wallet"
 
-airdrop_params="$(jq -cn --arg a "$AIRDROP_ADDRESS" '[ $a, 1000000000, {commitment:"confirmed"} ]')"
+airdrop_params="$(jq -cn --arg a "$RPC_AIRDROP_ADDRESS" '[ $a, 1000000000, {commitment:"confirmed"} ]')"
 RPC_AIRDROP_SIGNATURE="$(rpc_result requestAirdrop "$airdrop_params" | jq -r '.')"
 test -n "$RPC_AIRDROP_SIGNATURE" || fail "requestAirdrop returned no signature"
-wait_balance_at_least "$AIRDROP_ADDRESS" 1000000000 "developer RPC airdrop reached wallet"
+wait_balance_at_least "$RPC_AIRDROP_ADDRESS" 1000000000 "developer RPC airdrop reached wallet"
 
 rpc_result getSignatureStatuses "$(jq -cn --arg s "$RPC_FUNDING_SIGNATURE" '[[ $s ], {searchTransactionHistory:true}]')" >"$ARTIFACT_DIR/rpc-signature-status.json"
 rpc_result getAccountInfo "$(jq -cn --arg a "$RPC_FUNDING_ADDRESS" '[ $a, {commitment:"confirmed",encoding:"base64"} ]')" >"$ARTIFACT_DIR/rpc-account-info.json"
@@ -410,11 +411,11 @@ test -n "$ADMIN_SIGNATURE" || fail "direct Admin Funding has no signature"
 wait_balance_at_least "$ADMIN_ADDRESS" $((ADMIN_BEFORE + 2000000000)) "direct Admin Funding reached wallet without second approval"
 echo "[ok] direct Admin Funding has no second approval step"
 
-AIR_BEFORE="$(balance "$AIRDROP_ADDRESS")"
-airdrop="$(api_data POST /funding/airdrop "$(jq -cn --arg a "$AIRDROP_ADDRESS" '{address:$a,amountAeko:1}')")"
+AIR_BEFORE="$(balance "$API_AIRDROP_ADDRESS")"
+airdrop="$(api_data POST /funding/airdrop "$(jq -cn --arg a "$API_AIRDROP_ADDRESS" '{address:$a,amountAeko:1}')")"
 API_AIRDROP_SIGNATURE="$(jq -r '.signature // empty' <<<"$airdrop")"
 test -n "$API_AIRDROP_SIGNATURE" || fail "Explorer developer airdrop returned no signature"
-wait_balance_at_least "$AIRDROP_ADDRESS" $((AIR_BEFORE + 1000000000)) "Explorer developer airdrop reached wallet"
+wait_balance_at_least "$API_AIRDROP_ADDRESS" $((AIR_BEFORE + 1000000000)) "Explorer developer airdrop reached wallet"
 
 funding_history="$(api_data GET '/admin/funding/history?limit=100' "" 1)"
 airdrop_history="$(api_data GET '/admin/funding/airdrops?limit=100' "" 1)"
