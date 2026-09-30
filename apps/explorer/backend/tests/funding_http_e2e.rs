@@ -1043,7 +1043,7 @@ async fn submitted_funding_is_reconciled_without_resubmission() -> Result<()> {
         transfer_failures: Arc::new(AtomicUsize::new(0)),
         blockhash_calls: Arc::new(AtomicUsize::new(0)),
         blockhash_valid: Arc::new(AtomicBool::new(true)),
-        pending_signature_statuses: Arc::new(AtomicUsize::new(12)),
+        pending_signature_statuses: Arc::new(AtomicUsize::new(0)),
         blockhash: Pubkey::new_unique().to_string(),
     };
     let rpc_observer = fake_state.clone();
