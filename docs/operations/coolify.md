@@ -346,7 +346,12 @@ localhost works, check these in order:
    must set `AEKO_EXPLORER_CORS_ORIGINS=https://scan.aeko.online` (plus any
    explicitly approved local/browser origins), and preflight for public funding
    must allow `POST`, `OPTIONS`, `Content-Type`, and `X-Request-Id`.
-2. **Approvals stuck in `processing` ("submission response was not
+2. **Faucet logs `Rejected HTTP-like traffic on raw TCP Faucet listener`.**
+   This is not a valid Validator funding request. The Validator client uses the
+   binary Faucet protocol over raw TCP. Remove any Coolify HTTP domain, HTTP
+   health probe, Traefik HTTP router, or Cloudflare HTTP proxy attached to port
+   `9900`; publish raw TCP only and firewall it to the Validator source.
+3. **Approvals stuck in `processing` ("submission response was not
    obtained").** The validator's faucet path is broken: the validator needs
    `--rpc-faucet-address <private-or-dns-only-faucet-host>:9900` with a reachable Faucet, a funded
    faucet keypair, caps above the grant amount, and an
@@ -358,7 +363,7 @@ localhost works, check these in order:
    the wallet when no durable signature exists, after which the user can
    submit a fresh request (CLI/SDK/explorer clients automatically adopt the
    in-flight request id and resume polling).
-3. **404 on `/accounts/:address`.** Expected for an address that never
+4. **404 on `/accounts/:address`.** Expected for an address that never
    received funds: the account does not exist on-chain yet. Fix funding first;
    the account appears once a transfer lands.
 

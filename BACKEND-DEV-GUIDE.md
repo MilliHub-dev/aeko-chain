@@ -10,8 +10,9 @@ Backend integration guide for the currently deployed AEKO public testnet. Verify
 |---|---|---|
 | JSON-RPC | `https://rpc.aeko.online` | Direct chain reads, transactions, program deployment |
 | WebSocket PubSub | `wss://ws.aeko.online` | Live subscriptions |
-| Explorer UI/read proxy | `https://scan.aeko.online` | Human-readable Aeko Scan; browser-indexed reads stay same-origin |
-| Testnet Funding API | `https://scan.aeko.online/api/explorer/testnet/funding/*` | Explorer API funding module through the Scan same-origin proxy; public approval requests and constrained Test Console airdrops (same `/funding/*` contract is served on every network as `/api/explorer/{network}/funding/*`) |
+| Explorer API | `https://api.aeko.online` | Indexed REST reads plus public funding policy/request/status endpoints; browser access is governed by the explicit CORS allowlist |
+| Explorer UI | `https://scan.aeko.online` | Human-readable Aeko Scan; browser reads and public funding calls go directly to the selected Explorer API |
+| Testnet Funding API | `https://api.aeko.online/funding/*` | Explorer-owned public approval requests and constrained developer airdrops on the active network |
 | Faucet Daemon | **private only**, TCP `faucet:9900` | Signs low-level funding transfers for the validator |
 
 Application backends must not connect directly to TCP `9900`.
@@ -200,10 +201,11 @@ All SDK builder functions return a **base64-encoded unsigned transaction**. The 
 
 ## Managed Funding
 
-Public applications use the selected network's Explorer API funding module through Aeko Scan's same-origin funding routes. They do not connect to the private Faucet Daemon for approval-gated grants:
+Public applications call the selected network's Explorer API funding module directly. Aeko Scan does not proxy this request, and applications do not connect to the private Faucet Daemon for approval-gated grants:
 
 ```bash
-curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
+curl -X POST https://api.aeko.online/funding/request \
+  -H 'Origin: https://scan.aeko.online' \
   -H 'Content-Type: application/json' \
   -d '{"address":"<pubkey>"}'
 ```

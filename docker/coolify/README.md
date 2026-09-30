@@ -22,7 +22,7 @@ contract. Do not migrate an established chain by only changing a Compose path.
 | Faucet + tools | Faucet daemon, opt-in wallet/operator CLI | `docker/coolify/faucet-tools/compose.yml` |
 | Validator | voting Validator / RPC / WebSocket | `docker/coolify/validator/compose.yml` |
 | Explorer API | indexer, REST API, funding/readiness control plane | `apps/explorer/backend/compose.coolify.yml` |
-| Aeko Scan | Explorer UI and same-origin read proxy | `apps/explorer/web/compose.coolify.yml` |
+| Aeko Scan | Explorer UI; browser reads/funding call the selected Explorer API directly | `apps/explorer/web/compose.coolify.yml` |
 | Operations Web | authenticated Admin/operator UI | `apps/admin/compose.coolify.yml` |
 
 The three bootstrap jobs are deliberately one resource. Faucet and wallet tools
@@ -92,7 +92,6 @@ AEKO_INTERNAL_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
 AEKO_INTERNAL_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
 AEKO_INTERNAL_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
 AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
-AEKO_EXPLORER_PROXY_UPSTREAM_URL=https://<private-or-dns-only-explorer-api-origin>
 ```
 
 Compose maps those server-only inputs back to the generic runtime names
@@ -327,7 +326,7 @@ Do not accept a deployment from container state alone. Verify:
 - Explorer liveness/readiness/network-readiness are healthy;
 - Social registry/status is complete;
 - Protocol registry/status is complete;
-- Aeko Scan reads through its same-origin proxy;
+- Aeko Scan reads the selected `AEKO_EXPLORER_API_URL` directly and the Explorer API CORS preflight permits the Scan origin;
 - Operations Web can read Explorer API and perform authenticated settings
   operations;
 - Faucet TCP 9900 is reachable from Validator but not broadly exposed.
