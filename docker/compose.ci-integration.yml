@@ -31,7 +31,7 @@ services:
       AEKO_NETWORK: testnet
       AEKO_RPC_URL: http://127.0.0.1:${AEKO_RPC_HOST_PORT:-18899}
       AEKO_WS_URL: ws://127.0.0.1:${AEKO_WS_HOST_PORT:-18900}
-      AEKO_EXPLORER_API_URL: http://explorer-api:8088
+      AEKO_EXPLORER_API_URL: http://127.0.0.1:${AEKO_EXPLORER_API_HOST_PORT:-18088}
     depends_on:
       explorer-api:
         condition: service_healthy
