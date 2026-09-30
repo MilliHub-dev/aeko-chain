@@ -688,7 +688,7 @@ async fn expired_submitted_funding_becomes_terminal_failed_without_fresh_intent(
         .to_string();
 
     let before = state.repository.funding_policy_snapshot().await?;
-    let (status, failed_response) = request_json(
+    let (status, submitted) = request_json(
         &app,
         Method::POST,
         &format!("/admin/funding/requests/{request_id}/decide"),
@@ -696,13 +696,18 @@ async fn expired_submitted_funding_becomes_terminal_failed_without_fresh_intent(
         Some(admin_token),
     )
     .await;
-    assert_eq!(status, StatusCode::BAD_GATEWAY, "{failed_response}");
-    assert_eq!(
-        failed_response["error"]["code"],
-        "FUNDING_TRANSACTION_FAILED"
-    );
+    assert_eq!(status, StatusCode::OK, "{submitted}");
+    assert_eq!(submitted["data"]["status"], "submitted");
     assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 1);
     assert_eq!(rpc_observer.blockhash_calls.load(Ordering::SeqCst), 1);
+
+    let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
+    assert_eq!(transitioned, 1);
+    assert_eq!(
+        rpc_observer.transfer_calls.load(Ordering::SeqCst),
+        1,
+        "expired confirmation must not resubmit the durable transaction"
+    );
 
     let failed = state
         .repository
