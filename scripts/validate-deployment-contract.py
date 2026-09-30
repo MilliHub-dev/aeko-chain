@@ -623,6 +623,9 @@ def main() -> int:
         "direct Faucet-backed airdrop",
         'api_url + "/funding/airdrop"',
         "Explorer API funding airdrop",
+        "Explorer API funding CORS preflight",
+        '"Access-Control-Request-Method": "POST"',
+        '"Origin": "https://scan.aeko.online"',
     ):
         require(
             required in live_network_diagnostics,

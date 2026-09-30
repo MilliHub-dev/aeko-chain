@@ -68,6 +68,28 @@ jobs:
                   parsed = None
               return status, parsed, raw
 
+          def cors_preflight(url):
+              request = urllib.request.Request(
+                  url,
+                  headers={
+                      "Origin": "https://scan.aeko.online",
+                      "Access-Control-Request-Method": "POST",
+                      "Access-Control-Request-Headers": "content-type,x-request-id",
+                  },
+                  method="OPTIONS",
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=15) as response:
+                      return response.status, {
+                          key.lower(): value for key, value in response.headers.items()
+                      }, response.read().decode("utf-8", "replace")
+              except urllib.error.HTTPError as error:
+                  return error.code, {
+                      key.lower(): value for key, value in error.headers.items()
+                  }, error.read().decode("utf-8", "replace")
+              except OSError as error:
+                  return 0, {}, str(error)
+
           def rpc(method, params=None):
               status, payload, raw = request_json(
                   rpc_url,
@@ -98,6 +120,37 @@ jobs:
                   failures.append(f"RPC slot did not advance: {slot_a} -> {slot_b}")
           except (TypeError, ValueError):
               failures.append(f"RPC slot values were invalid: {slot_a!r}, {slot_b!r}")
+
+          cors_status, cors_headers, cors_raw = cors_preflight(api_url + "/funding/request")
+          print("\n::group::Explorer API funding CORS preflight")
+          print(f"HTTP {cors_status}")
+          print(json.dumps(cors_headers, indent=2, sort_keys=True))
+          if cors_raw:
+              print(cors_raw)
+          print("::endgroup::")
+          allowed_origin = cors_headers.get("access-control-allow-origin", "")
+          allowed_methods = {
+              method.strip().upper()
+              for method in cors_headers.get("access-control-allow-methods", "").split(",")
+              if method.strip()
+          }
+          allowed_headers = {
+              header.strip().lower()
+              for header in cors_headers.get("access-control-allow-headers", "").split(",")
+              if header.strip()
+          }
+          if cors_status != 200:
+              failures.append(f"Explorer API funding CORS preflight failed with HTTP {cors_status}")
+          if allowed_origin != "https://scan.aeko.online":
+              failures.append(
+                  "Explorer API funding CORS preflight did not allow https://scan.aeko.online"
+              )
+          if "POST" not in allowed_methods:
+              failures.append("Explorer API funding CORS preflight did not allow POST")
+          if not {"content-type", "x-request-id"}.issubset(allowed_headers):
+              failures.append(
+                  "Explorer API funding CORS preflight did not allow content-type and x-request-id"
+              )
 
           alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
@@ -232,7 +285,7 @@ jobs:
               raise SystemExit(1)
 
           print(
-              f"\n[PASS] public RPC, direct Faucet-backed airdrop, Explorer API funding airdrop, and control-plane probes are healthy; "
+              f"\n[PASS] public RPC, direct Faucet-backed airdrop, Explorer API CORS + funding airdrop, and control-plane probes are healthy; "
               f"genesis={genesis}, slot={slot_a}->{slot_b}"
           )
           PY
