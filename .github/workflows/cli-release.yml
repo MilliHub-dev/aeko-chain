@@ -7,15 +7,12 @@ name: AEKO CLI release binaries
 # operator-managed versioned releases, and workflow_dispatch remains build-only.
 on:
   pull_request:
-    paths:
-      - "apps/cli/**"
-      - "keygen/**"
-      - "install/aeko-cli-install.sh"
-      - "install/aeko-cli-install.ps1"
-      - "version/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - ".github/workflows/cli-release.yml"
+    branches: ["main"]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "LICENSE*"
+      - "NOTICE*"
   workflow_run:
     workflows: ["AEKO DevOps (single runner)"]
     branches: ["main"]
