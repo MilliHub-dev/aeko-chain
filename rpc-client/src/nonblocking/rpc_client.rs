@@ -5071,51 +5071,51 @@ impl RpcClient {
 
     /// Instant developer airdrop is handled by `request_airdrop*` above.
     ///
-    /// Approval-gated funding grants use `request_grant*` below: the caller must
+    /// Approval-gated funding transfers use `request_funding*` below: the caller must
     /// have obtained admin approval (Explorer `/funding/request` poll loop or
     /// admin direct `/admin/funding/grant`) before submitting, except when the
     /// caller itself is the admin direct-grant path which bypasses approval.
-    pub async fn request_grant(&self, pubkey: &Pubkey, lamports: u64) -> ClientResult<Signature> {
-        self.request_grant_with_config(
+    pub async fn request_funding(&self, pubkey: &Pubkey, lamports: u64) -> ClientResult<Signature> {
+        self.request_funding_with_config(
             pubkey,
             lamports,
-            RpcRequestGrantConfig {
+            RpcRequestFundingConfig {
                 commitment: Some(self.commitment()),
-                ..RpcRequestGrantConfig::default()
+                ..RpcRequestFundingConfig::default()
             },
         )
         .await
     }
 
-    pub async fn request_grant_with_blockhash(
+    pub async fn request_funding_with_blockhash(
         &self,
         pubkey: &Pubkey,
         lamports: u64,
         recent_blockhash: &Hash,
     ) -> ClientResult<Signature> {
-        self.request_grant_with_config(
+        self.request_funding_with_config(
             pubkey,
             lamports,
-            RpcRequestGrantConfig {
+            RpcRequestFundingConfig {
                 commitment: Some(self.commitment()),
                 recent_blockhash: Some(recent_blockhash.to_string()),
-                ..RpcRequestGrantConfig::default()
+                ..RpcRequestFundingConfig::default()
             },
         )
         .await
     }
 
-    pub async fn request_grant_with_authorization(
+    pub async fn request_funding_with_authorization(
         &self,
         pubkey: &Pubkey,
         lamports: u64,
         recent_blockhash: &Hash,
         funding_authorization: Option<String>,
     ) -> ClientResult<Signature> {
-        self.request_grant_with_config(
+        self.request_funding_with_config(
             pubkey,
             lamports,
-            RpcRequestGrantConfig {
+            RpcRequestFundingConfig {
                 commitment: Some(self.commitment()),
                 recent_blockhash: Some(recent_blockhash.to_string()),
                 funding_authorization,
@@ -5124,20 +5124,20 @@ impl RpcClient {
         .await
     }
 
-    pub async fn request_grant_with_config(
+    pub async fn request_funding_with_config(
         &self,
         pubkey: &Pubkey,
         lamports: u64,
-        config: RpcRequestGrantConfig,
+        config: RpcRequestFundingConfig,
     ) -> ClientResult<Signature> {
         let commitment = config.commitment.unwrap_or_default();
         let commitment = self.maybe_map_commitment(commitment).await?;
-        let config = RpcRequestGrantConfig {
+        let config = RpcRequestFundingConfig {
             commitment: Some(commitment),
             ..config
         };
         self.send(
-            RpcRequest::RequestGrant,
+            RpcRequest::RequestFunding,
             json!([pubkey.to_string(), lamports, config]),
         )
         .await
