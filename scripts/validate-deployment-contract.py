@@ -602,8 +602,9 @@ def main() -> int:
     funding_state = read(ROOT / "apps" / "explorer" / "backend" / "src" / "http" / "state.rs")
     require(
         "pub fn is_funding_available(&self) -> bool" in funding_state
-        and "never branches on the deployment network" in funding_state,
-        "Explorer funding must be available on every deployed network",
+        and "pub fn is_test_environment(&self) -> bool" in funding_state
+        and "developer_airdrop_enabled: state.is_test_environment()" in funding_feature,
+        "Explorer funding must remain available on every network while developer airdrop follows the test-environment boundary",
     )
     for required in (
         "submission_blockhash",
