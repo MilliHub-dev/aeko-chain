@@ -3,7 +3,7 @@
 
 This test uses the same product boundaries as a real user/operator flow:
 Aeko Scan public request -> Operations Web Admin approval -> Explorer backend
-settlement -> protected Validator requestAirdrop -> Faucet -> chain confirmation
+settlement -> protected Validator requestFunding -> Faucet -> chain confirmation
 -> public request status -> Admin funding history -> RPC balance.
 
 It intentionally does not test developer Test Console airdrops. Airdrops are a
