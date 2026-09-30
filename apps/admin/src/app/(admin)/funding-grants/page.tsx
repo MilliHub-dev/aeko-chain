@@ -493,7 +493,7 @@ export default function FundingGrantsPage() {
           action={
             <button
               type="button"
-              onClick={() => void refresh()
+              onClick={() => void refresh()}
               disabled={syncing}
               className="min-h-[40px] rounded-lg border border-red-300/25 px-3 text-xs font-semibold transition-colors hover:bg-red-300/10 disabled:opacity-40"
             >
