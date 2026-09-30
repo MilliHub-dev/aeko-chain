@@ -196,10 +196,13 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
   assert.match(adminPage, /setInterval/);
   assert.match(adminPage, /expectedRevision: settings\.revision/);
   assert.match(adminPage, /developerAirdropEnabled/);
-  assert.match(adminPage, /developerAirdropEnabled/);
   assert.match(adminPage, /Disabled on Mainnet/);
   assert.match(adminPage, /Check confirmation/);
   assert.match(adminPage, /Airdrop history/);
+  assert.match(adminPage, /Retrying safely/);
+  assert.match(adminPage, /Awaiting confirmation/);
+  assert.doesNotMatch(adminPage, /airdrop\.errorCode\s*\?\?/);
+  assert.doesNotMatch(adminPage, /test-funding/);
   assert.match(adminProxy, /x-aeko-settings-token/);
   assert.match(settingsRoute, /method: 'PATCH'/);
   assert.match(requestsRoute, /approved: action === 'approve'/);
