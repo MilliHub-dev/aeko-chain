@@ -13,12 +13,13 @@ use {
     aeko_sdk::{native_token::LAMPORTS_PER_AEKO, pubkey::Pubkey},
     axum::{
         extract::{Path, Query, State},
-        http::{HeaderMap, HeaderValue, StatusCode},
+        http::{header, HeaderMap, HeaderValue, StatusCode},
         response::{IntoResponse, Response},
         routing::{get, post},
         Json, Router,
     },
     serde::{Deserialize, Serialize},
+    tower_http::set_header::SetResponseHeaderLayer,
     serde_json::{json, Value},
     std::time::Duration,
 };
@@ -458,6 +459,10 @@ pub fn router() -> Router<SharedState> {
         .route("/admin/funding/grants", get(list_grants))
         .route("/admin/funding/grant", post(create_grant))
         .route("/admin/funding/airdrops", get(list_airdrops))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("no-store"),
+        ))
 }
 
 async fn get_policy(

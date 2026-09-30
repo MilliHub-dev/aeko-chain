@@ -9,7 +9,7 @@ use {
     axum::{
         body::{to_bytes, Body},
         extract::State,
-        http::{Method, Request, StatusCode},
+        http::{header, Method, Request, StatusCode},
         routing::post,
         Json, Router,
     },
@@ -351,6 +351,27 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
                 lower.contains("content-type") && lower.contains("x-request-id")
             }),
         "funding CORS preflight must allow content-type and x-request-id"
+    );
+
+    let policy_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/funding/policy")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(policy_response.status(), StatusCode::OK);
+    assert_eq!(
+        policy_response
+            .headers()
+            .get(header::CACHE_CONTROL)
+            .and_then(|value| value.to_str().ok()),
+        Some("no-store"),
+        "funding state must never be served from a stale browser/edge cache"
     );
 
     let address = Pubkey::new_unique().to_string();
