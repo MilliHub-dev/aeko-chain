@@ -5073,8 +5073,8 @@ impl RpcClient {
     ///
     /// Approval-gated funding transfers use `request_funding*` below: the caller must
     /// have obtained admin approval (Explorer `/funding/request` poll loop or
-    /// admin direct `/admin/funding/grant`) before submitting, except when the
-    /// caller itself is the admin direct-grant path which bypasses approval.
+    /// direct Admin `/admin/funding/send`) before submitting, except when the
+    /// caller itself is the authenticated direct-funding path which bypasses approval.
     pub async fn request_funding(&self, pubkey: &Pubkey, lamports: u64) -> ClientResult<Signature> {
         self.request_funding_with_config(
             pubkey,
@@ -5148,10 +5148,10 @@ impl RpcClient {
         })
         .map_err(|err| {
             RpcError::ForUser(format!(
-                "grant request failed ({err}). \
-                    Grants require admin approval unless submitted with funding authorization \
+                "funding request failed ({err}). \
+                    Funding requires Admin approval unless submitted with funding authorization \
                     by the trusted settlement service; the persisted intent is safely replayable \
-                    and no second grant will be created."
+                    and no duplicate funding transfer will be created."
             ))
             .into()
         })
