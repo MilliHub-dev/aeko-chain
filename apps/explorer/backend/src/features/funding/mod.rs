@@ -13,7 +13,7 @@ use {
     aeko_sdk::{native_token::LAMPORTS_PER_AEKO, pubkey::Pubkey},
     axum::{
         extract::{Path, Query, State},
-        http::{HeaderMap, HeaderValue, StatusCode},
+        http::{header, HeaderMap, HeaderValue, StatusCode},
         response::{IntoResponse, Response},
         routing::{get, post},
         Json, Router,
@@ -21,6 +21,7 @@ use {
     serde::{Deserialize, Serialize},
     serde_json::{json, Value},
     std::time::Duration,
+    tower_http::set_header::SetResponseHeaderLayer,
 };
 
 const ADMIN_HEADER: &str = "x-aeko-settings-token";
@@ -456,6 +457,10 @@ pub fn router() -> Router<SharedState> {
         .route("/admin/funding/history", get(list_funding_history))
         .route("/admin/funding/send", post(send_funding))
         .route("/admin/funding/airdrops", get(list_airdrops))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("no-store"),
+        ))
 }
 
 async fn get_policy(
