@@ -9,4 +9,7 @@ export const queryKeys = {
     policy: (fundingUrl) => ['funding', fundingUrl, 'policy'],
     request: (fundingUrl, requestId) => ['funding', fundingUrl, 'request', requestId],
   },
+  settings: {
+    public: ['settings', 'public'],
+  },
 };

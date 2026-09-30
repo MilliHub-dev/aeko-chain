@@ -455,6 +455,21 @@ test('Explorer detail routes use the shared Query resource contract', async () =
 });
 
 
+test('public application settings use Query and the direct Explorer API boundary', async () => {
+  const provider = await source('components/AppSettingsProvider.jsx');
+  const settings = await source('utils/appSettings.js');
+  const keys = await source('queryKeys.js');
+
+  assert.match(provider, /useQuery/);
+  assert.match(provider, /refetchInterval:/);
+  assert.doesNotMatch(provider, /setInterval/);
+  assert.doesNotMatch(provider, /nextAllowedAttempt|consecutiveFailures/);
+  assert.match(keys, /public: \['settings', 'public'\]/);
+  assert.match(settings, /getNetworkConfig\(getDefaultExplorerNetwork\(\)\)\.explorerApiUrl/);
+  assert.doesNotMatch(settings, /same-origin path above is proxied|running and proxied/);
+});
+
+
 test('production Explorer endpoint configuration is runtime-injected rather than domain-hardcoded', async () => {
   const networkConfig = await source('utils/networkConfig.js');
   const rpcClient = await source('utils/aekoRpcClient.js');
