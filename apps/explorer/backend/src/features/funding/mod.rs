@@ -1088,7 +1088,12 @@ async fn submit_and_observe_funding(
         .repository
         .set_funding_request_signature(&request.id, &signature)
         .await?;
-    observe_funding(state, submitted).await
+    tracing::info!(
+        request_id = %request.id,
+        signature = %signature,
+        "submission returned a durable signature; confirmation continues in the reconciler"
+    );
+    Ok(submitted)
 }
 
 async fn observe_funding(
