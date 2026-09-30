@@ -141,7 +141,13 @@ test('accounts workspace keeps public funding approval separate from direct Test
   assert.doesNotMatch(funding, /Enter your Testnet wallet address to request test AEKO/i);
   assert.doesNotMatch(funding, /authenticated Admin must approve or reject/i);
   assert.match(funding, /requestFundingApproval\(fundingUrl, address\.trim\(\)\)/);
-  assert.match(funding, /getFundingRequestStatus\(fundingUrl, request\.id\)/);
+  assert.match(funding, /useQuery/);
+  assert.match(funding, /useMutation/);
+  assert.match(funding, /getFundingRequestStatus\(fundingUrl, requestId\)/);
+  assert.match(funding, /refetchInterval/);
+  assert.match(funding, /return query\.state\.error \? 8_000 : 4_000/);
+  assert.match(funding, /retry: false/);
+  assert.doesNotMatch(funding, /setTimeout\(refreshStatus/);
   assert.match(funding, /waiting for an Admin decision/i);
   assert.match(funding, /Admin approved the grant/i);
   assert.match(funding, /useToaster/);

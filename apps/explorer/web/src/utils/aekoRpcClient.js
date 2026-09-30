@@ -130,9 +130,9 @@ async function readFundingResponse(response, label) {
 }
 
 /**
- * Error from the Explorer funding API (or the Scan same-origin proxy) that
- * preserves the machine-readable `code`/`requestId` fields alongside the
- * human-readable message.
+ * Error from the selected network's Explorer funding API that preserves the
+ * machine-readable `code`/`requestId` fields alongside the human-readable
+ * message.
  */
 export class FundingResponseError extends Error {
   /**
