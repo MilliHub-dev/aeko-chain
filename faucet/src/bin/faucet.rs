@@ -47,7 +47,7 @@ async fn main() {
                 .alias("cap")
                 .value_name("NUM")
                 .takes_value(true)
-                .help("Request limit for time slice, in AEKO (applies to airdrops and grants)"),
+                .help("Request limit for time slice, in AEKO (applies to developer airdrops and funding)"),
         )
         .arg(
             Arg::with_name("per_request_cap")
@@ -55,7 +55,7 @@ async fn main() {
                 .value_name("NUM")
                 .takes_value(true)
                 .help(
-                    "Request limit for a single request, in AEKO (applies to airdrops and grants)",
+                    "Request limit for a single request, in AEKO (applies to developer airdrops and funding)",
                 ),
         )
         .arg(
