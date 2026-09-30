@@ -18,15 +18,14 @@ production deployments, give Operations Web private or DNS-only upstreams:
 
 ```text
 AEKO_NETWORK=testnet
-AEKO_INTERNAL_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
-AEKO_INTERNAL_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
+AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
+AEKO_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
 AEKO_ADMIN_EXPLORER_TIMEOUT_MS=45000
 ```
 
-The deployment maps those server-only inputs to the generic `AEKO_RPC_URL` and
-`AEKO_EXPLORER_API_URL` names inside the Admin container. Local development
-may use the generic variables with loopback URLs, while all-in-one Compose may
-use Docker service names. Operations must not hairpin privileged traffic
+The split resource uses the same canonical `AEKO_RPC_URL` and
+`AEKO_EXPLORER_API_URL` runtime names directly. Local development may use
+loopback URLs, while all-in-one Compose uses Docker service names. Operations must not hairpin privileged traffic
 through the public Cloudflare/WAF edge.
 
 Admin does not load endpoint matrices for other networks. Cross-network
