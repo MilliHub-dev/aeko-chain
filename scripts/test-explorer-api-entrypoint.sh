@@ -63,6 +63,24 @@ PATH="$BIN:$PATH" AEKO_NETWORK=testnet AEKO_REGISTRY_URL=https://registry.aeko.o
 test -s "$TMP/backend.ok"
 echo "[ok] Explorer entrypoint fetches a matching registry pair before startup"
 
+# Split Explorer must fail before curl/backend startup when the registry input is
+# missing or accidentally contains a Compose/Coolify human-readable prompt.
+if PATH="$BIN:$PATH" AEKO_NETWORK=testnet AEKO_REQUIRE_REMOTE_REGISTRY=1 AEKO_REGISTRY_CACHE_DIR="$CACHE" AEKO_REGISTRY_REFRESH_SECONDS=0 AEKO_TEST_BACKEND_MARKER="$TMP/backend-missing.ok" sh "$ENTRYPOINT" >"$TMP/missing.out" 2>&1; then
+  echo "error: split Explorer unexpectedly started without AEKO_REGISTRY_URL" >&2
+  exit 1
+fi
+grep -Fq "AEKO_REGISTRY_URL is required for this Explorer deployment" "$TMP/missing.out"
+test ! -e "$TMP/backend-missing.ok"
+echo "[ok] split Explorer fails closed when registry URL is missing"
+
+if PATH="$BIN:$PATH" AEKO_NETWORK=testnet AEKO_REQUIRE_REMOTE_REGISTRY=1 AEKO_REGISTRY_URL="Set private or DNS-only registry URL" AEKO_REGISTRY_CACHE_DIR="$CACHE" AEKO_REGISTRY_REFRESH_SECONDS=0 AEKO_TEST_BACKEND_MARKER="$TMP/backend-invalid.ok" sh "$ENTRYPOINT" >"$TMP/invalid.out" 2>&1; then
+  echo "error: Explorer unexpectedly accepted a non-URL registry value" >&2
+  exit 1
+fi
+grep -Fq "AEKO_REGISTRY_URL must be an http(s) URL" "$TMP/invalid.out"
+test ! -e "$TMP/backend-invalid.ok"
+echo "[ok] Explorer rejects literal deployment prompt text as a registry URL"
+
 # No remote registry URL preserves the mounted-file/local deployment contract.
 PATH="$BIN:$PATH" AEKO_NETWORK=localnet AEKO_TEST_BACKEND_MARKER="$TMP/backend-local.ok" AEKO_SOCIAL_REGISTRY_FILE="$CACHE/social-registry.env" AEKO_PROTOCOL_REGISTRY_FILE="$CACHE/protocol-registry.env"   sh "$ENTRYPOINT"
 

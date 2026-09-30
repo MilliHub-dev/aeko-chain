@@ -275,13 +275,14 @@ def main() -> int:
         "Explorer API split resource must configure production application logging",
     )
     for expected in (
-        "AEKO_NETWORK: ${AEKO_NETWORK:?",
-        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
+        "AEKO_NETWORK: ${AEKO_NETWORK:-}",
+        "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-}",
         "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}",
-        "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:?",
+        "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:-}",
+        'AEKO_REQUIRE_REMOTE_REGISTRY: "1"',
     ):
         require(expected in explorer_api, f"Explorer API missing private upstream contract: {expected}")
-    require("DATABASE_URL: ${EXPLORER_DATABASE_URL:?" in explorer_api, "Explorer API must require PostgreSQL")
+    require("DATABASE_URL: ${EXPLORER_DATABASE_URL:-}" in explorer_api, "Explorer API must pass PostgreSQL through for application validation")
     require("volumes:" not in explorer_api, "Explorer API must not require bootstrap-host filesystem mounts")
     require("ports:" not in explorer_api, "Explorer API HTTP ingress must be routed by its domain")
     require("AEKO_REGISTRY_SCHEMA_VERSION" not in explorer_api, "Explorer API must not require copied registry values")
@@ -308,9 +309,20 @@ def main() -> int:
     ):
         require(f"{name}=" in envs["explorer-api"], f"Explorer API env example missing {name}")
     require(
-        "AEKO_EXPLORER_CORS_ORIGINS:" in explorer_api,
-        "Explorer API split resource must receive an explicit browser CORS allowlist",
+        "AEKO_EXPLORER_CORS_ORIGINS: ${AEKO_EXPLORER_CORS_ORIGINS:-}" in explorer_api,
+        "Explorer API split resource must pass the browser CORS allowlist through for application validation",
     )
+    for forbidden_prompt in (
+        "AEKO_INTERNAL_RPC_URL:?Set ",
+        "AEKO_INTERNAL_REGISTRY_URL:?Set ",
+        "AEKO_EXPLORER_CORS_ORIGINS:?Set ",
+        "AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?Set ",
+        "EXPLORER_DATABASE_URL:?Set ",
+    ):
+        require(
+            forbidden_prompt not in explorer_api,
+            f"Explorer API must not use message-bearing Coolify interpolation: {forbidden_prompt}",
+        )
 
     explorer_ui = loaded["explorer-ui"]
     require(

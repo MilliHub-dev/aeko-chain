@@ -209,11 +209,12 @@ def main() -> int:
         "split Explorer API",
         split["explorer-api"],
         (
-            "AEKO_NETWORK: ${AEKO_NETWORK:?",
-            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
+            "AEKO_NETWORK: ${AEKO_NETWORK:-}",
+            "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-}",
             "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}",
-            "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:?",
-            "AEKO_EXPLORER_CORS_ORIGINS: ${AEKO_EXPLORER_CORS_ORIGINS:?",
+            "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:-}",
+            'AEKO_REQUIRE_REMOTE_REGISTRY: "1"',
+            "AEKO_EXPLORER_CORS_ORIGINS: ${AEKO_EXPLORER_CORS_ORIGINS:-}",
             '- "8088"',
         ),
     )
