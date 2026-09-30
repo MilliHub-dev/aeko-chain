@@ -168,11 +168,11 @@ function AccountsWorkspace({
     setBusy('airdrop');
     setResult(null);
     try {
-      const grant = await requestConsoleAirdrop(fundingUrl, wallet.address, value);
-      let confirmed = Boolean(grant.confirmed);
+      const airdrop = await requestConsoleAirdrop(fundingUrl, wallet.address, value);
+      let confirmed = Boolean(airdrop.confirmed);
       if (!confirmed) {
         try {
-          await confirmSignature(rpcUrl, grant.signature);
+          await confirmSignature(rpcUrl, airdrop.signature);
           confirmed = true;
         } catch {
           // The server already submitted this airdrop. A browser confirmation
@@ -183,9 +183,9 @@ function AccountsWorkspace({
       setResult({
         kind: 'success',
         message: confirmed
-          ? String(grant.amountAeko) + ' AEKO Test Console airdrop confirmed.'
-          : String(grant.amountAeko) + ' AEKO Test Console airdrop submitted. Refresh if the balance is still settling.',
-        signature: grant.signature,
+          ? String(airdrop.amountAeko) + ' AEKO Test Console airdrop confirmed.'
+          : String(airdrop.amountAeko) + ' AEKO Test Console airdrop submitted. Refresh if the balance is still settling.',
+        signature: airdrop.signature,
       });
     } catch (error) {
       const message = error?.code === 'AIRDROP_DISABLED_ON_MAINNET'
