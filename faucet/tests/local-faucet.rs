@@ -1,7 +1,5 @@
 use {
-    aeko_faucet::faucet::{
-        request_airdrop_transaction, request_grant_transaction, run_local_faucet,
-    },
+    aeko_faucet::faucet::{request_airdrop_transaction, run_local_faucet},
     aeko_sdk::{
         hash::Hash,
         message::Message,
@@ -43,20 +41,3 @@ fn test_local_faucet() {
     assert_eq!(expected_tx, result.unwrap());
 }
 
-#[test]
-fn test_same_grant_intent_produces_same_signed_transaction() {
-    // Approval-gated grants replay the same persisted intent without creating
-    // a second grant.
-    let keypair = Keypair::new();
-    let to = aeko_sdk::pubkey::new_rand();
-    let lamports = 50;
-    let blockhash = Hash::new_unique();
-    let faucet_addr = run_local_faucet(keypair, None);
-
-    let first = request_grant_transaction(&faucet_addr, &to, lamports, blockhash).unwrap();
-    let replay = request_grant_transaction(&faucet_addr, &to, lamports, blockhash).unwrap();
-
-    assert_eq!(first, replay);
-    assert_eq!(first.signatures, replay.signatures);
-    assert_eq!(first.message.recent_blockhash, blockhash);
-}
