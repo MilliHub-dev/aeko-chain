@@ -172,6 +172,15 @@ wait_http "Explorer strict health" "http://127.0.0.1:${AEKO_EXPLORER_API_HOST_PO
 wait_http "Scan UI" "http://127.0.0.1:${AEKO_FRONTEND_HOST_PORT}/healthz"
 wait_http "Operations Web" "http://127.0.0.1:${AEKO_OPERATIONS_WEB_HOST_PORT}/login"
 
+cors_headers="$(curl -fsS -D - -o /dev/null -X OPTIONS \
+  -H "Origin: http://127.0.0.1:${AEKO_FRONTEND_HOST_PORT}" \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: content-type,x-request-id' \
+  "http://127.0.0.1:${AEKO_EXPLORER_API_HOST_PORT}/funding/airdrop")"
+grep -qi "access-control-allow-origin: http://127.0.0.1:${AEKO_FRONTEND_HOST_PORT}" <<<"$cors_headers" \
+  || fail "Explorer API did not allow the Scan origin for funding writes"
+echo "[ok] Explorer API funding CORS accepts the Scan origin"
+
 python3 - <<'PY'
 import json
 import os
