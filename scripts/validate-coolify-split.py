@@ -299,8 +299,18 @@ def main() -> int:
         "AEKO_SCAN_AIRDROP_KEY" not in explorer_api,
         "Explorer API must not retain the retired Scan-only airdrop key",
     )
-    for name in ("AEKO_NETWORK", "AEKO_INTERNAL_RPC_URL", "AEKO_INTERNAL_WS_URL", "AEKO_INTERNAL_REGISTRY_URL"):
+    for name in (
+        "AEKO_NETWORK",
+        "AEKO_INTERNAL_RPC_URL",
+        "AEKO_INTERNAL_WS_URL",
+        "AEKO_INTERNAL_REGISTRY_URL",
+        "AEKO_EXPLORER_CORS_ORIGINS",
+    ):
         require(f"{name}=" in envs["explorer-api"], f"Explorer API env example missing {name}")
+    require(
+        "AEKO_EXPLORER_CORS_ORIGINS:" in explorer_api,
+        "Explorer API split resource must receive an explicit browser CORS allowlist",
+    )
 
     explorer_ui = loaded["explorer-ui"]
     require(
@@ -313,14 +323,21 @@ def main() -> int:
         "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
         "AEKO_WS_URL: ${AEKO_WS_URL:?",
         "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
-        "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?",
-        "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
         "AEKO_MAINNET_RPC_URL:",
-        "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
+        "AEKO_MAINNET_EXPLORER_API_URL:",
         "AEKO_TESTNET_RPC_URL:",
-        "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL:",
+        "AEKO_TESTNET_EXPLORER_API_URL:",
     ):
         require(expected in explorer_ui, f"Scan missing public-network contract: {expected}")
+    for retired_proxy_name in (
+        "AEKO_EXPLORER_PROXY_UPSTREAM_URL",
+        "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL",
+        "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL",
+    ):
+        require(
+            retired_proxy_name not in explorer_ui and retired_proxy_name not in envs["explorer-ui"],
+            f"public Scan must not expose retired proxy variable {retired_proxy_name}",
+        )
     for private_prefix in ("AEKO_DEVNET_", "AEKO_LOCALNET_", "AEKO_DEMO_"):
         require(
             private_prefix not in explorer_ui and private_prefix not in envs["explorer-ui"],

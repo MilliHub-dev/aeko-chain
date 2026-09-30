@@ -89,8 +89,8 @@ def main() -> int:
     port_doc = read(PORT_DOC)
     shared_env = read(SHARED_ENV)
 
-    # One authoritative domain/port map. Funding is same-origin through Scan,
-    # not a resurrected separate Funding Gateway service.
+    # One authoritative domain/port map. Public Scan calls the Explorer API
+    # directly; there is no resurrected separate Funding Gateway service.
     require_contains_all(
         "network port/domain documentation",
         port_doc,
@@ -112,7 +112,7 @@ def main() -> int:
             "gossip.aeko.online:8001",
             "8000-8050/tcp+udp",
             "5432/tcp",
-            "/api/explorer/testnet/funding/*",
+            "https://api.aeko.online/funding/*",
             "There is **no separate public Funding Gateway service/domain",
         ),
     )
@@ -170,6 +170,10 @@ def main() -> int:
             "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-ws://validator:8900}" in explorer,
             f"{path.name} Explorer API must use the internal validator WebSocket namespace",
         )
+        require(
+            "AEKO_EXPLORER_CORS_ORIGINS:" in explorer,
+            f"{path.name} Explorer API must declare the browser CORS allowlist",
+        )
         operations = service_block(compose, "operations-web")
         require(
             "AEKO_NETWORK:" in operations
@@ -185,8 +189,6 @@ def main() -> int:
                 "AEKO_RPC_URL: ${AEKO_RPC_URL:-https://rpc.aeko.online}",
                 "AEKO_WS_URL: ${AEKO_WS_URL:-wss://ws.aeko.online}",
                 "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:-https://api.aeko.online}",
-                "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:-http://explorer-api:8088}",
-                "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
             ),
         )
 
@@ -211,6 +213,7 @@ def main() -> int:
             "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
             "AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}",
             "AEKO_REGISTRY_URL: ${AEKO_INTERNAL_REGISTRY_URL:?",
+            "AEKO_EXPLORER_CORS_ORIGINS: ${AEKO_EXPLORER_CORS_ORIGINS:?",
             '- "8088"',
         ),
     )
@@ -223,10 +226,8 @@ def main() -> int:
             "AEKO_RPC_URL: ${AEKO_RPC_URL:?",
             "AEKO_WS_URL: ${AEKO_WS_URL:?",
             "AEKO_EXPLORER_API_URL: ${AEKO_EXPLORER_API_URL:?",
-            "AEKO_EXPLORER_PROXY_UPSTREAM_URL: ${AEKO_EXPLORER_PROXY_UPSTREAM_URL:?",
-            "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
-            "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL:",
-            "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL:",
+            "AEKO_MAINNET_EXPLORER_API_URL:",
+            "AEKO_TESTNET_EXPLORER_API_URL:",
             '- "4000"',
         ),
     )
@@ -314,10 +315,9 @@ def main() -> int:
     scan_server = read(ROOT / "docker" / "explorer-ui-server.mjs")
     scan_vite = read(ROOT / "apps" / "explorer" / "web" / "vite.config.js")
 
-    # Runtime config generation and Vite dev mode consume chain RPC/WS plus the
-    # public Explorer API identity. The production proxy server uses only
-    # server-side Explorer proxy origins and must not depend on browser-facing
-    # RPC/WS or public Explorer API URLs.
+    # Runtime config generation and Vite dev mode publish chain RPC/WS plus the
+    # public Explorer API identity. The production Scan server serves only the
+    # SPA/runtime config/telemetry and never forwards Explorer API traffic.
     for label, text in (
         ("Scan entrypoint", scan_entrypoint),
         ("Scan Vite config", scan_vite),
@@ -333,19 +333,25 @@ def main() -> int:
             ),
         )
     require_contains_all(
-        "Scan proxy server",
+        "Scan static server",
         scan_server,
         (
             "AEKO_NETWORK",
-            "AEKO_EXPLORER_PROXY_UPSTREAM_URL",
-            "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL",
-            "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL",
+            "LEGACY_EXPLORER_PROXY_PREFIX",
+            "SCAN_EXPLORER_PROXY_REMOVED",
         ),
     )
-    require(
-        "AEKO_EXPLORER_API_URL" not in scan_server,
-        "Scan proxy server must not fall back to the browser-facing Explorer API URL",
-    )
+    for retired_proxy_name in (
+        "AEKO_EXPLORER_PROXY_UPSTREAM_URL",
+        "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL",
+        "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL",
+    ):
+        require(
+            retired_proxy_name not in scan_server
+            and retired_proxy_name not in split["explorer-ui"]
+            and retired_proxy_name not in split_envs["explorer-ui"],
+            f"Scan must not retain retired Explorer proxy input {retired_proxy_name}",
+        )
 
     for name in (
         "AEKO_MAINNET_EXPLORER_API_URL",

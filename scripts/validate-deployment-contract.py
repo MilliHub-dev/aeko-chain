@@ -16,6 +16,7 @@ VALIDATOR_ENTRYPOINT = DOCKER / "validator-entrypoint.sh"
 KEY_PREFLIGHT = DOCKER / "key-preflight.sh"
 EXPLORER_ENTRYPOINT = DOCKER / "explorer-ui-entrypoint.sh"
 EXPLORER_PROXY = DOCKER / "explorer-ui-server.mjs"
+EXPLORER_HTTP = ROOT / "apps" / "explorer" / "backend" / "src" / "http" / "mod.rs"
 PUBLIC_ENV = DOCKER / "env.public.example"
 ADMIN_ENV = ROOT / "apps" / "admin" / ".env.local.example"
 EXPLORER_ENV = ROOT / "apps" / "explorer" / "backend" / ".env.example"
@@ -103,6 +104,7 @@ def main() -> int:
     key_preflight = read(KEY_PREFLIGHT)
     explorer_entrypoint = read(EXPLORER_ENTRYPOINT)
     explorer_proxy = read(EXPLORER_PROXY)
+    explorer_http = read(EXPLORER_HTTP)
     public_env = read(PUBLIC_ENV)
     admin_env = read(ADMIN_ENV)
     explorer_env = read(EXPLORER_ENV)
@@ -426,39 +428,39 @@ def main() -> int:
         "server-only funding/settings secrets must never enter browser runtime configuration",
     )
 
-    # Scan is a constrained same-origin proxy: reads plus the two explicit
-    # funding writes, allowed on every deployed network with mainnet included.
+    # Public Scan calls the selected Explorer API directly. CORS belongs at the
+    # Explorer API boundary; the Scan server must not forward API traffic.
     require(
-        "const FUNDING_WRITE_PATHS = new Set(['/funding/request', '/funding/airdrop'])"
-        in explorer_proxy,
-        "Scan proxy must enumerate its two public funding writes",
+        "AllowOrigin::list(server.cors_origins.clone())" in explorer_http
+        and "Method::POST" in explorer_http
+        and "request_id_header.clone()" in explorer_http,
+        "Explorer API must expose the explicit browser CORS contract needed by public funding POSTs",
     )
     require(
-        "target.network !== 'testnet'" in explorer_proxy
-        and "target.network !== 'mainnet'" in explorer_proxy
-        and "return FUNDING_WRITE_PATHS.has(explorerSuffix(target, pathname))" in explorer_proxy,
-        "Scan proxy must allow funding writes on all deployed networks and reject all non-funding POSTs",
+        'required_env("AEKO_EXPLORER_CORS_ORIGINS")' in funding_config
+        and "parse_cors_origins" in funding_config,
+        "Explorer config must require and validate the browser CORS origin allowlist",
     )
     require(
-        "MAX_PROXY_BODY_BYTES" in explorer_proxy
-        and "Funding writes require application/json" in explorer_proxy,
-        "Scan proxy must bound and type-check public funding bodies",
+        "LEGACY_EXPLORER_PROXY_PREFIX" in explorer_proxy
+        and "SCAN_EXPLORER_PROXY_REMOVED" in explorer_proxy
+        and "proxyExplorer" not in explorer_proxy,
+        "Scan server must reject legacy Explorer proxy paths and never forward Explorer API traffic",
     )
+    for retired_proxy_name in (
+        "AEKO_EXPLORER_PROXY_UPSTREAM_URL",
+        "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL",
+        "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL",
+    ):
+        require(
+            retired_proxy_name not in explorer_proxy
+            and retired_proxy_name not in explorer_entrypoint,
+            f"Scan runtime must not depend on retired proxy input {retired_proxy_name}",
+        )
     require(
-        "AEKO_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy
-        and "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy
-        and "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy,
-        "Scan proxy must support server-only Explorer origins for split deployments",
-    )
-    require(
-        "AEKO_EXPLORER_PROXY_UPSTREAM_URL is required for the active Scan network" in explorer_proxy
-        and "clean('AEKO_EXPLORER_PROXY_UPSTREAM_URL') || clean('AEKO_EXPLORER_API_URL')" not in explorer_proxy,
-        "production Scan must fail closed instead of silently re-entering the public Explorer edge",
-    )
-    require(
-        "EXPLORER_UPSTREAM_INVALID_RESPONSE" in explorer_proxy
-        and "funding_upstream_contract_violation" in explorer_proxy,
-        "Scan must normalize non-JSON funding upstream failures into its JSON contract",
+        "explorerApiUrl: activeExplorerApiUrl" in explorer_entrypoint
+        and "fundingUrl: activeExplorerApiUrl" in explorer_entrypoint,
+        "Scan runtime config must publish the direct Explorer API URL for reads and funding",
     )
 
     # Raw bootstrap registry and product-facing registry discovery are distinct.
@@ -617,7 +619,7 @@ def main() -> int:
         "cargo-build-sbf",
         "hello_aeko_program.so",
         "https://rpc.aeko.online",
-        "https://scan.aeko.online/api/explorer/testnet",
+        "https://api.aeko.online",
         "/funding/airdrop",
         "aeko-keygen new",
         "smoke-hello-program.py",
@@ -669,8 +671,8 @@ def main() -> int:
         "deploy-testnet helper must start Explorer API/UI and Operations Web without a funding sidecar",
     )
     require(
-        "/api/explorer/${AEKO_NETWORK}/funding/*" in deploy_helper,
-        "deploy-testnet helper must advertise the same-origin Scan funding route",
+        "${AEKO_EXPLORER_API_URL}/funding/*" in deploy_helper,
+        "deploy-testnet helper must advertise the direct Explorer API funding route",
     )
 
     # Repository documentation must be portable and must not silently revive
@@ -758,9 +760,9 @@ def main() -> int:
         "SDK testnet guide must identify Explorer as the settlement authority",
     )
     require(
-        "Aeko Scan's same-origin Explorer funding API" in testnet_environment
+        "Aeko Scan calls the Explorer API directly" in testnet_environment
         and "authenticated Operations Admin approval" in testnet_environment,
-        "network environment docs must describe the current public grant boundary",
+        "network environment docs must describe the current direct public grant boundary",
     )
     require(
         "### Registry discovery" in testnet_environment
