@@ -142,8 +142,8 @@ def main() -> int:
         split_envs[resource] = env_text
 
     # Local Compose may still override generic endpoints for custom developer
-    # topologies. Public all-in-one deployments use a separate internal
-    # namespace so public URLs cannot redirect server traffic through the edge.
+    # topologies. Public all-in-one deployments wire backend hops directly to
+    # Docker service DNS so public URLs cannot redirect server traffic through the edge.
     local_compose = read(ROOT / "docker" / "compose.local.yml")
     require_contains_all(
         "docker/compose.local.yml",
@@ -167,7 +167,7 @@ def main() -> int:
         )
         explorer = service_block(compose, "explorer-api")
         require(
-            "AEKO_WS_URL: ws://validator:8900 in explorer,
+            "AEKO_WS_URL: ws://validator:8900" in explorer,
             f"{path.name} Explorer API must use the internal validator WebSocket namespace",
         )
         require(
@@ -177,7 +177,7 @@ def main() -> int:
         operations = service_block(compose, "operations-web")
         require(
             "AEKO_NETWORK:" in operations
-            and "AEKO_EXPLORER_API_URL: http://explorer-api:8088 in operations
+            and "AEKO_EXPLORER_API_URL: http://explorer-api:8088" in operations
             and "AEKO_ADMIN_EXPLORER_TIMEOUT_MS:" in operations,
             f"{path.name} Operations Web must use the private Explorer API with the funding-safe timeout",
         )
