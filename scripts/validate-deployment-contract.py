@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import re
-import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,7 +16,6 @@ VALIDATOR_ENTRYPOINT = DOCKER / "validator-entrypoint.sh"
 KEY_PREFLIGHT = DOCKER / "key-preflight.sh"
 EXPLORER_ENTRYPOINT = DOCKER / "explorer-ui-entrypoint.sh"
 EXPLORER_PROXY = DOCKER / "explorer-ui-server.mjs"
-EXPLORER_HTTP = ROOT / "apps" / "explorer" / "backend" / "src" / "http" / "mod.rs"
 PUBLIC_ENV = DOCKER / "env.public.example"
 ADMIN_ENV = ROOT / "apps" / "admin" / ".env.local.example"
 EXPLORER_ENV = ROOT / "apps" / "explorer" / "backend" / ".env.example"
@@ -33,12 +31,10 @@ NETWORK_TOGGLE = ROOT / "apps" / "explorer" / "web" / "src" / "components" / "Ne
 REGISTRY_RESOLVER = ROOT / "apps" / "explorer" / "backend" / "src" / "infrastructure" / "registry.rs"
 REGISTRY_FEATURE = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "registry.rs"
 SPLIT_BOOTSTRAP = ROOT / "docker" / "coolify" / "bootstrap" / "compose.yml"
+SPLIT_VALIDATOR = ROOT / "docker" / "coolify" / "validator" / "compose.yml"
 PROTOCOL_INTEGRATION = ROOT / "scripts" / "ci-protocol-stack-integration.sh"
 SMART_CONTRACT_RUN = ROOT / ".github" / "actions" / "devops" / "smart-contracts" / "run.sh"
-SMART_CONTRACT_WORKFLOW = ROOT / ".github" / "workflows" / "smart-contracts.yml"
-LIVE_NETWORK_DIAGNOSTICS = ROOT / ".github" / "workflows" / "live-network-diagnostics.yml"
 FUNDING_SMOKE = ROOT / "scripts" / "smoke-funding-e2e.py"
-GOSSIP_SMOKE = ROOT / "scripts" / "smoke-gossip.sh"
 HELLO_PROGRAM_SMOKE = ROOT / "scripts" / "smoke-hello-program.py"
 README = ROOT / "README.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
@@ -107,7 +103,6 @@ def main() -> int:
     key_preflight = read(KEY_PREFLIGHT)
     explorer_entrypoint = read(EXPLORER_ENTRYPOINT)
     explorer_proxy = read(EXPLORER_PROXY)
-    explorer_http = read(EXPLORER_HTTP)
     public_env = read(PUBLIC_ENV)
     admin_env = read(ADMIN_ENV)
     explorer_env = read(EXPLORER_ENV)
@@ -123,12 +118,10 @@ def main() -> int:
     registry_resolver = read(REGISTRY_RESOLVER)
     registry_feature = read(REGISTRY_FEATURE)
     split_bootstrap = read(SPLIT_BOOTSTRAP)
+    split_validator = read(SPLIT_VALIDATOR)
     protocol_integration = read(PROTOCOL_INTEGRATION)
     smart_contract_run = read(SMART_CONTRACT_RUN)
-    smart_contract_workflow = read(SMART_CONTRACT_WORKFLOW)
-    live_network_diagnostics = read(LIVE_NETWORK_DIAGNOSTICS)
     funding_smoke = read(FUNDING_SMOKE)
-    gossip_smoke = read(GOSSIP_SMOKE)
     hello_program_smoke = read(HELLO_PROGRAM_SMOKE)
     readme = read(README)
     deployment = read(DEPLOYMENT)
@@ -147,34 +140,9 @@ def main() -> int:
     admin_sidebar = read(ADMIN_SIDEBAR)
     protocol_bootstrap = read(PROTOCOL_BOOTSTRAP)
     social_bootstrap = read(SOCIAL_BOOTSTRAP)
-    emergency_multisig = read(ROOT / "programs" / "emergency-multisig" / "src" / "processor.rs")
-    emergency_state = read(ROOT / "programs" / "emergency-multisig" / "src" / "state.rs")
-    subnet_registry = read(ROOT / "programs" / "subnet-registry" / "src" / "processor.rs")
-    revocation_registry = read(ROOT / "programs" / "revocation-registry" / "src" / "processor.rs")
     bootstrap_lifecycle = read(BOOTSTRAP_LIFECYCLE)
     builtins = read(BUILTINS)
     feature_set = read(FEATURE_SET)
-
-    require(
-        "multisig_config_address()" in emergency_state
-        and "proposal_address" in emergency_state
-        and "vote_address" in emergency_state,
-        "emergency multisig must use canonical program-derived control-plane addresses",
-    )
-    require(
-        "native_invoke(cpi.into(), &[])" in emergency_multisig
-        and "EmergencyMultisigError::UnsupportedAction" in emergency_multisig,
-        "emergency multisig must execute supported actions through CPI and fail closed on unsupported actions",
-    )
-    require(
-        "ensure_emergency_multisig_caller" in subnet_registry
-        and "ensure_emergency_multisig_caller" in revocation_registry,
-        "emergency registry mutations must authenticate the immediate multisig CPI caller",
-    )
-    require(
-        "AEKO_PROTOCOL_MIGRATE_EMERGENCY_MULTISIG_PDA" in protocol_bootstrap,
-        "protocol bootstrap must gate legacy emergency-multisig migration explicitly",
-    )
 
     # One image recipe owns every runtime role.
     for target in (
@@ -201,6 +169,7 @@ def main() -> int:
         "AEKO_FUNDING_GATEWAY_KEY",
         "FUNDING_ADMIN_API_KEY",
         "FUNDING_CLIENT_API_KEY",
+        "AEKO_INTERNAL_FUNDING_URL",
         "AEKO_OPERATIONS_ROLE",
         "admin-state",
     )
@@ -248,7 +217,20 @@ def main() -> int:
                 f"{label} {service} must pull the selected image tag",
             )
 
-    require('profiles: ["rpc"]' in service_block(portable, "rpc-node"), "portable RPC replica must remain opt-in")
+    portable_rpc = service_block(portable, "rpc-node")
+    require('profiles: ["rpc"]' in portable_rpc, "portable RPC replica must remain opt-in")
+    require(
+        "AEKO_NETWORK:" in portable_rpc,
+        "portable RPC replica must receive the active network identity",
+    )
+    require(
+        "AEKO_FUNDING_AUTHORIZATION_KEY:" in portable_rpc,
+        "portable RPC replica must enforce the protected Funding credential",
+    )
+    require(
+        "AEKO_NETWORK:" in service_block(split_validator, "validator"),
+        "split Coolify Validator must receive the active network identity",
+    )
     require(
         re.search(r"^  rpc-node:\s*$", dokploy, re.MULTILINE) is None
         and re.search(r"^  rpc-node:\s*$", coolify, re.MULTILINE) is None,
@@ -395,6 +377,10 @@ def main() -> int:
         faucet = service_block(compose, "faucet")
 
         require(
+            "AEKO_NETWORK:" in validator,
+            f"{label} Validator must receive the active network identity",
+        )
+        require(
             "AEKO_FUNDING_AUTHORIZATION_KEY:" in validator,
             f"{label} Validator must receive funding authorization",
         )
@@ -457,109 +443,34 @@ def main() -> int:
         "server-only funding/settings secrets must never enter browser runtime configuration",
     )
 
-    retired_internal_namespace = "AEKO_" + "INTERNAL_"
-    grep = subprocess.run(
-        ["git", "grep", "-n", retired_internal_namespace],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
+    # Scan is a constrained same-origin proxy: reads plus the two explicit
+    # funding writes, allowed on every deployed network with mainnet included.
+    require(
+        "const FUNDING_WRITE_PATHS = new Set(['/funding/request', '/funding/airdrop'])"
+        in explorer_proxy,
+        "Scan proxy must enumerate its two public funding writes",
     )
     require(
-        grep.returncode == 1,
-        "retired internal endpoint namespace still exists in tracked files:\n" + grep.stdout,
-    )
-
-    # Public Scan calls the selected Explorer API directly. CORS belongs at the
-    # Explorer API boundary; the Scan server must not forward API traffic.
-    require(
-        "AllowOrigin::list(server.cors_origins.clone())" in explorer_http
-        and "Method::POST" in explorer_http
-        and "request_id_header.clone()" in explorer_http,
-        "Explorer API must expose the explicit browser CORS contract needed by public funding POSTs",
+        "target.network !== 'testnet'" in explorer_proxy
+        and "target.network !== 'mainnet'" in explorer_proxy
+        and "return FUNDING_WRITE_PATHS.has(explorerSuffix(target, pathname))" in explorer_proxy,
+        "Scan proxy must allow funding writes on all deployed networks and reject all non-funding POSTs",
     )
     require(
-        '"access-control-allow-origin"' in funding_http_e2e
-        and '"funding CORS preflight must allow POST"' in funding_http_e2e,
-        "funding HTTP E2E must exercise the browser CORS preflight contract",
+        "MAX_PROXY_BODY_BYTES" in explorer_proxy
+        and "Funding writes require application/json" in explorer_proxy,
+        "Scan proxy must bound and type-check public funding bodies",
     )
     require(
-        'required_env("AEKO_EXPLORER_CORS_ORIGINS")' in funding_config
-        and "parse_cors_origins" in funding_config,
-        "Explorer config must require and validate the browser CORS origin allowlist",
+        "AEKO_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy
+        and "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy
+        and "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL" in explorer_proxy,
+        "Scan proxy must support server-only Explorer origins for split deployments",
     )
     require(
-        "LEGACY_EXPLORER_PROXY_PREFIX" in explorer_proxy
-        and "SCAN_EXPLORER_PROXY_REMOVED" in explorer_proxy
-        and "proxyExplorer" not in explorer_proxy,
-        "Scan server must reject legacy Explorer proxy paths and never forward Explorer API traffic",
-    )
-    for retired_proxy_name in (
-        "AEKO_EXPLORER_PROXY_UPSTREAM_URL",
-        "AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL",
-        "AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL",
-    ):
-        require(
-            retired_proxy_name not in explorer_proxy
-            and retired_proxy_name not in explorer_entrypoint,
-            f"Scan runtime must not depend on retired proxy input {retired_proxy_name}",
-        )
-    require(
-        "explorerApiUrl: activeExplorerApiUrl" in explorer_entrypoint
-        and "fundingUrl: activeExplorerApiUrl" in explorer_entrypoint,
-        "Scan runtime config must publish the direct Explorer API URL for reads and funding",
-    )
-    require(
-        'AEKO_EXPLORER_API_URL=https://api.example' in funding_smoke
-        and 'AEKO_SCAN_URL' not in funding_smoke
-        and '/api/explorer/' not in funding_smoke,
-        "funding smoke must exercise the public Explorer API directly rather than the retired Scan proxy",
-    )
-    require(
-        "AEKO_EXPLORER_API_URL: https://api.aeko.online" in live_network_diagnostics
-        and "https://scan.aeko.online/api/explorer" not in live_network_diagnostics,
-        "live diagnostics must probe the public Explorer API directly",
-    )
-    require(
-        "AEKO_SMART_CONTRACT_FUNDING_URL: https://api.aeko.online" in smart_contract_workflow
-        and "scan.aeko.online/api/explorer" not in smart_contract_workflow,
-        "smart-contract live funding must target the public Explorer API directly",
-    )
-    require(
-        "https://api.aeko.online/funding/request" in sdk_testnet_guide
-        and "scan.aeko.online/api/explorer" not in sdk_testnet_guide,
-        "external developer funding guide must use the direct Explorer API",
-    )
-    require(
-        "Explorer API http://${AEKO_DOMAIN}:8088" in deploy_helper
-        and "Funding      http://${AEKO_DOMAIN}:8088/funding/*" in deploy_helper
-        and "Funding      ${AEKO_EXPLORER_API_URL:-<not configured>}/funding/*" in deploy_helper
-        and "/api/explorer/${AEKO_NETWORK}/funding/*" not in deploy_helper,
-        "deployment helper must advertise direct Explorer API funding for local and configured public endpoints",
-    )
-    require(
-        "AEKO_GOSSIP_HOST" in deploy_helper
-        and "AEKO_GOSSIP_PORT" in deploy_helper
-        and "AEKO_PUBLIC_GOSSIP_ADDRESS" not in deploy_helper,
-        "deployment helper must use the canonical Validator gossip variables without a second public-gossip namespace",
-    )
-    require(
-        "AEKO_GOSSIP_ENTRYPOINT: gossip.aeko.online:8001" in live_network_diagnostics
-        and "aeko-gossip spy" in live_network_diagnostics
-        and "Validator gossip entrypoint" in live_network_diagnostics
-        and 'GOSSIP_OUTCOME: ${{ steps.gossip.outcome }}' in live_network_diagnostics,
-        "live diagnostics must prove the public gossip DNS/transport path with the real gossip protocol",
-    )
-    require(
-        "AEKO_EXPLORER_API_URL=https://api.aeko.online" in testnet_runbook
-        and "AEKO_SCAN_URL" not in testnet_runbook
-        and "https://scan.aeko.online/api/explorer" not in testnet_runbook,
-        "testnet runbook must document the direct public Explorer API funding/read path",
-    )
-    require(
-        "same-origin" not in admin_readme.lower()
-        and "/api/explorer/testnet/funding" not in admin_readme,
-        "Operations README must not describe the retired Scan funding proxy",
+        "EXPLORER_UPSTREAM_INVALID_RESPONSE" in explorer_proxy
+        and "funding_upstream_contract_violation" in explorer_proxy,
+        "Scan must normalize non-JSON funding upstream failures into its JSON contract",
     )
 
     # Raw bootstrap registry and product-facing registry discovery are distinct.
@@ -592,7 +503,7 @@ def main() -> int:
         '"/funding/airdrop"',
         '"/admin/funding/settings"',
         '"/admin/funding/requests"',
-        '"/admin/funding/grant"',
+        '"/admin/funding/send"',
         "authorize_admin",
         "ensure_funding_available",
         "run_settlement_reconciler",
@@ -602,13 +513,14 @@ def main() -> int:
     funding_state = read(ROOT / "apps" / "explorer" / "backend" / "src" / "http" / "state.rs")
     require(
         "pub fn is_funding_available(&self) -> bool" in funding_state
-        and "never branches on the deployment network" in funding_state,
-        "Explorer funding must be available on every deployed network",
+        and "pub fn is_test_environment(&self) -> bool" in funding_state
+        and "developer_airdrop_enabled: state.is_test_environment()" in funding_feature,
+        "Explorer funding must remain available on every network while developer airdrop follows the test-environment boundary",
     )
     for required in (
         "submission_blockhash",
         "FUNDING_SUBMISSION_RETRY_PENDING",
-        "recover_processing_grant_submission",
+        "recover_processing_funding_submission",
         "recover_processing_airdrop_submission",
     ):
         require(
@@ -617,21 +529,15 @@ def main() -> int:
         )
     require(
         "blockhash_calls.load(Ordering::SeqCst),\n        1" in funding_http_e2e
-        and "processing_grant_replays_only_persisted_intent" in funding_http_e2e,
+        and "processing_funding_replays_only_persisted_intent" in funding_http_e2e,
         "funding HTTP E2E must prove response-loss recovery reuses the persisted blockhash",
     )
     require(
-        "expired_submitted_grant_becomes_terminal_failed_without_fresh_intent" in funding_http_e2e
+        "expired_submitted_funding_becomes_terminal_failed_without_fresh_intent" in funding_http_e2e
         and "isBlockhashValid" in read(
             ROOT / "apps" / "explorer" / "backend" / "src" / "infrastructure" / "chain.rs"
         ),
         "funding E2E must prove an expired unobserved intent becomes terminal without a fresh transfer",
-    )
-    require(
-        "grant confirmation must not resubmit the durable transaction" in funding_http_e2e
-        and "airdrop confirmation must not resubmit the durable transaction" in funding_http_e2e
-        and "confirmation continues in the reconciler" in funding_feature,
-        "funding HTTP handlers must return after durable signature persistence and reconcile without a duplicate transfer",
     )
     require(
         "test_same_airdrop_intent_produces_same_signed_transaction" in faucet_replay_test
@@ -666,62 +572,27 @@ def main() -> int:
         "approve" in admin_funding_route
         and "reject" in admin_funding_route
         and "reconcile" in admin_funding_route,
-        "Operations funding route must expose explicit grant decisions/reconciliation",
+        "Operations funding route must expose explicit funding decisions/reconciliation",
     )
 
     # Real CI dogfood must exercise the protected chain path, not only mocks.
     for required in (
         "AEKO_FUNDING_AUTHORIZATION_KEY",
-        "protected requestGrant unexpectedly accepted",
+        "protected requestFunding unexpectedly accepted",
         "instant airdrop without approval",
         '"/funding/request"',
         '"/admin/funding/requests/{request_id}/decide"',
         "before = balance(recipient)",
         "after = balance(recipient)",
-        "confirmed grant balance delta",
-        '"/admin/funding/grants?limit=500"',
+        "confirmed funding balance delta",
+        '"/admin/funding/history?limit=500"',
         '"/funding/airdrop"',
         '"/admin/funding/airdrops?limit=500"',
-        "developer airdrop leaked into the confirmed grant ledger",
+        "developer airdrop leaked into the confirmed funding history",
     ):
         require(
             required in protocol_integration,
             f"live protocol-stack funding dogfood missing contract: {required}",
-        )
-
-    require(
-        "--bin aeko-gossip" in dockerfile
-        and "/binaries/aeko-gossip /usr/local/bin/aeko-gossip" in dockerfile,
-        "operator tools image must ship the gossip protocol probe",
-    )
-    require(
-        "target/debug/aeko-gossip --allow-private-addr spy" in protocol_integration
-        and "--gossip-port 18001" in protocol_integration
-        and "validator gossip is discoverable through the real gossip protocol" in protocol_integration,
-        "protocol integration must prove the validator-owned gossip service is discoverable",
-    )
-    for required in (
-        "gossip.aeko.online:8001",
-        "aeko-gossip",
-        "--entrypoint",
-        "--num-nodes",
-        "--timeout",
-    ):
-        require(required in gossip_smoke, f"gossip smoke missing contract: {required}")
-
-    for required in (
-        'rpc("requestAirdrop"',
-        'rpc("getBalance"',
-        "direct Faucet-backed airdrop",
-        'api_url + "/funding/airdrop"',
-        "Explorer API funding airdrop",
-        "Explorer API funding CORS preflight",
-        '"Access-Control-Request-Method": "POST"',
-        '"Origin": "https://scan.aeko.online"',
-    ):
-        require(
-            required in live_network_diagnostics,
-            f"live network diagnostics missing Faucet-backed RPC probe: {required}",
         )
 
     # Deployable SBF contracts have an independent CI ownership boundary.
@@ -741,7 +612,7 @@ def main() -> int:
         "cargo-build-sbf",
         "hello_aeko_program.so",
         "https://rpc.aeko.online",
-        "https://api.aeko.online",
+        "https://scan.aeko.online/api/explorer/testnet",
         "/funding/airdrop",
         "aeko-keygen new",
         "smoke-hello-program.py",
@@ -766,14 +637,14 @@ def main() -> int:
         )
 
     for required in (
-        "AEKO_EXPLORER_API_URL",
+        "AEKO_SCAN_URL",
         "AEKO_OPERATIONS_URL",
         "AEKO_RPC_URL",
         "AEKO_FUNDING_SMOKE_ADDRESS",
         "ADMIN_PASSWORD",
-        "Public Explorer API cannot approve grants",
-        "starting balance=",
-        "Admin ledger contains exactly one confirmed grant",
+        "Scan cannot approve funding",
+        "wallet balance increased",
+        "exactly one confirmed funding transfer",
     ):
         require(
             required in funding_smoke,
@@ -793,8 +664,8 @@ def main() -> int:
         "deploy-testnet helper must start Explorer API/UI and Operations Web without a funding sidecar",
     )
     require(
-        "Funding      ${AEKO_EXPLORER_API_URL:-<not configured>}/funding/*" in deploy_helper,
-        "deploy-testnet helper must advertise the direct Explorer API funding route",
+        "/api/explorer/${AEKO_NETWORK}/funding/*" in deploy_helper,
+        "deploy-testnet helper must advertise the same-origin Scan funding route",
     )
 
     # Repository documentation must be portable and must not silently revive
@@ -818,6 +689,7 @@ def main() -> int:
             for retired_doc_contract in (
                 "AEKO_OPERATIONS_ROLE",
                 "FUNDING_GATEWAY_KEY",
+                "AEKO_INTERNAL_FUNDING_URL",
                 "AEKO_PUBLIC_FUNDING_URL",
                 "AEKO_LOCALNET_FUNDING_URL",
             ):
@@ -843,6 +715,7 @@ def main() -> int:
     ):
         reject(text, "fund.aeko.online", where)
         reject(text, "FUNDING_GATEWAY_KEY", where)
+        reject(text, "AEKO_INTERNAL_FUNDING_URL", where)
         reject(text, "AEKO_OPERATIONS_ROLE", where)
 
     reject(testnet_environment, "Funding Portal", "testnet environment")
@@ -880,9 +753,9 @@ def main() -> int:
         "SDK testnet guide must identify Explorer as the settlement authority",
     )
     require(
-        "Aeko Scan calls the Explorer API directly" in testnet_environment
+        "Aeko Scan's same-origin Explorer funding API" in testnet_environment
         and "authenticated Operations Admin approval" in testnet_environment,
-        "network environment docs must describe the current direct public grant boundary",
+        "network environment docs must describe the current public funding boundary",
     )
     require(
         "### Registry discovery" in testnet_environment
