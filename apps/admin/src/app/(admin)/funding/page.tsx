@@ -76,13 +76,13 @@ type FundingView = 'queue' | 'policy' | 'history' | 'airdrops'
 const inputClass =
   'min-h-[44px] w-full rounded-lg border border-[#1e2135] bg-[#0d0e16] px-3 py-2 text-sm text-gray-100 outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 mono'
 
-const friendlyMessages = {
-  FUNDING_SUBMISSION_RETRY_PENDING: true,
-  FUNDING_CONFIRMATION_PENDING: true,
-  AIRDROP_SUBMISSION_RETRY_PENDING: true,
-  AIRDROP_CONFIRMATION_PENDING: true,
-  AIRDROP_DISABLED_ON_MAINNET: true,
-} as const
+const friendlyMessages: Record<string, string> = {
+  FUNDING_SUBMISSION_RETRY_PENDING: 'Funding submission is retrying safely. No duplicate transfer will be created.',
+  FUNDING_CONFIRMATION_PENDING: 'Funding was submitted and is awaiting chain confirmation.',
+  AIRDROP_SUBMISSION_RETRY_PENDING: 'Developer airdrop is retrying safely. No duplicate airdrop will be created.',
+  AIRDROP_CONFIRMATION_PENDING: 'Developer airdrop was submitted and is awaiting chain confirmation.',
+  AIRDROP_DISABLED_ON_MAINNET: 'Developer airdrop is disabled on Mainnet.',
+}
 
 async function readJson(response: Response) {
   const payload = await response.json().catch(() => null)
@@ -94,13 +94,7 @@ async function readJson(response: Response) {
   }
   if (!response.ok) {
     const code = String(payload.error?.code ?? '')
-    const friendly = {
-      FUNDING_SUBMISSION_RETRY_PENDING: 'Funding submission is retrying safely. No duplicate transfer will be created.',
-      FUNDING_CONFIRMATION_PENDING: 'Funding was submitted and is awaiting chain confirmation.',
-      AIRDROP_SUBMISSION_RETRY_PENDING: 'Developer airdrop is retrying safely. No duplicate airdrop will be created.',
-      AIRDROP_CONFIRMATION_PENDING: 'Developer airdrop was submitted and is awaiting chain confirmation.',
-      AIRDROP_DISABLED_ON_MAINNET: 'Developer airdrop is disabled on Mainnet.',
-    }[code as keyof typeof friendlyMessages]
+    const friendly = friendlyMessages[code]
     throw Object.assign(
       new Error(friendly ?? payload.error?.message ?? `Funding request failed with HTTP ${response.status}`),
       { status: response.status, code },
