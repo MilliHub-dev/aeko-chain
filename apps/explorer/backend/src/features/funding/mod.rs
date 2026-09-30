@@ -1313,6 +1313,10 @@ async fn submit_and_observe_airdrop(
     Ok(submitted)
 }
 
+// This legacy observer is intentionally retained only as a compatibility helper while
+// all live HTTP submission paths return after signature persistence and the reconciler
+// performs single-observation confirmation without resubmission.
+#[allow(dead_code)]
 async fn observe_airdrop(
     state: &SharedState,
     airdrop: FundingAirdropRecord,
