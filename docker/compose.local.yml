@@ -25,6 +25,7 @@ services:
     restart: unless-stopped
     environment:
       AEKO_NODE_ROLE: validator
+      AEKO_NETWORK: ${AEKO_NETWORK:-localnet}
       AEKO_BOOTSTRAP: ${AEKO_BOOTSTRAP:-1}
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-0}
