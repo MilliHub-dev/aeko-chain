@@ -23,7 +23,6 @@ type FundingSnapshot = {
   dailyRemainingAeko: number | null
   publicSpentAeko: number | null
   publicReservedAeko: number | null
-  consoleAirdropAggregateUnlimited: boolean
   developerAirdropEnabled: boolean
   faucetPerRequestCapAeko: number | null
 }
@@ -357,9 +356,9 @@ export default function FundingPage() {
             <div className="mt-1 text-sm font-semibold text-white">{snapshot?.publicReservedAeko?.toLocaleString() ?? '0'} AEKO</div>
           </div>
           <div className="rounded-xl border border-[#1e2135] bg-[#12141f] p-4">
-            <div className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Developer airdrop aggregate</div>
+            <div className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Developer airdrop</div>
             <div className="mt-1 text-sm font-semibold text-emerald-300">
-              {snapshot?.developerAirdropEnabled ? (snapshot.consoleAirdropAggregateUnlimited ? 'No daily allocation ceiling' : 'Policy limited') : 'Disabled on Mainnet'}
+              {snapshot?.developerAirdropEnabled ? 'Enabled on test environments' : 'Disabled on Mainnet'}
             </div>
           </div>
           <div className="rounded-xl border border-[#1e2135] bg-[#12141f] p-4">
