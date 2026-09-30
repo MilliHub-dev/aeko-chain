@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,6 +37,7 @@ PROTOCOL_INTEGRATION = ROOT / "scripts" / "ci-protocol-stack-integration.sh"
 SMART_CONTRACT_RUN = ROOT / ".github" / "actions" / "devops" / "smart-contracts" / "run.sh"
 LIVE_NETWORK_DIAGNOSTICS = ROOT / ".github" / "workflows" / "live-network-diagnostics.yml"
 FUNDING_SMOKE = ROOT / "scripts" / "smoke-funding-e2e.py"
+GOSSIP_SMOKE = ROOT / "scripts" / "smoke-gossip.sh"
 HELLO_PROGRAM_SMOKE = ROOT / "scripts" / "smoke-hello-program.py"
 README = ROOT / "README.md"
 DEPLOYMENT = ROOT / "DEPLOYMENT.md"
@@ -124,6 +126,7 @@ def main() -> int:
     smart_contract_run = read(SMART_CONTRACT_RUN)
     live_network_diagnostics = read(LIVE_NETWORK_DIAGNOSTICS)
     funding_smoke = read(FUNDING_SMOKE)
+    gossip_smoke = read(GOSSIP_SMOKE)
     hello_program_smoke = read(HELLO_PROGRAM_SMOKE)
     readme = read(README)
     deployment = read(DEPLOYMENT)
@@ -427,6 +430,19 @@ def main() -> int:
         "server-only funding/settings secrets must never enter browser runtime configuration",
     )
 
+    retired_internal_namespace = "AEKO_" + "INTERNAL_"
+    grep = subprocess.run(
+        ["git", "grep", "-n", retired_internal_namespace],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    require(
+        grep.returncode == 1,
+        "retired internal endpoint namespace still exists in tracked files:\n" + grep.stdout,
+    )
+
     # Public Scan calls the selected Explorer API directly. CORS belongs at the
     # Explorer API boundary; the Scan server must not forward API traffic.
     require(
@@ -615,6 +631,26 @@ def main() -> int:
             required in protocol_integration,
             f"live protocol-stack funding dogfood missing contract: {required}",
         )
+
+    require(
+        "--bin aeko-gossip" in dockerfile
+        and "/binaries/aeko-gossip /usr/local/bin/aeko-gossip" in dockerfile,
+        "operator tools image must ship the gossip protocol probe",
+    )
+    require(
+        "target/debug/aeko-gossip --allow-private-addr spy" in protocol_integration
+        and "--gossip-port 18001" in protocol_integration
+        and "validator gossip is discoverable through the real gossip protocol" in protocol_integration,
+        "protocol integration must prove the validator-owned gossip service is discoverable",
+    )
+    for required in (
+        "gossip.aeko.online:8001",
+        "aeko-gossip",
+        "--entrypoint",
+        "--num-nodes",
+        "--timeout",
+    ):
+        require(required in gossip_smoke, f"gossip smoke missing contract: {required}")
 
     for required in (
         'rpc("requestAirdrop"',

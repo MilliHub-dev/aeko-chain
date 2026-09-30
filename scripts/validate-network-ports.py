@@ -264,6 +264,16 @@ def main() -> int:
             '"${AEKO_FAUCET_HOST_PORT:-9900}:9900"',
         ),
     )
+    split_faucet = service_block(split["faucet-tools"], "faucet")
+    require(
+        "test -s /keys/faucet-keypair.json" in split_faucet,
+        "split Faucet healthcheck must verify local key readiness without speaking HTTP to raw TCP 9900",
+    )
+    for forbidden in ("curl ", "wget ", "http://127.0.0.1:9900", "https://127.0.0.1:9900"):
+        require(
+            forbidden not in split_faucet,
+            f"split Faucet must not use HTTP-oriented probe {forbidden!r} on raw TCP 9900",
+        )
     require_contains_all(
         "split registry",
         split["bootstrap"],
