@@ -95,7 +95,9 @@ export default function Explorer() {
   });
 
   const homeState = useMemo(() => {
-    const homeData = homeQuery.data ?? {};
+    const homeData = /** @type {Awaited<ReturnType<typeof fetchExplorerHome>>} */ (
+      homeQuery.data ?? { blocks: [], transactions: [], posts: [], stakes: [], nfts: [] }
+    );
     return {
       loading: homeQuery.isLoading,
       error: homeQuery.error instanceof Error ? homeQuery.error.message : '',
