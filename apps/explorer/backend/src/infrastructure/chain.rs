@@ -540,14 +540,10 @@ impl RpcChainClient {
         &self,
         address: &str,
         lamports: u64,
-        funding_authorization: Option<&str>,
         recent_blockhash: Option<&str>,
     ) -> Result<String> {
-        // Instant developer airdrop path: no admin approval. Kept on
-        // `requestAirdrop` (open RPC) so Test Console dispatches immediately.
-        // A supplied credential is forwarded for backward compatibility but
-        // ignored by the validator for airdrops.
-        self.request_airdrop_inner(address, lamports, funding_authorization, recent_blockhash)
+        // Developer airdrop never carries the protected Funding credential.
+        self.request_airdrop_inner(address, lamports, recent_blockhash)
     }
 
     /// Protected funding transfer path. Requires the server-only
@@ -582,7 +578,6 @@ impl RpcChainClient {
         &self,
         address: &str,
         lamports: u64,
-        funding_authorization: Option<&str>,
         recent_blockhash: Option<&str>,
     ) -> Result<String> {
         let _: Pubkey = address
@@ -594,10 +589,7 @@ impl RpcChainClient {
         if recent_blockhash.is_some_and(|value| value.trim().is_empty()) {
             bail!("funding recent blockhash cannot be empty");
         }
-        let config = json!({
-            "fundingAuthorization": funding_authorization,
-            "recentBlockhash": recent_blockhash,
-        });
+        let config = json!({ "recentBlockhash": recent_blockhash });
         self.rpc_request("requestAirdrop", json!([address, lamports, config]))
     }
 
