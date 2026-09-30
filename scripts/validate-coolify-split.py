@@ -356,7 +356,7 @@ def main() -> int:
         "AEKO_NETWORK: ${AEKO_NETWORK:?",
         "AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:?",
         "AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:?",
-        "AEKO_EXPLORER_PROXY_TIMEOUT_MS:",
+        "AEKO_ADMIN_EXPLORER_TIMEOUT_MS:",
     ):
         require(expected in operations, f"Operations Web missing private upstream contract: {expected}")
 
