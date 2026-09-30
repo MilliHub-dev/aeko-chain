@@ -231,7 +231,7 @@ async fn funding_queue_is_durable_idempotent_and_separate_from_airdrops() -> Res
     assert_eq!(confirmed_again.status, "confirmed");
 
     let funding_transfers = repository.list_funding_transfers(500).await?;
-    let public_funding: Vec<_> = grants
+    let public_funding: Vec<_> = funding_transfers
         .iter()
         .filter(|funding| funding.request_id.as_deref() == Some(pending.id.as_str()))
         .collect();
@@ -317,7 +317,7 @@ async fn funding_queue_is_durable_idempotent_and_separate_from_airdrops() -> Res
     let funding_after_airdrop = repository.list_funding_transfers(500).await?;
     assert!(!funding_after_airdrop
         .iter()
-        .any(|grant| funding.signature.as_deref() == Some(airdrop_signature.as_str())));
+        .any(|funding| funding.signature.as_deref() == Some(airdrop_signature.as_str())));
 
     let after_airdrop = repository.funding_policy_snapshot().await?;
     assert_eq!(
@@ -329,7 +329,7 @@ async fn funding_queue_is_durable_idempotent_and_separate_from_airdrops() -> Res
         after_public.public_reserved_aeko
     );
 
-    // A terminal failed grant releases the reservation and never records a funding transfer.
+    // A terminal failed funding transfer releases the reservation and never records a funding transfer.
     let failed_address = format!("integration-failed-{suffix}");
     let failed_pending = repository
         .create_public_funding_request(&failed_address)
@@ -363,7 +363,7 @@ async fn funding_queue_is_durable_idempotent_and_separate_from_airdrops() -> Res
     let funding_after_failure = repository.list_funding_transfers(500).await?;
     assert!(!funding_after_failure
         .iter()
-        .any(|grant| funding.signature.as_deref() == Some(failed_signature.as_str())));
+        .any(|funding| funding.signature.as_deref() == Some(failed_signature.as_str())));
 
     Ok(())
 }
