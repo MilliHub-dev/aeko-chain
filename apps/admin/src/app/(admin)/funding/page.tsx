@@ -10,7 +10,7 @@ type Settings = {
   amountAeko: number
   cooldownHours: number
   dailyBudgetAeko: number
-  maxManualGrantAeko: number
+  maxAdminFundingAeko: number
   consoleAirdropCapAeko: number
   revision: number
   updatedAt: string
@@ -34,7 +34,7 @@ type FundingTransfer = {
   address: string
   amountAeko: number
   signature?: string | null
-  grantedAt: string
+  fundedAt: string
   source: string
   confirmed: boolean
 }
@@ -165,7 +165,7 @@ export default function FundingPage() {
           amountAeko: draft.amountAeko,
           cooldownHours: draft.cooldownHours,
           dailyBudgetAeko: draft.dailyBudgetAeko,
-          maxManualGrantAeko: draft.maxManualGrantAeko,
+          maxAdminFundingAeko: draft.maxAdminFundingAeko,
           consoleAirdropCapAeko: draft.consoleAirdropCapAeko,
         }),
       })
@@ -265,7 +265,7 @@ export default function FundingPage() {
     }
   }
 
-  const field = (key: keyof Pick<Settings, 'amountAeko' | 'cooldownHours' | 'dailyBudgetAeko' | 'maxManualGrantAeko' | 'consoleAirdropCapAeko'>, label: string, step = '1') =>
+  const field = (key: keyof Pick<Settings, 'amountAeko' | 'cooldownHours' | 'dailyBudgetAeko' | 'maxAdminFundingAeko' | 'consoleAirdropCapAeko'>, label: string, step = '1') =>
     draft && (
       <div>
         <label className="mb-1 block text-xs uppercase tracking-wider text-gray-500">{label}</label>
@@ -507,7 +507,7 @@ export default function FundingPage() {
                   {field('amountAeko', 'Amount per public request (AEKO)', '0.1')}
                   {field('cooldownHours', 'Public wallet cooldown (hours)', '0.1')}
                   {field('dailyBudgetAeko', 'Public daily allocation (AEKO)', '0.1')}
-                  {field('maxManualGrantAeko', 'Max Admin funding send (AEKO)', '0.1')}
+                  {field('maxAdminFundingAeko', 'Max Admin funding send (AEKO)', '0.1')}
                   {field('consoleAirdropCapAeko', 'Developer airdrop cap / request (AEKO)', '0.1')}
                 </div>
                 <div className="mt-4 text-xs text-gray-600">
@@ -595,7 +595,7 @@ export default function FundingPage() {
                 paginationLabel="funding history"
                 columns={['When', 'Address', 'Amount', 'Source', 'Status', 'Signature']}
                 rows={fundingHistory.map((funding) => [
-                  new Date(funding.grantedAt).toLocaleString(),
+                  new Date(funding.fundedAt).toLocaleString(),
                   funding.address.slice(0, 10) + '…' + funding.address.slice(-6),
                   `${funding.amountAeko} AEKO`,
                   funding.source,
