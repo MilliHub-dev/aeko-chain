@@ -51,7 +51,7 @@ services:
     pull_policy: always
     restart: "no"
     environment:
-      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
+      AEKO_RPC_URL: http://validator:8899
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_BOOTSTRAP_OUT_DIR: /state
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
@@ -81,7 +81,7 @@ services:
     restart: "no"
     environment:
       AEKO_NETWORK: ${AEKO_NETWORK:-testnet}
-      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
+      AEKO_RPC_URL: http://validator:8899
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
       AEKO_PROTOCOL_AUTHORITY_KEYPAIR: /keys/protocol-authority-keypair.json
       AEKO_PROTOCOL_OUT_DIR: /state
@@ -158,7 +158,7 @@ services:
       AEKO_FAUCET_FILE: /keys/faucet-keypair.json
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-1}
-      AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-faucet:9900}
+      AEKO_FAUCET_ADDRESS: faucet:9900
       AEKO_FUNDING_AUTHORIZATION_KEY: ${AEKO_FUNDING_AUTHORIZATION_KEY:-}
       AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-gossip.aeko.online}
       AEKO_GOSSIP_PORT: "8001"
@@ -219,8 +219,8 @@ services:
     pull_policy: always
     restart: unless-stopped
     environment:
-      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
-      AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-ws://validator:8900}
+      AEKO_RPC_URL: http://validator:8899
+      AEKO_WS_URL: ws://validator:8900
       AEKO_NETWORK: ${AEKO_NETWORK:-testnet}
       AEKO_EXPLORER_BIND: 0.0.0.0:8088
       AEKO_EXPLORER_CORS_ORIGINS: ${AEKO_EXPLORER_CORS_ORIGINS:-https://scan.aeko.online}
@@ -326,8 +326,8 @@ services:
     restart: unless-stopped
     environment:
       AEKO_NETWORK: ${AEKO_NETWORK:-testnet}
-      AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-http://validator:8899}
-      AEKO_EXPLORER_API_URL: ${AEKO_INTERNAL_EXPLORER_API_URL:-http://explorer-api:8088}
+      AEKO_RPC_URL: http://validator:8899
+      AEKO_EXPLORER_API_URL: http://explorer-api:8088
       AEKO_ADMIN_EXPLORER_TIMEOUT_MS: ${AEKO_ADMIN_EXPLORER_TIMEOUT_MS:-45000}
       AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN: ${AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN:?}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}
