@@ -9,6 +9,30 @@ function clean(name: string): string {
   return (process.env[name] ?? '').trim()
 }
 
+function serverUrl(name: string, localFallback: string): string {
+  const value = clean(name)
+  if (!value) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`${name} is required in production`)
+    }
+    return localFallback
+  }
+
+  let parsed: URL
+  try {
+    parsed = new URL(value)
+  } catch {
+    throw new Error(`${name} must be a valid http(s) URL`)
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`${name} must use http or https`)
+  }
+  if (/[<>]/.test(value) || /\bset\s/i.test(value)) {
+    throw new Error(`${name} contains placeholder or guidance text`)
+  }
+  return value.replace(/\/+$/, '')
+}
+
 export type AekoNetwork = 'mainnet' | 'testnet' | 'devnet' | 'localnet'
 
 export function describeAdminNetwork(): AekoNetwork {
@@ -24,11 +48,11 @@ export function isMainnetConfigured(): boolean {
 }
 
 export function resolveAdminRpcUrl(): string {
-  return clean('AEKO_RPC_URL') || HARDCODED_LOCAL_RPC
+  return serverUrl('AEKO_RPC_URL', HARDCODED_LOCAL_RPC)
 }
 
 export function resolveAdminExplorerUrl(): string {
-  return clean('AEKO_EXPLORER_API_URL') || HARDCODED_LOCAL_EXPLORER
+  return serverUrl('AEKO_EXPLORER_API_URL', HARDCODED_LOCAL_EXPLORER)
 }
 
 export function resolveAdminExplorerTimeoutMs(): number {

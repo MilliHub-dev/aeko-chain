@@ -41,6 +41,10 @@ if [ -z "$FAUCET_ADDRESS" ]; then
 fi
 
 case "$FAUCET_ADDRESS" in
+  *'<'*|*'>'*|*'Set '*|*'set '*)
+    echo "error: AEKO_FAUCET_ADDRESS contains placeholder/guidance text; configure a real raw host:port" >&2
+    exit 64
+    ;;
   http://*|https://*|ws://*|wss://*)
     echo "error: AEKO_FAUCET_ADDRESS must be raw host:port, not a URL: $FAUCET_ADDRESS" >&2
     exit 64

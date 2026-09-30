@@ -36,6 +36,10 @@ if [ -z "$REGISTRY_BASE_URL" ]; then
 fi
 
 case "$REGISTRY_BASE_URL" in
+  *'<'*|*'>'*|*'Set '*|*'set '*)
+    echo "error: AEKO_REGISTRY_URL contains placeholder/guidance text; configure a real http(s) origin" >&2
+    exit 64
+    ;;
   http://*|https://*) ;;
   *)
     echo "error: AEKO_REGISTRY_URL must be an http(s) URL, got: $REGISTRY_BASE_URL" >&2
