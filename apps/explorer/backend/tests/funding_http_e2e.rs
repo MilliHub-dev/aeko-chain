@@ -420,11 +420,11 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{approved}");
-    assert_eq!(approved["data"]["status"], "confirmed");
-    assert_eq!(approved["data"]["confirmed"], true);
+    assert_eq!(approved["data"]["status"], "submitted");
+    assert_eq!(approved["data"]["confirmed"], false);
     let funding_signature = approved["data"]["signature"]
         .as_str()
-        .expect("confirmed funding signature")
+        .expect("submitted funding signature")
         .to_string();
     assert!(rpc_observer.saw_authorized_funding.load(Ordering::SeqCst));
     assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 1);
@@ -476,7 +476,8 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{airdrop}");
-    assert_eq!(airdrop["data"]["status"], "confirmed");
+    assert_eq!(airdrop["data"]["status"], "submitted");
+    assert_eq!(airdrop["data"]["confirmed"], false);
     let airdrop_signature = airdrop["data"]["signature"]
         .as_str()
         .expect("airdrop signature")
