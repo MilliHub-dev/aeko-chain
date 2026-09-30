@@ -293,7 +293,7 @@ wait_balance(admin_address, before + 2_000_000_000, "direct Admin funding reache
 
 air_before = balance(airdrop_address)
 airdrop = json_request(
-    scan + "/api/explorer/testnet/funding/airdrop",
+    api + "/funding/airdrop",
     {"address": airdrop_address, "amountAeko": 1},
 )["data"]
 if not airdrop.get("signature"):
