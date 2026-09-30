@@ -35,12 +35,6 @@ services:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:?Set an immutable published AEKO image tag}
     pull_policy: always
     restart: "no"
-    entrypoint: ["/bin/sh", "-ec"]
-    command: |
-      rm -f /state/.aeko-bootstrap-runtime-ready
-      aeko-social-bootstrap
-      test -s /state/.aeko-chain-binding
-      cp /state/.aeko-chain-binding /state/.aeko-bootstrap-runtime-ready
     environment:
       AEKO_RPC_URL: ${AEKO_RPC_URL:-}
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
@@ -67,12 +61,6 @@ services:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-protocol-bootstrap:${AEKO_IMAGE_TAG:?Set an immutable published AEKO image tag}
     pull_policy: always
     restart: "no"
-    entrypoint: ["/bin/sh", "-ec"]
-    command: |
-      rm -f /state/.aeko-bootstrap-runtime-ready
-      aeko-protocol-bootstrap
-      test -s /state/.aeko-chain-binding
-      cp /state/.aeko-chain-binding /state/.aeko-bootstrap-runtime-ready
     environment:
       AEKO_NETWORK: ${AEKO_NETWORK:?Set mainnet, testnet, devnet, or localnet}
       AEKO_RPC_URL: ${AEKO_RPC_URL:-}
