@@ -3952,12 +3952,14 @@ impl RpcClient {
         recent_blockhash: &Hash,
         funding_authorization: Option<String>,
     ) -> ClientResult<Signature> {
-        self.invoke((self.rpc_client.as_ref()).request_funding_with_authorization(
-            pubkey,
-            lamports,
-            recent_blockhash,
-            funding_authorization,
-        ))
+        self.invoke(
+            (self.rpc_client.as_ref()).request_funding_with_authorization(
+                pubkey,
+                lamports,
+                recent_blockhash,
+                funding_authorization,
+            ),
+        )
     }
 
     pub fn request_funding_with_config(
@@ -3966,7 +3968,9 @@ impl RpcClient {
         lamports: u64,
         config: RpcRequestFundingConfig,
     ) -> ClientResult<Signature> {
-        self.invoke((self.rpc_client.as_ref()).request_funding_with_config(pubkey, lamports, config))
+        self.invoke(
+            (self.rpc_client.as_ref()).request_funding_with_config(pubkey, lamports, config),
+        )
     }
 
     pub fn poll_get_balance_with_commitment(
