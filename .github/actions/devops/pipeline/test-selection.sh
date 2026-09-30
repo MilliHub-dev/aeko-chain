@@ -108,7 +108,7 @@ assert_smart_contract_pipeline_separation() {
     exit 1
   fi
   grep -Fq 'https://rpc.aeko.online' "$contract_run"
-  grep -Fq 'https://scan.aeko.online/api/explorer/testnet' "$contract_run"
+  grep -Fq 'https://api.aeko.online' "$contract_run"
   grep -Fq '/funding/airdrop' "$contract_run"
   grep -Fq 'aeko-keygen new' "$contract_run"
   grep -Fq 'smoke-hello-program.py' "$contract_run"
