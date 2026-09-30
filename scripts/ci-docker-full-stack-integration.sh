@@ -28,8 +28,6 @@ export ADMIN_SESSION_SECRET="ci-full-stack-admin-session-secret-000001"
 export EXPLORER_DATABASE_URL="postgres://aeko:aeko@postgres:5432/aeko_explorer"
 export AEKO_RPC_HOST_PORT=18899
 export AEKO_WS_HOST_PORT=18900
-export AEKO_RPC_REPLICA_HOST_PORT=18898
-export AEKO_WS_REPLICA_HOST_PORT=18896
 export AEKO_GOSSIP_HOST_PORT=18001
 export AEKO_EXPLORER_API_HOST_PORT=18088
 export AEKO_FRONTEND_HOST_PORT=14000
@@ -40,7 +38,6 @@ compose() {
     -p "$PROJECT" \
     -f docker/compose.local.yml \
     -f docker/compose.ci-integration.yml \
-    --profile rpc \
     "$@"
 }
 
@@ -105,7 +102,6 @@ for key in \
   validator-1-keypair.json \
   vote-1-keypair.json \
   stake-keypair.json \
-  rpc-node-keypair.json \
   protocol-authority-keypair.json \
   funding-smoke-keypair.json \
   admin-smoke-keypair.json \
@@ -161,7 +157,6 @@ wait_rpc() {
 }
 
 wait_rpc "voting validator RPC" "http://127.0.0.1:${AEKO_RPC_HOST_PORT}"
-wait_rpc "RPC replica" "http://127.0.0.1:${AEKO_RPC_REPLICA_HOST_PORT}"
 
 for service in social-bootstrap protocol-bootstrap; do
   cid="$(compose ps -a -q "$service")"
@@ -183,7 +178,6 @@ import time
 import urllib.request
 
 validator = f"http://127.0.0.1:{os.environ['AEKO_RPC_HOST_PORT']}"
-replica = f"http://127.0.0.1:{os.environ['AEKO_RPC_REPLICA_HOST_PORT']}"
 
 def rpc_payload(url, method, params=None):
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}).encode()
@@ -197,34 +191,24 @@ def rpc(url, method, params=None):
         raise RuntimeError(f"{method} on {url}: {payload['error']}")
     return payload["result"]
 
-if rpc(validator, "getHealth") != "ok" or rpc(replica, "getHealth") != "ok":
-    raise RuntimeError("validator/RPC replica health mismatch")
+if rpc(validator, "getHealth") != "ok":
+    raise RuntimeError("validator RPC health check failed")
 genesis = rpc(validator, "getGenesisHash")
-for _ in range(60):
-    try:
-        if rpc(replica, "getGenesisHash") == genesis:
-            break
-    except Exception:
-        pass
-    time.sleep(1)
-else:
-    raise RuntimeError("RPC replica did not converge on validator genesis")
 slot_one = int(rpc(validator, "getSlot", [{"commitment": "confirmed"}]))
 time.sleep(1)
 slot_two = int(rpc(validator, "getSlot", [{"commitment": "confirmed"}]))
 if slot_two < slot_one:
     raise RuntimeError(f"slot regressed: {slot_one} -> {slot_two}")
-print(f"[ok] validator and RPC replica share genesis {genesis}; slot {slot_one}->{slot_two}")
+print(f"[ok] validator RPC shares the active genesis {genesis}; slot {slot_one}->{slot_two}")
 
 recipient = os.environ["FUNDING_SMOKE_ADDRESS"]
-for label, url in (("voting validator", validator), ("RPC replica", replica)):
-    payload = rpc_payload(url, "requestFunding", [recipient, 1])
-    error = payload.get("error") or {}
-    if error.get("code") != -32600:
-        raise RuntimeError(
-            f"{label} unexpectedly accepted unauthenticated requestFunding: {payload}"
-        )
-    print(f"[ok] {label} protects requestFunding with the settlement credential")
+payload = rpc_payload(validator, "requestFunding", [recipient, 1])
+error = payload.get("error") or {}
+if error.get("code") != -32600:
+    raise RuntimeError(
+        f"voting validator unexpectedly accepted unauthenticated requestFunding: {payload}"
+    )
+print("[ok] voting validator RPC protects requestFunding with the settlement credential")
 PY
 
 AEKO_NETWORK=testnet \
@@ -359,4 +343,4 @@ print("[ok] Explorer overview, readiness, and Social API contracts respond")
 PY
 
 capture_diagnostics
-echo "[PASS] built Docker images boot together and pass RPC, validator, Faucet, funding, airdrop, wallet/account, Explorer, Social, Protocol, Scan and Operations checks"
+echo "[PASS] built Docker images boot together and pass validator RPC, Faucet, funding, airdrop, wallet/account, Explorer, Social, Protocol, Scan and Operations checks"
