@@ -429,6 +429,10 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     assert!(rpc_observer.saw_authorized_funding.load(Ordering::SeqCst));
     assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 1);
 
+    let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
+    assert_eq!(transitioned, 1);
+    assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 1);
+
     let (status, public_status) = request_json(
         &app,
         Method::GET,
@@ -482,6 +486,10 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
         .as_str()
         .expect("airdrop signature")
         .to_string();
+    assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 2);
+
+    let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
+    assert_eq!(transitioned, 1);
     assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 2);
 
     // The fake signer derives one deterministic signature per submission
