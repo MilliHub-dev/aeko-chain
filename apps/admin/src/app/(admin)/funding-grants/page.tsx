@@ -416,7 +416,7 @@ export default function FundingGrantsPage() {
             </span>
             <button
               type="button"
-              onClick={() => void refresh()
+              onClick={() => void refresh()}
               disabled={syncing}
               className="rounded-md px-2 py-1 font-semibold text-gray-200 transition-colors hover:bg-white/5 disabled:opacity-40"
             >
