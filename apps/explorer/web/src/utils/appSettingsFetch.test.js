@@ -18,7 +18,7 @@ async function loadAppSettings(runtime) {
 const TESTNET = {
   rpcUrl: 'https://rpc.example.invalid',
   websocketUrl: 'wss://ws.example.invalid',
-  explorerApiUrl: '/api/explorer/testnet',
+  explorerApiUrl: 'https://api.test.example.invalid',
   fundingUrl: 'https://fund.example.invalid',
 };
 

@@ -35,6 +35,7 @@ REGISTRY_FEATURE = ROOT / "apps" / "explorer" / "backend" / "src" / "features" /
 SPLIT_BOOTSTRAP = ROOT / "docker" / "coolify" / "bootstrap" / "compose.yml"
 PROTOCOL_INTEGRATION = ROOT / "scripts" / "ci-protocol-stack-integration.sh"
 SMART_CONTRACT_RUN = ROOT / ".github" / "actions" / "devops" / "smart-contracts" / "run.sh"
+SMART_CONTRACT_WORKFLOW = ROOT / ".github" / "workflows" / "smart-contracts.yml"
 LIVE_NETWORK_DIAGNOSTICS = ROOT / ".github" / "workflows" / "live-network-diagnostics.yml"
 FUNDING_SMOKE = ROOT / "scripts" / "smoke-funding-e2e.py"
 GOSSIP_SMOKE = ROOT / "scripts" / "smoke-gossip.sh"
@@ -124,6 +125,7 @@ def main() -> int:
     split_bootstrap = read(SPLIT_BOOTSTRAP)
     protocol_integration = read(PROTOCOL_INTEGRATION)
     smart_contract_run = read(SMART_CONTRACT_RUN)
+    smart_contract_workflow = read(SMART_CONTRACT_WORKFLOW)
     live_network_diagnostics = read(LIVE_NETWORK_DIAGNOSTICS)
     funding_smoke = read(FUNDING_SMOKE)
     gossip_smoke = read(GOSSIP_SMOKE)
@@ -492,6 +494,21 @@ def main() -> int:
         "AEKO_EXPLORER_API_URL: https://api.aeko.online" in live_network_diagnostics
         and "https://scan.aeko.online/api/explorer" not in live_network_diagnostics,
         "live diagnostics must probe the public Explorer API directly",
+    )
+    require(
+        "AEKO_SMART_CONTRACT_FUNDING_URL: https://api.aeko.online" in smart_contract_workflow
+        and "scan.aeko.online/api/explorer" not in smart_contract_workflow,
+        "smart-contract live funding must target the public Explorer API directly",
+    )
+    require(
+        "https://api.aeko.online/funding/request" in sdk_testnet_guide
+        and "scan.aeko.online/api/explorer" not in sdk_testnet_guide,
+        "external developer funding guide must use the direct Explorer API",
+    )
+    require(
+        "https://api.aeko.online/funding/request" in deploy_helper
+        or "Funding      http://" in deploy_helper,
+        "deployment helper must not depend on the retired Scan proxy for public funding",
     )
     require(
         "AEKO_GOSSIP_ENTRYPOINT: gossip.aeko.online:8001" in live_network_diagnostics

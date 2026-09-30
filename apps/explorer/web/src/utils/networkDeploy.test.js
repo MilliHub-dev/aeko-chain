@@ -10,13 +10,13 @@ async function load(runtime) {
 const MAINNET = {
   rpcUrl: 'https://rpc.main.example.invalid',
   websocketUrl: 'wss://ws.main.example.invalid',
-  explorerApiUrl: '/api/explorer/mainnet',
+  explorerApiUrl: 'https://api.main.example.invalid',
 };
 const TESTNET = {
   rpcUrl: 'https://rpc.test.example.invalid',
   websocketUrl: 'wss://ws.test.example.invalid',
-  explorerApiUrl: '/api/explorer/testnet',
-  fundingUrl: '/api/explorer/testnet',
+  explorerApiUrl: 'https://api.test.example.invalid',
+  fundingUrl: 'https://api.test.example.invalid',
 };
 
 test('public runtime exposes only independently configured Mainnet and Testnet', async () => {
@@ -39,8 +39,8 @@ test('Testnet funding follows the selected Testnet Explorer boundary', async () 
   const testnet = m.getNetworkConfig('testnet');
 
   assert.equal(m.getActiveNetwork(), 'testnet');
-  assert.equal(testnet.explorerApiUrl, '/api/explorer/testnet');
-  assert.equal(testnet.fundingUrl, '/api/explorer/testnet');
+  assert.equal(testnet.explorerApiUrl, 'https://api.test.example.invalid');
+  assert.equal(testnet.fundingUrl, 'https://api.test.example.invalid');
   assert.equal(testnet.fundingEnabled, true);
   assert.match(testnet.explorerUrl, /\/explorer$/);
 });
@@ -49,15 +49,15 @@ test('Mainnet funding follows the selected Mainnet Explorer boundary', async () 
   const m = await load({
     network: 'mainnet',
     networks: {
-      mainnet: { ...MAINNET, fundingUrl: '/api/explorer/mainnet' },
+      mainnet: { ...MAINNET, fundingUrl: 'https://api.main.example.invalid' },
       testnet: TESTNET,
     },
   });
   const mainnet = m.getNetworkConfig('mainnet');
 
   assert.equal(m.getActiveNetwork(), 'mainnet');
-  assert.equal(mainnet.explorerApiUrl, '/api/explorer/mainnet');
-  assert.equal(mainnet.fundingUrl, '/api/explorer/mainnet');
+  assert.equal(mainnet.explorerApiUrl, 'https://api.main.example.invalid');
+  assert.equal(mainnet.fundingUrl, 'https://api.main.example.invalid');
   assert.equal(mainnet.fundingEnabled, true);
 });
 

@@ -30,7 +30,7 @@ env:
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: sccache
   AEKO_SMART_CONTRACT_RPC_URL: https://rpc.aeko.online
-  AEKO_SMART_CONTRACT_FUNDING_URL: https://scan.aeko.online/api/explorer/testnet
+  AEKO_SMART_CONTRACT_FUNDING_URL: https://api.aeko.online
   AEKO_SMART_CONTRACT_AIRDROP_AEKO: "10"
 
 jobs:
