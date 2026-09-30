@@ -383,7 +383,6 @@ export default function FundingGrantsPage() {
   const attentionRequests = requests.filter((request) =>
     ['pending', 'processing', 'submitted', 'failed'].includes(request.status),
   )
-  const isFundingAvailable = snapshot?.mode === 'test-funding'
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 p-3 sm:space-y-6 sm:p-6">

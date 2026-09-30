@@ -386,17 +386,26 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
   assert.doesNotMatch(demo, /AEKO_DEMO_/);
 });
 
-test('Explorer search is URL-driven, retryable and exposes a no-results state', async () => {
+test('Explorer dashboard server state is Query-owned and URL-driven', async () => {
   const explorer = await source('pages/Explorer.jsx');
-  const transaction = await source('pages/TransactionDetails.jsx');
+  const explorerApi = await source('utils/explorerApi.js');
+  const keys = await source('queryKeys.js');
 
+  assert.match(explorer, /useQuery/);
+  assert.match(explorer, /queryKeys\.explorer\.overview/);
+  assert.match(explorer, /queryKeys\.explorer\.home/);
+  assert.match(explorer, /queryKeys\.explorer\.search/);
+  assert.match(explorer, /refetchInterval: settings\.explorerAutoRefreshSeconds \* 1000/);
+  assert.match(explorer, /placeholderData: keepPreviousData/);
   assert.match(explorer, /urlSearchQuery/);
-  assert.match(explorer, /setSearchRetry/);
+  assert.doesNotMatch(explorer, /setHomeState|setHomeRefreshTick|setSearchRetry|window\.setInterval/);
   assert.match(explorer, /No matching saved or live record/);
   assert.match(explorer, /match\.kind === 'tokenMint'/);
   assert.match(explorer, /match\.kind === 'collection'/);
-  assert.match(transaction, /Failed/);
-  assert.doesNotMatch(transaction, /Not confirmed/);
+
+  assert.match(explorerApi, /export async function fetchExplorerOverview/);
+  assert.doesNotMatch(explorerApi, /overviewCache|OVERVIEW_CACHE_MS/);
+  assert.match(keys, /overview: \(network\)/);
 });
 
 
