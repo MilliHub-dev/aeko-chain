@@ -159,7 +159,7 @@ test('accounts workspace keeps public funding approval separate from direct Test
   assert.match(funding, /useToaster/);
   assert.match(funding, /StatusBanner/);
   assert.match(funding, /Funding request submitted/);
-  assert.match(funding, /Grant confirmed/);
+  assert.match(funding, /Funding confirmed/);
   assert.doesNotMatch(funding, /requestError/);
   assert.doesNotMatch(funding, /decideRequest|approve.*fetch|\/admin\/funding/);
 });
@@ -230,7 +230,7 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
   assert.doesNotMatch(adminPage, /mainnet-disabled/);
   assert.doesNotMatch(adminPage, /Mainnet test funding is disabled/);
   assert.match(adminPage, /Loading the live funding policy and settlement state/);
-  assert.match(adminPage, /Manual operator grant/);
+  assert.match(adminPage, /Direct Admin funding/);
   assert.match(adminPage, /Check confirmation/);
   assert.match(adminPage, /Airdrop history/);
   assert.match(adminPage, /Retrying safely/);
