@@ -506,9 +506,11 @@ def main() -> int:
         "external developer funding guide must use the direct Explorer API",
     )
     require(
-        "https://api.aeko.online/funding/request" in deploy_helper
-        or "Funding      http://" in deploy_helper,
-        "deployment helper must not depend on the retired Scan proxy for public funding",
+        "Explorer API http://${AEKO_DOMAIN}:8088" in deploy_helper
+        and "Funding      http://${AEKO_DOMAIN}:8088/funding/*" in deploy_helper
+        and "Funding      ${AEKO_EXPLORER_API_URL:-<not configured>}/funding/*" in deploy_helper
+        and "/api/explorer/${AEKO_NETWORK}/funding/*" not in deploy_helper,
+        "deployment helper must advertise direct Explorer API funding for local and configured public endpoints",
     )
     require(
         "AEKO_GOSSIP_ENTRYPOINT: gossip.aeko.online:8001" in live_network_diagnostics
