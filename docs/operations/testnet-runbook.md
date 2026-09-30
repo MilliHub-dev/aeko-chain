@@ -132,7 +132,7 @@ It builds no Validator/Faucet/bootstrap image and its RPC, funding, SBF, deploy
 or invoke failure is non-blocking: core application/network validation,
 publication and CLI release processing continue independently.
 
-**Explorer is indexing.** `curl -s https://scan.aeko.online/api/explorer/testnet/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `https://scan.aeko.online` should show a list of recent blocks and a slot counter that ticks up.
+**Explorer is indexing.** `curl -s https://api.aeko.online/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `https://scan.aeko.online` should show a list of recent blocks and a slot counter that ticks up.
 
 **WebSocket reachable.** `wscat -c wss://ws.aeko.online` should connect.
 
@@ -271,7 +271,7 @@ With Coolify+Traefik in front, only HTTP/HTTPS and gossip need public ingress:
 
 3. **No panics in the validator log.** `docker logs aeko-validator-1 2>&1 | grep -c AEKO_PANIC` returns `0`.
 
-4. **Explorer indexed something recent.** `curl https://scan.aeko.online/api/explorer/testnet/blocks?limit=1` should return a block whose `unixTimestamp` is within the last minute.
+4. **Explorer indexed something recent.** `curl https://api.aeko.online/blocks?limit=1` should return a block whose `unixTimestamp` is within the last minute.
 
 5. **WebSocket reachable.** `wscat -c wss://ws.aeko.online` should connect.
 

@@ -49,10 +49,10 @@ production Scan runtime accepts Mainnet and Testnet only. Devnet remains a real
 independently deployed development environment, but it is not configured in the
 public Scan resource; Localnet remains a local Vite development target.
 
-The Scan container injects a normalized `{network, networks, demo}` runtime
-object. Browser indexed reads remain same-origin under
-`/api/explorer/{network}`; the Scan server proxies each path to that
-network's Explorer API.
+The Scan container injects a normalized `{network, networks}` runtime
+object. Browser indexed reads and public funding requests use each selected
+network's configured Explorer API origin directly. The Scan server no longer
+proxies `/api/explorer/{network}` traffic.
 
 ## Local Vite development
 
