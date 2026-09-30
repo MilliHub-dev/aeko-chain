@@ -185,7 +185,7 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
       message:
         request.status === 'rejected'
           ? 'The Admin rejected this funding request.'
-          : 'The approved grant transfer failed on-chain. No confirmed grant was recorded.',
+          : 'The approved funding transfer failed on-chain. No confirmed funding transfer was recorded.',
     });
   }, [pushToast, request?.amountAeko, request?.id, request?.status]);
 
