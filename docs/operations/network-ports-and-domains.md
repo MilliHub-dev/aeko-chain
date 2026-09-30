@@ -112,7 +112,10 @@ Raw Faucet and validator transport are exceptions:
 - set `AEKO_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900` on the Validator resource;
 - do not attach HTTP/WAF routing or HTTP health probes to Faucet `9900`;
 - publish Validator TCP+UDP `8000-8050`;
-- point `gossip.aeko.online` directly at the Validator host;
+- point `gossip.aeko.online` directly at the Validator host; the Validator
+  process itself owns the gossip service, so no separate Gossip container is expected;
+- prove reachability with `scripts/smoke-gossip.sh` or
+  `aeko-gossip spy --entrypoint gossip.aeko.online:8001 --num-nodes 1 --timeout 20`;
 - do not put gossip or Faucet behind an HTTP-only proxy.
 
 ## Local host-published ports

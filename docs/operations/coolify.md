@@ -246,15 +246,22 @@ republish it only after their canonical chain binding completes. The registry
 returns 503 when either latest one-shot verification is incomplete/failed or a
 registry document is missing; it does not mutate or recreate canonical state.
 
-Do not configure `gossip.aeko.online` as an HTTP route. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record
-directly to the Validator host and allow inbound TCP+UDP `8000-8050`.
-Gossip starts on `8001`.
+Do not configure `gossip.aeko.online` as an HTTP route. There is no separate
+Gossip Coolify application: the Validator process owns the gossip service.
+Set `AEKO_GOSSIP_HOST=gossip.aeko.online`, point that DNS record directly to
+the Validator host, and allow inbound TCP+UDP `8000-8050`. Gossip starts on
+`8001`. Verify the real protocol path with
+`AEKO_GOSSIP_ENTRYPOINT=gossip.aeko.online:8001 scripts/smoke-gossip.sh` or
+`aeko-gossip spy --entrypoint gossip.aeko.online:8001 --num-nodes 1 --timeout 20`.
 
 Faucet is also not an HTTP Coolify Domain. Point `faucet.aeko.online` to the
-Faucet host, publish TCP `9900`, and firewall it to Validator source
-addresses. Do not attach an HTTP health probe, Cloudflare HTTP proxy, or
-Traefik HTTP router to port `9900`; the Faucet listener accepts only its
-binary TCP protocol and rejects HTTP-like traffic. PostgreSQL `5432` should remain private.
+Faucet host only when a split Validator needs that raw TCP endpoint, publish
+TCP `9900`, and firewall it to Validator source addresses. In Coolify, leave
+the Faucet Domains field empty and do not configure an HTTP health path for
+`9900`; the Compose healthcheck validates the mounted key locally. Do not
+attach a Cloudflare HTTP proxy or Traefik HTTP router to the Faucet port. The
+Faucet listener accepts only its binary TCP protocol and deliberately rejects
+HTTP-like traffic. PostgreSQL `5432` should remain private.
 
 ## First deployment
 

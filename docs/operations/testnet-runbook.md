@@ -64,11 +64,16 @@ The compose file spins up four containers on a private docker network, fronted b
 
 | Container | Image | What it does | Coolify route | Container port |
 |---|---|---|---|---|
-| `aeko-validator-1` | `aeko-validator:latest` | Produces blocks, serves RPC + pubsub + gossip | `rpc.aeko.online`, `ws.aeko.online` | `8899`, `8900`, `8001` |
+| `aeko-validator-1` | `aeko-validator:latest` | Produces blocks and owns RPC, pubsub, and the gossip service | `rpc.aeko.online`, `ws.aeko.online`; gossip is raw DNS/transport, not HTTP | `8899`, `8900`, `8001` |
 | `aeko-validator-2/3` | same image | **Disabled by default** (multi-validator profile) | — | `8899` each |
 | `aeko-faucet` | same image, different entrypoint | **Faucet Daemon**: private signer for policy-approved testnet funding | no browser/application route | `9900/tcp` (private/restricted; Docker DNS when co-located, firewall-restricted TCP when split) |
 | `aeko-explorer-backend` | `aeko-explorer-backend:latest` | Indexes blocks from RPC and serves the public Explorer REST API | `api.aeko.online` | `8088` |
 | `aeko-explorer-ui` | `aeko-explorer-ui:latest` | Static Aeko Scan SPA plus runtime configuration/telemetry server | `scan.aeko.online` | `4000` |
+
+There is no separate Gossip application or container. The validator process owns
+`GossipService`; `gossip.aeko.online:8001` is a raw TCP/UDP DNS entrypoint to
+that validator listener. CLI/validator peers discover the cluster with the
+`aeko-gossip` protocol, not HTTP.
 
 The bootstrap flow on first boot:
 
@@ -135,6 +140,22 @@ publication and CLI release processing continue independently.
 **Explorer is indexing.** `curl -s https://api.aeko.online/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `https://scan.aeko.online` should show a list of recent blocks and a slot counter that ticks up.
 
 **WebSocket reachable.** `wscat -c wss://ws.aeko.online` should connect.
+
+**Gossip reachable.** Use the protocol probe, not curl:
+
+```bash
+AEKO_GOSSIP_ENTRYPOINT=gossip.aeko.online:8001 scripts/smoke-gossip.sh
+```
+
+If the CLI tools are only available as the published tools image:
+
+```bash
+docker run --rm surdma/aeko-tools:<published-tag> \
+  aeko-gossip spy --entrypoint gossip.aeko.online:8001 --num-nodes 1 --timeout 20
+```
+
+This proves DNS, the host firewall/NAT, port 8001, and the validator-owned gossip
+listener are all working end to end.
 
 **Validator is stable.** From Coolify UI → resource → Logs (or SSH if needed): `docker inspect aeko-validator-1 --format '{{.State.Status}} restarts={{.RestartCount}} health={{.State.Health.Status}}'` should say `running restarts=0 health=healthy` after the container has been up for at least ten minutes. Also: `docker logs aeko-validator-1 2>&1 | grep -c AEKO_PANIC` should be `0`.
 
