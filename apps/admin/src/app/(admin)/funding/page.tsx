@@ -72,6 +72,23 @@ type FundingView = 'queue' | 'policy' | 'history' | 'airdrops'
 const inputClass =
   'min-h-[44px] w-full rounded-lg border border-[#1e2135] bg-[#0d0e16] px-3 py-2 text-sm text-gray-100 outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 mono'
 
+function airdropStateDetail(airdrop: Airdrop) {
+  switch (airdrop.errorCode) {
+    case 'AIRDROP_SUBMISSION_RETRY_PENDING':
+      return 'Retrying safely'
+    case 'AIRDROP_CONFIRMATION_PENDING':
+      return 'Awaiting confirmation'
+    case 'AIRDROP_CONFIRMATION_UNAVAILABLE':
+      return 'Confirmation temporarily unavailable'
+    case 'AIRDROP_BLOCKHASH_UNAVAILABLE':
+      return 'Network blockhash unavailable'
+    case 'AIRDROP_TRANSACTION_FAILED':
+      return 'Transfer failed'
+    default:
+      return airdrop.errorCode ? 'Needs attention' : '—'
+  }
+}
+
 async function readJson(response: Response) {
   const payload = await response.json().catch(() => null)
   if (!payload) {
@@ -548,7 +565,7 @@ export default function FundingPage() {
               </div>
               <DataTable
                 paginationLabel="airdrops"
-                columns={['Requested', 'Address', 'Amount', 'Status', 'Signature', 'Error']}
+                columns={['Requested', 'Address', 'Amount', 'Status', 'Signature', 'State detail']}
                 rows={airdrops.map((airdrop) => [
                   new Date(airdrop.requestedAt).toLocaleString(),
                   airdrop.address.slice(0, 10) + '…' + airdrop.address.slice(-6),
@@ -566,7 +583,7 @@ export default function FundingPage() {
                     {airdrop.status}
                   </span>,
                   airdrop.signature ? airdrop.signature.slice(0, 16) + '…' : '—',
-                  airdrop.errorCode ?? '—',
+                  airdropStateDetail(airdrop),
                 ])}
                 empty="No developer airdrops have been requested yet"
               />
