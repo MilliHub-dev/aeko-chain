@@ -31,6 +31,7 @@ NETWORK_TOGGLE = ROOT / "apps" / "explorer" / "web" / "src" / "components" / "Ne
 REGISTRY_RESOLVER = ROOT / "apps" / "explorer" / "backend" / "src" / "infrastructure" / "registry.rs"
 REGISTRY_FEATURE = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "registry.rs"
 SPLIT_BOOTSTRAP = ROOT / "docker" / "coolify" / "bootstrap" / "compose.yml"
+SPLIT_VALIDATOR = ROOT / "docker" / "coolify" / "validator" / "compose.yml"
 PROTOCOL_INTEGRATION = ROOT / "scripts" / "ci-protocol-stack-integration.sh"
 SMART_CONTRACT_RUN = ROOT / ".github" / "actions" / "devops" / "smart-contracts" / "run.sh"
 FUNDING_SMOKE = ROOT / "scripts" / "smoke-funding-e2e.py"
@@ -117,6 +118,7 @@ def main() -> int:
     registry_resolver = read(REGISTRY_RESOLVER)
     registry_feature = read(REGISTRY_FEATURE)
     split_bootstrap = read(SPLIT_BOOTSTRAP)
+    split_validator = read(SPLIT_VALIDATOR)
     protocol_integration = read(PROTOCOL_INTEGRATION)
     smart_contract_run = read(SMART_CONTRACT_RUN)
     funding_smoke = read(FUNDING_SMOKE)
@@ -215,7 +217,16 @@ def main() -> int:
                 f"{label} {service} must pull the selected image tag",
             )
 
-    require('profiles: ["rpc"]' in service_block(portable, "rpc-node"), "portable RPC replica must remain opt-in")
+    portable_rpc = service_block(portable, "rpc-node")
+    require('profiles: ["rpc"]' in portable_rpc, "portable RPC replica must remain opt-in")
+    require(
+        "AEKO_NETWORK:" in portable_rpc,
+        "portable RPC replica must receive the active network identity",
+    )
+    require(
+        "AEKO_NETWORK:" in service_block(split_validator, "validator"),
+        "split Coolify Validator must receive the active network identity",
+    )
     require(
         re.search(r"^  rpc-node:\s*$", dokploy, re.MULTILINE) is None
         and re.search(r"^  rpc-node:\s*$", coolify, re.MULTILINE) is None,
@@ -361,6 +372,10 @@ def main() -> int:
         explorer_ui = service_block(compose, "explorer-ui")
         faucet = service_block(compose, "faucet")
 
+        require(
+            "AEKO_NETWORK:" in validator,
+            f"{label} Validator must receive the active network identity",
+        )
         require(
             "AEKO_FUNDING_AUTHORIZATION_KEY:" in validator,
             f"{label} Validator must receive funding authorization",
