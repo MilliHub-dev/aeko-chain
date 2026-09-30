@@ -11,7 +11,7 @@ const NAV = [
   { href: '/social',        label: 'Social',        icon: '◎' },
   { href: '/protocol',      label: 'Protocol',      icon: '◫' },
   { href: '/marketplace',   label: 'Marketplace',   icon: '◆' },
-  { href: '/funding-grants', label: 'Funding Grants', icon: '◇' },
+  { href: '/funding',        label: 'Funding',        icon: '◇' },
   { href: '/settings',       label: 'Settings',      icon: '⌁' },
 ]
 
