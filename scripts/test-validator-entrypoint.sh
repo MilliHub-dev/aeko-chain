@@ -47,7 +47,7 @@ test ! -e "$TMP_DIR/established-genesis.log"
 grep -Fq -- "--rpc-faucet-address 10.20.30.40:9900" "$TMP_DIR/established-validator.args"
 echo "[ok] established validator does not require genesis-only stake/faucet keys"
 
-if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/missing-remote-faucet.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_REQUIRE_REMOTE_FAUCET=1 bash "$ENTRYPOINT" >"$TMP_DIR/missing-remote-faucet.out" 2>&1; then
+if env -u AEKO_FAUCET_ADDRESS AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/missing-remote-faucet.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_REQUIRE_REMOTE_FAUCET=1 bash "$ENTRYPOINT" >"$TMP_DIR/missing-remote-faucet.out" 2>&1; then
   echo "split validator unexpectedly accepted a missing Faucet address" >&2
   exit 1
 fi
