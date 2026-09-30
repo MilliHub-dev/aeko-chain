@@ -1355,6 +1355,9 @@ pub fn main() {
                 .ok()
                 .map(|value| value.trim().to_owned())
                 .filter(|value| !value.is_empty()),
+            disable_developer_airdrop: std::env::var("AEKO_NETWORK")
+                .map(|value| value.trim().eq_ignore_ascii_case("mainnet"))
+                .unwrap_or(false),
             full_api,
             obsolete_v1_7_api: matches.is_present("obsolete_v1_7_rpc_api"),
             max_multiple_accounts: Some(value_t_or_exit!(
