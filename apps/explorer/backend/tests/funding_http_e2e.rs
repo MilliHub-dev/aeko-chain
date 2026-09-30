@@ -434,7 +434,9 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{funding_after_airdrop}");
-    let funding_rows = funding_after_airdrop["data"].as_array().expect("funding history");
+    let funding_rows = funding_after_airdrop["data"]
+        .as_array()
+        .expect("funding history");
     assert_eq!(
         funding_rows
             .iter()
