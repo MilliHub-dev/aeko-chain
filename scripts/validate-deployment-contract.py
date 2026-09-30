@@ -147,9 +147,34 @@ def main() -> int:
     admin_sidebar = read(ADMIN_SIDEBAR)
     protocol_bootstrap = read(PROTOCOL_BOOTSTRAP)
     social_bootstrap = read(SOCIAL_BOOTSTRAP)
+    emergency_multisig = read(ROOT / "programs" / "emergency-multisig" / "src" / "processor.rs")
+    emergency_state = read(ROOT / "programs" / "emergency-multisig" / "src" / "state.rs")
+    subnet_registry = read(ROOT / "programs" / "subnet-registry" / "src" / "processor.rs")
+    revocation_registry = read(ROOT / "programs" / "revocation-registry" / "src" / "processor.rs")
     bootstrap_lifecycle = read(BOOTSTRAP_LIFECYCLE)
     builtins = read(BUILTINS)
     feature_set = read(FEATURE_SET)
+
+    require(
+        "multisig_config_address()" in emergency_state
+        and "proposal_address" in emergency_state
+        and "vote_address" in emergency_state,
+        "emergency multisig must use canonical program-derived control-plane addresses",
+    )
+    require(
+        "native_invoke(cpi.into(), &[])" in emergency_multisig
+        and "EmergencyMultisigError::UnsupportedAction" in emergency_multisig,
+        "emergency multisig must execute supported actions through CPI and fail closed on unsupported actions",
+    )
+    require(
+        "ensure_emergency_multisig_caller" in subnet_registry
+        and "ensure_emergency_multisig_caller" in revocation_registry,
+        "emergency registry mutations must authenticate the immediate multisig CPI caller",
+    )
+    require(
+        "AEKO_PROTOCOL_MIGRATE_EMERGENCY_MULTISIG_PDA" in protocol_bootstrap,
+        "protocol bootstrap must gate legacy emergency-multisig migration explicitly",
+    )
 
     # One image recipe owns every runtime role.
     for target in (

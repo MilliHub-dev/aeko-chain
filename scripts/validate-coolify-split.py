@@ -8,6 +8,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COOLIFY = ROOT / "docker" / "coolify"
+DOCKERFILE = ROOT / "docker" / "Dockerfile"
+BOOTSTRAP_ENTRYPOINT = ROOT / "docker" / "bootstrap-entrypoint.sh"
 
 RESOURCES = {
     "bootstrap": (
@@ -162,6 +164,35 @@ def main() -> int:
             f"{label} must support post-promotion latest-tag application deploys",
         )
 
+    dockerfile = read(DOCKERFILE)
+    bootstrap_entrypoint = read(BOOTSTRAP_ENTRYPOINT)
+    for target, binary in (
+        ("social-bootstrap", "aeko-social-bootstrap"),
+        ("protocol-bootstrap", "aeko-protocol-bootstrap"),
+    ):
+        target_match = re.search(
+            rf"^FROM rust-runtime AS {re.escape(target)}$(.*?)(?=^FROM |\Z)",
+            dockerfile,
+            re.MULTILINE | re.DOTALL,
+        )
+        require(target_match is not None, f"Dockerfile target missing: {target}")
+        target_block = target_match.group(1)
+        require(
+            'ENTRYPOINT ["/usr/local/bin/aeko-bootstrap-entrypoint"]' in target_block,
+            f"{target} must use the image-owned bootstrap entrypoint",
+        )
+        require(
+            f'CMD ["{binary}"]' in target_block,
+            f"{target} must declare its one-shot bootstrap binary as CMD",
+        )
+    require(
+        'rm -f -- "$ready_path"' in bootstrap_entrypoint
+        and '"$@"' in bootstrap_entrypoint
+        and 'cp "$binding_path" "$ready_tmp"' in bootstrap_entrypoint
+        and 'mv -f "$ready_tmp" "$ready_path"' in bootstrap_entrypoint,
+        "bootstrap entrypoint must invalidate stale readiness and publish it atomically only after success",
+    )
+
     bootstrap = loaded["bootstrap"]
     key_bootstrap = service_block(bootstrap, "key-bootstrap")
     social = service_block(bootstrap, "social-bootstrap")
@@ -184,28 +215,25 @@ def main() -> int:
                 in block,
                 "Protocol bootstrap must receive the same single active network identity",
             )
+            require(
+                "AEKO_PROTOCOL_MIGRATE_EMERGENCY_MULTISIG_PDA: ${AEKO_PROTOCOL_MIGRATE_EMERGENCY_MULTISIG_PDA:-0}"
+                in block,
+                "Protocol bootstrap must expose the explicit legacy multisig migration gate",
+            )
         require(
             "key-bootstrap:" in block and "condition: service_completed_successfully" in block,
             f"{name} bootstrap must wait for key preflight",
         )
         require('restart: "no"' in block, f"{name} bootstrap must remain one-shot")
 
-    for label, block, binary in (
-        ("Social", social, "aeko-social-bootstrap"),
-        ("Protocol", protocol, "aeko-protocol-bootstrap"),
-    ):
+    for label, block in (("Social", social), ("Protocol", protocol)):
         require(
-            'entrypoint: ["/bin/sh", "-ec"]' in block,
-            f"{label} bootstrap must wrap the one-shot binary with split-runtime readiness gating",
+            "entrypoint:" not in block and "command:" not in block,
+            f"{label} bootstrap must use the image-owned bootstrap entrypoint without Compose shell overrides",
         )
         require(
-            "rm -f /state/.aeko-bootstrap-runtime-ready" in block,
-            f"{label} bootstrap must invalidate stale runtime readiness before verification",
-        )
-        require(binary in block, f"{label} bootstrap wrapper must execute {binary}")
-        require(
-            "cp /state/.aeko-chain-binding /state/.aeko-bootstrap-runtime-ready" in block,
-            f"{label} bootstrap may publish runtime readiness only after lifecycle completion",
+            ".aeko-bootstrap-runtime-ready" not in block,
+            f"{label} bootstrap readiness lifecycle must not be duplicated in Compose",
         )
 
     require("image: nginx:1.27-alpine" in registry, "registry must use the pinned minimal nginx image")

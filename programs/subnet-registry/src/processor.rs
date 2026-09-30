@@ -4,10 +4,10 @@ use {
         instruction::SubnetRegistryInstruction,
         state::{
             deserialize_subnet_membership, deserialize_subnet_record, SubnetMembership,
-            SubnetRecord, SubnetRegistryConfig,
+            SubnetRecord, SubnetRegistryConfig, SUBNET_RECORD_SEED,
         },
     },
-    aeko_permission_types::ClearanceTier,
+    aeko_permission_types::{emergency_multisig_program_id, ClearanceTier},
     aeko_program_runtime::invoke_context::InvokeContext,
     aeko_sdk::{instruction::InstructionError, pubkey::Pubkey},
     borsh::{to_vec, BorshDeserialize},
@@ -28,18 +28,33 @@ impl Processor {
             SubnetRegistryInstruction::InitializeRegistry { current_slot } => {
                 Self::process_initialize_registry(invoke_context, current_slot)
             }
-            SubnetRegistryInstruction::CreateSubnet { subnet_id, min_clearance, current_slot } => {
+            SubnetRegistryInstruction::CreateSubnet {
+                subnet_id,
+                min_clearance,
+                current_slot,
+            } => {
                 Self::process_create_subnet(invoke_context, subnet_id, min_clearance, current_slot)
             }
-            SubnetRegistryInstruction::FreezeSubnet { subnet_id, reason_code } => {
-                Self::process_freeze_subnet(invoke_context, subnet_id, reason_code)
-            }
+            SubnetRegistryInstruction::FreezeSubnet {
+                subnet_id,
+                reason_code,
+            } => Self::process_freeze_subnet(invoke_context, subnet_id, reason_code),
             SubnetRegistryInstruction::UnfreezeSubnet { subnet_id } => {
                 Self::process_unfreeze_subnet(invoke_context, subnet_id)
             }
-            SubnetRegistryInstruction::AddSubnetMember { subnet_id, member, key_id, current_slot } => {
-                Self::process_add_member(invoke_context, subnet_id, member, key_id, current_slot)
+            SubnetRegistryInstruction::EmergencyFreezeSubnet {
+                subnet_id,
+                reason_code,
+            } => Self::process_emergency_freeze_subnet(invoke_context, subnet_id, reason_code),
+            SubnetRegistryInstruction::EmergencyUnfreezeSubnet { subnet_id } => {
+                Self::process_emergency_unfreeze_subnet(invoke_context, subnet_id)
             }
+            SubnetRegistryInstruction::AddSubnetMember {
+                subnet_id,
+                member,
+                key_id,
+                current_slot,
+            } => Self::process_add_member(invoke_context, subnet_id, member, key_id, current_slot),
             SubnetRegistryInstruction::RemoveSubnetMember { subnet_id, member } => {
                 Self::process_remove_member(invoke_context, subnet_id, member)
             }
@@ -67,6 +82,23 @@ impl Processor {
         Ok(())
     }
 
+    fn ensure_emergency_multisig_caller(
+        invoke_context: &InvokeContext,
+    ) -> Result<(), InstructionError> {
+        let transaction_context = &invoke_context.transaction_context;
+        let stack_height = transaction_context.get_instruction_context_stack_height();
+        if stack_height < 2 {
+            return Err(InstructionError::IncorrectAuthority);
+        }
+        let caller_context =
+            transaction_context.get_instruction_context_at_nesting_level(stack_height - 2)?;
+        let caller_program = caller_context.get_last_program_key(transaction_context)?;
+        if *caller_program != emergency_multisig_program_id() {
+            return Err(InstructionError::IncorrectAuthority);
+        }
+        Ok(())
+    }
+
     // ── InitializeRegistry ────────────────────────────────────────────────────
 
     fn process_initialize_registry(
@@ -78,8 +110,7 @@ impl Processor {
         instruction_context.check_number_of_instruction_accounts(2)?;
 
         let upgrade_authority = {
-            let acc =
-                instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
+            let acc = instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
             if !acc.is_signer() {
                 return Err(InstructionError::MissingRequiredSignature);
             }
@@ -228,6 +259,63 @@ impl Processor {
         Self::write_account(subnet_account.get_data_mut()?, &serialized)
     }
 
+    fn process_emergency_freeze_subnet(
+        invoke_context: &mut InvokeContext,
+        subnet_id: [u8; 32],
+        reason_code: u16,
+    ) -> Result<(), InstructionError> {
+        Self::ensure_emergency_multisig_caller(invoke_context)?;
+        let transaction_context = &invoke_context.transaction_context;
+        let instruction_context = transaction_context.get_current_instruction_context()?;
+        instruction_context.check_number_of_instruction_accounts(1)?;
+
+        let mut subnet_account =
+            instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        let expected_record =
+            Pubkey::find_program_address(&[SUBNET_RECORD_SEED, subnet_id.as_ref()], &crate::id()).0;
+        if *subnet_account.get_key() != expected_record
+            || subnet_account.get_owner() != &crate::id()
+        {
+            return Err(InstructionError::InvalidArgument);
+        }
+        let mut record =
+            deserialize_subnet_record(subnet_account.get_data()).map_err(Self::map_err)?;
+        if record.subnet_id != subnet_id {
+            return Err(InstructionError::InvalidArgument);
+        }
+        record.freeze(reason_code);
+        let serialized = to_vec(&record).map_err(|_| InstructionError::InvalidAccountData)?;
+        Self::write_account(subnet_account.get_data_mut()?, &serialized)
+    }
+
+    fn process_emergency_unfreeze_subnet(
+        invoke_context: &mut InvokeContext,
+        subnet_id: [u8; 32],
+    ) -> Result<(), InstructionError> {
+        Self::ensure_emergency_multisig_caller(invoke_context)?;
+        let transaction_context = &invoke_context.transaction_context;
+        let instruction_context = transaction_context.get_current_instruction_context()?;
+        instruction_context.check_number_of_instruction_accounts(1)?;
+
+        let mut subnet_account =
+            instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
+        let expected_record =
+            Pubkey::find_program_address(&[SUBNET_RECORD_SEED, subnet_id.as_ref()], &crate::id()).0;
+        if *subnet_account.get_key() != expected_record
+            || subnet_account.get_owner() != &crate::id()
+        {
+            return Err(InstructionError::InvalidArgument);
+        }
+        let mut record =
+            deserialize_subnet_record(subnet_account.get_data()).map_err(Self::map_err)?;
+        if record.subnet_id != subnet_id {
+            return Err(InstructionError::InvalidArgument);
+        }
+        record.unfreeze();
+        let serialized = to_vec(&record).map_err(|_| InstructionError::InvalidAccountData)?;
+        Self::write_account(subnet_account.get_data_mut()?, &serialized)
+    }
+
     // ── AddSubnetMember ───────────────────────────────────────────────────────
 
     fn process_add_member(
@@ -275,8 +363,7 @@ impl Processor {
             joined_at_slot: current_slot,
             is_active: true,
         };
-        let serialized =
-            to_vec(&membership).map_err(|_| InstructionError::InvalidAccountData)?;
+        let serialized = to_vec(&membership).map_err(|_| InstructionError::InvalidAccountData)?;
         let mut membership_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         Self::write_account(membership_account.get_data_mut()?, &serialized)
@@ -323,8 +410,7 @@ impl Processor {
             instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
         let data = membership_account.get_data();
         if !data.iter().all(|b| *b == 0) && !data.is_empty() {
-            let mut membership =
-                deserialize_subnet_membership(data).map_err(Self::map_err)?;
+            let mut membership = deserialize_subnet_membership(data).map_err(Self::map_err)?;
             membership.is_active = false;
             let serialized =
                 to_vec(&membership).map_err(|_| InstructionError::InvalidAccountData)?;
@@ -346,8 +432,7 @@ impl Processor {
 
         let subnet_acc =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;
-        let record =
-            deserialize_subnet_record(subnet_acc.get_data()).map_err(Self::map_err)?;
+        let record = deserialize_subnet_record(subnet_acc.get_data()).map_err(Self::map_err)?;
 
         if record.subnet_id != subnet_id {
             return Err(InstructionError::InvalidArgument);

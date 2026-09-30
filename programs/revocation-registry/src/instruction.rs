@@ -75,14 +75,16 @@ pub enum RevocationRegistryInstruction {
     ///   1. [signer]   key owner
     RevokeKey { key_id: [u8; 32] },
 
-    /// Emergency revocation (`Active | PendingRotation → Compromised`).
-    /// Bypasses quorum; callable only by the registry upgrade authority.
+    /// Legacy direct emergency-revocation ABI. Execution is disabled so an
+    /// arbitrary caller-supplied registry config cannot become an authority
+    /// oracle. Use `EmergencyMarkCompromised` through emergency-multisig.
+    MarkCompromised { key_id: [u8; 32], reason_code: u16 },
+
+    /// Emergency revocation authenticated by the immediate CPI caller.
     ///
     /// Accounts:
     ///   0. [writable] key_record PDA
-    ///   1. []         registry_config PDA
-    ///   2. [signer]   upgrade_authority
-    MarkCompromised { key_id: [u8; 32], reason_code: u16 },
+    EmergencyMarkCompromised { key_id: [u8; 32], reason_code: u16 },
 
     // ── Query (read-only, CPI-callable) ───────────────────────────────────────
     /// Returns true (via return data `[1]`) if the key is not in Active state.
@@ -177,7 +179,10 @@ pub fn approve_rotation(
 ) -> Instruction {
     Instruction::new_with_borsh(
         *program_id,
-        &RevocationRegistryInstruction::ApproveRotation { key_id, current_slot },
+        &RevocationRegistryInstruction::ApproveRotation {
+            key_id,
+            current_slot,
+        },
         vec![
             AccountMeta::new(*rotation_intent_pda, false),
             AccountMeta::new(*rotation_approval_pda, false),
@@ -197,7 +202,10 @@ pub fn execute_rotation(
 ) -> Instruction {
     Instruction::new_with_borsh(
         *program_id,
-        &RevocationRegistryInstruction::ExecuteRotation { key_id, current_slot },
+        &RevocationRegistryInstruction::ExecuteRotation {
+            key_id,
+            current_slot,
+        },
         vec![
             AccountMeta::new(*old_key_record_pda, false),
             AccountMeta::new(*successor_key_record_pda, false),
@@ -233,7 +241,10 @@ pub fn mark_compromised(
 ) -> Instruction {
     Instruction::new_with_borsh(
         *program_id,
-        &RevocationRegistryInstruction::MarkCompromised { key_id, reason_code },
+        &RevocationRegistryInstruction::MarkCompromised {
+            key_id,
+            reason_code,
+        },
         vec![
             AccountMeta::new(*key_record_pda, false),
             AccountMeta::new_readonly(*registry_config_pda, false),
@@ -242,11 +253,23 @@ pub fn mark_compromised(
     )
 }
 
-pub fn is_revoked(
+pub fn emergency_mark_compromised(
     program_id: &Pubkey,
     key_record_pda: &Pubkey,
     key_id: [u8; 32],
+    reason_code: u16,
 ) -> Instruction {
+    Instruction::new_with_borsh(
+        *program_id,
+        &RevocationRegistryInstruction::EmergencyMarkCompromised {
+            key_id,
+            reason_code,
+        },
+        vec![AccountMeta::new(*key_record_pda, false)],
+    )
+}
+
+pub fn is_revoked(program_id: &Pubkey, key_record_pda: &Pubkey, key_id: [u8; 32]) -> Instruction {
     Instruction::new_with_borsh(
         *program_id,
         &RevocationRegistryInstruction::IsRevoked { key_id },

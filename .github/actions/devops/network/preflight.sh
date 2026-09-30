@@ -43,6 +43,9 @@ bash -c '
   sh -n docker/key-preflight.sh
   bash -n scripts/test-key-preflight.sh
   bash scripts/test-key-preflight.sh
+  sh -n docker/bootstrap-entrypoint.sh
+  bash -n scripts/test-bootstrap-entrypoint.sh
+  bash scripts/test-bootstrap-entrypoint.sh
   bash -n scripts/deploy-testnet.sh
   bash -n scripts/audit-validator-storage.sh
   # Network topology is enforced by the focused current contract validators

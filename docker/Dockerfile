@@ -107,11 +107,17 @@ ENTRYPOINT ["aeko-faucet"]
 
 FROM rust-runtime AS social-bootstrap
 COPY --from=network-rust-builder /binaries/aeko-social-bootstrap /usr/local/bin/aeko-social-bootstrap
-ENTRYPOINT ["aeko-social-bootstrap"]
+COPY docker/bootstrap-entrypoint.sh /usr/local/bin/aeko-bootstrap-entrypoint
+RUN chmod 0755 /usr/local/bin/aeko-bootstrap-entrypoint
+ENTRYPOINT ["/usr/local/bin/aeko-bootstrap-entrypoint"]
+CMD ["aeko-social-bootstrap"]
 
 FROM rust-runtime AS protocol-bootstrap
 COPY --from=network-rust-builder /binaries/aeko-protocol-bootstrap /usr/local/bin/aeko-protocol-bootstrap
-ENTRYPOINT ["aeko-protocol-bootstrap"]
+COPY docker/bootstrap-entrypoint.sh /usr/local/bin/aeko-bootstrap-entrypoint
+RUN chmod 0755 /usr/local/bin/aeko-bootstrap-entrypoint
+ENTRYPOINT ["/usr/local/bin/aeko-bootstrap-entrypoint"]
+CMD ["aeko-protocol-bootstrap"]
 
 FROM rust-runtime AS tools
 COPY --from=tools-builder /binaries/aeko /usr/local/bin/aeko

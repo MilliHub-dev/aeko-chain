@@ -35,12 +35,6 @@ services:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:?Set an immutable published AEKO image tag}
     pull_policy: always
     restart: "no"
-    entrypoint: ["/bin/sh", "-ec"]
-    command: |
-      rm -f /state/.aeko-bootstrap-runtime-ready
-      aeko-social-bootstrap
-      test -s /state/.aeko-chain-binding
-      cp /state/.aeko-chain-binding /state/.aeko-bootstrap-runtime-ready
     environment:
       AEKO_RPC_URL: ${AEKO_RPC_URL:-}
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
@@ -67,12 +61,6 @@ services:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-protocol-bootstrap:${AEKO_IMAGE_TAG:?Set an immutable published AEKO image tag}
     pull_policy: always
     restart: "no"
-    entrypoint: ["/bin/sh", "-ec"]
-    command: |
-      rm -f /state/.aeko-bootstrap-runtime-ready
-      aeko-protocol-bootstrap
-      test -s /state/.aeko-chain-binding
-      cp /state/.aeko-chain-binding /state/.aeko-bootstrap-runtime-ready
     environment:
       AEKO_NETWORK: ${AEKO_NETWORK:?Set mainnet, testnet, devnet, or localnet}
       AEKO_RPC_URL: ${AEKO_RPC_URL:-}
@@ -81,6 +69,7 @@ services:
       AEKO_PROTOCOL_OUT_DIR: /state
       AEKO_PROTOCOL_CONTINUITY_DIR: /continuity
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
+      AEKO_PROTOCOL_MIGRATE_EMERGENCY_MULTISIG_PDA: ${AEKO_PROTOCOL_MIGRATE_EMERGENCY_MULTISIG_PDA:-0}
       AEKO_TOKENOMICS_BASE_FEE_ATOMIC: ${AEKO_TOKENOMICS_BASE_FEE_ATOMIC:-250000}
       AEKO_REFERENCE_MINT_NAME: ${AEKO_REFERENCE_MINT_NAME:-AEKO-20 Testnet Reference}
       AEKO_REFERENCE_MINT_SYMBOL: ${AEKO_REFERENCE_MINT_SYMBOL:-A20T}
