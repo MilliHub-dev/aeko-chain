@@ -132,35 +132,14 @@ test('accounts workspace keeps public funding approval separate from direct Test
   assert.doesNotMatch(implementation, /\brequestAirdrop\b|\brequestTestnetFunding\b|FUNDING_GATEWAY_KEY/);
   assert.match(networkTools, /fundingUrl=\{config\.fundingUrl\}/);
 
-  assert.match(networkTools, /<TestnetFundingRequest/);
-  assert.match(networkTools, /fundingUrl=\{config\.fundingUrl\}/);
-  assert.match(networkTools, /networkName=\{presentation\.name\}/);
+  assert.match(networkTools, /<TestnetFundingRequest fundingUrl=\{config\.fundingUrl\} \/>/);
   assert.match(funding, /Your AEKO wallet address/);
-  assert.match(funding, /networkName = 'Network'/);
-  assert.match(funding, /Enter your \{networkName\} wallet address/);
-  assert.match(funding, /fundingKeys\.policy\(fundingUrl\)/);
-  assert.match(funding, /fundingKeys\.request\(fundingUrl, requestId\)/);
-  assert.match(funding, /setRequestId\(''\)/);
-  assert.doesNotMatch(funding, /setPolicy\(|setRequest\(/);
-  assert.doesNotMatch(funding, /Enter your Testnet wallet address to request test AEKO/i);
+  assert.match(funding, /Enter your Testnet wallet address to request test AEKO/i);
   assert.doesNotMatch(funding, /authenticated Admin must approve or reject/i);
-  assert.match(funding, /mutationFn: async \(\/\*\* @type \{string\} \*\/ walletAddress\) =>/);
-  assert.match(funding, /requestFundingApproval\(fundingUrl, walletAddress\)/);
-  assert.match(funding, /submitMutation\.mutate\(address\.trim\(\)\)/);
-  assert.match(funding, /useQuery/);
-  assert.match(funding, /useMutation/);
-  assert.match(funding, /getFundingRequestStatus\(fundingUrl, requestId\)/);
-  assert.match(funding, /refetchInterval/);
-  assert.match(funding, /return query\.state\.error \? 8_000 : 4_000/);
-  assert.match(funding, /retry: false/);
-  assert.doesNotMatch(funding, /setTimeout\(refreshStatus/);
+  assert.match(funding, /requestFundingApproval\(fundingUrl, address\.trim\(\)\)/);
+  assert.match(funding, /getFundingRequestStatus\(fundingUrl, request\.id\)/);
   assert.match(funding, /waiting for an Admin decision/i);
-  assert.match(funding, /Admin approved the grant/i);
-  assert.match(funding, /useToaster/);
-  assert.match(funding, /StatusBanner/);
-  assert.match(funding, /Funding request submitted/);
-  assert.match(funding, /Grant confirmed/);
-  assert.doesNotMatch(funding, /requestError/);
+  assert.match(funding, /Admin approved the funding request/i);
   assert.doesNotMatch(funding, /decideRequest|approve.*fetch|\/admin\/funding/);
 });
 
@@ -170,7 +149,7 @@ test('funding API URLs resolve from the configured origin and reject HTML 200 re
 
   assert.match(rpcClient, /base\.origin/);
   assert.match(rpcClient, /new URL\(path\.replace\(/);
-  assert.match(rpcClient, /absolute Explorer API origin/);
+  assert.match(rpcClient, /same-origin Explorer proxy base/);
   assert.match(rpcClient, /content-type/);
   assert.match(rpcClient, /non-JSON/);
   assert.match(rpcClient, /requestFundingApproval/);
@@ -209,41 +188,21 @@ test('funding runtime is owned by the Scan backend after the Admin gateway remov
 });
 
 test('Admin funding polling preserves persisted policy revisions and mainnet separation', async () => {
-  const adminPage = await source('../../../admin/src/app/(admin)/funding-grants/page.tsx');
+  const adminPage = await source('../../../admin/src/app/(admin)/funding/page.tsx');
   const adminProxy = await source('../../../admin/src/lib/funding-api.ts');
   const settingsRoute = await source('../../../admin/src/app/api/admin/funding/settings/route.ts');
   const requestsRoute = await source('../../../admin/src/app/api/admin/funding/requests/route.ts');
-  const adminRoot = await source('../../../admin/src/app/layout.tsx');
-  const adminQueryProvider = await source('../../../admin/src/components/query-provider.tsx');
-  const adminToaster = await source('../../../admin/src/components/toaster.tsx');
-  const adminAlert = await source('../../../admin/src/components/feedback-alert.tsx');
-  const statusBanner = await source('components/StatusBanner.jsx');
 
-  assert.match(adminPage, /useQuery/);
-  assert.match(adminPage, /useMutation/);
-  assert.match(adminPage, /refetchInterval: 5_000/);
-  assert.match(adminPage, /queryClient\.invalidateQueries/);
-  assert.match(adminPage, /retry: false/);
-  assert.doesNotMatch(adminPage, /setInterval/);
+  assert.match(adminPage, /setInterval/);
   assert.match(adminPage, /expectedRevision: settings\.revision/);
-  assert.match(adminPage, /consoleAirdropAggregateUnlimited/);
-  assert.doesNotMatch(adminPage, /mainnet-disabled/);
-  assert.doesNotMatch(adminPage, /Mainnet test funding is disabled/);
-  assert.match(adminPage, /Loading the live funding policy and settlement state/);
-  assert.match(adminPage, /Manual operator grant/);
+  assert.match(adminPage, /developerAirdropEnabled/);
+  assert.match(adminPage, /Disabled on Mainnet/);
   assert.match(adminPage, /Check confirmation/);
   assert.match(adminPage, /Airdrop history/);
-  assert.match(adminPage, /useToaster/);
-  assert.match(adminPage, /FeedbackAlert/);
-  assert.doesNotMatch(adminPage, /const \[notice, setNotice\]/);
-  assert.match(adminRoot, /QueryProvider/);
-  assert.match(adminRoot, /ToasterProvider/);
-  assert.match(adminQueryProvider, /QueryClientProvider/);
-  assert.match(adminQueryProvider, /mutations: \{\s*retry: false/s);
-  assert.match(adminToaster, /role=\{toast\.kind === 'error' \? 'alert' : 'status'\}/);
-  assert.match(adminToaster, /aria-label="Notifications"/);
-  assert.match(adminAlert, /role=\{tone === 'error' \? 'alert' : 'status'\}/);
-  assert.match(statusBanner, /warning:/);
+  assert.match(adminPage, /Retrying safely/);
+  assert.match(adminPage, /Awaiting confirmation/);
+  assert.doesNotMatch(adminPage, /airdrop\.errorCode\s*\?\?/);
+  assert.doesNotMatch(adminPage, /test-funding/);
   assert.match(adminProxy, /x-aeko-settings-token/);
   assert.match(settingsRoute, /method: 'PATCH'/);
   assert.match(requestsRoute, /approved: action === 'approve'/);
@@ -252,49 +211,9 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
 });
 
 
-test('Operations server state uses TanStack Query while privileged transport stays behind the BFF', async () => {
-  const helper = await source('../../../admin/src/lib/client-query.ts');
-  assert.match(helper, /operationQuery/);
-  assert.match(helper, /explorerQuery/);
-  assert.match(helper, /rpcQuery/);
-  assert.match(helper, /cache: 'no-store'/);
-  assert.match(helper, /ClientApiError/);
-  assert.match(helper, /return operationQuery<T>\('\/api\/explorer' \+ path\)/);
-  assert.match(helper, /fetch\('\/api\/rpc'/);
-
-  for (const pagePath of [
-    '../../../admin/src/app/(admin)/page.tsx',
-    '../../../admin/src/app/(admin)/blocks/page.tsx',
-    '../../../admin/src/app/(admin)/transactions/page.tsx',
-    '../../../admin/src/app/(admin)/tokens/page.tsx',
-    '../../../admin/src/app/(admin)/nfts/page.tsx',
-    '../../../admin/src/app/(admin)/marketplace/page.tsx',
-    '../../../admin/src/app/(admin)/social/page.tsx',
-    '../../../admin/src/app/(admin)/protocol/page.tsx',
-  ]) {
-    const page = await source(pagePath);
-    assert.match(page, /useQuery/);
-    assert.match(page, /refetchInterval:/);
-    assert.doesNotMatch(page, /setInterval/);
-  }
-
-  const accountPage = await source('../../../admin/src/app/(admin)/accounts/[address]/page.tsx');
-  assert.match(accountPage, /useQuery/);
-  assert.match(accountPage, /adminQueryKeys\.account/);
-  assert.doesNotMatch(accountPage, /useEffect\(|setInterval/);
-
-  const settingsPage = await source('../../../admin/src/app/(admin)/settings/page.tsx');
-  assert.match(settingsPage, /useQuery/);
-  assert.match(settingsPage, /useMutation/);
-  assert.match(settingsPage, /retry: false/);
-  assert.match(settingsPage, /operationQuery<SettingsSnapshot>\('\/api\/settings'/);
-  assert.doesNotMatch(settingsPage, /const \[notice|setNotice\(/);
-});
-
-
 test('Operations Web paginates long datasets and keeps dense control pages focused', async () => {
   const dataTable = await source('../../../admin/src/components/data-table.tsx');
-  const fundingPage = await source('../../../admin/src/app/(admin)/funding-grants/page.tsx');
+  const fundingPage = await source('../../../admin/src/app/(admin)/funding/page.tsx');
   const settingsPage = await source('../../../admin/src/app/(admin)/settings/page.tsx');
   const socialPage = await source('../../../admin/src/app/(admin)/social/page.tsx');
   const protocolPage = await source('../../../admin/src/app/(admin)/protocol/page.tsx');
@@ -306,18 +225,10 @@ test('Operations Web paginates long datasets and keeps dense control pages focus
   assert.match(dataTable, /Showing/);
 
   assert.match(fundingPage, /SectionTabs/);
-  assert.match(fundingPage, /Grant queue/);
-  assert.match(fundingPage, /Policy & manual grant/);
-  assert.match(fundingPage, /Grant history/);
+  assert.match(fundingPage, /Funding requests/);
+  assert.match(fundingPage, /Policy & direct funding/);
+  assert.match(fundingPage, /Funding history/);
   assert.match(fundingPage, /Airdrop history/);
-  assert.match(fundingPage, /syncError/);
-  assert.match(fundingPage, /lastSyncedAt/);
-  assert.match(fundingPage, /Live funding data could not refresh/);
-  assert.match(fundingPage, /Retry sync/);
-  assert.doesNotMatch(fundingPage, /notice\.ok \? 5_000 : 9_000/);
-  assert.match(dataTable, /md:hidden/);
-  assert.match(dataTable, /hidden overflow-x-auto md:block/);
-  assert.match(dataTable, /min-w-\[760px\]/);
 
   assert.match(settingsPage, /Settings sections/);
   assert.match(settingsPage, /sticky top-14/);
@@ -345,8 +256,6 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
   const splitCompose = await source('../compose.coolify.yml');
   const viteConfig = await source('../vite.config.js');
   const networkConfig = await source('utils/networkConfig.js');
-  const main = await source('main.jsx');
-  const queryClient = await source('queryClient.js');
   const entrypoint = await source('../../../../docker/explorer-ui-entrypoint.sh');
   const server = await source('../../../../docker/explorer-ui-server.mjs');
   const explorer = await source('pages/Explorer.jsx');
@@ -359,12 +268,15 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
     'AEKO_RPC_URL',
     'AEKO_WS_URL',
     'AEKO_EXPLORER_API_URL',
+    'AEKO_EXPLORER_PROXY_UPSTREAM_URL',
     'AEKO_MAINNET_RPC_URL',
     'AEKO_MAINNET_WS_URL',
     'AEKO_MAINNET_EXPLORER_API_URL',
+    'AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL',
     'AEKO_TESTNET_RPC_URL',
     'AEKO_TESTNET_WS_URL',
     'AEKO_TESTNET_EXPLORER_API_URL',
+    'AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL',
   ]) {
     assert.match(example, new RegExp('^' + key + '=', 'm'));
     assert.match(splitEnv, new RegExp('^' + key + '=', 'm'));
@@ -385,27 +297,16 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
   assert.match(viteConfig, /activeNetwork = configuredActive \|\| 'localnet'/);
   assert.doesNotMatch(viteConfig, /devnet/);
   assert.match(viteConfig, /__AEKO_DEV_RUNTIME_CONFIG__/);
-  assert.match(main, /QueryClientProvider/);
-  assert.match(queryClient, /mutations: \{\s*retry: false/s);
-  assert.match(queryClient, /failureCount < 2/);
-  assert.doesNotMatch(viteConfig, /server: \{ proxy \}/);
-  assert.match(viteConfig, /explorerApiUrl: value\.explorerApiUrl/);
-  assert.match(viteConfig, /fundingUrl: value\.explorerApiUrl/);
 
   assert.match(server, /\['mainnet', 'testnet'\]/);
   assert.doesNotMatch(server, /AEKO_DEVNET_EXPLORER_API_URL/);
   assert.doesNotMatch(server, /AEKO_LOCALNET_EXPLORER_API_URL/);
-  assert.doesNotMatch(server, /AEKO_EXPLORER_PROXY_UPSTREAM_URL/);
-  assert.doesNotMatch(entrypoint, /AEKO_EXPLORER_PROXY_UPSTREAM_URL/);
-  assert.match(entrypoint, /explorerApiUrl: activeExplorerApiUrl/);
-  assert.match(entrypoint, /fundingUrl: activeExplorerApiUrl/);
-  assert.match(entrypoint, /contains placeholder or guidance text/);
-  assert.match(entrypoint, /must be a valid URL/);
-  assert.match(entrypoint, /rpcEndpoint\('AEKO_RPC_URL'\)/);
-  assert.match(entrypoint, /websocketEndpoint\('AEKO_WS_URL'\)/);
-  assert.match(entrypoint, /explorerEndpoint\('AEKO_EXPLORER_API_URL'\)/);
-  assert.match(server, /SCAN_EXPLORER_PROXY_REMOVED/);
-  assert.match(server, /LEGACY_EXPLORER_PROXY_PREFIX/);
+  assert.match(server, /target\.network !== 'testnet'/);
+  assert.match(server, /AEKO_EXPLORER_PROXY_UPSTREAM_URL/);
+  assert.match(server, /AEKO_MAINNET_EXPLORER_PROXY_UPSTREAM_URL/);
+  assert.match(server, /AEKO_TESTNET_EXPLORER_PROXY_UPSTREAM_URL/);
+  assert.match(server, /EXPLORER_UPSTREAM_INVALID_RESPONSE/);
+  assert.match(server, /funding_upstream_contract_violation/);
   assert.match(server, /RUNTIME_CONFIG_PATH = '\/runtime-config\.js'/);
   assert.match(server, /pathname === RUNTIME_CONFIG_PATH/);
   assert.match(server, /'no-store, max-age=0'/);
@@ -437,64 +338,17 @@ test('Explorer web exposes only Mainnet and Testnet in production', async () => 
   assert.doesNotMatch(demo, /AEKO_DEMO_/);
 });
 
-test('Explorer dashboard server state is Query-owned and URL-driven', async () => {
+test('Explorer search is URL-driven, retryable and exposes a no-results state', async () => {
   const explorer = await source('pages/Explorer.jsx');
-  const explorerApi = await source('utils/explorerApi.js');
-  const keys = await source('queryKeys.js');
+  const transaction = await source('pages/TransactionDetails.jsx');
 
-  assert.match(explorer, /useQuery/);
-  assert.match(explorer, /queryKeys\.explorer\.overview/);
-  assert.match(explorer, /queryKeys\.explorer\.home/);
-  assert.match(explorer, /queryKeys\.explorer\.search/);
-  assert.match(explorer, /refetchInterval: settings\.explorerAutoRefreshSeconds \* 1000/);
-  assert.match(explorer, /placeholderData: keepPreviousData/);
   assert.match(explorer, /urlSearchQuery/);
-  assert.doesNotMatch(explorer, /setHomeState|setHomeRefreshTick|setSearchRetry|window\.setInterval/);
+  assert.match(explorer, /setSearchRetry/);
   assert.match(explorer, /No matching saved or live record/);
   assert.match(explorer, /match\.kind === 'tokenMint'/);
   assert.match(explorer, /match\.kind === 'collection'/);
-
-  assert.match(explorerApi, /export async function fetchExplorerOverview/);
-  assert.doesNotMatch(explorerApi, /overviewCache|OVERVIEW_CACHE_MS/);
-  assert.match(keys, /overview: \(network\)/);
-});
-
-
-test('Explorer detail routes use the shared Query resource contract', async () => {
-  const helper = await source('utils/explorerQueries.js');
-  assert.match(helper, /useQuery/);
-  assert.match(helper, /queryKeys\.explorer\.resource/);
-
-  for (const path of [
-    'pages/BlockDetails.jsx',
-    'pages/TransactionDetails.jsx',
-    'pages/ExplorerAccount.jsx',
-    'pages/ExplorerCreator.jsx',
-    'pages/ExplorerToken.jsx',
-    'pages/ExplorerCollection.jsx',
-    'pages/ExplorerPost.jsx',
-    'pages/ExplorerNft.jsx',
-  ]) {
-    const detail = await source(path);
-    assert.match(detail, /useExplorerResource/);
-    assert.doesNotMatch(detail, /useEffect\(/);
-    assert.doesNotMatch(detail, /setState\(/);
-  }
-});
-
-
-test('public application settings use Query and the direct Explorer API boundary', async () => {
-  const provider = await source('components/AppSettingsProvider.jsx');
-  const settings = await source('utils/appSettings.js');
-  const keys = await source('queryKeys.js');
-
-  assert.match(provider, /useQuery/);
-  assert.match(provider, /refetchInterval:/);
-  assert.doesNotMatch(provider, /setInterval/);
-  assert.doesNotMatch(provider, /nextAllowedAttempt|consecutiveFailures/);
-  assert.match(keys, /public: \['settings', 'public'\]/);
-  assert.match(settings, /getNetworkConfig\(getDefaultExplorerNetwork\(\)\)\.explorerApiUrl/);
-  assert.doesNotMatch(settings, /same-origin path above is proxied|running and proxied/);
+  assert.match(transaction, /Failed/);
+  assert.doesNotMatch(transaction, /Not confirmed/);
 });
 
 

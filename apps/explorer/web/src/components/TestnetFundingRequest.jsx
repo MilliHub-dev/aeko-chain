@@ -1,8 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Droplets, Loader2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import StatusBanner from './StatusBanner';
-import { useToaster } from './ToasterContext.js';
+import { useEffect, useState } from 'react';
 import {
   getFundingPolicy,
   getFundingRequestStatus,
@@ -12,171 +9,150 @@ import {
 const ADDRESS_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const TERMINAL_STATUSES = new Set(['confirmed', 'rejected', 'failed']);
 
-const fundingKeys = {
-  policy: (fundingUrl) => ['funding', 'policy', fundingUrl],
-  request: (fundingUrl, requestId) => ['funding', 'request', fundingUrl, requestId],
-};
-
 function requestMessage(request) {
   switch (request?.status) {
     case 'pending':
       return 'Request received. It is waiting for an Admin decision.';
     case 'processing':
-      return 'Admin approved the grant and settlement started. No action is required from you.';
+      return 'Admin approved the funding request and settlement started. No action is required from you.';
     case 'submitted':
-      return 'Admin approved the grant. The transfer was submitted and is awaiting chain confirmation.';
+      return 'Admin approved the funding request. The transfer was submitted and is awaiting chain confirmation.';
     case 'confirmed':
-      return `${request.amountAeko} AEKO grant confirmed on-chain.`;
+      return `${request.amountAeko} AEKO funding confirmed on-chain.`;
     case 'rejected':
       return 'The Admin rejected this funding request.';
     case 'failed':
-      return 'The approved grant transfer failed on-chain. No confirmed grant was recorded.';
+      return 'The approved funding transfer failed on-chain. No confirmed funding transfer was recorded.';
     default:
       return 'Funding request status is being checked.';
   }
 }
 
-function messageFrom(error, fallback) {
-  return error instanceof Error ? error.message : fallback;
+function fundingErrorMessage(error) {
+  switch (error?.code) {
+    case 'FUNDING_SUBMISSION_RETRY_PENDING':
+      return 'Funding submission is retrying safely. No duplicate transfer will be created.';
+    case 'REQUEST_PENDING':
+      return 'This wallet already has a funding request in progress.';
+    case 'COOLDOWN':
+      return 'This wallet is still in its funding cooldown.';
+    case 'BUDGET_EXHAUSTED':
+      return 'Today\'s public funding allocation has been used.';
+    default:
+      return error?.message || 'Funding request could not be completed.';
+  }
 }
 
-export default function TestnetFundingRequest({ fundingUrl, networkName = 'Network' }) {
-  const [address, setAddress] = useState('');
-  const [requestId, setRequestId] = useState('');
-  const queryClient = useQueryClient();
-  const { push: pushToast, dismiss: dismissToast } = useToaster();
-  const pollErrorToastRef = useRef(null);
-  const terminalToastRef = useRef('');
+function settlementMessage(code) {
+  switch (code) {
+    case 'FUNDING_SUBMISSION_RETRY_PENDING':
+      return 'Funding submission is retrying safely.';
+    case 'FUNDING_CONFIRMATION_PENDING':
+      return 'Waiting for chain confirmation.';
+    default:
+      return '';
+  }
+}
 
-  const policyQuery = useQuery({
-    queryKey: fundingKeys.policy(fundingUrl),
-    queryFn: () => getFundingPolicy(fundingUrl),
-    enabled: Boolean(fundingUrl),
-    staleTime: 15_000,
-    refetchInterval: 30_000,
-  });
-
-  const requestQuery = useQuery({
-    queryKey: fundingKeys.request(fundingUrl, requestId),
-    queryFn: () => getFundingRequestStatus(fundingUrl, requestId),
-    enabled: Boolean(fundingUrl && requestId),
-    refetchInterval: (query) => {
-      const request = query.state.data;
-      if (request && TERMINAL_STATUSES.has(request.status)) return false;
-      return query.state.error ? 8_000 : 4_000;
-    },
-  });
-
-  const submitMutation = useMutation({
-    retry: false,
-    mutationFn: async (/** @type {string} */ walletAddress) => {
-      try {
-        const request = await requestFundingApproval(fundingUrl, walletAddress);
-        return { request, resumed: false };
-      } catch (error) {
-        const pendingId = error?.requestId;
-        if (error?.code === 'REQUEST_PENDING' && pendingId) {
-          const request = await getFundingRequestStatus(fundingUrl, pendingId);
-          return { request, resumed: true };
-        }
-        throw error;
-      }
-    },
-    onSuccess: ({ request, resumed }) => {
-      setRequestId(request.id);
-      queryClient.setQueryData(fundingKeys.request(fundingUrl, request.id), request);
-      pushToast({
-        kind: 'info',
-        title: resumed ? 'Existing request resumed' : 'Funding request submitted',
-        message: resumed
-          ? `Request ${request.id} is still in progress and status polling has resumed.`
-          : `Request ${request.id} is waiting for an Admin decision.`,
-      });
-    },
-    onError: (error) => {
-      pushToast({
-        kind: 'error',
-        title: 'Funding request failed',
-        message: messageFrom(error, 'Funding request failed.'),
-      });
-    },
-  });
-
-  useEffect(
-    () => () => {
-      if (pollErrorToastRef.current) {
-        dismissToast(pollErrorToastRef.current);
-        pollErrorToastRef.current = null;
-      }
-    },
-    [dismissToast],
+export default function TestnetFundingRequest({ fundingUrl }) {
+  const [policy, setPolicy] = useState(
+    /** @type {{ enabled: boolean, amountAeko: number, cooldownHours: number, dailyBudgetAeko: number, dailyRemainingAeko: number } | null} */ (null),
   );
+  const [policyError, setPolicyError] = useState('');
+  const [address, setAddress] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [request, setRequest] = useState(
+    /** @type {{ id: string, amountAeko: number, status: string, signature?: string | null, confirmed?: boolean, errorCode?: string | null } | null} */ (null),
+  );
+  const [requestError, setRequestError] = useState('');
 
   useEffect(() => {
-    if (!requestQuery.isError) {
-      if (pollErrorToastRef.current) {
-        dismissToast(pollErrorToastRef.current);
-        pollErrorToastRef.current = null;
-      }
-      return;
+    let cancelled = false;
+
+    if (!fundingUrl) {
+      setPolicy(null);
+      setPolicyError('Test AEKO is temporarily unavailable. Please try again later.');
+      return () => {
+        cancelled = true;
+      };
     }
 
-    if (!requestId || pollErrorToastRef.current) return;
-    pollErrorToastRef.current = pushToast({
-      kind: 'error',
-      title: 'Status check interrupted',
-      message: `${messageFrom(requestQuery.error, 'Funding status is temporarily unavailable.')} Your request id is retained and status checks will retry automatically.`,
-    });
-  }, [
-    dismissToast,
-    pushToast,
-    requestId,
-    requestQuery.error,
-    requestQuery.isError,
-    requestQuery.dataUpdatedAt,
-  ]);
-
-  const request = requestQuery.data;
-
-  useEffect(() => {
-    if (!request?.id || !TERMINAL_STATUSES.has(request.status)) return;
-    const key = `${request.id}:${request.status}`;
-    if (terminalToastRef.current === key) return;
-    terminalToastRef.current = key;
-
-    if (request.status === 'confirmed') {
-      pushToast({
-        kind: 'success',
-        title: 'Grant confirmed',
-        message: `${request.amountAeko} AEKO is confirmed on-chain.`,
+    setPolicyError('');
+    getFundingPolicy(fundingUrl)
+      .then((nextPolicy) => {
+        if (!cancelled) setPolicy(nextPolicy);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setPolicy(null);
+          setPolicyError(fundingErrorMessage(error));
+        }
       });
-      return;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fundingUrl]);
+
+  useEffect(() => {
+    if (!fundingUrl || !request?.id || TERMINAL_STATUSES.has(request.status)) return undefined;
+
+    let cancelled = false;
+    let timer;
+
+    async function refreshStatus() {
+      try {
+        const next = await getFundingRequestStatus(fundingUrl, request.id);
+        if (cancelled) return;
+        setRequest(next);
+        setRequestError('');
+        if (!TERMINAL_STATUSES.has(next.status)) {
+          timer = globalThis.setTimeout(refreshStatus, 4_000);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setRequestError(fundingErrorMessage(error));
+        timer = globalThis.setTimeout(refreshStatus, 8_000);
+      }
     }
 
-    pushToast({
-      kind: 'error',
-      title: request.status === 'rejected' ? 'Funding request rejected' : 'Grant transfer failed',
-      message:
-        request.status === 'rejected'
-          ? 'The Admin rejected this funding request.'
-          : 'The approved grant transfer failed on-chain. No confirmed grant was recorded.',
-    });
-  }, [pushToast, request?.amountAeko, request?.id, request?.status]);
+    timer = globalThis.setTimeout(refreshStatus, 2_000);
+    return () => {
+      cancelled = true;
+      if (timer) globalThis.clearTimeout(timer);
+    };
+  }, [fundingUrl, request?.id, request?.status]);
 
-  const policy = policyQuery.data ?? null;
-  const policyError = !fundingUrl
-    ? `${networkName} funding is temporarily unavailable. Please try again later.`
-    : policyQuery.isError
-      ? messageFrom(policyQuery.error, `${networkName} funding is temporarily unavailable.`)
-      : '';
   const valid = ADDRESS_RE.test(address.trim());
 
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault();
-    if (!valid || !fundingUrl || !policy?.enabled || submitMutation.isPending) return;
-    terminalToastRef.current = '';
-    setRequestId('');
-    submitMutation.mutate(address.trim());
+    if (!valid || !fundingUrl || !policy?.enabled) return;
+
+    setBusy(true);
+    setRequest(null);
+    setRequestError('');
+    try {
+      const created = await requestFundingApproval(fundingUrl, address.trim());
+      setRequest(created);
+    } catch (error) {
+      // The wallet already has an in-flight request: adopt it and resume
+      // polling instead of dead-ending on REQUEST_PENDING.
+      const pendingId = error?.requestId;
+      if (error?.code === 'REQUEST_PENDING' && pendingId) {
+        try {
+          const existing = await getFundingRequestStatus(fundingUrl, pendingId);
+          setRequest(existing);
+          setRequestError('');
+          return;
+        } catch {
+          // Fall through to the original error below.
+        }
+      }
+      setRequestError(error.message || String(error));
+    } finally {
+      setBusy(false);
+    }
   }
 
   const requestSucceeded = request?.status === 'confirmed';
@@ -191,27 +167,25 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
               <Droplets size={19} className="text-aeko-accent" />
             </div>
             <div>
-              <div className="text-xs font-medium uppercase tracking-[0.16em] text-aeko-accent">{networkName} funding request</div>
-              <h2 className="mt-1 text-2xl font-bold text-white">Request AEKO</h2>
+              <div className="text-xs font-medium uppercase tracking-[0.16em] text-aeko-accent">Test funding request</div>
+              <h2 className="mt-1 text-2xl font-bold text-white">Request test AEKO</h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-400">
-                Enter your {networkName} wallet address to request AEKO from this network's operator-managed funding rail. You can leave this page open to follow the request until it is approved, rejected, or confirmed.
+                Enter your Testnet wallet address to request test AEKO. You can leave this page open to follow the request until it is approved, rejected, or confirmed.
               </p>
             </div>
           </div>
 
           {policy && !policy.enabled ? (
-            <div className="mb-4">
-              <StatusBanner kind="warning" title="Public funding paused">
-                Public funding is currently paused by the Admin.
-              </StatusBanner>
+            <div className="mb-4 flex gap-2 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3 text-sm text-amber-100">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              Public test funding is currently paused by the Admin.
             </div>
           ) : null}
 
           {policyError ? (
-            <div className="mb-4">
-              <StatusBanner kind="error" title={`${networkName} funding unavailable`}>
-                {policyError}
-              </StatusBanner>
+            <div className="mb-4 flex gap-2 rounded-xl border border-red-400/25 bg-red-500/10 p-3 text-sm text-red-100">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              {policyError}
             </div>
           ) : null}
 
@@ -221,7 +195,7 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
               <input
                 value={address}
                 onChange={(event) => setAddress(event.target.value)}
-                placeholder={`Paste a base58 AEKO ${networkName} address`}
+                placeholder="Paste a base58 AEKO test-network address"
                 spellCheck={false}
                 autoComplete="off"
                 className="min-h-[48px] w-full rounded-xl border border-white/10 bg-black/30 px-4 font-mono text-sm text-white outline-none transition focus:border-aeko-accent"
@@ -232,11 +206,11 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
             ) : null}
             <button
               type="submit"
-              disabled={submitMutation.isPending || !valid || !policy?.enabled}
+              disabled={busy || !valid || !policy?.enabled}
               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-aeko-accent px-5 text-sm font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {submitMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <Droplets size={15} />}
-              {submitMutation.isPending ? 'Submitting…' : policy ? `Request ${policy.amountAeko} AEKO` : 'Loading funding policy…'}
+              {busy ? <Loader2 size={15} className="animate-spin" /> : <Droplets size={15} />}
+              {busy ? 'Submitting…' : policy ? `Request ${policy.amountAeko} AEKO` : 'Loading funding policy…'}
             </button>
           </form>
 
@@ -268,21 +242,35 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
                       Transaction {request.signature}
                     </div>
                   ) : null}
-                  {request.errorCode && !requestFailed ? (
+                  {request.errorCode && !requestFailed && settlementMessage(request.errorCode) ? (
                     <div className="mt-1 text-xs text-amber-200/80">
-                      Settlement observation: {request.errorCode}
+                      {settlementMessage(request.errorCode)}
                     </div>
                   ) : null}
                 </div>
               </div>
             </div>
           ) : null}
+
+          {requestError ? (
+            <div className="mt-4 flex gap-2 rounded-xl border border-red-400/25 bg-red-500/10 p-4 text-sm text-red-100">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              <div>
+                <div>{requestError}</div>
+                {request?.id ? (
+                  <div className="mt-1 text-xs text-red-100/70">
+                    Your request id is retained and status checks will retry automatically.
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <aside className="border-t border-white/10 bg-black/20 p-6 sm:p-8 lg:border-l lg:border-t-0">
-          <div className="text-sm font-semibold text-white">Grant policy</div>
+          <div className="text-sm font-semibold text-white">Funding policy</div>
           <p className="mt-1 text-xs leading-relaxed text-gray-500">
-            Requests use the published {networkName} funding policy. Limits and settlement checks are enforced automatically before AEKO is released.
+            Requests use the published Testnet funding policy. Limits and settlement checks are enforced automatically before test AEKO is released.
           </p>
           <div className="mt-5 grid gap-3">
             <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
