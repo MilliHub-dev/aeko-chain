@@ -67,8 +67,8 @@ The compose file spins up four containers on a private docker network, fronted b
 | `aeko-validator-1` | `aeko-validator:latest` | Produces blocks, serves RPC + pubsub + gossip | `rpc.aeko.online`, `ws.aeko.online` | `8899`, `8900`, `8001` |
 | `aeko-validator-2/3` | same image | **Disabled by default** (multi-validator profile) | — | `8899` each |
 | `aeko-faucet` | same image, different entrypoint | **Faucet Daemon**: private signer for policy-approved testnet funding | no browser/application route | `9900/tcp` (private/restricted; Docker DNS when co-located, firewall-restricted TCP when split) |
-| `aeko-explorer-backend` | `aeko-explorer-backend:latest` | Indexes blocks from RPC, exposes private REST API | private Docker network | `8088` |
-| `aeko-explorer-ui` | `aeko-explorer-ui:latest` | Aeko Scan UI plus same-origin Scan API proxy (`node explorer-ui-server.mjs`) | `scan.aeko.online` | `4000` |
+| `aeko-explorer-backend` | `aeko-explorer-backend:latest` | Indexes blocks from RPC and serves the public Explorer REST API | `api.aeko.online` | `8088` |
+| `aeko-explorer-ui` | `aeko-explorer-ui:latest` | Static Aeko Scan SPA plus runtime configuration/telemetry server | `scan.aeko.online` | `4000` |
 
 The bootstrap flow on first boot:
 
@@ -78,7 +78,7 @@ The bootstrap flow on first boot:
 4. `aeko-faucet` independently listens on TCP `9900` with the faucet keypair loaded. It is never a browser/application API. When Faucet and Validator share a Compose network, the Validator may use `faucet:9900`; when they are deployed on separate hosts/resources, `AEKO_FAUCET_ADDRESS` points to that testnet Faucet host and TCP `9900` is firewall-restricted to the matching Validator.
 5. On the public testnet, the Explorer API funding module applies the off-chain queue policy. Approved grants call the Validator's protected low-level `requestGrant` path (funding-authorization gated), while constrained developer airdrops dispatch instantly through the open `requestAirdrop` path with no approval. The Validator connects to the private Faucet Daemon on TCP `9900` to obtain the signed transfer transaction. Funding queue state is policy accounting only; supply accounting follows `tokenomics.md`.
 6. `aeko-explorer-backend` reads finalized chain data from validator RPC, persists durable Explorer projections in PostgreSQL, and serves the REST API on `:8088`. The HTTP server binds while historical catch-up runs in a background task, so indexed history grows toward the finalized chain tip without substituting in-memory production state.
-7. `aeko-explorer-ui` serves the deployment-neutral Vite SPA from `/app/dist` via `node /app/explorer-ui-server.mjs` (same-origin Scan API proxy, not `serve -s`). At container startup, `docker/explorer-ui-entrypoint.sh` injects the canonical `AEKO_*` endpoint values into `/app/dist/runtime-config.js`; public API calls use that runtime configuration.
+7. `aeko-explorer-ui` serves the deployment-neutral Vite SPA from `/app/dist` via `node /app/explorer-ui-server.mjs`. The server owns SPA fallback, `/runtime-config.js`, health, and client telemetry only; it does not proxy Explorer API traffic. At container startup, `docker/explorer-ui-entrypoint.sh` injects the canonical public `AEKO_*` endpoint values into `/app/dist/runtime-config.js`, and the browser calls the selected Explorer API directly under its explicit CORS allowlist.
 
 ---
 
@@ -123,7 +123,7 @@ public Testnet is healthy, it builds
 [`contracts/hello-aeko-program`](../../contracts/hello-aeko-program/) with
 `cargo-build-sbf`, creates an ephemeral AEKO keypair, reads the live Scan
 funding policy, obtains test AEKO through the public
-`/api/explorer/testnet/funding/airdrop` path, then deploys through the real
+`https://api.aeko.online/funding/airdrop` endpoint, then deploys through the real
 `aeko program deploy` CLI path. The invoke smoke requires a confirmed
 transaction whose logs contain `Hello from AEKO!`.
 
@@ -132,7 +132,7 @@ It builds no Validator/Faucet/bootstrap image and its RPC, funding, SBF, deploy
 or invoke failure is non-blocking: core application/network validation,
 publication and CLI release processing continue independently.
 
-**Explorer is indexing.** `curl -s https://scan.aeko.online/api/explorer/testnet/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `https://scan.aeko.online` should show a list of recent blocks and a slot counter that ticks up.
+**Explorer is indexing.** `curl -s https://api.aeko.online/blocks?limit=3` returns the three most recent blocks with non-zero `transactionCount`. Externally, the explorer UI at `https://scan.aeko.online` should show a list of recent blocks and a slot counter that ticks up.
 
 **WebSocket reachable.** `wscat -c wss://ws.aeko.online` should connect.
 
@@ -161,7 +161,7 @@ From this point every CLI command (`aeko balance`, `aeko transfer`, `aeko progra
 Public testnet funding uses the managed Explorer funding flow. The same flow is served on every network, including mainnet: each deployment owns its faucet, credential, caps, budgets, and approval queue. Submit the wallet address through Aeko Scan:
 
 ```bash
-curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
+curl -X POST https://api.aeko.online/funding/request \
   -H 'Content-Type: application/json' \
   -d '{"address":"<pubkey>"}'
 ```
@@ -171,7 +171,7 @@ The request starts as `pending`. An authenticated Operations Admin must approve 
 Use the returned request id to poll the public status endpoint until it becomes `confirmed`:
 
 ```bash
-curl https://scan.aeko.online/api/explorer/testnet/funding/request/<REQUEST_ID>
+curl https://api.aeko.online/funding/request/<REQUEST_ID>
 aeko balance <pubkey> --url https://rpc.aeko.online
 ```
 
@@ -191,7 +191,7 @@ conn.onSignature(sig, (notif) => { /* notif.err === null means success */ });
 
 ### 4.5 Browsing transactions
 
-Send users to `https://scan.aeko.online` for the web UI. The Explorer UI's same-origin read proxy at `https://scan.aeko.online/api/explorer/testnet` exposes `/blocks`, `/transactions`, `/tokens/transfers`, `/nfts`, `/posts`, `/engagement`, `/stakes`, `/search?q=<sig-or-address>`, and `/health`.
+Send users to `https://scan.aeko.online` for the web UI. The browser reads the selected network directly from its Explorer API, for example `https://api.aeko.online/blocks`, `/transactions`, `/tokens/transfers`, `/nfts`, `/posts`, `/engagement`, `/stakes`, and `/search?q=<sig-or-address>`. The Explorer API must explicitly allow the Scan origin through CORS; there is no Scan-side Explorer reverse proxy.
 
 ### 4.6 Joining as an external validator (advanced)
 
@@ -219,12 +219,12 @@ Coolify-proxy (Traefik) handles all TLS termination and HTTP routing. You do not
 |---|---|---|---|
 | `rpc.aeko.online` | validator-1:8899 | `https://` | JSON-RPC for wallets, dApps, CLIs |
 | `ws.aeko.online` | validator-1:8900 | `wss://` | Pubsub WebSocket |
-| `scan.aeko.online/api/explorer/testnet/*` | explorer-ui:4000 -> explorer-backend:8088 | `https://` | Explorer UI read-only proxy |
+| `api.aeko.online` | explorer-backend:8088 | `https://` | Public Explorer REST API for Scan/browser reads and funding |
 | `scan.aeko.online` | explorer-ui:4000 | `https://` | Aeko Scan web UI (primary) |
 | `gossip.aeko.online` | validator gossip | raw TCP+UDP | validator discovery/peer entrypoint only |
 | `cloud.aeko.online` | Coolify dashboard (port 8000, managed by Coolify) | `http://`/`https://` | Operator UI |
 
-The Faucet Daemon on TCP `9900` is **not a public application API**. In an all-in-one deployment the Validator reaches it over private service networking; in split deployments it may use a raw TCP hostname such as `faucet.aeko.online:9900`, which must be firewall-restricted to the matching Validator. User applications use Aeko Scan's same-origin test-network funding routes for approval-gated grants (and instant `requestAirdrop`/Test Console airdrops for capped developer needs), and only the matching Explorer API receives the server-side authorization required to invoke the Validator's protected low-level `requestGrant` path.
+The Faucet Daemon on TCP `9900` is **not a public application API**. In an all-in-one deployment the Validator reaches it over private service networking; in split deployments it may use a raw TCP hostname such as `faucet.aeko.online:9900`, which must be firewall-restricted to the matching Validator. User applications use the public Explorer API funding routes directly for approval-gated grants (and instant `requestAirdrop`/Test Console airdrops for capped developer needs), and only the matching Explorer API receives the server-side authorization required to invoke the Validator's protected low-level `requestGrant` path.
 
 ### 5.2 Namecheap DNS records
 
@@ -271,7 +271,7 @@ With Coolify+Traefik in front, only HTTP/HTTPS and gossip need public ingress:
 
 3. **No panics in the validator log.** `docker logs aeko-validator-1 2>&1 | grep -c AEKO_PANIC` returns `0`.
 
-4. **Explorer indexed something recent.** `curl https://scan.aeko.online/api/explorer/testnet/blocks?limit=1` should return a block whose `unixTimestamp` is within the last minute.
+4. **Explorer indexed something recent.** `curl https://api.aeko.online/blocks?limit=1` should return a block whose `unixTimestamp` is within the last minute.
 
 5. **WebSocket reachable.** `wscat -c wss://ws.aeko.online` should connect.
 

@@ -135,10 +135,12 @@ Raw Faucet and validator transport are exceptions:
 - Never expose PostgreSQL `5432` to the public Internet.
 - Faucet `9900` is not a public funding API. Restrict it to Validator source
   addresses.
-- Browsers use `scan.aeko.online`; they do not need direct knowledge of the
-  raw Explorer backend origin.
-- Edge/WAF rules on Scan's `/api/explorer/testnet/funding/*` routes must not
-  replace API responses with HTML challenges; keep the funding boundary JSON.
+- Browsers load the SPA from `scan.aeko.online` and call the selected public
+  Explorer API (for example `api.aeko.online`) directly. They never receive
+  the private server-to-server Explorer origin used by Operations Web.
+- Edge/WAF rules on the public Explorer API must not replace REST/funding
+  responses with interactive HTML challenges. Keep API failures JSON and keep
+  the explicit Explorer CORS allowlist aligned with the approved Scan origin.
 - Gossip and dynamic validator transport are node networking, not dApp APIs.
 - `api.aeko.online` and `registry.aeko.online` must use TLS when routed over
   the public Internet.

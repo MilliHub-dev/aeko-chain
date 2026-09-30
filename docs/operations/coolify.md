@@ -313,20 +313,20 @@ The result must be `"ok"`, and repeated `getSlot` calls must advance.
 Then check the three Explorer health layers and both control planes:
 
 ```bash
-curl -s https://scan.aeko.online/api/explorer/testnet/liveness
-curl -s https://scan.aeko.online/api/explorer/testnet/readiness
-curl -s https://scan.aeko.online/api/explorer/testnet/network/readiness
-curl -s https://scan.aeko.online/api/explorer/testnet/registry/social
-curl -s https://scan.aeko.online/api/explorer/testnet/social/status
-curl -s https://scan.aeko.online/api/explorer/testnet/registry/protocol
-curl -s https://scan.aeko.online/api/explorer/testnet/protocol/status
+curl -s https://api.aeko.online/liveness
+curl -s https://api.aeko.online/readiness
+curl -s https://api.aeko.online/network/readiness
+curl -s https://api.aeko.online/registry/social
+curl -s https://api.aeko.online/social/status
+curl -s https://api.aeko.online/registry/protocol
+curl -s https://api.aeko.online/protocol/status
 ```
 
 Final acceptance requires `/network/readiness` HTTP 200, the registry genesis matching the live validator genesis, Social `5/5`, Protocol executable programs `11/11`, and Protocol canonical state `8/8`. For the full read-path smoke test:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-social.py
 ```
 
@@ -338,16 +338,14 @@ Funding, grants, and airdrops work the same on every network; the flow never
 branches on the deployment network. When production funding fails while
 localhost works, check these in order:
 
-1. **HTML 502 on `/api/explorer/{network}/funding/*` (Cloudflare error page,
-   not JSON).** The Scan proxy reached its Explorer upstream and got a
-   non-JSON error page, usually because the upstream Explorer origin itself
-   goes through Cloudflare/WAF to a dead or unreachable backend. Point the
-   Scan server at a private origin instead:
-   `AEKO_EXPLORER_PROXY_UPSTREAM_URL=https://<private-or-dns-only-explorer-api-origin>` (and the
-   matching `AEKO_<NETWORK>_EXPLORER_PROXY_UPSTREAM_URL` overrides). The proxy
-   now reports `upstreamStatus` in its `EXPLORER_UPSTREAM_INVALID_RESPONSE`
-   body so you can tell an upstream HTML 502 apart from a backend JSON error.
-   Do not attach bot challenges or WAF HTML pages between Scan and Explorer.
+1. **HTML/edge error from `https://api.aeko.online/funding/*` instead of the
+   Explorer JSON contract.** Scan calls Explorer API directly; there is no
+   Scan-side Explorer proxy to fix. Check the `api.aeko.online` route/origin,
+   Explorer API health, and Cloudflare/WAF policy. API routes must not receive
+   interactive bot challenges or HTML error replacements. The Explorer backend
+   must set `AEKO_EXPLORER_CORS_ORIGINS=https://scan.aeko.online` (plus any
+   explicitly approved local/browser origins), and preflight for public funding
+   must allow `POST`, `OPTIONS`, `Content-Type`, and `X-Request-Id`.
 2. **Approvals stuck in `processing` ("submission response was not
    obtained").** The validator's faucet path is broken: the validator needs
    `--rpc-faucet-address <private-or-dns-only-faucet-host>:9900` with a reachable Faucet, a funded
