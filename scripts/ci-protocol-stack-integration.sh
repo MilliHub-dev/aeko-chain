@@ -783,7 +783,7 @@ if confirmed is None:
     raise RuntimeError("approved funding did not converge to confirmed")
 
 funding_signature = confirmed.get("signature")
-if not grant_signature:
+if not funding_signature:
     raise RuntimeError("confirmed funding has no signature")
 
 after = balance(recipient)
@@ -801,7 +801,7 @@ matching = [
     funding
     for funding in funding_history
     if funding.get("requestId") == request_id
-    and funding.get("signature") == grant_signature
+    and funding.get("signature") == funding_signature
     and funding.get("confirmed") is True
 ]
 if len(matching) != 1:
@@ -842,7 +842,7 @@ funding_after_airdrop = request_json(
     "/admin/funding/history?limit=500",
     admin=True,
 )["data"]
-if any(grant.get("signature") == airdrop_signature for funding in funding_after_airdrop):
+if any(funding.get("signature") == airdrop_signature for funding in funding_after_airdrop):
     raise RuntimeError("developer airdrop leaked into the confirmed funding history")
 if funding_signature == airdrop_signature:
     raise RuntimeError("funding and developer airdrop unexpectedly share a transaction signature")
