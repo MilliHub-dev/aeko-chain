@@ -16,21 +16,26 @@ if (-not [Environment]::Is64BitOperatingSystem) {
     Fail '32-bit Windows is not supported.'
 }
 
-# Windows PowerShell 5.1 can expose RuntimeInformation.OSArchitecture as null
-# on otherwise-supported systems. Environment architecture variables are
-# available on supported Windows versions and also distinguish x64 from ARM64.
+# Windows PowerShell 5.1 can expose RuntimeInformation.OSArchitecture as null.
+# Prefer the Windows architecture environment variables and only consult
+# RuntimeInformation as a null-checked fallback. Do not infer x64 merely from
+# OS bitness because that would misclassify ARM64 Windows.
 $Architecture = if ($env:PROCESSOR_ARCHITEW6432) {
     $env:PROCESSOR_ARCHITEW6432
 } elseif ($env:PROCESSOR_ARCHITECTURE) {
     $env:PROCESSOR_ARCHITECTURE
-} elseif ([Environment]::Is64BitOperatingSystem) {
-    'AMD64'
 } else {
-    'x86'
+    $RuntimeArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+    if ($null -ne $RuntimeArchitecture) { $RuntimeArchitecture.ToString() } else { $null }
+}
+
+if (-not $Architecture) {
+    Fail 'unable to determine Windows architecture'
 }
 
 switch ($Architecture.ToUpperInvariant()) {
     'AMD64' { $Target = 'x86_64-pc-windows-msvc' }
+    'X64' { $Target = 'x86_64-pc-windows-msvc' }
     default { Fail "unsupported Windows architecture: $Architecture. Current release assets support x86_64 Windows." }
 }
 
