@@ -69,6 +69,7 @@ services:
     restart: unless-stopped
     environment:
       AEKO_NODE_ROLE: rpc
+      AEKO_NETWORK: ${AEKO_NETWORK:-localnet}
       AEKO_ENTRYPOINT: validator:8001
       AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-faucet:9900}
     ulimits:
