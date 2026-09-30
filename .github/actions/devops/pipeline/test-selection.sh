@@ -146,6 +146,8 @@ assert_cli_release_after_main_contract() {
   grep -Fq -- '--latest' "$workflow"
   grep -Fq 'CI_COMMIT=$(git rev-parse HEAD)' "$workflow"
   grep -Fq 'aeko" update --check' "$workflow"
+  grep -Fq 'update --yes' "$workflow"
+  grep -Fq "irm 'http://127.0.0.1:18766/mock/aeko-cli-install.ps1' | iex" "$workflow"
   grep -Fq 'powershell.exe -NoLogo -NoProfile -NonInteractive' "$workflow"
   grep -Fq 'AEKO_CLI_ASSET_BASE_URL=http://127.0.0.1:18765' "$workflow"
   grep -Fq 'install/aeko-cli-install.sh|install/aeko-cli-install.ps1)' "$classifier"
