@@ -257,6 +257,8 @@ test('Operations high-frequency views use TanStack Query instead of manual polli
     '../../../admin/src/app/(admin)/page.tsx',
     '../../../admin/src/app/(admin)/blocks/page.tsx',
     '../../../admin/src/app/(admin)/transactions/page.tsx',
+    '../../../admin/src/app/(admin)/tokens/page.tsx',
+    '../../../admin/src/app/(admin)/nfts/page.tsx',
   ]) {
     const page = await source(path);
     assert.match(page, /useQuery/);
