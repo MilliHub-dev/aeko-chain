@@ -204,6 +204,7 @@ fn server_config() -> ServerConfig {
         request_timeout: Duration::from_secs(30),
         max_body_bytes: 1024 * 1024,
         sync_interval: Duration::from_secs(1),
+        cors_origins: vec!["https://scan.aeko.online".parse().unwrap()],
     }
 }
 

@@ -14,7 +14,7 @@ use {
     state::SharedState,
     tower_http::{
         compression::CompressionLayer,
-        cors::{Any, CorsLayer},
+        cors::{AllowOrigin, CorsLayer},
         limit::RequestBodyLimitLayer,
         request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
         timeout::TimeoutLayer,
@@ -24,12 +24,17 @@ use {
 };
 
 pub fn build_router(state: SharedState, server: &ServerConfig) -> Router {
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods([Method::GET, Method::HEAD, Method::OPTIONS])
-        .allow_headers([header::ACCEPT, header::CONTENT_TYPE])
-        .max_age(std::time::Duration::from_secs(300));
     let request_id_header = HeaderName::from_static("x-request-id");
+    let cors = CorsLayer::new()
+        .allow_origin(AllowOrigin::list(server.cors_origins.clone()))
+        .allow_methods([Method::GET, Method::HEAD, Method::POST, Method::OPTIONS])
+        .allow_headers([
+            header::ACCEPT,
+            header::CONTENT_TYPE,
+            request_id_header.clone(),
+        ])
+        .expose_headers([request_id_header.clone()])
+        .max_age(std::time::Duration::from_secs(300));
     let trace = TraceLayer::new_for_http()
         .make_span_with(|request: &Request<Body>| {
             let request_id = request
