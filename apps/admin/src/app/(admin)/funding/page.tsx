@@ -18,7 +18,7 @@ type Settings = {
 
 type FundingSnapshot = {
   network: 'mainnet' | 'testnet' | 'devnet' | 'localnet'
-  mode: 'test-funding' | 'mainnet-disabled'
+  mode: 'test-funding'
   settings: Settings | null
   dailyRemainingAeko: number | null
   publicSpentAeko: number | null
@@ -312,15 +312,6 @@ export default function FundingPage() {
           </button>
         ) : null}
       </div>
-
-      {snapshot?.mode === 'mainnet-disabled' ? (
-        <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-5 text-sm leading-6 text-amber-100">
-          <div className="font-semibold">Mainnet test funding is disabled</div>
-          <p className="mt-1 text-amber-100/80">
-            Developer airdrop is disabled on Mainnet. Admin funding remains an authenticated operator action and public funding remains governed by the active funding policy.
-          </p>
-        </div>
-      ) : null}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6 lg:gap-4">
         <StatCard
