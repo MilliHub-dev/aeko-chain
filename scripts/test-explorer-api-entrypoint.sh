@@ -77,9 +77,17 @@ if PATH="$BIN:$PATH" AEKO_NETWORK=testnet AEKO_REQUIRE_REMOTE_REGISTRY=1 AEKO_RE
   echo "error: Explorer unexpectedly accepted a non-URL registry value" >&2
   exit 1
 fi
-grep -Fq "AEKO_REGISTRY_URL must be an http(s) URL" "$TMP/invalid.out"
+grep -Fq "AEKO_REGISTRY_URL contains placeholder/guidance text" "$TMP/invalid.out"
 test ! -e "$TMP/backend-invalid.ok"
 echo "[ok] Explorer rejects literal deployment prompt text as a registry URL"
+
+if PATH="$BIN:$PATH" AEKO_NETWORK=testnet AEKO_REQUIRE_REMOTE_REGISTRY=1 AEKO_REGISTRY_URL="https://<private-registry-origin>" AEKO_REGISTRY_CACHE_DIR="$CACHE" AEKO_REGISTRY_REFRESH_SECONDS=0 AEKO_TEST_BACKEND_MARKER="$TMP/backend-placeholder.ok" sh "$ENTRYPOINT" >"$TMP/placeholder.out" 2>&1; then
+  echo "error: Explorer unexpectedly accepted an angle-bracket registry placeholder" >&2
+  exit 1
+fi
+grep -Fq "AEKO_REGISTRY_URL contains placeholder/guidance text" "$TMP/placeholder.out"
+test ! -e "$TMP/backend-placeholder.ok"
+echo "[ok] Explorer rejects angle-bracket registry placeholders before curl"
 
 # No remote registry URL preserves the mounted-file/local deployment contract.
 PATH="$BIN:$PATH" AEKO_NETWORK=localnet AEKO_TEST_BACKEND_MARKER="$TMP/backend-local.ok" AEKO_SOCIAL_REGISTRY_FILE="$CACHE/social-registry.env" AEKO_PROTOCOL_REGISTRY_FILE="$CACHE/protocol-registry.env"   sh "$ENTRYPOINT"

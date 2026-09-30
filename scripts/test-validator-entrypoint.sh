@@ -65,8 +65,15 @@ if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/prompt-faucet.args" PATH="$FAKE_BIN:$PATH"
   echo "split validator unexpectedly accepted deployment prompt text as Faucet address" >&2
   exit 1
 fi
-grep -Fq "must be a raw host:port without whitespace" "$TMP_DIR/prompt-faucet.out"
+grep -Fq "AEKO_FAUCET_ADDRESS contains placeholder/guidance text" "$TMP_DIR/prompt-faucet.out"
 echo "[ok] split validator rejects literal deployment prompt text as Faucet address"
+
+if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/placeholder-faucet.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_REQUIRE_REMOTE_FAUCET=1 AEKO_FAUCET_ADDRESS="<private-faucet-host>:9900" bash "$ENTRYPOINT" >"$TMP_DIR/placeholder-faucet.out" 2>&1; then
+  echo "split validator unexpectedly accepted an angle-bracket Faucet placeholder" >&2
+  exit 1
+fi
+grep -Fq "AEKO_FAUCET_ADDRESS contains placeholder/guidance text" "$TMP_DIR/placeholder-faucet.out"
+echo "[ok] split validator rejects angle-bracket Faucet placeholders before startup"
 
 FRESH_LEDGER="$TMP_DIR/fresh-ledger"
 if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/fresh-validator.args"   AEKO_TEST_GENESIS_LOG="$TMP_DIR/fresh-genesis.log"   PATH="$FAKE_BIN:$PATH"   AEKO_LEDGER_PATH="$FRESH_LEDGER"   AEKO_IDENTITY_FILE="$KEYS/identity.json"   AEKO_VOTE_FILE="$KEYS/vote.json"   AEKO_STAKE_FILE="$KEYS/missing-stake.json"   AEKO_FAUCET_FILE="$KEYS/missing-faucet.json"   AEKO_BOOTSTRAP=1   AEKO_REQUIRE_EXISTING_LEDGER=0     bash "$ENTRYPOINT"; then
