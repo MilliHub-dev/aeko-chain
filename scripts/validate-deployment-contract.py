@@ -287,6 +287,11 @@ def main() -> int:
         "validator entrypoint must fail closed instead of silently replacing genesis",
     )
     require(
+        "AEKO_FUNDING_AUTHORIZATION_KEY is required when AEKO_NETWORK=" in validator_entrypoint
+        and "AEKO_FUNDING_AUTHORIZATION_KEY must be at least 32 characters" in validator_entrypoint,
+        "non-local Validator deployments must fail closed without a strong Funding authorization key",
+    )
+    require(
         "refusing to generate a replacement chain identity" in key_preflight,
         "key preflight must fail closed on missing established chain identities",
     )
