@@ -40,7 +40,7 @@ test('settings fetch failure names the backend URL instead of a bare status', as
     await assert.rejects(
       () => fetchPublicAppSettings(),
       (error) => {
-        assert.match(error.message, /\/api\/explorer\/testnet\/settings/);
+        assert.match(error.message, /https:\/\/api\.test\.example\.invalid\/settings/);
         assert.match(error.message, /500/);
         return true;
       },
@@ -63,7 +63,7 @@ test('settings fetch network failure says the backend is unreachable', async () 
   try {
     await assert.rejects(
       () => fetchPublicAppSettings(),
-      /unreachable via .*\/api\/explorer\/testnet\/settings/i,
+      /unreachable via https:\/\/api\.test\.example\.invalid\/settings/i,
     );
   } finally {
     globalThis.fetch = originalFetch;
