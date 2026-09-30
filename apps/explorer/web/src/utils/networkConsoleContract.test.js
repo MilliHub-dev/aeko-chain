@@ -136,8 +136,10 @@ test('accounts workspace keeps public funding approval separate from direct Test
   assert.match(funding, /Your AEKO wallet address/);
   assert.match(funding, /networkName = 'Network'/);
   assert.match(funding, /Enter your \{networkName\} wallet address/);
-  assert.match(funding, /setPolicy\(null\)/);
-  assert.match(funding, /setRequest\(null\)/);
+  assert.match(funding, /fundingKeys\.policy\(fundingUrl\)/);
+  assert.match(funding, /fundingKeys\.request\(fundingUrl, requestId\)/);
+  assert.match(funding, /setRequestId\(''\)/);
+  assert.doesNotMatch(funding, /setPolicy\(|setRequest\(/);
   assert.doesNotMatch(funding, /Enter your Testnet wallet address to request test AEKO/i);
   assert.doesNotMatch(funding, /authenticated Admin must approve or reject/i);
   assert.match(funding, /requestFundingApproval\(fundingUrl, address\.trim\(\)\)/);
@@ -246,26 +248,43 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
 });
 
 
-test('Operations high-frequency views use TanStack Query instead of manual polling', async () => {
+test('Operations server state uses TanStack Query while privileged transport stays behind the BFF', async () => {
   const helper = await source('../../../admin/src/lib/client-query.ts');
+  assert.match(helper, /operationQuery/);
   assert.match(helper, /explorerQuery/);
   assert.match(helper, /rpcQuery/);
   assert.match(helper, /cache: 'no-store'/);
   assert.match(helper, /ClientApiError/);
+  assert.match(helper, /fetch\('\/api\/explorer'/);
+  assert.match(helper, /fetch\('\/api\/rpc'/);
 
-  for (const path of [
+  for (const pagePath of [
     '../../../admin/src/app/(admin)/page.tsx',
     '../../../admin/src/app/(admin)/blocks/page.tsx',
     '../../../admin/src/app/(admin)/transactions/page.tsx',
     '../../../admin/src/app/(admin)/tokens/page.tsx',
     '../../../admin/src/app/(admin)/nfts/page.tsx',
+    '../../../admin/src/app/(admin)/marketplace/page.tsx',
+    '../../../admin/src/app/(admin)/social/page.tsx',
+    '../../../admin/src/app/(admin)/protocol/page.tsx',
   ]) {
-    const page = await source(path);
+    const page = await source(pagePath);
     assert.match(page, /useQuery/);
     assert.match(page, /refetchInterval:/);
     assert.doesNotMatch(page, /setInterval/);
-    assert.doesNotMatch(page, /useEffect\(/);
   }
+
+  const accountPage = await source('../../../admin/src/app/(admin)/accounts/[address]/page.tsx');
+  assert.match(accountPage, /useQuery/);
+  assert.match(accountPage, /adminQueryKeys\.account/);
+  assert.doesNotMatch(accountPage, /useEffect\(|setInterval/);
+
+  const settingsPage = await source('../../../admin/src/app/(admin)/settings/page.tsx');
+  assert.match(settingsPage, /useQuery/);
+  assert.match(settingsPage, /useMutation/);
+  assert.match(settingsPage, /retry: false/);
+  assert.match(settingsPage, /operationQuery<SettingsSnapshot>\('\/api\/settings'/);
+  assert.doesNotMatch(settingsPage, /const \[notice|setNotice\(/);
 });
 
 
