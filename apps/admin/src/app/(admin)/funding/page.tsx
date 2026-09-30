@@ -338,7 +338,7 @@ export default function FundingPage() {
         )
       } else {
         toast.info(
-          `Grant is ${request.status}; no duplicate transfer will be submitted while confirmation is unresolved.`,
+          `Funding is ${request.status}; no duplicate transfer will be submitted while confirmation is unresolved.`,
           { title: 'Settlement submitted' },
         )
       }
@@ -423,11 +423,11 @@ export default function FundingPage() {
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <div className="text-xs uppercase tracking-[0.22em] text-emerald-400">Funding operations</div>
-          <h1 className="mt-1 text-2xl font-bold text-white">Funding, grants & airdrops</h1>
+          <h1 className="mt-1 text-2xl font-bold text-white">Funding & developer airdrops</h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-gray-500">
             {!snapshot
               ? 'Loading the live funding policy and settlement state for this network.'
-              : 'Review public funding requests, maintain network policy, and keep operator grants separate from direct developer airdrops.'}
+              : 'Review public funding requests, maintain network policy, and send Admin funding directly, and keep developer airdrops as a separate test utility.'}
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
@@ -494,7 +494,7 @@ export default function FundingPage() {
           sub={isFundingAvailable && settings ? `of ${settings.dailyBudgetAeko.toLocaleString()}` : undefined}
         />
         <StatCard label="Needs attention" value={isFundingAvailable ? attentionRequests.length : '—'} />
-        <StatCard label="Grant history" value={isFundingAvailable ? fundingHistory.length : '—'} />
+        <StatCard label="Funding history" value={isFundingAvailable ? fundingHistory.length : '—'} />
       </div>
 
       {isFundingAvailable ? (
@@ -510,7 +510,7 @@ export default function FundingPage() {
           <div className="rounded-xl border border-[#1e2135] bg-[#12141f] p-4">
             <div className="text-[10px] uppercase tracking-[0.14em] text-gray-600">Developer airdrop aggregate</div>
             <div className="mt-1 text-sm font-semibold text-emerald-300">
-              {snapshot?.consoleAirdropAggregateUnlimited ? 'No daily allocation ceiling' : 'Policy limited'}
+              {snapshot?.developerAirdropEnabled ? (snapshot.consoleAirdropAggregateUnlimited ? 'No daily allocation ceiling' : 'Policy limited') : 'Disabled on Mainnet'}
             </div>
           </div>
           <div className="rounded-xl border border-[#1e2135] bg-[#12141f] p-4">
@@ -546,9 +546,9 @@ export default function FundingPage() {
             value={view}
             onChange={setView}
             items={[
-              { value: 'queue', label: 'Grant queue', description: 'Admin decisions and submitted grant reconciliation', count: attentionRequests.length },
-              { value: 'policy', label: 'Policy & manual grant', description: 'Public limits and Admin-only grant actions' },
-              { value: 'history', label: 'Grant history', description: 'Confirmed Admin-approved grants', count: fundingHistory.length },
+              { value: 'queue', label: 'Funding requests', description: 'Admin decisions and submitted funding reconciliation', count: attentionRequests.length },
+              { value: 'policy', label: 'Policy & direct funding', description: 'Public limits and Admin direct funding' },
+              { value: 'history', label: 'Funding history', description: 'Confirmed public and Admin funding', count: fundingHistory.length },
               { value: 'airdrops', label: 'Airdrop history', description: 'Developer Test Console airdrops', count: airdrops.length },
             ]}
           />
@@ -634,13 +634,12 @@ export default function FundingPage() {
                           </button>
                         </div>
                         <span className="text-xs leading-5 text-amber-200">
-                          Submission response was not obtained yet. Retrying safely replays only the persisted transaction intent; no second grant will be created. Cancelling first replays once and only releases the wallet when no signature exists.
-                          {request.errorMessage ? ` Detail: ${request.errorMessage}` : ''}
+                          Funding submission is retrying safely in the background. The persisted transaction intent is reused, so no duplicate transfer is created.
                         </span>
                       </div>
                     ) : (
                       <span className="max-w-xs text-xs leading-5 text-red-300">
-                        Transfer failed on-chain. No grant was recorded.
+                        Transfer failed on-chain. No funding history entry was recorded.
                       </span>
                     )}
                   </div>,
@@ -664,7 +663,7 @@ export default function FundingPage() {
                   {field('amountAeko', 'Amount per public request (AEKO)', '0.1')}
                   {field('cooldownHours', 'Public wallet cooldown (hours)', '0.1')}
                   {field('dailyBudgetAeko', 'Public daily allocation (AEKO)', '0.1')}
-                  {field('maxAdminFundingAeko', 'Max operator grant (AEKO)', '0.1')}
+                  {field('maxAdminFundingAeko', 'Max Admin funding send (AEKO)', '0.1')}
                   {field('consoleAirdropCapAeko', 'Developer airdrop cap / request (AEKO)', '0.1')}
                 </div>
                 <div className="mt-4 text-xs text-gray-600">
@@ -678,9 +677,9 @@ export default function FundingPage() {
               <form onSubmit={sendFunding} className="rounded-2xl border border-[#1e2135] bg-[#12141f] p-5 sm:p-6">
                 <div className="mb-5">
                   <div className="text-xs uppercase tracking-[0.18em] text-amber-300">Operator action</div>
-                  <h2 className="mt-1 font-semibold text-white">Manual operator grant</h2>
+                  <h2 className="mt-1 font-semibold text-white">Direct Admin funding</h2>
                   <p className="mt-1 text-sm leading-6 text-gray-500">
-                    Sends an AEKO transfer without consuming the public-request daily allocation. The operator grant cap and the private Faucet hard cap still apply.
+                    Sends AEKO directly to the recipient without a second approval step. The Admin funding cap and Faucet hard cap still apply.
                   </p>
                 </div>
                 <div>
@@ -699,7 +698,7 @@ export default function FundingPage() {
                   </div>
                 </div>
                 <button type="submit" disabled={directFundingMutation.isPending || !address} className="mt-5 min-h-[44px] rounded-lg bg-emerald-400 px-4 text-sm font-semibold text-black transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40">
-                  {directFundingMutation.isPending ? 'Sending…' : 'Send manual grant'}
+                  {directFundingMutation.isPending ? 'Sending…' : 'Send funding'}
                 </button>
               </form>
             </div>
@@ -710,7 +709,7 @@ export default function FundingPage() {
               <div className="mb-4">
                 <h2 className="font-semibold text-white">Developer Test Console airdrops</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Direct developer airdrops bypass the public grant approval queue, but remain rate-limited, capped per request, and durably tracked.
+                  Developer airdrops are separate from public funding requests. They are disabled on Mainnet and remain rate-limited, capped per request, and durably tracked on test environments.
                 </p>
               </div>
               <DataTable
@@ -733,7 +732,7 @@ export default function FundingPage() {
                     {airdrop.status}
                   </span>,
                   airdrop.signature ? airdrop.signature.slice(0, 16) + '…' : '—',
-                  airdrop.errorCode ?? '—',
+                  airdropStateDetail(airdrop),
                 ])}
                 empty="No developer airdrops have been requested yet"
               />
@@ -743,23 +742,23 @@ export default function FundingPage() {
           {view === 'history' ? (
             <section className="rounded-2xl border border-[#1e2135] bg-[#12141f] p-4 sm:p-5">
               <div className="mb-4">
-                <h2 className="font-semibold text-white">Confirmed grants</h2>
+                <h2 className="font-semibold text-white">Confirmed funding</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Only confirmed public requests approved by Admin and confirmed manual Admin grants appear here. Developer airdrops are deliberately separate.
+                  Confirmed public requests and direct Admin funding appear here. Developer airdrops remain deliberately separate.
                 </p>
               </div>
               <DataTable
-                paginationLabel="grants"
+                paginationLabel="funding history"
                 columns={['When', 'Address', 'Amount', 'Source', 'Status', 'Signature']}
                 rows={fundingHistory.map((funding) => [
-                  new Date(grant.fundedAt).toLocaleString(),
+                  new Date(funding.fundedAt).toLocaleString(),
                   funding.address.slice(0, 10) + '…' + funding.address.slice(-6),
                   `${funding.amountAeko} AEKO`,
                   funding.source,
                   <span key={funding.id} className={funding.confirmed ? 'text-emerald-300' : 'text-yellow-300'}>{funding.confirmed ? 'confirmed' : 'submitted'}</span>,
                   funding.signature ? funding.signature.slice(0, 16) + '…' : '—',
                 ])}
-                empty="No confirmed grants have been released yet"
+                empty="No confirmed funding transfers yet"
               />
             </section>
           ) : null}
