@@ -354,7 +354,7 @@ struct FundingRequestBody {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct DirectGrantBody {
+struct DirectFundingBody {
     address: String,
     amount_aeko: f64,
 }
@@ -536,7 +536,7 @@ async fn get_public_request_status(
 async fn create_airdrop(
     State(state): State<SharedState>,
     headers: HeaderMap,
-    Json(body): Json<DirectGrantBody>,
+    Json(body): Json<DirectFundingBody>,
 ) -> FundingResult<Json<DataEnvelope<FundingAirdropView>>> {
     ensure_funding_available(&state)?;
     ensure_developer_airdrop_available(&state)?;
@@ -885,7 +885,7 @@ async fn list_funding_history(
 async fn send_funding(
     State(state): State<SharedState>,
     headers: HeaderMap,
-    Json(body): Json<DirectGrantBody>,
+    Json(body): Json<DirectFundingBody>,
 ) -> FundingResult<Json<DataEnvelope<FundingRequestView>>> {
     authorize_admin(&headers, &state.settings_admin_token)?;
     ensure_funding_available(&state)?;
@@ -1018,7 +1018,7 @@ async fn submit_and_observe_funding(
 ) -> FundingResult<FundingRequestRecord> {
     let request = prepare_funding_submission_intent(state, request).await?;
     let blockhash = request.submission_blockhash.clone().ok_or_else(|| {
-        FundingHttpError::internal("processing grant has no durable submission blockhash")
+        FundingHttpError::internal("processing funding request has no durable submission blockhash")
     })?;
     let lamports = amount_to_lamports(request.amount_aeko)?;
     let rpc = state.rpc.clone();
@@ -1100,7 +1100,7 @@ async fn observe_funding(
         ));
     }
     let signature = request.signature.clone().ok_or_else(|| {
-        FundingHttpError::internal("submitted grant has no durable transaction signature")
+        FundingHttpError::internal("submitted funding request has no durable transaction signature")
     })?;
 
     let rpc = state.rpc.clone();
@@ -1129,7 +1129,7 @@ async fn observe_funding(
             Err(FundingHttpError::new(
                 StatusCode::BAD_GATEWAY,
                 "FUNDING_TRANSACTION_FAILED",
-                format!("Grant transaction {signature} failed on-chain"),
+                format!("Funding transaction {signature} failed on-chain"),
             ))
         }
         Ok(Ok(FundingTransferStatus::Pending)) => Ok(state
@@ -1528,7 +1528,7 @@ async fn recover_processing_funding_submission(
                     request_id = %request.id,
                     blockhash = %blockhash,
                     error = %error,
-                    "failed to persist recovered grant signature"
+                    "failed to persist recovered funding signature"
                 );
                 false
             }
@@ -1670,7 +1670,7 @@ async fn reconcile_submitted_funding(state: &SharedState, request: FundingReques
     let Some(signature) = request.signature.clone() else {
         tracing::error!(
             request_id = %request.id,
-            "submitted grant has no signature and cannot be reconciled"
+            "submitted funding request has no signature and cannot be reconciled"
         );
         return false;
     };
@@ -1727,7 +1727,7 @@ async fn reconcile_submitted_funding(state: &SharedState, request: FundingReques
                     request_id = %request.id,
                     signature = %signature,
                     error = %store_error,
-                    "failed to persist grant reconciliation observation error"
+                    "failed to persist funding reconciliation observation error"
                 );
             }
             false
