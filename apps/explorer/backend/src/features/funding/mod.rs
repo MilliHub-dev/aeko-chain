@@ -1245,15 +1245,9 @@ async fn submit_and_observe_airdrop(
     let lamports = amount_to_lamports(airdrop.amount_aeko)?;
     let rpc = state.rpc.clone();
     let address = airdrop.address.clone();
-    let authorization = state.funding_authorization_key.clone();
     let submit_blockhash = blockhash.clone();
     let submit = tokio::task::spawn_blocking(move || {
-        rpc.request_funding_airdrop(
-            &address,
-            lamports,
-            authorization.as_deref(),
-            Some(&submit_blockhash),
-        )
+        rpc.request_funding_airdrop(&address, lamports, Some(&submit_blockhash))
     })
     .await;
 
