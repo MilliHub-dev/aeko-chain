@@ -183,7 +183,10 @@ impl std::fmt::Debug for JsonRpcConfig {
                 "funding_authorization_required",
                 &self.funding_authorization_key.is_some(),
             )
-            .field("developer_airdrop_disabled", &self.disable_developer_airdrop)
+            .field(
+                "developer_airdrop_disabled",
+                &self.disable_developer_airdrop,
+            )
             .field(
                 "health_check_slot_distance",
                 &self.health_check_slot_distance,
