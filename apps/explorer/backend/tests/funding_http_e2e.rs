@@ -431,7 +431,11 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
 
     let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
     assert_eq!(transitioned, 1);
-    assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        rpc_observer.transfer_calls.load(Ordering::SeqCst),
+        1,
+        "funding confirmation must not resubmit the durable transaction"
+    );
 
     let (status, public_status) = request_json(
         &app,
@@ -490,7 +494,11 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
 
     let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
     assert_eq!(transitioned, 1);
-    assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 2);
+    assert_eq!(
+        rpc_observer.transfer_calls.load(Ordering::SeqCst),
+        2,
+        "airdrop confirmation must not resubmit the durable transaction"
+    );
 
     // The fake signer derives one deterministic signature per submission
     // intent, so response-loss replays recover the same signature while
