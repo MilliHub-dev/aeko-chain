@@ -10,6 +10,7 @@ NODE_ROLE=${AEKO_NODE_ROLE:-validator}
 RESET_LEDGER=${AEKO_RESET_LEDGER:-0}
 REQUIRE_EXISTING_LEDGER=${AEKO_REQUIRE_EXISTING_LEDGER:-0}
 REQUIRE_REMOTE_FAUCET=${AEKO_REQUIRE_REMOTE_FAUCET:-0}
+REQUIRE_GOSSIP_HOST=${AEKO_REQUIRE_GOSSIP_HOST:-0}
 
 require_file() {
   local path=$1
@@ -20,7 +21,7 @@ require_file() {
   fi
 }
 
-for flag_name in RESET_LEDGER REQUIRE_EXISTING_LEDGER REQUIRE_REMOTE_FAUCET; do
+for flag_name in RESET_LEDGER REQUIRE_EXISTING_LEDGER REQUIRE_REMOTE_FAUCET REQUIRE_GOSSIP_HOST; do
   flag_value=${!flag_name}
   case "$flag_value" in
     0|1) ;;
@@ -53,6 +54,28 @@ esac
 if [[ "$FAUCET_ADDRESS" =~ [[:space:]] ]] || [[ "$FAUCET_ADDRESS" != *:* ]]; then
   echo "error: AEKO_FAUCET_ADDRESS must be a raw host:port without whitespace: $FAUCET_ADDRESS" >&2
   exit 64
+fi
+
+GOSSIP_HOST="${AEKO_GOSSIP_HOST:-}"
+if [ -z "$GOSSIP_HOST" ] && [ "$REQUIRE_GOSSIP_HOST" = "1" ]; then
+  echo "error: AEKO_GOSSIP_HOST is required for this Validator deployment" >&2
+  exit 64
+fi
+if [ -n "$GOSSIP_HOST" ]; then
+  case "$GOSSIP_HOST" in
+    *'<'*|*'>'*|*'Set '*|*'set '*)
+      echo "error: AEKO_GOSSIP_HOST contains placeholder/guidance text; configure a real DNS hostname or IP" >&2
+      exit 64
+      ;;
+    *://*)
+      echo "error: AEKO_GOSSIP_HOST must be a hostname or IP without a URL scheme: $GOSSIP_HOST" >&2
+      exit 64
+      ;;
+  esac
+  if [[ "$GOSSIP_HOST" =~ [[:space:]] ]]; then
+    echo "error: AEKO_GOSSIP_HOST must not contain whitespace: $GOSSIP_HOST" >&2
+    exit 64
+  fi
 fi
 
 mkdir -p "$LEDGER_PATH"
@@ -191,8 +214,8 @@ if [ "$#" -eq 0 ]; then
   # Docker bridge deployments must explicitly advertise the host address and
   # publish the same validator transport range. These flags are opt-in so the
   # portable/local compose retains its existing behavior.
-  if [ -n "${AEKO_GOSSIP_HOST:-}" ]; then
-    set -- "$@" --gossip-host "$AEKO_GOSSIP_HOST"
+  if [ -n "$GOSSIP_HOST" ]; then
+    set -- "$@" --gossip-host "$GOSSIP_HOST"
   fi
   if [ -n "${AEKO_DYNAMIC_PORT_RANGE:-}" ]; then
     set -- "$@" --dynamic-port-range "$AEKO_DYNAMIC_PORT_RANGE"

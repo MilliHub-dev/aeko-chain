@@ -265,8 +265,14 @@ def main() -> int:
     require("AEKO_RPC_BIND_IP" not in validator and "AEKO_WS_BIND_IP" not in validator, "RPC/WS must use Coolify domains")
     require('"8899"' in validator and '"8900"' in validator, "Validator must expose RPC/WS container ports")
     require(
-        "AEKO_GOSSIP_HOST=gossip.aeko.online" in envs["validator"],
-        "Validator env example must advertise the canonical gossip DNS hostname",
+        "AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-}" in validator
+        and 'AEKO_REQUIRE_GOSSIP_HOST: "1"' in validator,
+        "split Validator must require an explicit network-specific gossip hostname",
+    )
+    require(
+        re.search(r"^AEKO_GOSSIP_HOST=$", envs["validator"], re.MULTILINE) is not None
+        and "Testnet uses gossip.aeko.online" in envs["validator"],
+        "Validator env example must leave gossip explicit while documenting the testnet hostname",
     )
     require(
         "AEKO_FUNDING_AUTHORIZATION_KEY:" in validator,

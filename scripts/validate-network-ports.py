@@ -249,7 +249,8 @@ def main() -> int:
         (
             "AEKO_FAUCET_ADDRESS: ${AEKO_FAUCET_ADDRESS:-}",
             'AEKO_REQUIRE_REMOTE_FAUCET: "1"',
-            "AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-gossip.aeko.online}",
+            "AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-}",
+            'AEKO_REQUIRE_GOSSIP_HOST: "1"',
             '- "8000-8050:8000-8050/tcp"',
             '- "8000-8050:8000-8050/udp"',
             '- "8899"',

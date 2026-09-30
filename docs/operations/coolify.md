@@ -246,11 +246,15 @@ republish it only after their canonical chain binding completes. The registry
 returns 503 when either latest one-shot verification is incomplete/failed or a
 registry document is missing; it does not mutate or recreate canonical state.
 
-Do not configure `gossip.aeko.online` as an HTTP route. There is no separate
-Gossip Coolify application: the Validator process owns the gossip service.
-Set `AEKO_GOSSIP_HOST=gossip.aeko.online`, point that DNS record directly to
-the Validator host, and allow inbound TCP+UDP `8000-8050`. Gossip starts on
-`8001`. Verify the real protocol path with
+Do not configure gossip as an HTTP route. There is no separate Gossip Coolify
+application: the Validator process owns the gossip service. The split Validator
+requires `AEKO_GOSSIP_HOST` explicitly so a mainnet/devnet deployment cannot
+silently advertise the testnet hostname. For testnet set
+`AEKO_GOSSIP_HOST=gossip.aeko.online`, point that DNS record directly to the
+Validator host, and allow inbound TCP+UDP `8000-8050`. The Validator resolves
+the hostname at startup; gossip starts on `8001`. Mainnet/devnet must use their
+own network-specific gossip DNS name or public IP. Verify the real testnet
+protocol path with
 `AEKO_GOSSIP_ENTRYPOINT=gossip.aeko.online:8001 scripts/smoke-gossip.sh` or
 `aeko-gossip spy --entrypoint gossip.aeko.online:8001 --num-nodes 1 --timeout 20`.
 
