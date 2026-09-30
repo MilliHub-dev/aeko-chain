@@ -213,7 +213,12 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
   const adminAlert = await source('../../../admin/src/components/feedback-alert.tsx');
   const statusBanner = await source('components/StatusBanner.jsx');
 
-  assert.match(adminPage, /setInterval/);
+  assert.match(adminPage, /useQuery/);
+  assert.match(adminPage, /useMutation/);
+  assert.match(adminPage, /refetchInterval: 5_000/);
+  assert.match(adminPage, /queryClient\.invalidateQueries/);
+  assert.match(adminPage, /retry: false/);
+  assert.doesNotMatch(adminPage, /setInterval/);
   assert.match(adminPage, /expectedRevision: settings\.revision/);
   assert.match(adminPage, /consoleAirdropAggregateUnlimited/);
   assert.doesNotMatch(adminPage, /mainnet-disabled/);
