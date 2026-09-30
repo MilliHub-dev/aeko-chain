@@ -35,6 +35,12 @@ services:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-social-bootstrap:${AEKO_IMAGE_TAG:?Set an immutable published AEKO image tag}
     pull_policy: always
     restart: "no"
+    # Explicit null restores the image ENTRYPOINT if Coolify retained the old shell override.
+    entrypoint: null
+    # Keep the image-owned ENTRYPOINT, but set the bootstrap binary explicitly.
+    # Coolify can retain a previously materialized command when a field is removed;
+    # an exec-form command overwrites that stale state without reintroducing a shell.
+    command: ["aeko-social-bootstrap"]
     environment:
       AEKO_RPC_URL: ${AEKO_RPC_URL:-}
       AEKO_PAYER_KEYPAIR: /keys/faucet-keypair.json
@@ -61,6 +67,11 @@ services:
     image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-protocol-bootstrap:${AEKO_IMAGE_TAG:?Set an immutable published AEKO image tag}
     pull_policy: always
     restart: "no"
+    # Explicit null restores the image ENTRYPOINT if Coolify retained the old shell override.
+    entrypoint: null
+    # Explicit exec-form command replaces any stale Coolify command while the
+    # image-owned bootstrap entrypoint keeps readiness handling centralized.
+    command: ["aeko-protocol-bootstrap"]
     environment:
       AEKO_NETWORK: ${AEKO_NETWORK:?Set mainnet, testnet, devnet, or localnet}
       AEKO_RPC_URL: ${AEKO_RPC_URL:-}
