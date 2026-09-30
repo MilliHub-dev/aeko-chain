@@ -70,12 +70,14 @@ test('settings fetch network failure says the backend is unreachable', async () 
   }
 });
 
-test('settings provider backs off a dead backend instead of polling every tick', async () => {
+test('settings provider delegates retry backoff and polling to TanStack Query', async () => {
   const provider = await source('components/AppSettingsProvider.jsx');
-  assert.match(provider, /consecutiveFailures/);
-  assert.match(provider, /nextAllowedAttempt/);
-  assert.match(provider, /FAILURE_BACKOFF_MAX_MS/);
-  // Last-good snapshot is preserved: setSnapshot only runs on success.
-  assert.match(provider, /setSnapshot\(next\)/);
-  assert.doesNotMatch(provider, /setSnapshot\(SAFE_/);
+  assert.match(provider, /useQuery/);
+  assert.match(provider, /retryDelay:/);
+  assert.match(provider, /Math\.min\(RETRY_BASE_MS \* 2 \*\* attempt, RETRY_MAX_MS\)/);
+  assert.match(provider, /refetchInterval:/);
+  assert.match(provider, /settingsRefreshSeconds/);
+  assert.match(provider, /placeholderData: SAFE_SNAPSHOT/);
+  assert.match(provider, /settingsQuery\.data \?\? SAFE_SNAPSHOT/);
+  assert.doesNotMatch(provider, /setInterval|setTimeout|consecutiveFailures|nextAllowedAttempt/);
 });

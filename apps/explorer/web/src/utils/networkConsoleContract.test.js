@@ -132,7 +132,9 @@ test('accounts workspace keeps public funding approval separate from direct Test
   assert.doesNotMatch(implementation, /\brequestAirdrop\b|\brequestTestnetFunding\b|FUNDING_GATEWAY_KEY/);
   assert.match(networkTools, /fundingUrl=\{config\.fundingUrl\}/);
 
-  assert.match(networkTools, /<TestnetFundingRequest fundingUrl=\{config\.fundingUrl\} networkName=\{presentation\.name\} \/>/);
+  assert.match(networkTools, /<TestnetFundingRequest/);
+  assert.match(networkTools, /fundingUrl=\{config\.fundingUrl\}/);
+  assert.match(networkTools, /networkName=\{presentation\.name\}/);
   assert.match(funding, /Your AEKO wallet address/);
   assert.match(funding, /networkName = 'Network'/);
   assert.match(funding, /Enter your \{networkName\} wallet address/);
@@ -255,7 +257,7 @@ test('Operations server state uses TanStack Query while privileged transport sta
   assert.match(helper, /rpcQuery/);
   assert.match(helper, /cache: 'no-store'/);
   assert.match(helper, /ClientApiError/);
-  assert.match(helper, /fetch\('\/api\/explorer'/);
+  assert.match(helper, /return operationQuery<T>\('\/api\/explorer' \+ path\)/);
   assert.match(helper, /fetch\('\/api\/rpc'/);
 
   for (const pagePath of [

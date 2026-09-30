@@ -115,7 +115,9 @@ see [Network ports, domains, and service discovery](./docs/operations/network-po
 
 Test-network funding is served directly by that network's Explorer API. Aeko
 Scan calls the selected Explorer API from the browser under an explicit CORS
-allowlist. There is no Scan Explorer proxy and no separate Funding Gateway runtime.
+allowlist. There is no Scan Explorer proxy. There is no separate Funding Gateway runtime.
+The Explorer backend owns public funding policy, request state, settlement orchestration,
+and the authenticated Admin funding boundary.
 
 The funding domains are intentionally distinct:
 
