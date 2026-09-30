@@ -103,7 +103,7 @@ Use a dedicated smoke-test wallet and run the repository acceptance script:
 
 ```bash
 AEKO_NETWORK=testnet \
-AEKO_SCAN_URL=https://scan.aeko.online \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
 AEKO_OPERATIONS_URL=https://admin.aeko.online \
 AEKO_RPC_URL=https://rpc.aeko.online \
 AEKO_FUNDING_SMOKE_ADDRESS=<dedicated-test-wallet> \

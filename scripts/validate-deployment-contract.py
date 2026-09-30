@@ -478,6 +478,17 @@ def main() -> int:
         and "https://scan.aeko.online/api/explorer" not in live_network_diagnostics,
         "live diagnostics must probe the public Explorer API directly",
     )
+    require(
+        "AEKO_EXPLORER_API_URL=https://api.aeko.online" in testnet_runbook
+        and "AEKO_SCAN_URL" not in testnet_runbook
+        and "https://scan.aeko.online/api/explorer" not in testnet_runbook,
+        "testnet runbook must document the direct public Explorer API funding/read path",
+    )
+    require(
+        "same-origin" not in admin_readme.lower()
+        and "/api/explorer/testnet/funding" not in admin_readme,
+        "Operations README must not describe the retired Scan funding proxy",
+    )
 
     # Raw bootstrap registry and product-facing registry discovery are distinct.
     # The bootstrap root is a non-secret manifest; only its two generated env
