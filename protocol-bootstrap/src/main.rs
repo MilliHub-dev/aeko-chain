@@ -52,7 +52,6 @@ const TOKENOMICS_STATE_SPACE: u64 = 128 * 1024;
 const REFERENCE_MINT_SPACE: u64 = 16 * 1024;
 const PUBLIC_MINT_STATE_SPACE: u64 = 512 * 1024;
 const REGISTRY_CONFIG_SPACE: u64 = 16 * 1024;
-const MULTISIG_CONFIG_SPACE: u64 = 16 * 1024;
 const ORACLE_CONFIG_SPACE: u64 = 16 * 1024;
 const REGISTRY_FILE_NAME: &str = "protocol-registry.env";
 const REGISTRY_ANCHOR_FILE_NAME: &str = "protocol-registry.anchor";
@@ -396,38 +395,22 @@ fn main() -> Result<()> {
 
     let (multisig_signers, freeze_quorum, revoke_quorum, policy_quorum) =
         parse_multisig_config(authority.pubkey())?;
-    let emergency_multisig = ensure_keypair(&continuity_dir, "emergency-multisig-state.json")?;
-    let multisig_authority = authority.pubkey();
-    let expected_signers = multisig_signers.clone();
-    create_and_init(
+    let emergency_multisig =
+        aeko_emergency_multisig_program::state::multisig_config_address();
+    let allow_multisig_pda_migration =
+        parse_bool_flag_with_default("AEKO_PROTOCOL_MIGRATE_EMERGENCY_MULTISIG_PDA", false)?;
+    ensure_emergency_multisig(
         &client,
         &payer,
         &authority,
         &emergency_multisig,
-        &aeko_emergency_multisig_program::id(),
-        MULTISIG_CONFIG_SPACE,
-        aeko_emergency_multisig_program::instruction::initialize_multisig(
-            &aeko_emergency_multisig_program::id(),
-            &emergency_multisig.pubkey(),
-            &authority.pubkey(),
-            multisig_signers,
-            freeze_quorum,
-            revoke_quorum,
-            policy_quorum,
-            current_slot,
-        ),
-        "emergency-multisig",
+        multisig_signers,
+        freeze_quorum,
+        revoke_quorum,
+        policy_quorum,
+        current_slot,
         protect_existing_registry,
-        move |data| {
-            let state = MultisigConfig::deserialize_padded(data)
-                .map_err(|_| anyhow!("invalid emergency-multisig state"))?;
-            Ok(state.is_initialized
-                && state.upgrade_authority == multisig_authority
-                && state.signers == expected_signers
-                && state.freeze_quorum == freeze_quorum
-                && state.revoke_quorum == revoke_quorum
-                && state.policy_quorum == policy_quorum)
-        },
+        allow_multisig_pda_migration,
     )?;
 
     let finality_oracle = ensure_keypair(&continuity_dir, "finality-oracle-state.json")?;
@@ -586,7 +569,7 @@ fn main() -> Result<()> {
         parse_multisig_config(authority.pubkey())?;
     require_protocol_state(
         &client,
-        &emergency_multisig.pubkey(),
+        &emergency_multisig,
         &aeko_emergency_multisig_program::id(),
         "emergency-multisig",
         |data| {
@@ -670,7 +653,7 @@ AEKO_FINALITY_ORACLE_STATE={}\n",
         permission_registry.pubkey(),
         revocation_registry.pubkey(),
         subnet_registry.pubkey(),
-        emergency_multisig.pubkey(),
+        emergency_multisig,
         finality_oracle.pubkey(),
     );
     write_registry_file(&out_dir, &registry)?;
@@ -832,6 +815,88 @@ fn ensure_system_vault(
             ),
             &format!("create {label}"),
         ),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn ensure_emergency_multisig(
+    client: &RpcClient,
+    payer: &Keypair,
+    authority: &Keypair,
+    state_pubkey: &Pubkey,
+    signers: Vec<Pubkey>,
+    freeze_quorum: u8,
+    revoke_quorum: u8,
+    policy_quorum: u8,
+    current_slot: u64,
+    protect_existing_registry: bool,
+    allow_migration: bool,
+) -> Result<()> {
+    let expected_signers = signers.clone();
+    let verifier = |data: &[u8]| {
+        let state = MultisigConfig::deserialize_padded(data)
+            .map_err(|_| anyhow!("invalid emergency-multisig state"))?;
+        Ok(state.is_initialized
+            && state.upgrade_authority == authority.pubkey()
+            && state.signers == expected_signers
+            && state.freeze_quorum == freeze_quorum
+            && state.revoke_quorum == revoke_quorum
+            && state.policy_quorum == policy_quorum)
+    };
+
+    if existing_state_is_valid(
+        client,
+        state_pubkey,
+        &aeko_emergency_multisig_program::id(),
+        "emergency-multisig",
+        &verifier,
+    )? {
+        eprintln!("[emergency-multisig] canonical PDA state verified");
+        return Ok(());
+    }
+
+    if protect_existing_registry && !allow_migration {
+        return Err(anyhow!(
+            "[emergency-multisig] established registry does not contain canonical PDA {state_pubkey}; set AEKO_PROTOCOL_MIGRATE_EMERGENCY_MULTISIG_PDA=1 for the explicit one-time in-place migration"
+        ));
+    }
+    if protect_existing_registry && allow_migration {
+        eprintln!(
+            "[emergency-multisig] explicit migration enabled; replacing the legacy registry pointer with canonical PDA {state_pubkey}"
+        );
+    }
+
+    let init_ix = aeko_emergency_multisig_program::instruction::initialize_multisig(
+        &aeko_emergency_multisig_program::id(),
+        state_pubkey,
+        &authority.pubkey(),
+        &payer.pubkey(),
+        signers,
+        freeze_quorum,
+        revoke_quorum,
+        policy_quorum,
+        current_slot,
+    );
+    submit_instruction(
+        client,
+        payer,
+        &[payer, authority],
+        init_ix,
+        "initialize emergency-multisig PDA",
+    )?;
+
+    if existing_state_is_valid(
+        client,
+        state_pubkey,
+        &aeko_emergency_multisig_program::id(),
+        "emergency-multisig",
+        &verifier,
+    )? {
+        Ok(())
+    } else {
+        Err(anyhow!(
+            "[emergency-multisig] canonical PDA {state_pubkey} is missing after initialization"
+        ))
     }
 }
 

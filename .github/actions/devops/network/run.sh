@@ -21,6 +21,9 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
   cargo clippy --locked --all-targets --no-deps \
     -p aeko-social-staking-program \
     -p aeko-social-monetization-program \
+    -p aeko-emergency-multisig-program \
+    -p aeko-subnet-registry-program \
+    -p aeko-revocation-registry-program \
     -- -D warnings
 
   cargo test --locked \
@@ -30,7 +33,10 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
     -p aeko-social-bootstrap \
     -p aeko-protocol-bootstrap \
     -p aeko-social-staking-program \
-    -p aeko-social-monetization-program
+    -p aeko-social-monetization-program \
+    -p aeko-emergency-multisig-program \
+    -p aeko-subnet-registry-program \
+    -p aeko-revocation-registry-program
 
   # Consensus-upgrade regressions must execute, not merely compile through the
   # validator dependency graph. Keep the filter narrow to the AEKO protocol

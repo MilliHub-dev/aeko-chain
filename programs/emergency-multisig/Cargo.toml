@@ -14,7 +14,9 @@ borsh = { workspace = true }
 aeko-permission-types = { workspace = true }
 aeko-program = { workspace = true }
 aeko-program-runtime = { workspace = true }
+aeko-revocation-registry-program = { workspace = true }
 aeko-sdk = { workspace = true }
+aeko-subnet-registry-program = { workspace = true }
 
 [lib]
 crate-type = ["lib"]

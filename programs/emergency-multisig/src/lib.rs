@@ -8,13 +8,12 @@ pub mod state;
 use aeko_program_runtime::declare_process_instruction;
 use aeko_sdk::pubkey::Pubkey;
 
+pub use aeko_permission_types::EMERGENCY_MULTISIG_PROGRAM_ID_BYTES;
+
 pub const DEFAULT_COMPUTE_UNITS: u64 = 600;
 
-/// Unique program ID for the emergency-multisig.
-pub const EMERGENCY_MULTISIG_PROGRAM_ID_BYTES: [u8; 32] = [20u8; 32];
-
 pub fn id() -> Pubkey {
-    Pubkey::new_from_array(EMERGENCY_MULTISIG_PROGRAM_ID_BYTES)
+    aeko_permission_types::emergency_multisig_program_id()
 }
 
 pub fn check_id(program_id: &Pubkey) -> bool {

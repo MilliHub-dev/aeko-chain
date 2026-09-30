@@ -23,6 +23,7 @@ pub enum EmergencyMultisigError {
     // General
     InvalidAccountData = 11,
     InvalidInstructionData = 12,
+    UnsupportedAction = 13,
 }
 
 impl From<EmergencyMultisigError> for ProgramError {

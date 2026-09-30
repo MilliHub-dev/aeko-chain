@@ -44,6 +44,18 @@ pub enum SubnetRegistryInstruction {
     ///   1. [signer]   owner or upgrade_authority
     UnfreezeSubnet { subnet_id: [u8; 32] },
 
+    /// Emergency freeze routed only through emergency-multisig CPI.
+    ///
+    /// Accounts:
+    ///   0. [writable] subnet_record PDA
+    EmergencyFreezeSubnet { subnet_id: [u8; 32], reason_code: u16 },
+
+    /// Emergency unfreeze routed only through emergency-multisig CPI.
+    ///
+    /// Accounts:
+    ///   0. [writable] subnet_record PDA
+    EmergencyUnfreezeSubnet { subnet_id: [u8; 32] },
+
     // ── Membership management ─────────────────────────────────────────────────
     /// Add a validator / wallet as a subnet member.
     ///
@@ -141,6 +153,34 @@ pub fn unfreeze_subnet(
             AccountMeta::new(*subnet_record_pda, false),
             AccountMeta::new_readonly(*authority, true),
         ],
+    )
+}
+
+pub fn emergency_freeze_subnet(
+    program_id: &Pubkey,
+    subnet_record_pda: &Pubkey,
+    subnet_id: [u8; 32],
+    reason_code: u16,
+) -> Instruction {
+    Instruction::new_with_borsh(
+        *program_id,
+        &SubnetRegistryInstruction::EmergencyFreezeSubnet {
+            subnet_id,
+            reason_code,
+        },
+        vec![AccountMeta::new(*subnet_record_pda, false)],
+    )
+}
+
+pub fn emergency_unfreeze_subnet(
+    program_id: &Pubkey,
+    subnet_record_pda: &Pubkey,
+    subnet_id: [u8; 32],
+) -> Instruction {
+    Instruction::new_with_borsh(
+        *program_id,
+        &SubnetRegistryInstruction::EmergencyUnfreezeSubnet { subnet_id },
+        vec![AccountMeta::new(*subnet_record_pda, false)],
     )
 }
 

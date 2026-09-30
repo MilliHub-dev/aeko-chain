@@ -3,6 +3,7 @@ use {
     aeko_sdk::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
+        system_program,
     },
     borsh::{BorshDeserialize, BorshSerialize},
 };
@@ -16,6 +17,8 @@ pub enum EmergencyMultisigInstruction {
     /// Accounts:
     ///   0. [writable] multisig_config PDA  `[b"multisig"]`
     ///   1. [signer]   upgrade_authority
+    ///   2. [writable, signer] payer
+    ///   3. [] system program
     InitializeMultisig {
         signers: Vec<Pubkey>,
         freeze_quorum: u8,
@@ -31,6 +34,8 @@ pub enum EmergencyMultisigInstruction {
     ///   0. [writable] proposal PDA  `[b"proposal", proposal_id]`
     ///   1. []         multisig_config PDA
     ///   2. [signer]   proposer (must be a multisig signer)
+    ///   3. [writable, signer] payer
+    ///   4. [] system program
     ProposeAction {
         proposal_id: [u8; 32],
         action: ProposedAction,
@@ -45,6 +50,8 @@ pub enum EmergencyMultisigInstruction {
     ///   1. [writable] vote PDA  `[b"vote", proposal_id, voter]`
     ///   2. []         multisig_config PDA
     ///   3. [signer]   voter (must be a multisig signer)
+    ///   4. [writable, signer] payer
+    ///   5. [] system program
     ApproveAction { proposal_id: [u8; 32], current_slot: u64 },
 
     /// Execute a proposal once quorum is reached.
@@ -58,11 +65,12 @@ pub enum EmergencyMultisigInstruction {
     ///   2. [signer]   executor (any multisig signer)
     ///
     /// Additional accounts for FreezeSubnet / UnfreezeSubnet:
-    ///   3. [writable] subnet_record PDA  (owner = subnet-registry)
+    ///   3. [writable] subnet_record PDA
+    ///   4. []         subnet-registry native program
     ///
     /// Additional accounts for EmergencyRevokeKey:
-    ///   3. [writable] key_record PDA        (owner = revocation-registry)
-    ///   4. []         rev_registry_config   (owner = revocation-registry)
+    ///   3. [writable] key_record PDA
+    ///   4. []         revocation-registry native program
     ExecuteAction { proposal_id: [u8; 32], current_slot: u64 },
 
     /// Cancel a proposal (proposer or upgrade authority only).
@@ -80,6 +88,7 @@ pub fn initialize_multisig(
     program_id: &Pubkey,
     multisig_config_pda: &Pubkey,
     upgrade_authority: &Pubkey,
+    payer: &Pubkey,
     signers: Vec<Pubkey>,
     freeze_quorum: u8,
     revoke_quorum: u8,
@@ -98,6 +107,8 @@ pub fn initialize_multisig(
         vec![
             AccountMeta::new(*multisig_config_pda, false),
             AccountMeta::new_readonly(*upgrade_authority, true),
+            AccountMeta::new(*payer, true),
+            AccountMeta::new_readonly(system_program::id(), false),
         ],
     )
 }
@@ -107,6 +118,7 @@ pub fn propose_action(
     proposal_pda: &Pubkey,
     multisig_config_pda: &Pubkey,
     proposer: &Pubkey,
+    payer: &Pubkey,
     proposal_id: [u8; 32],
     action: ProposedAction,
     ttl_slots: u64,
@@ -124,6 +136,8 @@ pub fn propose_action(
             AccountMeta::new(*proposal_pda, false),
             AccountMeta::new_readonly(*multisig_config_pda, false),
             AccountMeta::new_readonly(*proposer, true),
+            AccountMeta::new(*payer, true),
+            AccountMeta::new_readonly(system_program::id(), false),
         ],
     )
 }
@@ -134,6 +148,7 @@ pub fn approve_action(
     vote_pda: &Pubkey,
     multisig_config_pda: &Pubkey,
     voter: &Pubkey,
+    payer: &Pubkey,
     proposal_id: [u8; 32],
     current_slot: u64,
 ) -> Instruction {
@@ -145,6 +160,8 @@ pub fn approve_action(
             AccountMeta::new(*vote_pda, false),
             AccountMeta::new_readonly(*multisig_config_pda, false),
             AccountMeta::new_readonly(*voter, true),
+            AccountMeta::new(*payer, true),
+            AccountMeta::new_readonly(system_program::id(), false),
         ],
     )
 }

@@ -7,7 +7,9 @@ use {
             KeyRecord, RevRegistryConfig, RotationApproval, RotationIntent,
         },
     },
-    aeko_permission_types::{KeyAlgorithm, KeyState, KeyType},
+    aeko_permission_types::{
+        emergency_multisig_program_id, KeyAlgorithm, KeyState, KeyType,
+    },
     aeko_program_runtime::invoke_context::InvokeContext,
     aeko_sdk::{instruction::InstructionError, pubkey::Pubkey},
     borsh::{to_vec, BorshDeserialize},
@@ -67,9 +69,17 @@ impl Processor {
             RevocationRegistryInstruction::RevokeKey { key_id } => {
                 Self::process_revoke_key(invoke_context, key_id)
             }
-            RevocationRegistryInstruction::MarkCompromised { key_id, reason_code } => {
-                Self::process_mark_compromised(invoke_context, key_id, reason_code)
-            }
+            RevocationRegistryInstruction::MarkCompromised { .. } => Err(
+                InstructionError::Custom(RevocationRegistryError::Unauthorized as u32),
+            ),
+            RevocationRegistryInstruction::EmergencyMarkCompromised {
+                key_id,
+                reason_code,
+            } => Self::process_emergency_mark_compromised(
+                invoke_context,
+                key_id,
+                reason_code,
+            ),
             RevocationRegistryInstruction::IsRevoked { key_id } => {
                 Self::process_is_revoked(invoke_context, key_id)
             }
@@ -94,6 +104,23 @@ impl Processor {
         }
         account_data.fill(0);
         account_data[..serialized.len()].copy_from_slice(serialized);
+        Ok(())
+    }
+
+    fn ensure_emergency_multisig_caller(
+        invoke_context: &InvokeContext,
+    ) -> Result<(), InstructionError> {
+        let transaction_context = &invoke_context.transaction_context;
+        let stack_height = transaction_context.get_instruction_context_stack_height();
+        if stack_height < 2 {
+            return Err(InstructionError::IncorrectAuthority);
+        }
+        let caller_context =
+            transaction_context.get_instruction_context_at_nesting_level(stack_height - 2)?;
+        let caller_program = caller_context.get_last_program_key(transaction_context)?;
+        if *caller_program != emergency_multisig_program_id() {
+            return Err(InstructionError::IncorrectAuthority);
+        }
         Ok(())
     }
 
@@ -417,34 +444,17 @@ impl Processor {
         Self::write_account(key_account.get_data_mut()?, &serialized)
     }
 
-    // ── MarkCompromised ───────────────────────────────────────────────────────
+    // ── EmergencyMarkCompromised ──────────────────────────────────────────────
 
-    fn process_mark_compromised(
+    fn process_emergency_mark_compromised(
         invoke_context: &mut InvokeContext,
         key_id: [u8; 32],
         _reason_code: u16,
     ) -> Result<(), InstructionError> {
+        Self::ensure_emergency_multisig_caller(invoke_context)?;
         let transaction_context = &invoke_context.transaction_context;
         let instruction_context = transaction_context.get_current_instruction_context()?;
-        instruction_context.check_number_of_instruction_accounts(3)?;
-
-        // Verify upgrade authority.
-        let config = {
-            let config_acc =
-                instruction_context.try_borrow_instruction_account(transaction_context, 1)?;
-            RevRegistryConfig::deserialize_padded(config_acc.get_data())
-                .map_err(|_| InstructionError::InvalidAccountData)?
-        };
-        config.ensure_initialized().map_err(Self::map_err)?;
-
-        {
-            let signer =
-                instruction_context.try_borrow_instruction_account(transaction_context, 2)?;
-            if !signer.is_signer() {
-                return Err(InstructionError::MissingRequiredSignature);
-            }
-            config.ensure_upgrade_authority(signer.get_key()).map_err(Self::map_err)?;
-        }
+        instruction_context.check_number_of_instruction_accounts(1)?;
 
         let mut key_account =
             instruction_context.try_borrow_instruction_account(transaction_context, 0)?;

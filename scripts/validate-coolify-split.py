@@ -215,6 +215,11 @@ def main() -> int:
                 in block,
                 "Protocol bootstrap must receive the same single active network identity",
             )
+            require(
+                "AEKO_PROTOCOL_MIGRATE_EMERGENCY_MULTISIG_PDA: ${AEKO_PROTOCOL_MIGRATE_EMERGENCY_MULTISIG_PDA:-0}"
+                in block,
+                "Protocol bootstrap must expose the explicit legacy multisig migration gate",
+            )
         require(
             "key-bootstrap:" in block and "condition: service_completed_successfully" in block,
             f"{name} bootstrap must wait for key preflight",

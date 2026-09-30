@@ -75,14 +75,16 @@ pub enum RevocationRegistryInstruction {
     ///   1. [signer]   key owner
     RevokeKey { key_id: [u8; 32] },
 
-    /// Emergency revocation (`Active | PendingRotation → Compromised`).
-    /// Bypasses quorum; callable only by the registry upgrade authority.
+    /// Legacy direct emergency-revocation ABI. Execution is disabled so an
+    /// arbitrary caller-supplied registry config cannot become an authority
+    /// oracle. Use `EmergencyMarkCompromised` through emergency-multisig.
+    MarkCompromised { key_id: [u8; 32], reason_code: u16 },
+
+    /// Emergency revocation authenticated by the immediate CPI caller.
     ///
     /// Accounts:
     ///   0. [writable] key_record PDA
-    ///   1. []         registry_config PDA
-    ///   2. [signer]   upgrade_authority
-    MarkCompromised { key_id: [u8; 32], reason_code: u16 },
+    EmergencyMarkCompromised { key_id: [u8; 32], reason_code: u16 },
 
     // ── Query (read-only, CPI-callable) ───────────────────────────────────────
     /// Returns true (via return data `[1]`) if the key is not in Active state.
@@ -239,6 +241,22 @@ pub fn mark_compromised(
             AccountMeta::new_readonly(*registry_config_pda, false),
             AccountMeta::new_readonly(*upgrade_authority, true),
         ],
+    )
+}
+
+pub fn emergency_mark_compromised(
+    program_id: &Pubkey,
+    key_record_pda: &Pubkey,
+    key_id: [u8; 32],
+    reason_code: u16,
+) -> Instruction {
+    Instruction::new_with_borsh(
+        *program_id,
+        &RevocationRegistryInstruction::EmergencyMarkCompromised {
+            key_id,
+            reason_code,
+        },
+        vec![AccountMeta::new(*key_record_pda, false)],
     )
 }
 

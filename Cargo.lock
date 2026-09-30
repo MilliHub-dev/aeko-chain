@@ -881,7 +881,9 @@ dependencies = [
  "aeko-permission-types",
  "aeko-program",
  "aeko-program-runtime",
+ "aeko-revocation-registry-program",
  "aeko-sdk",
+ "aeko-subnet-registry-program",
  "borsh 1.2.1",
 ]
 

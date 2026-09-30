@@ -17,6 +17,26 @@ pub const MULTISIG_CONFIG_SEED: &[u8] = b"multisig";
 pub const PROPOSAL_SEED: &[u8] = b"proposal";
 pub const VOTE_SEED: &[u8] = b"vote";
 
+pub const MULTISIG_CONFIG_SPACE: u64 = 16 * 1024;
+pub const PROPOSAL_SPACE: u64 = 4 * 1024;
+pub const VOTE_SPACE: u64 = 512;
+
+pub fn multisig_config_address() -> Pubkey {
+    Pubkey::find_program_address(&[MULTISIG_CONFIG_SEED], &crate::id()).0
+}
+
+pub fn proposal_address(proposal_id: &[u8; 32]) -> Pubkey {
+    Pubkey::find_program_address(&[PROPOSAL_SEED, proposal_id.as_ref()], &crate::id()).0
+}
+
+pub fn vote_address(proposal_id: &[u8; 32], voter: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[VOTE_SEED, proposal_id.as_ref(), voter.as_ref()],
+        &crate::id(),
+    )
+    .0
+}
+
 /// Maximum number of signers in the multisig.
 pub const MAX_SIGNERS: usize = 11;
 
@@ -210,6 +230,23 @@ mod tests {
             created_at_slot: 1,
             expires_at_slot: expires_at,
         }
+    }
+
+    #[test]
+    fn canonical_addresses_are_deterministic_and_scoped() {
+        let proposal_id = [7u8; 32];
+        let voter = Pubkey::new_unique();
+
+        assert_eq!(multisig_config_address(), multisig_config_address());
+        assert_eq!(proposal_address(&proposal_id), proposal_address(&proposal_id));
+        assert_eq!(
+            vote_address(&proposal_id, &voter),
+            vote_address(&proposal_id, &voter)
+        );
+        assert_ne!(
+            proposal_address(&proposal_id),
+            vote_address(&proposal_id, &voter)
+        );
     }
 
     #[test]
