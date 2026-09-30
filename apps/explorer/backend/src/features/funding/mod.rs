@@ -1305,7 +1305,12 @@ async fn submit_and_observe_airdrop(
         .repository
         .set_funding_airdrop_signature(&airdrop.id, &signature)
         .await?;
-    observe_airdrop(state, submitted).await
+    tracing::info!(
+        airdrop_id = %airdrop.id,
+        signature = %signature,
+        "developer airdrop returned a durable signature; confirmation continues in the reconciler"
+    );
+    Ok(submitted)
 }
 
 async fn observe_airdrop(
