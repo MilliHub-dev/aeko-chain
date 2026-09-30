@@ -164,7 +164,7 @@ wait_rpc "voting validator RPC" "http://127.0.0.1:${AEKO_RPC_HOST_PORT}"
 wait_rpc "RPC replica" "http://127.0.0.1:${AEKO_RPC_REPLICA_HOST_PORT}"
 
 for service in social-bootstrap protocol-bootstrap; do
-  cid="$(compose ps -q "$service")"
+  cid="$(compose ps -a -q "$service")"
   test -n "$cid" || fail "$service container was not created"
   code="$(docker wait "$cid")"
   test "$code" = "0" || fail "$service exited with code $code"
