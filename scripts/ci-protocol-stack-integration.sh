@@ -66,6 +66,7 @@ mkdir -p "$LEDGER_DIR" "$STATE_DIR" "$CONTINUITY_DIR" "$SOCIAL_STATE_DIR" "$REGI
 # validation on the shared runner makes these incremental in normal CI.
 cargo build --locked -p aeko-validator --bin aeko-test-validator --bin aeko-validator
 cargo build --locked -p aeko-keygen --bin aeko-keygen
+cargo build --locked -p aeko-gossip --bin aeko-gossip
 cargo build --locked -p aeko-social-bootstrap --bin aeko-social-bootstrap
 cargo build --locked -p aeko-protocol-bootstrap --bin aeko-protocol-bootstrap
 cargo build --locked -p aeko-explorer-backend --bin aeko-explorer-backend
@@ -76,6 +77,7 @@ start_validator() {
     target/debug/aeko-test-validator
     --ledger "$LEDGER_DIR"
     --rpc-port 18899
+    --gossip-port 18001
     --faucet-aeko 1000000
     --quiet
   )
@@ -146,6 +148,12 @@ wait_for_rpc() {
 # without placing production feature-authority private keys in CI.
 start_validator 1
 wait_for_rpc
+
+target/debug/aeko-gossip --allow-private-addr spy \
+  --entrypoint 127.0.0.1:18001 \
+  --num-nodes 1 \
+  --timeout 15
+echo "[ok] validator gossip is discoverable through the real gossip protocol"
 
 target/debug/aeko-keygen new \
   --no-bip39-passphrase \

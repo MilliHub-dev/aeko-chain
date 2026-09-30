@@ -57,18 +57,19 @@ RUN --mount=type=cache,id=aeko-sccache,target=/root/.cache/sccache \
     cp target/release/aeko-social-bootstrap /binaries/ && \
     cp target/release/aeko-protocol-bootstrap /binaries/
 
-# The operator CLI is an app under apps/cli. Keep its Docker image isolated so
-# a CLI-only change does not build validator or other network executables.
+# Operator tools include the CLI, keygen, and the gossip protocol probe. This
+# target still avoids building the validator executable itself.
 FROM rust-build-base AS tools-builder
 
 RUN --mount=type=cache,id=aeko-sccache,target=/root/.cache/sccache \
     --mount=type=cache,id=aeko-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=aeko-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=aeko-target,target=/aeko/target \
-    cargo build --release --bin aeko --bin aeko-keygen && \
+    cargo build --release --bin aeko --bin aeko-keygen --bin aeko-gossip && \
     mkdir -p /binaries && \
     cp target/release/aeko /binaries/ && \
-    cp target/release/aeko-keygen /binaries/
+    cp target/release/aeko-keygen /binaries/ && \
+    cp target/release/aeko-gossip /binaries/
 
 # Explorer API has an isolated Rust build stage so selecting explorer-api does
 # not build the blockchain/network executables above.
@@ -115,6 +116,7 @@ ENTRYPOINT ["aeko-protocol-bootstrap"]
 FROM rust-runtime AS tools
 COPY --from=tools-builder /binaries/aeko /usr/local/bin/aeko
 COPY --from=tools-builder /binaries/aeko-keygen /usr/local/bin/aeko-keygen
+COPY --from=tools-builder /binaries/aeko-gossip /usr/local/bin/aeko-gossip
 COPY docker/key-preflight.sh /usr/local/bin/aeko-key-preflight
 RUN chmod 0755 /usr/local/bin/aeko-key-preflight
 CMD ["aeko", "--help"]
