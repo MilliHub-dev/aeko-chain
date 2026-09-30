@@ -251,8 +251,13 @@ def main() -> int:
     validator = loaded["validator"]
     require("AEKO_NETWORK: ${AEKO_NETWORK:?" in validator, "Validator must declare one active chain environment")
     require(
-        "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:?Set a private or DNS-only Faucet host:9900}" in validator,
-        "Validator must require the private raw Faucet endpoint",
+        "AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-}" in validator
+        and 'AEKO_REQUIRE_REMOTE_FAUCET: "1"' in validator,
+        "Validator must pass the private raw Faucet endpoint and fail closed when it is absent",
+    )
+    require(
+        "AEKO_INTERNAL_FAUCET_ADDRESS:?Set " not in validator,
+        "Validator must not use message-bearing Coolify interpolation for the Faucet endpoint",
     )
     require("source: /data/aeko/validator-ledger" in validator, "Validator ledger must use stable host storage")
     require("source: /data/aeko/keys" in validator, "Validator must mount persistent identities")

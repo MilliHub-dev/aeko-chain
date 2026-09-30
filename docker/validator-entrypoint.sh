@@ -9,6 +9,7 @@ FAUCET_FILE=${AEKO_FAUCET_FILE:-/keys/faucet.json}
 NODE_ROLE=${AEKO_NODE_ROLE:-validator}
 RESET_LEDGER=${AEKO_RESET_LEDGER:-0}
 REQUIRE_EXISTING_LEDGER=${AEKO_REQUIRE_EXISTING_LEDGER:-0}
+REQUIRE_REMOTE_FAUCET=${AEKO_REQUIRE_REMOTE_FAUCET:-0}
 
 require_file() {
   local path=$1
@@ -19,7 +20,7 @@ require_file() {
   fi
 }
 
-for flag_name in RESET_LEDGER REQUIRE_EXISTING_LEDGER; do
+for flag_name in RESET_LEDGER REQUIRE_EXISTING_LEDGER REQUIRE_REMOTE_FAUCET; do
   flag_value=${!flag_name}
   case "$flag_value" in
     0|1) ;;
@@ -29,6 +30,26 @@ for flag_name in RESET_LEDGER REQUIRE_EXISTING_LEDGER; do
       ;;
   esac
 done
+
+FAUCET_ADDRESS="${AEKO_FAUCET_ADDRESS:-}"
+if [ -z "$FAUCET_ADDRESS" ]; then
+  if [ "$REQUIRE_REMOTE_FAUCET" = "1" ]; then
+    echo "error: AEKO_FAUCET_ADDRESS is required for this Validator deployment" >&2
+    exit 64
+  fi
+  FAUCET_ADDRESS="faucet:9900"
+fi
+
+case "$FAUCET_ADDRESS" in
+  http://*|https://*|ws://*|wss://*)
+    echo "error: AEKO_FAUCET_ADDRESS must be raw host:port, not a URL: $FAUCET_ADDRESS" >&2
+    exit 64
+    ;;
+esac
+if [[ "$FAUCET_ADDRESS" =~ [[:space:]] ]] || [[ "$FAUCET_ADDRESS" != *:* ]]; then
+  echo "error: AEKO_FAUCET_ADDRESS must be a raw host:port without whitespace: $FAUCET_ADDRESS" >&2
+  exit 64
+fi
 
 mkdir -p "$LEDGER_PATH"
 
@@ -102,7 +123,7 @@ if [ "$#" -eq 0 ]; then
         --rpc-port "${AEKO_RPC_PORT:-8899}" \
         --rpc-bind-address "${AEKO_RPC_BIND_ADDRESS:-0.0.0.0}" \
         --gossip-port "${AEKO_GOSSIP_PORT:-8001}" \
-        --rpc-faucet-address "${AEKO_FAUCET_ADDRESS:-faucet:9900}" \
+        --rpc-faucet-address "$FAUCET_ADDRESS" \
         --full-rpc-api \
         --enable-rpc-transaction-history \
         --enable-extended-tx-metadata-storage \
@@ -125,7 +146,7 @@ if [ "$#" -eq 0 ]; then
         --rpc-bind-address "${AEKO_RPC_BIND_ADDRESS:-0.0.0.0}" \
         --gossip-port "${AEKO_GOSSIP_PORT:-8001}" \
         --entrypoint "$AEKO_ENTRYPOINT" \
-        --rpc-faucet-address "${AEKO_FAUCET_ADDRESS:-faucet:9900}" \
+        --rpc-faucet-address "$FAUCET_ADDRESS" \
         --full-rpc-api \
         --enable-rpc-transaction-history \
         --enable-extended-tx-metadata-storage \

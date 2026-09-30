@@ -47,6 +47,27 @@ test ! -e "$TMP_DIR/established-genesis.log"
 grep -Fq -- "--rpc-faucet-address 10.20.30.40:9900" "$TMP_DIR/established-validator.args"
 echo "[ok] established validator does not require genesis-only stake/faucet keys"
 
+if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/missing-remote-faucet.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_REQUIRE_REMOTE_FAUCET=1 bash "$ENTRYPOINT" >"$TMP_DIR/missing-remote-faucet.out" 2>&1; then
+  echo "split validator unexpectedly accepted a missing Faucet address" >&2
+  exit 1
+fi
+grep -Fq "AEKO_FAUCET_ADDRESS is required for this Validator deployment" "$TMP_DIR/missing-remote-faucet.out"
+echo "[ok] split validator fails closed when the remote Faucet address is missing"
+
+if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/http-faucet.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_REQUIRE_REMOTE_FAUCET=1 AEKO_FAUCET_ADDRESS="https://faucet.example.invalid:9900" bash "$ENTRYPOINT" >"$TMP_DIR/http-faucet.out" 2>&1; then
+  echo "split validator unexpectedly accepted an HTTP Faucet URL" >&2
+  exit 1
+fi
+grep -Fq "must be raw host:port, not a URL" "$TMP_DIR/http-faucet.out"
+echo "[ok] split validator rejects HTTP/WAF Faucet routing"
+
+if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/prompt-faucet.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_REQUIRE_REMOTE_FAUCET=1 AEKO_FAUCET_ADDRESS="Set a private or DNS-only Faucet host:9900" bash "$ENTRYPOINT" >"$TMP_DIR/prompt-faucet.out" 2>&1; then
+  echo "split validator unexpectedly accepted deployment prompt text as Faucet address" >&2
+  exit 1
+fi
+grep -Fq "must be a raw host:port without whitespace" "$TMP_DIR/prompt-faucet.out"
+echo "[ok] split validator rejects literal deployment prompt text as Faucet address"
+
 FRESH_LEDGER="$TMP_DIR/fresh-ledger"
 if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/fresh-validator.args"   AEKO_TEST_GENESIS_LOG="$TMP_DIR/fresh-genesis.log"   PATH="$FAKE_BIN:$PATH"   AEKO_LEDGER_PATH="$FRESH_LEDGER"   AEKO_IDENTITY_FILE="$KEYS/identity.json"   AEKO_VOTE_FILE="$KEYS/vote.json"   AEKO_STAKE_FILE="$KEYS/missing-stake.json"   AEKO_FAUCET_FILE="$KEYS/missing-faucet.json"   AEKO_BOOTSTRAP=1   AEKO_REQUIRE_EXISTING_LEDGER=0     bash "$ENTRYPOINT"; then
   echo "fresh genesis unexpectedly accepted missing stake/faucet keypairs" >&2

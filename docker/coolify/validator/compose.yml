@@ -21,7 +21,8 @@ services:
       AEKO_FAUCET_FILE: /keys/faucet-keypair.json
       AEKO_RESET_LEDGER: ${AEKO_RESET_LEDGER:-0}
       AEKO_REQUIRE_EXISTING_LEDGER: ${AEKO_REQUIRE_EXISTING_LEDGER:-1}
-      AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:?Set a private or DNS-only Faucet host:9900}
+      AEKO_FAUCET_ADDRESS: ${AEKO_INTERNAL_FAUCET_ADDRESS:-}
+      AEKO_REQUIRE_REMOTE_FAUCET: "1"
       # Raw TCP 9900 must resolve directly to the Faucet; do not route it
       # through a normal HTTP/TLS Cloudflare proxy.
       # requestGrant is authorization-gated. requestAirdrop is the instant
