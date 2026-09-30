@@ -185,11 +185,14 @@ import urllib.request
 validator = f"http://127.0.0.1:{os.environ['AEKO_RPC_HOST_PORT']}"
 replica = f"http://127.0.0.1:{os.environ['AEKO_RPC_REPLICA_HOST_PORT']}"
 
-def rpc(url, method, params=None):
+def rpc_payload(url, method, params=None):
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}).encode()
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=15) as res:
-        payload = json.load(res)
+        return json.load(res)
+
+def rpc(url, method, params=None):
+    payload = rpc_payload(url, method, params)
     if payload.get("error"):
         raise RuntimeError(f"{method} on {url}: {payload['error']}")
     return payload["result"]
@@ -212,6 +215,16 @@ slot_two = int(rpc(validator, "getSlot", [{"commitment": "confirmed"}]))
 if slot_two < slot_one:
     raise RuntimeError(f"slot regressed: {slot_one} -> {slot_two}")
 print(f"[ok] validator and RPC replica share genesis {genesis}; slot {slot_one}->{slot_two}")
+
+recipient = os.environ["FUNDING_SMOKE_ADDRESS"]
+for label, url in (("voting validator", validator), ("RPC replica", replica)):
+    payload = rpc_payload(url, "requestFunding", [recipient, 1])
+    error = payload.get("error") or {}
+    if error.get("code") != -32600:
+        raise RuntimeError(
+            f"{label} unexpectedly accepted unauthenticated requestFunding: {payload}"
+        )
+    print(f"[ok] {label} protects requestFunding with the settlement credential")
 PY
 
 AEKO_NETWORK=testnet \
