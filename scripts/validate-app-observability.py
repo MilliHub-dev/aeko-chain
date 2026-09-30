@@ -65,11 +65,12 @@ def main() -> int:
         "AEKO_LOG_FORMAT",
         "CLIENT_TELEMETRY_PATH",
         "X-Request-Id",
-        "proxy_request_completed",
         "http_request_completed",
         "process_uncaught_exception",
         "const server = createServer",
-        "function readProxyBody(req, maxBytes = MAX_PROXY_BODY_BYTES)",
+        "LEGACY_EXPLORER_PROXY_PREFIX",
+        "SCAN_EXPLORER_PROXY_REMOVED",
+        "function readRequestBody(req, maxBytes)",
         "if (size > maxBytes)",
     ):
         require(expected in scan_server, f"Scan production server logging missing {expected}")
