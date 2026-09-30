@@ -406,11 +406,6 @@ pub enum CliCommand {
         pubkey: Option<Pubkey>,
         lamports: u64,
     },
-    Grant {
-        pubkey: Option<Pubkey>,
-        lamports: u64,
-        funding_authorization: Option<String>,
-    },
     Funding {
         pubkey: Option<Pubkey>,
         lamports: u64,
@@ -817,7 +812,6 @@ pub fn parse_command(
             signers: vec![default_signer.signer_from_path(matches, wallet_manager)?],
         }),
         ("airdrop", Some(matches)) => parse_airdrop(matches, default_signer, wallet_manager),
-        ("grant", Some(matches)) => parse_grant(matches, default_signer, wallet_manager),
         ("funding", Some(matches)) => parse_funding(matches, default_signer, wallet_manager),
         ("balance", Some(matches)) => parse_balance(matches, default_signer, wallet_manager),
         ("confirm", Some(matches)) => match matches.value_of("signature").unwrap().parse() {
@@ -1608,21 +1602,8 @@ pub fn process_command(config: &CliConfig) -> ProcessResult {
         CliCommand::Airdrop { pubkey, lamports } => {
             process_airdrop(&rpc_client, config, pubkey, *lamports)
         }
-        // Direct faucet grant via RPC (like airdrop). Requires funding
-        // authorization when the validator enforces it.
-        CliCommand::Grant {
-            pubkey,
-            lamports,
-            funding_authorization,
-        } => process_grant(
-            &rpc_client,
-            config,
-            pubkey,
-            *lamports,
-            funding_authorization,
-        ),
-        // Approval-gated funding via the Explorer API. Waits for admin
-        // approval unless --no-wait; admin direct grants bypass approval.
+        // Funding via the Explorer API. Public requests wait for admin
+        // approval unless --no-wait; authenticated Admin funding sends directly.
         CliCommand::Funding {
             pubkey,
             lamports,
@@ -1721,32 +1702,6 @@ pub fn request_and_confirm_airdrop(
     let recent_blockhash = rpc_client.get_latest_blockhash()?;
     let signature =
         rpc_client.request_airdrop_with_blockhash(to_pubkey, lamports, &recent_blockhash)?;
-    rpc_client.confirm_transaction_with_spinner(
-        &signature,
-        &recent_blockhash,
-        config.commitment,
-    )?;
-    Ok(signature)
-}
-
-pub fn request_and_confirm_grant(
-    rpc_client: &RpcClient,
-    config: &CliConfig,
-    to_pubkey: &Pubkey,
-    lamports: u64,
-    funding_authorization: Option<String>,
-) -> ClientResult<Signature> {
-    use aeko_rpc_client_api::config::RpcRequestGrantConfig;
-    let recent_blockhash = rpc_client.get_latest_blockhash()?;
-    let signature = rpc_client.request_grant_with_config(
-        to_pubkey,
-        lamports,
-        RpcRequestGrantConfig {
-            commitment: Some(config.commitment),
-            recent_blockhash: Some(recent_blockhash.to_string()),
-            funding_authorization,
-        },
-    )?;
     rpc_client.confirm_transaction_with_spinner(
         &signature,
         &recent_blockhash,
@@ -1943,23 +1898,6 @@ mod tests {
                 command: CliCommand::Airdrop {
                     pubkey: Some(pubkey),
                     lamports: 50_000_000_000,
-                },
-                signers: vec![],
-            }
-        );
-
-        // Test Grant Subcommand (direct RPC, like airdrop)
-        let test_grant =
-            test_commands
-                .clone()
-                .get_matches_from(vec!["test", "grant", "5", &pubkey_string]);
-        assert_eq!(
-            parse_command(&test_grant, &default_signer, &mut None).unwrap(),
-            CliCommandInfo {
-                command: CliCommand::Grant {
-                    pubkey: Some(pubkey),
-                    lamports: 5_000_000_000,
-                    funding_authorization: None,
                 },
                 signers: vec![],
             }
