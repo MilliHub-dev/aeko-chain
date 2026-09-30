@@ -1,40 +1,21 @@
-import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Activity, ArrowLeft, CheckCircle2, Wallet, XCircle } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
-import { fetchTransactionDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { fetchTransactionDetails } from '../utils/explorerApi';
+import { useExplorerResource } from '../utils/explorerQueries';
 
 export default function TransactionDetails() {
   const { hash } = useParams();
   const { network } = useNetwork();
-  const requestKey = `${network}:${hash}`;
-  const [state, setState] = useState({ requestKey: '', error: '', data: null });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetchTransactionDetails(network, hash)
-      .then((data) => {
-        if (!cancelled) {
-          setState({ requestKey, error: '', data });
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setState({ requestKey, error: error.message, data: null });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [network, hash, requestKey]);
-
-  const unavailable = !getExplorerAvailability(network);
-  const requestCurrent = state.requestKey === requestKey;
-  const loading = !requestCurrent;
-  const tx = requestCurrent ? state.data : null;
+  const { unavailable, state } = useExplorerResource(
+    network,
+    'transaction',
+    hash,
+    () => fetchTransactionDetails(network, hash),
+  );
+  const loading = state.loading;
+  const tx = state.data;
 
   return (
     <div className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -53,7 +34,7 @@ export default function TransactionDetails() {
 
       {!unavailable && loading ? <div className="text-gray-400">Loading transaction...</div> : null}
 
-      {!unavailable && requestCurrent && state.error ? (
+      {!unavailable && state.error ? (
         <div className="bg-red-500/10 border border-red-500/20 text-red-200 rounded-2xl p-6">
           {state.error}
         </div>
