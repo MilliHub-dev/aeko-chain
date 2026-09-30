@@ -409,6 +409,29 @@ test('Explorer dashboard server state is Query-owned and URL-driven', async () =
 });
 
 
+test('Explorer detail routes use the shared Query resource contract', async () => {
+  const helper = await source('utils/explorerQueries.js');
+  assert.match(helper, /useQuery/);
+  assert.match(helper, /queryKeys\.explorer\.resource/);
+
+  for (const path of [
+    'pages/BlockDetails.jsx',
+    'pages/TransactionDetails.jsx',
+    'pages/ExplorerAccount.jsx',
+    'pages/ExplorerCreator.jsx',
+    'pages/ExplorerToken.jsx',
+    'pages/ExplorerCollection.jsx',
+    'pages/ExplorerPost.jsx',
+    'pages/ExplorerNft.jsx',
+  ]) {
+    const detail = await source(path);
+    assert.match(detail, /useExplorerResource/);
+    assert.doesNotMatch(detail, /useEffect\(/);
+    assert.doesNotMatch(detail, /setState\(/);
+  }
+});
+
+
 test('production Explorer endpoint configuration is runtime-injected rather than domain-hardcoded', async () => {
   const networkConfig = await source('utils/networkConfig.js');
   const rpcClient = await source('utils/aekoRpcClient.js');

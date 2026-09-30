@@ -1,33 +1,19 @@
-import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Boxes, Image, Users } from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
-import { fetchCollectionDetails, getExplorerAvailability } from '../utils/explorerApi';
+import { fetchCollectionDetails } from '../utils/explorerApi';
+import { useExplorerResource } from '../utils/explorerQueries';
 
 export default function ExplorerCollection() {
   const { collectionId } = useParams();
   const { network } = useNetwork();
-  const [state, setState] = useState({ loading: true, error: '', data: null });
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ loading: true, error: '', data: null });
-
-    fetchCollectionDetails(network, collectionId)
-      .then((data) => {
-        if (!cancelled) setState({ loading: false, error: '', data });
-      })
-      .catch((error) => {
-        if (!cancelled) setState({ loading: false, error: error.message, data: null });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [network, collectionId]);
-
-  const unavailable = !getExplorerAvailability(network);
+  const { unavailable, state } = useExplorerResource(
+    network,
+    'collection',
+    collectionId,
+    () => fetchCollectionDetails(network, collectionId),
+  );
   const collection = state.data;
 
   return (
