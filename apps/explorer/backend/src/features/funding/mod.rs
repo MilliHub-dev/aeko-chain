@@ -1026,7 +1026,7 @@ async fn submit_and_observe_grant(
     let authorization = state.funding_authorization_key.clone();
     let submit_blockhash = blockhash.clone();
     let submit = tokio::task::spawn_blocking(move || {
-        rpc.request_funding_grant(
+        rpc.request_funding_transfer(
             &address,
             lamports,
             authorization.as_deref(),
@@ -1512,7 +1512,7 @@ async fn recover_processing_grant_submission(
     let authorization = state.funding_authorization_key.clone();
     let submit_blockhash = blockhash.clone();
     let result = tokio::task::spawn_blocking(move || {
-        rpc.request_funding_grant(
+        rpc.request_funding_transfer(
             &address,
             lamports,
             authorization.as_deref(),
