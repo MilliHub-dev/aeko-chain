@@ -242,7 +242,7 @@ def verify_admin_funding(request_id: str, signature: str) -> None:
     if not isinstance(funding_history, list):
         raise SmokeFailure(f"Admin funding history has unexpected shape: {funding_history!r}")
     matches = [
-        grant
+        funding
         for funding in funding_history
         if funding.get("requestId") == request_id
         and funding.get("signature") == signature
