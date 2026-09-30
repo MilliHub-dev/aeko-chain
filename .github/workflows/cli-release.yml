@@ -167,6 +167,7 @@ jobs:
           set -euo pipefail
           install_dir="$RUNNER_TEMP/aeko-cli-install-test"
           mkdir -p dist/mock
+          cp install/aeko-cli-install.sh dist/mock/aeko-cli-install.sh
           short_sha="$(git rev-parse --short=12 HEAD)"
           printf '{"tag_name":"cli-main-%s","html_url":"https://example.invalid/aeko-cli"}\n' "$short_sha" > dist/mock/latest.json
 
@@ -191,7 +192,7 @@ jobs:
           grep -Fq "AEKO CLI is up to date." "$RUNNER_TEMP/aeko-update-check.log"
           "target/$TARGET/release/aeko" --help | grep -Fq "AEKO QUICK START"
 
-          cat install/aeko-cli-install.sh | \
+          curl -fsSL http://127.0.0.1:18765/mock/aeko-cli-install.sh | \
             AEKO_CLI_ASSET_BASE_URL=http://127.0.0.1:18765 \
             AEKO_INSTALL_DIR="$install_dir" \
             sh
@@ -205,6 +206,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $installDir = Join-Path $env:RUNNER_TEMP 'aeko-cli-install-test'
           New-Item -ItemType Directory -Force -Path dist/mock | Out-Null
+          Copy-Item install/aeko-cli-install.ps1 dist/mock/aeko-cli-install.ps1
           $shortSha = (git rev-parse --short=12 HEAD).Trim()
           @{
             tag_name = "cli-main-$shortSha"
@@ -234,8 +236,8 @@ jobs:
 
             $env:AEKO_CLI_ASSET_BASE_URL = 'http://127.0.0.1:18766'
             $env:AEKO_INSTALL_DIR = $installDir
-            & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File install/aeko-cli-install.ps1
-            if ($LASTEXITCODE -ne 0) { throw "Windows PowerShell 5.1 installer failed with exit code $LASTEXITCODE" }
+            & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "irm 'http://127.0.0.1:18766/mock/aeko-cli-install.ps1' | iex"
+            if ($LASTEXITCODE -ne 0) { throw "Windows PowerShell 5.1 irm | iex installer failed with exit code $LASTEXITCODE" }
 
             & (Join-Path $installDir 'aeko.exe') --version
             if ($LASTEXITCODE -ne 0) { throw 'installed aeko.exe failed' }
