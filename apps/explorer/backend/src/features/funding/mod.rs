@@ -1919,7 +1919,11 @@ fn amount_to_lamports(amount_aeko: f64) -> FundingResult<u64> {
 
 #[cfg(test)]
 mod tests {
-    use super::{amount_to_lamports, constant_time_equal, FundingSettingsPatch};
+    use {
+        super::{amount_to_lamports, constant_time_equal, requester_subject, FundingSettingsPatch},
+        axum::http::HeaderMap,
+        std::net::SocketAddr,
+    };
 
     #[test]
     fn aeko_amount_conversion_uses_native_token_precision() {
@@ -1954,4 +1958,26 @@ mod tests {
         assert!(!constant_time_equal(b"same", b"diff"));
         assert!(!constant_time_equal(b"short", b"longer"));
     }
+
+    #[test]
+    fn requester_subject_ignores_forwarded_headers_when_edge_is_untrusted() {
+        let mut headers = HeaderMap::new();
+        headers.insert("cf-connecting-ip", "198.51.100.40".parse().unwrap());
+        let peer = SocketAddr::from(([203, 0, 113, 9], 443));
+
+        assert_eq!(requester_subject(&headers, peer, false), "203.0.113.9");
+    }
+
+    #[test]
+    fn requester_subject_accepts_valid_forwarded_ip_only_from_trusted_edge() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-forwarded-for", "198.51.100.40, 10.0.0.2".parse().unwrap());
+        let peer = SocketAddr::from(([203, 0, 113, 9], 443));
+
+        assert_eq!(requester_subject(&headers, peer, true), "198.51.100.40");
+
+        headers.insert("x-forwarded-for", "not-an-ip".parse().unwrap());
+        assert_eq!(requester_subject(&headers, peer, true), "203.0.113.9");
+    }
 }
+

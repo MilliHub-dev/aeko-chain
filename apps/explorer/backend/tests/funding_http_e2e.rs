@@ -316,6 +316,53 @@ async fn scan_request_requires_admin_decision_and_airdrops_stay_separate() -> Re
     .shared();
     let app = build_router(state.clone(), &server_config());
 
+    let mut preflight = Request::builder()
+        .method(Method::OPTIONS)
+        .uri("/funding/request")
+        .header("origin", "https://scan.aeko.online")
+        .header("access-control-request-method", "POST")
+        .header("access-control-request-headers", "content-type")
+        .body(Body::empty())
+        .unwrap();
+    preflight
+        .extensions_mut()
+        .insert(ConnectInfo(SocketAddr::from(([203, 0, 113, 10], 443))));
+    let preflight_response = app.clone().oneshot(preflight).await.unwrap();
+    assert_eq!(preflight_response.status(), StatusCode::OK);
+    assert_eq!(
+        preflight_response
+            .headers()
+            .get("access-control-allow-origin")
+            .and_then(|value| value.to_str().ok()),
+        Some("https://scan.aeko.online")
+    );
+    assert!(
+        preflight_response
+            .headers()
+            .get("access-control-allow-methods")
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| value.contains("POST"))
+    );
+
+    let mut rejected_preflight = Request::builder()
+        .method(Method::OPTIONS)
+        .uri("/funding/request")
+        .header("origin", "https://untrusted.example")
+        .header("access-control-request-method", "POST")
+        .body(Body::empty())
+        .unwrap();
+    rejected_preflight
+        .extensions_mut()
+        .insert(ConnectInfo(SocketAddr::from(([203, 0, 113, 10], 443))));
+    let rejected_response = app.clone().oneshot(rejected_preflight).await.unwrap();
+    assert!(
+        rejected_response
+            .headers()
+            .get("access-control-allow-origin")
+            .is_none(),
+        "untrusted browser origins must not receive CORS authorization"
+    );
+
     let address = Pubkey::new_unique().to_string();
     let (status, created) = request_json(
         &app,
