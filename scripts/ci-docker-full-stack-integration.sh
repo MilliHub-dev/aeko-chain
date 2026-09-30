@@ -170,6 +170,10 @@ done
 wait_http "Explorer API process" "http://127.0.0.1:${AEKO_EXPLORER_API_HOST_PORT}/"
 wait_http "Explorer strict health" "http://127.0.0.1:${AEKO_EXPLORER_API_HOST_PORT}/health" 240
 wait_http "Scan UI" "http://127.0.0.1:${AEKO_FRONTEND_HOST_PORT}/healthz"
+runtime_config="$(curl -fsS "http://127.0.0.1:${AEKO_FRONTEND_HOST_PORT}/runtime-config.js")"
+grep -q "http://127.0.0.1:${AEKO_EXPLORER_API_HOST_PORT}" <<<"$runtime_config" \
+  || fail "Scan runtime config does not expose a browser-reachable Explorer API URL"
+echo "[ok] Scan runtime config points browsers at the host-published Explorer API"
 wait_http "Operations Web" "http://127.0.0.1:${AEKO_OPERATIONS_WEB_HOST_PORT}/login"
 
 cors_headers="$(curl -fsS -D - -o /dev/null -X OPTIONS \
