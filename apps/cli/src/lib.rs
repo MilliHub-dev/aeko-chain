@@ -39,6 +39,7 @@ pub mod program_v4;
 pub mod spend_utils;
 pub mod stake;
 pub mod test_utils;
+pub mod update;
 pub mod validator_info;
 pub mod vote;
 pub mod wallet;

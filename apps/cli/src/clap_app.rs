@@ -14,6 +14,28 @@ pub fn get_clap_app<'ab, 'v>(name: &str, about: &'ab str, version: &'v str) -> A
         .about(about)
         .version(version)
         .setting(AppSettings::SubcommandRequiredElseHelp)
+        .after_help(
+            "AEKO QUICK START:
+  aeko config set --url https://rpc.aeko.online
+  aeko-keygen new
+  aeko balance
+  aeko transfer <RECIPIENT> <AMOUNT>
+  aeko slot
+  aeko gossip
+  aeko program deploy <PROGRAM_FILE>
+  aeko update --check
+
+PUBLIC TESTNET:
+  RPC:       https://rpc.aeko.online
+  WebSocket: wss://ws.aeko.online
+  Explorer:  https://scan.aeko.online
+  API:       https://api.aeko.online
+
+The CLI exposes AEKO wallet, cluster, stake, validator and program primitives.
+Native SocialFi/token application flows are documented with their supported
+program and SDK interfaces rather than exposed here as placeholder commands.
+Use `aeko <COMMAND> --help` for command-specific instructions.",
+        )
         .arg({
             let arg = Arg::with_name("config_file")
                 .short("C")
@@ -206,6 +228,27 @@ pub fn get_clap_app<'ab, 'v>(name: &str, about: &'ab str, version: &'v str) -> A
                                 .takes_value(true)
                                 .help("YAML file to receive the current address labels"),
                         ),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("update")
+                .about("Check for and install the latest published AEKO CLI")
+                .arg(
+                    Arg::with_name("check")
+                        .long("check")
+                        .conflicts_with_all(&["yes", "force"])
+                        .help("Check for an available update without installing it"),
+                )
+                .arg(
+                    Arg::with_name("yes")
+                        .long("yes")
+                        .short("y")
+                        .help("Install without asking for confirmation"),
+                )
+                .arg(
+                    Arg::with_name("force")
+                        .long("force")
+                        .help("Reinstall the latest release even when this build cannot be compared"),
                 ),
         )
         .subcommand(

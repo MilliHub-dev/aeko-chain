@@ -9,6 +9,7 @@ use {
     aeko_cli::{
         clap_app::get_clap_app,
         cli::{parse_command, process_command, CliCommandInfo, CliConfig},
+        update,
     },
     aeko_cli_config::{Config, ConfigInput},
     aeko_cli_output::{
@@ -249,6 +250,11 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 }
 
 fn do_main(matches: &ArgMatches<'_>) -> Result<(), Box<dyn error::Error>> {
+    if let ("update", Some(update_matches)) = matches.subcommand() {
+        update::run(update_matches)?;
+        return Ok(());
+    }
+
     if parse_settings(matches)? {
         let mut wallet_manager = None;
 
@@ -256,6 +262,8 @@ fn do_main(matches: &ArgMatches<'_>) -> Result<(), Box<dyn error::Error>> {
         config.signers = signers.iter().map(|s| s.as_ref()).collect();
         let result = process_command(&config)?;
         println!("{result}");
-    };
+    }
+
+    update::maybe_prompt_for_update();
     Ok(())
 }

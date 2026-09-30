@@ -201,6 +201,11 @@ runs:
               apps/cli/*)
                 cli=true
                 ;;
+              install/aeko-cli-install.sh|install/aeko-cli-install.ps1)
+                # The fast installers are embedded into the aeko self-updater,
+                # so installer changes are part of the CLI binary contract.
+                cli=true
+                ;;
               contracts/*|scripts/smoke-hello-program.py)
                 # Deployable SBF contracts are not blockchain runtime/network
                 # source. They build and execute in their own AEKO SVM lane.

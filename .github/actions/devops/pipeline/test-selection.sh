@@ -128,8 +128,10 @@ assert_vercel_git_deployments_disabled() {
 
 assert_cli_release_after_main_contract() {
   local workflow="$PIPELINE_DIR/../../../workflows/cli-release.yml"
+  local classifier="$PIPELINE_DIR/../detect-changes/action.yml"
   local root_readme="$PIPELINE_DIR/../../../../README.md"
 
+  grep -Fq 'pull_request:' "$workflow"
   grep -Fq 'workflow_run:' "$workflow"
   grep -Fq 'workflows: ["AEKO DevOps (single runner)"]' "$workflow"
   grep -Fq 'branches: ["main"]' "$workflow"
@@ -142,6 +144,11 @@ assert_cli_release_after_main_contract() {
   grep -Fq -- '--target "$SOURCE_SHA"' "$workflow"
   grep -Fq 'git ls-remote --exit-code --tags origin "refs/tags/$TAG"' "$workflow"
   grep -Fq -- '--latest' "$workflow"
+  grep -Fq 'CI_COMMIT=$(git rev-parse HEAD)' "$workflow"
+  grep -Fq 'aeko" update --check' "$workflow"
+  grep -Fq 'powershell.exe -NoLogo -NoProfile -NonInteractive' "$workflow"
+  grep -Fq 'AEKO_CLI_ASSET_BASE_URL=http://127.0.0.1:18765' "$workflow"
+  grep -Fq 'install/aeko-cli-install.sh|install/aeko-cli-install.ps1)' "$classifier"
   grep -Fq 'install/aeko-cli-install.sh | sh' "$root_readme"
   grep -Fq 'install/aeko-cli-install.ps1 | iex' "$root_readme"
 

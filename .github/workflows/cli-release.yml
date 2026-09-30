@@ -6,6 +6,16 @@ name: AEKO CLI release binaries
 # main builds cannot publish CLI assets. Explicit v* tags remain supported for
 # operator-managed versioned releases, and workflow_dispatch remains build-only.
 on:
+  pull_request:
+    paths:
+      - "apps/cli/**"
+      - "keygen/**"
+      - "install/aeko-cli-install.sh"
+      - "install/aeko-cli-install.ps1"
+      - "version/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/cli-release.yml"
   workflow_run:
     workflows: ["AEKO DevOps (single runner)"]
     branches: ["main"]
@@ -67,6 +77,10 @@ jobs:
             echo "CLI release tags may only publish commits already contained in main." >&2
             exit 1
           fi
+
+      - name: Stamp CLI source commit
+        shell: bash
+        run: echo "CI_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
@@ -145,6 +159,94 @@ jobs:
           Compress-Archive -Path dist/package/aeko.exe,dist/package/aeko-keygen.exe -DestinationPath "dist/$env:ARCHIVE" -Force
           $hash = (Get-FileHash -Algorithm SHA256 "dist/$env:ARCHIVE").Hash.ToLowerInvariant()
           "$hash  $env:ARCHIVE" | Set-Content -NoNewline "dist/$env:ARCHIVE.sha256"
+
+      - name: Exercise Linux CLI update check and installer
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          install_dir="$RUNNER_TEMP/aeko-cli-install-test"
+          mkdir -p dist/mock
+          short_sha="$(git rev-parse --short=12 HEAD)"
+          printf '{"tag_name":"cli-main-%s","html_url":"https://example.invalid/aeko-cli"}\n' "$short_sha" > dist/mock/latest.json
+
+          python3 -m http.server 18765 --bind 127.0.0.1 --directory dist >"$RUNNER_TEMP/aeko-cli-http.log" 2>&1 &
+          server_pid=$!
+          cleanup() {
+            kill "$server_pid" >/dev/null 2>&1 || true
+            wait "$server_pid" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT HUP INT TERM
+
+          for _ in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:18765/mock/latest.json >/dev/null; then
+              break
+            fi
+            sleep 0.25
+          done
+          curl -fsS http://127.0.0.1:18765/mock/latest.json >/dev/null
+
+          AEKO_CLI_RELEASE_API_URL=http://127.0.0.1:18765/mock/latest.json \
+            "target/$TARGET/release/aeko" update --check | tee "$RUNNER_TEMP/aeko-update-check.log"
+          grep -Fq "AEKO CLI is up to date." "$RUNNER_TEMP/aeko-update-check.log"
+          "target/$TARGET/release/aeko" --help | grep -Fq "AEKO QUICK START"
+
+          cat install/aeko-cli-install.sh | \
+            AEKO_CLI_ASSET_BASE_URL=http://127.0.0.1:18765 \
+            AEKO_INSTALL_DIR="$install_dir" \
+            sh
+          "$install_dir/aeko" --version
+          "$install_dir/aeko-keygen" --version
+
+      - name: Exercise Windows PowerShell 5.1 CLI update check and installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installDir = Join-Path $env:RUNNER_TEMP 'aeko-cli-install-test'
+          New-Item -ItemType Directory -Force -Path dist/mock | Out-Null
+          $shortSha = (git rev-parse --short=12 HEAD).Trim()
+          @{
+            tag_name = "cli-main-$shortSha"
+            html_url = "https://example.invalid/aeko-cli"
+          } | ConvertTo-Json -Compress | Set-Content -Encoding ascii dist/mock/latest.json
+
+          $server = Start-Process -FilePath python -ArgumentList '-m','http.server','18766','--bind','127.0.0.1','--directory','dist' -PassThru -WindowStyle Hidden
+          try {
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 20; $attempt++) {
+              try {
+                Invoke-WebRequest -UseBasicParsing http://127.0.0.1:18766/mock/latest.json | Out-Null
+                $ready = $true
+                break
+              } catch {
+                Start-Sleep -Milliseconds 250
+              }
+            }
+            if (-not $ready) { throw 'local CLI release test server did not become ready' }
+
+            $env:AEKO_CLI_RELEASE_API_URL = 'http://127.0.0.1:18766/mock/latest.json'
+            $check = (& "target/$env:TARGET/release/aeko.exe" update --check 2>&1 | Out-String)
+            if ($LASTEXITCODE -ne 0) { throw "aeko update --check failed: $check" }
+            if ($check -notmatch 'AEKO CLI is up to date\.') { throw "unexpected update output: $check" }
+            $help = (& "target/$env:TARGET/release/aeko.exe" --help 2>&1 | Out-String)
+            if ($LASTEXITCODE -ne 0 -or $help -notmatch 'AEKO QUICK START') { throw 'AEKO CLI rich help is missing' }
+
+            $env:AEKO_CLI_ASSET_BASE_URL = 'http://127.0.0.1:18766'
+            $env:AEKO_INSTALL_DIR = $installDir
+            & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File install/aeko-cli-install.ps1
+            if ($LASTEXITCODE -ne 0) { throw "Windows PowerShell 5.1 installer failed with exit code $LASTEXITCODE" }
+
+            & (Join-Path $installDir 'aeko.exe') --version
+            if ($LASTEXITCODE -ne 0) { throw 'installed aeko.exe failed' }
+            & (Join-Path $installDir 'aeko-keygen.exe') --version
+            if ($LASTEXITCODE -ne 0) { throw 'installed aeko-keygen.exe failed' }
+          }
+          finally {
+            if ($server -and -not $server.HasExited) {
+              Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+            }
+          }
 
       - name: Validate POSIX installer syntax
         if: runner.os == 'Linux'
