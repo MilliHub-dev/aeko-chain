@@ -224,6 +224,10 @@ def main() -> int:
         "portable RPC replica must receive the active network identity",
     )
     require(
+        "AEKO_FUNDING_AUTHORIZATION_KEY:" in portable_rpc,
+        "portable RPC replica must enforce the protected Funding credential",
+    )
+    require(
         "AEKO_NETWORK:" in service_block(split_validator, "validator"),
         "split Coolify Validator must receive the active network identity",
     )
