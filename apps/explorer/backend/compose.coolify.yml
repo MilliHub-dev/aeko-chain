@@ -13,8 +13,8 @@ services:
     pull_policy: always
     restart: unless-stopped
     environment:
-      # Coolify has treated ${VAR:?human message} as a literal value in production.
-      # Pass raw values and let the application/entrypoint validate them instead.
+      # Coolify has treated message-bearing required-variable expressions as
+      # literal values in production. Pass raw values and validate in-process.
       AEKO_NETWORK: ${AEKO_NETWORK:-}
       AEKO_RPC_URL: ${AEKO_INTERNAL_RPC_URL:-}
       AEKO_WS_URL: ${AEKO_INTERNAL_WS_URL:-}
