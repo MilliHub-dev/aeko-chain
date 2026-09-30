@@ -437,6 +437,11 @@ def main() -> int:
         "Explorer API must expose the explicit browser CORS contract needed by public funding POSTs",
     )
     require(
+        '"access-control-allow-origin"' in funding_http_e2e
+        and '"funding CORS preflight must allow POST"' in funding_http_e2e,
+        "funding HTTP E2E must exercise the browser CORS preflight contract",
+    )
+    require(
         'required_env("AEKO_EXPLORER_CORS_ORIGINS")' in funding_config
         and "parse_cors_origins" in funding_config,
         "Explorer config must require and validate the browser CORS origin allowlist",
@@ -671,7 +676,7 @@ def main() -> int:
         "deploy-testnet helper must start Explorer API/UI and Operations Web without a funding sidecar",
     )
     require(
-        "${AEKO_EXPLORER_API_URL}/funding/*" in deploy_helper,
+        "Funding      ${AEKO_EXPLORER_API_URL:-<not configured>}/funding/*" in deploy_helper,
         "deploy-testnet helper must advertise the direct Explorer API funding route",
     )
 
