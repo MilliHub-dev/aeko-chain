@@ -868,7 +868,7 @@ async fn list_funding_history(
     authorize_admin(&headers, &state.settings_admin_token)?;
     ensure_funding_available(&state)?;
     let limit = query.limit.unwrap_or(100).clamp(1, 500);
-    let funding transfers = state
+    let funding_transfers = state
         .repository
         .list_funding_transfers(limit)
         .await?
@@ -877,7 +877,7 @@ async fn list_funding_history(
         .collect();
     Ok(response::data_from_source(
         &state.network,
-        funding transfers,
+        funding_transfers,
         "funding-ledger",
     ))
 }
