@@ -57,9 +57,9 @@ Bootstrap host                                             |
 registry.aeko.online <--- social-registry.env              +--> registry.aeko.online
                      <--- protocol-registry.env
 
-scan.aeko.online  -> explorer-ui :4000 -> api.aeko.online via /api/explorer/testnet
-                    -> /api/explorer/testnet/funding/* for testnet funding
-admin.aeko.online -> operations-web :3001 -> api.aeko.online + rpc.aeko.online
+scan.aeko.online  -> explorer-ui :4000
+browser            -> api.aeko.online for indexed reads + public funding
+admin.aeko.online -> operations-web :3001 -> private Explorer API + validator RPC
 
 gossip.aeko.online:8001 -> validator gossip entrypoint
 validator host TCP+UDP 8000-8050 -> public validator transport range
@@ -111,8 +111,8 @@ Do not copy the same value into multiple configuration surfaces merely because s
 | Social state and vault addresses | generated `social-state/social-registry.env` | Leave Explorer per-address overrides unset. |
 | Protocol feature identities | compile-time feature IDs | Fresh/reset genesis activates the mandatory protocol runtime features automatically; only an older preserved chain uses the compatibility activation helper. |
 | Protocol authority and canonical state addresses | persistent protocol authority plus generated `protocol-registry.env` / continuity anchor | Bootstrap automatically when no established protocol identity exists; preserve and verify thereafter. |
-| Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads it through the same-origin read proxy. |
-| Blockchain service endpoints | active deployment environment | Public clients/Scan use the public `AEKO_RPC_URL`, `AEKO_WS_URL`, and `AEKO_EXPLORER_API_URL`. Production server resources receive `AEKO_INTERNAL_RPC_URL`, `AEKO_INTERNAL_WS_URL`, `AEKO_INTERNAL_EXPLORER_API_URL`, `AEKO_INTERNAL_REGISTRY_URL`, `AEKO_INTERNAL_FAUCET_ADDRESS`, or `AEKO_EXPLORER_PROXY_UPSTREAM_URL` as applicable; Compose maps them to the existing generic runtime names inside each container. |
+| Explorer application/readiness settings | Explorer PostgreSQL `/settings` record | Edit through Operations Web; Explorer UI reads it directly from the selected Explorer API. |
+| Blockchain service endpoints | active deployment environment | Public clients/Scan use the public `AEKO_RPC_URL`, `AEKO_WS_URL`, and `AEKO_EXPLORER_API_URL`. Production server resources receive `AEKO_INTERNAL_RPC_URL`, `AEKO_INTERNAL_WS_URL`, `AEKO_INTERNAL_EXPLORER_API_URL`, `AEKO_INTERNAL_REGISTRY_URL`, and `AEKO_INTERNAL_FAUCET_ADDRESS` as applicable; Compose maps them to the existing generic runtime names inside each container. |
 | Bootstrap registry | generated `social-registry.env` + `protocol-registry.env`, served read-only by `registry.aeko.online` | Explorer API fetches the pair and verifies schema/genesis before use; Scan/Admin consume Explorer API instead of bootstrap storage. |
 | Recovery address overrides | Explorer process environment | Use only for explicit recovery; never as a parallel normal source of truth. |
 
@@ -121,9 +121,9 @@ For the currently deployed testnet, the public client endpoints remain
 `AEKO_WS_URL=wss://ws.aeko.online`, and
 `AEKO_EXPLORER_API_URL=https://api.aeko.online`. Production server resources
 must separately configure reachable private or DNS-only origins using the
-`AEKO_INTERNAL_*` variables and Scan's
-`AEKO_EXPLORER_PROXY_UPSTREAM_URL`. These server-only origins must bypass
-public Cloudflare/WAF handling.
+`AEKO_INTERNAL_*` variables. These server-only origins must bypass public
+Cloudflare/WAF handling. Scan itself uses the public Explorer API directly; the
+API edge must return API responses rather than interactive challenge HTML.
 
 A future mainnet or devnet deployment follows the same separation on its own
 servers. These are independent stacks even when an operator happens to place
@@ -131,11 +131,10 @@ several stacks on the same physical host. They do not share an Explorer
 process, Admin process, database, chain identity, or active `AEKO_NETWORK`.
 
 Aeko Scan is the exception: its generic values define the default network, and
-optional `AEKO_MAINNET_*`, `AEKO_TESTNET_*`, and `AEKO_DEVNET_*`
-RPC/WS/Explorer-API triplets let the UI switch to other independent
-deployments. Browser indexed reads remain same-origin under
-`/api/explorer/{network}`; those prefixes are Scan routing labels, not
-evidence that the target networks run inside one server process.
+optional `AEKO_MAINNET_*` and `AEKO_TESTNET_*` RPC/WS/Explorer-API
+triplets let the UI switch to other independent public deployments. Browser
+indexed reads and public funding calls use each selected network's
+`explorerApiUrl` directly.
 
 ## Required production environment
 
@@ -153,7 +152,7 @@ AEKO_INTERNAL_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
 AEKO_INTERNAL_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
 AEKO_INTERNAL_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
 AEKO_INTERNAL_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
-AEKO_EXPLORER_PROXY_UPSTREAM_URL=https://<private-or-dns-only-explorer-api-origin>
+AEKO_EXPLORER_CORS_ORIGINS=https://scan.aeko.online
 
 AEKO_GOSSIP_HOST=gossip.aeko.online
 AEKO_KEYS_DIR=<Dokploy/local persistent host directory; Coolify uses fixed /data/aeko/keys>
@@ -486,11 +485,11 @@ The rollback boundary is the feature activation itself: before activation, resto
 Verify the live Protocol registry and state:
 
 ```bash
-curl -s https://scan.aeko.online/api/explorer/testnet/registry/protocol
-curl -s https://scan.aeko.online/api/explorer/testnet/protocol/status
+curl -s https://api.aeko.online/registry/protocol
+curl -s https://api.aeko.online/protocol/status
 
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-protocol.py
 ```
 
@@ -503,9 +502,9 @@ Do not certify the public network merely because containers are `running` or bec
 First distinguish process and dependency health:
 
 ```bash
-curl -s https://scan.aeko.online/api/explorer/testnet/liveness
-curl -s https://scan.aeko.online/api/explorer/testnet/readiness
-curl -s https://scan.aeko.online/api/explorer/testnet/network/readiness
+curl -s https://api.aeko.online/liveness
+curl -s https://api.aeko.online/readiness
+curl -s https://api.aeko.online/network/readiness
 ```
 
 `/liveness` only proves the Explorer process is serving. `/readiness` proves PostgreSQL/RPC/indexer dependencies. Final network acceptance requires `/network/readiness` HTTP 200 with the registry genesis equal to the live validator genesis, Social `5/5`, Protocol executable programs `11/11`, and Protocol canonical states `8/8`.
@@ -523,7 +522,7 @@ It must return `result: "ok"`. Call `getSlot` twice and confirm it advances.
 ### SocialFi registry
 
 ```bash
-curl -s https://scan.aeko.online/api/explorer/testnet/registry/social
+curl -s https://api.aeko.online/registry/social
 ```
 
 The response is wrapped under `data`. Acceptance requires:
@@ -544,7 +543,7 @@ The response is wrapped under `data`. Acceptance requires:
 Also check live state verification:
 
 ```bash
-curl -s https://scan.aeko.online/api/explorer/testnet/social/status
+curl -s https://api.aeko.online/social/status
 ```
 
 Acceptance requires `data.complete == true`. A healthy Explorer with `complete: false` is intentionally a degraded/diagnostic state, not SocialFi success.
@@ -553,7 +552,7 @@ Acceptance requires `data.complete == true`. A healthy Explorer with `complete: 
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-social.py
 ```
 
@@ -561,7 +560,7 @@ Also run the mandatory Protocol smoke:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-protocol.py
 ```
 

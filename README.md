@@ -83,9 +83,9 @@ A **WebSocket node is not a separate daemon**. PubSub/WebSocket is served by the
 | --- | --- | --- |
 | JSON-RPC | `https://rpc.aeko.online` | validator `:8899` |
 | WebSocket / PubSub | `wss://ws.aeko.online` | validator `:8900` |
-| Explorer API | `https://api.aeko.online` | Explorer API `:8088`; server-to-server upstream for Scan/Admin |
+| Explorer API | `https://api.aeko.online` | Explorer API `:8088`; public browser API plus private server-side Admin upstream |
 | Bootstrap registry | `https://registry.aeko.online` | read-only registry `:8089`; exposes generated Social/Protocol registry files only |
-| Explorer UI + indexed-read proxy | `https://scan.aeko.online` | Explorer UI `:4000` -> `api.aeko.online` |
+| Explorer UI | `https://scan.aeko.online` | static Explorer UI `:4000`; browser data calls go directly to the selected Explorer API |
 | Operations Web | `https://admin.aeko.online` | Operations Web `:3001` |
 | Faucet TCP | `faucet.aeko.online:9900` | Faucet daemon raw TCP; firewall to Validator sources |
 | Validator gossip | `gossip.aeko.online:8001` | validator gossip entrypoint |
@@ -113,9 +113,9 @@ For the complete authoritative mapping, including split-Coolify routing,
 same-Compose Docker DNS defaults, env overrides, and local host-port controls,
 see [Network ports, domains, and service discovery](./docs/operations/network-ports-and-domains.md).
 
-Test-network funding is served by that network's Explorer API and reached from
-Aeko Scan through the same-origin `/api/explorer/{network}/funding/*` proxy.
-There is no separate Funding Gateway runtime.
+Test-network funding is served directly by that network's Explorer API. Aeko
+Scan calls the selected Explorer API from the browser under an explicit CORS
+allowlist. There is no Scan Explorer proxy and no separate Funding Gateway runtime.
 
 The funding domains are intentionally distinct:
 
@@ -130,10 +130,10 @@ The funding domains are intentionally distinct:
   treasury/ecosystem/vesting allocations remain governed tokenomics concerns;
   the Faucet flow is the operational distribution rail shared by all networks.
 
-Each chain environment is deployed independently. Scan's
-`/api/explorer/{network}` prefixes route to independently configured remote
-Explorer APIs; they do not imply that mainnet/testnet/devnet share one backend
-instance or database.
+Each chain environment is deployed independently. Scan runtime configuration
+contains the selected network's public Explorer API URL; switching networks
+changes that direct browser target. Mainnet/testnet/devnet do not share one
+backend instance or database.
 
 ## Native Aeko SocialFi
 
@@ -458,10 +458,10 @@ curl -s https://rpc.aeko.online \
   }'
 ```
 
-Public testnet funding is policy-controlled by the Explorer API funding module; the Faucet Daemon on TCP `:9900` remains private and the deployed public RPC protects approval-gated `requestGrant` with funding authorization, while instant `requestAirdrop` dispatches with no approval subject only to faucet caps. Browser/client requests use the same Aeko Scan origin:
+Public testnet funding is policy-controlled by the Explorer API funding module; the Faucet Daemon on TCP `:9900` remains private and the deployed public RPC protects approval-gated `requestGrant` with funding authorization, while instant `requestAirdrop` dispatches with no approval subject only to faucet caps. Browser/client requests use the public Explorer API directly:
 
 ```bash
-curl -X POST https://scan.aeko.online/api/explorer/testnet/funding/request \
+curl -X POST https://api.aeko.online/funding/request \
   -H 'Content-Type: application/json' \
   -d '{"address":"<WALLET_ADDRESS>"}'
 ```
@@ -480,12 +480,12 @@ for chain subscriptions such as account, signature, slot and log notifications. 
 
 ## Explorer and SocialFi registry
 
-Explorer users and browser clients use `https://scan.aeko.online`. Indexed reads stay same-origin under `/api/explorer/testnet/*`; the Scan server proxies those reads to the server-side Explorer API domain `https://api.aeko.online`. Operations Web uses the same API domain directly for authenticated operator/server actions.
+Explorer users and browser clients use `https://scan.aeko.online`. Indexed reads call `https://api.aeko.online` directly from Scan under the Explorer API CORS policy. Operations Web keeps authenticated operator actions behind its server-side BFF and private Explorer upstream.
 
 Registry acceptance:
 
 ```bash
-curl -s https://scan.aeko.online/api/explorer/testnet/registry/social
+curl -s https://api.aeko.online/registry/social
 ```
 
 Explorer uses a common response envelope. A ready deployment has the logical shape:
@@ -547,7 +547,7 @@ Automated deployment/read-path verification:
 
 ```bash
 AEKO_RPC_URL=https://rpc.aeko.online \
-AEKO_EXPLORER_API_URL=https://scan.aeko.online/api/explorer/testnet \
+AEKO_EXPLORER_API_URL=https://api.aeko.online \
 python3 scripts/smoke-aeko-social.py
 ```
 
@@ -562,7 +562,7 @@ RPC          https://rpc.aeko.online
 WebSocket    wss://ws.aeko.online
 Explorer API https://api.aeko.online
 Explorer UI  https://scan.aeko.online
-Funding      https://scan.aeko.online/api/explorer/testnet/funding/*
+Funding      https://api.aeko.online/funding/*
 ```
 
 A validator operator additionally needs:
