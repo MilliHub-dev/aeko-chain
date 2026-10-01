@@ -350,9 +350,10 @@ The signed browser write path in the Explorer test console remains the final end
 
 ## Funding troubleshooting
 
-Funding, grants, and airdrops work the same on every network; the flow never
-branches on the deployment network. When production funding fails while
-localhost works, check these in order:
+Public/Admin Funding uses the same protected settlement contract on every
+configured network. Developer airdrop is a separate test-environment utility
+and is rejected on Mainnet. When production Funding fails while localhost
+works, check these in order:
 
 1. **HTML/edge error from `https://api.aeko.online/funding/*` instead of the
    Explorer JSON contract.** Scan calls Explorer API directly; there is no
@@ -370,10 +371,10 @@ localhost works, check these in order:
 3. **Approvals stuck in `processing` ("submission response was not
    obtained").** The validator's faucet path is broken: the validator needs
    `--rpc-faucet-address <private-or-dns-only-faucet-host>:9900` with a reachable Faucet, a funded
-   faucet keypair, caps above the grant amount, and an
+   faucet keypair, caps above the Funding amount, and an
    `AEKO_FUNDING_AUTHORIZATION_KEY` identical to the Explorer backend's. The
    persisted intent is replayed verbatim (same blockhash, same signature), so
-   retrying never creates a second grant. If the wallet is wedged on
+   retrying never creates a second Funding transfer. If the wallet is wedged on
    `REQUEST_PENDING`, use Admin **Retry submission**; if the faucet cannot be
    restored, use Admin **Cancel request** — it replays once and only releases
    the wallet when no durable signature exists, after which the user can

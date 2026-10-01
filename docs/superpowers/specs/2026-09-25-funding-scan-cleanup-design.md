@@ -1,9 +1,16 @@
 # Funding + Scan cleanup design
 
 Date: 2026-09-25
-Status: Approved architecture, corrected implementation contract 2026-09-27
+Status: Historical design; superseded by the canonical Funding contract implemented by PR #98 on 2026-09-30
 
-## 1. Decisions
+> **Current contract:** Public Funding is approval-gated, direct Admin Funding
+> submits without a second approval, protected Validator settlement uses
+> `requestFunding`, and developer airdrop is a separate test-environment
+> utility that is rejected on Mainnet. The Grant terminology and Mainnet
+> `requestAirdrop` behavior below are retained only as historical design
+> context and must not be used as deployment guidance.
+
+## 1. Historical decisions
 
 The canonical product and trust boundaries are:
 
