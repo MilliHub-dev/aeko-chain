@@ -363,6 +363,7 @@ assert_runtime_artifact_handoff_contract() {
   local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
   local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
   local integration="$PIPELINE_DIR/../../../workflows/full-stack-integration.yml"
+  local artifact_loader="$PIPELINE_DIR/load-runtime-artifacts.sh"
   local release_mode="$PIPELINE_DIR/resolve-release.sh"
   local runtime_script="$PIPELINE_DIR/../../../../scripts/ci-docker-full-stack-integration.sh"
 
@@ -393,8 +394,12 @@ assert_runtime_artifact_handoff_contract() {
   grep -Fq "producer_run_id" "$workflow"
   grep -Fq "producer_run_id:" "$integration"
   grep -Fq "actions/download-artifact@v4" "$integration"
-  grep -Fq "gzip -dc artifacts/runtime-tools/aeko-tools-image.tar.gz | docker load" "$integration"
+  grep -Fq "load-runtime-artifacts.sh" "$integration"
+  grep -Fq "gzip -dc artifacts/runtime-tools/aeko-tools-image.tar.gz | docker load" "$artifact_loader"
+  grep -Fq "runtime-network" "$artifact_loader"
+  grep -Fq "runtime-explorer-api" "$artifact_loader"
   grep -Fq "AEKO_CI_IMAGE_REPOSITORY: aeko-ci" "$integration"
+  bash -n "$runtime_script"
 
   if grep -Fq "docker/login-action" "$integration"; then
     echo "Runtime integration must not depend on Docker Hub credentials." >&2
