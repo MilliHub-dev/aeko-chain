@@ -9,13 +9,13 @@ INTERNAL_PR="${INTERNAL_PR:-false}"
 publish=false
 push_runtime_images=false
 
-# Runtime images are pushed to Docker Hub only from main. Pull requests build
-# and validate the same immutable image set locally, then hand those exact
-# images to the runtime-contract workflow as GitHub Actions artifacts.
+# Registry publication only exists for main runs that actually exercise Docker
+# release surfaces. SDK-only and other non-Docker changes must not authenticate
+# or publish runtime images just because they landed on main.
 if [ "$GITHUB_REF" = "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
-  push_runtime_images=true
   if [ "$DOCKERIZED" = "true" ] || [ "$CI_PIPELINE" = "true" ]; then
     publish=true
+    push_runtime_images=true
   fi
 fi
 

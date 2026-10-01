@@ -203,26 +203,23 @@ assert_cli_release_after_main_contract() {
 }
 
 run_plan_case() {
-  local label="$1" event_name="$2" ci_pipeline="$3" core="$4" expected_all="$5" explorer_web="${6:-false}"
+  local label="$1" event_name="$2" admin="$3" cli="$4" core="$5" packaging="$6"
+  local explorer_backend="$7" explorer_web="$8" sdk_js="$9" sdk_node="${10}"
+  local sdk_python="${11}" sdk_rust="${12}" ci_pipeline="${13}"
+  shift 13
   local output
   output="$(mktemp)"
 
   GITHUB_OUTPUT="$output" GITHUB_EVENT_NAME="$event_name" \
-  ADMIN=false CLI=false CORE="$core" PACKAGING=false \
-  EXPLORER_BACKEND=false EXPLORER_WEB="$explorer_web" \
-  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false \
+  ADMIN="$admin" CLI="$cli" CORE="$core" PACKAGING="$packaging" \
+  EXPLORER_BACKEND="$explorer_backend" EXPLORER_WEB="$explorer_web" \
+  SDK_JS="$sdk_js" SDK_NODE="$sdk_node" SDK_PYTHON="$sdk_python" SDK_RUST="$sdk_rust" \
   CI_PIPELINE="$ci_pipeline" bash "$PIPELINE_DIR/plan.sh"
 
-  if [ "$expected_all" = "true" ]; then
-    assert_output "$output" "run_admin=true"
-    assert_output "$output" "run_cli=true"
-    assert_output "$output" "run_explorer_backend=true"
-    assert_output "$output" "run_explorer_web=true"
-    assert_output "$output" "run_network=true"
-    assert_output "$output" "run_sdk_non_rust=true"
-    assert_output "$output" "run_sdk_rust=true"
-  fi
-
+  while [ "$#" -gt 0 ]; do
+    assert_output "$output" "$1"
+    shift
+  done
   assert_output "$output" "run_ci_contract=true"
 
   rm -f "$output"
@@ -539,10 +536,40 @@ assert_smart_contract_pipeline_separation
 assert_vercel_git_deployments_disabled
 assert_cli_release_after_main_contract
 
-run_plan_case "Explorer Web-only main push runs the full validation DAG" push false false true true
-run_plan_case "CI-only pull request runs images and all external SDK validation" pull_request true false true
-run_plan_case "CI-only main push runs images and all external SDK validation" push true false true
-run_plan_case "core main push still rebuilds the full image DAG" push false true true
+run_plan_case "Explorer Web-only main push stays scoped to Explorer Web" \
+  push false false false false false true false false false false false \
+  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=true \
+  run_network=false run_sdk_non_rust=false run_sdk_rust=false
+
+run_plan_case "SDK JS-only main push stays scoped to non-Rust SDK validation" \
+  push false false false false false false true false false false false \
+  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=false \
+  run_network=false run_sdk_non_rust=true run_sdk_rust=false
+
+run_plan_case "core pull request stays scoped to network validation" \
+  pull_request false false true false false false false false false false false \
+  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=false \
+  run_network=true run_sdk_non_rust=false run_sdk_rust=false
+
+run_plan_case "core main push rebuilds deployable image surfaces" \
+  push false false true false false false false false false false false \
+  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
+  run_network=true run_sdk_non_rust=false run_sdk_rust=false
+
+run_plan_case "packaging main push validates every container target" \
+  push false false false true false false false false false false false \
+  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
+  run_network=true run_sdk_non_rust=false run_sdk_rust=false
+
+run_plan_case "CI-only pull request exercises the full orchestration graph" \
+  pull_request false false false false false false false false false false true \
+  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
+  run_network=true run_sdk_non_rust=true run_sdk_rust=true
+
+run_plan_case "CI-only main push exercises the full orchestration graph" \
+  push false false false false false false false false false false true \
+  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
+  run_network=true run_sdk_non_rust=true run_sdk_rust=true
 
 run_deploy_plan_case "Explorer backend source deploys only Explorer API" \
   false false true false false false false false false false \
@@ -570,7 +597,7 @@ run_release_case "product main push promotes and publishes runtime validation im
 run_release_case "same-repository CI pull request keeps runtime images off Docker Hub" pull_request refs/pull/58/merge false true true false false
 run_release_case "same-repository product pull request keeps runtime images off Docker Hub" pull_request refs/pull/58/merge true false true false false
 run_release_case "fork pull request cannot push runtime images" pull_request refs/pull/58/merge true false false false false
-run_release_case "SDK-only main push publishes immutable validation images without promotion" push refs/heads/main false false false false true
+run_release_case "SDK-only main push does not publish Docker images" push refs/heads/main false false false false false
 
 GITHUB_WORKSPACE="$PWD" PUBLISH_JS=true BEST_EFFORT=true NPM_TOKEN="" \
   bash "$SDK_PUBLISH_DIR/publish-selected.sh"

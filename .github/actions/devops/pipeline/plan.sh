@@ -21,21 +21,56 @@ SDK_PYTHON="${SDK_PYTHON:-false}"
 SDK_RUST="${SDK_RUST:-false}"
 CI_PIPELINE="${CI_PIPELINE:-false}"
 
-# Full validation is the default contract for every AEKO DevOps run that reaches
-# this workflow. Change classification still owns release/version eligibility and
-# deployment targeting below, but it must not suppress unrelated build/test lanes.
-run_admin=true
-run_cli=true
-run_explorer_backend=true
-run_explorer_web=true
-run_network=true
-run_sdk_non_rust=true
-run_sdk_rust=true
+# Run only the domains affected by this change set. Shared packaging changes
+# exercise every image target, while CI implementation changes exercise the
+# complete orchestration graph. This keeps ordinary app/SDK changes scoped.
+run_admin=false
+run_cli=false
+run_explorer_backend=false
+run_explorer_web=false
+run_network=false
+run_sdk_non_rust=false
+run_sdk_rust=false
 deploy_explorer_api=false
 deploy_explorer_ui=false
 deploy_operations_web=false
 stateful_coolify_release=false
 run_ci_contract=true
+
+if [ "$ADMIN" = "true" ] || [ "$PACKAGING" = "true" ]; then run_admin=true; fi
+if [ "$CLI" = "true" ] || [ "$PACKAGING" = "true" ]; then run_cli=true; fi
+if [ "$EXPLORER_BACKEND" = "true" ] || [ "$PACKAGING" = "true" ]; then run_explorer_backend=true; fi
+if [ "$EXPLORER_WEB" = "true" ] || [ "$PACKAGING" = "true" ]; then run_explorer_web=true; fi
+if [ "$CORE" = "true" ] || [ "$PACKAGING" = "true" ]; then run_network=true; fi
+
+# Main core releases rebuild every deployable application image because shared
+# chain/runtime changes can affect release binaries and container compatibility.
+# Core pull requests keep the expensive app image rebuilds scoped to the network.
+if [ "$GITHUB_EVENT_NAME" != "pull_request" ] && [ "$CORE" = "true" ]; then
+  run_admin=true
+  run_cli=true
+  run_explorer_backend=true
+  run_explorer_web=true
+fi
+
+# CI orchestration changes prove the complete graph because the workflow/action
+# implementation itself may affect any lane.
+if [ "$CI_PIPELINE" = "true" ]; then
+  run_admin=true
+  run_cli=true
+  run_explorer_backend=true
+  run_explorer_web=true
+  run_network=true
+  run_sdk_non_rust=true
+  run_sdk_rust=true
+fi
+
+if [ "$SDK_JS" = "true" ] || [ "$SDK_NODE" = "true" ] || [ "$SDK_PYTHON" = "true" ]; then
+  run_sdk_non_rust=true
+fi
+if [ "$SDK_RUST" = "true" ]; then
+  run_sdk_rust=true
+fi
 
 # Deployment intent is deliberately narrower than validation intent.
 # Packaging/core/CI changes may validate or rebuild many images, but they do not
