@@ -69,8 +69,11 @@ assert_full_validation_workflow_contract() {
     grep -Fq "$selector" "$runtime_workflow"
   done
 
-  grep -Fq 'rust: ${{ needs.classify.outputs.run_cli }}' "$workflow"
-  grep -Fq 'validate-source: ${{ needs.classify.outputs.run_cli }}' "$workflow"
+  grep -Fq 'name: Quality / CLI source' "$workflow"
+  grep -Fq 'name: Runtime / Tools producer' "$workflow"
+  grep -Fq 'validate-source: "true"' "$workflow"
+  grep -Fq 'validate-source: "false"' "$workflow"
+  grep -Fq 'build-image: "true"' "$workflow"
 
   for selector in \
     'js: ${{ inputs.run_sdk_non_rust }}' \
@@ -371,17 +374,17 @@ assert_runtime_artifact_handoff_contract() {
   done
 
   grep -Fq "runtime_integration:" "$workflow"
-  grep -Fq "needs.cli.result == 'success'" "$workflow"
+  grep -Fq "needs.runtime_tools.result == 'success'" "$workflow"
   grep -Fq "needs.runtime_services.result == 'success'" "$workflow"
   local runtime_block
   runtime_block="$(sed -n '/^  runtime_integration:/,/^  cli_release_publish:/p' "$workflow")"
-  for forbidden in devops web_ui sdk_validation explorer_backend network; do
+  for forbidden in devops web_ui sdk_validation explorer_backend network cli cli_linux_release; do
     if grep -Eq "^[[:space:]]*-[[:space:]]+${forbidden}$" <<<"$runtime_block"; then
       echo "Runtime integration has an unnecessary dependency edge: $forbidden" >&2
       exit 1
     fi
   done
-  grep -Eq '^[[:space:]]*-[[:space:]]+cli$' <<<"$runtime_block"
+  grep -Eq '^[[:space:]]*-[[:space:]]+runtime_tools$' <<<"$runtime_block"
   grep -Eq '^[[:space:]]*-[[:space:]]+runtime_services$' <<<"$runtime_block"
   grep -Fq "gh workflow run full-stack-integration.yml" "$workflow"
   grep -Fq "producer_run_id" "$workflow"
@@ -417,6 +420,8 @@ assert_grouped_devops_workflow_contract() {
 
   grep -Fq 'name: Explorer / UI' "$workflow"
   grep -Fq 'uses: ./.github/workflows/devops-web-ui.yml' "$workflow"
+  grep -Fq 'name: Runtime / Tools producer' "$workflow"
+  grep -Fq 'name: Release / Linux CLI validation' "$workflow"
   grep -Fq 'name: Runtime / Producers' "$workflow"
   grep -Fq 'uses: ./.github/workflows/devops-runtime-services.yml' "$workflow"
   grep -Fq 'name: SDK' "$workflow"
@@ -440,7 +445,7 @@ assert_grouped_devops_workflow_contract() {
 
   local gate_block
   gate_block="$(sed -n '/^  devops:/,/^  runtime_integration:/p' "$workflow")"
-  for required in ci_contract web_ui cli runtime_services sdk_validation; do
+  for required in ci_contract web_ui cli runtime_tools cli_linux_release runtime_services sdk_validation; do
     grep -Eq "^[[:space:]]*-[[:space:]]+${required}$" <<<"$gate_block"
   done
 
@@ -453,7 +458,7 @@ assert_grouped_devops_workflow_contract() {
     exit 1
   fi
 
-  echo "[ok] DevOps graph is grouped by UI, runtime services, and SDKs with only real cross-group dependencies"
+  echo "[ok] DevOps graph separates CLI quality, runtime artifact readiness, release validation, UI, runtime services, and SDKs with only real dependencies"
 }
 
 assert_grouped_devops_workflow_contract

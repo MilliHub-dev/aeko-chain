@@ -60,6 +60,8 @@ RUN --mount=type=cache,id=aeko-sccache,target=/root/.cache/sccache \
 # Operator tools include the CLI, keygen, and the gossip protocol probe. This
 # target still avoids building the validator executable itself.
 FROM rust-build-base AS tools-builder
+ARG CI_COMMIT
+ENV CI_COMMIT=${CI_COMMIT}
 
 RUN --mount=type=cache,id=aeko-sccache,target=/root/.cache/sccache \
     --mount=type=cache,id=aeko-registry,target=/usr/local/cargo/registry \

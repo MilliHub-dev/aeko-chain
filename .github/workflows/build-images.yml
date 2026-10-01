@@ -163,7 +163,33 @@ jobs:
     secrets: inherit
 
   cli:
-    name: Runtime / CLI & tools
+    name: Quality / CLI source
+    needs: classify
+    if: needs.classify.outputs.run_cli == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare CLI quality runner
+        uses: ./.github/actions/devops/pipeline/setup
+        with:
+          rust: "true"
+
+      - name: Validate CLI and keygen source
+        uses: ./.github/actions/devops/cli
+        with:
+          validate-source: "true"
+          host-build: "false"
+          build-image: "false"
+          publish: "false"
+          sha-tag: ${{ needs.classify.outputs.sha_tag }}
+
+  runtime_tools:
+    name: Runtime / Tools producer
     needs: classify
     if: needs.classify.outputs.run_cli == 'true'
     runs-on: ubuntu-latest
@@ -174,10 +200,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prepare CLI runner
+      - name: Prepare tools image runner
         uses: ./.github/actions/devops/pipeline/setup
         with:
-          rust: ${{ needs.classify.outputs.run_cli }}
           docker: "true"
 
       - name: Log in to Docker Hub
@@ -187,10 +212,10 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Validate and build CLI image
+      - name: Build operator tools image
         uses: ./.github/actions/devops/cli
         with:
-          validate-source: ${{ needs.classify.outputs.run_cli }}
+          validate-source: "false"
           host-build: "false"
           build-image: "true"
           publish: ${{ needs.classify.outputs.push_runtime_images }}
@@ -221,6 +246,33 @@ jobs:
           (cd "$out/cli-release" && sha256sum aeko-cli-x86_64-unknown-linux-gnu.tar.gz > aeko-cli-x86_64-unknown-linux-gnu.tar.gz.sha256)
           printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
           cp "$out/ci-source-sha.txt" "$out/cli-release/ci-source-sha.txt"
+
+      - name: Upload runtime tools artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-tools
+          path: ${{ runner.temp }}/aeko-runtime-tools
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
+
+  cli_linux_release:
+    name: Release / Linux CLI validation
+    needs: runtime_tools
+    if: needs.runtime_tools.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download Linux CLI payload
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-tools
+          path: ${{ runner.temp }}/aeko-runtime-tools
 
       - name: Exercise Linux CLI update check and installer from tools image
         shell: bash
@@ -283,15 +335,6 @@ jobs:
           "$install_dir/aeko" --version
           "$install_dir/aeko-keygen" --version
 
-      - name: Upload runtime tools artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: aeko-runtime-tools
-          path: ${{ runner.temp }}/aeko-runtime-tools
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 3
-
   runtime_services:
     name: Runtime / Producers
     needs: classify
@@ -347,6 +390,7 @@ jobs:
         run: |
           set -euo pipefail
           commit="$(git rev-parse HEAD)"
+          echo "CI_COMMIT=$commit" >> "$GITHUB_ENV"
           mkdir -p dist
           printf '%s\n' "$commit" > dist/ci-source-sha.txt
 
@@ -490,6 +534,8 @@ jobs:
       - ci_contract
       - web_ui
       - cli
+      - runtime_tools
+      - cli_linux_release
       - runtime_services
       - sdk_validation
     if: ${{ always() && !cancelled() && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') }}
@@ -509,6 +555,10 @@ jobs:
           WEB_UI_RESULT: ${{ needs.web_ui.result }}
           EXPECT_CLI: ${{ needs.classify.outputs.run_cli }}
           CLI_RESULT: ${{ needs.cli.result }}
+          EXPECT_RUNTIME_TOOLS: ${{ needs.classify.outputs.run_cli }}
+          RUNTIME_TOOLS_RESULT: ${{ needs.runtime_tools.result }}
+          EXPECT_CLI_LINUX_RELEASE: ${{ needs.classify.outputs.run_cli }}
+          CLI_LINUX_RELEASE_RESULT: ${{ needs.cli_linux_release.result }}
           EXPECT_RUNTIME_SERVICES: ${{ needs.classify.outputs.run_explorer_backend == 'true' || needs.classify.outputs.run_network == 'true' }}
           RUNTIME_SERVICES_RESULT: ${{ needs.runtime_services.result }}
           EXPECT_SDK_VALIDATION: ${{ needs.classify.outputs.run_sdk_non_rust == 'true' || needs.classify.outputs.run_sdk_rust == 'true' }}
@@ -518,10 +568,10 @@ jobs:
   runtime_integration:
     name: Integration / Runtime artifacts
     needs:
-      - cli
+      - runtime_tools
       - runtime_services
     if: >-
-      needs.cli.result == 'success' &&
+      needs.runtime_tools.result == 'success' &&
       needs.runtime_services.result == 'success' &&
       (
         github.event_name == 'push' ||

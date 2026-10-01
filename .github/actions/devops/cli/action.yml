@@ -103,6 +103,7 @@ runs:
           --target tools \
           --cache-from "type=gha,scope=aeko-tools" \
           --cache-to "type=gha,scope=aeko-tools,mode=max,ignore-error=true" \
+          --build-arg "CI_COMMIT=${GITHUB_SHA}" \
           "${tags[@]}" \
           --load \
           .
