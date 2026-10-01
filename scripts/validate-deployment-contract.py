@@ -22,6 +22,8 @@ PUBLIC_ENV = DOCKER / "env.public.example"
 ADMIN_ENV = ROOT / "apps" / "admin" / ".env.local.example"
 EXPLORER_ENV = ROOT / "apps" / "explorer" / "backend" / ".env.example"
 FUNDING_FEATURE = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "funding" / "mod.rs"
+FUNDING_SETTLEMENT = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "funding" / "settlement.rs"
+FUNDING_GUARDS = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "funding" / "guards.rs"
 FUNDING_CONFIG = ROOT / "apps" / "explorer" / "backend" / "src" / "config" / "mod.rs"
 FUNDING_HTTP_E2E = ROOT / "apps" / "explorer" / "backend" / "tests" / "funding_http_e2e.rs"
 JS_SDK_CLIENT = ROOT / "apps" / "sdk" / "js" / "src" / "connection.ts"
@@ -115,6 +117,9 @@ def main() -> int:
     admin_env = read(ADMIN_ENV)
     explorer_env = read(EXPLORER_ENV)
     funding_feature = read(FUNDING_FEATURE)
+    funding_settlement = read(FUNDING_SETTLEMENT)
+    funding_guards = read(FUNDING_GUARDS)
+    funding_runtime = funding_feature + funding_settlement + funding_guards
     funding_config = read(FUNDING_CONFIG)
     funding_http_e2e = read(FUNDING_HTTP_E2E)
     js_sdk_client = read(JS_SDK_CLIENT)
@@ -609,12 +614,12 @@ def main() -> int:
         "run_settlement_reconciler",
         "reconcile_submitted_settlements_once",
     ):
-        require(required in funding_feature, f"Explorer funding module missing {required}")
+        require(required in funding_runtime, f"Explorer funding module missing {required}")
     funding_state = read(ROOT / "apps" / "explorer" / "backend" / "src" / "http" / "state.rs")
     require(
         "pub fn is_funding_available(&self) -> bool" in funding_state
         and "pub fn is_test_environment(&self) -> bool" in funding_state
-        and "developer_airdrop_enabled: state.is_test_environment()" in funding_feature,
+        and "developer_airdrop_enabled: state.is_test_environment()" in funding_runtime,
         "Explorer funding must remain available on every network while developer airdrop follows the test-environment boundary",
     )
     for required in (
@@ -624,7 +629,7 @@ def main() -> int:
         "recover_processing_airdrop_submission",
     ):
         require(
-            required in funding_feature,
+            required in funding_runtime,
             f"Explorer funding recovery contract missing {required}",
         )
     require(
@@ -642,7 +647,7 @@ def main() -> int:
     require(
         "funding confirmation must not resubmit the durable transaction" in funding_http_e2e
         and "airdrop confirmation must not resubmit the durable transaction" in funding_http_e2e
-        and "confirmation continues in the reconciler" in funding_feature,
+        and "confirmation continues in the reconciler" in funding_runtime,
         "funding HTTP handlers must return after durable signature persistence and reconcile without a duplicate transfer",
     )
     for label, client in (
