@@ -413,6 +413,11 @@ assert_runtime_artifact_handoff_contract() {
   grep -Fq "compose up --pull never -d" "$runtime_script"
   grep -Fq "psql -U aeko -d aeko_explorer -Atqc 'SELECT 1'" "$runtime_script"
   if grep -Fq "pg_isready -U aeko -d aeko_explorer" "$runtime_script"; then echo "Runtime PostgreSQL readiness must query the initialized database, not transient pg_isready state." >&2; exit 1; fi
+  grep -Fq 'export AEKO_LEDGER_LIMIT=8000000' "$runtime_script"
+  if grep -Fq 'export AEKO_LEDGER_LIMIT=500000' "$runtime_script"; then
+    echo "Runtime integration must not configure a ledger limit below the validator minimum." >&2
+    exit 1
+  fi
   grep -Fq 'rpc-functional-results.json' "$runtime_script"
   grep -Fq 'rpc-method-results.json' "$runtime_script"
   grep -Fq 'explorer-route-results.json' "$runtime_script"
