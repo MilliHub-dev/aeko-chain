@@ -47,6 +47,48 @@ assert_node24_action_majors() {
   echo "[ok] active DevOps third-party actions use Node-24-backed majors"
 }
 
+assert_targeted_docker_publication_contract() {
+  local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+  local web_workflow="$PIPELINE_DIR/../../../workflows/devops-web-ui.yml"
+  local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
+  local release_mode="$PIPELINE_DIR/resolve-release.sh"
+
+  for output in publish_admin publish_cli publish_explorer_backend publish_explorer_web publish_network; do
+    grep -Fq "$output:" "$workflow"
+    grep -Fq "echo \"$output=" "$release_mode"
+  done
+
+  if grep -Fq "push_runtime_images" "$workflow" "$runtime_workflow" "$release_mode"; then
+    echo "Global runtime-image publication flag must not re-enable unrelated Docker Hub pushes." >&2
+    exit 1
+  fi
+
+  grep -Fq 'if: needs.classify.outputs.publish_cli == '\''true'\''' "$workflow"
+  grep -Fq 'publish: ${{ needs.classify.outputs.publish_cli }}' "$workflow"
+  grep -Fq 'if: inputs.publish_admin == '\''true'\''' "$web_workflow"
+  grep -Fq 'publish: ${{ inputs.publish_admin }}' "$web_workflow"
+  grep -Fq 'if: inputs.publish_explorer_web == '\''true'\''' "$web_workflow"
+  grep -Fq 'publish: ${{ inputs.publish_explorer_web }}' "$web_workflow"
+  grep -Fq 'if: inputs.publish_explorer_backend == '\''true'\''' "$runtime_workflow"
+  grep -Fq 'publish: ${{ inputs.publish_explorer_backend }}' "$runtime_workflow"
+  grep -Fq 'if: inputs.publish_network == '\''true'\''' "$runtime_workflow"
+  grep -Fq 'publish: ${{ inputs.publish_network }}' "$runtime_workflow"
+  grep -Fq 'network: ${{ needs.classify.outputs.publish_network }}' "$workflow"
+  grep -Fq 'explorer-web: ${{ needs.classify.outputs.publish_explorer_web }}' "$workflow"
+
+  echo "[ok] Docker Hub authentication/publication is scoped to changed image-owning domains"
+}
+
+assert_bounded_runner_setup_contract() {
+  local setup_action="$PIPELINE_DIR/setup/action.yml"
+  grep -Fq "timeout --kill-after=10s 90s" "$setup_action"
+  grep -Fq "Acquire::Retries=2" "$setup_action"
+  grep -Fq "Acquire::http::Timeout=15" "$setup_action"
+  grep -Fq "Acquire::https::Timeout=15" "$setup_action"
+  grep -Fq "apt-get failed after 3 bounded attempts" "$setup_action"
+  echo "[ok] native package setup is bounded and retry-limited"
+}
+
 assert_full_validation_workflow_contract() {
   local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
   local web_workflow="$PIPELINE_DIR/../../../workflows/devops-web-ui.yml"
@@ -203,26 +245,23 @@ assert_cli_release_after_main_contract() {
 }
 
 run_plan_case() {
-  local label="$1" event_name="$2" ci_pipeline="$3" core="$4" expected_all="$5" explorer_web="${6:-false}"
+  local label="$1" event_name="$2" admin="$3" cli="$4" core="$5" packaging="$6"
+  local explorer_backend="$7" explorer_web="$8" sdk_js="$9" sdk_node="${10}"
+  local sdk_python="${11}" sdk_rust="${12}" ci_pipeline="${13}"
+  shift 13
   local output
   output="$(mktemp)"
 
   GITHUB_OUTPUT="$output" GITHUB_EVENT_NAME="$event_name" \
-  ADMIN=false CLI=false CORE="$core" PACKAGING=false \
-  EXPLORER_BACKEND=false EXPLORER_WEB="$explorer_web" \
-  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false \
+  ADMIN="$admin" CLI="$cli" CORE="$core" PACKAGING="$packaging" \
+  EXPLORER_BACKEND="$explorer_backend" EXPLORER_WEB="$explorer_web" \
+  SDK_JS="$sdk_js" SDK_NODE="$sdk_node" SDK_PYTHON="$sdk_python" SDK_RUST="$sdk_rust" \
   CI_PIPELINE="$ci_pipeline" bash "$PIPELINE_DIR/plan.sh"
 
-  if [ "$expected_all" = "true" ]; then
-    assert_output "$output" "run_admin=true"
-    assert_output "$output" "run_cli=true"
-    assert_output "$output" "run_explorer_backend=true"
-    assert_output "$output" "run_explorer_web=true"
-    assert_output "$output" "run_network=true"
-    assert_output "$output" "run_sdk_non_rust=true"
-    assert_output "$output" "run_sdk_rust=true"
-  fi
-
+  while [ "$#" -gt 0 ]; do
+    assert_output "$output" "$1"
+    shift
+  done
   assert_output "$output" "run_ci_contract=true"
 
   rm -f "$output"
@@ -231,17 +270,26 @@ run_plan_case() {
 
 run_release_case() {
   local label="$1" event_name="$2" ref="$3" dockerized="$4" ci_pipeline="$5"
-  local internal_pr="$6" expected_publish="$7" expected_runtime_push="$8"
+  local internal_pr="$6" admin="$7" cli="$8" core="$9" packaging="${10}"
+  local explorer_backend="${11}" explorer_web="${12}"
+  local expected_publish="${13}" expected_admin="${14}" expected_cli="${15}"
+  local expected_backend="${16}" expected_web="${17}" expected_network="${18}"
   local output
   output="$(mktemp)"
 
   GITHUB_OUTPUT="$output" GITHUB_EVENT_NAME="$event_name" GITHUB_REF="$ref" \
   GITHUB_SHA="1234567890abcdef1234567890abcdef12345678" \
   DOCKERIZED="$dockerized" CI_PIPELINE="$ci_pipeline" INTERNAL_PR="$internal_pr" \
+  ADMIN="$admin" CLI="$cli" CORE="$core" PACKAGING="$packaging" \
+  EXPLORER_BACKEND="$explorer_backend" EXPLORER_WEB="$explorer_web" \
     bash "$PIPELINE_DIR/resolve-release.sh"
 
   assert_output "$output" "publish=$expected_publish"
-  assert_output "$output" "push_runtime_images=$expected_runtime_push"
+  assert_output "$output" "publish_admin=$expected_admin"
+  assert_output "$output" "publish_cli=$expected_cli"
+  assert_output "$output" "publish_explorer_backend=$expected_backend"
+  assert_output "$output" "publish_explorer_web=$expected_web"
+  assert_output "$output" "publish_network=$expected_network"
   assert_output "$output" "sha_tag=1234567890ab"
   rm -f "$output"
   echo "[ok] $label"
@@ -532,6 +580,8 @@ assert_grouped_devops_workflow_contract() {
 
 assert_grouped_devops_workflow_contract
 assert_node24_action_majors
+assert_targeted_docker_publication_contract
+assert_bounded_runner_setup_contract
 assert_runtime_artifact_handoff_contract
 assert_split_coolify_workflow_contract
 assert_full_validation_workflow_contract
@@ -539,10 +589,50 @@ assert_smart_contract_pipeline_separation
 assert_vercel_git_deployments_disabled
 assert_cli_release_after_main_contract
 
-run_plan_case "Explorer Web-only main push runs the full validation DAG" push false false true true
-run_plan_case "CI-only pull request runs images and all external SDK validation" pull_request true false true
-run_plan_case "CI-only main push runs images and all external SDK validation" push true false true
-run_plan_case "core main push still rebuilds the full image DAG" push false true true
+run_plan_case "Explorer Web-only main push stays scoped to Explorer Web" \
+  push false false false false false true false false false false false \
+  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=true \
+  run_network=false run_sdk_non_rust=false run_sdk_rust=false
+
+run_plan_case "SDK JS-only main push stays scoped to non-Rust SDK validation" \
+  push false false false false false false true false false false false \
+  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=false \
+  run_network=false run_sdk_non_rust=true run_sdk_rust=false
+
+run_plan_case "core pull request keeps runtime and SDK contracts together" \
+  pull_request false false true false false false false false false false false \
+  run_admin=false run_cli=true run_explorer_backend=true run_explorer_web=false \
+  run_network=true run_sdk_non_rust=true run_sdk_rust=true
+
+run_plan_case "Explorer backend change keeps the exact runtime bundle together" \
+  pull_request false false false false true false false false false false false \
+  run_admin=false run_cli=true run_explorer_backend=true run_explorer_web=false \
+  run_network=true run_sdk_non_rust=false run_sdk_rust=false
+
+run_plan_case "CLI change keeps the exact runtime bundle together" \
+  pull_request false true false false false false false false false false false \
+  run_admin=false run_cli=true run_explorer_backend=true run_explorer_web=false \
+  run_network=true run_sdk_non_rust=false run_sdk_rust=false
+
+run_plan_case "core main push rebuilds deployable image and SDK surfaces" \
+  push false false true false false false false false false false false \
+  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
+  run_network=true run_sdk_non_rust=true run_sdk_rust=true
+
+run_plan_case "packaging main push validates every container target" \
+  push false false false true false false false false false false false \
+  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
+  run_network=true run_sdk_non_rust=false run_sdk_rust=false
+
+run_plan_case "CI-only pull request exercises the full orchestration graph" \
+  pull_request false false false false false false false false false false true \
+  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
+  run_network=true run_sdk_non_rust=true run_sdk_rust=true
+
+run_plan_case "CI-only main push exercises the full orchestration graph" \
+  push false false false false false false false false false false true \
+  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
+  run_network=true run_sdk_non_rust=true run_sdk_rust=true
 
 run_deploy_plan_case "Explorer backend source deploys only Explorer API" \
   false false true false false false false false false false \
@@ -565,12 +655,27 @@ run_deploy_plan_case "Core release remains stateful-manual despite broad validat
 
 test_split_deploy_trigger
 
-run_release_case "CI-only main push promotes and publishes runtime validation images" push refs/heads/main false true false true true
-run_release_case "product main push promotes and publishes runtime validation images" push refs/heads/main true false false true true
-run_release_case "same-repository CI pull request keeps runtime images off Docker Hub" pull_request refs/pull/58/merge false true true false false
-run_release_case "same-repository product pull request keeps runtime images off Docker Hub" pull_request refs/pull/58/merge true false true false false
-run_release_case "fork pull request cannot push runtime images" pull_request refs/pull/58/merge true false false false false
-run_release_case "SDK-only main push publishes immutable validation images without promotion" push refs/heads/main false false false false true
+run_release_case "CI-only main push does not publish unrelated Docker images" \
+  push refs/heads/main false true false false false false false false false \
+  false false false false false false
+run_release_case "Explorer Web main push publishes only Explorer UI" \
+  push refs/heads/main true false false false false false false false true \
+  true false false false true false
+run_release_case "Explorer backend main push publishes only Explorer API aliases" \
+  push refs/heads/main true false false false false false false true false \
+  true false false true false false
+run_release_case "core main push publishes only core-backed runtime images" \
+  push refs/heads/main true false false false false true false false false \
+  true false true true false true
+run_release_case "packaging main push publishes every image target" \
+  push refs/heads/main true false false false false false true false false \
+  true true true true true true
+run_release_case "same-repository product pull request keeps images off Docker Hub" \
+  pull_request refs/pull/58/merge true false true false false false false false true \
+  false false false false false false
+run_release_case "SDK-only main push does not publish Docker images" \
+  push refs/heads/main false false false false false false false false false \
+  false false false false false false
 
 GITHUB_WORKSPACE="$PWD" PUBLISH_JS=true BEST_EFFORT=true NPM_TOKEN="" \
   bash "$SDK_PUBLISH_DIR/publish-selected.sh"

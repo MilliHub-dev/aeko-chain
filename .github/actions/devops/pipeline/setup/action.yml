@@ -38,8 +38,32 @@ runs:
           native_packages+=(pkg-config libudev-dev)
         fi
         if [ "${#native_packages[@]}" -gt 0 ]; then
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends "${native_packages[@]}"
+          run_apt() {
+            local attempt status
+            for attempt in 1 2 3; do
+              echo "apt-get attempt ${attempt}/3: $*"
+              if sudo env DEBIAN_FRONTEND=noninteractive \
+                timeout --kill-after=10s 90s \
+                apt-get \
+                  -o Acquire::Retries=2 \
+                  -o Acquire::http::Timeout=15 \
+                  -o Acquire::https::Timeout=15 \
+                  "$@"; then
+                return 0
+              else
+                status=$?
+              fi
+
+              if [ "$attempt" -eq 3 ]; then
+                echo "apt-get failed after 3 bounded attempts (exit ${status})." >&2
+                return "$status"
+              fi
+              sleep $((attempt * 2))
+            done
+          }
+
+          run_apt update
+          run_apt install -y --no-install-recommends "${native_packages[@]}"
         fi
 
         rustc --version
