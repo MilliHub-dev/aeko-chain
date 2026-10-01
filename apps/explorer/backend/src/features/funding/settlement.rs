@@ -3,9 +3,7 @@ use {
     crate::{
         infrastructure::{
             chain::FundingTransferStatus,
-            persistence::funding::{
-                FundingAirdropRecord, FundingRequestRecord, FundingStoreError,
-            },
+            persistence::funding::{FundingAirdropRecord, FundingRequestRecord, FundingStoreError},
         },
         state::SharedState,
     },

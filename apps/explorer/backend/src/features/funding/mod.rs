@@ -1,10 +1,8 @@
 use {
     crate::{
-        infrastructure::{
-            persistence::funding::{
-                FundingAirdropRecord, FundingRequestRecord, FundingSettingsUpdate,
-                FundingStoreError, FundingTransferRecord, PersistedFundingSettings,
-            },
+        infrastructure::persistence::funding::{
+            FundingAirdropRecord, FundingRequestRecord, FundingSettingsUpdate, FundingStoreError,
+            FundingTransferRecord, PersistedFundingSettings,
         },
         response::{self, DataEnvelope},
         state::SharedState,

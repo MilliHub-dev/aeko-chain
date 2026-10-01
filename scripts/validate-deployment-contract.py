@@ -892,18 +892,21 @@ def main() -> int:
         "README must explicitly document Explorer-owned funding",
     )
     require(
-        "a network only dispenses what its operator configured and funded" in readme,
-        "README must document per-network funding ownership",
+        "Each deployment owns its Faucet, protected Funding" in readme
+        and "Developer airdrop is not a" in readme
+        and "Mainnet distribution path" in readme,
+        "README must document per-network Funding ownership and the Mainnet airdrop boundary",
     )
     require(
         "scripts/smoke-funding-e2e.py" in testnet_runbook,
         "testnet runbook must document the deployed product funding smoke",
     )
     require(
-        "Public testnet funding uses the managed Explorer funding flow." in testnet_runbook
-        and "Instant `aeko airdrop`" in testnet_runbook
-        and "wait for admin approval" in testnet_runbook,
-        "testnet runbook must route public funding through Explorer, document instant airdrops, and describe approval-gated funding",
+        "Public testnet Funding uses the managed Explorer Funding flow." in testnet_runbook
+        and "On test environments, `aeko airdrop`" in testnet_runbook
+        and "waits for Admin approval" in testnet_runbook
+        and "Mainnet rejects them" in testnet_runbook,
+        "testnet runbook must route public Funding through Explorer and document the test-environment airdrop boundary",
     )
     require(
         "The Explorer backend owns settlement" in sdk_testnet_guide,
@@ -912,7 +915,7 @@ def main() -> int:
     require(
         "Aeko Scan calls the Explorer API directly" in testnet_environment
         and "authenticated Operations Admin approval" in testnet_environment,
-        "network environment docs must describe the current direct public grant boundary",
+        "network environment docs must describe the current direct public Funding boundary",
     )
     require(
         "### Registry discovery" in testnet_environment

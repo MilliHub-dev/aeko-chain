@@ -189,6 +189,8 @@ test('funding runtime is owned by the Scan backend after the Admin gateway remov
   const migration = await source('../../../explorer/backend/migrations/0010_funding.sql');
   const integrityMigration = await source('../../../explorer/backend/migrations/0012_funding_state_machine.sql');
   const fundingFeature = await source('../../../explorer/backend/src/features/funding/mod.rs');
+  const fundingSettlement = await source('../../../explorer/backend/src/features/funding/settlement.rs');
+  const fundingRuntime = `${fundingFeature}\n${fundingSettlement}`;
 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS funding_settings/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS funding_requests/);
@@ -199,13 +201,13 @@ test('funding runtime is owned by the Scan backend after the Admin gateway remov
   assert.match(fundingFeature, /\/funding\/request/);
   assert.match(fundingFeature, /\/funding\/airdrop/);
   assert.match(fundingFeature, /x-aeko-settings-token/);
-  assert.match(fundingFeature, /request_funding_airdrop/);
+  assert.match(fundingRuntime, /request_funding_airdrop/);
   assert.match(fundingFeature, /create_public_funding_request/);
   assert.match(fundingFeature, /reserve_public_funding_request/);
-  assert.match(fundingFeature, /confirm_funding_request/);
+  assert.match(fundingRuntime, /confirm_funding_request/);
   assert.match(fundingFeature, /create_funding_airdrop/);
-  assert.match(fundingFeature, /is_funding_available/);
-  assert.doesNotMatch(fundingFeature, /finalize_funding_request/);
+  assert.match(fundingRuntime, /is_funding_available/);
+  assert.doesNotMatch(fundingRuntime, /finalize_funding_request/);
 });
 
 test('Admin funding polling preserves persisted policy revisions and mainnet separation', async () => {
