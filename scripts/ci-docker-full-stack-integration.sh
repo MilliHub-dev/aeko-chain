@@ -396,23 +396,237 @@ methods=sorted(set(re.findall(r'#\[\s*rpc\([^\]]*?name\s*=\s*"([^"]+)"[^\]]*\)\s
 if not methods: raise SystemExit("no JSON-RPC methods discovered")
 Path(sys.argv[1]).write_text("\n".join(methods)+"\n",encoding="utf-8")
 PY
-RPC_METHOD_RESULTS="$ARTIFACT_DIR/rpc-method-results.jsonl"; : > "$RPC_METHOD_RESULTS"; RPC_METHOD_COUNT=0; RPC_METHOD_FAILURES=0
-summary_append "## Declared JSON-RPC surface"; summary_append "| Method | Result | Classification | RPC code |"; summary_append "| --- | --- | --- | --- |"
+PROBE_ADDRESS="$RPC_AIRDROP_ADDRESS"
+PROBE_OTHER_ADDRESS="$ADMIN_ADDRESS"
+PROBE_TOKEN_PROGRAM="TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+PROBE_SLOT="$(rpc_result getSlot '[{"commitment":"confirmed"}]' | jq -r '.')"
+PROBE_FIRST_BLOCK="$(rpc_result getFirstAvailableBlock | jq -r '.')"
+PROBE_EPOCH="$(rpc_result getEpochInfo '[{"commitment":"confirmed"}]' | jq -r '.epoch')"
+PROBE_BLOCKHASH="$(rpc_result getLatestBlockhash '[{"commitment":"confirmed"}]' | jq -r '.value.blockhash')"
+
+probe_seed_params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,1000000,{commitment:"confirmed"}]')"
+PROBE_SIGNATURE="$(rpc_result requestAirdrop "$probe_seed_params" | jq -r '.')"
+test -n "$PROBE_SIGNATURE" || fail "RPC method probe seed airdrop returned no signature"
+wait_balance_at_least "$PROBE_ADDRESS" 1000000 "RPC method probe seed reached wallet"
+
+PROBE_TX_BASE64=""
+for _ in $(seq 1 60); do
+  probe_tx="$(rpc_result getTransaction "$(jq -cn --arg s "$PROBE_SIGNATURE" '[$s,{encoding:"base64",commitment:"confirmed"}]')" 2>/dev/null || true)"
+  PROBE_TX_BASE64="$(jq -r '.transaction[0] // empty' <<<"$probe_tx" 2>/dev/null || true)"
+  [ -n "$PROBE_TX_BASE64" ] && break
+  sleep 1
+done
+test -n "$PROBE_TX_BASE64" || fail "confirmed probe transaction was not available as base64"
+
+rpc_probe_spec() {
+  local method="$1"
+  local expectation="result"
+  local params="[]"
+
+  case "$method" in
+    getBlockHeight|getBlockProduction|getClusterNodes|getEngagementEvents|getEpochInfo|getEpochSchedule|getFeeRateGovernor|getFees|getFirstAvailableBlock|getGenesisHash|getHealth|getIdentity|getInflationGovernor|getInflationRate|getLargestAccounts|getLatestBlockhash|getLeaderSchedule|getMaxRetransmitSlot|getMaxShredInsertSlot|getRecentBlockhash|getRecentPerformanceSamples|getRecentPrioritizationFees|getSlot|getSlotLeader|getStakeMinimumDelegation|getSupply|getTransactionCount|getVersion|getVoteAccounts|minimumLedgerSlot)
+      params='[]'
+      ;;
+    getHighestSnapshotSlot|getSnapshotSlot)
+      expectation="snapshot"
+      params='[]'
+      ;;
+    getBalance)
+      params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,{commitment:"confirmed"}]')"
+      ;;
+    getMinimumBalanceForRentExemption)
+      params='[0]'
+      ;;
+    getSlotLeaders)
+      params="$(jq -cn --argjson slot "$PROBE_SLOT" '[$slot,1]')"
+      ;;
+    getAccountInfo)
+      params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,{commitment:"confirmed",encoding:"base64"}]')"
+      ;;
+    getMultipleAccounts)
+      params="$(jq -cn --arg a "$PROBE_ADDRESS" '[[ $a ],{commitment:"confirmed",encoding:"base64"}]')"
+      ;;
+    getBlockCommitment)
+      params="$(jq -cn --argjson slot "$PROBE_SLOT" '[$slot]')"
+      ;;
+    getTokenAccountBalance|getTokenSupply|getTokenLargestAccounts|getStakeActivation)
+      expectation="resource"
+      params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,{commitment:"confirmed"}]')"
+      ;;
+    getTokenAccountsByOwner|getTokenAccountsByDelegate)
+      params="$(jq -cn --arg a "$PROBE_ADDRESS" --arg p "$PROBE_TOKEN_PROGRAM" '[$a,{programId:$p},{encoding:"base64",commitment:"confirmed"}]')"
+      ;;
+    getProgramAccounts)
+      params='["11111111111111111111111111111111",{"encoding":"base64","commitment":"confirmed"}]'
+      ;;
+    getInflationReward)
+      params="$(jq -cn --arg a "$PROBE_ADDRESS" --argjson epoch "$PROBE_EPOCH" '[[ $a ],{epoch:$epoch,commitment:"confirmed"}]')"
+      ;;
+    getSignatureStatuses)
+      params="$(jq -cn --arg s "$PROBE_SIGNATURE" '[[ $s ],{searchTransactionHistory:true}]')"
+      ;;
+    requestAirdrop)
+      params="$(jq -cn --arg a "$PROBE_OTHER_ADDRESS" '[$a,1000000,{commitment:"confirmed"}]')"
+      ;;
+    requestFunding)
+      params="$(jq -cn --arg a "$RPC_FUNDING_ADDRESS" --arg key "$AEKO_FUNDING_AUTHORIZATION_KEY" '[$a,1000000,{fundingAuthorization:$key,commitment:"confirmed"}]')"
+      ;;
+    sendTransaction)
+      expectation="transaction"
+      params="$(jq -cn --arg tx "$PROBE_TX_BASE64" '[$tx,{encoding:"base64",skipPreflight:false,preflightCommitment:"confirmed"}]')"
+      ;;
+    simulateTransaction)
+      params="$(jq -cn --arg tx "$PROBE_TX_BASE64" '[$tx,{encoding:"base64",sigVerify:false,commitment:"confirmed"}]')"
+      ;;
+    getBlock|getConfirmedBlock)
+      params="$(jq -cn --argjson slot "$PROBE_FIRST_BLOCK" '[$slot,{encoding:"json",transactionDetails:"signatures",rewards:false}]')"
+      ;;
+    getBlockTime)
+      params="$(jq -cn --argjson slot "$PROBE_FIRST_BLOCK" '[$slot]')"
+      ;;
+    getBlocks|getConfirmedBlocks)
+      params="$(jq -cn --argjson slot "$PROBE_FIRST_BLOCK" '[$slot]')"
+      ;;
+    getBlocksWithLimit|getConfirmedBlocksWithLimit)
+      params="$(jq -cn --argjson slot "$PROBE_FIRST_BLOCK" '[$slot,1]')"
+      ;;
+    getTransaction)
+      params="$(jq -cn --arg s "$PROBE_SIGNATURE" '[$s,{encoding:"json",commitment:"confirmed"}]')"
+      ;;
+    getConfirmedTransaction)
+      params="$(jq -cn --arg s "$PROBE_SIGNATURE" '[$s,{encoding:"json"}]')"
+      ;;
+    getSignaturesForAddress)
+      params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,{limit:1,commitment:"confirmed"}]')"
+      ;;
+    getConfirmedSignaturesForAddress2)
+      params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,{limit:1}]')"
+      ;;
+    isBlockhashValid)
+      params="$(jq -cn --arg h "$PROBE_BLOCKHASH" '[$h,{commitment:"confirmed"}]')"
+      ;;
+    getFeeCalculatorForBlockhash)
+      params="$(jq -cn --arg h "$PROBE_BLOCKHASH" '[$h,{commitment:"confirmed"}]')"
+      ;;
+    getFeeForMessage)
+      expectation="payload"
+      params='["AAAA",{"commitment":"confirmed"}]'
+      ;;
+    getPostAnchor)
+      params='["ci-missing-post",{"commitment":"confirmed"}]'
+      ;;
+    getPostsByCreator|getCreatorRewards|getClaimableRewards|getReputationScore|getSocialStakePositions)
+      params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a]')"
+      ;;
+    getCreatorRewardEpoch)
+      params="$(jq -cn --arg a "$PROBE_ADDRESS" --argjson epoch "$PROBE_EPOCH" '[$a,$epoch]')"
+      ;;
+    getEngagementScore)
+      params='["ci-missing-target"]'
+      ;;
+    submitEngagementProof|stakeBehindCreator|unstakeBehindCreator|claimSocialStakeYield)
+      expectation="transaction"
+      params="$(jq -cn --arg tx "$PROBE_TX_BASE64" '[$tx,{encoding:"base64"}]')"
+      ;;
+    *)
+      return 2
+      ;;
+  esac
+
+  printf '%s\t%s\n' "$expectation" "$params"
+}
+
+RPC_METHOD_RESULTS="$ARTIFACT_DIR/rpc-method-results.jsonl"
+: > "$RPC_METHOD_RESULTS"
+RPC_METHOD_COUNT=0
+RPC_METHOD_FAILURES=0
+RPC_METHOD_RESULT_COUNT=0
+RPC_METHOD_DOMAIN_COUNT=0
+RPC_METHOD_PAYLOAD_COUNT=0
+
+summary_append "## Declared JSON-RPC surface"
+summary_append "| Method | Result | Coverage | Classification | RPC code |"
+summary_append "| --- | --- | --- | --- | --- |"
+
 while IFS= read -r method; do
-  test -n "$method" || continue; RPC_METHOD_COUNT=$((RPC_METHOD_COUNT+1))
-  response="$(rpc_call "$method" '[]' 2>/dev/null || true)"; outcome=PASS; classification=returned-result; code=""
-  if [ -z "$response" ]; then outcome=FAIL; classification=no-response
-  elif ! jq -e . >/dev/null 2>&1 <<<"$response"; then outcome=FAIL; classification=non-json
-  elif jq -e 'has("result")' >/dev/null 2>&1 <<<"$response"; then classification=returned-result
+  test -n "$method" || continue
+  RPC_METHOD_COUNT=$((RPC_METHOD_COUNT+1))
+
+  if ! spec="$(rpc_probe_spec "$method")"; then
+    RPC_METHOD_FAILURES=$((RPC_METHOD_FAILURES+1))
+    jq -cn --arg method "$method" '{method:$method,outcome:"FAIL",coverage:"unmapped",classification:"missing-probe-spec",rpcCode:null}' >> "$RPC_METHOD_RESULTS"
+    summary_append "| $method | FAIL | unmapped | missing-probe-spec | - |"
+    continue
+  fi
+
+  expectation="${spec%%$'\t'*}"
+  params="${spec#*$'\t'}"
+  response="$(rpc_call "$method" "$params" 2>/dev/null || true)"
+  outcome="PASS"
+  classification="returned-result"
+  code=""
+
+  if [ -z "$response" ]; then
+    outcome="FAIL"
+    classification="no-response"
+  elif ! jq -e . >/dev/null 2>&1 <<<"$response"; then
+    outcome="FAIL"
+    classification="non-json"
+  elif jq -e 'has("result") and (has("error") | not)' >/dev/null 2>&1 <<<"$response"; then
+    classification="returned-result"
+    RPC_METHOD_RESULT_COUNT=$((RPC_METHOD_RESULT_COUNT+1))
   else
     code="$(jq -r '.error.code // empty' <<<"$response")"
-    case "$code" in -32601) outcome=FAIL; classification=method-not-registered ;; -32603) outcome=FAIL; classification=internal-error ;; -32600|-32602) classification=parameter-validation ;; *) classification=rpc-domain-error ;; esac
+    case "$code" in
+      -32601)
+        outcome="FAIL"
+        classification="method-not-registered"
+        ;;
+      -32603)
+        outcome="FAIL"
+        classification="internal-error"
+        ;;
+      *)
+        case "$expectation" in
+          result)
+            outcome="FAIL"
+            classification="unexpected-rpc-error"
+            ;;
+          snapshot)
+            if [ "$code" = "-32008" ]; then
+              classification="snapshot-unavailable"
+              RPC_METHOD_DOMAIN_COUNT=$((RPC_METHOD_DOMAIN_COUNT+1))
+            else
+              outcome="FAIL"
+              classification="unexpected-snapshot-error"
+            fi
+            ;;
+          resource)
+            classification="resource-domain-error"
+            RPC_METHOD_DOMAIN_COUNT=$((RPC_METHOD_DOMAIN_COUNT+1))
+            ;;
+          payload|transaction)
+            classification="payload-or-transaction-domain-error"
+            RPC_METHOD_PAYLOAD_COUNT=$((RPC_METHOD_PAYLOAD_COUNT+1))
+            ;;
+          *)
+            outcome="FAIL"
+            classification="unknown-expectation"
+            ;;
+        esac
+        ;;
+    esac
   fi
-  [ "$outcome" = PASS ] || RPC_METHOD_FAILURES=$((RPC_METHOD_FAILURES+1))
-  jq -cn --arg method "$method" --arg outcome "$outcome" --arg classification "$classification" --arg rpcCode "$code" '{method:$method,outcome:$outcome,classification:$classification,rpcCode:(if $rpcCode=="" then null else $rpcCode end)}' >> "$RPC_METHOD_RESULTS"
-  summary_append "| $method | $outcome | $classification | ${code:--} |"
+
+  [ "$outcome" = "PASS" ] || RPC_METHOD_FAILURES=$((RPC_METHOD_FAILURES+1))
+  jq -cn     --arg method "$method"     --arg outcome "$outcome"     --arg coverage "$expectation"     --arg classification "$classification"     --arg rpcCode "$code"     '{method:$method,outcome:$outcome,coverage:$coverage,classification:$classification,rpcCode:(if $rpcCode=="" then null else $rpcCode end)}'     >> "$RPC_METHOD_RESULTS"
+  summary_append "| $method | $outcome | $expectation | $classification | ${code:--} |"
 done < "$ARTIFACT_DIR/rpc-methods.txt"
+
 jq -s . "$RPC_METHOD_RESULTS" > "$ARTIFACT_DIR/rpc-method-results.json"
+summary_append ""
+summary_append "Probed $RPC_METHOD_COUNT declared methods: $RPC_METHOD_RESULT_COUNT returned results; $RPC_METHOD_DOMAIN_COUNT returned expected resource/snapshot domain errors; $RPC_METHOD_PAYLOAD_COUNT reached signed-payload/transaction validation; failures=$RPC_METHOD_FAILURES."
+[ "$RPC_METHOD_FAILURES" -eq 0 ] || fail "$RPC_METHOD_FAILURES declared JSON-RPC methods failed method-aware probes"
 [ "$RPC_METHOD_FAILURES" -eq 0 ] || fail "$RPC_METHOD_FAILURES declared JSON-RPC methods failed individual calls"
 [ "$RPC_FUNCTIONAL_FAILURES" -eq 0 ] || fail "$RPC_FUNCTIONAL_FAILURES strict JSON-RPC probes failed"
 fi

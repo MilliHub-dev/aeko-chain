@@ -420,6 +420,13 @@ assert_runtime_artifact_handoff_contract() {
   fi
   grep -Fq 'rpc-functional-results.json' "$runtime_script"
   grep -Fq 'rpc-method-results.json' "$runtime_script"
+  grep -Fq 'rpc_probe_spec()' "$runtime_script"
+  grep -Fq 'missing-probe-spec' "$runtime_script"
+  grep -Fq 'payload-or-transaction-domain-error' "$runtime_script"
+  if grep -Fq 'response="$(rpc_call "$method" '\''[]'\'' 2>/dev/null || true)"' "$runtime_script"; then
+    echo "RPC surface audit must use method-specific probe parameters instead of empty params for every method." >&2
+    exit 1
+  fi
   grep -Fq "jq -ce 'if .error then error(.error | tostring) elif has(\"result\") then .result else error(\"missing result\") end'" "$runtime_script"
   if grep -Fq "jq -cer 'if .error" "$runtime_script"; then
     echo "RPC result helper must preserve JSON string typing for downstream jq consumers." >&2
