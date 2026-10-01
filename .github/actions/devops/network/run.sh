@@ -50,13 +50,8 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
 fi
 
 if [ "${BUILD_IMAGE}" = "true" ]; then
-  output=(--load)
-  prefix="aeko-ci"
-
   if [ "${PUBLISH}" = "true" ]; then
     : "${REGISTRY_USER:?REGISTRY_USER is required when publishing}"
-    prefix="${REGISTRY_USER}"
-    output=(--push)
   fi
 
   build_target() {
@@ -65,7 +60,10 @@ if [ "${BUILD_IMAGE}" = "true" ]; then
     local tags=()
     local image
     for image in "$@"; do
-      tags+=(--tag "${prefix}/${image}:${SHA_TAG}")
+      tags+=(--tag "aeko-ci/${image}:${SHA_TAG}")
+      if [ "${PUBLISH}" = "true" ]; then
+        tags+=(--tag "${REGISTRY_USER}/${image}:${SHA_TAG}")
+      fi
     done
     local cache_scope="aeko-network-${target}"
     docker buildx build \
@@ -74,8 +72,14 @@ if [ "${BUILD_IMAGE}" = "true" ]; then
       --cache-from "type=gha,scope=${cache_scope}" \
       --cache-to "type=gha,scope=${cache_scope},mode=max,ignore-error=true" \
       "${tags[@]}" \
-      "${output[@]}" \
+      --load \
       .
+
+    if [ "${PUBLISH}" = "true" ]; then
+      for image in "$@"; do
+        docker push "${REGISTRY_USER}/${image}:${SHA_TAG}"
+      done
+    fi
   }
 
   # network-rust-builder compiles validator, genesis, faucet, social-bootstrap and protocol-bootstrap
@@ -85,12 +89,13 @@ if [ "${BUILD_IMAGE}" = "true" ]; then
   build_target social-bootstrap aeko-social-bootstrap
   build_target protocol-bootstrap aeko-protocol-bootstrap
 
+  for image in aeko-validator aeko-node aeko-faucet aeko-social-bootstrap aeko-protocol-bootstrap; do
+    docker image inspect "aeko-ci/${image}:${SHA_TAG}" >/dev/null
+  done
+
   if [ "${PUBLISH}" = "true" ]; then
-    echo "Published immutable network images for ${SHA_TAG}."
+    echo "Built local runtime images and published immutable network images for ${SHA_TAG}."
   else
-    for image in aeko-validator aeko-node aeko-faucet aeko-social-bootstrap aeko-protocol-bootstrap; do
-      docker image inspect "aeko-ci/${image}:${SHA_TAG}" >/dev/null
-    done
     echo "Built and verified the network image set locally; nothing was pushed."
   fi
 

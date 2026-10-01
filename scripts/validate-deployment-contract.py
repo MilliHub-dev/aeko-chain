@@ -676,6 +676,12 @@ def main() -> int:
         and "idempotent Admin retry changed wallet balance twice" in full_stack_integration,
         "production-compose dogfood must prove direct Admin Funding retries are idempotent",
     )
+    require(
+        "docker pull" not in full_stack_integration
+        and "docker image inspect" in full_stack_integration
+        and "compose create --pull never key-bootstrap" in full_stack_integration,
+        "production-compose dogfood must consume preloaded immutable workflow artifacts without registry pulls",
+    )
     for label, client in (
         ("JavaScript SDK", js_sdk_client),
         ("Rust SDK", rust_sdk_client),

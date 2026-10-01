@@ -9,17 +9,14 @@ INTERNAL_PR="${INTERNAL_PR:-false}"
 publish=false
 push_runtime_images=false
 
-# Every eligible same-repository PR and every main run publishes an immutable
-# SHA-tagged runtime image set. The runtime-contract workflow consumes exactly
-# those validation artifacts. Immutable PR/main validation images are never
-# promoted or deployed by this decision alone.
+# Runtime images are pushed to Docker Hub only from main. Pull requests build
+# and validate the same immutable image set locally, then hand those exact
+# images to the runtime-contract workflow as GitHub Actions artifacts.
 if [ "$GITHUB_REF" = "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
   push_runtime_images=true
   if [ "$DOCKERIZED" = "true" ] || [ "$CI_PIPELINE" = "true" ]; then
     publish=true
   fi
-elif [ "$GITHUB_EVENT_NAME" = "pull_request" ] && [ "$INTERNAL_PR" = "true" ]; then
-  push_runtime_images=true
 fi
 
 echo "publish=$publish" >> "$GITHUB_OUTPUT"

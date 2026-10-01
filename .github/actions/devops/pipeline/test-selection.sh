@@ -319,7 +319,49 @@ assert_split_coolify_workflow_contract() {
   echo "[ok] split Coolify workflow keeps stateful resources manual and app hooks independent"
 }
 
+assert_runtime_artifact_handoff_contract() {
+  local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+  local integration="$PIPELINE_DIR/../../../workflows/full-stack-integration.yml"
+  local release_mode="$PIPELINE_DIR/resolve-release.sh"
+  local runtime_script="$PIPELINE_DIR/../../../../scripts/ci-docker-full-stack-integration.sh"
+
+  for artifact in \
+    "aeko-runtime-tools" \
+    "aeko-runtime-network" \
+    "aeko-runtime-explorer-api"; do
+    grep -Fq "name: $artifact" "$workflow"
+    grep -Fq "name: $artifact" "$integration"
+  done
+
+  grep -Fq "runtime_integration:" "$workflow"
+  grep -Fq "gh workflow run full-stack-integration.yml" "$workflow"
+  grep -Fq "producer_run_id" "$workflow"
+  grep -Fq "producer_run_id:" "$integration"
+  grep -Fq "actions/download-artifact@v4" "$integration"
+  grep -Fq "gzip -dc artifacts/runtime-tools/aeko-tools-image.tar.gz | docker load" "$integration"
+  grep -Fq "AEKO_CI_IMAGE_REPOSITORY: aeko-ci" "$integration"
+
+  if grep -Fq "docker/login-action" "$integration"; then
+    echo "Runtime integration must not depend on Docker Hub credentials." >&2
+    exit 1
+  fi
+  if grep -Fq "docker pull" "$runtime_script"; then
+    echo "Runtime integration script must consume preloaded workflow artifacts, not Docker Hub." >&2
+    exit 1
+  fi
+  grep -Fq "compose create --pull never key-bootstrap" "$runtime_script"
+  grep -Fq "compose up --pull never -d" "$runtime_script"
+
+  if grep -Fq 'elif [ "$GITHUB_EVENT_NAME" = "pull_request"' "$release_mode"; then
+    echo "Pull requests must not publish runtime images to Docker Hub." >&2
+    exit 1
+  fi
+
+  echo "[ok] runtime integration consumes exact producer artifacts and PRs do not push registry images"
+}
+
 assert_node24_action_majors
+assert_runtime_artifact_handoff_contract
 assert_split_coolify_workflow_contract
 assert_full_validation_workflow_contract
 assert_smart_contract_pipeline_separation
@@ -354,8 +396,8 @@ test_split_deploy_trigger
 
 run_release_case "CI-only main push promotes and publishes runtime validation images" push refs/heads/main false true false true true
 run_release_case "product main push promotes and publishes runtime validation images" push refs/heads/main true false false true true
-run_release_case "same-repository CI pull request pushes only immutable runtime validation images" pull_request refs/pull/58/merge false true true false true
-run_release_case "same-repository product pull request pushes only immutable runtime validation images" pull_request refs/pull/58/merge true false true false true
+run_release_case "same-repository CI pull request keeps runtime images off Docker Hub" pull_request refs/pull/58/merge false true true false false
+run_release_case "same-repository product pull request keeps runtime images off Docker Hub" pull_request refs/pull/58/merge true false true false false
 run_release_case "fork pull request cannot push runtime images" pull_request refs/pull/58/merge true false false false false
 run_release_case "SDK-only main push publishes immutable validation images without promotion" push refs/heads/main false false false false true
 

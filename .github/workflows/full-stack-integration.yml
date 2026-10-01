@@ -1,183 +1,156 @@
 name: AEKO Runtime Contract Integration
 
 on:
-  pull_request:
-    branches: ["main"]
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
-      - "LICENSE*"
-      - "NOTICE*"
-  workflow_run:
-    workflows: ["AEKO CLI release binaries"]
-    branches: ["main"]
-    types: [completed]
   workflow_dispatch:
+    inputs:
+      producer_run_id:
+        description: AEKO DevOps run that produced the runtime artifacts
+        required: true
+        type: string
+      build_sha:
+        description: Exact commit or merge SHA used to build the runtime artifacts
+        required: true
+        type: string
+      source_head_sha:
+        description: Source branch head SHA for producer provenance verification
+        required: true
+        type: string
 
 permissions:
   actions: read
   contents: read
 
 concurrency:
-  group: aeko-runtime-contract-${{ github.event.pull_request.number || github.event.workflow_run.head_sha || github.ref }}
+  group: aeko-runtime-contract-${{ inputs.producer_run_id }}
   cancel-in-progress: true
 
 jobs:
   runtime-contract:
     name: Ubuntu production-compose API/RPC/WS integration
-    if: >
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
-      - name: Resolve validated image and CLI producers
-        id: producers
+      - name: Verify producer run provenance
+        id: producer
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_BUILD_SHA: ${{ github.sha }}
-          DISPATCH_SHA: ${{ github.sha }}
-          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
-          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
-          WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          PRODUCER_RUN_ID: ${{ inputs.producer_run_id }}
+          BUILD_SHA: ${{ inputs.build_sha }}
+          SOURCE_HEAD_SHA: ${{ inputs.source_head_sha }}
         run: |
           set -euo pipefail
+          : "${PRODUCER_RUN_ID:?producer run id is required}"
+          : "${BUILD_SHA:?build SHA is required}"
+          : "${SOURCE_HEAD_SHA:?source head SHA is required}"
 
-          if [ "$EVENT_NAME" = "workflow_run" ]; then
-            if [ "$WORKFLOW_RUN_CONCLUSION" != "success" ]; then
-              echo "CLI release producer did not succeed: $WORKFLOW_RUN_CONCLUSION" >&2
+          run_json="$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${PRODUCER_RUN_ID}")"
+
+          producer_repo="$(jq -r '.head_repository.full_name // empty' <<<"$run_json")"
+          producer_head_sha="$(jq -r '.head_sha // empty' <<<"$run_json")"
+          producer_event="$(jq -r '.event // empty' <<<"$run_json")"
+
+          if [ "$producer_repo" != "$GITHUB_REPOSITORY" ]; then
+            echo "Runtime artifacts came from unexpected repository: $producer_repo" >&2
+            exit 1
+          fi
+          if [ "$producer_head_sha" != "$SOURCE_HEAD_SHA" ]; then
+            echo "Producer head SHA $producer_head_sha does not match expected source head $SOURCE_HEAD_SHA" >&2
+            exit 1
+          fi
+          case "$producer_event" in
+            pull_request|push|workflow_dispatch) ;;
+            *)
+              echo "Unsupported runtime artifact producer event: $producer_event" >&2
               exit 1
-            fi
-            lookup_sha="$WORKFLOW_RUN_SHA"
-            build_sha="$WORKFLOW_RUN_SHA"
-            cli_run_id="$WORKFLOW_RUN_ID"
-          elif [ "$EVENT_NAME" = "pull_request" ]; then
-            lookup_sha="$PR_HEAD_SHA"
-            build_sha="$PR_BUILD_SHA"
-            cli_run_id=""
-          else
-            lookup_sha="$DISPATCH_SHA"
-            build_sha="$DISPATCH_SHA"
-            cli_run_id=""
-          fi
+              ;;
+          esac
 
-          test -n "$lookup_sha"
-          test -n "$build_sha"
-          short_sha="${build_sha:0:12}"
-
-          find_run() {
-            local workflow_file="$1"
-            gh api               -H "Accept: application/vnd.github+json"               "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?head_sha=${lookup_sha}&per_page=20"               --jq '.workflow_runs | sort_by(.created_at) | reverse | .[0]'
-          }
-
-          echo "Producer lookup SHA: $lookup_sha"
-          echo "Immutable build/image SHA: $build_sha"
-          echo "Waiting for AEKO DevOps to validate and push runtime images"
-          devops_run_id=""
-          for _ in $(seq 1 360); do
-            run_json="$(find_run build-images.yml)"
-            if [ "$run_json" != "null" ] && [ -n "$run_json" ]; then
-              devops_run_id="$(jq -r '.id' <<<"$run_json")"
-              status="$(jq -r '.status' <<<"$run_json")"
-              conclusion="$(jq -r '.conclusion // ""' <<<"$run_json")"
-              if [ "$status" = "completed" ]; then
-                if [ "$conclusion" != "success" ]; then
-                  echo "AEKO DevOps run $devops_run_id completed with $conclusion" >&2
-                  exit 1
-                fi
-                break
-              fi
-            fi
-            sleep 10
-          done
-          test -n "$devops_run_id" || {
-            echo "No AEKO DevOps run found for head $lookup_sha" >&2
-            exit 1
-          }
-
-          if [ -z "$cli_run_id" ]; then
-            echo "Waiting for the Linux CLI release artifact"
-            for _ in $(seq 1 360); do
-              run_json="$(find_run cli-release.yml)"
-              if [ "$run_json" != "null" ] && [ -n "$run_json" ]; then
-                cli_run_id="$(jq -r '.id' <<<"$run_json")"
-                status="$(jq -r '.status' <<<"$run_json")"
-                conclusion="$(jq -r '.conclusion // ""' <<<"$run_json")"
-                artifact_count="$(gh api                   -H "Accept: application/vnd.github+json"                   "repos/${GITHUB_REPOSITORY}/actions/runs/${cli_run_id}/artifacts"                   --jq '[.artifacts[] | select(.name == "cli-x86_64-unknown-linux-gnu" and .expired == false)] | length')"
-                if [ "$artifact_count" -gt 0 ]; then
-                  break
-                fi
-                if [ "$status" = "completed" ] && [ "$conclusion" != "success" ]; then
-                  echo "CLI release run $cli_run_id completed with $conclusion before producing the Linux artifact" >&2
-                  exit 1
-                fi
-              fi
-              sleep 10
-            done
-          fi
-
-          test -n "$cli_run_id" || {
-            echo "No CLI release run found for head $lookup_sha" >&2
-            exit 1
-          }
-
-          artifact_count="$(gh api             -H "Accept: application/vnd.github+json"             "repos/${GITHUB_REPOSITORY}/actions/runs/${cli_run_id}/artifacts"             --jq '[.artifacts[] | select(.name == "cli-x86_64-unknown-linux-gnu" and .expired == false)] | length')"
-          if [ "$artifact_count" -eq 0 ]; then
-            echo "Linux CLI release artifact is unavailable for run $cli_run_id" >&2
-            exit 1
-          fi
-
+          short_sha="${BUILD_SHA:0:12}"
           {
-            echo "lookup_sha=$lookup_sha"
-            echo "build_sha=$build_sha"
+            echo "build_sha=$BUILD_SHA"
             echo "sha_tag=$short_sha"
-            echo "devops_run_id=$devops_run_id"
-            echo "cli_run_id=$cli_run_id"
           } >> "$GITHUB_OUTPUT"
 
       - name: Checkout validated build commit
         uses: actions/checkout@v5
         with:
-          ref: ${{ steps.producers.outputs.build_sha }}
+          ref: ${{ steps.producer.outputs.build_sha }}
           fetch-depth: 0
 
-      - name: Download Linux CLI release artifact
+      - name: Download runtime tools artifact
         uses: actions/download-artifact@v4
         with:
-          name: cli-x86_64-unknown-linux-gnu
-          path: artifacts/cli-release
+          name: aeko-runtime-tools
+          path: artifacts/runtime-tools
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ steps.producers.outputs.cli_run_id }}
+          run-id: ${{ inputs.producer_run_id }}
 
-      - name: Verify CLI artifact provenance
+      - name: Download network runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-network
+          path: artifacts/runtime-network
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.producer_run_id }}
+
+      - name: Download Explorer API runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-explorer-api
+          path: artifacts/runtime-explorer-api
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.producer_run_id }}
+
+      - name: Verify and load immutable runtime artifacts
         shell: bash
         env:
-          EXPECTED_BUILD_SHA: ${{ steps.producers.outputs.build_sha }}
+          EXPECTED_BUILD_SHA: ${{ steps.producer.outputs.build_sha }}
+          SHA_TAG: ${{ steps.producer.outputs.sha_tag }}
         run: |
           set -euo pipefail
-          test -s artifacts/cli-release/ci-source-sha.txt
-          actual_sha="$(tr -d '\r\n' < artifacts/cli-release/ci-source-sha.txt)"
-          if [ "$actual_sha" != "$EXPECTED_BUILD_SHA" ]; then
-            echo "CLI artifact was built from $actual_sha, expected $EXPECTED_BUILD_SHA" >&2
-            exit 1
-          fi
-          echo "CLI artifact provenance matches $EXPECTED_BUILD_SHA"
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          for provenance in \
+            artifacts/runtime-tools/ci-source-sha.txt \
+            artifacts/runtime-network/ci-source-sha.txt \
+            artifacts/runtime-explorer-api/ci-source-sha.txt \
+            artifacts/runtime-tools/cli-release/ci-source-sha.txt
+          do
+            test -s "$provenance"
+            actual_sha="$(tr -d '\r\n' < "$provenance")"
+            if [ "$actual_sha" != "$EXPECTED_BUILD_SHA" ]; then
+              echo "Artifact $provenance was built from $actual_sha, expected $EXPECTED_BUILD_SHA" >&2
+              exit 1
+            fi
+          done
+
+          gzip -dc artifacts/runtime-tools/aeko-tools-image.tar.gz | docker load
+          gzip -dc artifacts/runtime-network/aeko-network-images.tar.gz | docker load
+          gzip -dc artifacts/runtime-explorer-api/aeko-explorer-api-image.tar.gz | docker load
+
+          for image in \
+            aeko-tools \
+            aeko-validator \
+            aeko-faucet \
+            aeko-social-bootstrap \
+            aeko-protocol-bootstrap \
+            aeko-explorer-api
+          do
+            docker image inspect "aeko-ci/${image}:${SHA_TAG}" >/dev/null
+          done
+
+          echo "Loaded exact runtime artifacts for $EXPECTED_BUILD_SHA without a registry pull."
 
       - name: Run production-compose API/RPC/WS/CLI gate
         env:
-          AEKO_CI_IMAGE_REPOSITORY: ${{ secrets.DOCKERHUB_USERNAME }}
-          AEKO_CI_IMAGE_TAG: ${{ steps.producers.outputs.sha_tag }}
-          AEKO_CI_CLI_ARCHIVE: ${{ github.workspace }}/artifacts/cli-release/aeko-cli-x86_64-unknown-linux-gnu.tar.gz
+          AEKO_CI_IMAGE_REPOSITORY: aeko-ci
+          AEKO_CI_IMAGE_TAG: ${{ steps.producer.outputs.sha_tag }}
+          AEKO_CI_CLI_ARCHIVE: ${{ github.workspace }}/artifacts/runtime-tools/cli-release/aeko-cli-x86_64-unknown-linux-gnu.tar.gz
           AEKO_CI_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/runtime-contract
         run: bash scripts/ci-docker-full-stack-integration.sh
 

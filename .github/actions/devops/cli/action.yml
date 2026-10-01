@@ -91,15 +91,11 @@ runs:
         SHA_TAG: ${{ inputs.sha-tag }}
       run: |
         set -euo pipefail
-        tags=()
-        output=(--load)
+        tags=(--tag "aeko-ci/aeko-tools:${SHA_TAG}")
 
         if [ "$PUBLISH" = "true" ]; then
           : "${REGISTRY_USER:?registry-user is required when publishing}"
           tags+=(--tag "${REGISTRY_USER}/aeko-tools:${SHA_TAG}")
-          output=(--push)
-        else
-          tags+=(--tag "aeko-ci/aeko-tools:${SHA_TAG}")
         fi
 
         docker buildx build \
@@ -108,11 +104,15 @@ runs:
           --cache-from "type=gha,scope=aeko-tools" \
           --cache-to "type=gha,scope=aeko-tools,mode=max,ignore-error=true" \
           "${tags[@]}" \
-          "${output[@]}" \
+          --load \
           .
 
-    - name: Verify PR-built operator tools image
-      if: ${{ inputs.build-image == 'true' && inputs.publish != 'true' }}
+        if [ "$PUBLISH" = "true" ]; then
+          docker push "${REGISTRY_USER}/aeko-tools:${SHA_TAG}"
+        fi
+
+    - name: Verify operator tools image
+      if: ${{ inputs.build-image == 'true' }}
       shell: bash
       env:
         SHA_TAG: ${{ inputs.sha-tag }}

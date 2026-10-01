@@ -4,11 +4,10 @@ set -Eeuo pipefail
 REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
 cd "$REPO_ROOT"
 
-: "${AEKO_CI_IMAGE_REPOSITORY:?AEKO_CI_IMAGE_REPOSITORY is required}"
 : "${AEKO_CI_IMAGE_TAG:?AEKO_CI_IMAGE_TAG is required}"
 : "${AEKO_CI_CLI_ARCHIVE:?AEKO_CI_CLI_ARCHIVE is required}"
 
-IMAGE_REPOSITORY="$AEKO_CI_IMAGE_REPOSITORY"
+IMAGE_REPOSITORY="${AEKO_CI_IMAGE_REPOSITORY:-aeko-ci}"
 IMAGE_TAG="$AEKO_CI_IMAGE_TAG"
 CLI_ARCHIVE="$AEKO_CI_CLI_ARCHIVE"
 PROJECT="aeko-runtime-${GITHUB_RUN_ID:-local}"
@@ -218,11 +217,10 @@ chmod 0755 "$CLI_DIR/aeko" "$CLI_DIR/aeko-keygen"
 "$CLI_DIR/aeko" --version | tee "$ARTIFACT_DIR/cli-version.txt"
 "$CLI_DIR/aeko-keygen" --version | tee "$ARTIFACT_DIR/keygen-version.txt"
 
-echo "==> Pulling immutable runtime images produced by AEKO DevOps"
+echo "==> Verifying immutable runtime images loaded from the producer workflow"
 for image in aeko-tools aeko-validator aeko-faucet aeko-social-bootstrap aeko-protocol-bootstrap aeko-explorer-api
 do
   ref="${IMAGE_REPOSITORY}/${image}:${IMAGE_TAG}"
-  docker pull "$ref"
   docker image inspect "$ref" >/dev/null
   printf '%s %s\n' "$ref" "$(docker image inspect -f '{{.Id}}' "$ref")" >>"$ARTIFACT_DIR/runtime-images.txt"
 done
@@ -232,7 +230,7 @@ sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" "$KEYS_DIR"
 sudo find "$KEYS_DIR" -mindepth 1 -maxdepth 1 -delete
 compose config >"$ARTIFACT_DIR/compose-rendered.yml"
 
-compose create key-bootstrap >/dev/null
+compose create --pull never key-bootstrap >/dev/null
 COMPOSE_NETWORK="${PROJECT}_aeko"
 docker network inspect "$COMPOSE_NETWORK" >/dev/null
 
@@ -248,7 +246,7 @@ done
 docker exec "$POSTGRES_CONTAINER" pg_isready -U aeko -d aeko_explorer >/dev/null   || fail "PostgreSQL sidecar never became ready"
 
 echo "==> Starting production network/API services (UI intentionally excluded)"
-compose up -d key-bootstrap faucet validator social-bootstrap protocol-bootstrap
+compose up --pull never -d key-bootstrap faucet validator social-bootstrap protocol-bootstrap
 
 for service in key-bootstrap social-bootstrap protocol-bootstrap; do
   cid="$(compose ps -a -q "$service")"
@@ -261,7 +259,7 @@ for service in key-bootstrap social-bootstrap protocol-bootstrap; do
   echo "[ok] $service completed successfully"
 done
 
-compose up -d explorer-api
+compose up --pull never -d explorer-api
 
 service_ip() {
   local service="$1"

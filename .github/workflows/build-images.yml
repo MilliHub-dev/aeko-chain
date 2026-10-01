@@ -253,6 +253,40 @@ jobs:
           registry-user: ${{ needs.classify.outputs.push_runtime_images == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ needs.classify.outputs.sha_tag }}
 
+      - name: Package runtime tools image and Linux CLI payload
+        shell: bash
+        env:
+          SHA_TAG: ${{ needs.classify.outputs.sha_tag }}
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/aeko-runtime-tools"
+          rm -rf "$out"
+          mkdir -p "$out/cli-release/package"
+          image="aeko-ci/aeko-tools:${SHA_TAG}"
+          docker image inspect "$image" >/dev/null
+          docker save "$image" | gzip -1 > "$out/aeko-tools-image.tar.gz"
+
+          cid="$(docker create --entrypoint /bin/sh "$image" -c true)"
+          cleanup_container() { docker rm -f "$cid" >/dev/null 2>&1 || true; }
+          trap cleanup_container EXIT HUP INT TERM
+          docker cp "$cid:/usr/local/bin/aeko" "$out/cli-release/package/aeko"
+          docker cp "$cid:/usr/local/bin/aeko-keygen" "$out/cli-release/package/aeko-keygen"
+          chmod 0755 "$out/cli-release/package/aeko" "$out/cli-release/package/aeko-keygen"
+
+          tar -C "$out/cli-release/package" -czf "$out/cli-release/aeko-cli-x86_64-unknown-linux-gnu.tar.gz" aeko aeko-keygen
+          (cd "$out/cli-release" && sha256sum aeko-cli-x86_64-unknown-linux-gnu.tar.gz > aeko-cli-x86_64-unknown-linux-gnu.tar.gz.sha256)
+          printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
+          cp "$out/ci-source-sha.txt" "$out/cli-release/ci-source-sha.txt"
+
+      - name: Upload runtime tools artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-tools
+          path: ${{ runner.temp }}/aeko-runtime-tools
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
+
   explorer_backend:
     name: Explorer backend
     needs: classify
@@ -287,6 +321,29 @@ jobs:
           publish: ${{ needs.classify.outputs.push_runtime_images }}
           registry-user: ${{ needs.classify.outputs.push_runtime_images == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ needs.classify.outputs.sha_tag }}
+
+      - name: Package Explorer API runtime image
+        shell: bash
+        env:
+          SHA_TAG: ${{ needs.classify.outputs.sha_tag }}
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/aeko-runtime-explorer-api"
+          rm -rf "$out"
+          mkdir -p "$out"
+          image="aeko-ci/aeko-explorer-api:${SHA_TAG}"
+          docker image inspect "$image" >/dev/null
+          docker save "$image" | gzip -1 > "$out/aeko-explorer-api-image.tar.gz"
+          printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
+
+      - name: Upload Explorer API runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-explorer-api
+          path: ${{ runner.temp }}/aeko-runtime-explorer-api
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
 
   network:
     name: Blockchain network
@@ -323,6 +380,36 @@ jobs:
           publish: ${{ needs.classify.outputs.push_runtime_images }}
           registry-user: ${{ needs.classify.outputs.push_runtime_images == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ needs.classify.outputs.sha_tag }}
+
+      - name: Package network runtime images
+        shell: bash
+        env:
+          SHA_TAG: ${{ needs.classify.outputs.sha_tag }}
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/aeko-runtime-network"
+          rm -rf "$out"
+          mkdir -p "$out"
+          images=(
+            "aeko-ci/aeko-validator:${SHA_TAG}"
+            "aeko-ci/aeko-faucet:${SHA_TAG}"
+            "aeko-ci/aeko-social-bootstrap:${SHA_TAG}"
+            "aeko-ci/aeko-protocol-bootstrap:${SHA_TAG}"
+          )
+          for image in "${images[@]}"; do
+            docker image inspect "$image" >/dev/null
+          done
+          docker save "${images[@]}" | gzip -1 > "$out/aeko-network-images.tar.gz"
+          printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
+
+      - name: Upload network runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-network
+          path: ${{ runner.temp }}/aeko-runtime-network
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
 
   sdk_non_rust:
     name: External SDKs (JS / Node / Python)
@@ -424,6 +511,54 @@ jobs:
           EXPECT_SDK_RUST: ${{ needs.classify.outputs.run_sdk_rust }}
           SDK_RUST_RESULT: ${{ needs.sdk_rust.result }}
         run: bash .github/actions/devops/pipeline/verify-results.sh
+
+  runtime_integration:
+    name: Handoff runtime artifacts
+    needs:
+      - classify
+      - devops
+      - cli
+      - explorer_backend
+      - network
+    if: >-
+      needs.devops.result == 'success' &&
+      (
+        github.event_name == 'push' ||
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        )
+      )
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch runtime contract integration
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCER_RUN_ID: ${{ github.run_id }}
+          BUILD_SHA: ${{ github.sha }}
+          SOURCE_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          TARGET_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          : "${PRODUCER_RUN_ID:?producer run id is required}"
+          : "${BUILD_SHA:?build SHA is required}"
+          : "${SOURCE_HEAD_SHA:?source head SHA is required}"
+          : "${TARGET_REF:?target ref is required}"
+
+          gh workflow run full-stack-integration.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "$TARGET_REF" \
+            -f "producer_run_id=$PRODUCER_RUN_ID" \
+            -f "build_sha=$BUILD_SHA" \
+            -f "source_head_sha=$SOURCE_HEAD_SHA"
+
+          echo "Dispatched runtime integration from DevOps run $PRODUCER_RUN_ID for build $BUILD_SHA"
 
   sdk_publish:
     name: Publish SDKs (best effort)
