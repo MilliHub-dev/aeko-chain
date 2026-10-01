@@ -128,34 +128,50 @@ assert_vercel_git_deployments_disabled() {
 
 assert_cli_release_after_main_contract() {
   local workflow="$PIPELINE_DIR/../../../workflows/cli-release.yml"
+  local devops_workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
   local classifier="$PIPELINE_DIR/../detect-changes/action.yml"
   local root_readme="$PIPELINE_DIR/../../../../README.md"
 
-  grep -Fq 'pull_request:' "$workflow"
-  grep -Fq 'workflow_run:' "$workflow"
-  grep -Fq 'workflows: ["AEKO DevOps (single runner)"]' "$workflow"
-  grep -Fq 'branches: ["main"]' "$workflow"
-  grep -Fq 'types: [completed]' "$workflow"
-  grep -Fq "github.event.workflow_run.event == 'push'" "$workflow"
-  grep -Fq "github.event.workflow_run.head_branch == 'main'" "$workflow"
-  grep -Fq "github.event.workflow_run.conclusion == 'success'" "$workflow"
-  grep -Fq "github.event.workflow_run.head_sha" "$workflow"
-  grep -Fq 'TAG="cli-main-${short_sha}"' "$workflow"
-  grep -Fq -- '--target "$SOURCE_SHA"' "$workflow"
-  grep -Fq 'git ls-remote --exit-code --tags origin "refs/tags/$TAG"' "$workflow"
-  grep -Fq -- '--latest' "$workflow"
+  grep -Fq 'workflow_dispatch:' "$workflow"
+  grep -Fq 'tags:' "$workflow"
+  grep -Fq -- '- "v*"' "$workflow"
+  if grep -Fq 'pull_request:' "$workflow" || grep -Fq 'workflow_run:' "$workflow"; then
+    echo "Standalone CLI release workflow must not rebuild automatic PR/main binaries." >&2
+    exit 1
+  fi
+
+  grep -Fq 'cli_windows_release:' "$devops_workflow"
+  grep -Fq 'name: CLI release Windows (non-blocking)' "$devops_workflow"
+  grep -Fq 'continue-on-error: true' "$devops_workflow"
+  grep -Fq 'needs: cli' "$devops_workflow"
+  grep -Fq 'Build CLI and keygen for Windows' "$devops_workflow"
+  grep -Fq "irm 'http://127.0.0.1:18766/mock/aeko-cli-install.ps1' | iex" "$devops_workflow"
+  grep -Fq 'powershell.exe -NoLogo -NoProfile -NonInteractive' "$devops_workflow"
+
+  grep -Fq 'Exercise Linux CLI update check and installer from tools image' "$devops_workflow"
+  grep -Fq 'aeko-runtime-tools/cli-release' "$devops_workflow"
+  grep -Fq 'AEKO_CLI_ASSET_BASE_URL=http://127.0.0.1:18765' "$devops_workflow"
+
+  grep -Fq 'cli_release_publish:' "$devops_workflow"
+  grep -Fq 'name: Publish CLI binaries (best effort)' "$devops_workflow"
+  grep -Fq "github.event_name == 'push'" "$devops_workflow"
+  grep -Fq "github.ref == 'refs/heads/main'" "$devops_workflow"
+  grep -Fq "needs.devops.result == 'success'" "$devops_workflow"
+  grep -Fq "needs.cli_windows_release.outputs.ready == 'true'" "$devops_workflow"
+  grep -Fq 'name: aeko-runtime-tools' "$devops_workflow"
+  grep -Fq 'name: cli-x86_64-pc-windows-msvc' "$devops_workflow"
+  grep -Fq 'TAG="cli-main-${short_sha}"' "$devops_workflow"
+  grep -Fq -- '--target "$SOURCE_SHA"' "$devops_workflow"
+  grep -Fq 'git ls-remote --exit-code --tags origin "refs/tags/$TAG"' "$devops_workflow"
+  grep -Fq -- '--latest' "$devops_workflow"
+
   grep -Fq 'commit="$(git rev-parse HEAD)"' "$workflow"
   grep -Fq 'ci-source-sha.txt' "$workflow"
-  grep -Fq 'aeko" update --check' "$workflow"
-  grep -Fq 'update --yes' "$workflow"
-  grep -Fq "irm 'http://127.0.0.1:18766/mock/aeko-cli-install.ps1' | iex" "$workflow"
-  grep -Fq 'powershell.exe -NoLogo -NoProfile -NonInteractive' "$workflow"
-  grep -Fq 'AEKO_CLI_ASSET_BASE_URL=http://127.0.0.1:18765' "$workflow"
   grep -Fq 'install/aeko-cli-install.sh|install/aeko-cli-install.ps1)' "$classifier"
   grep -Fq 'install/aeko-cli-install.sh | sh' "$root_readme"
   grep -Fq 'install/aeko-cli-install.ps1 | iex' "$root_readme"
 
-  echo "[ok] successful main DevOps runs publish traceable CLI GitHub Releases and root install commands stay documented"
+  echo "[ok] DevOps reuses Linux tools binaries, preserves non-blocking Windows validation, and publishes traceable main CLI releases"
 }
 
 run_plan_case() {
