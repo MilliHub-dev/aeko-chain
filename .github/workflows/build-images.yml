@@ -516,12 +516,13 @@ jobs:
     name: Handoff runtime artifacts
     needs:
       - classify
-      - devops
       - cli
       - explorer_backend
       - network
     if: >-
-      needs.devops.result == 'success' &&
+      needs.cli.result == 'success' &&
+      needs.explorer_backend.result == 'success' &&
+      needs.network.result == 'success' &&
       (
         github.event_name == 'push' ||
         github.event_name == 'workflow_dispatch' ||
