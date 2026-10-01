@@ -91,7 +91,7 @@ fail() {
 }
 
 json_result() {
-  jq -cer 'if .error then error(.error | tostring) elif has("result") then .result else error("missing result") end'
+  jq -ce 'if .error then error(.error | tostring) elif has("result") then .result else error("missing result") end'
 }
 
 wait_json_url() {

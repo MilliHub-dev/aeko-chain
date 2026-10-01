@@ -420,6 +420,11 @@ assert_runtime_artifact_handoff_contract() {
   fi
   grep -Fq 'rpc-functional-results.json' "$runtime_script"
   grep -Fq 'rpc-method-results.json' "$runtime_script"
+  grep -Fq "jq -ce 'if .error then error(.error | tostring) elif has(\"result\") then .result else error(\"missing result\") end'" "$runtime_script"
+  if grep -Fq "jq -cer 'if .error" "$runtime_script"; then
+    echo "RPC result helper must preserve JSON string typing for downstream jq consumers." >&2
+    exit 1
+  fi
   grep -Fq 'explorer-route-results.json' "$runtime_script"
   grep -Fq 'application_flow_enabled funding-public' "$runtime_script"
   grep -Fq 'application_flow_enabled funding-admin' "$runtime_script"
