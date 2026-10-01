@@ -3,7 +3,6 @@ use {
     crate::state::SharedState,
     aeko_sdk::{native_token::LAMPORTS_PER_AEKO, pubkey::Pubkey},
     axum::http::{HeaderMap, StatusCode},
-    serde_json::json,
 };
 
 const FUNDING_RATE_WINDOW_SECONDS: i32 = 600;
