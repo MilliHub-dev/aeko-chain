@@ -589,7 +589,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Dispatch latest-success compatibility integration
+      - name: Resolve compatible baseline
+        id: baseline
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -597,12 +598,56 @@ jobs:
         run: |
           set -euo pipefail
           : "${TARGET_REF:?target ref is required}"
+
+          runs="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/workflows/build-images.yml/runs" \
+            -f branch="$TARGET_REF" \
+            -f status=success \
+            -f per_page=30)"
+
+          producer_run_id=""
+          while IFS= read -r candidate_id; do
+            [ -n "$candidate_id" ] || continue
+            artifacts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_id}/artifacts?per_page=100")"
+            complete=1
+            for required in aeko-runtime-tools aeko-runtime-network aeko-runtime-explorer-api; do
+              if ! jq -e --arg name "$required" '.artifacts | any(.name == $name and .expired == false)' <<<"$artifacts" >/dev/null; then
+                complete=0
+                break
+              fi
+            done
+            if [ "$complete" -eq 1 ]; then
+              producer_run_id="$candidate_id"
+              break
+            fi
+          done < <(jq -r '.workflow_runs[].id' <<<"$runs")
+
+          if [ -z "$producer_run_id" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "No prior compatible runtime baseline exists for $TARGET_REF; exact integration will run after current producers succeed."
+            exit 0
+          fi
+
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          echo "producer_run_id=$producer_run_id" >> "$GITHUB_OUTPUT"
+          echo "Compatible runtime baseline producer: $producer_run_id"
+
+      - name: Dispatch latest-success compatibility integration
+        if: steps.baseline.outputs.available == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+          BASELINE_RUN_ID: ${{ steps.baseline.outputs.producer_run_id }}
+        run: |
+          set -euo pipefail
+          : "${TARGET_REF:?target ref is required}"
+          : "${BASELINE_RUN_ID:?baseline producer run id is required}"
           gh workflow run full-stack-integration.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref "$TARGET_REF" \
             -f "selection_mode=last-success" \
             -f "target_ref=$TARGET_REF"
-          echo "Dispatched known-good compatibility integration; artifact source will be resolved at execution time."
+          echo "Dispatched known-good compatibility integration using baseline producer candidate $BASELINE_RUN_ID."
 
   runtime_integration:
     name: Integration / Runtime artifacts
