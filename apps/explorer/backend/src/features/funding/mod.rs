@@ -24,8 +24,8 @@ mod settlement;
 
 use guards::{
     apply_rate_limit, apply_subject_rate_limit, authorize_admin,
-    ensure_developer_airdrop_available, ensure_funding_available, validate_address,
-    validate_direct_amount, validate_non_negative, validate_positive,
+    ensure_developer_airdrop_available, ensure_funding_available, request_idempotency_key,
+    validate_address, validate_direct_amount, validate_non_negative, validate_positive,
 };
 use settlement::{observe_funding, submit_and_observe_airdrop, submit_and_observe_funding};
 pub use settlement::{reconcile_submitted_settlements_once, run_settlement_reconciler};
@@ -142,6 +142,11 @@ impl From<FundingStoreError> for FundingHttpError {
                 StatusCode::CONFLICT,
                 "REVISION_CONFLICT",
                 "Funding policy changed since it was loaded; reload and retry",
+            ),
+            FundingStoreError::IdempotencyConflict => Self::new(
+                StatusCode::CONFLICT,
+                "IDEMPOTENCY_CONFLICT",
+                "This request identifier is already bound to a different Admin funding transfer",
             ),
             FundingStoreError::RateLimited {
                 retry_after_seconds,
@@ -904,11 +909,23 @@ async fn send_funding(
         .max_admin_funding_aeko
         .min(state.faucet_per_request_cap_aeko);
     validate_direct_amount(body.amount_aeko, cap, "Admin funding")?;
+    let idempotency_key = request_idempotency_key(&headers)?;
     let request = state
         .repository
-        .create_immediate_funding_request(&address, body.amount_aeko)
+        .create_immediate_funding_request(&address, body.amount_aeko, &idempotency_key)
         .await?;
-    let settled = submit_and_observe_funding(&state, request).await?;
+    let settled = match request.status.as_str() {
+        "processing" => submit_and_observe_funding(&state, request).await?,
+        "submitted" => observe_funding(&state, request).await?,
+        "confirmed" => request,
+        status => {
+            return Err(FundingHttpError::from(
+                FundingStoreError::RequestAlreadyDecided {
+                    status: status.to_string(),
+                },
+            ))
+        }
+    };
     Ok(response::data_from_source(
         &state.network,
         settled.into(),

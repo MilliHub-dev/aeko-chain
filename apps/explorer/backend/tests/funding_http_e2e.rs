@@ -237,12 +237,26 @@ async fn request_json(
     body: Option<Value>,
     admin_token: Option<&str>,
 ) -> (StatusCode, Value) {
+    request_json_with_id(app, method, uri, body, admin_token, None).await
+}
+
+async fn request_json_with_id(
+    app: &Router,
+    method: Method,
+    uri: &str,
+    body: Option<Value>,
+    admin_token: Option<&str>,
+    request_id: Option<&str>,
+) -> (StatusCode, Value) {
     let mut builder = Request::builder().method(method).uri(uri);
     if body.is_some() {
         builder = builder.header("content-type", "application/json");
     }
     if let Some(token) = admin_token {
         builder = builder.header("x-aeko-settings-token", token);
+    }
+    if let Some(request_id) = request_id {
+        builder = builder.header("x-request-id", request_id);
     }
     let request = builder
         .body(match body {
@@ -915,6 +929,108 @@ async fn processing_funding_replays_only_persisted_intent_after_submission_respo
         Some(expected_signature.as_str())
     );
     assert!(matching[0].confirmed);
+
+    // Direct Admin Funding uses X-Request-Id as an idempotency key. If the
+    // first HTTP attempt loses the RPC response, retrying the same operator
+    // action resumes the persisted intent instead of creating a second transfer.
+    rpc_observer.transfer_failures.store(1, Ordering::SeqCst);
+    let direct_address = Pubkey::new_unique().to_string();
+    let direct_request_key = "admin-funding-idempotency-replay-0001";
+    let direct_body = json!({"address": direct_address, "amountAeko": 2.0});
+
+    let (status, first_direct) = request_json_with_id(
+        &app,
+        Method::POST,
+        "/admin/funding/send",
+        Some(direct_body.clone()),
+        Some(admin_token),
+        Some(direct_request_key),
+    )
+    .await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{first_direct}");
+    assert_eq!(
+        first_direct["error"]["code"],
+        "FUNDING_SUBMISSION_RETRY_PENDING"
+    );
+
+    let transfer_calls_after_failed_direct = rpc_observer.transfer_calls.load(Ordering::SeqCst);
+    let blockhash_calls_after_failed_direct = rpc_observer.blockhash_calls.load(Ordering::SeqCst);
+
+    let (status, retried_direct) = request_json_with_id(
+        &app,
+        Method::POST,
+        "/admin/funding/send",
+        Some(direct_body.clone()),
+        Some(admin_token),
+        Some(direct_request_key),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{retried_direct}");
+    let direct_request_id = retried_direct["data"]["id"]
+        .as_str()
+        .expect("direct Admin request id")
+        .to_string();
+    assert_eq!(
+        rpc_observer.blockhash_calls.load(Ordering::SeqCst),
+        blockhash_calls_after_failed_direct,
+        "idempotent Admin retry must reuse the persisted blockhash"
+    );
+    assert_eq!(
+        rpc_observer.transfer_calls.load(Ordering::SeqCst),
+        transfer_calls_after_failed_direct + 1,
+        "idempotent Admin retry must replay only the original persisted intent"
+    );
+
+    let transitioned = funding::reconcile_submitted_settlements_once(&state).await;
+    assert!(transitioned >= 1);
+    let direct_confirmed = state
+        .repository
+        .funding_request(&direct_request_id)
+        .await?
+        .expect("direct Admin funding request");
+    assert_eq!(direct_confirmed.status, "confirmed");
+
+    let calls_before_confirmed_replay = rpc_observer.transfer_calls.load(Ordering::SeqCst);
+    let (status, confirmed_replay) = request_json_with_id(
+        &app,
+        Method::POST,
+        "/admin/funding/send",
+        Some(direct_body.clone()),
+        Some(admin_token),
+        Some(direct_request_key),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{confirmed_replay}");
+    assert_eq!(confirmed_replay["data"]["id"], direct_request_id);
+    assert_eq!(
+        rpc_observer.transfer_calls.load(Ordering::SeqCst),
+        calls_before_confirmed_replay,
+        "replaying a confirmed Admin request must not submit another transfer"
+    );
+
+    let conflicting_body =
+        json!({"address": Pubkey::new_unique().to_string(), "amountAeko": 2.0});
+    let (status, conflict) = request_json_with_id(
+        &app,
+        Method::POST,
+        "/admin/funding/send",
+        Some(conflicting_body),
+        Some(admin_token),
+        Some(direct_request_key),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{conflict}");
+    assert_eq!(conflict["error"]["code"], "IDEMPOTENCY_CONFLICT");
+
+    let direct_transfers = state.repository.list_funding_transfers(500).await?;
+    assert_eq!(
+        direct_transfers
+            .iter()
+            .filter(|funding| funding.request_id.as_deref() == Some(direct_request_id.as_str()))
+            .count(),
+        1,
+        "idempotent Admin retries must produce exactly one funding history row"
+    );
 
     drop(app);
     drop(state);

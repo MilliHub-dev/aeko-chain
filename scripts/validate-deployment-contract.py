@@ -26,6 +26,8 @@ FUNDING_SETTLEMENT = ROOT / "apps" / "explorer" / "backend" / "src" / "features"
 FUNDING_GUARDS = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "funding" / "guards.rs"
 FUNDING_CONFIG = ROOT / "apps" / "explorer" / "backend" / "src" / "config" / "mod.rs"
 FUNDING_HTTP_E2E = ROOT / "apps" / "explorer" / "backend" / "tests" / "funding_http_e2e.rs"
+FUNDING_IDEMPOTENCY_MIGRATION = ROOT / "apps" / "explorer" / "backend" / "migrations" / "0019_admin_funding_idempotency.sql"
+FULL_STACK_INTEGRATION = ROOT / "scripts" / "ci-docker-full-stack-integration.sh"
 JS_SDK_CLIENT = ROOT / "apps" / "sdk" / "js" / "src" / "connection.ts"
 RUST_SDK_CLIENT = ROOT / "apps" / "sdk" / "rust-client" / "src" / "client.rs"
 PYTHON_SDK_CLIENT = ROOT / "apps" / "sdk" / "python" / "src" / "aeko_sdk" / "client.py"
@@ -122,6 +124,8 @@ def main() -> int:
     funding_runtime = funding_feature + funding_settlement + funding_guards
     funding_config = read(FUNDING_CONFIG)
     funding_http_e2e = read(FUNDING_HTTP_E2E)
+    funding_idempotency_migration = read(FUNDING_IDEMPOTENCY_MIGRATION)
+    full_stack_integration = read(FULL_STACK_INTEGRATION)
     js_sdk_client = read(JS_SDK_CLIENT)
     rust_sdk_client = read(RUST_SDK_CLIENT)
     python_sdk_client = read(PYTHON_SDK_CLIENT)
@@ -659,6 +663,18 @@ def main() -> int:
         'get("errorMessage").is_none()' in funding_http_e2e
         and "simulated submission response failure" in funding_http_e2e,
         "funding HTTP E2E must prove raw RPC diagnostics never cross the Admin API boundary",
+    )
+    require(
+        "funding_requests_admin_idempotency_unique" in funding_idempotency_migration
+        and "idempotency_key" in funding_idempotency_migration
+        and "IDEMPOTENCY_CONFLICT" in funding_http_e2e
+        and "replaying a confirmed Admin request must not submit another transfer" in funding_http_e2e,
+        "direct Admin Funding retries must reuse one durable request/settlement intent",
+    )
+    require(
+        "ADMIN_IDEMPOTENCY_KEY" in full_stack_integration
+        and "idempotent Admin retry changed wallet balance twice" in full_stack_integration,
+        "production-compose dogfood must prove direct Admin Funding retries are idempotent",
     )
     for label, client in (
         ("JavaScript SDK", js_sdk_client),

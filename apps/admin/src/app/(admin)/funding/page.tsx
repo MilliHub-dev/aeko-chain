@@ -1,7 +1,7 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import DataTable from '@/components/data-table'
 import FeedbackAlert from '@/components/feedback-alert'
 import SectionTabs from '@/components/section-tabs'
@@ -135,6 +135,11 @@ export default function FundingPage() {
   const [address, setAddress] = useState('')
   const [amount, setAmount] = useState('10')
   const [view, setView] = useState<FundingView>('queue')
+  const directFundingIntentRef = useRef<{
+    recipient: string
+    amountAeko: number
+    requestId: string
+  } | null>(null)
   const queryClient = useQueryClient()
   const toast = useToaster()
 
@@ -246,14 +251,19 @@ export default function FundingPage() {
     mutationFn: async ({
       recipient,
       amountAeko,
+      requestId,
     }: {
       recipient: string
       amountAeko: number
+      requestId: string
     }) => {
       const payload = await readJson(
         await fetch('/api/admin/funding/send', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Request-Id': requestId,
+          },
           body: JSON.stringify({ address: recipient, amountAeko }),
         }),
       )
@@ -346,11 +356,24 @@ export default function FundingPage() {
     e.preventDefault()
     if (!isFundingAvailable) return
 
+    const recipient = address.trim()
+    const amountAeko = Number(amount)
+    const existingIntent = directFundingIntentRef.current
+    const intent =
+      existingIntent &&
+      existingIntent.recipient === recipient &&
+      existingIntent.amountAeko === amountAeko
+        ? existingIntent
+        : {
+            recipient,
+            amountAeko,
+            requestId: crypto.randomUUID(),
+          }
+    directFundingIntentRef.current = intent
+
     try {
-      const funding = await directFundingMutation.mutateAsync({
-        recipient: address.trim(),
-        amountAeko: Number(amount),
-      })
+      const funding = await directFundingMutation.mutateAsync(intent)
+      directFundingIntentRef.current = null
       const signature = String(funding.signature ?? '')
       const message = `Sent ${funding.amountAeko} AEKO — ${funding.confirmed ? 'confirmed' : 'submitted'}${signature ? ` (${signature.slice(0, 16)}…)` : ''}`
       if (funding.confirmed) {
@@ -361,6 +384,14 @@ export default function FundingPage() {
       setAddress('')
       await invalidateFunding()
     } catch (error) {
+      const status =
+        error && typeof error === 'object' && 'status' in error
+          ? Number((error as { status?: unknown }).status)
+          : Number.NaN
+      if (Number.isFinite(status) && status < 500) {
+        directFundingIntentRef.current = null
+      }
+      await invalidateFunding()
       toast.error(messageFrom(error, 'Funding send failed'), { title: 'Funding send failed' })
     }
   }

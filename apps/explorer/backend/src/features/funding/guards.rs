@@ -72,6 +72,22 @@ pub(super) fn ensure_developer_airdrop_available(state: &SharedState) -> Funding
     ))
 }
 
+pub(super) fn request_idempotency_key(headers: &HeaderMap) -> FundingResult<String> {
+    let value = headers
+        .get("x-request-id")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .unwrap_or_default();
+    if value.is_empty() || value.len() > 128 {
+        return Err(FundingHttpError::new(
+            StatusCode::BAD_REQUEST,
+            "INVALID_REQUEST_ID",
+            "X-Request-Id must contain between 1 and 128 characters",
+        ));
+    }
+    Ok(value.to_string())
+}
+
 pub(super) fn authorize_admin(headers: &HeaderMap, expected: &str) -> FundingResult<()> {
     let supplied = headers
         .get(ADMIN_HEADER)

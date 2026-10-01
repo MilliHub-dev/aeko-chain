@@ -103,6 +103,8 @@ pub enum FundingStoreError {
     RequestAlreadyDecided { status: String },
     #[error("funding settings revision conflict")]
     RevisionConflict,
+    #[error("funding idempotency key was reused for a different transfer")]
+    IdempotencyConflict,
     #[error("funding request rate limit exceeded")]
     RateLimited { retry_after_seconds: u64 },
     #[error(transparent)]
@@ -343,19 +345,53 @@ impl PostgresRepository {
         &self,
         address: &str,
         amount_aeko: f64,
+        idempotency_key: &str,
     ) -> Result<FundingRequestRecord, FundingStoreError> {
         let sql = format!(
             r#"
-            INSERT INTO funding_requests (address, amount_aeko, source, status, decided_at)
-            VALUES ($1, $2::double precision::numeric, 'admin', 'processing', NOW())
+            INSERT INTO funding_requests (
+                address,
+                amount_aeko,
+                source,
+                status,
+                decided_at,
+                idempotency_key
+            )
+            VALUES ($1, $2::double precision::numeric, 'admin', 'processing', NOW(), $3)
+            ON CONFLICT (idempotency_key)
+                WHERE source = 'admin' AND idempotency_key IS NOT NULL
+            DO NOTHING
             RETURNING {REQUEST_COLUMNS}
             "#
         );
-        Ok(sqlx::query_as::<_, FundingRequestRecord>(&sql)
+        if let Some(request) = sqlx::query_as::<_, FundingRequestRecord>(&sql)
             .bind(address)
             .bind(amount_aeko)
-            .fetch_one(&self.pool)
-            .await?)
+            .bind(idempotency_key)
+            .fetch_optional(&self.pool)
+            .await?
+        {
+            return Ok(request);
+        }
+
+        let existing_sql = format!(
+            r#"
+            SELECT {REQUEST_COLUMNS}
+            FROM funding_requests
+            WHERE source = 'admin' AND idempotency_key = $1
+            LIMIT 1
+            "#
+        );
+        let existing = sqlx::query_as::<_, FundingRequestRecord>(&existing_sql)
+            .bind(idempotency_key)
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or(FundingStoreError::RequestNotFound)?;
+
+        if existing.address != address || existing.amount_aeko != amount_aeko {
+            return Err(FundingStoreError::IdempotencyConflict);
+        }
+        Ok(existing)
     }
 
     pub async fn reserve_public_funding_request(

@@ -144,9 +144,13 @@ api_request() {
   local path="$2"
   local body="${3:-}"
   local admin="${4:-0}"
+  local request_id="${5:-}"
   local args=(--fail-with-body --silent --show-error --max-time 30 -X "$method" -H 'Accept: application/json')
   if [ "$admin" = "1" ]; then
     args+=(-H "x-aeko-settings-token: $AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN")
+  fi
+  if [ -n "$request_id" ]; then
+    args+=(-H "x-request-id: $request_id")
   fi
   if [ -n "$body" ]; then
     args+=(-H 'Content-Type: application/json' --data "$body")
@@ -402,7 +406,9 @@ api_data POST "/admin/funding/requests/$PUBLIC_REQUEST_ID/reconcile" "" 1 >"$ART
 echo "[ok] public Funding approval/reconciliation is durable"
 
 ADMIN_BEFORE="$(balance "$ADMIN_ADDRESS")"
-direct="$(api_data POST /admin/funding/send "$(jq -cn --arg a "$ADMIN_ADDRESS" '{address:$a,amountAeko:2}')" 1)"
+ADMIN_IDEMPOTENCY_KEY="ci-direct-admin-funding-0001"
+ADMIN_FUNDING_BODY="$(jq -cn --arg a "$ADMIN_ADDRESS" '{address:$a,amountAeko:2}')"
+direct="$(api_data POST /admin/funding/send "$ADMIN_FUNDING_BODY" 1 "$ADMIN_IDEMPOTENCY_KEY")"
 ADMIN_REQUEST_ID="$(jq -er '.id' <<<"$direct")"
 test "$(jq -r '.source' <<<"$direct")" = "admin" || fail "direct Admin Funding source is not admin"
 case "$(jq -r '.status' <<<"$direct")" in processing|submitted|confirmed) ;; *) fail "direct Admin Funding returned unexpected state: $direct" ;; esac
@@ -410,7 +416,15 @@ confirmed_admin="$(wait_admin_request_confirmed "$ADMIN_REQUEST_ID")"
 ADMIN_SIGNATURE="$(jq -r '.signature // empty' <<<"$confirmed_admin")"
 test -n "$ADMIN_SIGNATURE" || fail "direct Admin Funding has no signature"
 wait_balance_at_least "$ADMIN_ADDRESS" $((ADMIN_BEFORE + 2000000000)) "direct Admin Funding reached wallet without second approval"
-echo "[ok] direct Admin Funding has no second approval step"
+ADMIN_AFTER_FIRST="$(balance "$ADMIN_ADDRESS")"
+
+replayed_direct="$(api_data POST /admin/funding/send "$ADMIN_FUNDING_BODY" 1 "$ADMIN_IDEMPOTENCY_KEY")"
+test "$(jq -r '.id' <<<"$replayed_direct")" = "$ADMIN_REQUEST_ID" || fail "idempotent Admin retry created a second request: $replayed_direct"
+test "$(jq -r '.signature // empty' <<<"$replayed_direct")" = "$ADMIN_SIGNATURE" || fail "idempotent Admin retry changed the durable signature"
+sleep 1
+ADMIN_AFTER_REPLAY="$(balance "$ADMIN_ADDRESS")"
+test "$ADMIN_AFTER_REPLAY" = "$ADMIN_AFTER_FIRST" || fail "idempotent Admin retry changed wallet balance twice"
+echo "[ok] direct Admin Funding has no second approval step and repeated X-Request-Id is idempotent"
 
 AIR_BEFORE="$(balance "$API_AIRDROP_ADDRESS")"
 airdrop="$(api_data POST /funding/airdrop "$(jq -cn --arg a "$API_AIRDROP_ADDRESS" '{address:$a,amountAeko:1}')")"
