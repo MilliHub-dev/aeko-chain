@@ -65,9 +65,11 @@ if [ "$GITHUB_EVENT_NAME" != "pull_request" ] && [ "$CORE" = "true" ]; then
   run_explorer_web=true
 fi
 
-# CI orchestration changes prove the complete graph because the workflow/action
-# implementation itself may affect any lane.
-if [ "$CI_PIPELINE" = "true" ]; then
+# CI orchestration changes prove the complete graph on pull requests and
+# explicit manual validation. A CI-only merge to main reruns the CI contract
+# without recompiling every unchanged product surface a second time.
+# Product/core/packaging flags above still select their real lanes on main.
+if [ "$CI_PIPELINE" = "true" ] && [ "$GITHUB_EVENT_NAME" != "push" ]; then
   run_admin=true
   run_cli=true
   run_explorer_backend=true

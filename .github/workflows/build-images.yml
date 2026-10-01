@@ -35,7 +35,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
-  SCCACHE_GHA_ENABLED: "true"
+  SCCACHE_GHA_ENABLED: "false"
   RUSTC_WRAPPER: sccache
   AEKO_ALLOW_INTERNAL_PR_IMAGE_PUSH: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && '1' || '0' }}
 
@@ -392,7 +392,7 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       CARGO_PROFILE_RELEASE_STRIP: symbols
-      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_GHA_ENABLED: "false"
       RUSTC_WRAPPER: sccache
       TARGET: x86_64-pc-windows-msvc
       ARCHIVE: aeko-cli-x86_64-pc-windows-msvc.zip
@@ -588,6 +588,11 @@ jobs:
       - classify
     if: >-
       needs.classify.result == 'success' &&
+      (
+        needs.classify.outputs.run_cli == 'true' ||
+        needs.classify.outputs.run_explorer_backend == 'true' ||
+        needs.classify.outputs.run_network == 'true'
+      ) &&
       (
         github.event_name == 'push' ||
         (

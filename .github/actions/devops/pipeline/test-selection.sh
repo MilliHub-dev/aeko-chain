@@ -89,6 +89,30 @@ assert_bounded_runner_setup_contract() {
   echo "[ok] native package setup is bounded and retry-limited"
 }
 
+assert_resilient_sccache_contract() {
+  local setup_action="$PIPELINE_DIR/setup/action.yml"
+  local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+  local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
+  local sdk_workflow="$PIPELINE_DIR/../../../workflows/devops-sdk-validation.yml"
+  local cli_release="$PIPELINE_DIR/../../../workflows/cli-release.yml"
+
+  grep -Fq 'name: Configure resilient Rust compiler cache' "$setup_action"
+  grep -Fq 'continue-on-error: true' "$setup_action"
+  grep -Fq 'SCCACHE_GHA_ENABLED: "false"' "$setup_action"
+  grep -Fq 'SCCACHE_DIR=$cache_dir' "$setup_action"
+  grep -Fq 'SCCACHE_CACHE_SIZE=4G' "$setup_action"
+  grep -Fq 'continuing with direct rustc instead of failing the job' "$setup_action"
+
+  for file in "$workflow" "$runtime_workflow" "$sdk_workflow" "$cli_release"; do
+    if grep -Fq 'SCCACHE_GHA_ENABLED: "true"' "$file"; then
+      echo "Required AEKO DevOps jobs must not depend on the quota-limited GitHub sccache backend: $file" >&2
+      exit 1
+    fi
+  done
+
+  echo "[ok] required Rust jobs treat compiler caching as optional and local"
+}
+
 assert_full_validation_workflow_contract() {
   local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
   local web_workflow="$PIPELINE_DIR/../../../workflows/devops-web-ui.yml"
@@ -114,6 +138,9 @@ assert_full_validation_workflow_contract() {
   grep -Fq 'name: Quality / CLI source' "$workflow"
   grep -Fq 'name: Runtime / Tools producer' "$workflow"
   grep -Fq 'name: Integration / Known-good baseline dispatch' "$workflow"
+  grep -Fq "needs.classify.outputs.run_cli == 'true'" "$workflow"
+  grep -Fq "needs.classify.outputs.run_explorer_backend == 'true'" "$workflow"
+  grep -Fq "needs.classify.outputs.run_network == 'true'" "$workflow"
   grep -Fq 'name: Resolve compatible baseline' "$workflow"
   grep -Fq "available=false" "$workflow"
   grep -Fq "if: steps.baseline.outputs.available == 'true'" "$workflow"
@@ -582,6 +609,7 @@ assert_grouped_devops_workflow_contract
 assert_node24_action_majors
 assert_targeted_docker_publication_contract
 assert_bounded_runner_setup_contract
+assert_resilient_sccache_contract
 assert_runtime_artifact_handoff_contract
 assert_split_coolify_workflow_contract
 assert_full_validation_workflow_contract
@@ -629,10 +657,10 @@ run_plan_case "CI-only pull request exercises the full orchestration graph" \
   run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
   run_network=true run_sdk_non_rust=true run_sdk_rust=true
 
-run_plan_case "CI-only main push exercises the full orchestration graph" \
+run_plan_case "CI-only main push reruns CI contracts without rebuilding unchanged products" \
   push false false false false false false false false false false true \
-  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
-  run_network=true run_sdk_non_rust=true run_sdk_rust=true
+  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=false \
+  run_network=false run_sdk_non_rust=false run_sdk_rust=false
 
 run_deploy_plan_case "Explorer backend source deploys only Explorer API" \
   false false true false false false false false false false \
