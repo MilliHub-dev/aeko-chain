@@ -11,9 +11,18 @@ IMAGE_REPOSITORY="${AEKO_CI_IMAGE_REPOSITORY:-aeko-ci}"
 IMAGE_TAG="$AEKO_CI_IMAGE_TAG"
 CONTRACT_SCOPE="${AEKO_CI_CONTRACT_SCOPE:-full}"
 case "$CONTRACT_SCOPE" in
-  chain|application|protocol|full) ;;
+  chain|rpc-methods|application|protocol|full) ;;
   *) echo "Unsupported AEKO_CI_CONTRACT_SCOPE: $CONTRACT_SCOPE" >&2; exit 2 ;;
 esac
+APPLICATION_FLOW="${AEKO_CI_APPLICATION_FLOW:-all}"
+case "$APPLICATION_FLOW" in
+  all|route-surface|settings|funding-public|funding-admin|funding-airdrop|social-protocol) ;;
+  *) echo "Unsupported AEKO_CI_APPLICATION_FLOW: $APPLICATION_FLOW" >&2; exit 2 ;;
+esac
+NEEDS_EXPLORER=0
+case "$CONTRACT_SCOPE" in application|protocol|full) NEEDS_EXPLORER=1 ;; esac
+application_flow_enabled() { [ "$APPLICATION_FLOW" = "all" ] || [ "$APPLICATION_FLOW" = "$1" ]; }
+summary_append() { if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then printf '%s\n' "$*" >> "$GITHUB_STEP_SUMMARY"; fi; }
 CLI_ARCHIVE="$AEKO_CI_CLI_ARCHIVE"
 PROJECT="aeko-runtime-${GITHUB_RUN_ID:-local}"
 ARTIFACT_DIR="${AEKO_CI_ARTIFACT_DIR:-$REPO_ROOT/artifacts/runtime-contract}"
@@ -239,17 +248,18 @@ compose create --pull never key-bootstrap >/dev/null
 COMPOSE_NETWORK="${PROJECT}_aeko"
 docker network inspect "$COMPOSE_NETWORK" >/dev/null
 
-if [ "$CONTRACT_SCOPE" != "chain" ]; then
+if [ "$NEEDS_EXPLORER" = "1" ]; then
 docker run -d --name "$POSTGRES_CONTAINER"   --network "$COMPOSE_NETWORK" --network-alias postgres   -e POSTGRES_USER=aeko -e POSTGRES_PASSWORD=aeko -e POSTGRES_DB=aeko_explorer   postgres:16-alpine >/dev/null
-
+postgres_ready=0
 for _ in $(seq 1 60); do
-  if docker exec "$POSTGRES_CONTAINER" pg_isready -U aeko -d aeko_explorer >/dev/null 2>&1; then
+  if result="$(docker exec "$POSTGRES_CONTAINER" psql -U aeko -d aeko_explorer -Atqc 'SELECT 1' 2>/dev/null)" && [ "$result" = "1" ]; then
+    postgres_ready=1
     echo "[ok] external PostgreSQL sidecar is ready"
     break
   fi
   sleep 1
 done
-docker exec "$POSTGRES_CONTAINER" pg_isready -U aeko -d aeko_explorer >/dev/null   || fail "PostgreSQL sidecar never became ready"
+[ "$postgres_ready" = "1" ] || fail "PostgreSQL sidecar never became ready with the aeko_explorer database"
 fi
 
 echo "==> Starting production network/API services (UI intentionally excluded)"
@@ -266,7 +276,7 @@ for service in key-bootstrap social-bootstrap protocol-bootstrap; do
   echo "[ok] $service completed successfully"
 done
 
-if [ "$CONTRACT_SCOPE" != "chain" ]; then
+if [ "$NEEDS_EXPLORER" = "1" ]; then
   compose up --pull never -d explorer-api
 fi
 
@@ -286,7 +296,7 @@ export RPC_URL
 
 wait_rpc "$RPC_URL"
 
-if [ "$CONTRACT_SCOPE" != "chain" ]; then
+if [ "$NEEDS_EXPLORER" = "1" ]; then
   EXPLORER_IP="$(service_ip explorer-api)"
   test -n "$EXPLORER_IP" || fail "Explorer API container IP is empty"
   EXPLORER_API_URL="http://${EXPLORER_IP}:8088"
@@ -345,179 +355,148 @@ wait_balance_at_least "$RPC_AIRDROP_ADDRESS" 1000000000 "developer RPC airdrop r
 rpc_result getSignatureStatuses "$(jq -cn --arg s "$RPC_FUNDING_SIGNATURE" '[[ $s ], {searchTransactionHistory:true}]')" >"$ARTIFACT_DIR/rpc-signature-status.json"
 rpc_result getAccountInfo "$(jq -cn --arg a "$RPC_FUNDING_ADDRESS" '[ $a, {commitment:"confirmed",encoding:"base64"} ]')" >"$ARTIFACT_DIR/rpc-account-info.json"
 
-echo "==> Auditing every HTTP JSON-RPC method declared by the running source"
-python3 - "$ARTIFACT_DIR/rpc-methods.txt" <<'PY'
-import re
-import sys
-from pathlib import Path
-
-text = Path("rpc/src/rpc.rs").read_text(encoding="utf-8")
-text = text.split("pub mod rpc_obsolete_v1_7", 1)[0]
-methods = sorted(set(re.findall(
-    r'#\[\s*rpc\([^\]]*?name\s*=\s*"([^"]+)"[^\]]*\)\s*\]',
-    text,
-    flags=re.DOTALL,
-)))
-if not methods:
-    raise SystemExit("no JSON-RPC methods discovered")
-Path(sys.argv[1]).write_text("\n".join(methods) + "\n", encoding="utf-8")
-print(f"discovered {len(methods)} JSON-RPC methods")
-PY
-
-RPC_METHOD_COUNT=0
-while IFS= read -r method; do
-  test -n "$method" || continue
-  RPC_METHOD_COUNT=$((RPC_METHOD_COUNT + 1))
-  response="$(rpc_call "$method" '[]' 2>/dev/null || true)"
-  test -n "$response" || fail "RPC method $method did not answer"
-  code="$(jq -r '.error.code // empty' <<<"$response" 2>/dev/null)"
-  if [ "$code" = "-32601" ]; then
-    fail "RPC method declared in rpc/src/rpc.rs is not registered at runtime: $method"
-  fi
-done <"$ARTIFACT_DIR/rpc-methods.txt"
-echo "[ok] all $RPC_METHOD_COUNT declared JSON-RPC methods are registered"
 
 fi
-
-if [ "$CONTRACT_SCOPE" = "application" ] || [ "$CONTRACT_SCOPE" = "full" ]; then
-SLOT_TWO="$(rpc_result getSlot '[{"commitment":"confirmed"}]' | jq -r '.')"
-echo "==> Exercising Explorer API and Funding end-to-end with curl"
-for path in / /health /readiness /overview /network/readiness /registry /registry/social   /registry/protocol /protocol/status /social/status '/posts?limit=1' '/engagement?limit=1'   '/stakes?limit=1' '/rewards?limit=1' '/blocks?limit=1' '/transactions?limit=1'   '/tokens/transfers?limit=1' '/nfts?limit=1' /settings
-do
-  body="$(api_request GET "$path")"
-  jq -e . >/dev/null <<<"$body" || fail "Explorer GET $path did not return JSON"
-  echo "[ok] Explorer GET $path"
-done
-
-settings="$(api_data GET /settings)"
-settings_revision="$(jq -r '.revision' <<<"$settings")"
-network_tools_enabled="$(jq -r '.application.networkToolsEnabled' <<<"$settings")"
-api_data PATCH /settings "$(jq -cn --argjson r "$settings_revision" --argjson value "$network_tools_enabled"   '{expectedRevision:$r,networkToolsEnabled:$value}')" 1 >"$ARTIFACT_DIR/settings-patch.json"
-echo "[ok] Explorer settings authenticated PATCH contract"
-
-funding_settings="$(api_data GET /admin/funding/settings "" 1)"
-funding_revision="$(jq -r '.settings.revision' <<<"$funding_settings")"
-funding_enabled="$(jq -r '.settings.enabled' <<<"$funding_settings")"
-api_data PATCH /admin/funding/settings "$(jq -cn --argjson r "$funding_revision" --argjson value "$funding_enabled"   '{expectedRevision:$r,enabled:$value}')" 1 >"$ARTIFACT_DIR/funding-settings-patch.json"
-echo "[ok] Funding settings authenticated PATCH contract"
-
-PUBLIC_BEFORE="$(balance "$PUBLIC_ADDRESS")"
-public_body="$WORK_DIR/public-request.json"
-public_status="$(curl --silent --show-error --max-time 30 -o "$public_body" -w '%{http_code}'   -H 'Accept: application/json' -H 'Content-Type: application/json'   --data "$(jq -cn --arg a "$PUBLIC_ADDRESS" '{address:$a}')"   "$EXPLORER_API_URL/funding/request")"
-test "$public_status" = "202" || { cat "$public_body" >&2; fail "public Funding request expected HTTP 202, got $public_status"; }
-PUBLIC_REQUEST_ID="$(jq -er '.data.id' "$public_body")"
-test "$(jq -r '.data.status' "$public_body")" = "pending" || fail "public Funding did not start pending"
-sleep 1
-PUBLIC_AFTER_REQUEST="$(balance "$PUBLIC_ADDRESS")"
-test "$PUBLIC_AFTER_REQUEST" = "$PUBLIC_BEFORE" || fail "public Funding transferred before Admin approval"
-echo "[ok] public Funding is approval-gated"
-
-approved="$(api_data POST "/admin/funding/requests/$PUBLIC_REQUEST_ID/decide" '{"approved":true}' 1)"
-case "$(jq -r '.status' <<<"$approved")" in processing|submitted|confirmed) ;; *) fail "Admin approval returned unexpected state: $approved" ;; esac
-confirmed_public="$(wait_public_funding_confirmed "$PUBLIC_REQUEST_ID")"
-PUBLIC_SIGNATURE="$(jq -r '.signature // empty' <<<"$confirmed_public")"
-test -n "$PUBLIC_SIGNATURE" || fail "confirmed public Funding has no signature"
-wait_balance_at_least "$PUBLIC_ADDRESS" $((PUBLIC_BEFORE + 1000000000)) "approved public Funding reached wallet"
-api_data POST "/admin/funding/requests/$PUBLIC_REQUEST_ID/reconcile" "" 1 >"$ARTIFACT_DIR/public-funding-reconcile.json"
-echo "[ok] public Funding approval/reconciliation is durable"
-
-ADMIN_BEFORE="$(balance "$ADMIN_ADDRESS")"
-ADMIN_IDEMPOTENCY_KEY="ci-direct-admin-funding-0001"
-ADMIN_FUNDING_BODY="$(jq -cn --arg a "$ADMIN_ADDRESS" '{address:$a,amountAeko:2}')"
-direct="$(api_data POST /admin/funding/send "$ADMIN_FUNDING_BODY" 1 "$ADMIN_IDEMPOTENCY_KEY")"
-ADMIN_REQUEST_ID="$(jq -er '.id' <<<"$direct")"
-test "$(jq -r '.source' <<<"$direct")" = "admin" || fail "direct Admin Funding source is not admin"
-case "$(jq -r '.status' <<<"$direct")" in processing|submitted|confirmed) ;; *) fail "direct Admin Funding returned unexpected state: $direct" ;; esac
-confirmed_admin="$(wait_admin_request_confirmed "$ADMIN_REQUEST_ID")"
-ADMIN_SIGNATURE="$(jq -r '.signature // empty' <<<"$confirmed_admin")"
-test -n "$ADMIN_SIGNATURE" || fail "direct Admin Funding has no signature"
-wait_balance_at_least "$ADMIN_ADDRESS" $((ADMIN_BEFORE + 2000000000)) "direct Admin Funding reached wallet without second approval"
-ADMIN_AFTER_FIRST="$(balance "$ADMIN_ADDRESS")"
-
-replayed_direct="$(api_data POST /admin/funding/send "$ADMIN_FUNDING_BODY" 1 "$ADMIN_IDEMPOTENCY_KEY")"
-test "$(jq -r '.id' <<<"$replayed_direct")" = "$ADMIN_REQUEST_ID" || fail "idempotent Admin retry created a second request: $replayed_direct"
-test "$(jq -r '.signature // empty' <<<"$replayed_direct")" = "$ADMIN_SIGNATURE" || fail "idempotent Admin retry changed the durable signature"
-sleep 1
-ADMIN_AFTER_REPLAY="$(balance "$ADMIN_ADDRESS")"
-test "$ADMIN_AFTER_REPLAY" = "$ADMIN_AFTER_FIRST" || fail "idempotent Admin retry changed wallet balance twice"
-echo "[ok] direct Admin Funding has no second approval step and repeated X-Request-Id is idempotent"
-
-AIR_BEFORE="$(balance "$API_AIRDROP_ADDRESS")"
-airdrop="$(api_data POST /funding/airdrop "$(jq -cn --arg a "$API_AIRDROP_ADDRESS" '{address:$a,amountAeko:1}')")"
-API_AIRDROP_SIGNATURE="$(jq -r '.signature // empty' <<<"$airdrop")"
-test -n "$API_AIRDROP_SIGNATURE" || fail "Explorer developer airdrop returned no signature"
-wait_balance_at_least "$API_AIRDROP_ADDRESS" $((AIR_BEFORE + 1000000000)) "Explorer developer airdrop reached wallet"
-
-funding_history="$(api_data GET '/admin/funding/history?limit=100' "" 1)"
-airdrop_history="$(api_data GET '/admin/funding/airdrops?limit=100' "" 1)"
-jq -e --arg sig "$PUBLIC_SIGNATURE" 'any(.[]; .signature == $sig and .confirmed == true)' <<<"$funding_history" >/dev/null   || fail "public Funding missing from Funding history"
-jq -e --arg sig "$ADMIN_SIGNATURE" 'any(.[]; .signature == $sig and .confirmed == true)' <<<"$funding_history" >/dev/null   || fail "direct Admin Funding missing from Funding history"
-jq -e --arg sig "$API_AIRDROP_SIGNATURE" 'any(.[]; .signature == $sig)' <<<"$airdrop_history" >/dev/null   || fail "developer airdrop missing from airdrop history"
-jq -e --arg sig "$API_AIRDROP_SIGNATURE" 'all(.[]; .signature != $sig)' <<<"$funding_history" >/dev/null   || fail "developer airdrop leaked into Funding history"
-echo "[ok] Funding and developer-airdrop histories remain distinct"
-
-echo "==> Runtime-auditing every Explorer API route declared by feature routers"
-python3 - "$ARTIFACT_DIR/explorer-routes.tsv" <<'PY'
-import re
-import sys
-from pathlib import Path
-
-route_pattern = re.compile(
-    r'\.route\(\s*"([^"]+)"\s*,\s*'
-    r'((?:get|post|patch|put|delete)\([A-Za-z0-9_]+\)'
-    r'(?:\.(?:get|post|patch|put|delete)\([A-Za-z0-9_]+\))*)\s*\)',
-    flags=re.DOTALL,
-)
-rows = set()
-for path in Path("apps/explorer/backend/src/features").rglob("*.rs"):
-    text = path.read_text(encoding="utf-8")
-    for route, chain in route_pattern.findall(text):
-        for verb in re.findall(r'(get|post|patch|put|delete)\(', chain):
-            rows.add((verb.upper(), route))
-if not rows:
-    raise SystemExit("no Explorer routes discovered")
-with Path(sys.argv[1]).open("w", encoding="utf-8") as handle:
-    for verb, route in sorted(rows):
-        handle.write(f"{verb}\t{route}\n")
-print(f"discovered {len(rows)} Explorer method/path contracts")
-PY
-
-API_ROUTE_COUNT=0
-while IFS=$'\t' read -r method path; do
-  test -n "$method" || continue
-  API_ROUTE_COUNT=$((API_ROUTE_COUNT + 1))
-  case "$method $path" in
-    "POST /funding/request"|"POST /funding/airdrop"|"POST /admin/funding/requests/:id/decide"|"POST /admin/funding/requests/:id/reconcile"|"POST /admin/funding/send"|"PATCH /settings"|"PATCH /admin/funding/settings")
-      continue
-      ;;
-    POST*|PATCH*|PUT*|DELETE*)
-      fail "new mutating Explorer route lacks an explicit production contract probe: $method $path"
-      ;;
-  esac
-
-  probe="$path"
-  probe="${probe//:slot/$SLOT_TWO}"
-  probe="${probe//:address/$ADMIN_ADDRESS}"
-  probe="${probe//:signature/$PUBLIC_SIGNATURE}"
-  probe="${probe//:mint/$ADMIN_ADDRESS}"
-  probe="${probe//:token_id/$ADMIN_ADDRESS}"
-  probe="${probe//:post_id/ci-missing-post}"
-  probe="${probe//:id/$PUBLIC_REQUEST_ID}"
-  [ "$probe" = "/search" ] && probe="/search?q=$ADMIN_ADDRESS"
-
-  tmp="$WORK_DIR/api-route.json"
-  args=(--silent --show-error --max-time 20 -o "$tmp" -w '%{http_code}' -H 'Accept: application/json')
-  if [[ "$path" == /admin/* ]]; then
-    args+=(-H "x-aeko-settings-token: $AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN")
+if [ "$CONTRACT_SCOPE" = "rpc-methods" ] || [ "$CONTRACT_SCOPE" = "full" ]; then
+RPC_FUNCTIONAL_RESULTS="$ARTIFACT_DIR/rpc-functional-results.jsonl"; : > "$RPC_FUNCTIONAL_RESULTS"; RPC_FUNCTIONAL_FAILURES=0
+summary_append "## Functional JSON-RPC probes"; summary_append "| Method | Result | Detail |"; summary_append "| --- | --- | --- |"
+strict_rpc_probe() {
+  local method="$1"; local params="${2:-[]}"; local response detail
+  if ! response="$(rpc_call "$method" "$params" 2>&1)"; then detail="transport failure"
+  elif ! jq -e . >/dev/null 2>&1 <<<"$response"; then detail="non-JSON response"
+  elif ! jq -e 'has("result") and (has("error") | not)' >/dev/null 2>&1 <<<"$response"; then detail="$(jq -cr '.error // "missing result"' <<<"$response")"
+  else
+    detail="returned result"
+    jq -cn --arg method "$method" --arg outcome PASS --arg detail "$detail" '{method:$method,outcome:$outcome,detail:$detail}' >> "$RPC_FUNCTIONAL_RESULTS"
+    summary_append "| $method | PASS | $detail |"; return 0
   fi
-  status="$(curl "${args[@]}" "$EXPLORER_API_URL$probe" || true)"
-  test -n "$status" || fail "Explorer $method $path did not answer"
-  [ "$status" -lt 500 ] || { cat "$tmp" >&2 || true; fail "Explorer $method $path returned HTTP $status"; }
-  jq -e . "$tmp" >/dev/null 2>&1 || { cat "$tmp" >&2 || true; fail "Explorer $method $path returned non-JSON HTTP $status"; }
-done <"$ARTIFACT_DIR/explorer-routes.tsv"
-echo "[ok] all $API_ROUTE_COUNT declared Explorer API method/path contracts are represented at runtime"
+  jq -cn --arg method "$method" --arg outcome FAIL --arg detail "$detail" '{method:$method,outcome:$outcome,detail:$detail}' >> "$RPC_FUNCTIONAL_RESULTS"
+  summary_append "| $method | FAIL | $detail |"; return 1
+}
+strict_rpc_probe getHealth || RPC_FUNCTIONAL_FAILURES=$((RPC_FUNCTIONAL_FAILURES+1))
+strict_rpc_probe getVersion || RPC_FUNCTIONAL_FAILURES=$((RPC_FUNCTIONAL_FAILURES+1))
+strict_rpc_probe getGenesisHash || RPC_FUNCTIONAL_FAILURES=$((RPC_FUNCTIONAL_FAILURES+1))
+strict_rpc_probe getSlot '[{"commitment":"confirmed"}]' || RPC_FUNCTIONAL_FAILURES=$((RPC_FUNCTIONAL_FAILURES+1))
+strict_rpc_probe getBlockHeight '[{"commitment":"confirmed"}]' || RPC_FUNCTIONAL_FAILURES=$((RPC_FUNCTIONAL_FAILURES+1))
+strict_rpc_probe getEpochInfo '[{"commitment":"confirmed"}]' || RPC_FUNCTIONAL_FAILURES=$((RPC_FUNCTIONAL_FAILURES+1))
+strict_rpc_probe getLatestBlockhash '[{"commitment":"confirmed"}]' || RPC_FUNCTIONAL_FAILURES=$((RPC_FUNCTIONAL_FAILURES+1))
+strict_rpc_probe getClusterNodes || RPC_FUNCTIONAL_FAILURES=$((RPC_FUNCTIONAL_FAILURES+1))
+strict_rpc_probe getTransactionCount '[{"commitment":"confirmed"}]' || RPC_FUNCTIONAL_FAILURES=$((RPC_FUNCTIONAL_FAILURES+1))
+strict_rpc_probe getSupply '[{"commitment":"confirmed"}]' || RPC_FUNCTIONAL_FAILURES=$((RPC_FUNCTIONAL_FAILURES+1))
+strict_rpc_probe getBalance "$(jq -cn --arg a "$RPC_FUNDING_ADDRESS" '[$a,{commitment:"confirmed"}]')" || RPC_FUNCTIONAL_FAILURES=$((RPC_FUNCTIONAL_FAILURES+1))
+strict_rpc_probe getAccountInfo "$(jq -cn --arg a "$RPC_FUNDING_ADDRESS" '[$a,{commitment:"confirmed",encoding:"base64"}]')" || RPC_FUNCTIONAL_FAILURES=$((RPC_FUNCTIONAL_FAILURES+1))
+jq -s . "$RPC_FUNCTIONAL_RESULTS" > "$ARTIFACT_DIR/rpc-functional-results.json"
 
+python3 - "$ARTIFACT_DIR/rpc-methods.txt" <<'PY'
+import re,sys
+from pathlib import Path
+text=Path("rpc/src/rpc.rs").read_text(encoding="utf-8").split("pub mod rpc_obsolete_v1_7",1)[0]
+methods=sorted(set(re.findall(r'#\[\s*rpc\([^\]]*?name\s*=\s*"([^"]+)"[^\]]*\)\s*\]',text,flags=re.DOTALL)))
+if not methods: raise SystemExit("no JSON-RPC methods discovered")
+Path(sys.argv[1]).write_text("\n".join(methods)+"\n",encoding="utf-8")
+PY
+RPC_METHOD_RESULTS="$ARTIFACT_DIR/rpc-method-results.jsonl"; : > "$RPC_METHOD_RESULTS"; RPC_METHOD_COUNT=0; RPC_METHOD_FAILURES=0
+summary_append "## Declared JSON-RPC surface"; summary_append "| Method | Result | Classification | RPC code |"; summary_append "| --- | --- | --- | --- |"
+while IFS= read -r method; do
+  test -n "$method" || continue; RPC_METHOD_COUNT=$((RPC_METHOD_COUNT+1))
+  response="$(rpc_call "$method" '[]' 2>/dev/null || true)"; outcome=PASS; classification=returned-result; code=""
+  if [ -z "$response" ]; then outcome=FAIL; classification=no-response
+  elif ! jq -e . >/dev/null 2>&1 <<<"$response"; then outcome=FAIL; classification=non-json
+  elif jq -e 'has("result")' >/dev/null 2>&1 <<<"$response"; then classification=returned-result
+  else
+    code="$(jq -r '.error.code // empty' <<<"$response")"
+    case "$code" in -32601) outcome=FAIL; classification=method-not-registered ;; -32603) outcome=FAIL; classification=internal-error ;; -32600|-32602) classification=parameter-validation ;; *) classification=rpc-domain-error ;; esac
+  fi
+  [ "$outcome" = PASS ] || RPC_METHOD_FAILURES=$((RPC_METHOD_FAILURES+1))
+  jq -cn --arg method "$method" --arg outcome "$outcome" --arg classification "$classification" --arg rpcCode "$code" '{method:$method,outcome:$outcome,classification:$classification,rpcCode:(if $rpcCode=="" then null else $rpcCode end)}' >> "$RPC_METHOD_RESULTS"
+  summary_append "| $method | $outcome | $classification | ${code:--} |"
+done < "$ARTIFACT_DIR/rpc-methods.txt"
+jq -s . "$RPC_METHOD_RESULTS" > "$ARTIFACT_DIR/rpc-method-results.json"
+[ "$RPC_METHOD_FAILURES" -eq 0 ] || fail "$RPC_METHOD_FAILURES declared JSON-RPC methods failed individual calls"
+[ "$RPC_FUNCTIONAL_FAILURES" -eq 0 ] || fail "$RPC_FUNCTIONAL_FAILURES strict JSON-RPC probes failed"
+fi
 
+if [ "$CONTRACT_SCOPE" = application ] || [ "$CONTRACT_SCOPE" = full ]; then
+SLOT_TWO="$(rpc_result getSlot '[{"commitment":"confirmed"}]' | jq -r '.')"
+
+if application_flow_enabled route-surface; then
+python3 - "$ARTIFACT_DIR/explorer-routes.tsv" <<'PY'
+import re,sys
+from pathlib import Path
+p=re.compile(r'\.route\(\s*"([^"]+)"\s*,\s*((?:get|post|patch|put|delete)\([A-Za-z0-9_]+\)(?:\.(?:get|post|patch|put|delete)\([A-Za-z0-9_]+\))*)\s*\)',re.DOTALL)
+rows=set()
+for f in Path("apps/explorer/backend/src/features").rglob("*.rs"):
+    t=f.read_text(encoding="utf-8")
+    for route,chain in p.findall(t):
+        for verb in re.findall(r'(get|post|patch|put|delete)\(',chain): rows.add((verb.upper(),route))
+if not rows: raise SystemExit("no Explorer routes discovered")
+with Path(sys.argv[1]).open("w",encoding="utf-8") as h:
+    for verb,route in sorted(rows): h.write(f"{verb}\t{route}\n")
+PY
+API_ROUTE_RESULTS="$ARTIFACT_DIR/explorer-route-results.jsonl"; : > "$API_ROUTE_RESULTS"; API_ROUTE_FAILURES=0; API_ROUTE_COUNT=0
+summary_append "## Explorer backend route surface"; summary_append "| Method | Route | HTTP | Result | Coverage |"; summary_append "| --- | --- | ---: | --- | --- |"
+while IFS=$'\t' read -r method path; do
+  test -n "$method" || continue; API_ROUTE_COUNT=$((API_ROUTE_COUNT+1)); coverage=route-surface
+  case "$method $path" in
+    "PATCH /settings"|"PATCH /admin/funding/settings") coverage=settings ;;
+    "POST /funding/request"|"POST /admin/funding/requests/:id/decide"|"POST /admin/funding/requests/:id/reconcile") coverage=funding-public ;;
+    "POST /admin/funding/send") coverage=funding-admin ;;
+    "POST /funding/airdrop") coverage=funding-airdrop ;;
+    POST*|PATCH*|PUT*|DELETE*) API_ROUTE_FAILURES=$((API_ROUTE_FAILURES+1)); jq -cn --arg method "$method" --arg path "$path" '{method:$method,path:$path,outcome:"FAIL",coverage:"unmapped-mutation"}' >> "$API_ROUTE_RESULTS"; continue ;;
+  esac
+  if [ "$method" != GET ]; then jq -cn --arg method "$method" --arg path "$path" --arg coverage "$coverage" '{method:$method,path:$path,outcome:"PASS",coverage:$coverage}' >> "$API_ROUTE_RESULTS"; continue; fi
+  probe="$path"; probe="${probe//:slot/$SLOT_TWO}"; probe="${probe//:address/$ADMIN_ADDRESS}"; probe="${probe//:signature/ci-missing-signature}"; probe="${probe//:mint/$ADMIN_ADDRESS}"; probe="${probe//:token_id/ci-missing-token}"; probe="${probe//:collection_id/ci-missing-collection}"; probe="${probe//:post_id/ci-missing-post}"; probe="${probe//:id/ci-missing-request}"
+  [ "$probe" = /search ] && probe="/search?q=$ADMIN_ADDRESS"
+  tmp="$WORK_DIR/api-route-$API_ROUTE_COUNT.json"; args=(--silent --show-error --max-time 20 -o "$tmp" -w '%{http_code}' -H 'Accept: application/json'); [[ "$path" == /admin/* ]] && args+=(-H "x-aeko-settings-token: $AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN")
+  status="$(curl "${args[@]}" "$EXPLORER_API_URL$probe" || true)"; outcome=PASS; coverage=successful-read
+  if [ -z "$status" ] || [ "$status" = 000 ]; then outcome=FAIL; coverage=no-response
+  elif [ "$status" -ge 500 ]; then outcome=FAIL; coverage=server-error
+  elif ! jq -e . "$tmp" >/dev/null 2>&1; then outcome=FAIL; coverage=non-json
+  elif [ "$status" -ge 400 ]; then coverage=deterministic-client-error; fi
+  [ "$outcome" = PASS ] || API_ROUTE_FAILURES=$((API_ROUTE_FAILURES+1))
+  jq -cn --arg method "$method" --arg path "$path" --arg status "$status" --arg outcome "$outcome" --arg coverage "$coverage" '{method:$method,path:$path,httpStatus:($status|tonumber?),outcome:$outcome,coverage:$coverage}' >> "$API_ROUTE_RESULTS"
+done < "$ARTIFACT_DIR/explorer-routes.tsv"
+jq -s . "$API_ROUTE_RESULTS" > "$ARTIFACT_DIR/explorer-route-results.json"
+[ "$API_ROUTE_FAILURES" -eq 0 ] || fail "$API_ROUTE_FAILURES Explorer routes failed runtime coverage"
+fi
+
+if application_flow_enabled settings; then
+  settings="$(api_data GET /settings)"; rev="$(jq -r '.revision'<<<"$settings")"; val="$(jq -r '.application.networkToolsEnabled'<<<"$settings")"; api_data PATCH /settings "$(jq -cn --argjson r "$rev" --argjson v "$val" '{expectedRevision:$r,networkToolsEnabled:$v}')" 1 >"$ARTIFACT_DIR/settings-patch.json"
+  fsettings="$(api_data GET /admin/funding/settings "" 1)"; frev="$(jq -r '.settings.revision'<<<"$fsettings")"; fval="$(jq -r '.settings.enabled'<<<"$fsettings")"; api_data PATCH /admin/funding/settings "$(jq -cn --argjson r "$frev" --argjson v "$fval" '{expectedRevision:$r,enabled:$v}')" 1 >"$ARTIFACT_DIR/funding-settings-patch.json"
+  summary_append "## Backend flow: settings"; summary_append "- PASS: read + authenticated PATCH contracts"
+fi
+
+if application_flow_enabled funding-public; then
+  api_data GET /funding/policy >"$ARTIFACT_DIR/funding-policy.json"; PUBLIC_BEFORE="$(balance "$PUBLIC_ADDRESS")"; body="$WORK_DIR/public-request.json"
+  status="$(curl -sS --max-time 30 -o "$body" -w '%{http_code}' -H 'Accept: application/json' -H 'Content-Type: application/json' --data "$(jq -cn --arg a "$PUBLIC_ADDRESS" '{address:$a}')" "$EXPLORER_API_URL/funding/request")"; test "$status" = 202 || { cat "$body" >&2; fail "public Funding expected 202, got $status"; }
+  PUBLIC_REQUEST_ID="$(jq -er '.data.id' "$body")"; test "$(jq -r '.data.status' "$body")" = pending || fail "public Funding did not start pending"; sleep 1; test "$(balance "$PUBLIC_ADDRESS")" = "$PUBLIC_BEFORE" || fail "public Funding transferred before approval"
+  approved="$(api_data POST "/admin/funding/requests/$PUBLIC_REQUEST_ID/decide" '{"approved":true}' 1)"; case "$(jq -r '.status'<<<"$approved")" in processing|submitted|confirmed) ;; *) fail "unexpected approval state: $approved" ;; esac
+  confirmed="$(wait_public_funding_confirmed "$PUBLIC_REQUEST_ID")"; PUBLIC_SIGNATURE="$(jq -r '.signature // empty'<<<"$confirmed")"; test -n "$PUBLIC_SIGNATURE" || fail "public Funding missing signature"; wait_balance_at_least "$PUBLIC_ADDRESS" $((PUBLIC_BEFORE+1000000000)) "approved public Funding reached wallet"
+  api_data GET "/admin/funding/requests/$PUBLIC_REQUEST_ID" "" 1 >"$ARTIFACT_DIR/public-request-admin.json"; api_data POST "/admin/funding/requests/$PUBLIC_REQUEST_ID/reconcile" "" 1 >"$ARTIFACT_DIR/public-reconcile.json"
+  hist="$(api_data GET '/admin/funding/history?limit=100' "" 1)"; jq -e --arg s "$PUBLIC_SIGNATURE" 'any(.[];.signature==$s and .confirmed==true)'<<<"$hist" >/dev/null || fail "public Funding missing from history"
+  summary_append "## Backend flow: public Funding"; summary_append "- PASS: request -> approval -> confirmation -> reconcile -> history"
+fi
+
+if application_flow_enabled funding-admin; then
+  ADMIN_BEFORE="$(balance "$ADMIN_ADDRESS")"; key=ci-direct-admin-funding-0001; payload="$(jq -cn --arg a "$ADMIN_ADDRESS" '{address:$a,amountAeko:2}')"; direct="$(api_data POST /admin/funding/send "$payload" 1 "$key")"; ADMIN_REQUEST_ID="$(jq -er '.id'<<<"$direct")"; test "$(jq -r '.source'<<<"$direct")" = admin || fail "admin funding source mismatch"
+  confirmed="$(wait_admin_request_confirmed "$ADMIN_REQUEST_ID")"; ADMIN_SIGNATURE="$(jq -r '.signature // empty'<<<"$confirmed")"; test -n "$ADMIN_SIGNATURE" || fail "admin Funding missing signature"; wait_balance_at_least "$ADMIN_ADDRESS" $((ADMIN_BEFORE+2000000000)) "direct Admin Funding reached wallet"; after1="$(balance "$ADMIN_ADDRESS")"
+  replay="$(api_data POST /admin/funding/send "$payload" 1 "$key")"; test "$(jq -r '.id'<<<"$replay")" = "$ADMIN_REQUEST_ID" || fail "idempotent retry changed request"; test "$(jq -r '.signature // empty'<<<"$replay")" = "$ADMIN_SIGNATURE" || fail "idempotent retry changed signature"; sleep 1; test "$(balance "$ADMIN_ADDRESS")" = "$after1" || fail "idempotent retry changed balance"
+  hist="$(api_data GET '/admin/funding/history?limit=100' "" 1)"; jq -e --arg s "$ADMIN_SIGNATURE" 'any(.[];.signature==$s and .confirmed==true)'<<<"$hist" >/dev/null || fail "admin Funding missing from history"
+  summary_append "## Backend flow: direct Admin Funding"; summary_append "- PASS: send -> confirmation -> idempotent replay -> history"
+fi
+
+if application_flow_enabled funding-airdrop; then
+  AIR_BEFORE="$(balance "$API_AIRDROP_ADDRESS")"; a="$(api_data POST /funding/airdrop "$(jq -cn --arg a "$API_AIRDROP_ADDRESS" '{address:$a,amountAeko:1}')")"; API_AIRDROP_SIGNATURE="$(jq -r '.signature // empty'<<<"$a")"; test -n "$API_AIRDROP_SIGNATURE" || fail "airdrop missing signature"; wait_balance_at_least "$API_AIRDROP_ADDRESS" $((AIR_BEFORE+1000000000)) "Explorer developer airdrop reached wallet"
+  ah="$(api_data GET '/admin/funding/airdrops?limit=100' "" 1)"; fh="$(api_data GET '/admin/funding/history?limit=100' "" 1)"; jq -e --arg s "$API_AIRDROP_SIGNATURE" 'any(.[];.signature==$s)'<<<"$ah" >/dev/null || fail "airdrop missing from airdrop history"; jq -e --arg s "$API_AIRDROP_SIGNATURE" 'all(.[];.signature!=$s)'<<<"$fh" >/dev/null || fail "airdrop leaked into Funding history"
+  summary_append "## Backend flow: developer airdrop"; summary_append "- PASS: airdrop -> balance -> isolated history"
+fi
+
+if application_flow_enabled social-protocol; then
+  for path in /registry /registry/social /registry/protocol /protocol/status /social/status '/posts?limit=10' '/engagement?limit=10' '/stakes?limit=10' '/rewards?limit=10' '/social/reward-accounts?limit=10' '/social/reward-settlements?limit=10' '/social/stake-yields?limit=10' '/social/anti-spam?limit=10' '/social/tips?limit=10' '/social/subscriptions?limit=10' '/social/unlocks?limit=10' '/social/revenues?limit=10' /social/domains '/social/feed?limit=10'; do body="$(api_request GET "$path")"; jq -e . >/dev/null<<<"$body" || fail "Explorer GET $path did not return JSON"; done
+  AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_API_URL" python3 scripts/smoke-aeko-social.py
+  AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_API_URL" python3 scripts/smoke-aeko-protocol.py
+  summary_append "## Backend flow: Social + Protocol"; summary_append "- PASS: status/read endpoints + end-to-end smoke"
+fi
 fi
 
 if [ "$CONTRACT_SCOPE" = "protocol" ] || [ "$CONTRACT_SCOPE" = "full" ]; then
@@ -539,14 +518,9 @@ fi
 
 if [ "$CONTRACT_SCOPE" = "chain" ] || [ "$CONTRACT_SCOPE" = "full" ]; then
   echo "==> Exercising all declared WebSocket subscriptions"
-  python3 scripts/ci-rpc-ws-contract.py --host "$WS_HOST" --port 8900 --account "$PUBLIC_ADDRESS" --signature "$PUBLIC_SIGNATURE" --manifest "$ARTIFACT_DIR/ws-methods.txt"
+  python3 scripts/ci-rpc-ws-contract.py --host "$WS_HOST" --port 8900 --account "$RPC_FUNDING_ADDRESS" --signature "$RPC_FUNDING_SIGNATURE" --manifest "$ARTIFACT_DIR/ws-methods.txt"
 fi
 
-if [ "$CONTRACT_SCOPE" = "protocol" ] || [ "$CONTRACT_SCOPE" = "full" ]; then
-  echo "==> Running deeper non-UI Social and Protocol integration checks"
-  AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_API_URL" python3 scripts/smoke-aeko-social.py
-  AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_API_URL" python3 scripts/smoke-aeko-protocol.py
-fi
 
 capture_diagnostics
 echo "[PASS] production Coolify runtime contract scope $CONTRACT_SCOPE passed"

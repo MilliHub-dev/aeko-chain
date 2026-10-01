@@ -406,6 +406,16 @@ assert_runtime_artifact_handoff_contract() {
   fi
   grep -Fq "compose create --pull never key-bootstrap" "$runtime_script"
   grep -Fq "compose up --pull never -d" "$runtime_script"
+  grep -Fq "psql -U aeko -d aeko_explorer -Atqc 'SELECT 1'" "$runtime_script"
+  if grep -Fq "pg_isready -U aeko -d aeko_explorer" "$runtime_script"; then echo "Runtime PostgreSQL readiness must query the initialized database, not transient pg_isready state." >&2; exit 1; fi
+  grep -Fq 'rpc-functional-results.json' "$runtime_script"
+  grep -Fq 'rpc-method-results.json' "$runtime_script"
+  grep -Fq 'explorer-route-results.json' "$runtime_script"
+  grep -Fq 'application_flow_enabled funding-public' "$runtime_script"
+  grep -Fq 'application_flow_enabled funding-admin' "$runtime_script"
+  grep -Fq 'application_flow_enabled funding-airdrop' "$runtime_script"
+  grep -Fq 'application_flow_enabled social-protocol' "$runtime_script"
+  grep -Fq -- '--signature "$RPC_FUNDING_SIGNATURE"' "$runtime_script"
 
   if grep -Fq 'elif [ "$GITHUB_EVENT_NAME" = "pull_request"' "$release_mode"; then
     echo "Pull requests must not publish runtime images to Docker Hub." >&2
@@ -425,15 +435,20 @@ assert_grouped_devops_workflow_contract() {
   grep -Fq 'uses: ./.github/workflows/devops-web-ui.yml' "$workflow"
   grep -Fq 'name: Runtime / Tools producer' "$workflow"
   grep -Fq 'name: Release / Linux CLI validation' "$workflow"
-  grep -Fq 'name: Chain Contract / RPC + WebSocket' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'name: Application Contract / Explorer + Funding + API' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'name: Protocol + CLI Contract / Social + Protocol + CLI' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'name: Known-Good Compatibility / Latest successful runtime' ".github/workflows/full-stack-integration.yml"
+  grep -Fq 'name: Chain Contract / Critical RPC + WebSocket' ".github/workflows/full-stack-integration.yml"
+  grep -Fq 'name: RPC Method Contract / Individual JSON-RPC calls' ".github/workflows/full-stack-integration.yml"
+  grep -Fq 'name: Backend Contract / ${{ matrix.flow }}' ".github/workflows/full-stack-integration.yml"
+  grep -Fq 'name: CLI Contract / Release binary' ".github/workflows/full-stack-integration.yml"
+  grep -Fq 'name: Summary / Runtime contract' ".github/workflows/full-stack-integration.yml"
   grep -Fq 'GITHUB_RUN_ATTEMPT" -gt 1' ".github/workflows/full-stack-integration.yml"
   grep -Fq 'AEKO_CI_CONTRACT_SCOPE: chain' ".github/workflows/full-stack-integration.yml"
+  grep -Fq 'AEKO_CI_CONTRACT_SCOPE: rpc-methods' ".github/workflows/full-stack-integration.yml"
   grep -Fq 'AEKO_CI_CONTRACT_SCOPE: application' ".github/workflows/full-stack-integration.yml"
   grep -Fq 'AEKO_CI_CONTRACT_SCOPE: protocol' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'name: Checkout current compatibility source' ".github/workflows/full-stack-integration.yml"
+  grep -Fq 'AEKO_CI_APPLICATION_FLOW: ${{ matrix.flow }}' ".github/workflows/full-stack-integration.yml"
+  for flow in route-surface settings funding-public funding-admin funding-airdrop social-protocol; do grep -Fq -- "- $flow" ".github/workflows/full-stack-integration.yml"; done
+  if grep -Eq '^[[:space:]]+if: inputs\.selection_mode == .exact.' ".github/workflows/full-stack-integration.yml"; then echo "Runtime contract shards must run in both exact and last-success modes." >&2; exit 1; fi
+  if grep -Fq 'Known-Good Compatibility / Latest successful runtime' ".github/workflows/full-stack-integration.yml"; then echo "Monolithic last-success compatibility job must not replace granular contract shards." >&2; exit 1; fi
   grep -Fq 'chmod 0755 "$CLI_RELEASE_DIR/package/aeko" "$CLI_RELEASE_DIR/package/aeko-keygen"' "$workflow"
   grep -Fq 'name: Runtime / Producers' "$workflow"
   grep -Fq 'uses: ./.github/workflows/devops-runtime-services.yml' "$workflow"
