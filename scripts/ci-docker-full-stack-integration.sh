@@ -11,7 +11,7 @@ IMAGE_REPOSITORY="${AEKO_CI_IMAGE_REPOSITORY:-aeko-ci}"
 IMAGE_TAG="$AEKO_CI_IMAGE_TAG"
 CONTRACT_SCOPE="${AEKO_CI_CONTRACT_SCOPE:-full}"
 case "$CONTRACT_SCOPE" in
-  chain|application|full) ;;
+  chain|application|protocol|full) ;;
   *) echo "Unsupported AEKO_CI_CONTRACT_SCOPE: $CONTRACT_SCOPE" >&2; exit 2 ;;
 esac
 CLI_ARCHIVE="$AEKO_CI_CLI_ARCHIVE"
@@ -310,6 +310,7 @@ CLI_SENDER_ADDRESS="$(generate_smoke_key cli-sender)"
 CLI_RECIPIENT_ADDRESS="$(generate_smoke_key cli-recipient)"
 export PUBLIC_ADDRESS ADMIN_ADDRESS RPC_AIRDROP_ADDRESS API_AIRDROP_ADDRESS RPC_FUNDING_ADDRESS CLI_SENDER_ADDRESS CLI_RECIPIENT_ADDRESS
 
+if [ "$CONTRACT_SCOPE" = "chain" ] || [ "$CONTRACT_SCOPE" = "full" ]; then
 echo "==> Exercising critical JSON-RPC semantics with curl"
 test "$(rpc_result getHealth | jq -r '.')" = "ok" || fail "getHealth != ok"
 rpc_result getVersion >"$ARTIFACT_DIR/rpc-getVersion.json"
@@ -376,7 +377,10 @@ while IFS= read -r method; do
 done <"$ARTIFACT_DIR/rpc-methods.txt"
 echo "[ok] all $RPC_METHOD_COUNT declared JSON-RPC methods are registered"
 
-if [ "$CONTRACT_SCOPE" != "chain" ]; then
+fi
+
+if [ "$CONTRACT_SCOPE" = "application" ] || [ "$CONTRACT_SCOPE" = "full" ]; then
+SLOT_TWO="$(rpc_result getSlot '[{"commitment":"confirmed"}]' | jq -r '.')"
 echo "==> Exercising Explorer API and Funding end-to-end with curl"
 for path in / /health /readiness /overview /network/readiness /registry /registry/social   /registry/protocol /protocol/status /social/status '/posts?limit=1' '/engagement?limit=1'   '/stakes?limit=1' '/rewards?limit=1' '/blocks?limit=1' '/transactions?limit=1'   '/tokens/transfers?limit=1' '/nfts?limit=1' /settings
 do
@@ -513,6 +517,10 @@ while IFS=$'\t' read -r method path; do
 done <"$ARTIFACT_DIR/explorer-routes.tsv"
 echo "[ok] all $API_ROUTE_COUNT declared Explorer API method/path contracts are represented at runtime"
 
+
+fi
+
+if [ "$CONTRACT_SCOPE" = "protocol" ] || [ "$CONTRACT_SCOPE" = "full" ]; then
 echo "==> Exercising the exact Linux CLI release against the running production topology"
 "$CLI_DIR/aeko" --url "$RPC_URL" cluster-version | tee "$ARTIFACT_DIR/cli-cluster-version.txt"
 "$CLI_DIR/aeko" --url "$RPC_URL" balance "$ADMIN_ADDRESS" | tee "$ARTIFACT_DIR/cli-balance.txt"
@@ -529,12 +537,12 @@ echo "[ok] exact release CLI can query and submit to the runtime network"
 
 fi
 
-if [ "$CONTRACT_SCOPE" != "application" ]; then
+if [ "$CONTRACT_SCOPE" = "chain" ] || [ "$CONTRACT_SCOPE" = "full" ]; then
   echo "==> Exercising all declared WebSocket subscriptions"
   python3 scripts/ci-rpc-ws-contract.py --host "$WS_HOST" --port 8900 --account "$PUBLIC_ADDRESS" --signature "$PUBLIC_SIGNATURE" --manifest "$ARTIFACT_DIR/ws-methods.txt"
 fi
 
-if [ "$CONTRACT_SCOPE" != "chain" ]; then
+if [ "$CONTRACT_SCOPE" = "protocol" ] || [ "$CONTRACT_SCOPE" = "full" ]; then
   echo "==> Running deeper non-UI Social and Protocol integration checks"
   AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_API_URL" python3 scripts/smoke-aeko-social.py
   AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_API_URL" python3 scripts/smoke-aeko-protocol.py
