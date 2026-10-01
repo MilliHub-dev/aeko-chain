@@ -152,13 +152,8 @@ impl AekoDeveloperClient {
         funding_authorization: Option<&str>,
         recent_blockhash: Option<&str>,
     ) -> AekoRustSdkResult<String> {
-        self.request_funding_transfer(
-            pubkey,
-            lamports,
-            funding_authorization,
-            recent_blockhash,
-        )
-        .await
+        self.request_funding_transfer(pubkey, lamports, funding_authorization, recent_blockhash)
+            .await
     }
 
     /// Public funding request via the Explorer approval queue. Submits
