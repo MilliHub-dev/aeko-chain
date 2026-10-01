@@ -59,7 +59,10 @@ runs:
     - name: CLI and keygen tests
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
-      run: cargo test --locked -p aeko-cli -p aeko-keygen
+      # Several CLI integration tests boot a full TestValidator from the same
+      # process-wide port allocator. Running those test functions concurrently
+      # races socket binding and can fail with EADDRINUSE before assertions run.
+      run: cargo test --locked -p aeko-cli -p aeko-keygen -- --test-threads=1
 
     - name: Validate POSIX installer syntax
       if: ${{ inputs.validate-source == 'true' }}

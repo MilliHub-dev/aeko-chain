@@ -24,6 +24,9 @@ EXPLORER_ENV = ROOT / "apps" / "explorer" / "backend" / ".env.example"
 FUNDING_FEATURE = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "funding" / "mod.rs"
 FUNDING_CONFIG = ROOT / "apps" / "explorer" / "backend" / "src" / "config" / "mod.rs"
 FUNDING_HTTP_E2E = ROOT / "apps" / "explorer" / "backend" / "tests" / "funding_http_e2e.rs"
+JS_SDK_CLIENT = ROOT / "apps" / "sdk" / "js" / "src" / "connection.ts"
+RUST_SDK_CLIENT = ROOT / "apps" / "sdk" / "rust-client" / "src" / "client.rs"
+PYTHON_SDK_CLIENT = ROOT / "apps" / "sdk" / "python" / "src" / "aeko_sdk" / "client.py"
 FUNDING_DESIGN = ROOT / "docs" / "superpowers" / "specs" / "2026-09-25-funding-scan-cleanup-design.md"
 FAUCET_REPLAY_TEST = ROOT / "faucet" / "tests" / "local-faucet.rs"
 ADMIN_FUNDING_CLIENT = ROOT / "apps" / "admin" / "src" / "lib" / "funding-api.ts"
@@ -114,6 +117,9 @@ def main() -> int:
     funding_feature = read(FUNDING_FEATURE)
     funding_config = read(FUNDING_CONFIG)
     funding_http_e2e = read(FUNDING_HTTP_E2E)
+    js_sdk_client = read(JS_SDK_CLIENT)
+    rust_sdk_client = read(RUST_SDK_CLIENT)
+    python_sdk_client = read(PYTHON_SDK_CLIENT)
     funding_design = read(FUNDING_DESIGN)
     faucet_replay_test = read(FAUCET_REPLAY_TEST)
     admin_funding_client = read(ADMIN_FUNDING_CLIENT)
@@ -639,6 +645,19 @@ def main() -> int:
         and "confirmation continues in the reconciler" in funding_feature,
         "funding HTTP handlers must return after durable signature persistence and reconcile without a duplicate transfer",
     )
+    for label, client in (
+        ("JavaScript SDK", js_sdk_client),
+        ("Rust SDK", rust_sdk_client),
+        ("Python SDK", python_sdk_client),
+    ):
+        reject(client, '"requestGrant"', label)
+        reject(client, "'requestGrant'", label)
+        reject(client, "/admin/funding/grant", label)
+        require(
+            "requestFunding" in client and "/admin/funding/send" in client,
+            f"{label} must use canonical requestFunding and /admin/funding/send contracts",
+        )
+
     require(
         "test_same_airdrop_intent_produces_same_signed_transaction" in faucet_replay_test
         and "assert_eq!(first.signatures, replay.signatures)" in faucet_replay_test,

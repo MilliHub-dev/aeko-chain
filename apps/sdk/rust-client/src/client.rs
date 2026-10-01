@@ -123,11 +123,11 @@ impl AekoDeveloperClient {
         .await
     }
 
-    /// Approval-gated funding grant via direct RPC. Requires the server-only
+    /// Protected Funding transfer via direct RPC. Requires the server-only
     /// funding authorization credential when the validator configures one.
     /// Public clients should use the Explorer `/funding/request` queue with
     /// polling instead; trusted settlement code uses this.
-    pub async fn request_grant(
+    pub async fn request_funding_transfer(
         &self,
         pubkey: &str,
         lamports: u64,
@@ -135,11 +135,28 @@ impl AekoDeveloperClient {
         recent_blockhash: Option<&str>,
     ) -> AekoRustSdkResult<String> {
         self.rpc(
-            "requestGrant",
+            "requestFunding",
             json!([pubkey, lamports, {
                 "fundingAuthorization": funding_authorization,
                 "recentBlockhash": recent_blockhash,
             }]),
+        )
+        .await
+    }
+
+    #[deprecated(note = "use request_funding_transfer")]
+    pub async fn request_grant(
+        &self,
+        pubkey: &str,
+        lamports: u64,
+        funding_authorization: Option<&str>,
+        recent_blockhash: Option<&str>,
+    ) -> AekoRustSdkResult<String> {
+        self.request_funding_transfer(
+            pubkey,
+            lamports,
+            funding_authorization,
+            recent_blockhash,
         )
         .await
     }
@@ -242,8 +259,8 @@ impl AekoDeveloperClient {
         }
     }
 
-    /// Admin direct grant via the Explorer API (bypasses approval).
-    pub async fn create_grant(
+    /// Direct Admin Funding via the Explorer API (bypasses a second approval).
+    pub async fn send_funding(
         &self,
         explorer_api_url: &str,
         address: &str,
@@ -252,15 +269,27 @@ impl AekoDeveloperClient {
     ) -> AekoRustSdkResult<serde_json::Value> {
         let base = explorer_api_url.trim_end_matches('/');
         self.http
-            .post(format!("{base}/admin/funding/grant"))
+            .post(format!("{base}/admin/funding/send"))
             .header("x-aeko-settings-token", admin_token)
             .json(&json!({"address": address, "amountAeko": amount_aeko}))
             .send()
             .await
-            .map_err(|e| AekoRustSdkError::Rpc(format!("direct grant failed: {e}")))?
+            .map_err(|e| AekoRustSdkError::Rpc(format!("direct funding failed: {e}")))?
             .json()
             .await
-            .map_err(|e| AekoRustSdkError::Rpc(format!("direct grant decode failed: {e}")))
+            .map_err(|e| AekoRustSdkError::Rpc(format!("direct funding decode failed: {e}")))
+    }
+
+    #[deprecated(note = "use send_funding")]
+    pub async fn create_grant(
+        &self,
+        explorer_api_url: &str,
+        address: &str,
+        amount_aeko: f64,
+        admin_token: &str,
+    ) -> AekoRustSdkResult<serde_json::Value> {
+        self.send_funding(explorer_api_url, address, amount_aeko, admin_token)
+            .await
     }
 
     pub async fn get_wallet_permission_account(
