@@ -25,10 +25,10 @@ if [ "${CLASSIFY_RESULT:-}" != "success" ]; then
 fi
 
 require_result "${EXPECT_CI_CONTRACT:-false}" "ci-contract" "${CI_CONTRACT_RESULT:-}"
-require_result "${EXPECT_WEB_UI:-false}" "web-ui" "${WEB_UI_RESULT:-}"
+require_result "${EXPECT_WEB_UI:-false}" "explorer-ui" "${WEB_UI_RESULT:-}"
 require_result "${EXPECT_CLI:-false}" "cli" "${CLI_RESULT:-}"
-require_result "${EXPECT_RUNTIME_SERVICES:-false}" "runtime-services" "${RUNTIME_SERVICES_RESULT:-}"
-require_result "${EXPECT_SDK_VALIDATION:-false}" "sdk-validation" "${SDK_VALIDATION_RESULT:-}"
+require_result "${EXPECT_RUNTIME_SERVICES:-false}" "runtime-producers" "${RUNTIME_SERVICES_RESULT:-}"
+require_result "${EXPECT_SDK_VALIDATION:-false}" "sdk" "${SDK_VALIDATION_RESULT:-}"
 
 if [ "${#failures[@]}" -gt 0 ]; then
   printf 'One or more selected AEKO DevOps job groups did not finish successfully:\n' >&2

@@ -1,4 +1,4 @@
-name: AEKO DevOps / Web UI
+name: AEKO DevOps / Explorer UI
 
 on:
   workflow_call:
@@ -62,7 +62,7 @@ jobs:
           sha-tag: ${{ inputs.sha_tag }}
 
   explorer_web:
-    name: Explorer / Web
+    name: Explorer Web
     if: inputs.run_explorer_web == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35

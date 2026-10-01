@@ -415,23 +415,23 @@ assert_grouped_devops_workflow_contract() {
   local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
   local sdk_workflow="$PIPELINE_DIR/../../../workflows/devops-sdk-validation.yml"
 
-  grep -Fq 'name: Web UI' "$workflow"
+  grep -Fq 'name: Explorer / UI' "$workflow"
   grep -Fq 'uses: ./.github/workflows/devops-web-ui.yml' "$workflow"
-  grep -Fq 'name: Runtime services' "$workflow"
+  grep -Fq 'name: Runtime / Producers' "$workflow"
   grep -Fq 'uses: ./.github/workflows/devops-runtime-services.yml' "$workflow"
-  grep -Fq 'name: SDK validation' "$workflow"
+  grep -Fq 'name: SDK' "$workflow"
   grep -Fq 'uses: ./.github/workflows/devops-sdk-validation.yml' "$workflow"
   grep -Fq 'secrets: inherit' "$workflow"
 
   grep -Fq 'workflow_call:' "$web_workflow"
   grep -Fq 'name: Admin / Operations Web' "$web_workflow"
-  grep -Fq 'name: Explorer / Web' "$web_workflow"
+  grep -Fq 'name: Explorer Web' "$web_workflow"
   grep -Fq 'workflow_call:' "$runtime_workflow"
-  grep -Fq 'name: Explorer / API' "$runtime_workflow"
-  grep -Fq 'name: Blockchain / Network' "$runtime_workflow"
+  grep -Fq 'name: Explorer API' "$runtime_workflow"
+  grep -Fq 'name: Blockchain network' "$runtime_workflow"
   grep -Fq 'workflow_call:' "$sdk_workflow"
-  grep -Fq 'name: SDK / JS · Node · Python' "$sdk_workflow"
-  grep -Fq 'name: SDK / Rust' "$sdk_workflow"
+  grep -Fq 'name: JS · Node · Python' "$sdk_workflow"
+  grep -Fq 'name: Rust' "$sdk_workflow"
 
   if grep -Eq '^  (admin|explorer_web|explorer_backend|network|sdk_non_rust|sdk_rust):' "$workflow"; then
     echo "Grouped DevOps child jobs leaked back into the top-level graph." >&2

@@ -1,4 +1,4 @@
-name: AEKO DevOps / Runtime services
+name: AEKO DevOps / Runtime producers
 
 on:
   workflow_call:
@@ -33,7 +33,7 @@ env:
 
 jobs:
   explorer_backend:
-    name: Explorer / API
+    name: Explorer API
     if: inputs.run_explorer_backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 50
@@ -90,7 +90,7 @@ jobs:
           retention-days: 3
 
   network:
-    name: Blockchain / Network
+    name: Blockchain network
     if: inputs.run_network == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 75

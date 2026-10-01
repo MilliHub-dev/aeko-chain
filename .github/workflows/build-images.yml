@@ -136,7 +136,7 @@ jobs:
         run: bash .github/actions/devops/pipeline/plan.sh
 
   ci_contract:
-    name: Guardrails / CI contracts
+    name: Quality / CI contracts
     needs: classify
     if: needs.classify.outputs.run_ci_contract == 'true'
     runs-on: ubuntu-latest
@@ -151,7 +151,7 @@ jobs:
           sha-tag: ${{ needs.classify.outputs.sha_tag }}
 
   web_ui:
-    name: Web UI
+    name: Explorer / UI
     needs: classify
     if: needs.classify.outputs.run_admin == 'true' || needs.classify.outputs.run_explorer_web == 'true'
     uses: ./.github/workflows/devops-web-ui.yml
@@ -293,7 +293,7 @@ jobs:
           retention-days: 3
 
   runtime_services:
-    name: Runtime services
+    name: Runtime / Producers
     needs: classify
     if: needs.classify.outputs.run_explorer_backend == 'true' || needs.classify.outputs.run_network == 'true'
     uses: ./.github/workflows/devops-runtime-services.yml
@@ -305,7 +305,7 @@ jobs:
     secrets: inherit
 
   sdk_validation:
-    name: SDK validation
+    name: SDK
     needs: classify
     if: needs.classify.outputs.run_sdk_non_rust == 'true' || needs.classify.outputs.run_sdk_rust == 'true'
     uses: ./.github/workflows/devops-sdk-validation.yml

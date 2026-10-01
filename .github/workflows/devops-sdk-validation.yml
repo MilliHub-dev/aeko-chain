@@ -1,4 +1,4 @@
-name: AEKO DevOps / SDK validation
+name: AEKO DevOps / SDK
 
 on:
   workflow_call:
@@ -24,7 +24,7 @@ env:
 
 jobs:
   sdk_non_rust:
-    name: SDK / JS · Node · Python
+    name: JS · Node · Python
     if: inputs.run_sdk_non_rust == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -53,7 +53,7 @@ jobs:
           release-rust: "false"
 
   sdk_rust:
-    name: SDK / Rust
+    name: Rust
     if: inputs.run_sdk_rust == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 50
