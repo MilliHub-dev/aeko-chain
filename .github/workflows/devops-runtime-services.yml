@@ -1,0 +1,155 @@
+name: AEKO DevOps / Runtime services
+
+on:
+  workflow_call:
+    inputs:
+      run_explorer_backend:
+        required: true
+        type: string
+      run_network:
+        required: true
+        type: string
+      push_runtime_images:
+        required: true
+        type: string
+      sha_tag:
+        required: true
+        type: string
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: sccache
+  AEKO_ALLOW_INTERNAL_PR_IMAGE_PUSH: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && '1' || '0' }}
+
+jobs:
+  explorer_backend:
+    name: Explorer / API
+    if: inputs.run_explorer_backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare Explorer backend runner
+        uses: ./.github/actions/devops/pipeline/setup
+        with:
+          rust: ${{ inputs.run_explorer_backend }}
+          docker: "true"
+
+      - name: Log in to Docker Hub
+        if: inputs.push_runtime_images == 'true'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Validate and build Explorer backend image
+        uses: ./.github/actions/devops/explorer-backend
+        with:
+          validate-source: ${{ inputs.run_explorer_backend }}
+          host-build: "false"
+          build-image: "true"
+          publish: ${{ inputs.push_runtime_images }}
+          registry-user: ${{ inputs.push_runtime_images == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ inputs.sha_tag }}
+
+      - name: Package Explorer API runtime image
+        shell: bash
+        env:
+          SHA_TAG: ${{ inputs.sha_tag }}
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/aeko-runtime-explorer-api"
+          rm -rf "$out"
+          mkdir -p "$out"
+          image="aeko-ci/aeko-explorer-api:${SHA_TAG}"
+          docker image inspect "$image" >/dev/null
+          docker save "$image" | gzip -1 > "$out/aeko-explorer-api-image.tar.gz"
+          printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
+
+      - name: Upload Explorer API runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-explorer-api
+          path: ${{ runner.temp }}/aeko-runtime-explorer-api
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
+
+  network:
+    name: Blockchain / Network
+    if: inputs.run_network == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare network runner
+        uses: ./.github/actions/devops/pipeline/setup
+        with:
+          rust: ${{ inputs.run_network }}
+          python: ${{ inputs.run_network }}
+          docker: "true"
+
+      - name: Log in to Docker Hub
+        if: inputs.push_runtime_images == 'true'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Validate and build network images
+        uses: ./.github/actions/devops/network
+        with:
+          run-preflight: ${{ inputs.run_network }}
+          validate-source: ${{ inputs.run_network }}
+          build-image: "true"
+          publish: ${{ inputs.push_runtime_images }}
+          registry-user: ${{ inputs.push_runtime_images == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ inputs.sha_tag }}
+
+      - name: Package network runtime images
+        shell: bash
+        env:
+          SHA_TAG: ${{ inputs.sha_tag }}
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/aeko-runtime-network"
+          rm -rf "$out"
+          mkdir -p "$out"
+          images=(
+            "aeko-ci/aeko-validator:${SHA_TAG}"
+            "aeko-ci/aeko-faucet:${SHA_TAG}"
+            "aeko-ci/aeko-social-bootstrap:${SHA_TAG}"
+            "aeko-ci/aeko-protocol-bootstrap:${SHA_TAG}"
+          )
+          for image in "${images[@]}"; do
+            docker image inspect "$image" >/dev/null
+          done
+          docker save "${images[@]}" | gzip -1 > "$out/aeko-network-images.tar.gz"
+          printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
+
+      - name: Upload network runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-network
+          path: ${{ runner.temp }}/aeko-runtime-network
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3

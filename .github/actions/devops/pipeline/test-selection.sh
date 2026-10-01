@@ -16,6 +16,9 @@ assert_output() {
 
 assert_node24_action_majors() {
   local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+  local web_workflow="$PIPELINE_DIR/../../../workflows/devops-web-ui.yml"
+  local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
+  local sdk_workflow="$PIPELINE_DIR/../../../workflows/devops-sdk-validation.yml"
   local setup_action="$PIPELINE_DIR/setup/action.yml"
 
   for deprecated in \
@@ -24,46 +27,61 @@ assert_node24_action_majors() {
     "actions/setup-python@v5" \
     "docker/login-action@v3" \
     "docker/setup-buildx-action@v3"; do
-    if grep -Fq "$deprecated" "$workflow" "$setup_action"; then
+    if grep -Fq "$deprecated" "$workflow" "$web_workflow" "$runtime_workflow" "$sdk_workflow" "$setup_action"; then
       echo "Deprecated Node-20 action major remains in the active DevOps pipeline: $deprecated" >&2
       exit 1
     fi
   done
 
   grep -Fq "actions/checkout@v5" "$workflow"
+  grep -Fq "actions/checkout@v5" "$web_workflow"
+  grep -Fq "actions/checkout@v5" "$runtime_workflow"
+  grep -Fq "actions/checkout@v5" "$sdk_workflow"
   grep -Fq "actions/setup-node@v5" "$setup_action"
   grep -Fq "actions/setup-python@v6" "$setup_action"
   grep -Fq "docker/login-action@v4" "$workflow"
+  grep -Fq "docker/login-action@v4" "$web_workflow"
+  grep -Fq "docker/login-action@v4" "$runtime_workflow"
   grep -Fq "docker/setup-buildx-action@v4" "$setup_action"
 
   echo "[ok] active DevOps third-party actions use Node-24-backed majors"
 }
 
-
 assert_full_validation_workflow_contract() {
   local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+  local web_workflow="$PIPELINE_DIR/../../../workflows/devops-web-ui.yml"
+  local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
+  local sdk_workflow="$PIPELINE_DIR/../../../workflows/devops-sdk-validation.yml"
 
   for selector in \
-    'node: ${{ needs.classify.outputs.run_admin }}' \
-    'validate-source: ${{ needs.classify.outputs.run_admin }}' \
-    'node: ${{ needs.classify.outputs.run_explorer_web }}' \
-    'validate-source: ${{ needs.classify.outputs.run_explorer_web }}' \
-    'rust: ${{ needs.classify.outputs.run_cli }}' \
-    'validate-source: ${{ needs.classify.outputs.run_cli }}' \
-    'rust: ${{ needs.classify.outputs.run_explorer_backend }}' \
-    'validate-source: ${{ needs.classify.outputs.run_explorer_backend }}' \
-    'run-preflight: ${{ needs.classify.outputs.run_network }}' \
-    'validate-source: ${{ needs.classify.outputs.run_network }}' \
-    'js: ${{ needs.classify.outputs.run_sdk_non_rust }}' \
-    'node: ${{ needs.classify.outputs.run_sdk_non_rust }}' \
-    'python: ${{ needs.classify.outputs.run_sdk_non_rust }}'; do
-    grep -Fq "$selector" "$workflow"
+    'node: ${{ inputs.run_admin }}' \
+    'validate-source: ${{ inputs.run_admin }}' \
+    'node: ${{ inputs.run_explorer_web }}' \
+    'validate-source: ${{ inputs.run_explorer_web }}'; do
+    grep -Fq "$selector" "$web_workflow"
+  done
+
+  for selector in \
+    'rust: ${{ inputs.run_explorer_backend }}' \
+    'validate-source: ${{ inputs.run_explorer_backend }}' \
+    'run-preflight: ${{ inputs.run_network }}' \
+    'validate-source: ${{ inputs.run_network }}'; do
+    grep -Fq "$selector" "$runtime_workflow"
+  done
+
+  grep -Fq 'rust: ${{ needs.classify.outputs.run_cli }}' "$workflow"
+  grep -Fq 'validate-source: ${{ needs.classify.outputs.run_cli }}' "$workflow"
+
+  for selector in \
+    'js: ${{ inputs.run_sdk_non_rust }}' \
+    'node: ${{ inputs.run_sdk_non_rust }}' \
+    'python: ${{ inputs.run_sdk_non_rust }}' \
+    'rust: "true"'; do
+    grep -Fq "$selector" "$sdk_workflow"
   done
 
   echo "[ok] every AEKO DevOps lane performs full validation when selected"
 }
-
-
 
 assert_smart_contract_pipeline_separation() {
   local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
@@ -141,7 +159,7 @@ assert_cli_release_after_main_contract() {
   fi
 
   grep -Fq 'cli_windows_release:' "$devops_workflow"
-  grep -Fq 'name: CLI release Windows (non-blocking)' "$devops_workflow"
+  grep -Fq 'name: Release / Windows CLI (non-blocking)' "$devops_workflow"
   grep -Fq 'continue-on-error: true' "$devops_workflow"
   grep -Fq 'needs: cli' "$devops_workflow"
   grep -Fq 'Build CLI and keygen for Windows' "$devops_workflow"
@@ -153,7 +171,7 @@ assert_cli_release_after_main_contract() {
   grep -Fq 'AEKO_CLI_ASSET_BASE_URL=http://127.0.0.1:18765' "$devops_workflow"
 
   grep -Fq 'cli_release_publish:' "$devops_workflow"
-  grep -Fq 'name: Publish CLI binaries (best effort)' "$devops_workflow"
+  grep -Fq 'name: Publish / CLI binaries (best effort)' "$devops_workflow"
   grep -Fq "github.event_name == 'push'" "$devops_workflow"
   grep -Fq "github.ref == 'refs/heads/main'" "$devops_workflow"
   grep -Fq "needs.devops.result == 'success'" "$devops_workflow"
@@ -337,26 +355,34 @@ assert_split_coolify_workflow_contract() {
 
 assert_runtime_artifact_handoff_contract() {
   local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+  local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
   local integration="$PIPELINE_DIR/../../../workflows/full-stack-integration.yml"
   local release_mode="$PIPELINE_DIR/resolve-release.sh"
   local runtime_script="$PIPELINE_DIR/../../../../scripts/ci-docker-full-stack-integration.sh"
 
+  grep -Fq "name: aeko-runtime-tools" "$workflow"
+  grep -Fq "name: aeko-runtime-network" "$runtime_workflow"
+  grep -Fq "name: aeko-runtime-explorer-api" "$runtime_workflow"
   for artifact in \
     "aeko-runtime-tools" \
     "aeko-runtime-network" \
     "aeko-runtime-explorer-api"; do
-    grep -Fq "name: $artifact" "$workflow"
     grep -Fq "name: $artifact" "$integration"
   done
 
   grep -Fq "runtime_integration:" "$workflow"
   grep -Fq "needs.cli.result == 'success'" "$workflow"
-  grep -Fq "needs.explorer_backend.result == 'success'" "$workflow"
-  grep -Fq "needs.network.result == 'success'" "$workflow"
-  if sed -n '/^  runtime_integration:/,/^  cli_release_publish:/p' "$workflow" | grep -Fq -- "- devops"; then
-    echo "Runtime integration handoff must not wait on the aggregate DevOps job." >&2
-    exit 1
-  fi
+  grep -Fq "needs.runtime_services.result == 'success'" "$workflow"
+  local runtime_block
+  runtime_block="$(sed -n '/^  runtime_integration:/,/^  cli_release_publish:/p' "$workflow")"
+  for forbidden in devops web_ui sdk_validation explorer_backend network; do
+    if grep -Eq "^[[:space:]]*-[[:space:]]+${forbidden}$" <<<"$runtime_block"; then
+      echo "Runtime integration has an unnecessary dependency edge: $forbidden" >&2
+      exit 1
+    fi
+  done
+  grep -Eq '^[[:space:]]*-[[:space:]]+cli$' <<<"$runtime_block"
+  grep -Eq '^[[:space:]]*-[[:space:]]+runtime_services$' <<<"$runtime_block"
   grep -Fq "gh workflow run full-stack-integration.yml" "$workflow"
   grep -Fq "producer_run_id" "$workflow"
   grep -Fq "producer_run_id:" "$integration"
@@ -380,9 +406,57 @@ assert_runtime_artifact_handoff_contract() {
     exit 1
   fi
 
-  echo "[ok] runtime integration consumes exact producer artifacts and PRs do not push registry images"
+  echo "[ok] runtime integration consumes exact grouped producer artifacts and PRs do not push registry images"
 }
 
+assert_grouped_devops_workflow_contract() {
+  local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+  local web_workflow="$PIPELINE_DIR/../../../workflows/devops-web-ui.yml"
+  local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
+  local sdk_workflow="$PIPELINE_DIR/../../../workflows/devops-sdk-validation.yml"
+
+  grep -Fq 'name: Web UI' "$workflow"
+  grep -Fq 'uses: ./.github/workflows/devops-web-ui.yml' "$workflow"
+  grep -Fq 'name: Runtime services' "$workflow"
+  grep -Fq 'uses: ./.github/workflows/devops-runtime-services.yml' "$workflow"
+  grep -Fq 'name: SDK validation' "$workflow"
+  grep -Fq 'uses: ./.github/workflows/devops-sdk-validation.yml' "$workflow"
+  grep -Fq 'secrets: inherit' "$workflow"
+
+  grep -Fq 'workflow_call:' "$web_workflow"
+  grep -Fq 'name: Admin / Operations Web' "$web_workflow"
+  grep -Fq 'name: Explorer / Web' "$web_workflow"
+  grep -Fq 'workflow_call:' "$runtime_workflow"
+  grep -Fq 'name: Explorer / API' "$runtime_workflow"
+  grep -Fq 'name: Blockchain / Network' "$runtime_workflow"
+  grep -Fq 'workflow_call:' "$sdk_workflow"
+  grep -Fq 'name: SDK / JS · Node · Python' "$sdk_workflow"
+  grep -Fq 'name: SDK / Rust' "$sdk_workflow"
+
+  if grep -Eq '^  (admin|explorer_web|explorer_backend|network|sdk_non_rust|sdk_rust):' "$workflow"; then
+    echo "Grouped DevOps child jobs leaked back into the top-level graph." >&2
+    exit 1
+  fi
+
+  local gate_block
+  gate_block="$(sed -n '/^  devops:/,/^  runtime_integration:/p' "$workflow")"
+  for required in ci_contract web_ui cli runtime_services sdk_validation; do
+    grep -Eq "^[[:space:]]*-[[:space:]]+${required}$" <<<"$gate_block"
+  done
+
+  local publish_block
+  publish_block="$(sed -n '/^  cli_release_publish:/,/^  sdk_publish:/p' "$workflow")"
+  grep -Eq '^[[:space:]]*-[[:space:]]+cli_windows_release$' <<<"$publish_block"
+  grep -Eq '^[[:space:]]*-[[:space:]]+devops$' <<<"$publish_block"
+  if grep -Eq '^[[:space:]]*-[[:space:]]+cli$' <<<"$publish_block" || grep -Fq "needs.cli.result" <<<"$publish_block"; then
+    echo "CLI publication must rely on the Windows release chain and aggregate gate, not a redundant direct CLI edge." >&2
+    exit 1
+  fi
+
+  echo "[ok] DevOps graph is grouped by UI, runtime services, and SDKs with only real cross-group dependencies"
+}
+
+assert_grouped_devops_workflow_contract
 assert_node24_action_majors
 assert_runtime_artifact_handoff_contract
 assert_split_coolify_workflow_contract

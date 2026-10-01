@@ -1,0 +1,82 @@
+name: AEKO DevOps / SDK validation
+
+on:
+  workflow_call:
+    inputs:
+      run_sdk_non_rust:
+        required: true
+        type: string
+      run_sdk_rust:
+        required: true
+        type: string
+      enforce_rust_lockfile_clean:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: sccache
+
+jobs:
+  sdk_non_rust:
+    name: SDK / JS · Node · Python
+    if: inputs.run_sdk_non_rust == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare non-Rust SDK runner
+        uses: ./.github/actions/devops/pipeline/setup
+        with:
+          node: ${{ inputs.run_sdk_non_rust }}
+          python: ${{ inputs.run_sdk_non_rust }}
+
+      - name: Validate selected non-Rust SDKs
+        uses: ./.github/actions/devops/sdk
+        with:
+          js: ${{ inputs.run_sdk_non_rust }}
+          node: ${{ inputs.run_sdk_non_rust }}
+          python: ${{ inputs.run_sdk_non_rust }}
+          rust: "false"
+          release-js: "false"
+          release-node: "false"
+          release-python: "false"
+          release-rust: "false"
+
+  sdk_rust:
+    name: SDK / Rust
+    if: inputs.run_sdk_rust == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare Rust SDK runner
+        uses: ./.github/actions/devops/pipeline/setup
+        with:
+          rust: "true"
+
+      - name: Validate Rust SDK
+        uses: ./.github/actions/devops/sdk
+        with:
+          js: "false"
+          node: "false"
+          python: "false"
+          rust: "true"
+          release-js: "false"
+          release-node: "false"
+          release-python: "false"
+          release-rust: "false"
+          enforce-lockfile-clean: ${{ inputs.enforce_rust_lockfile_clean }}

@@ -1,0 +1,95 @@
+name: AEKO DevOps / Web UI
+
+on:
+  workflow_call:
+    inputs:
+      run_admin:
+        required: true
+        type: string
+      run_explorer_web:
+        required: true
+        type: string
+      publish:
+        required: true
+        type: string
+      sha_tag:
+        required: true
+        type: string
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  AEKO_ALLOW_INTERNAL_PR_IMAGE_PUSH: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && '1' || '0' }}
+
+jobs:
+  admin:
+    name: Admin / Operations Web
+    if: inputs.run_admin == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare Operations Web runner
+        uses: ./.github/actions/devops/pipeline/setup
+        with:
+          node: ${{ inputs.run_admin }}
+          docker: "true"
+
+      - name: Log in to Docker Hub
+        if: inputs.publish == 'true'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Validate and build Operations Web
+        uses: ./.github/actions/devops/admin
+        with:
+          validate-source: ${{ inputs.run_admin }}
+          build-image: "true"
+          publish: ${{ inputs.publish }}
+          registry-user: ${{ inputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ inputs.sha_tag }}
+
+  explorer_web:
+    name: Explorer / Web
+    if: inputs.run_explorer_web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare Explorer Web runner
+        uses: ./.github/actions/devops/pipeline/setup
+        with:
+          node: ${{ inputs.run_explorer_web }}
+          docker: "true"
+
+      - name: Log in to Docker Hub
+        if: inputs.publish == 'true'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Validate and build Explorer Web
+        uses: ./.github/actions/devops/explorer-web
+        with:
+          validate-source: ${{ inputs.run_explorer_web }}
+          build-image: "true"
+          publish: ${{ inputs.publish }}
+          registry-user: ${{ inputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          sha-tag: ${{ inputs.sha_tag }}

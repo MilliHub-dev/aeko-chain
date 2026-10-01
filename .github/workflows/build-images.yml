@@ -41,7 +41,7 @@ env:
 
 jobs:
   classify:
-    name: Classify change set
+    name: Plan / Change set
     if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -136,7 +136,7 @@ jobs:
         run: bash .github/actions/devops/pipeline/plan.sh
 
   ci_contract:
-    name: CI contract smoke
+    name: Guardrails / CI contracts
     needs: classify
     if: needs.classify.outputs.run_ci_contract == 'true'
     runs-on: ubuntu-latest
@@ -150,76 +150,20 @@ jobs:
         with:
           sha-tag: ${{ needs.classify.outputs.sha_tag }}
 
-  admin:
-    name: Operations Web
+  web_ui:
+    name: Web UI
     needs: classify
-    if: needs.classify.outputs.run_admin == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Prepare Operations Web runner
-        uses: ./.github/actions/devops/pipeline/setup
-        with:
-          node: ${{ needs.classify.outputs.run_admin }}
-          docker: "true"
-
-      - name: Log in to Docker Hub
-        if: needs.classify.outputs.publish == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Validate and build Operations Web
-        uses: ./.github/actions/devops/admin
-        with:
-          validate-source: ${{ needs.classify.outputs.run_admin }}
-          build-image: "true"
-          publish: ${{ needs.classify.outputs.publish }}
-          registry-user: ${{ needs.classify.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
-          sha-tag: ${{ needs.classify.outputs.sha_tag }}
-
-  explorer_web:
-    name: Explorer Web
-    needs: classify
-    if: needs.classify.outputs.run_explorer_web == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Prepare Explorer Web runner
-        uses: ./.github/actions/devops/pipeline/setup
-        with:
-          node: ${{ needs.classify.outputs.run_explorer_web }}
-          docker: "true"
-
-      - name: Log in to Docker Hub
-        if: needs.classify.outputs.publish == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Validate and build Explorer Web
-        uses: ./.github/actions/devops/explorer-web
-        with:
-          validate-source: ${{ needs.classify.outputs.run_explorer_web }}
-          build-image: "true"
-          publish: ${{ needs.classify.outputs.publish }}
-          registry-user: ${{ needs.classify.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
-          sha-tag: ${{ needs.classify.outputs.sha_tag }}
+    if: needs.classify.outputs.run_admin == 'true' || needs.classify.outputs.run_explorer_web == 'true'
+    uses: ./.github/workflows/devops-web-ui.yml
+    with:
+      run_admin: ${{ needs.classify.outputs.run_admin }}
+      run_explorer_web: ${{ needs.classify.outputs.run_explorer_web }}
+      publish: ${{ needs.classify.outputs.publish }}
+      sha_tag: ${{ needs.classify.outputs.sha_tag }}
+    secrets: inherit
 
   cli:
-    name: CLI and tools
+    name: Runtime / CLI & tools
     needs: classify
     if: needs.classify.outputs.run_cli == 'true'
     runs-on: ubuntu-latest
@@ -348,8 +292,30 @@ jobs:
           compression-level: 0
           retention-days: 3
 
+  runtime_services:
+    name: Runtime services
+    needs: classify
+    if: needs.classify.outputs.run_explorer_backend == 'true' || needs.classify.outputs.run_network == 'true'
+    uses: ./.github/workflows/devops-runtime-services.yml
+    with:
+      run_explorer_backend: ${{ needs.classify.outputs.run_explorer_backend }}
+      run_network: ${{ needs.classify.outputs.run_network }}
+      push_runtime_images: ${{ needs.classify.outputs.push_runtime_images }}
+      sha_tag: ${{ needs.classify.outputs.sha_tag }}
+    secrets: inherit
+
+  sdk_validation:
+    name: SDK validation
+    needs: classify
+    if: needs.classify.outputs.run_sdk_non_rust == 'true' || needs.classify.outputs.run_sdk_rust == 'true'
+    uses: ./.github/workflows/devops-sdk-validation.yml
+    with:
+      run_sdk_non_rust: ${{ needs.classify.outputs.run_sdk_non_rust }}
+      run_sdk_rust: ${{ needs.classify.outputs.run_sdk_rust }}
+      enforce_rust_lockfile_clean: ${{ needs.classify.outputs.sdk_rust }}
+
   cli_windows_release:
-    name: CLI release Windows (non-blocking)
+    name: Release / Windows CLI (non-blocking)
     needs: cli
     if: >-
       needs.cli.result == 'success' &&
@@ -517,202 +483,15 @@ jobs:
         shell: bash
         run: echo "ready=true" >> "$GITHUB_OUTPUT"
 
-  explorer_backend:
-    name: Explorer backend
-    needs: classify
-    if: needs.classify.outputs.run_explorer_backend == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 50
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Prepare Explorer backend runner
-        uses: ./.github/actions/devops/pipeline/setup
-        with:
-          rust: ${{ needs.classify.outputs.run_explorer_backend }}
-          docker: "true"
-
-      - name: Log in to Docker Hub
-        if: needs.classify.outputs.push_runtime_images == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Validate and build Explorer backend image
-        uses: ./.github/actions/devops/explorer-backend
-        with:
-          validate-source: ${{ needs.classify.outputs.run_explorer_backend }}
-          host-build: "false"
-          build-image: "true"
-          publish: ${{ needs.classify.outputs.push_runtime_images }}
-          registry-user: ${{ needs.classify.outputs.push_runtime_images == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
-          sha-tag: ${{ needs.classify.outputs.sha_tag }}
-
-      - name: Package Explorer API runtime image
-        shell: bash
-        env:
-          SHA_TAG: ${{ needs.classify.outputs.sha_tag }}
-        run: |
-          set -euo pipefail
-          out="${RUNNER_TEMP}/aeko-runtime-explorer-api"
-          rm -rf "$out"
-          mkdir -p "$out"
-          image="aeko-ci/aeko-explorer-api:${SHA_TAG}"
-          docker image inspect "$image" >/dev/null
-          docker save "$image" | gzip -1 > "$out/aeko-explorer-api-image.tar.gz"
-          printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
-
-      - name: Upload Explorer API runtime artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: aeko-runtime-explorer-api
-          path: ${{ runner.temp }}/aeko-runtime-explorer-api
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 3
-
-  network:
-    name: Blockchain network
-    needs: classify
-    if: needs.classify.outputs.run_network == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 75
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Prepare network runner
-        uses: ./.github/actions/devops/pipeline/setup
-        with:
-          rust: ${{ needs.classify.outputs.run_network }}
-          python: ${{ needs.classify.outputs.run_network }}
-          docker: "true"
-
-      - name: Log in to Docker Hub
-        if: needs.classify.outputs.push_runtime_images == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Validate and build network images
-        uses: ./.github/actions/devops/network
-        with:
-          run-preflight: ${{ needs.classify.outputs.run_network }}
-          validate-source: ${{ needs.classify.outputs.run_network }}
-          build-image: "true"
-          publish: ${{ needs.classify.outputs.push_runtime_images }}
-          registry-user: ${{ needs.classify.outputs.push_runtime_images == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
-          sha-tag: ${{ needs.classify.outputs.sha_tag }}
-
-      - name: Package network runtime images
-        shell: bash
-        env:
-          SHA_TAG: ${{ needs.classify.outputs.sha_tag }}
-        run: |
-          set -euo pipefail
-          out="${RUNNER_TEMP}/aeko-runtime-network"
-          rm -rf "$out"
-          mkdir -p "$out"
-          images=(
-            "aeko-ci/aeko-validator:${SHA_TAG}"
-            "aeko-ci/aeko-faucet:${SHA_TAG}"
-            "aeko-ci/aeko-social-bootstrap:${SHA_TAG}"
-            "aeko-ci/aeko-protocol-bootstrap:${SHA_TAG}"
-          )
-          for image in "${images[@]}"; do
-            docker image inspect "$image" >/dev/null
-          done
-          docker save "${images[@]}" | gzip -1 > "$out/aeko-network-images.tar.gz"
-          printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
-
-      - name: Upload network runtime artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: aeko-runtime-network
-          path: ${{ runner.temp }}/aeko-runtime-network
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 3
-
-  sdk_non_rust:
-    name: External SDKs (JS / Node / Python)
-    needs: classify
-    if: needs.classify.outputs.run_sdk_non_rust == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Prepare non-Rust SDK runner
-        uses: ./.github/actions/devops/pipeline/setup
-        with:
-          node: ${{ needs.classify.outputs.run_sdk_non_rust }}
-          python: ${{ needs.classify.outputs.run_sdk_non_rust }}
-
-      - name: Validate selected non-Rust SDKs
-        uses: ./.github/actions/devops/sdk
-        with:
-          js: ${{ needs.classify.outputs.run_sdk_non_rust }}
-          node: ${{ needs.classify.outputs.run_sdk_non_rust }}
-          python: ${{ needs.classify.outputs.run_sdk_non_rust }}
-          rust: "false"
-          release-js: "false"
-          release-node: "false"
-          release-python: "false"
-          release-rust: "false"
-
-  sdk_rust:
-    name: External SDK (Rust)
-    needs: classify
-    if: needs.classify.outputs.run_sdk_rust == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 50
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Prepare Rust SDK runner
-        uses: ./.github/actions/devops/pipeline/setup
-        with:
-          rust: "true"
-
-      - name: Validate Rust SDK
-        uses: ./.github/actions/devops/sdk
-        with:
-          js: "false"
-          node: "false"
-          python: "false"
-          rust: "true"
-          release-js: "false"
-          release-node: "false"
-          release-python: "false"
-          release-rust: "false"
-          enforce-lockfile-clean: ${{ needs.classify.outputs.sdk_rust }}
-
   devops:
-    name: devops
+    name: Gate / Required checks
     needs:
       - classify
       - ci_contract
-      - admin
-      - explorer_web
+      - web_ui
       - cli
-      - explorer_backend
-      - network
-      - sdk_non_rust
-      - sdk_rust
+      - runtime_services
+      - sdk_validation
     if: ${{ always() && !cancelled() && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -726,33 +505,24 @@ jobs:
           CLASSIFY_RESULT: ${{ needs.classify.result }}
           EXPECT_CI_CONTRACT: ${{ needs.classify.outputs.run_ci_contract }}
           CI_CONTRACT_RESULT: ${{ needs.ci_contract.result }}
-          EXPECT_ADMIN: ${{ needs.classify.outputs.run_admin }}
-          ADMIN_RESULT: ${{ needs.admin.result }}
-          EXPECT_EXPLORER_WEB: ${{ needs.classify.outputs.run_explorer_web }}
-          EXPLORER_WEB_RESULT: ${{ needs.explorer_web.result }}
+          EXPECT_WEB_UI: ${{ needs.classify.outputs.run_admin == 'true' || needs.classify.outputs.run_explorer_web == 'true' }}
+          WEB_UI_RESULT: ${{ needs.web_ui.result }}
           EXPECT_CLI: ${{ needs.classify.outputs.run_cli }}
           CLI_RESULT: ${{ needs.cli.result }}
-          EXPECT_EXPLORER_BACKEND: ${{ needs.classify.outputs.run_explorer_backend }}
-          EXPLORER_BACKEND_RESULT: ${{ needs.explorer_backend.result }}
-          EXPECT_NETWORK: ${{ needs.classify.outputs.run_network }}
-          NETWORK_RESULT: ${{ needs.network.result }}
-          EXPECT_SDK_NON_RUST: ${{ needs.classify.outputs.run_sdk_non_rust }}
-          SDK_NON_RUST_RESULT: ${{ needs.sdk_non_rust.result }}
-          EXPECT_SDK_RUST: ${{ needs.classify.outputs.run_sdk_rust }}
-          SDK_RUST_RESULT: ${{ needs.sdk_rust.result }}
+          EXPECT_RUNTIME_SERVICES: ${{ needs.classify.outputs.run_explorer_backend == 'true' || needs.classify.outputs.run_network == 'true' }}
+          RUNTIME_SERVICES_RESULT: ${{ needs.runtime_services.result }}
+          EXPECT_SDK_VALIDATION: ${{ needs.classify.outputs.run_sdk_non_rust == 'true' || needs.classify.outputs.run_sdk_rust == 'true' }}
+          SDK_VALIDATION_RESULT: ${{ needs.sdk_validation.result }}
         run: bash .github/actions/devops/pipeline/verify-results.sh
 
   runtime_integration:
-    name: Handoff runtime artifacts
+    name: Integration / Runtime artifacts
     needs:
-      - classify
       - cli
-      - explorer_backend
-      - network
+      - runtime_services
     if: >-
       needs.cli.result == 'success' &&
-      needs.explorer_backend.result == 'success' &&
-      needs.network.result == 'success' &&
+      needs.runtime_services.result == 'success' &&
       (
         github.event_name == 'push' ||
         github.event_name == 'workflow_dispatch' ||
@@ -792,16 +562,14 @@ jobs:
           echo "Dispatched runtime integration from DevOps run $PRODUCER_RUN_ID for build $BUILD_SHA"
 
   cli_release_publish:
-    name: Publish CLI binaries (best effort)
+    name: Publish / CLI binaries (best effort)
     needs:
-      - cli
       - cli_windows_release
       - devops
     if: >-
       always() &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
-      needs.cli.result == 'success' &&
       needs.devops.result == 'success' &&
       needs.cli_windows_release.outputs.ready == 'true'
     runs-on: ubuntu-24.04
@@ -907,7 +675,7 @@ jobs:
             --latest
 
   sdk_publish:
-    name: Publish SDKs (best effort)
+    name: Publish / SDKs (best effort)
     needs:
       - classify
       - devops
@@ -954,7 +722,7 @@ jobs:
           echo "Docker image promotion and production deployment are independent of SDK registry availability."
 
   release:
-    name: Promote and deploy
+    name: Deploy / Promote images
     needs:
       - classify
       - devops
