@@ -650,6 +650,16 @@ def main() -> int:
         and "confirmation continues in the reconciler" in funding_runtime,
         "funding HTTP handlers must return after durable signature persistence and reconcile without a duplicate transfer",
     )
+    reject(
+        funding_feature,
+        "error_message: Option<String>",
+        "Explorer funding HTTP views",
+    )
+    require(
+        'get("errorMessage").is_none()' in funding_http_e2e
+        and "simulated submission response failure" in funding_http_e2e,
+        "funding HTTP E2E must prove raw RPC diagnostics never cross the Admin API boundary",
+    )
     for label, client in (
         ("JavaScript SDK", js_sdk_client),
         ("Rust SDK", rust_sdk_client),

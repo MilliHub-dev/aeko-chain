@@ -135,9 +135,7 @@ pub(super) async fn submit_and_observe_funding(
             return Err(FundingHttpError::new(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "FUNDING_SUBMISSION_RETRY_PENDING",
-                format!(
-                    "The funding submission response was not obtained ({error}). The persisted transaction intent was kept and will be safely replayed with the same blockhash; no duplicate funding transfer will be created. Wait a few seconds then call reconcile, or wait for the background reconciler."
-                ),
+                "The funding submission response was not obtained. The persisted transaction intent was kept and will be safely replayed with the same blockhash; no duplicate funding transfer will be created. Wait for reconciliation before retrying the action.",
             ));
         }
         Err(error) => {
@@ -152,9 +150,7 @@ pub(super) async fn submit_and_observe_funding(
             return Err(FundingHttpError::new(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "FUNDING_SUBMISSION_RETRY_PENDING",
-                format!(
-                    "The funding submission worker ended unexpectedly ({error}). The persisted transaction intent was kept and will be safely replayed; no duplicate funding transfer will be created. Reconcile the request to resume."
-                ),
+                "The funding submission worker ended before a durable response was obtained. The persisted transaction intent was kept and will be safely replayed; no duplicate funding transfer will be created.",
             ));
         }
     };

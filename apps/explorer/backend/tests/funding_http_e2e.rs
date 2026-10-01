@@ -838,6 +838,33 @@ async fn processing_funding_replays_only_persisted_intent_after_submission_respo
         failed_response["error"]["code"],
         "FUNDING_SUBMISSION_RETRY_PENDING"
     );
+    assert!(
+        !failed_response.to_string().contains("simulated submission response failure"),
+        "funding HTTP errors must not expose raw RPC internals: {failed_response}"
+    );
+
+    let (status, admin_view) = request_json(
+        &app,
+        Method::GET,
+        &format!("/admin/funding/requests/{request_id}"),
+        None,
+        Some(admin_token),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{admin_view}");
+    assert_eq!(
+        admin_view["data"]["errorCode"],
+        "FUNDING_SUBMISSION_RETRY_PENDING"
+    );
+    assert!(
+        admin_view["data"].get("errorMessage").is_none(),
+        "Admin funding views must expose stable errorCode values, not diagnostic errorMessage text: {admin_view}"
+    );
+    assert!(
+        !admin_view.to_string().contains("simulated submission response failure"),
+        "Admin funding views must not expose raw RPC internals: {admin_view}"
+    );
+
     assert_eq!(rpc_observer.transfer_calls.load(Ordering::SeqCst), 1);
     assert_eq!(rpc_observer.blockhash_calls.load(Ordering::SeqCst), 1);
 

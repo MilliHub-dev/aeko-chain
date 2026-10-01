@@ -220,7 +220,6 @@ struct FundingRequestView {
     signature: Option<String>,
     confirmed: bool,
     error_code: Option<String>,
-    error_message: Option<String>,
 }
 
 impl From<FundingRequestRecord> for FundingRequestView {
@@ -238,7 +237,6 @@ impl From<FundingRequestRecord> for FundingRequestView {
             signature: value.signature,
             confirmed: value.confirmed,
             error_code: value.error_code,
-            error_message: value.error_message,
         }
     }
 }
@@ -316,7 +314,6 @@ struct FundingAirdropView {
     submitted_at: Option<String>,
     confirmed_at: Option<String>,
     error_code: Option<String>,
-    error_message: Option<String>,
 }
 
 impl From<FundingAirdropRecord> for FundingAirdropView {
@@ -333,7 +330,6 @@ impl From<FundingAirdropRecord> for FundingAirdropView {
             submitted_at: value.submitted_at.map(|value| value.to_rfc3339()),
             confirmed_at: value.confirmed_at.map(|value| value.to_rfc3339()),
             error_code: value.error_code,
-            error_message: value.error_message,
         }
     }
 }

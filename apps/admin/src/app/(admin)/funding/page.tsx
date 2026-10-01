@@ -55,7 +55,6 @@ type FundingRequest = {
   signature?: string | null
   confirmed: boolean
   errorCode?: string | null
-  errorMessage?: string | null
 }
 
 type Airdrop = {
@@ -68,7 +67,6 @@ type Airdrop = {
   submittedAt?: string | null
   confirmedAt?: string | null
   errorCode?: string | null
-  errorMessage?: string | null
 }
 
 type FundingView = 'queue' | 'policy' | 'history' | 'airdrops'
