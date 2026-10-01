@@ -422,6 +422,7 @@ assert_grouped_devops_workflow_contract() {
   grep -Fq 'uses: ./.github/workflows/devops-web-ui.yml' "$workflow"
   grep -Fq 'name: Runtime / Tools producer' "$workflow"
   grep -Fq 'name: Release / Linux CLI validation' "$workflow"
+  grep -Fq 'chmod 0755 "$CLI_RELEASE_DIR/package/aeko" "$CLI_RELEASE_DIR/package/aeko-keygen"' "$workflow"
   grep -Fq 'name: Runtime / Producers' "$workflow"
   grep -Fq 'uses: ./.github/workflows/devops-runtime-services.yml' "$workflow"
   grep -Fq 'name: SDK' "$workflow"

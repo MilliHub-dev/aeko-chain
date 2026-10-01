@@ -280,6 +280,11 @@ jobs:
           CLI_RELEASE_DIR: ${{ runner.temp }}/aeko-runtime-tools/cli-release
         run: |
           set -euo pipefail
+          # actions/upload-artifact/download-artifact does not preserve Unix mode bits.
+          # Restore the executable contract before exercising the exact downloaded binaries.
+          test -s "$CLI_RELEASE_DIR/package/aeko"
+          test -s "$CLI_RELEASE_DIR/package/aeko-keygen"
+          chmod 0755 "$CLI_RELEASE_DIR/package/aeko" "$CLI_RELEASE_DIR/package/aeko-keygen"
           test -x "$CLI_RELEASE_DIR/package/aeko"
           test -x "$CLI_RELEASE_DIR/package/aeko-keygen"
           test -s "$CLI_RELEASE_DIR/aeko-cli-x86_64-unknown-linux-gnu.tar.gz"
