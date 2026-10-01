@@ -353,7 +353,7 @@ assert_runtime_artifact_handoff_contract() {
   grep -Fq "needs.cli.result == 'success'" "$workflow"
   grep -Fq "needs.explorer_backend.result == 'success'" "$workflow"
   grep -Fq "needs.network.result == 'success'" "$workflow"
-  if sed -n '/^  runtime_integration:/,/^  sdk_publish:/p' "$workflow" | grep -Fq -- "- devops"; then
+  if sed -n '/^  runtime_integration:/,/^  cli_release_publish:/p' "$workflow" | grep -Fq -- "- devops"; then
     echo "Runtime integration handoff must not wait on the aggregate DevOps job." >&2
     exit 1
   fi
