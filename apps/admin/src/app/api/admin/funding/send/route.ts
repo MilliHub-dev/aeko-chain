@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   const requestId = requestIdFromHeaders(req.headers)
-  return fundingAdminRequest('/admin/funding/grant', {
+  return fundingAdminRequest('/admin/funding/send', {
     method: 'POST',
     body: await req.text(),
   }, requestId)

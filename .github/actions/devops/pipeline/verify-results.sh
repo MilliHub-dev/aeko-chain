@@ -25,18 +25,17 @@ if [ "${CLASSIFY_RESULT:-}" != "success" ]; then
 fi
 
 require_result "${EXPECT_CI_CONTRACT:-false}" "ci-contract" "${CI_CONTRACT_RESULT:-}"
-require_result "${EXPECT_ADMIN:-false}" "operations-web" "${ADMIN_RESULT:-}"
-require_result "${EXPECT_EXPLORER_WEB:-false}" "explorer-web" "${EXPLORER_WEB_RESULT:-}"
+require_result "${EXPECT_WEB_UI:-false}" "explorer-ui" "${WEB_UI_RESULT:-}"
 require_result "${EXPECT_CLI:-false}" "cli" "${CLI_RESULT:-}"
-require_result "${EXPECT_EXPLORER_BACKEND:-false}" "explorer-backend" "${EXPLORER_BACKEND_RESULT:-}"
-require_result "${EXPECT_NETWORK:-false}" "network" "${NETWORK_RESULT:-}"
-require_result "${EXPECT_SDK_NON_RUST:-false}" "sdk-non-rust" "${SDK_NON_RUST_RESULT:-}"
-require_result "${EXPECT_SDK_RUST:-false}" "sdk-rust" "${SDK_RUST_RESULT:-}"
+require_result "${EXPECT_RUNTIME_TOOLS:-false}" "runtime-tools" "${RUNTIME_TOOLS_RESULT:-}"
+require_result "${EXPECT_CLI_LINUX_RELEASE:-false}" "cli-linux-release" "${CLI_LINUX_RELEASE_RESULT:-}"
+require_result "${EXPECT_RUNTIME_SERVICES:-false}" "runtime-producers" "${RUNTIME_SERVICES_RESULT:-}"
+require_result "${EXPECT_SDK_VALIDATION:-false}" "sdk" "${SDK_VALIDATION_RESULT:-}"
 
 if [ "${#failures[@]}" -gt 0 ]; then
-  printf 'One or more selected AEKO DevOps jobs did not finish successfully:\n' >&2
+  printf 'One or more selected AEKO DevOps job groups did not finish successfully:\n' >&2
   printf '  %s\n' "${failures[@]}" >&2
   exit 1
 fi
 
-echo "All selected AEKO DevOps jobs passed."
+echo "All selected AEKO DevOps job groups passed."

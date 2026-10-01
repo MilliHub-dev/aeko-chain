@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Destructive end-to-end smoke test for AEKO test-network grant funding.
+"""Destructive end-to-end smoke test for AEKO test-network funding.
 
 This test uses the same product boundaries as a real user/operator flow:
 Public Explorer API request -> Operations Web Admin approval -> Explorer backend
-settlement -> protected Validator requestGrant -> Faucet -> chain confirmation
--> public request status -> Admin confirmed-grant ledger -> RPC balance.
+settlement -> protected Validator requestFunding -> Faucet -> chain confirmation
+-> public request status -> Admin funding history -> RPC balance.
 
 It intentionally does not test developer Test Console airdrops. Airdrops are a
 separate workflow and ledger.
@@ -97,9 +97,13 @@ def http_json(
         headers=headers,
         method=method,
     )
-    client = opener or urllib.request
     try:
-        with client.open(request, timeout=TIMEOUT) as response:
+        response = (
+            opener.open(request, timeout=TIMEOUT)
+            if opener is not None
+            else urllib.request.urlopen(request, timeout=TIMEOUT)
+        )
+        with response:
             if response.status != expected_status:
                 raise SmokeFailure(
                     f"{url} returned HTTP {response.status}, expected {expected_status}"
@@ -172,7 +176,7 @@ def login_admin() -> None:
     print("[ok] authenticated to Operations Web")
 
 
-def ensure_public_api_cannot_decide_grants(request_id: str) -> None:
+def ensure_public_api_cannot_decide_funding(request_id: str) -> None:
     url = (
         f"{EXPLORER_API_URL}/admin/funding/requests/"
         f"{request_id}/decide"
@@ -189,11 +193,11 @@ def ensure_public_api_cannot_decide_grants(request_id: str) -> None:
         if exc.code not in (403, 404, 405):
             detail = exc.read().decode("utf-8", "replace")[:500]
             raise SmokeFailure(
-                f"Public Explorer API grant-decision path failed with unexpected HTTP {exc.code}: {detail}"
+                f"Public Explorer API funding-decision path failed with unexpected HTTP {exc.code}: {detail}"
             ) from exc
-        print(f"[ok] Public Explorer API cannot approve grants without Admin credentials (HTTP {exc.code})")
+        print(f"[ok] Public Explorer API cannot approve funding without Admin credentials (HTTP {exc.code})")
         return
-    raise SmokeFailure("Public Explorer API unexpectedly accepted an unauthenticated Admin grant-decision request")
+    raise SmokeFailure("Public Explorer API unexpectedly accepted an unauthenticated Admin funding-decision request")
 
 
 def approve_from_admin(request_id: str) -> dict[str, Any]:
@@ -210,7 +214,7 @@ def approve_from_admin(request_id: str) -> dict[str, Any]:
         raise SmokeFailure(
             f"Admin approval expected submitted/confirmed status, got {status!r}: {data}"
         )
-    print(f"[ok] Admin approved grant; backend status={status}")
+    print(f"[ok] Admin approved funding; backend status={status}")
     return data
 
 
@@ -226,33 +230,33 @@ def wait_for_terminal(request_id: str) -> dict[str, Any]:
             print("[ok] public Explorer API request status reached confirmed")
             return data
         if status in {"failed", "rejected"}:
-            raise SmokeFailure(f"grant ended in {status}: {data}")
+            raise SmokeFailure(f"funding ended in {status}: {data}")
         time.sleep(POLL_SECONDS)
     raise SmokeFailure(
-        f"grant did not confirm after {POLL_ATTEMPTS} polls; last status={last}"
+        f"funding did not confirm after {POLL_ATTEMPTS} polls; last status={last}"
     )
 
 
-def verify_admin_grant(request_id: str, signature: str) -> None:
+def verify_admin_funding(request_id: str, signature: str) -> None:
     payload = http_json(
-        admin_url("/api/admin/funding/grants?limit=100"),
+        admin_url("/api/admin/funding/history?limit=100"),
         opener=ADMIN_OPENER,
     )
-    grants = envelope_data(payload)
-    if not isinstance(grants, list):
-        raise SmokeFailure(f"Admin grant ledger has unexpected shape: {grants!r}")
+    funding_history = envelope_data(payload)
+    if not isinstance(funding_history, list):
+        raise SmokeFailure(f"Admin funding history has unexpected shape: {funding_history!r}")
     matches = [
-        grant
-        for grant in grants
-        if grant.get("requestId") == request_id
-        and grant.get("signature") == signature
-        and grant.get("confirmed") is True
+        funding
+        for funding in funding_history
+        if funding.get("requestId") == request_id
+        and funding.get("signature") == signature
+        and funding.get("confirmed") is True
     ]
     if len(matches) != 1:
         raise SmokeFailure(
-            f"expected exactly one confirmed grant for request {request_id}, found {len(matches)}"
+            f"expected exactly one confirmed funding transfer for request {request_id}, found {len(matches)}"
         )
-    print("[ok] Admin ledger contains exactly one confirmed grant linked to the request")
+    print("[ok] Admin funding history contains exactly one confirmed transfer linked to the request")
 
 
 def verify_not_in_airdrop_ledger(signature: str) -> None:
@@ -264,8 +268,8 @@ def verify_not_in_airdrop_ledger(signature: str) -> None:
     if not isinstance(airdrops, list):
         raise SmokeFailure(f"Admin airdrop ledger has unexpected shape: {airdrops!r}")
     if any(item.get("signature") == signature for item in airdrops):
-        raise SmokeFailure("confirmed Admin grant was incorrectly recorded as a developer airdrop")
-    print("[ok] confirmed grant is absent from the developer airdrop ledger")
+        raise SmokeFailure("confirmed Admin funding was incorrectly recorded as a developer airdrop")
+    print("[ok] confirmed funding is absent from the developer airdrop ledger")
 
 
 def main() -> int:
@@ -310,7 +314,7 @@ def main() -> int:
             raise SmokeFailure("public request did not return an id")
         print(f"[ok] Explorer API created pending request {request_id}")
 
-        ensure_public_api_cannot_decide_grants(request_id)
+        ensure_public_api_cannot_decide_funding(request_id)
         login_admin()
         approve_from_admin(request_id)
         confirmed = wait_for_terminal(request_id)
@@ -327,7 +331,7 @@ def main() -> int:
             )
         print(f"[ok] wallet balance increased by {delta} lamports")
 
-        verify_admin_grant(request_id, signature)
+        verify_admin_funding(request_id, signature)
         verify_not_in_airdrop_ledger(signature)
     except SmokeFailure as exc:
         print(f"[FAIL] {exc}", file=sys.stderr)
@@ -335,7 +339,7 @@ def main() -> int:
 
     print(
         "[PASS] Explorer API request -> Admin approval -> protected settlement -> "
-        "chain confirmation -> grant ledger is end-to-end coherent"
+        "chain confirmation -> funding history is end-to-end coherent"
     )
     return 0
 

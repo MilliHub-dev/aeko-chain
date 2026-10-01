@@ -54,11 +54,10 @@ impl AppState {
         matches!(self.network.as_str(), "testnet" | "devnet" | "localnet")
     }
 
-    /// Funding, grants, and airdrops unconditionally work. The funding flow
-    /// never branches on the deployment network: every backend serves the
-    /// same `/funding/*` and `/admin/funding/*` contract, and each deployment
-    /// constrains itself through its own faucet balance, authorization
-    /// credential, caps, budgets, and approval queue.
+    /// Funding is available on every deployed network. Developer airdrop is a
+    /// separate utility and may be disabled by the active network policy. Each
+    /// deployment constrains funding through its own Faucet balance,
+    /// authorization credential, caps, budgets, and approval queue.
     pub fn is_funding_available(&self) -> bool {
         true
     }

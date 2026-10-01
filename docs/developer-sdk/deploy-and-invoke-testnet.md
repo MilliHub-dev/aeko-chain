@@ -77,9 +77,9 @@ curl -X POST https://api.aeko.online/funding/request \
   -d '{"address":"<YOUR_WALLET_PUBKEY>"}'
 ```
 
-The public request is queued for operator approval. Operations Web authenticates the operator decision and forwards it to the active Explorer backend. The Explorer backend owns settlement: it submits the approved policy amount through the Validator's protected low-level `requestGrant` path, and the Validator obtains the signed transfer from the Faucet.
+The public request is queued for operator approval. Operations Web authenticates the operator decision and forwards it to the active Explorer backend. The Explorer backend owns settlement: it submits the approved policy amount through the Validator's protected low-level `requestFunding` path, and the Validator obtains the signed transfer from the Faucet.
 
-Instant developer airdrops (`aeko airdrop`, SDK `requestAirdrop`, Test Console) dispatch immediately with no approval, subject only to faucet caps. Approval-gated funding (`aeko funding`, SDK `requestFunding`, Scan funding requests) waits for admin approval; admin direct grants bypass approval.
+On test environments, developer airdrops (`aeko airdrop`, SDK `requestAirdrop`, Test Console) dispatch immediately subject to Faucet caps; Mainnet rejects them. Approval-gated Funding (`aeko funding`, SDK `requestFunding`, Scan Funding requests) waits for Admin approval; direct Admin Funding uses `/admin/funding/send` and bypasses a second approval.
 
 Use the request id returned above to check settlement status:
 

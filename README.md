@@ -128,16 +128,18 @@ and the authenticated Admin funding boundary.
 
 The funding domains are intentionally distinct:
 
-- **public grant request:** Scan creates and reads the request; authenticated
+- **public Funding request:** Scan creates and reads the request; authenticated
   Operations Admin is the only product surface that may approve/reject it;
-- **developer airdrop:** direct capped Test Console utility, tracked separately
-  from the grant queue/ledger;
-- **operator grant:** authenticated Operations Admin releases funds directly
-  through the Explorer admin API or the `grant` settlement path; no public
-  approval queue is involved;
-- **network scope:** funding, grants, and airdrops are served on every deployed network, including mainnet. Each deployment owns its faucet, funding authorization credential, caps, budgets, and approval queue: a network only dispenses what its operator configured and funded. Mainnet
-  treasury/ecosystem/vesting allocations remain governed tokenomics concerns;
-  the Faucet flow is the operational distribution rail shared by all networks.
+- **developer airdrop:** direct capped Test Console utility on test
+  environments, tracked separately from the Funding queue/history and rejected
+  on Mainnet;
+- **direct Admin Funding:** authenticated Operations Admin releases funds
+  through the Explorer Admin API without a second approval step;
+- **network scope:** public/Admin Funding is served on every configured network,
+  including Mainnet. Each deployment owns its Faucet, protected Funding
+  credential, caps, budgets, and approval queue. Developer airdrop is not a
+  Mainnet distribution path. Mainnet treasury/ecosystem/vesting allocations
+  remain governed tokenomics concerns.
 
 Each chain environment is deployed independently. Scan runtime configuration
 contains the selected network's public Explorer API URL; switching networks
@@ -467,7 +469,7 @@ curl -s https://rpc.aeko.online \
   }'
 ```
 
-Public testnet funding is policy-controlled by the Explorer API funding module; the Faucet Daemon on TCP `:9900` remains private and the deployed public RPC protects approval-gated `requestGrant` with funding authorization, while instant `requestAirdrop` dispatches with no approval subject only to faucet caps. Browser/client requests use the public Explorer API directly:
+Public testnet Funding is policy-controlled by the Explorer API Funding module; the Faucet Daemon on TCP `:9900` remains private and the protected Validator RPC method is `requestFunding`. Developer `requestAirdrop` is a separate capped test-environment utility and is rejected on Mainnet. Browser/client requests use the public Explorer API directly:
 
 ```bash
 curl -X POST https://api.aeko.online/funding/request \
@@ -475,7 +477,7 @@ curl -X POST https://api.aeko.online/funding/request \
   -d '{"address":"<WALLET_ADDRESS>"}'
 ```
 
-Local/custom test validators may still expose a direct development airdrop flow when explicitly configured for local testing. Instant `aeko airdrop` / SDK `requestAirdrop` needs no approval anywhere; approval-gated funding uses `aeko funding` / SDK `requestFunding` (waits for admin) and admin direct grants bypass approval.
+Local/custom test validators may expose the direct developer-airdrop utility for testing. On test environments, `aeko airdrop` / SDK `requestAirdrop` is immediate; Mainnet rejects it. Approval-gated Funding uses `aeko funding` / SDK `requestFunding` and waits for Admin approval, while direct Admin Funding uses the authenticated `/admin/funding/send` path with no second approval.
 
 ## WebSocket / PubSub
 

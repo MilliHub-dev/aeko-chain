@@ -691,8 +691,8 @@ def balance(address):
 
 
 # The running TestValidator is configured with the server-only authorization
-# key for approval-gated grants. Instant airdrops dispatch with no approval;
-# direct requestGrant without that key must fail while requestAirdrop succeeds.
+# key for protected Funding. Instant developer airdrops dispatch with no approval;
+# direct requestFunding without that key must fail while requestAirdrop succeeds.
 instant_body = json.dumps(
     {
         "jsonrpc": "2.0",
@@ -716,7 +716,7 @@ unauthorized_body = json.dumps(
     {
         "jsonrpc": "2.0",
         "id": 1,
-        "method": "requestGrant",
+        "method": "requestFunding",
         "params": [recipient, 1],
     }
 ).encode()
@@ -728,10 +728,10 @@ unauthorized_request = urllib.request.Request(
 with urllib.request.urlopen(unauthorized_request, timeout=30) as response:
     unauthorized = json.load(response)
 if not unauthorized.get("error"):
-    raise RuntimeError("protected requestGrant unexpectedly accepted a request without authorization")
+    raise RuntimeError("protected requestFunding unexpectedly accepted a request without authorization")
 if int(unauthorized["error"].get("code", 0)) != -32600:
-    raise RuntimeError(f"protected requestGrant returned unexpected error: {unauthorized}")
-print("[ok] live Validator rejects unauthorized direct requestGrant")
+    raise RuntimeError(f"protected requestFunding returned unexpected error: {unauthorized}")
+print("[ok] live Validator rejects unauthorized direct requestFunding")
 
 policy = request_json("GET", "/funding/policy")["data"]
 if policy.get("enabled") is not True:
@@ -764,11 +764,11 @@ try:
 except urllib.error.HTTPError as exc:
     if exc.code != 401:
         raise RuntimeError(
-            f"unauthorized grant decision returned HTTP {exc.code}, expected 401"
+            f"unauthorized funding decision returned HTTP {exc.code}, expected 401"
         ) from exc
 else:
-    raise RuntimeError("Explorer accepted an Admin grant decision without the Admin token")
-print("[ok] live Explorer rejects unauthenticated grant decisions")
+    raise RuntimeError("Explorer accepted an Admin funding decision without the Admin token")
+print("[ok] live Explorer rejects unauthenticated funding decisions")
 
 approved = request_json(
     "POST",
@@ -777,7 +777,7 @@ approved = request_json(
     admin=True,
 )["data"]
 if approved.get("status") not in {"submitted", "confirmed"}:
-    raise RuntimeError(f"grant approval returned unexpected state: {approved}")
+    raise RuntimeError(f"funding approval returned unexpected state: {approved}")
 
 confirmed = None
 for _ in range(90):
@@ -786,38 +786,38 @@ for _ in range(90):
         confirmed = current
         break
     if current.get("status") in {"failed", "rejected"}:
-        raise RuntimeError(f"grant entered terminal failure state: {current}")
+        raise RuntimeError(f"funding entered terminal failure state: {current}")
     time.sleep(0.5)
 if confirmed is None:
-    raise RuntimeError("approved grant did not converge to confirmed")
+    raise RuntimeError("approved funding did not converge to confirmed")
 
-grant_signature = confirmed.get("signature")
-if not grant_signature:
-    raise RuntimeError("confirmed grant has no signature")
+funding_signature = confirmed.get("signature")
+if not funding_signature:
+    raise RuntimeError("confirmed funding has no signature")
 
 after = balance(recipient)
 if after - before < expected_lamports:
     raise RuntimeError(
-        f"confirmed grant balance delta {after - before} < expected {expected_lamports}"
+        f"confirmed funding balance delta {after - before} < expected {expected_lamports}"
     )
 
-grants = request_json(
+funding_history = request_json(
     "GET",
-    "/admin/funding/grants?limit=500",
+    "/admin/funding/history?limit=500",
     admin=True,
 )["data"]
 matching = [
-    grant
-    for grant in grants
-    if grant.get("requestId") == request_id
-    and grant.get("signature") == grant_signature
-    and grant.get("confirmed") is True
+    funding
+    for funding in funding_history
+    if funding.get("requestId") == request_id
+    and funding.get("signature") == funding_signature
+    and funding.get("confirmed") is True
 ]
 if len(matching) != 1:
     raise RuntimeError(
-        f"expected exactly one confirmed grant for {request_id}, found {len(matching)}"
+        f"expected exactly one confirmed funding transfer for {request_id}, found {len(matching)}"
     )
-print("[ok] live funding approval changed chain balance and recorded exactly one confirmed grant")
+print("[ok] live funding approval changed chain balance and recorded exactly one confirmed funding transfer")
 
 airdrop = request_json(
     "POST",
@@ -846,15 +846,15 @@ for _ in range(90):
 if confirmed_airdrop is None:
     raise RuntimeError("developer airdrop did not converge to confirmed")
 
-grants_after_airdrop = request_json(
+funding_after_airdrop = request_json(
     "GET",
-    "/admin/funding/grants?limit=500",
+    "/admin/funding/history?limit=500",
     admin=True,
 )["data"]
-if any(grant.get("signature") == airdrop_signature for grant in grants_after_airdrop):
-    raise RuntimeError("developer airdrop leaked into the confirmed grant ledger")
-if grant_signature == airdrop_signature:
-    raise RuntimeError("grant and developer airdrop unexpectedly share a transaction signature")
+if any(funding.get("signature") == airdrop_signature for funding in funding_after_airdrop):
+    raise RuntimeError("developer airdrop leaked into the confirmed funding history")
+if funding_signature == airdrop_signature:
+    raise RuntimeError("funding and developer airdrop unexpectedly share a transaction signature")
 
 print(
     "[ok] live protected funding path: request -> Admin approval -> Validator/Faucet -> "

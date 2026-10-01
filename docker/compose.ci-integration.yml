@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aeko
+      POSTGRES_PASSWORD: aeko
+      POSTGRES_DB: aeko_explorer
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aeko -d aeko_explorer"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [aeko]
+
+  explorer-api:
+    environment:
+      DATABASE_URL: postgres://aeko:aeko@postgres:5432/aeko_explorer
+      AEKO_EXPLORER_DATABASE_URL: postgres://aeko:aeko@postgres:5432/aeko_explorer
+    depends_on:
+      postgres:
+        condition: service_healthy
+      validator:
+        condition: service_healthy
+      social-bootstrap:
+        condition: service_completed_successfully
+      protocol-bootstrap:
+        condition: service_completed_successfully
+
+  explorer-ui:
+    environment:
+      AEKO_NETWORK: testnet
+      AEKO_RPC_URL: http://127.0.0.1:${AEKO_RPC_HOST_PORT:-18899}
+      AEKO_WS_URL: ws://127.0.0.1:${AEKO_WS_HOST_PORT:-18900}
+      AEKO_EXPLORER_API_URL: http://127.0.0.1:${AEKO_EXPLORER_API_HOST_PORT:-18088}
+    depends_on:
+      explorer-api:
+        condition: service_healthy
+
+  operations-web:
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/login >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    depends_on:
+      explorer-api:
+        condition: service_healthy

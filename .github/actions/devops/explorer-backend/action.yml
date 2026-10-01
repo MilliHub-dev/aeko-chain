@@ -34,9 +34,11 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-          echo "Explorer API publication is permitted only from main." >&2
-          exit 1
+        if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ] || [ "${AEKO_ALLOW_INTERNAL_PR_IMAGE_PUSH:-0}" != "1" ]; then
+            echo "Explorer API publication is permitted only from main or an explicitly authorized same-repository PR." >&2
+            exit 1
+          fi
         fi
 
     - name: Explorer backend format
@@ -107,16 +109,12 @@ runs:
         SHA_TAG: ${{ inputs.sha-tag }}
       run: |
         set -euo pipefail
-        tags=()
-        output=(--load)
+        tags=(--tag "aeko-ci/aeko-explorer-api:${SHA_TAG}")
 
         if [ "$PUBLISH" = "true" ]; then
           : "${REGISTRY_USER:?registry-user is required when publishing}"
           tags+=(--tag "${REGISTRY_USER}/aeko-explorer-api:${SHA_TAG}")
           tags+=(--tag "${REGISTRY_USER}/aeko-explorer-backend:${SHA_TAG}")
-          output=(--push)
-        else
-          tags+=(--tag "aeko-ci/aeko-explorer-api:${SHA_TAG}")
         fi
 
         docker buildx build \
@@ -125,11 +123,16 @@ runs:
           --cache-from "type=gha,scope=aeko-explorer-api" \
           --cache-to "type=gha,scope=aeko-explorer-api,mode=max,ignore-error=true" \
           "${tags[@]}" \
-          "${output[@]}" \
+          --load \
           .
 
-    - name: Verify PR-built Explorer API image exists
-      if: ${{ inputs.build-image == 'true' && inputs.publish != 'true' }}
+        if [ "$PUBLISH" = "true" ]; then
+          docker push "${REGISTRY_USER}/aeko-explorer-api:${SHA_TAG}"
+          docker push "${REGISTRY_USER}/aeko-explorer-backend:${SHA_TAG}"
+        fi
+
+    - name: Verify Explorer API image exists
+      if: ${{ inputs.build-image == 'true' }}
       shell: bash
       env:
         SHA_TAG: ${{ inputs.sha-tag }}

@@ -37,10 +37,11 @@ env:
   CARGO_INCREMENTAL: "0"
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: sccache
+  AEKO_ALLOW_INTERNAL_PR_IMAGE_PUSH: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && '1' || '0' }}
 
 jobs:
   classify:
-    name: Classify change set
+    name: Plan / Change set
     if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -70,6 +71,7 @@ jobs:
       deployable: ${{ steps.changes.outputs.deployable }}
       ci_pipeline: ${{ steps.changes.outputs.ci_pipeline }}
       publish: ${{ steps.release.outputs.publish }}
+      push_runtime_images: ${{ steps.release.outputs.push_runtime_images }}
       sha_tag: ${{ steps.release.outputs.sha_tag }}
       run_admin: ${{ steps.plan.outputs.run_admin }}
       run_cli: ${{ steps.plan.outputs.run_cli }}
@@ -107,6 +109,7 @@ jobs:
         env:
           DOCKERIZED: ${{ steps.changes.outputs.dockerized }}
           CI_PIPELINE: ${{ steps.changes.outputs.ci_pipeline }}
+          INTERNAL_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && 'true' || 'false' }}
         run: bash .github/actions/devops/pipeline/resolve-release.sh
 
       - name: Plan independent domain jobs
@@ -133,7 +136,7 @@ jobs:
         run: bash .github/actions/devops/pipeline/plan.sh
 
   ci_contract:
-    name: CI contract smoke
+    name: Quality / CI contracts
     needs: classify
     if: needs.classify.outputs.run_ci_contract == 'true'
     runs-on: ubuntu-latest
@@ -147,76 +150,46 @@ jobs:
         with:
           sha-tag: ${{ needs.classify.outputs.sha_tag }}
 
-  admin:
-    name: Operations Web
+  web_ui:
+    name: Explorer / UI
     needs: classify
-    if: needs.classify.outputs.run_admin == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Prepare Operations Web runner
-        uses: ./.github/actions/devops/pipeline/setup
-        with:
-          node: ${{ needs.classify.outputs.run_admin }}
-          docker: "true"
-
-      - name: Log in to Docker Hub
-        if: needs.classify.outputs.publish == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Validate and build Operations Web
-        uses: ./.github/actions/devops/admin
-        with:
-          validate-source: ${{ needs.classify.outputs.run_admin }}
-          build-image: "true"
-          publish: ${{ needs.classify.outputs.publish }}
-          registry-user: ${{ needs.classify.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
-          sha-tag: ${{ needs.classify.outputs.sha_tag }}
-
-  explorer_web:
-    name: Explorer Web
-    needs: classify
-    if: needs.classify.outputs.run_explorer_web == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Prepare Explorer Web runner
-        uses: ./.github/actions/devops/pipeline/setup
-        with:
-          node: ${{ needs.classify.outputs.run_explorer_web }}
-          docker: "true"
-
-      - name: Log in to Docker Hub
-        if: needs.classify.outputs.publish == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Validate and build Explorer Web
-        uses: ./.github/actions/devops/explorer-web
-        with:
-          validate-source: ${{ needs.classify.outputs.run_explorer_web }}
-          build-image: "true"
-          publish: ${{ needs.classify.outputs.publish }}
-          registry-user: ${{ needs.classify.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
-          sha-tag: ${{ needs.classify.outputs.sha_tag }}
+    if: needs.classify.outputs.run_admin == 'true' || needs.classify.outputs.run_explorer_web == 'true'
+    uses: ./.github/workflows/devops-web-ui.yml
+    with:
+      run_admin: ${{ needs.classify.outputs.run_admin }}
+      run_explorer_web: ${{ needs.classify.outputs.run_explorer_web }}
+      publish: ${{ needs.classify.outputs.publish }}
+      sha_tag: ${{ needs.classify.outputs.sha_tag }}
+    secrets: inherit
 
   cli:
-    name: CLI and tools
+    name: Quality / CLI source
+    needs: classify
+    if: needs.classify.outputs.run_cli == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare CLI quality runner
+        uses: ./.github/actions/devops/pipeline/setup
+        with:
+          rust: "true"
+
+      - name: Validate CLI and keygen source
+        uses: ./.github/actions/devops/cli
+        with:
+          validate-source: "true"
+          host-build: "false"
+          build-image: "false"
+          publish: "false"
+          sha-tag: ${{ needs.classify.outputs.sha_tag }}
+
+  runtime_tools:
+    name: Runtime / Tools producer
     needs: classify
     if: needs.classify.outputs.run_cli == 'true'
     runs-on: ubuntu-latest
@@ -227,172 +200,349 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prepare CLI runner
+      - name: Prepare tools image runner
         uses: ./.github/actions/devops/pipeline/setup
         with:
-          rust: ${{ needs.classify.outputs.run_cli }}
           docker: "true"
 
       - name: Log in to Docker Hub
-        if: needs.classify.outputs.publish == 'true'
+        if: needs.classify.outputs.push_runtime_images == 'true'
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Validate and build CLI image
+      - name: Build operator tools image
         uses: ./.github/actions/devops/cli
         with:
-          validate-source: ${{ needs.classify.outputs.run_cli }}
+          validate-source: "false"
           host-build: "false"
           build-image: "true"
-          publish: ${{ needs.classify.outputs.publish }}
-          registry-user: ${{ needs.classify.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          publish: ${{ needs.classify.outputs.push_runtime_images }}
+          registry-user: ${{ needs.classify.outputs.push_runtime_images == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
           sha-tag: ${{ needs.classify.outputs.sha_tag }}
 
-  explorer_backend:
-    name: Explorer backend
-    needs: classify
-    if: needs.classify.outputs.run_explorer_backend == 'true'
+      - name: Package runtime tools image and Linux CLI payload
+        shell: bash
+        env:
+          SHA_TAG: ${{ needs.classify.outputs.sha_tag }}
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/aeko-runtime-tools"
+          rm -rf "$out"
+          mkdir -p "$out/cli-release/package"
+          image="aeko-ci/aeko-tools:${SHA_TAG}"
+          docker image inspect "$image" >/dev/null
+          docker save "$image" | gzip -1 > "$out/aeko-tools-image.tar.gz"
+
+          cid="$(docker create --entrypoint /bin/sh "$image" -c true)"
+          cleanup_container() { docker rm -f "$cid" >/dev/null 2>&1 || true; }
+          trap cleanup_container EXIT HUP INT TERM
+          docker cp "$cid:/usr/local/bin/aeko" "$out/cli-release/package/aeko"
+          docker cp "$cid:/usr/local/bin/aeko-keygen" "$out/cli-release/package/aeko-keygen"
+          chmod 0755 "$out/cli-release/package/aeko" "$out/cli-release/package/aeko-keygen"
+
+          tar -C "$out/cli-release/package" -czf "$out/cli-release/aeko-cli-x86_64-unknown-linux-gnu.tar.gz" aeko aeko-keygen
+          (cd "$out/cli-release" && sha256sum aeko-cli-x86_64-unknown-linux-gnu.tar.gz > aeko-cli-x86_64-unknown-linux-gnu.tar.gz.sha256)
+          printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
+          cp "$out/ci-source-sha.txt" "$out/cli-release/ci-source-sha.txt"
+
+      - name: Upload runtime tools artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-tools
+          path: ${{ runner.temp }}/aeko-runtime-tools
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
+
+  cli_linux_release:
+    name: Release / Linux CLI validation
+    needs: runtime_tools
+    if: needs.runtime_tools.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 10
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Prepare Explorer backend runner
-        uses: ./.github/actions/devops/pipeline/setup
+      - name: Download Linux CLI payload
+        uses: actions/download-artifact@v4
         with:
-          rust: ${{ needs.classify.outputs.run_explorer_backend }}
-          docker: "true"
+          name: aeko-runtime-tools
+          path: ${{ runner.temp }}/aeko-runtime-tools
 
-      - name: Log in to Docker Hub
-        if: needs.classify.outputs.publish == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Exercise Linux CLI update check and installer from tools image
+        shell: bash
+        env:
+          CLI_RELEASE_DIR: ${{ runner.temp }}/aeko-runtime-tools/cli-release
+        run: |
+          set -euo pipefail
+          # actions/upload-artifact/download-artifact does not preserve Unix mode bits.
+          # Restore the executable contract before exercising the exact downloaded binaries.
+          test -s "$CLI_RELEASE_DIR/package/aeko"
+          test -s "$CLI_RELEASE_DIR/package/aeko-keygen"
+          chmod 0755 "$CLI_RELEASE_DIR/package/aeko" "$CLI_RELEASE_DIR/package/aeko-keygen"
+          test -x "$CLI_RELEASE_DIR/package/aeko"
+          test -x "$CLI_RELEASE_DIR/package/aeko-keygen"
+          test -s "$CLI_RELEASE_DIR/aeko-cli-x86_64-unknown-linux-gnu.tar.gz"
+          test -s "$CLI_RELEASE_DIR/aeko-cli-x86_64-unknown-linux-gnu.tar.gz.sha256"
 
-      - name: Validate and build Explorer backend image
-        uses: ./.github/actions/devops/explorer-backend
-        with:
-          validate-source: ${{ needs.classify.outputs.run_explorer_backend }}
-          host-build: "false"
-          build-image: "true"
-          publish: ${{ needs.classify.outputs.publish }}
-          registry-user: ${{ needs.classify.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
-          sha-tag: ${{ needs.classify.outputs.sha_tag }}
+          check_dir="$RUNNER_TEMP/aeko-cli-linux-release-check"
+          install_dir="$RUNNER_TEMP/aeko-cli-install-test"
+          self_update_dir="$RUNNER_TEMP/aeko-cli-self-update-test"
+          rm -rf "$check_dir" "$install_dir" "$self_update_dir"
+          mkdir -p "$check_dir/mock" "$install_dir" "$self_update_dir"
 
-  network:
-    name: Blockchain network
+          cp "$CLI_RELEASE_DIR/aeko-cli-x86_64-unknown-linux-gnu.tar.gz" "$check_dir/"
+          cp "$CLI_RELEASE_DIR/aeko-cli-x86_64-unknown-linux-gnu.tar.gz.sha256" "$check_dir/"
+          cp install/aeko-cli-install.sh "$check_dir/mock/aeko-cli-install.sh"
+          short_sha="${GITHUB_SHA::12}"
+          printf '{"tag_name":"cli-main-%s","html_url":"https://example.invalid/aeko-cli"}\n' "$short_sha" > "$check_dir/mock/latest.json"
+
+          python3 -m http.server 18765 --bind 127.0.0.1 --directory "$check_dir" >"$RUNNER_TEMP/aeko-cli-http.log" 2>&1 &
+          server_pid=$!
+          cleanup_server() {
+            kill "$server_pid" >/dev/null 2>&1 || true
+            wait "$server_pid" >/dev/null 2>&1 || true
+          }
+          trap cleanup_server EXIT HUP INT TERM
+
+          for _ in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:18765/mock/latest.json >/dev/null; then
+              break
+            fi
+            sleep 0.25
+          done
+          curl -fsS http://127.0.0.1:18765/mock/latest.json >/dev/null
+
+          AEKO_CLI_RELEASE_API_URL=http://127.0.0.1:18765/mock/latest.json \
+            "$CLI_RELEASE_DIR/package/aeko" update --check | tee "$RUNNER_TEMP/aeko-update-check.log"
+          grep -Fq "AEKO CLI is up to date." "$RUNNER_TEMP/aeko-update-check.log"
+          "$CLI_RELEASE_DIR/package/aeko" --help | grep -Fq "AEKO QUICK START"
+
+          cp "$CLI_RELEASE_DIR/package/aeko" "$self_update_dir/aeko"
+          cp "$CLI_RELEASE_DIR/package/aeko-keygen" "$self_update_dir/aeko-keygen"
+          printf '{"tag_name":"cli-main-ffffffffffff","html_url":"https://example.invalid/aeko-cli-update"}\n' > "$check_dir/mock/update.json"
+          AEKO_CLI_RELEASE_API_URL=http://127.0.0.1:18765/mock/update.json \
+            AEKO_CLI_ASSET_BASE_URL=http://127.0.0.1:18765 \
+            "$self_update_dir/aeko" update --yes | tee "$RUNNER_TEMP/aeko-self-update.log"
+          grep -Fq "AEKO CLI is updated to cli-main-ffffffffffff." "$RUNNER_TEMP/aeko-self-update.log"
+          "$self_update_dir/aeko" --version
+          "$self_update_dir/aeko-keygen" --version
+
+          curl -fsSL http://127.0.0.1:18765/mock/aeko-cli-install.sh | \
+            AEKO_CLI_ASSET_BASE_URL=http://127.0.0.1:18765 \
+            AEKO_INSTALL_DIR="$install_dir" \
+            sh
+          "$install_dir/aeko" --version
+          "$install_dir/aeko-keygen" --version
+
+  runtime_services:
+    name: Runtime / Producers
     needs: classify
-    if: needs.classify.outputs.run_network == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 75
+    if: needs.classify.outputs.run_explorer_backend == 'true' || needs.classify.outputs.run_network == 'true'
+    uses: ./.github/workflows/devops-runtime-services.yml
+    with:
+      run_explorer_backend: ${{ needs.classify.outputs.run_explorer_backend }}
+      run_network: ${{ needs.classify.outputs.run_network }}
+      push_runtime_images: ${{ needs.classify.outputs.push_runtime_images }}
+      sha_tag: ${{ needs.classify.outputs.sha_tag }}
+    secrets: inherit
+
+  sdk_validation:
+    name: SDK
+    needs: classify
+    if: needs.classify.outputs.run_sdk_non_rust == 'true' || needs.classify.outputs.run_sdk_rust == 'true'
+    uses: ./.github/workflows/devops-sdk-validation.yml
+    with:
+      run_sdk_non_rust: ${{ needs.classify.outputs.run_sdk_non_rust }}
+      run_sdk_rust: ${{ needs.classify.outputs.run_sdk_rust }}
+      enforce_rust_lockfile_clean: ${{ needs.classify.outputs.sdk_rust }}
+
+  cli_windows_release:
+    name: Release / Windows CLI (non-blocking)
+    needs: cli
+    if: >-
+      needs.cli.result == 'success' &&
+      (
+        github.event_name == 'pull_request' ||
+        github.event_name == 'workflow_dispatch' ||
+        github.ref == 'refs/heads/main'
+      )
+    runs-on: windows-2022
+    timeout-minutes: 45
+    continue-on-error: true
+    outputs:
+      ready: ${{ steps.ready.outputs.ready }}
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_PROFILE_RELEASE_STRIP: symbols
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+      TARGET: x86_64-pc-windows-msvc
+      ARCHIVE: aeko-cli-x86_64-pc-windows-msvc.zip
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Prepare network runner
-        uses: ./.github/actions/devops/pipeline/setup
-        with:
-          rust: ${{ needs.classify.outputs.run_network }}
-          python: ${{ needs.classify.outputs.run_network }}
-          docker: "true"
+      - name: Stamp CLI source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          commit="$(git rev-parse HEAD)"
+          echo "CI_COMMIT=$commit" >> "$GITHUB_ENV"
+          mkdir -p dist
+          printf '%s\n' "$commit" > dist/ci-source-sha.txt
 
-      - name: Log in to Docker Hub
-        if: needs.classify.outputs.publish == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
 
-      - name: Validate and build network images
-        uses: ./.github/actions/devops/network
-        with:
-          run-preflight: ${{ needs.classify.outputs.run_network }}
-          validate-source: ${{ needs.classify.outputs.run_network }}
-          build-image: "true"
-          publish: ${{ needs.classify.outputs.publish }}
-          registry-user: ${{ needs.classify.outputs.publish == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
-          sha-tag: ${{ needs.classify.outputs.sha_tag }}
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.85.0 --profile minimal
+          rustup target add --toolchain 1.85.0 "$TARGET"
+          rustup default 1.85.0
+          rustc --version
+          cargo --version
+          sccache --version
 
-  sdk_non_rust:
-    name: External SDKs (JS / Node / Python)
-    needs: classify
-    if: needs.classify.outputs.run_sdk_non_rust == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
+      - name: Install Windows native dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          vcpkg install openssl:x64-windows-static-md
+          vcpkg integrate install
+          choco install protoc -y --no-progress
+          printf 'PROTOC=C:\\ProgramData\\chocolatey\\lib\\protoc\\tools\\bin\\protoc.exe\n' >> "$GITHUB_ENV"
 
-      - name: Prepare non-Rust SDK runner
-        uses: ./.github/actions/devops/pipeline/setup
-        with:
-          node: ${{ needs.classify.outputs.run_sdk_non_rust }}
-          python: ${{ needs.classify.outputs.run_sdk_non_rust }}
+      - name: Build CLI and keygen for Windows
+        shell: bash
+        run: cargo build --release --locked --target "$TARGET" -p aeko-cli -p aeko-keygen
 
-      - name: Validate selected non-Rust SDKs
-        uses: ./.github/actions/devops/sdk
-        with:
-          js: ${{ needs.classify.outputs.run_sdk_non_rust }}
-          node: ${{ needs.classify.outputs.run_sdk_non_rust }}
-          python: ${{ needs.classify.outputs.run_sdk_non_rust }}
-          rust: "false"
-          release-js: "false"
-          release-node: "false"
-          release-python: "false"
-          release-rust: "false"
+      - name: Verify and package Windows binaries
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & "target/$env:TARGET/release/aeko.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'aeko.exe --version failed' }
+          & "target/$env:TARGET/release/aeko-keygen.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'aeko-keygen.exe --version failed' }
+          New-Item -ItemType Directory -Force -Path dist/package | Out-Null
+          Copy-Item "target/$env:TARGET/release/aeko.exe" dist/package/aeko.exe
+          Copy-Item "target/$env:TARGET/release/aeko-keygen.exe" dist/package/aeko-keygen.exe
+          Compress-Archive -Path dist/package/aeko.exe,dist/package/aeko-keygen.exe -DestinationPath "dist/$env:ARCHIVE" -Force
+          $hash = (Get-FileHash -Algorithm SHA256 "dist/$env:ARCHIVE").Hash.ToLowerInvariant()
+          "$hash  $env:ARCHIVE" | Set-Content -NoNewline "dist/$env:ARCHIVE.sha256"
 
-  sdk_rust:
-    name: External SDK (Rust)
-    needs: classify
-    if: needs.classify.outputs.run_sdk_rust == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 50
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
+      - name: Exercise Windows PowerShell 5.1 CLI update check and installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installDir = Join-Path $env:RUNNER_TEMP 'aeko-cli-install-test'
+          New-Item -ItemType Directory -Force -Path dist/mock | Out-Null
+          Copy-Item install/aeko-cli-install.ps1 dist/mock/aeko-cli-install.ps1
+          $shortSha = (git rev-parse --short=12 HEAD).Trim()
+          @{
+            tag_name = "cli-main-$shortSha"
+            html_url = "https://example.invalid/aeko-cli"
+          } | ConvertTo-Json -Compress | Set-Content -Encoding ascii dist/mock/latest.json
 
-      - name: Prepare Rust SDK runner
-        uses: ./.github/actions/devops/pipeline/setup
-        with:
-          rust: "true"
+          $server = Start-Process -FilePath python -ArgumentList '-m','http.server','18766','--bind','127.0.0.1','--directory','dist' -PassThru -WindowStyle Hidden
+          try {
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 20; $attempt++) {
+              try {
+                Invoke-WebRequest -UseBasicParsing http://127.0.0.1:18766/mock/latest.json | Out-Null
+                $ready = $true
+                break
+              } catch {
+                Start-Sleep -Milliseconds 250
+              }
+            }
+            if (-not $ready) { throw 'local CLI release test server did not become ready' }
 
-      - name: Validate Rust SDK
-        uses: ./.github/actions/devops/sdk
+            $env:AEKO_CLI_RELEASE_API_URL = 'http://127.0.0.1:18766/mock/latest.json'
+            $check = (& "target/$env:TARGET/release/aeko.exe" update --check 2>&1 | Out-String)
+            if ($LASTEXITCODE -ne 0) { throw "aeko update --check failed: $check" }
+            if ($check -notmatch 'AEKO CLI is up to date\.') { throw "unexpected update output: $check" }
+            $help = (& "target/$env:TARGET/release/aeko.exe" --help 2>&1 | Out-String)
+            if ($LASTEXITCODE -ne 0 -or $help -notmatch 'AEKO QUICK START') { throw 'AEKO CLI rich help is missing' }
+
+            $selfUpdateDir = Join-Path $env:RUNNER_TEMP 'aeko-cli-self-update-test'
+            New-Item -ItemType Directory -Force -Path $selfUpdateDir | Out-Null
+            Copy-Item "target/$env:TARGET/release/aeko.exe" (Join-Path $selfUpdateDir 'aeko.exe')
+            Copy-Item "target/$env:TARGET/release/aeko-keygen.exe" (Join-Path $selfUpdateDir 'aeko-keygen.exe')
+            @{
+              tag_name = 'cli-main-ffffffffffff'
+              html_url = 'https://example.invalid/aeko-cli-update'
+            } | ConvertTo-Json -Compress | Set-Content -Encoding ascii dist/mock/update.json
+            $env:AEKO_CLI_RELEASE_API_URL = 'http://127.0.0.1:18766/mock/update.json'
+            $env:AEKO_CLI_ASSET_BASE_URL = 'http://127.0.0.1:18766'
+            $selfUpdate = (& (Join-Path $selfUpdateDir 'aeko.exe') update --yes 2>&1 | Out-String)
+            if ($LASTEXITCODE -ne 0) { throw "aeko update --yes failed: $selfUpdate" }
+            if ($selfUpdate -notmatch 'AEKO update cli-main-ffffffffffff started') { throw "unexpected self-update output: $selfUpdate" }
+            Start-Sleep -Seconds 5
+            & (Join-Path $selfUpdateDir 'aeko.exe') --version
+            if ($LASTEXITCODE -ne 0) { throw 'self-updated aeko.exe failed' }
+            & (Join-Path $selfUpdateDir 'aeko-keygen.exe') --version
+            if ($LASTEXITCODE -ne 0) { throw 'self-updated aeko-keygen.exe failed' }
+
+            $env:AEKO_CLI_RELEASE_API_URL = 'http://127.0.0.1:18766/mock/latest.json'
+            $env:AEKO_CLI_ASSET_BASE_URL = 'http://127.0.0.1:18766'
+            $env:AEKO_INSTALL_DIR = $installDir
+            & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "irm 'http://127.0.0.1:18766/mock/aeko-cli-install.ps1' | iex"
+            if ($LASTEXITCODE -ne 0) { throw "Windows PowerShell 5.1 irm | iex installer failed with exit code $LASTEXITCODE" }
+
+            & (Join-Path $installDir 'aeko.exe') --version
+            if ($LASTEXITCODE -ne 0) { throw 'installed aeko.exe failed' }
+            & (Join-Path $installDir 'aeko-keygen.exe') --version
+            if ($LASTEXITCODE -ne 0) { throw 'installed aeko-keygen.exe failed' }
+          }
+          finally {
+            if ($server -and -not $server.HasExited) {
+              Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+      - name: Validate PowerShell installer syntax
+        shell: pwsh
+        run: |
+          [scriptblock]::Create((Get-Content -LiteralPath install/aeko-cli-install.ps1 -Raw)) | Out-Null
+
+      - name: Upload Windows CLI archive
+        uses: actions/upload-artifact@v4
         with:
-          js: "false"
-          node: "false"
-          python: "false"
-          rust: "true"
-          release-js: "false"
-          release-node: "false"
-          release-python: "false"
-          release-rust: "false"
-          enforce-lockfile-clean: ${{ needs.classify.outputs.sdk_rust }}
+          name: cli-x86_64-pc-windows-msvc
+          path: |
+            dist/aeko-cli-x86_64-pc-windows-msvc.zip
+            dist/aeko-cli-x86_64-pc-windows-msvc.zip.sha256
+            dist/ci-source-sha.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Mark Windows release assets ready
+        id: ready
+        shell: bash
+        run: echo "ready=true" >> "$GITHUB_OUTPUT"
 
   devops:
-    name: devops
+    name: Gate / Required checks
     needs:
       - classify
       - ci_contract
-      - admin
-      - explorer_web
+      - web_ui
       - cli
-      - explorer_backend
-      - network
-      - sdk_non_rust
-      - sdk_rust
+      - runtime_tools
+      - cli_linux_release
+      - runtime_services
+      - sdk_validation
     if: ${{ always() && !cancelled() && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -406,24 +556,262 @@ jobs:
           CLASSIFY_RESULT: ${{ needs.classify.result }}
           EXPECT_CI_CONTRACT: ${{ needs.classify.outputs.run_ci_contract }}
           CI_CONTRACT_RESULT: ${{ needs.ci_contract.result }}
-          EXPECT_ADMIN: ${{ needs.classify.outputs.run_admin }}
-          ADMIN_RESULT: ${{ needs.admin.result }}
-          EXPECT_EXPLORER_WEB: ${{ needs.classify.outputs.run_explorer_web }}
-          EXPLORER_WEB_RESULT: ${{ needs.explorer_web.result }}
+          EXPECT_WEB_UI: ${{ needs.classify.outputs.run_admin == 'true' || needs.classify.outputs.run_explorer_web == 'true' }}
+          WEB_UI_RESULT: ${{ needs.web_ui.result }}
           EXPECT_CLI: ${{ needs.classify.outputs.run_cli }}
           CLI_RESULT: ${{ needs.cli.result }}
-          EXPECT_EXPLORER_BACKEND: ${{ needs.classify.outputs.run_explorer_backend }}
-          EXPLORER_BACKEND_RESULT: ${{ needs.explorer_backend.result }}
-          EXPECT_NETWORK: ${{ needs.classify.outputs.run_network }}
-          NETWORK_RESULT: ${{ needs.network.result }}
-          EXPECT_SDK_NON_RUST: ${{ needs.classify.outputs.run_sdk_non_rust }}
-          SDK_NON_RUST_RESULT: ${{ needs.sdk_non_rust.result }}
-          EXPECT_SDK_RUST: ${{ needs.classify.outputs.run_sdk_rust }}
-          SDK_RUST_RESULT: ${{ needs.sdk_rust.result }}
+          EXPECT_RUNTIME_TOOLS: ${{ needs.classify.outputs.run_cli }}
+          RUNTIME_TOOLS_RESULT: ${{ needs.runtime_tools.result }}
+          EXPECT_CLI_LINUX_RELEASE: ${{ needs.classify.outputs.run_cli }}
+          CLI_LINUX_RELEASE_RESULT: ${{ needs.cli_linux_release.result }}
+          EXPECT_RUNTIME_SERVICES: ${{ needs.classify.outputs.run_explorer_backend == 'true' || needs.classify.outputs.run_network == 'true' }}
+          RUNTIME_SERVICES_RESULT: ${{ needs.runtime_services.result }}
+          EXPECT_SDK_VALIDATION: ${{ needs.classify.outputs.run_sdk_non_rust == 'true' || needs.classify.outputs.run_sdk_rust == 'true' }}
+          SDK_VALIDATION_RESULT: ${{ needs.sdk_validation.result }}
         run: bash .github/actions/devops/pipeline/verify-results.sh
 
+  runtime_baseline:
+    name: Integration / Known-good baseline dispatch
+    needs:
+      - classify
+    if: >-
+      needs.classify.result == 'success' &&
+      (
+        github.event_name == 'push' ||
+        (
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        )
+      )
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve compatible baseline
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          : "${TARGET_REF:?target ref is required}"
+
+          runs="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/workflows/build-images.yml/runs" \
+            -f branch="$TARGET_REF" \
+            -f status=success \
+            -f per_page=30)"
+
+          producer_run_id=""
+          while IFS= read -r candidate_id; do
+            [ -n "$candidate_id" ] || continue
+            artifacts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_id}/artifacts?per_page=100")"
+            complete=1
+            for required in aeko-runtime-tools aeko-runtime-network aeko-runtime-explorer-api; do
+              if ! jq -e --arg name "$required" '.artifacts | any(.name == $name and .expired == false)' <<<"$artifacts" >/dev/null; then
+                complete=0
+                break
+              fi
+            done
+            if [ "$complete" -eq 1 ]; then
+              producer_run_id="$candidate_id"
+              break
+            fi
+          done < <(jq -r '.workflow_runs[].id' <<<"$runs")
+
+          if [ -z "$producer_run_id" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "No prior compatible runtime baseline exists for $TARGET_REF; exact integration will run after current producers succeed."
+            exit 0
+          fi
+
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          echo "producer_run_id=$producer_run_id" >> "$GITHUB_OUTPUT"
+          echo "Compatible runtime baseline producer: $producer_run_id"
+
+      - name: Dispatch latest-success compatibility integration
+        if: steps.baseline.outputs.available == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+          BASELINE_RUN_ID: ${{ steps.baseline.outputs.producer_run_id }}
+        run: |
+          set -euo pipefail
+          : "${TARGET_REF:?target ref is required}"
+          : "${BASELINE_RUN_ID:?baseline producer run id is required}"
+          gh workflow run full-stack-integration.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "$TARGET_REF" \
+            -f "selection_mode=last-success" \
+            -f "target_ref=$TARGET_REF"
+          echo "Dispatched known-good compatibility integration using baseline producer candidate $BASELINE_RUN_ID."
+
+  runtime_integration:
+    name: Integration / Runtime artifacts
+    needs:
+      - runtime_tools
+      - runtime_services
+    if: >-
+      needs.runtime_tools.result == 'success' &&
+      needs.runtime_services.result == 'success' &&
+      (
+        github.event_name == 'push' ||
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        )
+      )
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch runtime contract integration
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCER_RUN_ID: ${{ github.run_id }}
+          BUILD_SHA: ${{ github.sha }}
+          SOURCE_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          TARGET_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          : "${PRODUCER_RUN_ID:?producer run id is required}"
+          : "${BUILD_SHA:?build SHA is required}"
+          : "${SOURCE_HEAD_SHA:?source head SHA is required}"
+          : "${TARGET_REF:?target ref is required}"
+
+          gh workflow run full-stack-integration.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "$TARGET_REF" \
+            -f "selection_mode=exact" \
+            -f "producer_run_id=$PRODUCER_RUN_ID" \
+            -f "build_sha=$BUILD_SHA" \
+            -f "source_head_sha=$SOURCE_HEAD_SHA" \
+            -f "target_ref=$TARGET_REF"
+
+          echo "Dispatched runtime integration from DevOps run $PRODUCER_RUN_ID for build $BUILD_SHA"
+
+  cli_release_publish:
+    name: Publish / CLI binaries (best effort)
+    needs:
+      - cli_windows_release
+      - devops
+    if: >-
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.devops.result == 'success' &&
+      needs.cli_windows_release.outputs.ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    continue-on-error: true
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Reconfirm successful main source
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$SOURCE_SHA" origin/main
+
+      - name: Download Linux CLI assets from tools build
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-tools
+          path: release-input/linux
+
+      - name: Download Windows CLI assets
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-x86_64-pc-windows-msvc
+          path: release-input/windows
+
+      - name: Verify release asset provenance
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          linux_sha="$(tr -d '\r\n' < release-input/linux/ci-source-sha.txt)"
+          windows_sha="$(tr -d '\r\n' < release-input/windows/ci-source-sha.txt)"
+          if [ "$linux_sha" != "$SOURCE_SHA" ] || [ "$windows_sha" != "$SOURCE_SHA" ]; then
+            echo "CLI release provenance mismatch: linux=$linux_sha windows=$windows_sha expected=$SOURCE_SHA" >&2
+            exit 1
+          fi
+
+          mkdir -p release-assets
+          cp release-input/linux/cli-release/aeko-cli-x86_64-unknown-linux-gnu.tar.gz release-assets/
+          cp release-input/linux/cli-release/aeko-cli-x86_64-unknown-linux-gnu.tar.gz.sha256 release-assets/
+          cp release-input/windows/aeko-cli-x86_64-pc-windows-msvc.zip release-assets/
+          cp release-input/windows/aeko-cli-x86_64-pc-windows-msvc.zip.sha256 release-assets/
+
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_RUN_ID: ${{ github.run_id }}
+          SOURCE_RUN_NUMBER: ${{ github.run_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          short_sha="${SOURCE_SHA:0:12}"
+          TAG="cli-main-${short_sha}"
+          TITLE="AEKO CLI main ${short_sha}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            git fetch --tags origin
+            existing_sha="$(git rev-list -n 1 "$TAG")"
+            if [ "$existing_sha" != "$SOURCE_SHA" ]; then
+              echo "Existing release $TAG points to $existing_sha, expected $SOURCE_SHA." >&2
+              exit 1
+            fi
+            echo "GitHub Release $TAG already exists for $SOURCE_SHA; leaving published assets unchanged."
+            exit 0
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            git fetch --tags origin
+            existing_sha="$(git rev-list -n 1 "$TAG")"
+            if [ "$existing_sha" != "$SOURCE_SHA" ]; then
+              echo "Existing tag $TAG points to $existing_sha, expected $SOURCE_SHA." >&2
+              exit 1
+            fi
+          fi
+
+          notes_file="$(mktemp)"
+          trap 'rm -f "$notes_file"' EXIT
+          cat > "$notes_file" <<EOF
+          Automated AEKO CLI binaries published from successful AEKO DevOps main run #${SOURCE_RUN_NUMBER}.
+
+          Source commit: https://github.com/${GH_REPO}/commit/${SOURCE_SHA}
+          Validating workflow: https://github.com/${GH_REPO}/actions/runs/${SOURCE_RUN_ID}
+          EOF
+
+          gh release create "$TAG" release-assets/* \
+            --target "$SOURCE_SHA" \
+            --title "$TITLE" \
+            --notes-file "$notes_file" \
+            --latest
+
   sdk_publish:
-    name: Publish SDKs (best effort)
+    name: Publish / SDKs (best effort)
     needs:
       - classify
       - devops
@@ -470,7 +858,7 @@ jobs:
           echo "Docker image promotion and production deployment are independent of SDK registry availability."
 
   release:
-    name: Promote and deploy
+    name: Deploy / Promote images
     needs:
       - classify
       - devops

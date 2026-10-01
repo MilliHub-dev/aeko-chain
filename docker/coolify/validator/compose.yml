@@ -25,8 +25,8 @@ services:
       AEKO_REQUIRE_REMOTE_FAUCET: "1"
       # Raw TCP 9900 must resolve directly to the Faucet; do not route it
       # through a normal HTTP/TLS Cloudflare proxy.
-      # requestGrant is authorization-gated. requestAirdrop is the instant
-      # developer path and does not require this credential.
+      # requestFunding is authorization-gated. requestAirdrop is a separate
+      # test-environment utility and is rejected when AEKO_NETWORK=mainnet.
       AEKO_FUNDING_AUTHORIZATION_KEY: ${AEKO_FUNDING_AUTHORIZATION_KEY:-}
       AEKO_GOSSIP_HOST: ${AEKO_GOSSIP_HOST:-}
       AEKO_REQUIRE_GOSSIP_HOST: "1"

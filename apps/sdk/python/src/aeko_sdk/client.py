@@ -117,6 +117,25 @@ class AekoClient:
             config["recentBlockhash"] = recent_blockhash
         return self.rpc("requestAirdrop", [pubkey, lamports, config])
 
+    def request_funding_transfer(
+        self,
+        pubkey: str,
+        lamports: int,
+        *,
+        funding_authorization: str | None = None,
+        recent_blockhash: str | None = None,
+    ) -> str:
+        """Protected Funding transfer via direct RPC.
+
+        Requires the server-only funding authorization credential when the
+        validator configures one. Public clients should use
+        ``request_funding`` (Explorer approval queue) instead.
+        """
+        config: dict[str, Any] = {"fundingAuthorization": funding_authorization}
+        if recent_blockhash:
+            config["recentBlockhash"] = recent_blockhash
+        return self.rpc("requestFunding", [pubkey, lamports, config])
+
     def request_grant(
         self,
         pubkey: str,
@@ -125,17 +144,13 @@ class AekoClient:
         funding_authorization: str | None = None,
         recent_blockhash: str | None = None,
     ) -> str:
-        """Approval-gated funding grant via direct RPC.
-
-        Requires the server-only funding authorization credential when the
-        validator configures one. Public clients should use
-        ``request_funding`` (Explorer approval queue) instead; trusted
-        settlement code holding the credential uses this.
-        """
-        config: dict[str, Any] = {"fundingAuthorization": funding_authorization}
-        if recent_blockhash:
-            config["recentBlockhash"] = recent_blockhash
-        return self.rpc("requestGrant", [pubkey, lamports, config])
+        """Deprecated compatibility alias for :meth:`request_funding_transfer`."""
+        return self.request_funding_transfer(
+            pubkey,
+            lamports,
+            funding_authorization=funding_authorization,
+            recent_blockhash=recent_blockhash,
+        )
 
     def request_funding(
         self,
@@ -203,16 +218,16 @@ class AekoClient:
             self, base, request_id, timeout_secs, poll_interval_secs
         )
 
-    def create_grant(
+    def send_funding(
         self, pubkey: str, amount_aeko: float, *, explorer_api_url: str, admin_token: str
     ) -> Any:
-        """Admin direct grant via the Explorer API (bypasses approval)."""
+        """Direct Admin Funding via the Explorer API with no second approval."""
         import urllib.error
 
         base = explorer_api_url.rstrip("/")
         body = json.dumps({"address": pubkey, "amountAeko": amount_aeko}).encode("utf-8")
         req = request.Request(
-            base + "/admin/funding/grant",
+            base + "/admin/funding/send",
             data=body,
             headers={
                 "Content-Type": "application/json",
@@ -226,8 +241,19 @@ class AekoClient:
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", "replace")
             raise AekoRpcError(
-                f"Direct grant failed (HTTP {exc.code}): {detail}", code=exc.code
+                f"Direct funding failed (HTTP {exc.code}): {detail}", code=exc.code
             ) from exc
+
+    def create_grant(
+        self, pubkey: str, amount_aeko: float, *, explorer_api_url: str, admin_token: str
+    ) -> Any:
+        """Deprecated compatibility alias for :meth:`send_funding`."""
+        return self.send_funding(
+            pubkey,
+            amount_aeko,
+            explorer_api_url=explorer_api_url,
+            admin_token=admin_token,
+        )
 
 
 def _pending_request_id(exc: AekoRpcError) -> str | None:

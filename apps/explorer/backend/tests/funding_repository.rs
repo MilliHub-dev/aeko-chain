@@ -66,7 +66,7 @@ fn funding_state_machine_migration_releases_legacy_status_constraint_before_rewr
 }
 
 #[tokio::test]
-async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Result<()> {
+async fn funding_queue_is_durable_idempotent_and_separate_from_airdrops() -> Result<()> {
     let database_url = env::var("AEKO_EXPLORER_TEST_DATABASE_URL")
         .context("AEKO_EXPLORER_TEST_DATABASE_URL must be set for integration tests")?;
     let repository = PostgresRepository::connect(&test_config(database_url.clone())).await?;
@@ -108,7 +108,7 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
                 amount_aeko: Some(5.0),
                 cooldown_hours: Some(0.0),
                 daily_budget_aeko: Some(5_000.0),
-                max_manual_grant_aeko: Some(100.0),
+                max_admin_funding_aeko: Some(100.0),
                 console_airdrop_cap_aeko: Some(25.0),
             },
         )
@@ -198,13 +198,13 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
     let while_submitted = repository.funding_policy_snapshot().await?;
     assert!(while_submitted.public_reserved_aeko >= before_reservation.public_reserved_aeko + 5.0);
 
-    // Simulate a grant row written by the pre-0012 model: same durable chain
+    // Simulate a funding transfer row written by the pre-0012 model: same durable chain
     // signature, but no request_id linkage yet. Confirmation must adopt this
-    // row rather than insert a duplicate grant and hit the signature index.
+    // row rather than insert a duplicate funding transfer and hit the signature index.
     let legacy_pool = sqlx::PgPool::connect(&database_url).await?;
     sqlx::query(
         r#"
-        INSERT INTO funding_grants (
+        INSERT INTO funding_transfers (
             request_id,
             address,
             amount_aeko,
@@ -226,18 +226,18 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
     assert!(confirmed.confirmed);
     assert!(confirmed.confirmed_at.is_some());
 
-    // Confirmation is idempotent and never creates a second grant.
+    // Confirmation is idempotent and never creates a duplicate funding transfer.
     let confirmed_again = repository.confirm_funding_request(&pending.id).await?;
     assert_eq!(confirmed_again.status, "confirmed");
 
-    let grants = repository.list_funding_grants(500).await?;
-    let public_grants: Vec<_> = grants
+    let funding_transfers = repository.list_funding_transfers(500).await?;
+    let public_funding: Vec<_> = funding_transfers
         .iter()
-        .filter(|grant| grant.request_id.as_deref() == Some(pending.id.as_str()))
+        .filter(|funding| funding.request_id.as_deref() == Some(pending.id.as_str()))
         .collect();
-    assert_eq!(public_grants.len(), 1);
-    assert_eq!(public_grants[0].source, "public");
-    assert!(public_grants[0].confirmed);
+    assert_eq!(public_funding.len(), 1);
+    assert_eq!(public_funding[0].source, "public");
+    assert!(public_funding[0].confirmed);
 
     let after_public = repository.funding_policy_snapshot().await?;
     assert!(after_public.public_spent_aeko >= before_reservation.public_spent_aeko + 5.0);
@@ -283,7 +283,7 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
             <= rollover_confirmed_today.public_spent_aeko - rollover_pending.amount_aeko
     );
 
-    // Developer airdrops are a separate ledger and never enter grant accounting.
+    // Developer airdrops are a separate ledger and never enter funding transfer accounting.
     let airdrop_address = format!("integration-airdrop-{suffix}");
     let airdrop = repository
         .create_funding_airdrop(&airdrop_address, 3.0)
@@ -314,10 +314,10 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
         .iter()
         .any(|entry| entry.signature.as_deref() == Some(airdrop_signature.as_str())));
 
-    let grants_after_airdrop = repository.list_funding_grants(500).await?;
-    assert!(!grants_after_airdrop
+    let funding_after_airdrop = repository.list_funding_transfers(500).await?;
+    assert!(!funding_after_airdrop
         .iter()
-        .any(|grant| grant.signature.as_deref() == Some(airdrop_signature.as_str())));
+        .any(|funding| funding.signature.as_deref() == Some(airdrop_signature.as_str())));
 
     let after_airdrop = repository.funding_policy_snapshot().await?;
     assert_eq!(
@@ -329,7 +329,7 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
         after_public.public_reserved_aeko
     );
 
-    // A terminal failed grant releases the reservation and never records a grant.
+    // A terminal failed funding transfer releases the reservation and never records a funding transfer.
     let failed_address = format!("integration-failed-{suffix}");
     let failed_pending = repository
         .create_public_funding_request(&failed_address)
@@ -360,10 +360,10 @@ async fn grant_queue_is_durable_idempotent_and_separate_from_airdrops() -> Resul
         after_failure.public_reserved_aeko
             <= before_failure.public_reserved_aeko - failed.amount_aeko
     );
-    let grants_after_failure = repository.list_funding_grants(500).await?;
-    assert!(!grants_after_failure
+    let funding_after_failure = repository.list_funding_transfers(500).await?;
+    assert!(!funding_after_failure
         .iter()
-        .any(|grant| grant.signature.as_deref() == Some(failed_signature.as_str())));
+        .any(|funding| funding.signature.as_deref() == Some(failed_signature.as_str())));
 
     Ok(())
 }

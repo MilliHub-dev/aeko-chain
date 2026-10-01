@@ -53,12 +53,15 @@ export interface FundingRequestOptions {
   signal?: AbortSignal;
 }
 
-export interface DirectGrantOptions {
+export interface DirectFundingOptions {
   explorerApiUrl: string;
   /** Admin settings token; bypasses approval. Never expose in browser public flows. */
   adminToken: string;
   fetchImpl?: typeof fetch;
 }
+
+/** @deprecated Use DirectFundingOptions. */
+export type DirectGrantOptions = DirectFundingOptions;
 
 export class AekoConnection {
   readonly endpoint: string;
@@ -206,13 +209,13 @@ export class AekoConnection {
   }
 
   /**
-   * Approval-gated funding grant via direct RPC. Requires the server-only
+   * Protected Funding transfer via direct RPC. Requires the server-only
    * funding authorization credential when the validator configures one.
-   * Prefer the Explorer approval-queue flow (`requestFunding`) for public
-   * clients; use this only from trusted settlement service code holding the
-   * credential. Replays of the same intent recover the same signature.
+   * Public clients should use the Explorer approval-queue `requestFunding`
+   * method below. Replays of the same persisted intent recover the same
+   * signature.
    */
-  async requestGrant(
+  async requestFundingTransfer(
     address: PublicKeyString,
     lamports: number,
     fundingAuthorization?: string,
@@ -225,7 +228,22 @@ export class AekoConnection {
     if (recentBlockhash) {
       config.recentBlockhash = recentBlockhash;
     }
-    return this.rpc<string>('requestGrant', [address, lamports, config]);
+    return this.rpc<string>('requestFunding', [address, lamports, config]);
+  }
+
+  /** @deprecated Use requestFundingTransfer. */
+  async requestGrant(
+    address: PublicKeyString,
+    lamports: number,
+    fundingAuthorization?: string,
+    recentBlockhash?: string,
+  ): Promise<string> {
+    return this.requestFundingTransfer(
+      address,
+      lamports,
+      fundingAuthorization,
+      recentBlockhash,
+    );
   }
 
   /**
@@ -306,17 +324,17 @@ export class AekoConnection {
   }
 
   /**
-   * Admin direct grant via the Explorer API. Bypasses the approval queue
-   * (caller is the admin). Returns the confirmed grant record.
+   * Direct Admin Funding via the Explorer API. The authenticated Admin is the
+   * decision-maker, so this path submits immediately without a second approval.
    */
-  async createGrant(
+  async sendFunding(
     address: PublicKeyString,
     amountAeko: number,
-    options: DirectGrantOptions,
+    options: DirectFundingOptions,
   ): Promise<unknown> {
     const fetchImpl = options.fetchImpl ?? this.fetchImpl;
     const base = options.explorerApiUrl.replace(/\/$/, '');
-    const res = await fetchImpl(`${base}/admin/funding/grant`, {
+    const res = await fetchImpl(`${base}/admin/funding/send`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -326,9 +344,18 @@ export class AekoConnection {
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      throw new AekoRpcError(`Direct grant failed (HTTP ${res.status}): ${body}`);
+      throw new AekoRpcError(`Direct funding failed (HTTP ${res.status}): ${body}`);
     }
     return res.json();
+  }
+
+  /** @deprecated Use sendFunding. */
+  async createGrant(
+    address: PublicKeyString,
+    amountAeko: number,
+    options: DirectFundingOptions,
+  ): Promise<unknown> {
+    return this.sendFunding(address, amountAeko, options);
   }
 
   subscribeAccount(

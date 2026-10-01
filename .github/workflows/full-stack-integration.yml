@@ -1,0 +1,420 @@
+name: AEKO Runtime Contract Integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      selection_mode:
+        description: Artifact selection policy
+        required: true
+        default: exact
+        type: choice
+        options:
+          - exact
+          - last-success
+      producer_run_id:
+        description: Exact AEKO DevOps producer run (exact mode)
+        required: false
+        type: string
+      build_sha:
+        description: Exact build/merge SHA stamped into artifacts (exact mode)
+        required: false
+        type: string
+      source_head_sha:
+        description: Source branch head SHA (exact mode)
+        required: false
+        type: string
+      target_ref:
+        description: Branch whose latest successful producer is eligible
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: aeko-runtime-contract-${{ inputs.selection_mode }}-${{ inputs.target_ref }}-${{ inputs.producer_run_id || 'auto' }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: Resolve / Runtime artifact source
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    outputs:
+      producer_run_id: ${{ steps.resolve.outputs.producer_run_id }}
+      source_head_sha: ${{ steps.resolve.outputs.source_head_sha }}
+      expected_build_sha: ${{ steps.resolve.outputs.expected_build_sha }}
+    steps:
+      - name: Resolve exact or latest successful producer
+        id: resolve
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ inputs.selection_mode }}
+          INPUT_RUN_ID: ${{ inputs.producer_run_id }}
+          INPUT_BUILD_SHA: ${{ inputs.build_sha }}
+          INPUT_SOURCE_HEAD_SHA: ${{ inputs.source_head_sha }}
+          TARGET_REF: ${{ inputs.target_ref }}
+        run: |
+          set -euo pipefail
+          : "${TARGET_REF:?target ref is required}"
+
+          verify_artifacts() {
+            local run_id="$1"
+            local artifacts
+            artifacts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100")"
+            for required in aeko-runtime-tools aeko-runtime-network aeko-runtime-explorer-api; do
+              jq -e --arg name "$required" '.artifacts | any(.name == $name and .expired == false)' <<<"$artifacts" >/dev/null || return 1
+            done
+          }
+
+          if [ "$MODE" = "exact" ]; then
+            : "${INPUT_RUN_ID:?exact mode requires producer_run_id}"
+            : "${INPUT_BUILD_SHA:?exact mode requires build_sha}"
+            : "${INPUT_SOURCE_HEAD_SHA:?exact mode requires source_head_sha}"
+            run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${INPUT_RUN_ID}")"
+            test "$(jq -r '.head_repository.full_name // empty' <<<"$run_json")" = "$GITHUB_REPOSITORY"
+            test "$(jq -r '.head_sha // empty' <<<"$run_json")" = "$INPUT_SOURCE_HEAD_SHA"
+            verify_artifacts "$INPUT_RUN_ID"
+            producer_run_id="$INPUT_RUN_ID"
+            source_head_sha="$INPUT_SOURCE_HEAD_SHA"
+            expected_build_sha="$INPUT_BUILD_SHA"
+          elif [ "$MODE" = "last-success" ]; then
+            producer_run_id=""
+            source_head_sha=""
+
+            if [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
+              latest="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/workflows/build-images.yml/runs" -f branch="$TARGET_REF" -f per_page=1 | jq -c '.workflow_runs[0] // empty')"
+              if [ -n "$latest" ]; then
+                latest_id="$(jq -r '.id' <<<"$latest")"
+                latest_status="$(jq -r '.status' <<<"$latest")"
+                echo "Rerun attempt $GITHUB_RUN_ATTEMPT will prefer newest producer run $latest_id (status=$latest_status)."
+                for _ in $(seq 1 120); do
+                  case "$latest_status" in
+                    completed) break ;;
+                    queued|in_progress|pending|requested|waiting)
+                      sleep 30
+                      latest="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${latest_id}")"
+                      latest_status="$(jq -r '.status' <<<"$latest")"
+                      ;;
+                    *) break ;;
+                  esac
+                done
+                if [ "$latest_status" = "completed" ] && [ "$(jq -r '.conclusion // empty' <<<"$latest")" = "success" ] && verify_artifacts "$latest_id"; then
+                  producer_run_id="$latest_id"
+                  source_head_sha="$(jq -r '.head_sha' <<<"$latest")"
+                fi
+              fi
+            fi
+
+            if [ -z "$producer_run_id" ]; then
+              runs="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/workflows/build-images.yml/runs" -f branch="$TARGET_REF" -f status=success -f per_page=30)"
+              while IFS=$'\t' read -r candidate_id candidate_sha; do
+                [ -n "$candidate_id" ] || continue
+                if verify_artifacts "$candidate_id"; then
+                  producer_run_id="$candidate_id"
+                  source_head_sha="$candidate_sha"
+                  break
+                fi
+              done < <(jq -r '.workflow_runs[] | [.id, .head_sha] | @tsv' <<<"$runs")
+            fi
+
+            test -n "$producer_run_id" || { echo "No successful compatible AEKO DevOps run with all runtime artifacts exists for $TARGET_REF" >&2; exit 1; }
+            expected_build_sha=""
+          else
+            echo "Unsupported selection mode: $MODE" >&2
+            exit 2
+          fi
+
+          {
+            echo "producer_run_id=$producer_run_id"
+            echo "source_head_sha=$source_head_sha"
+            echo "expected_build_sha=$expected_build_sha"
+          } >> "$GITHUB_OUTPUT"
+          echo "Resolved $MODE runtime artifacts from producer run $producer_run_id (source $source_head_sha)."
+
+
+  chain-contract:
+    name: Chain Contract / Critical RPC + WebSocket
+    needs: resolve
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout contract source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || github.sha }}
+          fetch-depth: 0
+      - name: Download runtime tools artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-tools
+          path: artifacts/runtime-tools
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+      - name: Download network runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-network
+          path: artifacts/runtime-network
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+      - name: Download Explorer API runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-explorer-api
+          path: artifacts/runtime-explorer-api
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+      - name: Verify provenance and load runtime images
+        id: artifacts
+        shell: bash
+        env:
+          EXPECTED_BUILD_SHA: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || '' }}
+        run: bash .github/actions/devops/pipeline/load-runtime-artifacts.sh
+      - name: Run critical chain contract
+        env:
+          AEKO_CI_IMAGE_REPOSITORY: aeko-ci
+          AEKO_CI_IMAGE_TAG: ${{ steps.artifacts.outputs.sha_tag }}
+          AEKO_CI_CLI_ARCHIVE: ${{ github.workspace }}/artifacts/runtime-tools/cli-release/aeko-cli-x86_64-unknown-linux-gnu.tar.gz
+          AEKO_CI_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/runtime-chain-contract
+          AEKO_CI_CONTRACT_SCOPE: chain
+        run: bash scripts/ci-docker-full-stack-integration.sh
+      - name: Upload chain diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-chain-contract-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/runtime-chain-contract
+          if-no-files-found: ignore
+          retention-days: 7
+
+  rpc-method-contract:
+    name: RPC Method Contract / Individual JSON-RPC calls
+    needs: resolve
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout contract source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || github.sha }}
+          fetch-depth: 0
+      - name: Download runtime tools artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-tools
+          path: artifacts/runtime-tools
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+      - name: Download network runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-network
+          path: artifacts/runtime-network
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+      - name: Download Explorer API runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-explorer-api
+          path: artifacts/runtime-explorer-api
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+      - name: Verify provenance and load runtime images
+        id: artifacts
+        shell: bash
+        env:
+          EXPECTED_BUILD_SHA: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || '' }}
+        run: bash .github/actions/devops/pipeline/load-runtime-artifacts.sh
+      - name: Probe every declared JSON-RPC method
+        env:
+          AEKO_CI_IMAGE_REPOSITORY: aeko-ci
+          AEKO_CI_IMAGE_TAG: ${{ steps.artifacts.outputs.sha_tag }}
+          AEKO_CI_CLI_ARCHIVE: ${{ github.workspace }}/artifacts/runtime-tools/cli-release/aeko-cli-x86_64-unknown-linux-gnu.tar.gz
+          AEKO_CI_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/runtime-rpc-methods
+          AEKO_CI_CONTRACT_SCOPE: rpc-methods
+        run: bash scripts/ci-docker-full-stack-integration.sh
+      - name: Upload RPC method results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-rpc-methods-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/runtime-rpc-methods
+          if-no-files-found: ignore
+          retention-days: 7
+
+  backend-contract:
+    name: Backend Contract / ${{ matrix.flow }}
+    needs: resolve
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        flow:
+          - route-surface
+          - settings
+          - funding-public
+          - funding-admin
+          - funding-airdrop
+          - social-protocol
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout contract source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || github.sha }}
+          fetch-depth: 0
+      - name: Download runtime tools artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-tools
+          path: artifacts/runtime-tools
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+      - name: Download network runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-network
+          path: artifacts/runtime-network
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+      - name: Download Explorer API runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-explorer-api
+          path: artifacts/runtime-explorer-api
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+      - name: Verify provenance and load runtime images
+        id: artifacts
+        shell: bash
+        env:
+          EXPECTED_BUILD_SHA: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || '' }}
+        run: bash .github/actions/devops/pipeline/load-runtime-artifacts.sh
+      - name: Run backend interaction flow
+        env:
+          AEKO_CI_IMAGE_REPOSITORY: aeko-ci
+          AEKO_CI_IMAGE_TAG: ${{ steps.artifacts.outputs.sha_tag }}
+          AEKO_CI_CLI_ARCHIVE: ${{ github.workspace }}/artifacts/runtime-tools/cli-release/aeko-cli-x86_64-unknown-linux-gnu.tar.gz
+          AEKO_CI_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/runtime-backend-${{ matrix.flow }}
+          AEKO_CI_CONTRACT_SCOPE: application
+          AEKO_CI_APPLICATION_FLOW: ${{ matrix.flow }}
+        run: bash scripts/ci-docker-full-stack-integration.sh
+      - name: Upload backend flow diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-backend-${{ matrix.flow }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/runtime-backend-${{ matrix.flow }}
+          if-no-files-found: ignore
+          retention-days: 7
+
+  cli-contract:
+    name: CLI Contract / Release binary
+    needs: resolve
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout contract source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || github.sha }}
+          fetch-depth: 0
+      - name: Download runtime tools artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-tools
+          path: artifacts/runtime-tools
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+      - name: Download network runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-network
+          path: artifacts/runtime-network
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+      - name: Download Explorer API runtime artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-explorer-api
+          path: artifacts/runtime-explorer-api
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+      - name: Verify provenance and load runtime images
+        id: artifacts
+        shell: bash
+        env:
+          EXPECTED_BUILD_SHA: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || '' }}
+        run: bash .github/actions/devops/pipeline/load-runtime-artifacts.sh
+      - name: Run CLI contract
+        env:
+          AEKO_CI_IMAGE_REPOSITORY: aeko-ci
+          AEKO_CI_IMAGE_TAG: ${{ steps.artifacts.outputs.sha_tag }}
+          AEKO_CI_CLI_ARCHIVE: ${{ github.workspace }}/artifacts/runtime-tools/cli-release/aeko-cli-x86_64-unknown-linux-gnu.tar.gz
+          AEKO_CI_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/runtime-cli-contract
+          AEKO_CI_CONTRACT_SCOPE: protocol
+        run: bash scripts/ci-docker-full-stack-integration.sh
+      - name: Upload CLI diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-cli-contract-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/runtime-cli-contract
+          if-no-files-found: ignore
+          retention-days: 7
+
+  runtime-contract-summary:
+    name: Summary / Runtime contract
+    if: always()
+    needs:
+      - resolve
+      - chain-contract
+      - rpc-method-contract
+      - backend-contract
+      - cli-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Aggregate contract results
+        shell: bash
+        env:
+          RESOLVE_RESULT: ${{ needs.resolve.result }}
+          CHAIN_RESULT: ${{ needs.chain-contract.result }}
+          RPC_METHOD_RESULT: ${{ needs.rpc-method-contract.result }}
+          BACKEND_RESULT: ${{ needs.backend-contract.result }}
+          CLI_RESULT: ${{ needs.cli-contract.result }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## AEKO runtime contract result"
+            echo
+            echo "| Contract | Result |"
+            echo "| --- | --- |"
+            echo "| Artifact resolution | $RESOLVE_RESULT |"
+            echo "| Critical RPC + WebSocket | $CHAIN_RESULT |"
+            echo "| Individual RPC methods | $RPC_METHOD_RESULT |"
+            echo "| Backend interaction flows | $BACKEND_RESULT |"
+            echo "| Release CLI | $CLI_RESULT |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          failed=0
+          for result in "$RESOLVE_RESULT" "$CHAIN_RESULT" "$RPC_METHOD_RESULT" "$BACKEND_RESULT" "$CLI_RESULT"; do
+            [ "$result" = "success" ] || failed=1
+          done
+          [ "$failed" -eq 0 ] || { echo "One or more runtime contract shards failed or were skipped." >&2; exit 1; }
+          echo "[PASS] all runtime contract shards passed"

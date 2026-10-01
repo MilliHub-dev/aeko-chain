@@ -26,7 +26,7 @@ const NETWORK_PRESENTATION = Object.freeze({
     stateLabel: 'Production network',
     explorerSummary: 'Browse confirmed Mainnet blocks, transactions, assets, accounts, and social activity.',
     developerSummary: 'Developer commands on this page target the selected Mainnet deployment.',
-    fundingSummary: 'Funding, grants, and airdrops are available through the funding request below.',
+    fundingSummary: 'Funding availability follows network policy. Developer airdrop is disabled on Mainnet.',
   }),
   testnet: Object.freeze({
     name: 'Testnet',

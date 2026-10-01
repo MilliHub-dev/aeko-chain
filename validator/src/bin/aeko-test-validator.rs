@@ -474,6 +474,9 @@ fn main() {
             .ok()
             .map(|value| value.trim().to_owned())
             .filter(|value| !value.is_empty()),
+        disable_developer_airdrop: std::env::var("AEKO_NETWORK")
+            .map(|value| value.trim().eq_ignore_ascii_case("mainnet"))
+            .unwrap_or(false),
         account_indexes,
         ..JsonRpcConfig::default_for_test()
     });

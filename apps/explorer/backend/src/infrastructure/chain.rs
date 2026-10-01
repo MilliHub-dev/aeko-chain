@@ -540,22 +540,18 @@ impl RpcChainClient {
         &self,
         address: &str,
         lamports: u64,
-        funding_authorization: Option<&str>,
         recent_blockhash: Option<&str>,
     ) -> Result<String> {
-        // Instant developer airdrop path: no admin approval. Kept on
-        // `requestAirdrop` (open RPC) so Test Console dispatches immediately.
-        // A supplied credential is forwarded for backward compatibility but
-        // ignored by the validator for airdrops.
-        self.request_airdrop_inner(address, lamports, funding_authorization, recent_blockhash)
+        // Developer airdrop never carries the protected Funding credential.
+        self.request_airdrop_inner(address, lamports, recent_blockhash)
     }
 
-    /// Approval-gated funding grant path. Requires the server-only
+    /// Protected funding transfer path. Requires the server-only
     /// `AEKO_FUNDING_AUTHORIZATION_KEY` when the validator configures one.
-    /// Used for public-request approvals and admin direct grants. Replays of
+    /// Used for public-request approvals and direct Admin funding. Replays of
     /// the same persisted (address, lamports, blockhash) intent recover the
-    /// same signature so safe retry never creates a second grant.
-    pub fn request_funding_grant(
+    /// same signature so safe retry never creates a duplicate funding transfer.
+    pub fn request_funding_transfer(
         &self,
         address: &str,
         lamports: u64,
@@ -575,14 +571,13 @@ impl RpcChainClient {
             "fundingAuthorization": funding_authorization,
             "recentBlockhash": recent_blockhash,
         });
-        self.rpc_request("requestGrant", json!([address, lamports, config]))
+        self.rpc_request("requestFunding", json!([address, lamports, config]))
     }
 
     fn request_airdrop_inner(
         &self,
         address: &str,
         lamports: u64,
-        funding_authorization: Option<&str>,
         recent_blockhash: Option<&str>,
     ) -> Result<String> {
         let _: Pubkey = address
@@ -594,10 +589,7 @@ impl RpcChainClient {
         if recent_blockhash.is_some_and(|value| value.trim().is_empty()) {
             bail!("funding recent blockhash cannot be empty");
         }
-        let config = json!({
-            "fundingAuthorization": funding_authorization,
-            "recentBlockhash": recent_blockhash,
-        });
+        let config = json!({ "recentBlockhash": recent_blockhash });
         self.rpc_request("requestAirdrop", json!([address, lamports, config]))
     }
 

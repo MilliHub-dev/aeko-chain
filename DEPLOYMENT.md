@@ -171,15 +171,15 @@ ADMIN_PASSWORD=<operator password>
 ADMIN_SESSION_SECRET=<16+ random characters>
 AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN=<private Admin-to-Explorer settings token>
 # Required on every non-local funding deployment; configure the identical
-# secret on this network's Validator and Explorer API. requestGrant validates
-# it, while the instant requestAirdrop path remains approval-free.
+# secret on this network's Validator and Explorer API. requestFunding validates
+# it. requestAirdrop is a separate test-environment utility and Mainnet rejects it.
 AEKO_FUNDING_AUTHORIZATION_KEY=<32-plus-character-server-secret>
 AEKO_FUNDING_REQUESTS_PER_10_MIN=5
 AEKO_FAUCET_PER_REQUEST_CAP=100
 ```
 
 Funding policy values such as the public request amount, wallet cooldown, daily
-grant budget, Admin manual-grant cap, and developer-airdrop cap live in the
+Funding budget, direct Admin Funding cap, and developer-airdrop cap live in the
 Explorer PostgreSQL `funding_settings` record. Migration defaults seed the
 first record; Operations Web is the normal editor. Do not configure the retired
 `FUNDING_DEFAULT_*` or `FUNDING_MAX_*` environment variables as parallel

@@ -135,7 +135,7 @@ services:
       - --keypair
       - /keys/faucet-keypair.json
       # Hard ceiling per airdrop request, enforced by the faucet itself. Per-wallet
-      # Grant policy, cooldown and daily budget are enforced by the active Explorer backend/PostgreSQL deployment.
+      # Funding policy, cooldown and daily budget are enforced by the active Explorer backend/PostgreSQL deployment.
       - --per-request-cap
       - ${AEKO_FAUCET_PER_REQUEST_CAP:-100}
     depends_on:
@@ -152,6 +152,7 @@ services:
     restart: unless-stopped
     environment:
       AEKO_NODE_ROLE: validator
+      AEKO_NETWORK: ${AEKO_NETWORK:-testnet}
       AEKO_BOOTSTRAP: "1"
       AEKO_IDENTITY_FILE: /keys/validator-1-keypair.json
       AEKO_VOTE_FILE: /keys/vote-1-keypair.json

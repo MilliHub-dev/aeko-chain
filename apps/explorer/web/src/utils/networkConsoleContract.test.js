@@ -155,11 +155,11 @@ test('accounts workspace keeps public funding approval separate from direct Test
   assert.match(funding, /retry: false/);
   assert.doesNotMatch(funding, /setTimeout\(refreshStatus/);
   assert.match(funding, /waiting for an Admin decision/i);
-  assert.match(funding, /Admin approved the grant/i);
+  assert.match(funding, /Admin approved the funding request/i);
   assert.match(funding, /useToaster/);
   assert.match(funding, /StatusBanner/);
   assert.match(funding, /Funding request submitted/);
-  assert.match(funding, /Grant confirmed/);
+  assert.match(funding, /Funding confirmed/);
   assert.doesNotMatch(funding, /requestError/);
   assert.doesNotMatch(funding, /decideRequest|approve.*fetch|\/admin\/funding/);
 });
@@ -189,6 +189,8 @@ test('funding runtime is owned by the Scan backend after the Admin gateway remov
   const migration = await source('../../../explorer/backend/migrations/0010_funding.sql');
   const integrityMigration = await source('../../../explorer/backend/migrations/0012_funding_state_machine.sql');
   const fundingFeature = await source('../../../explorer/backend/src/features/funding/mod.rs');
+  const fundingSettlement = await source('../../../explorer/backend/src/features/funding/settlement.rs');
+  const fundingRuntime = `${fundingFeature}\n${fundingSettlement}`;
 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS funding_settings/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS funding_requests/);
@@ -199,17 +201,17 @@ test('funding runtime is owned by the Scan backend after the Admin gateway remov
   assert.match(fundingFeature, /\/funding\/request/);
   assert.match(fundingFeature, /\/funding\/airdrop/);
   assert.match(fundingFeature, /x-aeko-settings-token/);
-  assert.match(fundingFeature, /request_funding_airdrop/);
+  assert.match(fundingRuntime, /request_funding_airdrop/);
   assert.match(fundingFeature, /create_public_funding_request/);
   assert.match(fundingFeature, /reserve_public_funding_request/);
-  assert.match(fundingFeature, /confirm_funding_request/);
+  assert.match(fundingRuntime, /confirm_funding_request/);
   assert.match(fundingFeature, /create_funding_airdrop/);
-  assert.match(fundingFeature, /is_funding_available/);
-  assert.doesNotMatch(fundingFeature, /finalize_funding_request/);
+  assert.match(fundingRuntime, /is_funding_available/);
+  assert.doesNotMatch(fundingRuntime, /finalize_funding_request/);
 });
 
 test('Admin funding polling preserves persisted policy revisions and mainnet separation', async () => {
-  const adminPage = await source('../../../admin/src/app/(admin)/funding-grants/page.tsx');
+  const adminPage = await source('../../../admin/src/app/(admin)/funding/page.tsx');
   const adminProxy = await source('../../../admin/src/lib/funding-api.ts');
   const settingsRoute = await source('../../../admin/src/app/api/admin/funding/settings/route.ts');
   const requestsRoute = await source('../../../admin/src/app/api/admin/funding/requests/route.ts');
@@ -226,13 +228,17 @@ test('Admin funding polling preserves persisted policy revisions and mainnet sep
   assert.match(adminPage, /retry: false/);
   assert.doesNotMatch(adminPage, /setInterval/);
   assert.match(adminPage, /expectedRevision: settings\.revision/);
-  assert.match(adminPage, /consoleAirdropAggregateUnlimited/);
+  assert.match(adminPage, /developerAirdropEnabled/);
   assert.doesNotMatch(adminPage, /mainnet-disabled/);
   assert.doesNotMatch(adminPage, /Mainnet test funding is disabled/);
   assert.match(adminPage, /Loading the live funding policy and settlement state/);
-  assert.match(adminPage, /Manual operator grant/);
+  assert.match(adminPage, /Direct Admin funding/);
   assert.match(adminPage, /Check confirmation/);
   assert.match(adminPage, /Airdrop history/);
+  assert.match(adminPage, /Retrying safely/);
+  assert.match(adminPage, /Awaiting confirmation/);
+  assert.doesNotMatch(adminPage, /airdrop\.errorCode\s*\?\?/);
+  assert.doesNotMatch(adminPage, /test-funding/);
   assert.match(adminPage, /useToaster/);
   assert.match(adminPage, /FeedbackAlert/);
   assert.doesNotMatch(adminPage, /const \[notice, setNotice\]/);
@@ -294,7 +300,7 @@ test('Operations server state uses TanStack Query while privileged transport sta
 
 test('Operations Web paginates long datasets and keeps dense control pages focused', async () => {
   const dataTable = await source('../../../admin/src/components/data-table.tsx');
-  const fundingPage = await source('../../../admin/src/app/(admin)/funding-grants/page.tsx');
+  const fundingPage = await source('../../../admin/src/app/(admin)/funding/page.tsx');
   const settingsPage = await source('../../../admin/src/app/(admin)/settings/page.tsx');
   const socialPage = await source('../../../admin/src/app/(admin)/social/page.tsx');
   const protocolPage = await source('../../../admin/src/app/(admin)/protocol/page.tsx');
@@ -306,9 +312,9 @@ test('Operations Web paginates long datasets and keeps dense control pages focus
   assert.match(dataTable, /Showing/);
 
   assert.match(fundingPage, /SectionTabs/);
-  assert.match(fundingPage, /Grant queue/);
-  assert.match(fundingPage, /Policy & manual grant/);
-  assert.match(fundingPage, /Grant history/);
+  assert.match(fundingPage, /Funding requests/);
+  assert.match(fundingPage, /Policy & direct funding/);
+  assert.match(fundingPage, /Funding history/);
   assert.match(fundingPage, /Airdrop history/);
   assert.match(fundingPage, /syncError/);
   assert.match(fundingPage, /lastSyncedAt/);

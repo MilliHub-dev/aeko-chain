@@ -22,15 +22,15 @@ function requestMessage(request) {
     case 'pending':
       return 'Request received. It is waiting for an Admin decision.';
     case 'processing':
-      return 'Admin approved the grant and settlement started. No action is required from you.';
+      return 'Admin approved the funding request and settlement started. No action is required from you.';
     case 'submitted':
-      return 'Admin approved the grant. The transfer was submitted and is awaiting chain confirmation.';
+      return 'Admin approved the funding request. The transfer was submitted and is awaiting chain confirmation.';
     case 'confirmed':
-      return `${request.amountAeko} AEKO grant confirmed on-chain.`;
+      return `${request.amountAeko} AEKO funding confirmed on-chain.`;
     case 'rejected':
       return 'The Admin rejected this funding request.';
     case 'failed':
-      return 'The approved grant transfer failed on-chain. No confirmed grant was recorded.';
+      return 'The approved funding transfer failed on-chain. No confirmed funding transfer was recorded.';
     default:
       return 'Funding request status is being checked.';
   }
@@ -38,6 +38,32 @@ function requestMessage(request) {
 
 function messageFrom(error, fallback) {
   return error instanceof Error ? error.message : fallback;
+}
+
+function fundingErrorMessage(error, fallback = 'Funding request could not be completed.') {
+  switch (error?.code) {
+    case 'FUNDING_SUBMISSION_RETRY_PENDING':
+      return 'Funding submission is retrying safely. No duplicate transfer will be created.';
+    case 'REQUEST_PENDING':
+      return 'This wallet already has a funding request in progress.';
+    case 'COOLDOWN':
+      return 'This wallet is still in its funding cooldown.';
+    case 'BUDGET_EXHAUSTED':
+      return 'Today\'s public funding allocation has been used.';
+    default:
+      return messageFrom(error, fallback);
+  }
+}
+
+function settlementMessage(code) {
+  switch (code) {
+    case 'FUNDING_SUBMISSION_RETRY_PENDING':
+      return 'Funding submission is retrying safely.';
+    case 'FUNDING_CONFIRMATION_PENDING':
+      return 'Waiting for chain confirmation.';
+    default:
+      return '';
+  }
 }
 
 export default function TestnetFundingRequest({ fundingUrl, networkName = 'Network' }) {
@@ -97,7 +123,7 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
       pushToast({
         kind: 'error',
         title: 'Funding request failed',
-        message: messageFrom(error, 'Funding request failed.'),
+        message: fundingErrorMessage(error, 'Funding request failed.'),
       });
     },
   });
@@ -125,7 +151,7 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
     pollErrorToastRef.current = pushToast({
       kind: 'error',
       title: 'Status check interrupted',
-      message: `${messageFrom(requestQuery.error, 'Funding status is temporarily unavailable.')} Your request id is retained and status checks will retry automatically.`,
+      message: `${fundingErrorMessage(requestQuery.error, 'Funding status is temporarily unavailable.')} Your request id is retained and status checks will retry automatically.`,
     });
   }, [
     dismissToast,
@@ -147,7 +173,7 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
     if (request.status === 'confirmed') {
       pushToast({
         kind: 'success',
-        title: 'Grant confirmed',
+        title: 'Funding confirmed',
         message: `${request.amountAeko} AEKO is confirmed on-chain.`,
       });
       return;
@@ -155,11 +181,11 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
 
     pushToast({
       kind: 'error',
-      title: request.status === 'rejected' ? 'Funding request rejected' : 'Grant transfer failed',
+      title: request.status === 'rejected' ? 'Funding request rejected' : 'Funding transfer failed',
       message:
         request.status === 'rejected'
           ? 'The Admin rejected this funding request.'
-          : 'The approved grant transfer failed on-chain. No confirmed grant was recorded.',
+          : 'The approved funding transfer failed on-chain. No confirmed funding transfer was recorded.',
     });
   }, [pushToast, request?.amountAeko, request?.id, request?.status]);
 
@@ -167,7 +193,7 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
   const policyError = !fundingUrl
     ? `${networkName} funding is temporarily unavailable. Please try again later.`
     : policyQuery.isError
-      ? messageFrom(policyQuery.error, `${networkName} funding is temporarily unavailable.`)
+      ? fundingErrorMessage(policyQuery.error, `${networkName} funding is temporarily unavailable.`)
       : '';
   const valid = ADDRESS_RE.test(address.trim());
 
@@ -268,9 +294,9 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
                       Transaction {request.signature}
                     </div>
                   ) : null}
-                  {request.errorCode && !requestFailed ? (
+                  {request.errorCode && !requestFailed && settlementMessage(request.errorCode) ? (
                     <div className="mt-1 text-xs text-amber-200/80">
-                      Settlement observation: {request.errorCode}
+                      {settlementMessage(request.errorCode)}
                     </div>
                   ) : null}
                 </div>
@@ -280,7 +306,7 @@ export default function TestnetFundingRequest({ fundingUrl, networkName = 'Netwo
         </div>
 
         <aside className="border-t border-white/10 bg-black/20 p-6 sm:p-8 lg:border-l lg:border-t-0">
-          <div className="text-sm font-semibold text-white">Grant policy</div>
+          <div className="text-sm font-semibold text-white">Funding policy</div>
           <p className="mt-1 text-xs leading-relaxed text-gray-500">
             Requests use the published {networkName} funding policy. Limits and settlement checks are enforced automatically before AEKO is released.
           </p>

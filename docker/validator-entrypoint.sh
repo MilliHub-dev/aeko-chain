@@ -11,6 +11,27 @@ RESET_LEDGER=${AEKO_RESET_LEDGER:-0}
 REQUIRE_EXISTING_LEDGER=${AEKO_REQUIRE_EXISTING_LEDGER:-0}
 REQUIRE_REMOTE_FAUCET=${AEKO_REQUIRE_REMOTE_FAUCET:-0}
 REQUIRE_GOSSIP_HOST=${AEKO_REQUIRE_GOSSIP_HOST:-0}
+NETWORK=${AEKO_NETWORK:-localnet}
+FUNDING_AUTHORIZATION_KEY=${AEKO_FUNDING_AUTHORIZATION_KEY:-}
+
+case "$NETWORK" in
+  localnet)
+    ;;
+  testnet|devnet|mainnet)
+    if [ -z "$FUNDING_AUTHORIZATION_KEY" ]; then
+      echo "error: AEKO_FUNDING_AUTHORIZATION_KEY is required when AEKO_NETWORK=$NETWORK" >&2
+      exit 64
+    fi
+    if [ "${#FUNDING_AUTHORIZATION_KEY}" -lt 32 ]; then
+      echo "error: AEKO_FUNDING_AUTHORIZATION_KEY must be at least 32 characters when AEKO_NETWORK=$NETWORK" >&2
+      exit 64
+    fi
+    ;;
+  *)
+    echo "error: AEKO_NETWORK=$NETWORK must be mainnet, testnet, devnet, or localnet" >&2
+    exit 64
+    ;;
+esac
 
 require_file() {
   local path=$1

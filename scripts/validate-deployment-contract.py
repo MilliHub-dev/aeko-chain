@@ -22,8 +22,15 @@ PUBLIC_ENV = DOCKER / "env.public.example"
 ADMIN_ENV = ROOT / "apps" / "admin" / ".env.local.example"
 EXPLORER_ENV = ROOT / "apps" / "explorer" / "backend" / ".env.example"
 FUNDING_FEATURE = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "funding" / "mod.rs"
+FUNDING_SETTLEMENT = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "funding" / "settlement.rs"
+FUNDING_GUARDS = ROOT / "apps" / "explorer" / "backend" / "src" / "features" / "funding" / "guards.rs"
 FUNDING_CONFIG = ROOT / "apps" / "explorer" / "backend" / "src" / "config" / "mod.rs"
 FUNDING_HTTP_E2E = ROOT / "apps" / "explorer" / "backend" / "tests" / "funding_http_e2e.rs"
+FUNDING_IDEMPOTENCY_MIGRATION = ROOT / "apps" / "explorer" / "backend" / "migrations" / "0019_admin_funding_idempotency.sql"
+FULL_STACK_INTEGRATION = ROOT / "scripts" / "ci-docker-full-stack-integration.sh"
+JS_SDK_CLIENT = ROOT / "apps" / "sdk" / "js" / "src" / "connection.ts"
+RUST_SDK_CLIENT = ROOT / "apps" / "sdk" / "rust-client" / "src" / "client.rs"
+PYTHON_SDK_CLIENT = ROOT / "apps" / "sdk" / "python" / "src" / "aeko_sdk" / "client.py"
 FUNDING_DESIGN = ROOT / "docs" / "superpowers" / "specs" / "2026-09-25-funding-scan-cleanup-design.md"
 FAUCET_REPLAY_TEST = ROOT / "faucet" / "tests" / "local-faucet.rs"
 ADMIN_FUNDING_CLIENT = ROOT / "apps" / "admin" / "src" / "lib" / "funding-api.ts"
@@ -112,8 +119,16 @@ def main() -> int:
     admin_env = read(ADMIN_ENV)
     explorer_env = read(EXPLORER_ENV)
     funding_feature = read(FUNDING_FEATURE)
+    funding_settlement = read(FUNDING_SETTLEMENT)
+    funding_guards = read(FUNDING_GUARDS)
+    funding_runtime = funding_feature + funding_settlement + funding_guards
     funding_config = read(FUNDING_CONFIG)
     funding_http_e2e = read(FUNDING_HTTP_E2E)
+    funding_idempotency_migration = read(FUNDING_IDEMPOTENCY_MIGRATION)
+    full_stack_integration = read(FULL_STACK_INTEGRATION)
+    js_sdk_client = read(JS_SDK_CLIENT)
+    rust_sdk_client = read(RUST_SDK_CLIENT)
+    python_sdk_client = read(PYTHON_SDK_CLIENT)
     funding_design = read(FUNDING_DESIGN)
     faucet_replay_test = read(FAUCET_REPLAY_TEST)
     admin_funding_client = read(ADMIN_FUNDING_CLIENT)
@@ -285,6 +300,11 @@ def main() -> int:
     require(
         "refusing to create a replacement genesis" in validator_entrypoint,
         "validator entrypoint must fail closed instead of silently replacing genesis",
+    )
+    require(
+        "AEKO_FUNDING_AUTHORIZATION_KEY is required when AEKO_NETWORK=" in validator_entrypoint
+        and "AEKO_FUNDING_AUTHORIZATION_KEY must be at least 32 characters" in validator_entrypoint,
+        "non-local Validator deployments must fail closed without a strong Funding authorization key",
     )
     require(
         "refusing to generate a replacement chain identity" in key_preflight,
@@ -592,47 +612,89 @@ def main() -> int:
         '"/funding/airdrop"',
         '"/admin/funding/settings"',
         '"/admin/funding/requests"',
-        '"/admin/funding/grant"',
+        '"/admin/funding/send"',
         "authorize_admin",
         "ensure_funding_available",
         "run_settlement_reconciler",
         "reconcile_submitted_settlements_once",
     ):
-        require(required in funding_feature, f"Explorer funding module missing {required}")
+        require(required in funding_runtime, f"Explorer funding module missing {required}")
     funding_state = read(ROOT / "apps" / "explorer" / "backend" / "src" / "http" / "state.rs")
     require(
         "pub fn is_funding_available(&self) -> bool" in funding_state
-        and "never branches on the deployment network" in funding_state,
-        "Explorer funding must be available on every deployed network",
+        and "pub fn is_test_environment(&self) -> bool" in funding_state
+        and "developer_airdrop_enabled: state.is_test_environment()" in funding_runtime,
+        "Explorer funding must remain available on every network while developer airdrop follows the test-environment boundary",
     )
     for required in (
         "submission_blockhash",
         "FUNDING_SUBMISSION_RETRY_PENDING",
-        "recover_processing_grant_submission",
+        "recover_processing_funding_submission",
         "recover_processing_airdrop_submission",
     ):
         require(
-            required in funding_feature,
+            required in funding_runtime,
             f"Explorer funding recovery contract missing {required}",
         )
     require(
         "blockhash_calls.load(Ordering::SeqCst),\n        1" in funding_http_e2e
-        and "processing_grant_replays_only_persisted_intent" in funding_http_e2e,
+        and "processing_funding_replays_only_persisted_intent" in funding_http_e2e,
         "funding HTTP E2E must prove response-loss recovery reuses the persisted blockhash",
     )
     require(
-        "expired_submitted_grant_becomes_terminal_failed_without_fresh_intent" in funding_http_e2e
+        "expired_submitted_funding_becomes_terminal_failed_without_fresh_intent" in funding_http_e2e
         and "isBlockhashValid" in read(
             ROOT / "apps" / "explorer" / "backend" / "src" / "infrastructure" / "chain.rs"
         ),
         "funding E2E must prove an expired unobserved intent becomes terminal without a fresh transfer",
     )
     require(
-        "grant confirmation must not resubmit the durable transaction" in funding_http_e2e
+        "funding confirmation must not resubmit the durable transaction" in funding_http_e2e
         and "airdrop confirmation must not resubmit the durable transaction" in funding_http_e2e
-        and "confirmation continues in the reconciler" in funding_feature,
+        and "confirmation continues in the reconciler" in funding_runtime,
         "funding HTTP handlers must return after durable signature persistence and reconcile without a duplicate transfer",
     )
+    reject(
+        funding_feature,
+        "error_message: Option<String>",
+        "Explorer funding HTTP views",
+    )
+    require(
+        'get("errorMessage").is_none()' in funding_http_e2e
+        and "simulated submission response failure" in funding_http_e2e,
+        "funding HTTP E2E must prove raw RPC diagnostics never cross the Admin API boundary",
+    )
+    require(
+        "funding_requests_admin_idempotency_unique" in funding_idempotency_migration
+        and "idempotency_key" in funding_idempotency_migration
+        and "IDEMPOTENCY_CONFLICT" in funding_http_e2e
+        and "replaying a confirmed Admin request must not submit another transfer" in funding_http_e2e,
+        "direct Admin Funding retries must reuse one durable request/settlement intent",
+    )
+    require(
+        "ADMIN_IDEMPOTENCY_KEY" in full_stack_integration
+        and "idempotent Admin retry changed wallet balance twice" in full_stack_integration,
+        "production-compose dogfood must prove direct Admin Funding retries are idempotent",
+    )
+    require(
+        "docker pull" not in full_stack_integration
+        and "docker image inspect" in full_stack_integration
+        and "compose create --pull never key-bootstrap" in full_stack_integration,
+        "production-compose dogfood must consume preloaded immutable workflow artifacts without registry pulls",
+    )
+    for label, client in (
+        ("JavaScript SDK", js_sdk_client),
+        ("Rust SDK", rust_sdk_client),
+        ("Python SDK", python_sdk_client),
+    ):
+        reject(client, '"requestGrant"', label)
+        reject(client, "'requestGrant'", label)
+        reject(client, "/admin/funding/grant", label)
+        require(
+            "requestFunding" in client and "/admin/funding/send" in client,
+            f"{label} must use canonical requestFunding and /admin/funding/send contracts",
+        )
+
     require(
         "test_same_airdrop_intent_produces_same_signed_transaction" in faucet_replay_test
         and "assert_eq!(first.signatures, replay.signatures)" in faucet_replay_test,
@@ -666,23 +728,23 @@ def main() -> int:
         "approve" in admin_funding_route
         and "reject" in admin_funding_route
         and "reconcile" in admin_funding_route,
-        "Operations funding route must expose explicit grant decisions/reconciliation",
+        "Operations funding route must expose explicit funding decisions/reconciliation",
     )
 
     # Real CI dogfood must exercise the protected chain path, not only mocks.
     for required in (
         "AEKO_FUNDING_AUTHORIZATION_KEY",
-        "protected requestGrant unexpectedly accepted",
+        "protected requestFunding unexpectedly accepted",
         "instant airdrop without approval",
         '"/funding/request"',
         '"/admin/funding/requests/{request_id}/decide"',
         "before = balance(recipient)",
         "after = balance(recipient)",
-        "confirmed grant balance delta",
-        '"/admin/funding/grants?limit=500"',
+        "confirmed funding balance delta",
+        '"/admin/funding/history?limit=500"',
         '"/funding/airdrop"',
         '"/admin/funding/airdrops?limit=500"',
-        "developer airdrop leaked into the confirmed grant ledger",
+        "developer airdrop leaked into the confirmed funding history",
     ):
         require(
             required in protocol_integration,
@@ -771,9 +833,9 @@ def main() -> int:
         "AEKO_RPC_URL",
         "AEKO_FUNDING_SMOKE_ADDRESS",
         "ADMIN_PASSWORD",
-        "Public Explorer API cannot approve grants",
+        "Public Explorer API cannot approve funding",
         "starting balance=",
-        "Admin ledger contains exactly one confirmed grant",
+        "Admin funding history contains exactly one confirmed transfer",
     ):
         require(
             required in funding_smoke,
@@ -862,18 +924,21 @@ def main() -> int:
         "README must explicitly document Explorer-owned funding",
     )
     require(
-        "a network only dispenses what its operator configured and funded" in readme,
-        "README must document per-network funding ownership",
+        "Each deployment owns its Faucet, protected Funding" in readme
+        and "Developer airdrop is not a" in readme
+        and "Mainnet distribution path" in readme,
+        "README must document per-network Funding ownership and the Mainnet airdrop boundary",
     )
     require(
         "scripts/smoke-funding-e2e.py" in testnet_runbook,
         "testnet runbook must document the deployed product funding smoke",
     )
     require(
-        "Public testnet funding uses the managed Explorer funding flow." in testnet_runbook
-        and "Instant `aeko airdrop`" in testnet_runbook
-        and "wait for admin approval" in testnet_runbook,
-        "testnet runbook must route public funding through Explorer, document instant airdrops, and describe approval-gated funding",
+        "Public testnet Funding uses the managed Explorer Funding flow." in testnet_runbook
+        and "On test environments, `aeko airdrop`" in testnet_runbook
+        and "waits for Admin approval" in testnet_runbook
+        and "Mainnet rejects them" in testnet_runbook,
+        "testnet runbook must route public Funding through Explorer and document the test-environment airdrop boundary",
     )
     require(
         "The Explorer backend owns settlement" in sdk_testnet_guide,
@@ -882,7 +947,7 @@ def main() -> int:
     require(
         "Aeko Scan calls the Explorer API directly" in testnet_environment
         and "authenticated Operations Admin approval" in testnet_environment,
-        "network environment docs must describe the current direct public grant boundary",
+        "network environment docs must describe the current direct public Funding boundary",
     )
     require(
         "### Registry discovery" in testnet_environment

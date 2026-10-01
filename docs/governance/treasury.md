@@ -85,12 +85,12 @@ not expose the test-network Faucet path as a substitute.
 
 Testnet/devnet/localnet funding uses test liquidity:
 
-- Aeko Scan may submit a public grant request.
-- Only authenticated Operations Admin may approve or reject that grant.
-- The Explorer backend enforces approval policy and settles approved grants through
-  the protected Validator `requestGrant` path and private Faucet.
+- Aeko Scan may submit a public Funding request.
+- Only authenticated Operations Admin may approve or reject that request.
+- The Explorer backend enforces approval policy and settles approved Funding through
+  the protected Validator `requestFunding` path and private Faucet.
 - Developer Test Console airdrops are direct test-network utilities and use a
-  separate ledger from Admin-approved grants.
+  separate history from confirmed public/Admin Funding.
 
 These operational funding rails can exist on an independently capitalized network,
 including a deliberately provisioned Mainnet, but they do not debit, unlock, or
