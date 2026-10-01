@@ -38,18 +38,30 @@ stateful_coolify_release=false
 run_ci_contract=true
 
 if [ "$ADMIN" = "true" ] || [ "$PACKAGING" = "true" ]; then run_admin=true; fi
-if [ "$CLI" = "true" ] || [ "$PACKAGING" = "true" ]; then run_cli=true; fi
-if [ "$EXPLORER_BACKEND" = "true" ] || [ "$PACKAGING" = "true" ]; then run_explorer_backend=true; fi
 if [ "$EXPLORER_WEB" = "true" ] || [ "$PACKAGING" = "true" ]; then run_explorer_web=true; fi
-if [ "$CORE" = "true" ] || [ "$PACKAGING" = "true" ]; then run_network=true; fi
 
-# Main core releases rebuild every deployable application image because shared
-# chain/runtime changes can affect release binaries and container compatibility.
-# Core pull requests keep the expensive app image rebuilds scoped to the network.
-if [ "$GITHUB_EVENT_NAME" != "pull_request" ] && [ "$CORE" = "true" ]; then
-  run_admin=true
+# CLI, Explorer API, and network artifacts form one exact runtime-integration
+# bundle. If any member changes, rebuild the three producers so the current
+# commit can still run the exact full-stack contract instead of silently
+# falling back to an older known-good artifact set.
+if [ "$CLI" = "true" ] || [ "$EXPLORER_BACKEND" = "true" ] || [ "$CORE" = "true" ] || [ "$PACKAGING" = "true" ]; then
   run_cli=true
   run_explorer_backend=true
+  run_network=true
+fi
+
+# Shared chain/runtime changes are also client-contract changes, so keep the
+# external SDK validation lanes on core changes even when UI image rebuilds are
+# scoped out of pull requests.
+if [ "$CORE" = "true" ]; then
+  run_sdk_non_rust=true
+  run_sdk_rust=true
+fi
+
+# Main core releases also rebuild deployable UI image surfaces for release
+# compatibility. Pull requests keep those UI image rebuilds scoped out.
+if [ "$GITHUB_EVENT_NAME" != "pull_request" ] && [ "$CORE" = "true" ]; then
+  run_admin=true
   run_explorer_web=true
 fi
 
