@@ -56,10 +56,9 @@ fn requester_subject(headers: &HeaderMap) -> String {
 }
 
 pub(super) fn ensure_funding_available(_state: &SharedState) -> FundingResult<()> {
-    // Funding, funding transfers, and airdrops unconditionally work on every deployment.
-    // The flow never branches on the network name; each deployment constrains
-    // itself through its own faucet balance, authorization credential, caps,
-    // budgets, and approval queue.
+    // Funding is available on every configured deployment. Developer airdrop
+    // availability is a separate policy boundary enforced below; Mainnet
+    // rejects that utility while public/Admin Funding remains available.
     Ok(())
 }
 
