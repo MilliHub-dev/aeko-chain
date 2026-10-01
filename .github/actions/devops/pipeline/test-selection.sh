@@ -659,19 +659,19 @@ run_release_case "CI-only main push does not publish unrelated Docker images" \
   push refs/heads/main false true false false false false false false false \
   false false false false false false
 run_release_case "Explorer Web main push publishes only Explorer UI" \
-  push refs/heads/main true false false false false false false true \
+  push refs/heads/main true false false false false false false false true \
   true false false false true false
 run_release_case "Explorer backend main push publishes only Explorer API aliases" \
-  push refs/heads/main true false false false false false true false \
+  push refs/heads/main true false false false false false false true false \
   true false false true false false
 run_release_case "core main push publishes only core-backed runtime images" \
-  push refs/heads/main true false false false true false false false \
+  push refs/heads/main true false false false false true false false false \
   true false true true false true
 run_release_case "packaging main push publishes every image target" \
-  push refs/heads/main true false false false false true false false \
+  push refs/heads/main true false false false false false true false false \
   true true true true true true
 run_release_case "same-repository product pull request keeps images off Docker Hub" \
-  pull_request refs/pull/58/merge true false true false false false false true false \
+  pull_request refs/pull/58/merge true false true false false false false false true \
   false false false false false false
 run_release_case "SDK-only main push does not publish Docker images" \
   push refs/heads/main false false false false false false false false false \
