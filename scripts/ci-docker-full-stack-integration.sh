@@ -9,6 +9,11 @@ cd "$REPO_ROOT"
 
 IMAGE_REPOSITORY="${AEKO_CI_IMAGE_REPOSITORY:-aeko-ci}"
 IMAGE_TAG="$AEKO_CI_IMAGE_TAG"
+CONTRACT_SCOPE="${AEKO_CI_CONTRACT_SCOPE:-full}"
+case "$CONTRACT_SCOPE" in
+  chain|application|full) ;;
+  *) echo "Unsupported AEKO_CI_CONTRACT_SCOPE: $CONTRACT_SCOPE" >&2; exit 2 ;;
+esac
 CLI_ARCHIVE="$AEKO_CI_CLI_ARCHIVE"
 PROJECT="aeko-runtime-${GITHUB_RUN_ID:-local}"
 ARTIFACT_DIR="${AEKO_CI_ARTIFACT_DIR:-$REPO_ROOT/artifacts/runtime-contract}"
@@ -234,6 +239,7 @@ compose create --pull never key-bootstrap >/dev/null
 COMPOSE_NETWORK="${PROJECT}_aeko"
 docker network inspect "$COMPOSE_NETWORK" >/dev/null
 
+if [ "$CONTRACT_SCOPE" != "chain" ]; then
 docker run -d --name "$POSTGRES_CONTAINER"   --network "$COMPOSE_NETWORK" --network-alias postgres   -e POSTGRES_USER=aeko -e POSTGRES_PASSWORD=aeko -e POSTGRES_DB=aeko_explorer   postgres:16-alpine >/dev/null
 
 for _ in $(seq 1 60); do
@@ -244,6 +250,7 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 docker exec "$POSTGRES_CONTAINER" pg_isready -U aeko -d aeko_explorer >/dev/null   || fail "PostgreSQL sidecar never became ready"
+fi
 
 echo "==> Starting production network/API services (UI intentionally excluded)"
 compose up --pull never -d key-bootstrap faucet validator social-bootstrap protocol-bootstrap
@@ -259,7 +266,9 @@ for service in key-bootstrap social-bootstrap protocol-bootstrap; do
   echo "[ok] $service completed successfully"
 done
 
-compose up --pull never -d explorer-api
+if [ "$CONTRACT_SCOPE" != "chain" ]; then
+  compose up --pull never -d explorer-api
+fi
 
 service_ip() {
   local service="$1"
@@ -270,17 +279,21 @@ service_ip() {
 }
 
 VALIDATOR_IP="$(service_ip validator)"
-EXPLORER_IP="$(service_ip explorer-api)"
 test -n "$VALIDATOR_IP" || fail "Validator container IP is empty"
-test -n "$EXPLORER_IP" || fail "Explorer API container IP is empty"
 RPC_URL="http://${VALIDATOR_IP}:8899"
 WS_HOST="$VALIDATOR_IP"
-EXPLORER_API_URL="http://${EXPLORER_IP}:8088"
-export RPC_URL EXPLORER_API_URL
+export RPC_URL
 
 wait_rpc "$RPC_URL"
-wait_json_url "Explorer API liveness" "$EXPLORER_API_URL/"
-wait_json_url "Explorer API strict readiness" "$EXPLORER_API_URL/health" 240
+
+if [ "$CONTRACT_SCOPE" != "chain" ]; then
+  EXPLORER_IP="$(service_ip explorer-api)"
+  test -n "$EXPLORER_IP" || fail "Explorer API container IP is empty"
+  EXPLORER_API_URL="http://${EXPLORER_IP}:8088"
+  export EXPLORER_API_URL
+  wait_json_url "Explorer API liveness" "$EXPLORER_API_URL/"
+  wait_json_url "Explorer API strict readiness" "$EXPLORER_API_URL/health" 240
+fi
 
 echo "==> Generating dedicated runtime smoke wallets with the exact release keygen"
 generate_smoke_key() {
@@ -363,6 +376,7 @@ while IFS= read -r method; do
 done <"$ARTIFACT_DIR/rpc-methods.txt"
 echo "[ok] all $RPC_METHOD_COUNT declared JSON-RPC methods are registered"
 
+if [ "$CONTRACT_SCOPE" != "chain" ]; then
 echo "==> Exercising Explorer API and Funding end-to-end with curl"
 for path in / /health /readiness /overview /network/readiness /registry /registry/social   /registry/protocol /protocol/status /social/status '/posts?limit=1' '/engagement?limit=1'   '/stakes?limit=1' '/rewards?limit=1' '/blocks?limit=1' '/transactions?limit=1'   '/tokens/transfers?limit=1' '/nfts?limit=1' /settings
 do
@@ -513,12 +527,18 @@ wait_balance_at_least "$CLI_SENDER_ADDRESS" $((CLI_SENDER_BEFORE + 2000000000)) 
 wait_balance_at_least "$CLI_RECIPIENT_ADDRESS" 500000000 "release CLI transfer reached recipient"
 echo "[ok] exact release CLI can query and submit to the runtime network"
 
-echo "==> Exercising all declared WebSocket subscriptions"
-python3 scripts/ci-rpc-ws-contract.py   --host "$WS_HOST" --port 8900   --account "$PUBLIC_ADDRESS" --signature "$PUBLIC_SIGNATURE"   --manifest "$ARTIFACT_DIR/ws-methods.txt"
+fi
 
-echo "==> Running deeper non-UI Social and Protocol integration checks"
-AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_API_URL" python3 scripts/smoke-aeko-social.py
-AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_API_URL" python3 scripts/smoke-aeko-protocol.py
+if [ "$CONTRACT_SCOPE" != "application" ]; then
+  echo "==> Exercising all declared WebSocket subscriptions"
+  python3 scripts/ci-rpc-ws-contract.py --host "$WS_HOST" --port 8900 --account "$PUBLIC_ADDRESS" --signature "$PUBLIC_SIGNATURE" --manifest "$ARTIFACT_DIR/ws-methods.txt"
+fi
+
+if [ "$CONTRACT_SCOPE" != "chain" ]; then
+  echo "==> Running deeper non-UI Social and Protocol integration checks"
+  AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_API_URL" python3 scripts/smoke-aeko-social.py
+  AEKO_RPC_URL="$RPC_URL" AEKO_EXPLORER_API_URL="$EXPLORER_API_URL" python3 scripts/smoke-aeko-protocol.py
+fi
 
 capture_diagnostics
-echo "[PASS] production Coolify runtime passed API, JSON-RPC, WebSocket, Funding/Faucet, account, Social, Protocol, and exact CLI release integration"
+echo "[PASS] production Coolify runtime contract scope $CONTRACT_SCOPE passed"

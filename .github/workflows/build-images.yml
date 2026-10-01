@@ -570,6 +570,40 @@ jobs:
           SDK_VALIDATION_RESULT: ${{ needs.sdk_validation.result }}
         run: bash .github/actions/devops/pipeline/verify-results.sh
 
+  runtime_baseline:
+    name: Integration / Known-good baseline dispatch
+    needs:
+      - classify
+    if: >-
+      needs.classify.result == 'success' &&
+      (
+        github.event_name == 'push' ||
+        (
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        )
+      )
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch latest-success compatibility integration
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          : "${TARGET_REF:?target ref is required}"
+          gh workflow run full-stack-integration.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "$TARGET_REF" \
+            -f "selection_mode=last-success" \
+            -f "target_ref=$TARGET_REF"
+          echo "Dispatched known-good compatibility integration; artifact source will be resolved at execution time."
+
   runtime_integration:
     name: Integration / Runtime artifacts
     needs:
@@ -610,9 +644,11 @@ jobs:
           gh workflow run full-stack-integration.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref "$TARGET_REF" \
+            -f "selection_mode=exact" \
             -f "producer_run_id=$PRODUCER_RUN_ID" \
             -f "build_sha=$BUILD_SHA" \
-            -f "source_head_sha=$SOURCE_HEAD_SHA"
+            -f "source_head_sha=$SOURCE_HEAD_SHA" \
+            -f "target_ref=$TARGET_REF"
 
           echo "Dispatched runtime integration from DevOps run $PRODUCER_RUN_ID for build $BUILD_SHA"
 
