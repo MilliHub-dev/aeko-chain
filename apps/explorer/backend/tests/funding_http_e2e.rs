@@ -853,7 +853,9 @@ async fn processing_funding_replays_only_persisted_intent_after_submission_respo
         "FUNDING_SUBMISSION_RETRY_PENDING"
     );
     assert!(
-        !failed_response.to_string().contains("simulated submission response failure"),
+        !failed_response
+            .to_string()
+            .contains("simulated submission response failure"),
         "funding HTTP errors must not expose raw RPC internals: {failed_response}"
     );
 
@@ -875,7 +877,9 @@ async fn processing_funding_replays_only_persisted_intent_after_submission_respo
         "Admin funding views must expose stable errorCode values, not diagnostic errorMessage text: {admin_view}"
     );
     assert!(
-        !admin_view.to_string().contains("simulated submission response failure"),
+        !admin_view
+            .to_string()
+            .contains("simulated submission response failure"),
         "Admin funding views must not expose raw RPC internals: {admin_view}"
     );
 
@@ -1008,8 +1012,7 @@ async fn processing_funding_replays_only_persisted_intent_after_submission_respo
         "replaying a confirmed Admin request must not submit another transfer"
     );
 
-    let conflicting_body =
-        json!({"address": Pubkey::new_unique().to_string(), "amountAeko": 2.0});
+    let conflicting_body = json!({"address": Pubkey::new_unique().to_string(), "amountAeko": 2.0});
     let (status, conflict) = request_json_with_id(
         &app,
         Method::POST,
