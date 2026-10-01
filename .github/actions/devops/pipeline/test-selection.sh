@@ -426,6 +426,11 @@ assert_runtime_artifact_handoff_contract() {
     exit 1
   fi
   grep -Fq 'explorer-route-results.json' "$runtime_script"
+  grep -Fq 'probe="${probe//:id/00000000-0000-0000-0000-000000000000}"' "$runtime_script"
+  if grep -Fq 'probe="${probe//:id/ci-missing-request}"' "$runtime_script"; then
+    echo "Funding request route probes must use a syntactically valid missing UUID." >&2
+    exit 1
+  fi
   grep -Fq 'application_flow_enabled funding-public' "$runtime_script"
   grep -Fq 'application_flow_enabled funding-admin' "$runtime_script"
   grep -Fq 'application_flow_enabled funding-airdrop' "$runtime_script"

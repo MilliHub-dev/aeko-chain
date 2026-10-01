@@ -446,7 +446,7 @@ while IFS=$'\t' read -r method path; do
     POST*|PATCH*|PUT*|DELETE*) API_ROUTE_FAILURES=$((API_ROUTE_FAILURES+1)); jq -cn --arg method "$method" --arg path "$path" '{method:$method,path:$path,outcome:"FAIL",coverage:"unmapped-mutation"}' >> "$API_ROUTE_RESULTS"; continue ;;
   esac
   if [ "$method" != GET ]; then jq -cn --arg method "$method" --arg path "$path" --arg coverage "$coverage" '{method:$method,path:$path,outcome:"PASS",coverage:$coverage}' >> "$API_ROUTE_RESULTS"; continue; fi
-  probe="$path"; probe="${probe//:slot/$SLOT_TWO}"; probe="${probe//:address/$ADMIN_ADDRESS}"; probe="${probe//:signature/ci-missing-signature}"; probe="${probe//:mint/$ADMIN_ADDRESS}"; probe="${probe//:token_id/ci-missing-token}"; probe="${probe//:collection_id/ci-missing-collection}"; probe="${probe//:post_id/ci-missing-post}"; probe="${probe//:id/ci-missing-request}"
+  probe="$path"; probe="${probe//:slot/$SLOT_TWO}"; probe="${probe//:address/$ADMIN_ADDRESS}"; probe="${probe//:signature/ci-missing-signature}"; probe="${probe//:mint/$ADMIN_ADDRESS}"; probe="${probe//:token_id/ci-missing-token}"; probe="${probe//:collection_id/ci-missing-collection}"; probe="${probe//:post_id/ci-missing-post}"; probe="${probe//:id/00000000-0000-0000-0000-000000000000}"
   [ "$probe" = /search ] && probe="/search?q=$ADMIN_ADDRESS"
   tmp="$WORK_DIR/api-route-$API_ROUTE_COUNT.json"; args=(--silent --show-error --max-time 20 -o "$tmp" -w '%{http_code}' -H 'Accept: application/json'); [[ "$path" == /admin/* ]] && args+=(-H "x-aeko-settings-token: $AEKO_EXPLORER_SETTINGS_ADMIN_TOKEN")
   status="$(curl "${args[@]}" "$EXPLORER_API_URL$probe" || true)"; outcome=PASS; coverage=successful-read
