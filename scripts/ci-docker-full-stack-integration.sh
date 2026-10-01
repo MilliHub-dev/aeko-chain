@@ -460,6 +460,7 @@ rpc_probe_spec() {
       params='["11111111111111111111111111111111",{"encoding":"base64","commitment":"confirmed"}]'
       ;;
     getInflationReward)
+      expectation="inflation-reward"
       params="$(jq -cn --arg a "$PROBE_ADDRESS" --argjson epoch "$PROBE_EPOCH" '[[ $a ],{epoch:$epoch,commitment:"confirmed"}]')"
       ;;
     getSignatureStatuses)
@@ -513,7 +514,7 @@ rpc_probe_spec() {
       params='["AAAA",{"commitment":"confirmed"}]'
       ;;
     getPostAnchor)
-      params='["ci-missing-post",{"commitment":"confirmed"}]'
+      params="$(jq -cn --arg id "$PROBE_ADDRESS" '[$id,{commitment:"confirmed"}]')"
       ;;
     getPostsByCreator|getCreatorRewards|getClaimableRewards|getReputationScore|getSocialStakePositions)
       params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a]')"
@@ -522,7 +523,7 @@ rpc_probe_spec() {
       params="$(jq -cn --arg a "$PROBE_ADDRESS" --argjson epoch "$PROBE_EPOCH" '[$a,$epoch]')"
       ;;
     getEngagementScore)
-      params='["ci-missing-target"]'
+      params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,{commitment:"confirmed"}]')"
       ;;
     submitEngagementProof|stakeBehindCreator|unstakeBehindCreator|claimSocialStakeYield)
       expectation="transaction"
@@ -565,6 +566,7 @@ while IFS= read -r method; do
   outcome="PASS"
   classification="returned-result"
   code=""
+  message=""
 
   if [ -z "$response" ]; then
     outcome="FAIL"
@@ -577,6 +579,7 @@ while IFS= read -r method; do
     RPC_METHOD_RESULT_COUNT=$((RPC_METHOD_RESULT_COUNT+1))
   else
     code="$(jq -r '.error.code // empty' <<<"$response")"
+    message="$(jq -r '.error.message // empty' <<<"$response")"
     case "$code" in
       -32601)
         outcome="FAIL"
@@ -601,6 +604,15 @@ while IFS= read -r method; do
               classification="unexpected-snapshot-error"
             fi
             ;;
+          inflation-reward)
+            if [ "$code" = "-32004" ] && [[ "$message" == "Block not available for slot "* ]]; then
+              classification="reward-block-unavailable"
+              RPC_METHOD_DOMAIN_COUNT=$((RPC_METHOD_DOMAIN_COUNT+1))
+            else
+              outcome="FAIL"
+              classification="unexpected-inflation-reward-error"
+            fi
+            ;;
           resource)
             classification="resource-domain-error"
             RPC_METHOD_DOMAIN_COUNT=$((RPC_METHOD_DOMAIN_COUNT+1))
@@ -618,8 +630,11 @@ while IFS= read -r method; do
     esac
   fi
 
-  [ "$outcome" = "PASS" ] || RPC_METHOD_FAILURES=$((RPC_METHOD_FAILURES+1))
-  jq -cn     --arg method "$method"     --arg outcome "$outcome"     --arg coverage "$expectation"     --arg classification "$classification"     --arg rpcCode "$code"     '{method:$method,outcome:$outcome,coverage:$coverage,classification:$classification,rpcCode:(if $rpcCode=="" then null else $rpcCode end)}'     >> "$RPC_METHOD_RESULTS"
+  if [ "$outcome" != "PASS" ]; then
+    RPC_METHOD_FAILURES=$((RPC_METHOD_FAILURES+1))
+    echo "[rpc][FAIL] method=$method coverage=$expectation classification=$classification code=${code:--} message=${message:-<none>}" >&2
+  fi
+  jq -cn     --arg method "$method"     --arg outcome "$outcome"     --arg coverage "$expectation"     --arg classification "$classification"     --arg rpcCode "$code"     --arg rpcMessage "$message"     '{method:$method,outcome:$outcome,coverage:$coverage,classification:$classification,rpcCode:(if $rpcCode=="" then null else $rpcCode end),rpcMessage:(if $rpcMessage=="" then null else $rpcMessage end)}'     >> "$RPC_METHOD_RESULTS"
   summary_append "| $method | $outcome | $expectation | $classification | ${code:--} |"
 done < "$ARTIFACT_DIR/rpc-methods.txt"
 
@@ -627,7 +642,6 @@ jq -s . "$RPC_METHOD_RESULTS" > "$ARTIFACT_DIR/rpc-method-results.json"
 summary_append ""
 summary_append "Probed $RPC_METHOD_COUNT declared methods: $RPC_METHOD_RESULT_COUNT returned results; $RPC_METHOD_DOMAIN_COUNT returned expected resource/snapshot domain errors; $RPC_METHOD_PAYLOAD_COUNT reached signed-payload/transaction validation; failures=$RPC_METHOD_FAILURES."
 [ "$RPC_METHOD_FAILURES" -eq 0 ] || fail "$RPC_METHOD_FAILURES declared JSON-RPC methods failed method-aware probes"
-[ "$RPC_METHOD_FAILURES" -eq 0 ] || fail "$RPC_METHOD_FAILURES declared JSON-RPC methods failed individual calls"
 [ "$RPC_FUNCTIONAL_FAILURES" -eq 0 ] || fail "$RPC_FUNCTIONAL_FAILURES strict JSON-RPC probes failed"
 fi
 
@@ -693,11 +707,30 @@ if application_flow_enabled funding-public; then
 fi
 
 if application_flow_enabled funding-admin; then
-  ADMIN_BEFORE="$(balance "$ADMIN_ADDRESS")"; key=ci-direct-admin-funding-0001; payload="$(jq -cn --arg a "$ADMIN_ADDRESS" '{address:$a,amountAeko:2}')"; direct="$(api_data POST /admin/funding/send "$payload" 1 "$key")"; ADMIN_REQUEST_ID="$(jq -er '.id'<<<"$direct")"; test "$(jq -r '.source'<<<"$direct")" = admin || fail "admin funding source mismatch"
-  confirmed="$(wait_admin_request_confirmed "$ADMIN_REQUEST_ID")"; ADMIN_SIGNATURE="$(jq -r '.signature // empty'<<<"$confirmed")"; test -n "$ADMIN_SIGNATURE" || fail "admin Funding missing signature"; wait_balance_at_least "$ADMIN_ADDRESS" $((ADMIN_BEFORE+2000000000)) "direct Admin Funding reached wallet"; after1="$(balance "$ADMIN_ADDRESS")"
-  replay="$(api_data POST /admin/funding/send "$payload" 1 "$key")"; test "$(jq -r '.id'<<<"$replay")" = "$ADMIN_REQUEST_ID" || fail "idempotent retry changed request"; test "$(jq -r '.signature // empty'<<<"$replay")" = "$ADMIN_SIGNATURE" || fail "idempotent retry changed signature"; sleep 1; test "$(balance "$ADMIN_ADDRESS")" = "$after1" || fail "idempotent retry changed balance"
-  hist="$(api_data GET '/admin/funding/history?limit=100' "" 1)"; jq -e --arg s "$ADMIN_SIGNATURE" 'any(.[];.signature==$s and .confirmed==true)'<<<"$hist" >/dev/null || fail "admin Funding missing from history"
-  summary_append "## Backend flow: direct Admin Funding"; summary_append "- PASS: send -> confirmation -> idempotent replay -> history"
+  ADMIN_BEFORE="$(balance "$ADMIN_ADDRESS")"
+  ADMIN_IDEMPOTENCY_KEY="ci-direct-admin-funding-0001"
+  ADMIN_FUNDING_PAYLOAD="$(jq -cn --arg a "$ADMIN_ADDRESS" '{address:$a,amountAeko:2}')"
+  direct="$(api_data POST /admin/funding/send "$ADMIN_FUNDING_PAYLOAD" 1 "$ADMIN_IDEMPOTENCY_KEY")"
+  ADMIN_REQUEST_ID="$(jq -er '.id'<<<"$direct")"
+  test "$(jq -r '.source'<<<"$direct")" = admin || fail "admin funding source mismatch"
+
+  confirmed="$(wait_admin_request_confirmed "$ADMIN_REQUEST_ID")"
+  ADMIN_SIGNATURE="$(jq -r '.signature // empty'<<<"$confirmed")"
+  test -n "$ADMIN_SIGNATURE" || fail "admin Funding missing signature"
+  wait_balance_at_least "$ADMIN_ADDRESS" $((ADMIN_BEFORE+2000000000)) "direct Admin Funding reached wallet"
+  ADMIN_AFTER_FIRST="$(balance "$ADMIN_ADDRESS")"
+
+  replay="$(api_data POST /admin/funding/send "$ADMIN_FUNDING_PAYLOAD" 1 "$ADMIN_IDEMPOTENCY_KEY")"
+  test "$(jq -r '.id'<<<"$replay")" = "$ADMIN_REQUEST_ID" || fail "idempotent Admin retry changed durable request"
+  test "$(jq -r '.signature // empty'<<<"$replay")" = "$ADMIN_SIGNATURE" || fail "idempotent Admin retry changed durable signature"
+  sleep 1
+  ADMIN_AFTER_REPLAY="$(balance "$ADMIN_ADDRESS")"
+  test "$ADMIN_AFTER_REPLAY" = "$ADMIN_AFTER_FIRST" || fail "idempotent Admin retry changed wallet balance twice"
+
+  hist="$(api_data GET '/admin/funding/history?limit=100' "" 1)"
+  jq -e --arg s "$ADMIN_SIGNATURE" 'any(.[];.signature==$s and .confirmed==true)'<<<"$hist" >/dev/null || fail "admin Funding missing from history"
+  summary_append "## Backend flow: direct Admin Funding"
+  summary_append "- PASS: send -> confirmation -> idempotent replay -> history"
 fi
 
 if application_flow_enabled funding-airdrop; then

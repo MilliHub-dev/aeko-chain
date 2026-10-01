@@ -423,6 +423,14 @@ assert_runtime_artifact_handoff_contract() {
   grep -Fq 'rpc_probe_spec()' "$runtime_script"
   grep -Fq 'missing-probe-spec' "$runtime_script"
   grep -Fq 'payload-or-transaction-domain-error' "$runtime_script"
+  grep -Fq 'expectation="inflation-reward"' "$runtime_script"
+  grep -Fq 'reward-block-unavailable' "$runtime_script"
+  grep -Fq 'rpcMessage' "$runtime_script"
+  grep -Fq -- '--arg id "$PROBE_ADDRESS"' "$runtime_script"
+  if grep -Fq "params='[\"ci-missing-post\",{\"commitment\":\"confirmed\"}]'" "$runtime_script" || grep -Fq "params='[\"ci-missing-target\"]'" "$runtime_script"; then
+    echo "SocialFi RPC probes must use syntactically valid record/pubkey identifiers." >&2
+    exit 1
+  fi
   if grep -Fq 'response="$(rpc_call "$method" '\''[]'\'' 2>/dev/null || true)"' "$runtime_script"; then
     echo "RPC surface audit must use method-specific probe parameters instead of empty params for every method." >&2
     exit 1
@@ -440,6 +448,8 @@ assert_runtime_artifact_handoff_contract() {
   fi
   grep -Fq 'application_flow_enabled funding-public' "$runtime_script"
   grep -Fq 'application_flow_enabled funding-admin' "$runtime_script"
+  grep -Fq 'ADMIN_IDEMPOTENCY_KEY' "$runtime_script"
+  grep -Fq 'idempotent Admin retry changed wallet balance twice' "$runtime_script"
   grep -Fq 'application_flow_enabled funding-airdrop' "$runtime_script"
   grep -Fq 'application_flow_enabled social-protocol' "$runtime_script"
   grep -Fq -- '--signature "$RPC_FUNDING_SIGNATURE"' "$runtime_script"
