@@ -164,10 +164,10 @@ assert_smart_contract_pipeline_separation() {
   grep -Fq 'AEKO Smart Contracts (non-blocking)' "$contract_workflow"
   grep -Fq 'continue-on-error: true' "$contract_workflow"
   grep -Fq 'live-testnet:' "$contract_workflow"
-  grep -Fq -- '- "contracts/**"' "$workflow"
-  grep -Fq -- '- "scripts/smoke-hello-program.py"' "$workflow"
-  grep -Fq -- '- ".github/actions/devops/smart-contracts/**"' "$workflow"
-  grep -Fq -- '- ".github/workflows/smart-contracts.yml"' "$workflow"
+  if grep -Fq 'paths-ignore:' "$workflow"; then
+    echo "Standalone smart-contract ownership must not suppress the top-level AEKO DevOps workflow trigger." >&2
+    exit 1
+  fi
 
   if grep -Fq 'contracts/hello-aeko-program' "$network_run"; then
     echo "Blockchain network action still owns deployable smart-contract build logic." >&2
