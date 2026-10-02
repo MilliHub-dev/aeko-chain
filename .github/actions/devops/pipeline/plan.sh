@@ -21,59 +21,29 @@ SDK_PYTHON="${SDK_PYTHON:-false}"
 SDK_RUST="${SDK_RUST:-false}"
 CI_PIPELINE="${CI_PIPELINE:-false}"
 
-# Validation follows actual source ownership. Image production is planned
-# independently below so an image-only packaging change does not force every
-# expensive source-test lane.
-run_admin="$ADMIN"
-run_cli=false
-run_explorer_backend=false
-run_explorer_web="$EXPLORER_WEB"
-run_network=false
-run_sdk_non_rust=false
-run_sdk_rust=false
+# Pull requests to main and pushes to main always exercise the complete DevOps
+# graph. Change detection still owns what may be published or deployed, but it
+# never suppresses validation or image production.
+run_admin=true
+run_cli=true
+run_explorer_backend=true
+run_explorer_web=true
+run_network=true
+run_sdk_non_rust=true
+run_sdk_rust=true
+
+build_admin=true
+build_tools=true
+build_explorer_backend=true
+build_explorer_web=true
+build_network=true
+
 run_ci_contract=true
+run_runtime_contract=true
+runtime_contract_mode=exact
 
-if [ "$CLI" = true ] || [ "$CORE" = true ]; then run_cli=true; fi
-if [ "$EXPLORER_BACKEND" = true ] || [ "$CORE" = true ]; then run_explorer_backend=true; fi
-if [ "$CORE" = true ]; then run_network=true; fi
-if [ "$SDK_JS" = true ] || [ "$SDK_NODE" = true ] || [ "$SDK_PYTHON" = true ] || [ "$CORE" = true ]; then run_sdk_non_rust=true; fi
-if [ "$SDK_RUST" = true ] || [ "$CORE" = true ]; then run_sdk_rust=true; fi
-
-build_admin=false
-build_tools=false
-build_explorer_backend=false
-build_explorer_web=false
-build_network=false
-
-if [ "$ADMIN" = true ] || [ "$PACKAGING" = true ]; then build_admin=true; fi
-if [ "$CLI" = true ] || [ "$CORE" = true ] || [ "$PACKAGING" = true ]; then build_tools=true; fi
-if [ "$EXPLORER_BACKEND" = true ] || [ "$CORE" = true ] || [ "$PACKAGING" = true ]; then build_explorer_backend=true; fi
-if [ "$EXPLORER_WEB" = true ] || [ "$PACKAGING" = true ]; then build_explorer_web=true; fi
-if [ "$CORE" = true ] || [ "$PACKAGING" = true ]; then build_network=true; fi
-
-# The runtime contract can combine changed producer artifacts with unchanged
-# artifacts from the latest compatible successful run. That removes the old
-# requirement to rebuild CLI + network + Explorer API as one exact bundle.
-run_runtime_contract=false
-runtime_contract_mode=last-success
-runtime_build_count=0
-[ "$build_tools" = true ] && runtime_build_count=$((runtime_build_count + 1))
-[ "$build_network" = true ] && runtime_build_count=$((runtime_build_count + 1))
-[ "$build_explorer_backend" = true ] && runtime_build_count=$((runtime_build_count + 1))
-
-if [ "$runtime_build_count" -eq 3 ]; then
-  run_runtime_contract=true
-  runtime_contract_mode=exact
-elif [ "$runtime_build_count" -gt 0 ]; then
-  run_runtime_contract=true
-  runtime_contract_mode=overlay
-elif [ "$CI_PIPELINE" = true ]; then
-  # Orchestration-only changes test the new CI/runtime harness against known-good
-  # artifacts instead of recompiling the entire product graph.
-  run_runtime_contract=true
-  runtime_contract_mode=last-success
-fi
-
+# Deployment ownership remains change-aware even though build validation is
+# exhaustive. Publication/deployment jobs are branch-gated separately.
 deploy_explorer_api=false
 deploy_explorer_ui=false
 deploy_operations_web=false

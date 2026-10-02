@@ -359,7 +359,7 @@ jobs:
     with:
       run_sdk_non_rust: ${{ needs.classify.outputs.run_sdk_non_rust }}
       run_sdk_rust: ${{ needs.classify.outputs.run_sdk_rust }}
-      enforce_rust_lockfile_clean: ${{ needs.classify.outputs.sdk_rust }}
+      enforce_rust_lockfile_clean: "true"
 
   cli_windows_release:
     name: Release / Windows CLI (non-blocking)

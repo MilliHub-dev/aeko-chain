@@ -110,6 +110,7 @@ assert_full_validation_workflow_contract() {
   local web_workflow="$PIPELINE_DIR/../../../workflows/devops-web-ui.yml"
   local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
   local sdk_workflow="$PIPELINE_DIR/../../../workflows/devops-sdk-validation.yml"
+  local planner="$PIPELINE_DIR/plan.sh"
 
   for selector in validate_admin: build_admin: validate_explorer_web: build_explorer_web:; do
     grep -Fq "$selector" "$web_workflow"
@@ -122,27 +123,30 @@ assert_full_validation_workflow_contract() {
   grep -Fq 'name: Explorer API / Image' "$runtime_workflow"
   grep -Fq 'name: Blockchain network / Quality' "$runtime_workflow"
   grep -Fq 'name: Blockchain network / Images' "$runtime_workflow"
-  grep -Fq 'validate-source: "true"' "$runtime_workflow"
-  grep -Fq 'validate-source: "false"' "$runtime_workflow"
-  grep -Fq 'build-image: "true"' "$runtime_workflow"
-  grep -Fq 'build-image: "false"' "$runtime_workflow"
 
-  grep -Fq 'name: Runtime / Tools producer' "$workflow"
-  grep -Fq 'build_tools:' "$workflow"
-  grep -Fq 'build_explorer_backend:' "$workflow"
-  grep -Fq 'build_network:' "$workflow"
-  grep -Fq 'run_runtime_contract:' "$workflow"
-  grep -Fq 'runtime_contract_mode:' "$workflow"
-
-  for selector in \
-    'js: ${{ inputs.run_sdk_non_rust }}' \
-    'node: ${{ inputs.run_sdk_non_rust }}' \
-    'python: ${{ inputs.run_sdk_non_rust }}' \
-    'rust: "true"'; do
-    grep -Fq "$selector" "$sdk_workflow"
+  for required in \
+    'run_admin=true' \
+    'run_cli=true' \
+    'run_explorer_backend=true' \
+    'run_explorer_web=true' \
+    'run_network=true' \
+    'run_sdk_non_rust=true' \
+    'run_sdk_rust=true' \
+    'build_admin=true' \
+    'build_tools=true' \
+    'build_explorer_backend=true' \
+    'build_explorer_web=true' \
+    'build_network=true' \
+    'run_runtime_contract=true' \
+    'runtime_contract_mode=exact'; do
+    grep -Fxq "$required" "$planner"
   done
 
-  echo "[ok] source validation, image production, and runtime gating are independently selectable"
+  grep -Fq 'enforce_rust_lockfile_clean: "true"' "$workflow"
+  grep -Fq 'js: ${{ inputs.run_sdk_non_rust }}' "$sdk_workflow"
+  grep -Fq 'rust: "true"' "$sdk_workflow"
+
+  echo "[ok] PR/main DevOps always runs the complete validation and build graph"
 }
 
 assert_smart_contract_pipeline_separation() {
@@ -523,23 +527,37 @@ test_runtime_contract_is_part_of_required_gate() {
 
 assert_devops_workflow_always_enters_pipeline() {
   local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
-  local classifier="$PIPELINE_DIR/../detect-changes/action.yml"
+  local planner="$PIPELINE_DIR/plan.sh"
 
   grep -Fq 'pull_request:' "$workflow"
   grep -Fq 'push:' "$workflow"
   grep -Fq 'branches: ["main"]' "$workflow"
 
   if grep -Fq 'paths-ignore:' "$workflow"; then
-    echo "AEKO DevOps must not filter repository paths at the workflow trigger. Product skipping belongs in detect-changes/plan.sh after the workflow starts." >&2
+    echo "AEKO DevOps must not filter repository paths at the workflow trigger." >&2
     exit 1
   fi
 
-  grep -Fq 'docs/*|*.md|LICENSE*|NOTICE*)' "$classifier"
-  grep -Fq 'contracts/*|scripts/smoke-hello-program.py)' "$classifier"
+  for required in \
+    'run_admin=true' \
+    'run_cli=true' \
+    'run_explorer_backend=true' \
+    'run_explorer_web=true' \
+    'run_network=true' \
+    'run_sdk_non_rust=true' \
+    'run_sdk_rust=true' \
+    'build_admin=true' \
+    'build_tools=true' \
+    'build_explorer_backend=true' \
+    'build_explorer_web=true' \
+    'build_network=true' \
+    'run_runtime_contract=true' \
+    'runtime_contract_mode=exact'; do
+    grep -Fxq "$required" "$planner"
+  done
 
-  echo "[ok] every main/PR change enters AEKO DevOps; product lanes are selected inside the pipeline"
+  echo "[ok] every PR/main change enters and executes the complete AEKO DevOps graph"
 }
-
 assert_grouped_devops_workflow_contract
 assert_devops_workflow_always_enters_pipeline
 assert_node24_action_majors
@@ -554,45 +572,20 @@ assert_vercel_git_deployments_disabled
 assert_cli_release_after_main_contract
 test_runtime_contract_is_part_of_required_gate
 
-run_plan_case "Explorer Web-only change stays scoped and skips runtime integration" \
-  $'run_explorer_web=true\nbuild_explorer_web=true\nrun_cli=false\nrun_explorer_backend=false\nrun_network=false\nrun_runtime_contract=false\nruntime_contract_mode=last-success' \
-  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=true \
-  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
-
-run_plan_case "SDK JS-only change stays scoped and skips runtime integration" \
-  $'run_sdk_non_rust=true\nrun_sdk_rust=false\nrun_cli=false\nrun_explorer_backend=false\nrun_network=false\nrun_runtime_contract=false' \
-  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
-  SDK_JS=true SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
-
-run_plan_case "Explorer backend change builds only Explorer API and overlays known-good runtime" \
-  $'run_cli=false\nrun_explorer_backend=true\nrun_network=false\nbuild_tools=false\nbuild_explorer_backend=true\nbuild_network=false\nrun_runtime_contract=true\nruntime_contract_mode=overlay' \
-  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=true EXPLORER_WEB=false \
-  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
-
-run_plan_case "CLI change builds only tools and overlays known-good runtime" \
-  $'run_cli=true\nrun_explorer_backend=false\nrun_network=false\nbuild_tools=true\nbuild_explorer_backend=false\nbuild_network=false\nrun_runtime_contract=true\nruntime_contract_mode=overlay' \
-  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=true CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
-  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
-
-run_plan_case "Core change rebuilds the complete coupled runtime exactly" \
-  $'run_cli=true\nrun_explorer_backend=true\nrun_network=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_network=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
-  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=true PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
-  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
-
-run_plan_case "Packaging change rebuilds images without inventing source-validation ownership" \
-  $'run_admin=false\nrun_cli=false\nrun_explorer_backend=false\nrun_explorer_web=false\nrun_network=false\nbuild_admin=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_explorer_web=true\nbuild_network=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
-  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=true EXPLORER_BACKEND=false EXPLORER_WEB=false \
-  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
-
-run_plan_case "CI-only pull request validates orchestration with known-good artifacts only" \
-  $'run_admin=false\nrun_cli=false\nrun_explorer_backend=false\nrun_explorer_web=false\nrun_network=false\nrun_sdk_non_rust=false\nrun_sdk_rust=false\nbuild_tools=false\nbuild_explorer_backend=false\nbuild_network=false\nrun_runtime_contract=true\nruntime_contract_mode=last-success' \
+run_plan_case "Pull request always runs the full validation and build graph" \
+  $'run_admin=true\nrun_cli=true\nrun_explorer_backend=true\nrun_explorer_web=true\nrun_network=true\nrun_sdk_non_rust=true\nrun_sdk_rust=true\nbuild_admin=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_explorer_web=true\nbuild_network=true\nrun_ci_contract=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
   GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
   SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=true
 
-run_plan_case "CI-only main push validates orchestration with known-good artifacts only" \
-  $'run_admin=false\nrun_cli=false\nrun_explorer_backend=false\nrun_explorer_web=false\nrun_network=false\nrun_sdk_non_rust=false\nrun_sdk_rust=false\nbuild_tools=false\nbuild_explorer_backend=false\nbuild_network=false\nrun_runtime_contract=true\nruntime_contract_mode=last-success' \
+run_plan_case "Main push always runs the full validation and build graph" \
+  $'run_admin=true\nrun_cli=true\nrun_explorer_backend=true\nrun_explorer_web=true\nrun_network=true\nrun_sdk_non_rust=true\nrun_sdk_rust=true\nbuild_admin=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_explorer_web=true\nbuild_network=true\nrun_ci_contract=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
   GITHUB_EVENT_NAME=push ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
   SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=true
+
+run_plan_case "Product ownership does not suppress any PR validation lane" \
+  $'run_admin=true\nrun_cli=true\nrun_explorer_backend=true\nrun_explorer_web=true\nrun_network=true\nrun_sdk_non_rust=true\nrun_sdk_rust=true\nbuild_admin=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_explorer_web=true\nbuild_network=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
+  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=true EXPLORER_WEB=false \
+  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
 
 run_deploy_plan_case "Explorer backend source deploys only Explorer API" \
   false false true false false false false false false false \
