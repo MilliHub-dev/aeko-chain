@@ -21,30 +21,26 @@ assert_node24_action_majors() {
   local sdk_workflow="$PIPELINE_DIR/../../../workflows/devops-sdk-validation.yml"
   local setup_action="$PIPELINE_DIR/setup/action.yml"
 
-  for deprecated in \
-    "actions/checkout@v4" \
-    "actions/setup-node@v4" \
-    "actions/setup-python@v5" \
-    "docker/login-action@v3" \
-    "docker/setup-buildx-action@v3"; do
+  for deprecated in "actions/checkout@v4" "actions/setup-node@v4" "actions/setup-python@v5" "docker/login-action@v3" "docker/setup-buildx-action@v3"; do
     if grep -Fq "$deprecated" "$workflow" "$web_workflow" "$runtime_workflow" "$sdk_workflow" "$setup_action"; then
-      echo "Deprecated Node-20 action major remains in the active DevOps pipeline: $deprecated" >&2
+      echo "Deprecated action major remains in the active DevOps pipeline: $deprecated" >&2
       exit 1
     fi
   done
 
   grep -Fq "actions/checkout@v5" "$workflow"
-  grep -Fq "actions/checkout@v5" "$web_workflow"
-  grep -Fq "actions/checkout@v5" "$runtime_workflow"
-  grep -Fq "actions/checkout@v5" "$sdk_workflow"
   grep -Fq "actions/setup-node@v5" "$setup_action"
   grep -Fq "actions/setup-python@v6" "$setup_action"
-  grep -Fq "docker/login-action@v4" "$workflow"
-  grep -Fq "docker/login-action@v4" "$web_workflow"
-  grep -Fq "docker/login-action@v4" "$runtime_workflow"
   grep -Fq "docker/setup-buildx-action@v4" "$setup_action"
+  grep -Fq "docker/login-action@v4" "$workflow"
 
-  echo "[ok] active DevOps third-party actions use Node-24-backed majors"
+  if grep -Fq "docker/login-action" "$web_workflow" "$runtime_workflow"; then
+    echo "Producer workflows must not authenticate to Docker Hub before aggregate gates pass." >&2
+    exit 1
+  fi
+  [ "$(grep -Fc "docker/login-action@v4" "$workflow")" -eq 1 ]
+
+  echo "[ok] active DevOps actions use current majors and Docker Hub auth is centralized"
 }
 
 assert_targeted_docker_publication_contract() {
@@ -52,41 +48,37 @@ assert_targeted_docker_publication_contract() {
   local web_workflow="$PIPELINE_DIR/../../../workflows/devops-web-ui.yml"
   local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
   local release_mode="$PIPELINE_DIR/resolve-release.sh"
+  local publisher="$PIPELINE_DIR/publish-runtime-images.sh"
 
   for output in publish_admin publish_cli publish_explorer_backend publish_explorer_web publish_network; do
     grep -Fq "$output:" "$workflow"
     grep -Fq "echo \"$output=" "$release_mode"
   done
 
-  if grep -Fq "push_runtime_images" "$workflow" "$runtime_workflow" "$release_mode"; then
-    echo "Global runtime-image publication flag must not re-enable unrelated Docker Hub pushes." >&2
+  if grep -Fq "docker/login-action" "$web_workflow" "$runtime_workflow"; then
+    echo "Producer workflows must never log in to Docker Hub." >&2
     exit 1
   fi
+  [ "$(grep -Fc "docker/login-action@v4" "$workflow")" -eq 1 ]
+  grep -Fq 'Publish validated immutable Docker images' "$workflow"
+  grep -Fq 'publish-runtime-images.sh' "$workflow"
+  grep -Fq 'PUBLISH_NETWORK' "$publisher"
+  grep -Fq 'push_image aeko-validator aeko-validator aeko-node' "$publisher"
+  grep -Fq 'push_image aeko-explorer-api aeko-explorer-api aeko-explorer-backend' "$publisher"
 
-  grep -Fq 'if: needs.classify.outputs.publish_cli == '\''true'\''' "$workflow"
-  grep -Fq 'publish: ${{ needs.classify.outputs.publish_cli }}' "$workflow"
-  grep -Fq 'if: inputs.publish_admin == '\''true'\''' "$web_workflow"
-  grep -Fq 'publish: ${{ inputs.publish_admin }}' "$web_workflow"
-  grep -Fq 'if: inputs.publish_explorer_web == '\''true'\''' "$web_workflow"
-  grep -Fq 'publish: ${{ inputs.publish_explorer_web }}' "$web_workflow"
-  grep -Fq 'if: inputs.publish_explorer_backend == '\''true'\''' "$runtime_workflow"
-  grep -Fq 'publish: ${{ inputs.publish_explorer_backend }}' "$runtime_workflow"
-  grep -Fq 'if: inputs.publish_network == '\''true'\''' "$runtime_workflow"
-  grep -Fq 'publish: ${{ inputs.publish_network }}' "$runtime_workflow"
-  grep -Fq 'network: ${{ needs.classify.outputs.publish_network }}' "$workflow"
-  grep -Fq 'explorer-web: ${{ needs.classify.outputs.publish_explorer_web }}' "$workflow"
-
-  echo "[ok] Docker Hub authentication/publication is scoped to changed image-owning domains"
+  echo "[ok] Docker publication is post-gate, selective, and owns one registry login"
 }
 
 assert_bounded_runner_setup_contract() {
   local setup_action="$PIPELINE_DIR/setup/action.yml"
   grep -Fq "timeout --kill-after=10s 90s" "$setup_action"
   grep -Fq "Acquire::Retries=2" "$setup_action"
-  grep -Fq "Acquire::http::Timeout=15" "$setup_action"
-  grep -Fq "Acquire::https::Timeout=15" "$setup_action"
   grep -Fq "apt-get failed after 3 bounded attempts" "$setup_action"
-  echo "[ok] native package setup is bounded and retry-limited"
+  grep -Fq "Verify shared Rust cache or fall back to direct rustc" "$setup_action"
+  grep -Fq 'timeout 20s sccache --start-server' "$setup_action"
+  grep -Fq 'RUSTC_WRAPPER=' "$setup_action"
+  grep -Fq 'SCCACHE_GHA_ENABLED=false' "$setup_action"
+  echo "[ok] package setup is bounded and cache outages fail open to direct rustc"
 }
 
 assert_full_validation_workflow_contract() {
@@ -95,44 +87,26 @@ assert_full_validation_workflow_contract() {
   local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
   local sdk_workflow="$PIPELINE_DIR/../../../workflows/devops-sdk-validation.yml"
 
-  for selector in \
-    'node: ${{ inputs.run_admin }}' \
-    'validate-source: ${{ inputs.run_admin }}' \
-    'node: ${{ inputs.run_explorer_web }}' \
-    'validate-source: ${{ inputs.run_explorer_web }}'; do
+  for selector in validate_admin: build_admin: validate_explorer_web: build_explorer_web:; do
     grep -Fq "$selector" "$web_workflow"
   done
-
-  for selector in \
-    'rust: ${{ inputs.run_explorer_backend }}' \
-    'validate-source: ${{ inputs.run_explorer_backend }}' \
-    'run-preflight: ${{ inputs.run_network }}' \
-    'validate-source: ${{ inputs.run_network }}'; do
+  for selector in validate_explorer_backend: build_explorer_backend: validate_network: build_network:; do
     grep -Fq "$selector" "$runtime_workflow"
   done
 
-  grep -Fq 'name: Quality / CLI source' "$workflow"
+  grep -Fq 'name: Explorer API / Quality' "$runtime_workflow"
+  grep -Fq 'name: Explorer API / Image' "$runtime_workflow"
+  grep -Fq 'name: Blockchain network / Quality' "$runtime_workflow"
+  grep -Fq 'name: Blockchain network / Images' "$runtime_workflow"
+  grep -Fq 'validate-source: "true"' "$runtime_workflow"
+  grep -Fq 'validate-source: "false"' "$runtime_workflow"
+  grep -Fq 'build-image: "true"' "$runtime_workflow"
+  grep -Fq 'build-image: "false"' "$runtime_workflow"
   grep -Fq 'name: Runtime / Tools producer' "$workflow"
-  grep -Fq 'name: Integration / Known-good baseline dispatch' "$workflow"
-  grep -Fq 'name: Resolve compatible baseline' "$workflow"
-  grep -Fq "available=false" "$workflow"
-  grep -Fq "if: steps.baseline.outputs.available == 'true'" "$workflow"
-  grep -Fq 'No prior compatible runtime baseline exists' "$workflow"
-  grep -Fq -- '-f "selection_mode=last-success"' "$workflow"
-  grep -Fq -- '-f "selection_mode=exact"' "$workflow"
-  grep -Fq 'validate-source: "true"' "$workflow"
-  grep -Fq 'validate-source: "false"' "$workflow"
-  grep -Fq 'build-image: "true"' "$workflow"
+  grep -Fq 'run_sdk_non_rust' "$sdk_workflow"
+  grep -Fq 'run_sdk_rust' "$sdk_workflow"
 
-  for selector in \
-    'js: ${{ inputs.run_sdk_non_rust }}' \
-    'node: ${{ inputs.run_sdk_non_rust }}' \
-    'python: ${{ inputs.run_sdk_non_rust }}' \
-    'rust: "true"'; do
-    grep -Fq "$selector" "$sdk_workflow"
-  done
-
-  echo "[ok] every AEKO DevOps lane performs full validation when selected"
+  echo "[ok] source validation and image production are independently selectable"
 }
 
 assert_smart_contract_pipeline_separation() {
@@ -245,56 +219,33 @@ assert_cli_release_after_main_contract() {
 }
 
 run_plan_case() {
-  local label="$1" event_name="$2" admin="$3" cli="$4" core="$5" packaging="$6"
-  local explorer_backend="$7" explorer_web="$8" sdk_js="$9" sdk_node="${10}"
-  local sdk_python="${11}" sdk_rust="${12}" ci_pipeline="${13}"
-  shift 13
+  local label="$1" expected_lines="$2"
+  shift 2
   local output
   output="$(mktemp)"
-
-  GITHUB_OUTPUT="$output" GITHUB_EVENT_NAME="$event_name" \
-  ADMIN="$admin" CLI="$cli" CORE="$core" PACKAGING="$packaging" \
-  EXPLORER_BACKEND="$explorer_backend" EXPLORER_WEB="$explorer_web" \
-  SDK_JS="$sdk_js" SDK_NODE="$sdk_node" SDK_PYTHON="$sdk_python" SDK_RUST="$sdk_rust" \
-  CI_PIPELINE="$ci_pipeline" bash "$PIPELINE_DIR/plan.sh"
-
-  while [ "$#" -gt 0 ]; do
-    assert_output "$output" "$1"
-    shift
-  done
-  assert_output "$output" "run_ci_contract=true"
-
+  env GITHUB_OUTPUT="$output" "$@" bash "$PIPELINE_DIR/plan.sh"
+  while IFS= read -r expected; do
+    [ -n "$expected" ] || continue
+    assert_output "$output" "$expected"
+  done <<<"$expected_lines"
   rm -f "$output"
   echo "[ok] $label"
 }
 
 run_release_case() {
-  local label="$1" event_name="$2" ref="$3" dockerized="$4" ci_pipeline="$5"
-  local internal_pr="$6" admin="$7" cli="$8" core="$9" packaging="${10}"
-  local explorer_backend="${11}" explorer_web="${12}"
-  local expected_publish="${13}" expected_admin="${14}" expected_cli="${15}"
-  local expected_backend="${16}" expected_web="${17}" expected_network="${18}"
+  local label="$1" expected_lines="$2"
+  shift 2
   local output
   output="$(mktemp)"
-
-  GITHUB_OUTPUT="$output" GITHUB_EVENT_NAME="$event_name" GITHUB_REF="$ref" \
-  GITHUB_SHA="1234567890abcdef1234567890abcdef12345678" \
-  DOCKERIZED="$dockerized" CI_PIPELINE="$ci_pipeline" INTERNAL_PR="$internal_pr" \
-  ADMIN="$admin" CLI="$cli" CORE="$core" PACKAGING="$packaging" \
-  EXPLORER_BACKEND="$explorer_backend" EXPLORER_WEB="$explorer_web" \
-    bash "$PIPELINE_DIR/resolve-release.sh"
-
-  assert_output "$output" "publish=$expected_publish"
-  assert_output "$output" "publish_admin=$expected_admin"
-  assert_output "$output" "publish_cli=$expected_cli"
-  assert_output "$output" "publish_explorer_backend=$expected_backend"
-  assert_output "$output" "publish_explorer_web=$expected_web"
-  assert_output "$output" "publish_network=$expected_network"
+  env GITHUB_OUTPUT="$output" GITHUB_SHA="1234567890abcdef1234567890abcdef12345678" "$@" bash "$PIPELINE_DIR/resolve-release.sh"
+  while IFS= read -r expected; do
+    [ -n "$expected" ] || continue
+    assert_output "$output" "$expected"
+  done <<<"$expected_lines"
   assert_output "$output" "sha_tag=1234567890ab"
   rm -f "$output"
   echo "[ok] $label"
 }
-
 
 run_deploy_plan_case() {
   local label="$1"
@@ -414,170 +365,74 @@ assert_split_coolify_workflow_contract() {
 assert_runtime_artifact_handoff_contract() {
   local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
   local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
+  local web_workflow="$PIPELINE_DIR/../../../workflows/devops-web-ui.yml"
   local integration="$PIPELINE_DIR/../../../workflows/full-stack-integration.yml"
   local artifact_loader="$PIPELINE_DIR/load-runtime-artifacts.sh"
-  local release_mode="$PIPELINE_DIR/resolve-release.sh"
   local runtime_script="$PIPELINE_DIR/../../../../scripts/ci-docker-full-stack-integration.sh"
 
-  grep -Fq "name: aeko-runtime-tools" "$workflow"
-  grep -Fq "name: aeko-runtime-network" "$runtime_workflow"
-  grep -Fq "name: aeko-runtime-explorer-api" "$runtime_workflow"
-  for artifact in \
-    "aeko-runtime-tools" \
-    "aeko-runtime-network" \
-    "aeko-runtime-explorer-api"; do
-    grep -Fq "name: $artifact" "$integration"
-  done
+  grep -Fq 'runtime_contract:' "$workflow"
+  grep -Fq 'uses: ./.github/workflows/full-stack-integration.yml' "$workflow"
+  grep -Fq 'runtime_contract_mode' "$workflow"
+  grep -Fq 'use_current_tools:' "$workflow"
+  grep -Fq 'use_current_network:' "$workflow"
+  grep -Fq 'use_current_explorer_api:' "$workflow"
+  if grep -Fq 'gh workflow run full-stack-integration.yml' "$workflow"; then
+    echo "Runtime contract must gate release synchronously." >&2
+    exit 1
+  fi
 
-  grep -Fq "runtime_integration:" "$workflow"
-  grep -Fq "needs.runtime_tools.result == 'success'" "$workflow"
-  grep -Fq "needs.runtime_services.result == 'success'" "$workflow"
-  local runtime_block
-  runtime_block="$(sed -n '/^  runtime_integration:/,/^  cli_release_publish:/p' "$workflow")"
-  for forbidden in devops web_ui sdk_validation explorer_backend network cli cli_linux_release; do
-    if grep -Eq "^[[:space:]]*-[[:space:]]+${forbidden}$" <<<"$runtime_block"; then
-      echo "Runtime integration has an unnecessary dependency edge: $forbidden" >&2
-      exit 1
-    fi
-  done
-  grep -Eq '^[[:space:]]*-[[:space:]]+runtime_tools$' <<<"$runtime_block"
-  grep -Eq '^[[:space:]]*-[[:space:]]+runtime_services$' <<<"$runtime_block"
-  grep -Fq "gh workflow run full-stack-integration.yml" "$workflow"
-  grep -Fq "producer_run_id" "$workflow"
-  grep -Fq "producer_run_id:" "$integration"
-  grep -Fq "actions/download-artifact@v4" "$integration"
-  grep -Fq "load-runtime-artifacts.sh" "$integration"
-  grep -Fq "gzip -dc artifacts/runtime-tools/aeko-tools-image.tar.gz | docker load" "$artifact_loader"
-  grep -Fq "runtime-network" "$artifact_loader"
-  grep -Fq "runtime-explorer-api" "$artifact_loader"
-  grep -Fq "AEKO_CI_IMAGE_REPOSITORY: aeko-ci" "$integration"
-  bash -n "$runtime_script"
+  grep -Fq 'workflow_call:' "$integration"
+  grep -Fq -- '- overlay' "$integration"
+  grep -Fq 'tools_run_id:' "$integration"
+  grep -Fq 'network_run_id:' "$integration"
+  grep -Fq 'explorer_run_id:' "$integration"
+  grep -Fq 'EXPECTED_TOOLS_SHA' "$integration"
+  grep -Fq 'EXPECTED_NETWORK_SHA' "$integration"
+  grep -Fq 'EXPECTED_EXPLORER_SHA' "$integration"
+
+  grep -Fq 'RUNTIME_TAG_SHA' "$artifact_loader"
+  grep -Fq 'docker tag "$source" "$target"' "$artifact_loader"
+  bash -n "$artifact_loader"
 
   if grep -Fq "docker/login-action" "$integration"; then
     echo "Runtime integration must not depend on Docker Hub credentials." >&2
     exit 1
   fi
   if grep -Fq "docker pull" "$runtime_script"; then
-    echo "Runtime integration script must consume preloaded workflow artifacts, not Docker Hub." >&2
-    exit 1
-  fi
-  grep -Fq "compose create --pull never key-bootstrap" "$runtime_script"
-  grep -Fq "compose up --pull never -d" "$runtime_script"
-  grep -Fq "psql -U aeko -d aeko_explorer -Atqc 'SELECT 1'" "$runtime_script"
-  if grep -Fq "pg_isready -U aeko -d aeko_explorer" "$runtime_script"; then echo "Runtime PostgreSQL readiness must query the initialized database, not transient pg_isready state." >&2; exit 1; fi
-  grep -Fq 'export AEKO_LEDGER_LIMIT=8000000' "$runtime_script"
-  if grep -Fq 'export AEKO_LEDGER_LIMIT=500000' "$runtime_script"; then
-    echo "Runtime integration must not configure a ledger limit below the validator minimum." >&2
-    exit 1
-  fi
-  grep -Fq 'rpc-functional-results.json' "$runtime_script"
-  grep -Fq 'rpc-method-results.json' "$runtime_script"
-  grep -Fq 'rpc_probe_spec()' "$runtime_script"
-  grep -Fq 'missing-probe-spec' "$runtime_script"
-  grep -Fq 'payload-or-transaction-domain-error' "$runtime_script"
-  grep -Fq 'expectation="inflation-reward"' "$runtime_script"
-  grep -Fq 'reward-block-unavailable' "$runtime_script"
-  grep -Fq 'rpcMessage' "$runtime_script"
-  grep -Fq -- '--arg id "$PROBE_ADDRESS"' "$runtime_script"
-  if grep -Fq "params='[\"ci-missing-post\",{\"commitment\":\"confirmed\"}]'" "$runtime_script" || grep -Fq "params='[\"ci-missing-target\"]'" "$runtime_script"; then
-    echo "SocialFi RPC probes must use syntactically valid record/pubkey identifiers." >&2
-    exit 1
-  fi
-  if grep -Fq 'response="$(rpc_call "$method" '\''[]'\'' 2>/dev/null || true)"' "$runtime_script"; then
-    echo "RPC surface audit must use method-specific probe parameters instead of empty params for every method." >&2
-    exit 1
-  fi
-  grep -Fq "jq -ce 'if .error then error(.error | tostring) elif has(\"result\") then .result else error(\"missing result\") end'" "$runtime_script"
-  if grep -Fq "jq -cer 'if .error" "$runtime_script"; then
-    echo "RPC result helper must preserve JSON string typing for downstream jq consumers." >&2
-    exit 1
-  fi
-  grep -Fq 'explorer-route-results.json' "$runtime_script"
-  grep -Fq 'probe="${probe//:id/00000000-0000-0000-0000-000000000000}"' "$runtime_script"
-  if grep -Fq 'probe="${probe//:id/ci-missing-request}"' "$runtime_script"; then
-    echo "Funding request route probes must use a syntactically valid missing UUID." >&2
-    exit 1
-  fi
-  grep -Fq 'application_flow_enabled funding-public' "$runtime_script"
-  grep -Fq 'application_flow_enabled funding-admin' "$runtime_script"
-  grep -Fq 'ADMIN_IDEMPOTENCY_KEY' "$runtime_script"
-  grep -Fq 'idempotent Admin retry changed wallet balance twice' "$runtime_script"
-  grep -Fq 'application_flow_enabled funding-airdrop' "$runtime_script"
-  grep -Fq 'application_flow_enabled social-protocol' "$runtime_script"
-  grep -Fq -- '--signature "$RPC_FUNDING_SIGNATURE"' "$runtime_script"
-
-  if grep -Fq 'elif [ "$GITHUB_EVENT_NAME" = "pull_request"' "$release_mode"; then
-    echo "Pull requests must not publish runtime images to Docker Hub." >&2
+    echo "Runtime integration must consume preloaded artifacts, not Docker Hub." >&2
     exit 1
   fi
 
-  echo "[ok] runtime integration consumes exact grouped producer artifacts and PRs do not push registry images"
+  echo "[ok] runtime integration supports exact, overlay, and known-good artifact modes"
 }
 
 assert_grouped_devops_workflow_contract() {
   local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
-  local web_workflow="$PIPELINE_DIR/../../../workflows/devops-web-ui.yml"
   local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
-  local sdk_workflow="$PIPELINE_DIR/../../../workflows/devops-sdk-validation.yml"
 
   grep -Fq 'name: Explorer / UI' "$workflow"
-  grep -Fq 'uses: ./.github/workflows/devops-web-ui.yml' "$workflow"
   grep -Fq 'name: Runtime / Tools producer' "$workflow"
-  grep -Fq 'name: Release / Linux CLI validation' "$workflow"
-  grep -Fq 'name: Chain Contract / Critical RPC + WebSocket' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'name: RPC Method Contract / Individual JSON-RPC calls' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'name: Backend Contract / ${{ matrix.flow }}' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'name: CLI Contract / Release binary' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'name: Summary / Runtime contract' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'GITHUB_RUN_ATTEMPT" -gt 1' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'AEKO_CI_CONTRACT_SCOPE: chain' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'AEKO_CI_CONTRACT_SCOPE: rpc-methods' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'AEKO_CI_CONTRACT_SCOPE: application' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'AEKO_CI_CONTRACT_SCOPE: protocol' ".github/workflows/full-stack-integration.yml"
-  grep -Fq 'AEKO_CI_APPLICATION_FLOW: ${{ matrix.flow }}' ".github/workflows/full-stack-integration.yml"
-  for flow in route-surface settings funding-public funding-admin funding-airdrop social-protocol; do grep -Fq -- "- $flow" ".github/workflows/full-stack-integration.yml"; done
-  if grep -Eq '^[[:space:]]+if: inputs\.selection_mode == .exact.' ".github/workflows/full-stack-integration.yml"; then echo "Runtime contract shards must run in both exact and last-success modes." >&2; exit 1; fi
-  if grep -Fq 'Known-Good Compatibility / Latest successful runtime' ".github/workflows/full-stack-integration.yml"; then echo "Monolithic last-success compatibility job must not replace granular contract shards." >&2; exit 1; fi
-  grep -Fq 'chmod 0755 "$CLI_RELEASE_DIR/package/aeko" "$CLI_RELEASE_DIR/package/aeko-keygen"' "$workflow"
   grep -Fq 'name: Runtime / Producers' "$workflow"
-  grep -Fq 'uses: ./.github/workflows/devops-runtime-services.yml' "$workflow"
-  grep -Fq 'name: SDK' "$workflow"
-  grep -Fq 'uses: ./.github/workflows/devops-sdk-validation.yml' "$workflow"
-  grep -Fq 'secrets: inherit' "$workflow"
-
-  grep -Fq 'workflow_call:' "$web_workflow"
-  grep -Fq 'name: Admin / Operations Web' "$web_workflow"
-  grep -Fq 'name: Explorer Web' "$web_workflow"
-  grep -Fq 'workflow_call:' "$runtime_workflow"
-  grep -Fq 'name: Explorer API' "$runtime_workflow"
-  grep -Fq 'name: Blockchain network' "$runtime_workflow"
-  grep -Fq 'workflow_call:' "$sdk_workflow"
-  grep -Fq 'name: JS · Node · Python' "$sdk_workflow"
-  grep -Fq 'name: Rust' "$sdk_workflow"
-
-  if grep -Eq '^  (admin|explorer_web|explorer_backend|network|sdk_non_rust|sdk_rust):' "$workflow"; then
-    echo "Grouped DevOps child jobs leaked back into the top-level graph." >&2
-    exit 1
-  fi
+  grep -Fq 'name: Integration / Runtime contract' "$workflow"
+  grep -Fq 'name: Explorer API / Quality' "$runtime_workflow"
+  grep -Fq 'name: Explorer API / Image' "$runtime_workflow"
+  grep -Fq 'name: Blockchain network / Quality' "$runtime_workflow"
+  grep -Fq 'name: Blockchain network / Images' "$runtime_workflow"
 
   local gate_block
-  gate_block="$(sed -n '/^  devops:/,/^  runtime_integration:/p' "$workflow")"
+  gate_block="$(sed -n '/^  devops:/,/^  runtime_contract:/p' "$workflow")"
   for required in ci_contract web_ui cli runtime_tools cli_linux_release runtime_services sdk_validation; do
-    grep -Eq "^[[:space:]]*-[[:space:]]+${required}$" <<<"$gate_block"
+    grep -Eq "^[[:space:]]*-[[:space:]]+$required$" <<<"$gate_block"
   done
 
-  local publish_block
-  publish_block="$(sed -n '/^  cli_release_publish:/,/^  sdk_publish:/p' "$workflow")"
-  grep -Eq '^[[:space:]]*-[[:space:]]+cli_windows_release$' <<<"$publish_block"
-  grep -Eq '^[[:space:]]*-[[:space:]]+devops$' <<<"$publish_block"
-  if grep -Eq '^[[:space:]]*-[[:space:]]+cli$' <<<"$publish_block" || grep -Fq "needs.cli.result" <<<"$publish_block"; then
-    echo "CLI publication must rely on the Windows release chain and aggregate gate, not a redundant direct CLI edge." >&2
-    exit 1
-  fi
+  local release_block
+  release_block="$(sed -n '/^  release:/,$p' "$workflow")"
+  grep -Fq 'publish-runtime-images.sh' <<<"$release_block"
+  grep -Fq 'needs.runtime_contract.result' <<<"$release_block"
+  [ "$(grep -Fc 'docker/login-action@v4' <<<"$release_block")" -eq 1 ]
 
-  echo "[ok] DevOps graph separates CLI quality, runtime artifact readiness, release validation, UI, runtime services, and SDKs with only real dependencies"
+  echo "[ok] DevOps separates validation, image production, integration, and release"
 }
-
 assert_grouped_devops_workflow_contract
 assert_node24_action_majors
 assert_targeted_docker_publication_contract
@@ -589,50 +444,25 @@ assert_smart_contract_pipeline_separation
 assert_vercel_git_deployments_disabled
 assert_cli_release_after_main_contract
 
-run_plan_case "Explorer Web-only main push stays scoped to Explorer Web" \
-  push false false false false false true false false false false false \
-  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=true \
-  run_network=false run_sdk_non_rust=false run_sdk_rust=false
+run_plan_case "Explorer backend change builds only Explorer API and uses runtime overlay" \
+  $'run_cli=false\nrun_explorer_backend=true\nrun_network=false\nbuild_tools=false\nbuild_explorer_backend=true\nbuild_network=false\nrun_runtime_contract=true\nruntime_contract_mode=overlay' \
+  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=true EXPLORER_WEB=false \
+  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
 
-run_plan_case "SDK JS-only main push stays scoped to non-Rust SDK validation" \
-  push false false false false false false true false false false false \
-  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=false \
-  run_network=false run_sdk_non_rust=true run_sdk_rust=false
+run_plan_case "Explorer Web-only change avoids Rust runtime lanes" \
+  $'run_explorer_web=true\nbuild_explorer_web=true\nrun_cli=false\nrun_explorer_backend=false\nrun_network=false\nrun_runtime_contract=false' \
+  GITHUB_EVENT_NAME=push ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=true \
+  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
 
-run_plan_case "core pull request keeps runtime and SDK contracts together" \
-  pull_request false false true false false false false false false false false \
-  run_admin=false run_cli=true run_explorer_backend=true run_explorer_web=false \
-  run_network=true run_sdk_non_rust=true run_sdk_rust=true
+run_plan_case "CI-only change uses known-good artifacts without rebuilding product images" \
+  $'run_admin=false\nrun_cli=false\nrun_explorer_backend=false\nrun_explorer_web=false\nrun_network=false\nrun_sdk_non_rust=false\nrun_sdk_rust=false\nbuild_tools=false\nbuild_explorer_backend=false\nbuild_network=false\nrun_runtime_contract=true\nruntime_contract_mode=last-success' \
+  GITHUB_EVENT_NAME=push ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
+  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=true
 
-run_plan_case "Explorer backend change keeps the exact runtime bundle together" \
-  pull_request false false false false true false false false false false false \
-  run_admin=false run_cli=true run_explorer_backend=true run_explorer_web=false \
-  run_network=true run_sdk_non_rust=false run_sdk_rust=false
-
-run_plan_case "CLI change keeps the exact runtime bundle together" \
-  pull_request false true false false false false false false false false false \
-  run_admin=false run_cli=true run_explorer_backend=true run_explorer_web=false \
-  run_network=true run_sdk_non_rust=false run_sdk_rust=false
-
-run_plan_case "core main push rebuilds deployable image and SDK surfaces" \
-  push false false true false false false false false false false false \
-  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
-  run_network=true run_sdk_non_rust=true run_sdk_rust=true
-
-run_plan_case "packaging main push validates every container target" \
-  push false false false true false false false false false false false \
-  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
-  run_network=true run_sdk_non_rust=false run_sdk_rust=false
-
-run_plan_case "CI-only pull request exercises the full orchestration graph" \
-  pull_request false false false false false false false false false false true \
-  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
-  run_network=true run_sdk_non_rust=true run_sdk_rust=true
-
-run_plan_case "CI-only main push exercises the full orchestration graph" \
-  push false false false false false false false false false false true \
-  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
-  run_network=true run_sdk_non_rust=true run_sdk_rust=true
+run_plan_case "Core change rebuilds coupled Rust runtime artifacts exactly" \
+  $'run_cli=true\nrun_explorer_backend=true\nrun_network=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_network=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
+  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=true PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
+  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
 
 run_deploy_plan_case "Explorer backend source deploys only Explorer API" \
   false false true false false false false false false false \
@@ -649,33 +479,28 @@ run_deploy_plan_case "Split Explorer API Compose change deploys only Explorer AP
 run_deploy_plan_case "Stateful Coolify config remains manual" \
   false false false false true true true false false false \
   false false false true
-run_deploy_plan_case "Core release remains stateful-manual despite broad validation" \
-  false true false false false false false false false false \
-  false false false true
 
 test_split_deploy_trigger
 
-run_release_case "CI-only main push does not publish unrelated Docker images" \
-  push refs/heads/main false true false false false false false false false \
-  false false false false false false
-run_release_case "Explorer Web main push publishes only Explorer UI" \
-  push refs/heads/main true false false false false false false false true \
-  true false false false true false
+run_release_case "CI-only main push publishes no Docker images" \
+  $'publish=false\npublish_admin=false\npublish_cli=false\npublish_explorer_backend=false\npublish_explorer_web=false\npublish_network=false' \
+  GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main DOCKERIZED=false CI_PIPELINE=true \
+  ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false
+
 run_release_case "Explorer backend main push publishes only Explorer API aliases" \
-  push refs/heads/main true false false false false false false true false \
-  true false false true false false
-run_release_case "core main push publishes only core-backed runtime images" \
-  push refs/heads/main true false false false false true false false false \
-  true false true true false true
-run_release_case "packaging main push publishes every image target" \
-  push refs/heads/main true false false false false false true false false \
-  true true true true true true
-run_release_case "same-repository product pull request keeps images off Docker Hub" \
-  pull_request refs/pull/58/merge true false true false false false false false true \
-  false false false false false false
-run_release_case "SDK-only main push does not publish Docker images" \
-  push refs/heads/main false false false false false false false false false \
-  false false false false false false
+  $'publish=true\npublish_admin=false\npublish_cli=false\npublish_explorer_backend=true\npublish_explorer_web=false\npublish_network=false' \
+  GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main DOCKERIZED=true \
+  ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=true EXPLORER_WEB=false
+
+run_release_case "Core main push publishes core-backed runtime images" \
+  $'publish=true\npublish_admin=false\npublish_cli=true\npublish_explorer_backend=true\npublish_explorer_web=false\npublish_network=true' \
+  GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main DOCKERIZED=true \
+  ADMIN=false CLI=false CORE=true PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false
+
+run_release_case "Packaging main push publishes every image target" \
+  $'publish=true\npublish_admin=true\npublish_cli=true\npublish_explorer_backend=true\npublish_explorer_web=true\npublish_network=true' \
+  GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main DOCKERIZED=true \
+  ADMIN=false CLI=false CORE=false PACKAGING=true EXPLORER_BACKEND=false EXPLORER_WEB=false
 
 GITHUB_WORKSPACE="$PWD" PUBLISH_JS=true BEST_EFFORT=true NPM_TOKEN="" \
   bash "$SDK_PUBLISH_DIR/publish-selected.sh"

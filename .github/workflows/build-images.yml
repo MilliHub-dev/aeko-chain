@@ -84,7 +84,14 @@ jobs:
       run_network: ${{ steps.plan.outputs.run_network }}
       run_sdk_non_rust: ${{ steps.plan.outputs.run_sdk_non_rust }}
       run_sdk_rust: ${{ steps.plan.outputs.run_sdk_rust }}
+      build_admin: ${{ steps.plan.outputs.build_admin }}
+      build_tools: ${{ steps.plan.outputs.build_tools }}
+      build_explorer_backend: ${{ steps.plan.outputs.build_explorer_backend }}
+      build_explorer_web: ${{ steps.plan.outputs.build_explorer_web }}
+      build_network: ${{ steps.plan.outputs.build_network }}
       run_ci_contract: ${{ steps.plan.outputs.run_ci_contract }}
+      run_runtime_contract: ${{ steps.plan.outputs.run_runtime_contract }}
+      runtime_contract_mode: ${{ steps.plan.outputs.runtime_contract_mode }}
       deploy_explorer_api: ${{ steps.plan.outputs.deploy_explorer_api }}
       deploy_explorer_ui: ${{ steps.plan.outputs.deploy_explorer_ui }}
       deploy_operations_web: ${{ steps.plan.outputs.deploy_operations_web }}
@@ -163,15 +170,18 @@ jobs:
   web_ui:
     name: Explorer / UI
     needs: classify
-    if: needs.classify.outputs.run_admin == 'true' || needs.classify.outputs.run_explorer_web == 'true'
+    if: >-
+      needs.classify.outputs.run_admin == 'true' ||
+      needs.classify.outputs.build_admin == 'true' ||
+      needs.classify.outputs.run_explorer_web == 'true' ||
+      needs.classify.outputs.build_explorer_web == 'true'
     uses: ./.github/workflows/devops-web-ui.yml
     with:
-      run_admin: ${{ needs.classify.outputs.run_admin }}
-      run_explorer_web: ${{ needs.classify.outputs.run_explorer_web }}
-      publish_admin: ${{ needs.classify.outputs.publish_admin }}
-      publish_explorer_web: ${{ needs.classify.outputs.publish_explorer_web }}
+      validate_admin: ${{ needs.classify.outputs.run_admin }}
+      build_admin: ${{ needs.classify.outputs.build_admin }}
+      validate_explorer_web: ${{ needs.classify.outputs.run_explorer_web }}
+      build_explorer_web: ${{ needs.classify.outputs.build_explorer_web }}
       sha_tag: ${{ needs.classify.outputs.sha_tag }}
-    secrets: inherit
 
   cli:
     name: Quality / CLI source
@@ -202,9 +212,9 @@ jobs:
   runtime_tools:
     name: Runtime / Tools producer
     needs: classify
-    if: needs.classify.outputs.run_cli == 'true'
+    if: needs.classify.outputs.build_tools == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 35
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
@@ -216,21 +226,13 @@ jobs:
         with:
           docker: "true"
 
-      - name: Log in to Docker Hub
-        if: needs.classify.outputs.publish_cli == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Build operator tools image
         uses: ./.github/actions/devops/cli
         with:
           validate-source: "false"
           host-build: "false"
           build-image: "true"
-          publish: ${{ needs.classify.outputs.publish_cli }}
-          registry-user: ${{ needs.classify.outputs.publish_cli == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          publish: "false"
           sha-tag: ${{ needs.classify.outputs.sha_tag }}
 
       - name: Package runtime tools image and Linux CLI payload
@@ -354,15 +356,18 @@ jobs:
   runtime_services:
     name: Runtime / Producers
     needs: classify
-    if: needs.classify.outputs.run_explorer_backend == 'true' || needs.classify.outputs.run_network == 'true'
+    if: >-
+      needs.classify.outputs.run_explorer_backend == 'true' ||
+      needs.classify.outputs.build_explorer_backend == 'true' ||
+      needs.classify.outputs.run_network == 'true' ||
+      needs.classify.outputs.build_network == 'true'
     uses: ./.github/workflows/devops-runtime-services.yml
     with:
-      run_explorer_backend: ${{ needs.classify.outputs.run_explorer_backend }}
-      run_network: ${{ needs.classify.outputs.run_network }}
-      publish_explorer_backend: ${{ needs.classify.outputs.publish_explorer_backend }}
-      publish_network: ${{ needs.classify.outputs.publish_network }}
+      validate_explorer_backend: ${{ needs.classify.outputs.run_explorer_backend }}
+      build_explorer_backend: ${{ needs.classify.outputs.build_explorer_backend }}
+      validate_network: ${{ needs.classify.outputs.run_network }}
+      build_network: ${{ needs.classify.outputs.build_network }}
       sha_tag: ${{ needs.classify.outputs.sha_tag }}
-    secrets: inherit
 
   sdk_validation:
     name: SDK
@@ -568,157 +573,65 @@ jobs:
           CLASSIFY_RESULT: ${{ needs.classify.result }}
           EXPECT_CI_CONTRACT: ${{ needs.classify.outputs.run_ci_contract }}
           CI_CONTRACT_RESULT: ${{ needs.ci_contract.result }}
-          EXPECT_WEB_UI: ${{ needs.classify.outputs.run_admin == 'true' || needs.classify.outputs.run_explorer_web == 'true' }}
+          EXPECT_WEB_UI: ${{ needs.classify.outputs.run_admin == 'true' || needs.classify.outputs.build_admin == 'true' || needs.classify.outputs.run_explorer_web == 'true' || needs.classify.outputs.build_explorer_web == 'true' }}
           WEB_UI_RESULT: ${{ needs.web_ui.result }}
           EXPECT_CLI: ${{ needs.classify.outputs.run_cli }}
           CLI_RESULT: ${{ needs.cli.result }}
-          EXPECT_RUNTIME_TOOLS: ${{ needs.classify.outputs.run_cli }}
+          EXPECT_RUNTIME_TOOLS: ${{ needs.classify.outputs.build_tools }}
           RUNTIME_TOOLS_RESULT: ${{ needs.runtime_tools.result }}
-          EXPECT_CLI_LINUX_RELEASE: ${{ needs.classify.outputs.run_cli }}
+          EXPECT_CLI_LINUX_RELEASE: ${{ needs.classify.outputs.build_tools }}
           CLI_LINUX_RELEASE_RESULT: ${{ needs.cli_linux_release.result }}
-          EXPECT_RUNTIME_SERVICES: ${{ needs.classify.outputs.run_explorer_backend == 'true' || needs.classify.outputs.run_network == 'true' }}
+          EXPECT_RUNTIME_SERVICES: ${{ needs.classify.outputs.run_explorer_backend == 'true' || needs.classify.outputs.build_explorer_backend == 'true' || needs.classify.outputs.run_network == 'true' || needs.classify.outputs.build_network == 'true' }}
           RUNTIME_SERVICES_RESULT: ${{ needs.runtime_services.result }}
           EXPECT_SDK_VALIDATION: ${{ needs.classify.outputs.run_sdk_non_rust == 'true' || needs.classify.outputs.run_sdk_rust == 'true' }}
           SDK_VALIDATION_RESULT: ${{ needs.sdk_validation.result }}
         run: bash .github/actions/devops/pipeline/verify-results.sh
 
-  runtime_baseline:
-    name: Integration / Known-good baseline dispatch
+  runtime_contract:
+    name: Integration / Runtime contract
     needs:
       - classify
-    if: >-
-      needs.classify.result == 'success' &&
-      (
-        github.event_name == 'push' ||
-        (
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        )
-      )
-    permissions:
-      actions: write
-      contents: read
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Resolve compatible baseline
-        id: baseline
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TARGET_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
-        run: |
-          set -euo pipefail
-          : "${TARGET_REF:?target ref is required}"
-
-          runs="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/workflows/build-images.yml/runs" \
-            -f branch="$TARGET_REF" \
-            -f status=success \
-            -f per_page=30)"
-
-          producer_run_id=""
-          while IFS= read -r candidate_id; do
-            [ -n "$candidate_id" ] || continue
-            artifacts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_id}/artifacts?per_page=100")"
-            complete=1
-            for required in aeko-runtime-tools aeko-runtime-network aeko-runtime-explorer-api; do
-              if ! jq -e --arg name "$required" '.artifacts | any(.name == $name and .expired == false)' <<<"$artifacts" >/dev/null; then
-                complete=0
-                break
-              fi
-            done
-            if [ "$complete" -eq 1 ]; then
-              producer_run_id="$candidate_id"
-              break
-            fi
-          done < <(jq -r '.workflow_runs[].id' <<<"$runs")
-
-          if [ -z "$producer_run_id" ]; then
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "No prior compatible runtime baseline exists for $TARGET_REF; exact integration will run after current producers succeed."
-            exit 0
-          fi
-
-          echo "available=true" >> "$GITHUB_OUTPUT"
-          echo "producer_run_id=$producer_run_id" >> "$GITHUB_OUTPUT"
-          echo "Compatible runtime baseline producer: $producer_run_id"
-
-      - name: Dispatch latest-success compatibility integration
-        if: steps.baseline.outputs.available == 'true'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TARGET_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
-          BASELINE_RUN_ID: ${{ steps.baseline.outputs.producer_run_id }}
-        run: |
-          set -euo pipefail
-          : "${TARGET_REF:?target ref is required}"
-          : "${BASELINE_RUN_ID:?baseline producer run id is required}"
-          gh workflow run full-stack-integration.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            --ref "$TARGET_REF" \
-            -f "selection_mode=last-success" \
-            -f "target_ref=$TARGET_REF"
-          echo "Dispatched known-good compatibility integration using baseline producer candidate $BASELINE_RUN_ID."
-
-  runtime_integration:
-    name: Integration / Runtime artifacts
-    needs:
       - runtime_tools
       - runtime_services
     if: >-
-      needs.runtime_tools.result == 'success' &&
-      needs.runtime_services.result == 'success' &&
+      always() &&
+      needs.classify.outputs.run_runtime_contract == 'true' &&
+      (needs.classify.outputs.build_tools != 'true' || needs.runtime_tools.result == 'success') &&
       (
-        github.event_name == 'push' ||
-        github.event_name == 'workflow_dispatch' ||
-        (
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        )
+        (needs.classify.outputs.build_explorer_backend != 'true' && needs.classify.outputs.build_network != 'true') ||
+        needs.runtime_services.result == 'success'
+      ) &&
+      (
+        github.event_name != 'pull_request' ||
+        github.event.pull_request.head.repo.full_name == github.repository
       )
     permissions:
-      actions: write
+      actions: read
       contents: read
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Dispatch runtime contract integration
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PRODUCER_RUN_ID: ${{ github.run_id }}
-          BUILD_SHA: ${{ github.sha }}
-          SOURCE_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          TARGET_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
-        run: |
-          set -euo pipefail
-          : "${PRODUCER_RUN_ID:?producer run id is required}"
-          : "${BUILD_SHA:?build SHA is required}"
-          : "${SOURCE_HEAD_SHA:?source head SHA is required}"
-          : "${TARGET_REF:?target ref is required}"
-
-          gh workflow run full-stack-integration.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            --ref "$TARGET_REF" \
-            -f "selection_mode=exact" \
-            -f "producer_run_id=$PRODUCER_RUN_ID" \
-            -f "build_sha=$BUILD_SHA" \
-            -f "source_head_sha=$SOURCE_HEAD_SHA" \
-            -f "target_ref=$TARGET_REF"
-
-          echo "Dispatched runtime integration from DevOps run $PRODUCER_RUN_ID for build $BUILD_SHA"
+    uses: ./.github/workflows/full-stack-integration.yml
+    with:
+      selection_mode: ${{ needs.classify.outputs.runtime_contract_mode }}
+      producer_run_id: ${{ github.run_id }}
+      build_sha: ${{ github.sha }}
+      source_head_sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      target_ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name }}
+      use_current_tools: ${{ needs.classify.outputs.build_tools == 'true' }}
+      use_current_network: ${{ needs.classify.outputs.build_network == 'true' }}
+      use_current_explorer_api: ${{ needs.classify.outputs.build_explorer_backend == 'true' }}
 
   cli_release_publish:
     name: Publish / CLI binaries (best effort)
     needs:
+      - classify
       - cli_windows_release
       - devops
+      - runtime_contract
     if: >-
       always() &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       needs.devops.result == 'success' &&
+      (needs.classify.outputs.run_runtime_contract != 'true' || needs.runtime_contract.result == 'success') &&
       needs.cli_windows_release.outputs.ready == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -827,7 +740,8 @@ jobs:
     needs:
       - classify
       - devops
-    if: ${{ needs.devops.result == 'success' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (needs.classify.outputs.sdk_release_js == 'true' || needs.classify.outputs.sdk_release_node == 'true' || needs.classify.outputs.sdk_release_python == 'true' || needs.classify.outputs.sdk_release_rust == 'true') }}
+      - runtime_contract
+    if: ${{ always() && needs.devops.result == 'success' && (needs.classify.outputs.run_runtime_contract != 'true' || needs.runtime_contract.result == 'success') && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (needs.classify.outputs.sdk_release_js == 'true' || needs.classify.outputs.sdk_release_node == 'true' || needs.classify.outputs.sdk_release_python == 'true' || needs.classify.outputs.sdk_release_rust == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     continue-on-error: true
@@ -874,7 +788,12 @@ jobs:
     needs:
       - classify
       - devops
-    if: needs.classify.outputs.publish == 'true'
+      - runtime_contract
+    if: >-
+      always() &&
+      needs.classify.outputs.publish == 'true' &&
+      needs.devops.result == 'success' &&
+      (needs.classify.outputs.run_runtime_contract != 'true' || needs.runtime_contract.result == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -891,6 +810,53 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Download tools release artifact
+        if: needs.classify.outputs.publish_cli == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-tools
+          path: artifacts/release/tools
+
+      - name: Download network release artifact
+        if: needs.classify.outputs.publish_network == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-network
+          path: artifacts/release/network
+
+      - name: Download Explorer API release artifact
+        if: needs.classify.outputs.publish_explorer_backend == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-explorer-api
+          path: artifacts/release/explorer-api
+
+      - name: Download Explorer UI release artifact
+        if: needs.classify.outputs.publish_explorer_web == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-explorer-ui
+          path: artifacts/release/explorer-ui
+
+      - name: Download Operations Web release artifact
+        if: needs.classify.outputs.publish_admin == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-operations-web
+          path: artifacts/release/operations-web
+
+      - name: Publish validated immutable Docker images
+        shell: bash
+        env:
+          REGISTRY_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          SHA_TAG: ${{ needs.classify.outputs.sha_tag }}
+          PUBLISH_ADMIN: ${{ needs.classify.outputs.publish_admin }}
+          PUBLISH_CLI: ${{ needs.classify.outputs.publish_cli }}
+          PUBLISH_EXPLORER_BACKEND: ${{ needs.classify.outputs.publish_explorer_backend }}
+          PUBLISH_EXPLORER_WEB: ${{ needs.classify.outputs.publish_explorer_web }}
+          PUBLISH_NETWORK: ${{ needs.classify.outputs.publish_network }}
+        run: bash .github/actions/devops/pipeline/publish-runtime-images.sh
 
       - name: Promote only validated Docker images to latest
         uses: ./.github/actions/devops/promote-images

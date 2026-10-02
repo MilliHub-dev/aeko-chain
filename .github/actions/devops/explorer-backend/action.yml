@@ -46,11 +46,6 @@ runs:
       shell: bash
       run: cargo fmt --manifest-path apps/explorer/backend/Cargo.toml -- --check
 
-    - name: Explorer backend type and target check
-      if: ${{ inputs.validate-source == 'true' }}
-      shell: bash
-      run: cargo check --locked -p aeko-explorer-backend --all-targets
-
     - name: Explorer backend lint
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash

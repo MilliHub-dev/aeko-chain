@@ -1,6 +1,40 @@
 name: AEKO Runtime Contract Integration
 
 on:
+  workflow_call:
+    inputs:
+      selection_mode:
+        description: Artifact selection policy
+        required: true
+        type: string
+      producer_run_id:
+        description: Current AEKO DevOps producer run for exact/overlay modes
+        required: false
+        type: string
+      build_sha:
+        description: Current build/merge SHA stamped into current artifacts
+        required: false
+        type: string
+      source_head_sha:
+        description: Current source branch head SHA
+        required: false
+        type: string
+      target_ref:
+        description: Baseline branch/ref
+        required: true
+        type: string
+      use_current_tools:
+        required: false
+        default: false
+        type: boolean
+      use_current_network:
+        required: false
+        default: false
+        type: boolean
+      use_current_explorer_api:
+        required: false
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       selection_mode:
@@ -10,24 +44,36 @@ on:
         type: choice
         options:
           - exact
+          - overlay
           - last-success
       producer_run_id:
-        description: Exact AEKO DevOps producer run (exact mode)
+        description: Current AEKO DevOps producer run for exact/overlay modes
         required: false
         type: string
       build_sha:
-        description: Exact build/merge SHA stamped into artifacts (exact mode)
+        description: Current build/merge SHA stamped into current artifacts
         required: false
         type: string
       source_head_sha:
-        description: Source branch head SHA (exact mode)
+        description: Current source branch head SHA
         required: false
         type: string
       target_ref:
-        description: Branch whose latest successful producer is eligible
+        description: Baseline branch/ref
         required: true
         type: string
-
+      use_current_tools:
+        required: false
+        default: false
+        type: boolean
+      use_current_network:
+        required: false
+        default: false
+        type: boolean
+      use_current_explorer_api:
+        required: false
+        default: false
+        type: boolean
 permissions:
   actions: read
   contents: read
@@ -38,15 +84,20 @@ concurrency:
 
 jobs:
   resolve:
-    name: Resolve / Runtime artifact source
+    name: Resolve / Runtime artifact sources
     runs-on: ubuntu-latest
-    timeout-minutes: 65
+    timeout-minutes: 10
     outputs:
-      producer_run_id: ${{ steps.resolve.outputs.producer_run_id }}
-      source_head_sha: ${{ steps.resolve.outputs.source_head_sha }}
-      expected_build_sha: ${{ steps.resolve.outputs.expected_build_sha }}
+      checkout_sha: ${{ steps.resolve.outputs.checkout_sha }}
+      runtime_tag_sha: ${{ steps.resolve.outputs.runtime_tag_sha }}
+      tools_run_id: ${{ steps.resolve.outputs.tools_run_id }}
+      tools_expected_sha: ${{ steps.resolve.outputs.tools_expected_sha }}
+      network_run_id: ${{ steps.resolve.outputs.network_run_id }}
+      network_expected_sha: ${{ steps.resolve.outputs.network_expected_sha }}
+      explorer_run_id: ${{ steps.resolve.outputs.explorer_run_id }}
+      explorer_expected_sha: ${{ steps.resolve.outputs.explorer_expected_sha }}
     steps:
-      - name: Resolve exact or latest successful producer
+      - name: Resolve exact, overlay, or known-good artifacts
         id: resolve
         shell: bash
         env:
@@ -56,84 +107,142 @@ jobs:
           INPUT_BUILD_SHA: ${{ inputs.build_sha }}
           INPUT_SOURCE_HEAD_SHA: ${{ inputs.source_head_sha }}
           TARGET_REF: ${{ inputs.target_ref }}
+          USE_CURRENT_TOOLS: ${{ inputs.use_current_tools }}
+          USE_CURRENT_NETWORK: ${{ inputs.use_current_network }}
+          USE_CURRENT_EXPLORER_API: ${{ inputs.use_current_explorer_api }}
         run: |
           set -euo pipefail
           : "${TARGET_REF:?target ref is required}"
 
-          verify_artifacts() {
-            local run_id="$1"
-            local artifacts
-            artifacts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100")"
-            for required in aeko-runtime-tools aeko-runtime-network aeko-runtime-explorer-api; do
-              jq -e --arg name "$required" '.artifacts | any(.name == $name and .expired == false)' <<<"$artifacts" >/dev/null || return 1
-            done
+          artifact_exists() {
+            local run_id="$1" name="$2"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?per_page=100" |
+              jq -e --arg name "$name" '.artifacts | any(.name == $name and .expired == false)' >/dev/null
           }
 
-          if [ "$MODE" = "exact" ]; then
-            : "${INPUT_RUN_ID:?exact mode requires producer_run_id}"
-            : "${INPUT_BUILD_SHA:?exact mode requires build_sha}"
-            : "${INPUT_SOURCE_HEAD_SHA:?exact mode requires source_head_sha}"
-            run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${INPUT_RUN_ID}")"
+          complete_runtime_run() {
+            local run_id="$1"
+            artifact_exists "$run_id" aeko-runtime-tools &&
+              artifact_exists "$run_id" aeko-runtime-network &&
+              artifact_exists "$run_id" aeko-runtime-explorer-api
+          }
+
+          compatible_with_current_source() {
+            local candidate_sha="$1"
+            [ -z "$INPUT_SOURCE_HEAD_SHA" ] && return 0
+            [ "$candidate_sha" = "$INPUT_SOURCE_HEAD_SHA" ] && return 0
+            local comparison merge_base
+            comparison="$(gh api "repos/$GITHUB_REPOSITORY/compare/$candidate_sha...$INPUT_SOURCE_HEAD_SHA" 2>/dev/null || true)"
+            [ -n "$comparison" ] || return 1
+            merge_base="$(jq -r '.merge_base_commit.sha // empty' <<<"$comparison")"
+            [ "$merge_base" = "$candidate_sha" ]
+          }
+
+          resolve_baseline() {
+            local runs candidate_id candidate_sha
+            if [ -n "$INPUT_SOURCE_HEAD_SHA" ]; then
+              runs="$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/build-images.yml/runs" -f status=success -f per_page=50)"
+            else
+              runs="$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/build-images.yml/runs" -f branch="$TARGET_REF" -f status=success -f per_page=30)"
+            fi
+
+            while IFS=$'\t' read -r candidate_id candidate_sha; do
+              [ -n "$candidate_id" ] || continue
+              [ "$candidate_id" = "${INPUT_RUN_ID:-}" ] && continue
+              compatible_with_current_source "$candidate_sha" || continue
+              if complete_runtime_run "$candidate_id"; then
+                printf '%s\t%s\n' "$candidate_id" "$candidate_sha"
+                return 0
+              fi
+            done < <(jq -r '.workflow_runs[] | [.id, .head_sha] | @tsv' <<<"$runs")
+            return 1
+          }
+
+          verify_current_run() {
+            : "${INPUT_RUN_ID:?current producer_run_id is required}"
+            : "${INPUT_BUILD_SHA:?current build_sha is required}"
+            : "${INPUT_SOURCE_HEAD_SHA:?current source_head_sha is required}"
+            local run_json
+            run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$INPUT_RUN_ID")"
             test "$(jq -r '.head_repository.full_name // empty' <<<"$run_json")" = "$GITHUB_REPOSITORY"
             test "$(jq -r '.head_sha // empty' <<<"$run_json")" = "$INPUT_SOURCE_HEAD_SHA"
-            verify_artifacts "$INPUT_RUN_ID"
-            producer_run_id="$INPUT_RUN_ID"
-            source_head_sha="$INPUT_SOURCE_HEAD_SHA"
-            expected_build_sha="$INPUT_BUILD_SHA"
-          elif [ "$MODE" = "last-success" ]; then
-            producer_run_id=""
-            source_head_sha=""
+          }
 
-            if [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
-              latest="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/workflows/build-images.yml/runs" -f branch="$TARGET_REF" -f per_page=1 | jq -c '.workflow_runs[0] // empty')"
-              if [ -n "$latest" ]; then
-                latest_id="$(jq -r '.id' <<<"$latest")"
-                latest_status="$(jq -r '.status' <<<"$latest")"
-                echo "Rerun attempt $GITHUB_RUN_ATTEMPT will prefer newest producer run $latest_id (status=$latest_status)."
-                for _ in $(seq 1 120); do
-                  case "$latest_status" in
-                    completed) break ;;
-                    queued|in_progress|pending|requested|waiting)
-                      sleep 30
-                      latest="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${latest_id}")"
-                      latest_status="$(jq -r '.status' <<<"$latest")"
-                      ;;
-                    *) break ;;
-                  esac
-                done
-                if [ "$latest_status" = "completed" ] && [ "$(jq -r '.conclusion // empty' <<<"$latest")" = "success" ] && verify_artifacts "$latest_id"; then
-                  producer_run_id="$latest_id"
-                  source_head_sha="$(jq -r '.head_sha' <<<"$latest")"
-                fi
-              fi
+          checkout_sha="${INPUT_BUILD_SHA:-}"
+          runtime_tag_sha="${INPUT_BUILD_SHA:-}"
+          tools_run_id=""
+          tools_expected_sha=""
+          network_run_id=""
+          network_expected_sha=""
+          explorer_run_id=""
+          explorer_expected_sha=""
+
+          if [ "$MODE" = exact ]; then
+            verify_current_run
+            complete_runtime_run "$INPUT_RUN_ID"
+            tools_run_id="$INPUT_RUN_ID"; tools_expected_sha="$INPUT_BUILD_SHA"
+            network_run_id="$INPUT_RUN_ID"; network_expected_sha="$INPUT_BUILD_SHA"
+            explorer_run_id="$INPUT_RUN_ID"; explorer_expected_sha="$INPUT_BUILD_SHA"
+          elif [ "$MODE" = overlay ]; then
+            verify_current_run
+            baseline="$(resolve_baseline)" || {
+              echo "No compatible successful runtime baseline exists for $TARGET_REF" >&2
+              exit 1
+            }
+            IFS=$'\t' read -r baseline_run_id baseline_head_sha <<<"$baseline"
+
+            if [ "$USE_CURRENT_TOOLS" = true ]; then
+              artifact_exists "$INPUT_RUN_ID" aeko-runtime-tools
+              tools_run_id="$INPUT_RUN_ID"; tools_expected_sha="$INPUT_BUILD_SHA"
+            else
+              tools_run_id="$baseline_run_id"
             fi
-
-            if [ -z "$producer_run_id" ]; then
-              runs="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/workflows/build-images.yml/runs" -f branch="$TARGET_REF" -f status=success -f per_page=30)"
-              while IFS=$'\t' read -r candidate_id candidate_sha; do
-                [ -n "$candidate_id" ] || continue
-                if verify_artifacts "$candidate_id"; then
-                  producer_run_id="$candidate_id"
-                  source_head_sha="$candidate_sha"
-                  break
-                fi
-              done < <(jq -r '.workflow_runs[] | [.id, .head_sha] | @tsv' <<<"$runs")
+            if [ "$USE_CURRENT_NETWORK" = true ]; then
+              artifact_exists "$INPUT_RUN_ID" aeko-runtime-network
+              network_run_id="$INPUT_RUN_ID"; network_expected_sha="$INPUT_BUILD_SHA"
+            else
+              network_run_id="$baseline_run_id"
             fi
-
-            test -n "$producer_run_id" || { echo "No successful compatible AEKO DevOps run with all runtime artifacts exists for $TARGET_REF" >&2; exit 1; }
-            expected_build_sha=""
+            if [ "$USE_CURRENT_EXPLORER_API" = true ]; then
+              artifact_exists "$INPUT_RUN_ID" aeko-runtime-explorer-api
+              explorer_run_id="$INPUT_RUN_ID"; explorer_expected_sha="$INPUT_BUILD_SHA"
+            else
+              explorer_run_id="$baseline_run_id"
+            fi
+          elif [ "$MODE" = last-success ]; then
+            if [ -n "$INPUT_RUN_ID" ] && [ -n "$INPUT_BUILD_SHA" ] && [ -n "$INPUT_SOURCE_HEAD_SHA" ]; then
+              verify_current_run
+            fi
+            baseline="$(resolve_baseline)" || {
+              echo "No compatible successful runtime baseline exists for $TARGET_REF" >&2
+              exit 1
+            }
+            IFS=$'\t' read -r baseline_run_id baseline_head_sha <<<"$baseline"
+            tools_run_id="$baseline_run_id"
+            network_run_id="$baseline_run_id"
+            explorer_run_id="$baseline_run_id"
+            if [ -z "$checkout_sha" ]; then checkout_sha="$baseline_head_sha"; fi
+            if [ -z "$runtime_tag_sha" ]; then runtime_tag_sha="$baseline_head_sha"; fi
           else
             echo "Unsupported selection mode: $MODE" >&2
             exit 2
           fi
 
-          {
-            echo "producer_run_id=$producer_run_id"
-            echo "source_head_sha=$source_head_sha"
-            echo "expected_build_sha=$expected_build_sha"
-          } >> "$GITHUB_OUTPUT"
-          echo "Resolved $MODE runtime artifacts from producer run $producer_run_id (source $source_head_sha)."
+          : "${checkout_sha:?checkout SHA could not be resolved}"
+          : "${runtime_tag_sha:?runtime tag SHA could not be resolved}"
 
+          {
+            echo "checkout_sha=$checkout_sha"
+            echo "runtime_tag_sha=$runtime_tag_sha"
+            echo "tools_run_id=$tools_run_id"
+            echo "tools_expected_sha=$tools_expected_sha"
+            echo "network_run_id=$network_run_id"
+            echo "network_expected_sha=$network_expected_sha"
+            echo "explorer_run_id=$explorer_run_id"
+            echo "explorer_expected_sha=$explorer_expected_sha"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Resolved $MODE runtime sources: tools=$tools_run_id network=$network_run_id explorer=$explorer_run_id"
 
   chain-contract:
     name: Chain Contract / Critical RPC + WebSocket
@@ -144,7 +253,7 @@ jobs:
       - name: Checkout contract source
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || github.sha }}
+          ref: ${{ needs.resolve.outputs.checkout_sha }}
           fetch-depth: 0
       - name: Download runtime tools artifact
         uses: actions/download-artifact@v4
@@ -153,7 +262,7 @@ jobs:
           path: artifacts/runtime-tools
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+          run-id: ${{ needs.resolve.outputs.tools_run_id }}
       - name: Download network runtime artifact
         uses: actions/download-artifact@v4
         with:
@@ -161,7 +270,7 @@ jobs:
           path: artifacts/runtime-network
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+          run-id: ${{ needs.resolve.outputs.network_run_id }}
       - name: Download Explorer API runtime artifact
         uses: actions/download-artifact@v4
         with:
@@ -169,12 +278,15 @@ jobs:
           path: artifacts/runtime-explorer-api
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+          run-id: ${{ needs.resolve.outputs.explorer_run_id }}
       - name: Verify provenance and load runtime images
         id: artifacts
         shell: bash
         env:
-          EXPECTED_BUILD_SHA: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || '' }}
+          RUNTIME_TAG_SHA: ${{ needs.resolve.outputs.runtime_tag_sha }}
+          EXPECTED_TOOLS_SHA: ${{ needs.resolve.outputs.tools_expected_sha }}
+          EXPECTED_NETWORK_SHA: ${{ needs.resolve.outputs.network_expected_sha }}
+          EXPECTED_EXPLORER_SHA: ${{ needs.resolve.outputs.explorer_expected_sha }}
         run: bash .github/actions/devops/pipeline/load-runtime-artifacts.sh
       - name: Run critical chain contract
         env:
@@ -202,7 +314,7 @@ jobs:
       - name: Checkout contract source
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || github.sha }}
+          ref: ${{ needs.resolve.outputs.checkout_sha }}
           fetch-depth: 0
       - name: Download runtime tools artifact
         uses: actions/download-artifact@v4
@@ -211,7 +323,7 @@ jobs:
           path: artifacts/runtime-tools
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+          run-id: ${{ needs.resolve.outputs.tools_run_id }}
       - name: Download network runtime artifact
         uses: actions/download-artifact@v4
         with:
@@ -219,7 +331,7 @@ jobs:
           path: artifacts/runtime-network
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+          run-id: ${{ needs.resolve.outputs.network_run_id }}
       - name: Download Explorer API runtime artifact
         uses: actions/download-artifact@v4
         with:
@@ -227,12 +339,15 @@ jobs:
           path: artifacts/runtime-explorer-api
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+          run-id: ${{ needs.resolve.outputs.explorer_run_id }}
       - name: Verify provenance and load runtime images
         id: artifacts
         shell: bash
         env:
-          EXPECTED_BUILD_SHA: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || '' }}
+          RUNTIME_TAG_SHA: ${{ needs.resolve.outputs.runtime_tag_sha }}
+          EXPECTED_TOOLS_SHA: ${{ needs.resolve.outputs.tools_expected_sha }}
+          EXPECTED_NETWORK_SHA: ${{ needs.resolve.outputs.network_expected_sha }}
+          EXPECTED_EXPLORER_SHA: ${{ needs.resolve.outputs.explorer_expected_sha }}
         run: bash .github/actions/devops/pipeline/load-runtime-artifacts.sh
       - name: Probe every declared JSON-RPC method
         env:
@@ -271,7 +386,7 @@ jobs:
       - name: Checkout contract source
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || github.sha }}
+          ref: ${{ needs.resolve.outputs.checkout_sha }}
           fetch-depth: 0
       - name: Download runtime tools artifact
         uses: actions/download-artifact@v4
@@ -280,7 +395,7 @@ jobs:
           path: artifacts/runtime-tools
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+          run-id: ${{ needs.resolve.outputs.tools_run_id }}
       - name: Download network runtime artifact
         uses: actions/download-artifact@v4
         with:
@@ -288,7 +403,7 @@ jobs:
           path: artifacts/runtime-network
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+          run-id: ${{ needs.resolve.outputs.network_run_id }}
       - name: Download Explorer API runtime artifact
         uses: actions/download-artifact@v4
         with:
@@ -296,12 +411,15 @@ jobs:
           path: artifacts/runtime-explorer-api
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+          run-id: ${{ needs.resolve.outputs.explorer_run_id }}
       - name: Verify provenance and load runtime images
         id: artifacts
         shell: bash
         env:
-          EXPECTED_BUILD_SHA: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || '' }}
+          RUNTIME_TAG_SHA: ${{ needs.resolve.outputs.runtime_tag_sha }}
+          EXPECTED_TOOLS_SHA: ${{ needs.resolve.outputs.tools_expected_sha }}
+          EXPECTED_NETWORK_SHA: ${{ needs.resolve.outputs.network_expected_sha }}
+          EXPECTED_EXPLORER_SHA: ${{ needs.resolve.outputs.explorer_expected_sha }}
         run: bash .github/actions/devops/pipeline/load-runtime-artifacts.sh
       - name: Run backend interaction flow
         env:
@@ -330,7 +448,7 @@ jobs:
       - name: Checkout contract source
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || github.sha }}
+          ref: ${{ needs.resolve.outputs.checkout_sha }}
           fetch-depth: 0
       - name: Download runtime tools artifact
         uses: actions/download-artifact@v4
@@ -339,7 +457,7 @@ jobs:
           path: artifacts/runtime-tools
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+          run-id: ${{ needs.resolve.outputs.tools_run_id }}
       - name: Download network runtime artifact
         uses: actions/download-artifact@v4
         with:
@@ -347,7 +465,7 @@ jobs:
           path: artifacts/runtime-network
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+          run-id: ${{ needs.resolve.outputs.network_run_id }}
       - name: Download Explorer API runtime artifact
         uses: actions/download-artifact@v4
         with:
@@ -355,12 +473,15 @@ jobs:
           path: artifacts/runtime-explorer-api
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ needs.resolve.outputs.producer_run_id }}
+          run-id: ${{ needs.resolve.outputs.explorer_run_id }}
       - name: Verify provenance and load runtime images
         id: artifacts
         shell: bash
         env:
-          EXPECTED_BUILD_SHA: ${{ inputs.selection_mode == 'exact' && needs.resolve.outputs.expected_build_sha || '' }}
+          RUNTIME_TAG_SHA: ${{ needs.resolve.outputs.runtime_tag_sha }}
+          EXPECTED_TOOLS_SHA: ${{ needs.resolve.outputs.tools_expected_sha }}
+          EXPECTED_NETWORK_SHA: ${{ needs.resolve.outputs.network_expected_sha }}
+          EXPECTED_EXPLORER_SHA: ${{ needs.resolve.outputs.explorer_expected_sha }}
         run: bash .github/actions/devops/pipeline/load-runtime-artifacts.sh
       - name: Run CLI contract
         env:
