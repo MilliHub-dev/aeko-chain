@@ -126,20 +126,13 @@ assert_full_validation_workflow_contract() {
   grep -Fq 'validate-source: "false"' "$runtime_workflow"
   grep -Fq 'build-image: "true"' "$runtime_workflow"
   grep -Fq 'build-image: "false"' "$runtime_workflow"
+
   grep -Fq 'name: Runtime / Tools producer' "$workflow"
-  grep -Fq 'name: Integration / Known-good baseline dispatch' "$workflow"
-  grep -Fq "needs.classify.outputs.run_cli == 'true'" "$workflow"
-  grep -Fq "needs.classify.outputs.run_explorer_backend == 'true'" "$workflow"
-  grep -Fq "needs.classify.outputs.run_network == 'true'" "$workflow"
-  grep -Fq 'name: Resolve compatible baseline' "$workflow"
-  grep -Fq "available=false" "$workflow"
-  grep -Fq "if: steps.baseline.outputs.available == 'true'" "$workflow"
-  grep -Fq 'No prior compatible runtime baseline exists' "$workflow"
-  grep -Fq -- '-f "selection_mode=last-success"' "$workflow"
-  grep -Fq -- '-f "selection_mode=exact"' "$workflow"
-  grep -Fq 'validate-source: "true"' "$workflow"
-  grep -Fq 'validate-source: "false"' "$workflow"
-  grep -Fq 'build-image: "true"' "$workflow"
+  grep -Fq 'build_tools:' "$workflow"
+  grep -Fq 'build_explorer_backend:' "$workflow"
+  grep -Fq 'build_network:' "$workflow"
+  grep -Fq 'run_runtime_contract:' "$workflow"
+  grep -Fq 'runtime_contract_mode:' "$workflow"
 
   for selector in \
     'js: ${{ inputs.run_sdk_non_rust }}' \
@@ -149,7 +142,7 @@ assert_full_validation_workflow_contract() {
     grep -Fq "$selector" "$sdk_workflow"
   done
 
-  echo "[ok] source validation and image production are independently selectable"
+  echo "[ok] source validation, image production, and runtime gating are independently selectable"
 }
 
 assert_smart_contract_pipeline_separation() {
