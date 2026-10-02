@@ -520,7 +520,28 @@ test_runtime_contract_is_part_of_required_gate() {
   echo "[ok] required gate waits for a selected runtime contract and rejects skipped integration"
 }
 
+
+assert_devops_workflow_always_enters_pipeline() {
+  local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+  local classifier="$PIPELINE_DIR/../detect-changes/action.yml"
+
+  grep -Fq 'pull_request:' "$workflow"
+  grep -Fq 'push:' "$workflow"
+  grep -Fq 'branches: ["main"]' "$workflow"
+
+  if grep -Fq 'paths-ignore:' "$workflow"; then
+    echo "AEKO DevOps must not filter repository paths at the workflow trigger. Product skipping belongs in detect-changes/plan.sh after the workflow starts." >&2
+    exit 1
+  fi
+
+  grep -Fq 'docs/*|*.md|LICENSE*|NOTICE*)' "$classifier"
+  grep -Fq 'contracts/*|scripts/smoke-hello-program.py)' "$classifier"
+
+  echo "[ok] every main/PR change enters AEKO DevOps; product lanes are selected inside the pipeline"
+}
+
 assert_grouped_devops_workflow_contract
+assert_devops_workflow_always_enters_pipeline
 assert_node24_action_majors
 assert_targeted_docker_publication_contract
 assert_bounded_runner_setup_contract
