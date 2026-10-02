@@ -3,39 +3,31 @@ name: AEKO DevOps / Explorer UI
 on:
   workflow_call:
     inputs:
-      run_admin:
+      validate_admin:
         required: true
         type: string
-      run_explorer_web:
+      build_admin:
         required: true
         type: string
-      publish_admin:
+      validate_explorer_web:
         required: true
         type: string
-      publish_explorer_web:
+      build_explorer_web:
         required: true
         type: string
       sha_tag:
         required: true
         type: string
-    secrets:
-      DOCKERHUB_USERNAME:
-        required: false
-      DOCKERHUB_TOKEN:
-        required: false
 
 permissions:
   contents: read
 
-env:
-  AEKO_ALLOW_INTERNAL_PR_IMAGE_PUSH: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && '1' || '0' }}
-
 jobs:
   admin:
     name: Admin / Operations Web
-    if: inputs.run_admin == 'true'
+    if: inputs.validate_admin == 'true' || inputs.build_admin == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 30
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
@@ -45,30 +37,47 @@ jobs:
       - name: Prepare Operations Web runner
         uses: ./.github/actions/devops/pipeline/setup
         with:
-          node: ${{ inputs.run_admin }}
-          docker: "true"
+          node: ${{ inputs.validate_admin }}
+          docker: ${{ inputs.build_admin }}
 
-      - name: Log in to Docker Hub
-        if: inputs.publish_admin == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Validate and build Operations Web
+      - name: Validate and/or build Operations Web
         uses: ./.github/actions/devops/admin
         with:
-          validate-source: ${{ inputs.run_admin }}
-          build-image: "true"
-          publish: ${{ inputs.publish_admin }}
-          registry-user: ${{ inputs.publish_admin == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          validate-source: ${{ inputs.validate_admin }}
+          build-image: ${{ inputs.build_admin }}
+          publish: "false"
           sha-tag: ${{ inputs.sha_tag }}
+
+      - name: Package Operations Web image
+        if: inputs.build_admin == 'true'
+        shell: bash
+        env:
+          SHA_TAG: ${{ inputs.sha_tag }}
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/aeko-runtime-operations-web"
+          rm -rf "$out"
+          mkdir -p "$out"
+          image="aeko-ci/aeko-operations-web:$SHA_TAG"
+          docker image inspect "$image" >/dev/null
+          docker save "$image" | gzip -1 > "$out/aeko-operations-web-image.tar.gz"
+          printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
+
+      - name: Upload Operations Web image
+        if: inputs.build_admin == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-operations-web
+          path: ${{ runner.temp }}/aeko-runtime-operations-web
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
 
   explorer_web:
     name: Explorer Web
-    if: inputs.run_explorer_web == 'true'
+    if: inputs.validate_explorer_web == 'true' || inputs.build_explorer_web == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 30
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
@@ -78,21 +87,38 @@ jobs:
       - name: Prepare Explorer Web runner
         uses: ./.github/actions/devops/pipeline/setup
         with:
-          node: ${{ inputs.run_explorer_web }}
-          docker: "true"
+          node: ${{ inputs.validate_explorer_web }}
+          docker: ${{ inputs.build_explorer_web }}
 
-      - name: Log in to Docker Hub
-        if: inputs.publish_explorer_web == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Validate and build Explorer Web
+      - name: Validate and/or build Explorer Web
         uses: ./.github/actions/devops/explorer-web
         with:
-          validate-source: ${{ inputs.run_explorer_web }}
-          build-image: "true"
-          publish: ${{ inputs.publish_explorer_web }}
-          registry-user: ${{ inputs.publish_explorer_web == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          validate-source: ${{ inputs.validate_explorer_web }}
+          build-image: ${{ inputs.build_explorer_web }}
+          publish: "false"
           sha-tag: ${{ inputs.sha_tag }}
+
+      - name: Package Explorer UI image
+        if: inputs.build_explorer_web == 'true'
+        shell: bash
+        env:
+          SHA_TAG: ${{ inputs.sha_tag }}
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/aeko-runtime-explorer-ui"
+          rm -rf "$out"
+          mkdir -p "$out"
+          image="aeko-ci/aeko-explorer-ui:$SHA_TAG"
+          docker image inspect "$image" >/dev/null
+          docker save "$image" | gzip -1 > "$out/aeko-explorer-ui-image.tar.gz"
+          printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
+
+      - name: Upload Explorer UI image
+        if: inputs.build_explorer_web == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-explorer-ui
+          path: ${{ runner.temp }}/aeko-runtime-explorer-ui
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3

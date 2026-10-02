@@ -111,6 +111,21 @@ runs:
           } >> "$GITHUB_ENV"
         fi
 
+    - name: Verify shared Rust cache or fall back to direct rustc
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        if timeout 20s sccache --start-server >/tmp/aeko-sccache-start.log 2>&1; then
+          echo "Shared Rust compilation cache is available."
+        else
+          status=$?
+          echo "::warning::sccache backend unavailable (exit ${status}); compiling without the shared cache."
+          cat /tmp/aeko-sccache-start.log >&2 || true
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
+          echo "SCCACHE_GHA_ENABLED=false" >> "$GITHUB_ENV"
+        fi
+
     - name: Set up shared Node runtime and cache
       if: ${{ inputs.node == 'true' }}
       uses: actions/setup-node@v5

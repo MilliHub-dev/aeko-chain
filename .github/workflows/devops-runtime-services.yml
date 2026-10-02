@@ -3,26 +3,21 @@ name: AEKO DevOps / Runtime producers
 on:
   workflow_call:
     inputs:
-      run_explorer_backend:
+      validate_explorer_backend:
         required: true
         type: string
-      run_network:
+      build_explorer_backend:
         required: true
         type: string
-      publish_explorer_backend:
+      validate_network:
         required: true
         type: string
-      publish_network:
+      build_network:
         required: true
         type: string
       sha_tag:
         required: true
         type: string
-    secrets:
-      DOCKERHUB_USERNAME:
-        required: false
-      DOCKERHUB_TOKEN:
-        required: false
 
 permissions:
   contents: read
@@ -32,41 +27,56 @@ env:
   CARGO_INCREMENTAL: "0"
   SCCACHE_GHA_ENABLED: "false"
   RUSTC_WRAPPER: sccache
-  AEKO_ALLOW_INTERNAL_PR_IMAGE_PUSH: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && '1' || '0' }}
 
 jobs:
-  explorer_backend:
-    name: Explorer API
-    if: inputs.run_explorer_backend == 'true'
+  explorer_backend_quality:
+    name: Explorer API / Quality
+    if: inputs.validate_explorer_backend == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 30
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Prepare Explorer backend runner
+      - name: Prepare Explorer backend quality runner
         uses: ./.github/actions/devops/pipeline/setup
         with:
-          rust: ${{ inputs.run_explorer_backend }}
-          docker: "true"
+          rust: "true"
 
-      - name: Log in to Docker Hub
-        if: inputs.publish_explorer_backend == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Validate and build Explorer backend image
+      - name: Validate Explorer backend source
         uses: ./.github/actions/devops/explorer-backend
         with:
-          validate-source: ${{ inputs.run_explorer_backend }}
+          validate-source: "true"
+          host-build: "false"
+          build-image: "false"
+          publish: "false"
+          sha-tag: ${{ inputs.sha_tag }}
+
+  explorer_backend_image:
+    name: Explorer API / Image
+    if: inputs.build_explorer_backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare Explorer backend image runner
+        uses: ./.github/actions/devops/pipeline/setup
+        with:
+          docker: "true"
+
+      - name: Build Explorer API image
+        uses: ./.github/actions/devops/explorer-backend
+        with:
+          validate-source: "false"
           host-build: "false"
           build-image: "true"
-          publish: ${{ inputs.publish_explorer_backend }}
-          registry-user: ${{ inputs.publish_explorer_backend == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          publish: "false"
           sha-tag: ${{ inputs.sha_tag }}
 
       - name: Package Explorer API runtime image
@@ -78,7 +88,7 @@ jobs:
           out="${RUNNER_TEMP}/aeko-runtime-explorer-api"
           rm -rf "$out"
           mkdir -p "$out"
-          image="aeko-ci/aeko-explorer-api:${SHA_TAG}"
+          image="aeko-ci/aeko-explorer-api:$SHA_TAG"
           docker image inspect "$image" >/dev/null
           docker save "$image" | gzip -1 > "$out/aeko-explorer-api-image.tar.gz"
           printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
@@ -92,39 +102,55 @@ jobs:
           compression-level: 0
           retention-days: 3
 
-  network:
-    name: Blockchain network
-    if: inputs.run_network == 'true'
+  network_quality:
+    name: Blockchain network / Quality
+    if: inputs.validate_network == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 50
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Prepare network runner
+      - name: Prepare network quality runner
         uses: ./.github/actions/devops/pipeline/setup
         with:
-          rust: ${{ inputs.run_network }}
-          python: ${{ inputs.run_network }}
-          docker: "true"
+          rust: "true"
+          python: "true"
 
-      - name: Log in to Docker Hub
-        if: inputs.publish_network == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Validate and build network images
+      - name: Validate network source and lifecycle contracts
         uses: ./.github/actions/devops/network
         with:
-          run-preflight: ${{ inputs.run_network }}
-          validate-source: ${{ inputs.run_network }}
+          run-preflight: "true"
+          validate-source: "true"
+          build-image: "false"
+          publish: "false"
+          sha-tag: ${{ inputs.sha_tag }}
+
+  network_image:
+    name: Blockchain network / Images
+    if: inputs.build_network == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare network image runner
+        uses: ./.github/actions/devops/pipeline/setup
+        with:
+          docker: "true"
+
+      - name: Build network images
+        uses: ./.github/actions/devops/network
+        with:
+          run-preflight: "false"
+          validate-source: "false"
           build-image: "true"
-          publish: ${{ inputs.publish_network }}
-          registry-user: ${{ inputs.publish_network == 'true' && secrets.DOCKERHUB_USERNAME || '' }}
+          publish: "false"
           sha-tag: ${{ inputs.sha_tag }}
 
       - name: Package network runtime images
@@ -137,10 +163,10 @@ jobs:
           rm -rf "$out"
           mkdir -p "$out"
           images=(
-            "aeko-ci/aeko-validator:${SHA_TAG}"
-            "aeko-ci/aeko-faucet:${SHA_TAG}"
-            "aeko-ci/aeko-social-bootstrap:${SHA_TAG}"
-            "aeko-ci/aeko-protocol-bootstrap:${SHA_TAG}"
+            "aeko-ci/aeko-validator:$SHA_TAG"
+            "aeko-ci/aeko-faucet:$SHA_TAG"
+            "aeko-ci/aeko-social-bootstrap:$SHA_TAG"
+            "aeko-ci/aeko-protocol-bootstrap:$SHA_TAG"
           )
           for image in "${images[@]}"; do
             docker image inspect "$image" >/dev/null

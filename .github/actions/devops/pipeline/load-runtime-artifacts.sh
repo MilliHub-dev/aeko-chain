@@ -1,42 +1,62 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-EXPECTED_BUILD_SHA="${EXPECTED_BUILD_SHA:-}"
-provenance_files=(
-  artifacts/runtime-tools/ci-source-sha.txt
-  artifacts/runtime-network/ci-source-sha.txt
-  artifacts/runtime-explorer-api/ci-source-sha.txt
-  artifacts/runtime-tools/cli-release/ci-source-sha.txt
-)
+: "${RUNTIME_TAG_SHA:?RUNTIME_TAG_SHA is required}"
 
-resolved=""
-for provenance in "${provenance_files[@]}"; do
-  test -s "$provenance"
-  actual="$(tr -d '\r\n' < "$provenance")"
-  if [ -z "$resolved" ]; then
-    resolved="$actual"
-  elif [ "$actual" != "$resolved" ]; then
-    echo "Runtime artifact provenance mismatch: $provenance=$actual expected=$resolved" >&2
+EXPECTED_TOOLS_SHA="${EXPECTED_TOOLS_SHA:-}"
+EXPECTED_NETWORK_SHA="${EXPECTED_NETWORK_SHA:-}"
+EXPECTED_EXPLORER_SHA="${EXPECTED_EXPLORER_SHA:-}"
+
+read_provenance() {
+  local file="$1" expected="$2"
+  test -s "$file"
+  local actual
+  actual="$(tr -d '\r\n' < "$file")"
+  if [ -n "$expected" ] && [ "$actual" != "$expected" ]; then
+    echo "Runtime artifact provenance mismatch: $file=$actual expected=$expected" >&2
     exit 1
   fi
-done
+  printf '%s\n' "$actual"
+}
 
-if [ -n "$EXPECTED_BUILD_SHA" ] && [ "$resolved" != "$EXPECTED_BUILD_SHA" ]; then
-  echo "Runtime artifacts were built from $resolved, expected $EXPECTED_BUILD_SHA" >&2
+tools_sha="$(read_provenance artifacts/runtime-tools/ci-source-sha.txt "$EXPECTED_TOOLS_SHA")"
+tools_cli_sha="$(read_provenance artifacts/runtime-tools/cli-release/ci-source-sha.txt "$EXPECTED_TOOLS_SHA")"
+[ "$tools_sha" = "$tools_cli_sha" ] || {
+  echo "Tools image and CLI payload provenance disagree: image=$tools_sha cli=$tools_cli_sha" >&2
   exit 1
-fi
+}
+network_sha="$(read_provenance artifacts/runtime-network/ci-source-sha.txt "$EXPECTED_NETWORK_SHA")"
+explorer_sha="$(read_provenance artifacts/runtime-explorer-api/ci-source-sha.txt "$EXPECTED_EXPLORER_SHA")"
 
-sha_tag="${resolved:0:12}"
 gzip -dc artifacts/runtime-tools/aeko-tools-image.tar.gz | docker load
 gzip -dc artifacts/runtime-network/aeko-network-images.tar.gz | docker load
 gzip -dc artifacts/runtime-explorer-api/aeko-explorer-api-image.tar.gz | docker load
 
-for image in aeko-tools aeko-validator aeko-faucet aeko-social-bootstrap aeko-protocol-bootstrap aeko-explorer-api; do
-  docker image inspect "aeko-ci/${image}:${sha_tag}" >/dev/null
+runtime_tag="${RUNTIME_TAG_SHA:0:12}"
+
+retag() {
+  local source_sha="$1" image="$2"
+  local source="aeko-ci/$image:${source_sha:0:12}"
+  local target="aeko-ci/$image:$runtime_tag"
+  docker image inspect "$source" >/dev/null
+  if [ "$source" != "$target" ]; then
+    docker tag "$source" "$target"
+  fi
+  docker image inspect "$target" >/dev/null
+}
+
+retag "$tools_sha" aeko-tools
+for image in aeko-validator aeko-faucet aeko-social-bootstrap aeko-protocol-bootstrap; do
+  retag "$network_sha" "$image"
 done
+retag "$explorer_sha" aeko-explorer-api
 
 {
-  echo "build_sha=$resolved"
-  echo "sha_tag=$sha_tag"
+  echo "build_sha=$RUNTIME_TAG_SHA"
+  echo "sha_tag=$runtime_tag"
+  echo "tools_sha=$tools_sha"
+  echo "network_sha=$network_sha"
+  echo "explorer_sha=$explorer_sha"
 } >> "$GITHUB_OUTPUT"
-echo "Loaded immutable runtime artifacts for $resolved."
+
+echo "Loaded runtime overlay as tag $runtime_tag (tools=$tools_sha network=$network_sha explorer=$explorer_sha)."
