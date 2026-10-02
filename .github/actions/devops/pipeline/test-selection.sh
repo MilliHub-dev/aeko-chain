@@ -407,22 +407,33 @@ assert_split_coolify_workflow_contract() {
 
 assert_runtime_artifact_handoff_contract() {
   local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
-  local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
-  local web_workflow="$PIPELINE_DIR/../../../workflows/devops-web-ui.yml"
   local integration="$PIPELINE_DIR/../../../workflows/full-stack-integration.yml"
   local artifact_loader="$PIPELINE_DIR/load-runtime-artifacts.sh"
   local runtime_script="$PIPELINE_DIR/../../../../scripts/ci-docker-full-stack-integration.sh"
 
-  grep -Fq 'runtime_contract:' "$workflow"
-  grep -Fq 'uses: ./.github/workflows/full-stack-integration.yml' "$workflow"
-  grep -Fq 'runtime_contract_mode' "$workflow"
-  grep -Fq 'use_current_tools:' "$workflow"
-  grep -Fq 'use_current_network:' "$workflow"
-  grep -Fq 'use_current_explorer_api:' "$workflow"
-  if grep -Fq 'gh workflow run full-stack-integration.yml' "$workflow"; then
-    echo "Runtime contract must gate release synchronously." >&2
+  if [ "$(grep -Ec '^  runtime_contract:$' "$workflow")" -ne 1 ]; then
+    echo "DevOps must define exactly one runtime_contract job." >&2
     exit 1
   fi
+  if grep -Eq '^  runtime_integration:$' "$workflow"; then
+    echo "Legacy duplicate runtime_integration job must not coexist with runtime_contract." >&2
+    exit 1
+  fi
+  if grep -Fq 'gh workflow run full-stack-integration.yml' "$workflow"; then
+    echo "Runtime contract must gate release synchronously, never dispatch fire-and-forget integration." >&2
+    exit 1
+  fi
+
+  local runtime_block
+  runtime_block="$(sed -n '/^  runtime_contract:/,/^  cli_release_publish:/p' "$workflow")"
+  grep -Fq 'uses: ./.github/workflows/full-stack-integration.yml' <<<"$runtime_block"
+  grep -Eq '^[[:space:]]*-[[:space:]]+classify$' <<<"$runtime_block"
+  grep -Eq '^[[:space:]]*-[[:space:]]+runtime_tools$' <<<"$runtime_block"
+  grep -Eq '^[[:space:]]*-[[:space:]]+runtime_services$' <<<"$runtime_block"
+  grep -Fq 'selection_mode: ${{ needs.classify.outputs.runtime_contract_mode }}' <<<"$runtime_block"
+  grep -Fq 'use_current_tools: ${{ needs.classify.outputs.build_tools == '\''true'\'' }}' <<<"$runtime_block"
+  grep -Fq 'use_current_network: ${{ needs.classify.outputs.build_network == '\''true'\'' }}' <<<"$runtime_block"
+  grep -Fq 'use_current_explorer_api: ${{ needs.classify.outputs.build_explorer_backend == '\''true'\'' }}' <<<"$runtime_block"
 
   grep -Fq 'workflow_call:' "$integration"
   grep -Fq -- '- overlay' "$integration"
@@ -446,7 +457,7 @@ assert_runtime_artifact_handoff_contract() {
     exit 1
   fi
 
-  echo "[ok] runtime integration supports exact, overlay, and known-good artifact modes"
+  echo "[ok] exactly one synchronous runtime gate owns exact, overlay, and known-good integration"
 }
 
 assert_grouped_devops_workflow_contract() {
@@ -468,13 +479,27 @@ assert_grouped_devops_workflow_contract() {
     grep -Eq "^[[:space:]]*-[[:space:]]+$required$" <<<"$gate_block"
   done
 
+  local runtime_block
+  runtime_block="$(sed -n '/^  runtime_contract:/,/^  cli_release_publish:/p' "$workflow")"
+  grep -Fq 'uses: ./.github/workflows/full-stack-integration.yml' <<<"$runtime_block"
+
+  local cli_publish_block
+  cli_publish_block="$(sed -n '/^  cli_release_publish:/,/^  sdk_publish:/p' "$workflow")"
+  grep -Eq '^[[:space:]]*-[[:space:]]+runtime_contract$' <<<"$cli_publish_block"
+  grep -Fq 'needs.runtime_contract.result' <<<"$cli_publish_block"
+
+  local sdk_publish_block
+  sdk_publish_block="$(sed -n '/^  sdk_publish:/,/^  release:/p' "$workflow")"
+  grep -Eq '^[[:space:]]*-[[:space:]]+runtime_contract$' <<<"$sdk_publish_block"
+  grep -Fq 'needs.runtime_contract.result' <<<"$sdk_publish_block"
+
   local release_block
   release_block="$(sed -n '/^  release:/,$p' "$workflow")"
   grep -Fq 'publish-runtime-images.sh' <<<"$release_block"
   grep -Fq 'needs.runtime_contract.result' <<<"$release_block"
   [ "$(grep -Fc 'docker/login-action@v4' <<<"$release_block")" -eq 1 ]
 
-  echo "[ok] DevOps separates validation, image production, integration, and release"
+  echo "[ok] validation, runtime integration, and publication form one dependency chain"
 }
 assert_grouped_devops_workflow_contract
 assert_node24_action_majors
@@ -488,50 +513,45 @@ assert_smart_contract_pipeline_separation
 assert_vercel_git_deployments_disabled
 assert_cli_release_after_main_contract
 
-run_plan_case "Explorer Web-only main push stays scoped to Explorer Web" \
-  push false false false false false true false false false false false \
-  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=true \
-  run_network=false run_sdk_non_rust=false run_sdk_rust=false
+run_plan_case "Explorer Web-only change stays scoped and skips runtime integration" \
+  $'run_explorer_web=true\nbuild_explorer_web=true\nrun_cli=false\nrun_explorer_backend=false\nrun_network=false\nrun_runtime_contract=false\nruntime_contract_mode=last-success' \
+  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=true \
+  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
 
-run_plan_case "SDK JS-only main push stays scoped to non-Rust SDK validation" \
-  push false false false false false false true false false false false \
-  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=false \
-  run_network=false run_sdk_non_rust=true run_sdk_rust=false
+run_plan_case "SDK JS-only change stays scoped and skips runtime integration" \
+  $'run_sdk_non_rust=true\nrun_sdk_rust=false\nrun_cli=false\nrun_explorer_backend=false\nrun_network=false\nrun_runtime_contract=false' \
+  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
+  SDK_JS=true SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
 
-run_plan_case "core pull request keeps runtime and SDK contracts together" \
-  pull_request false false true false false false false false false false false \
-  run_admin=false run_cli=true run_explorer_backend=true run_explorer_web=false \
-  run_network=true run_sdk_non_rust=true run_sdk_rust=true
+run_plan_case "Explorer backend change builds only Explorer API and overlays known-good runtime" \
+  $'run_cli=false\nrun_explorer_backend=true\nrun_network=false\nbuild_tools=false\nbuild_explorer_backend=true\nbuild_network=false\nrun_runtime_contract=true\nruntime_contract_mode=overlay' \
+  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=true EXPLORER_WEB=false \
+  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
 
-run_plan_case "Explorer backend change keeps the exact runtime bundle together" \
-  pull_request false false false false true false false false false false false \
-  run_admin=false run_cli=true run_explorer_backend=true run_explorer_web=false \
-  run_network=true run_sdk_non_rust=false run_sdk_rust=false
+run_plan_case "CLI change builds only tools and overlays known-good runtime" \
+  $'run_cli=true\nrun_explorer_backend=false\nrun_network=false\nbuild_tools=true\nbuild_explorer_backend=false\nbuild_network=false\nrun_runtime_contract=true\nruntime_contract_mode=overlay' \
+  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=true CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
+  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
 
-run_plan_case "CLI change keeps the exact runtime bundle together" \
-  pull_request false true false false false false false false false false false \
-  run_admin=false run_cli=true run_explorer_backend=true run_explorer_web=false \
-  run_network=true run_sdk_non_rust=false run_sdk_rust=false
+run_plan_case "Core change rebuilds the complete coupled runtime exactly" \
+  $'run_cli=true\nrun_explorer_backend=true\nrun_network=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_network=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
+  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=true PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
+  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
 
-run_plan_case "core main push rebuilds deployable image and SDK surfaces" \
-  push false false true false false false false false false false false \
-  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
-  run_network=true run_sdk_non_rust=true run_sdk_rust=true
+run_plan_case "Packaging change rebuilds images without inventing source-validation ownership" \
+  $'run_admin=false\nrun_cli=false\nrun_explorer_backend=false\nrun_explorer_web=false\nrun_network=false\nbuild_admin=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_explorer_web=true\nbuild_network=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
+  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=true EXPLORER_BACKEND=false EXPLORER_WEB=false \
+  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
 
-run_plan_case "packaging main push validates every container target" \
-  push false false false true false false false false false false false \
-  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
-  run_network=true run_sdk_non_rust=false run_sdk_rust=false
+run_plan_case "CI-only pull request validates orchestration with known-good artifacts only" \
+  $'run_admin=false\nrun_cli=false\nrun_explorer_backend=false\nrun_explorer_web=false\nrun_network=false\nrun_sdk_non_rust=false\nrun_sdk_rust=false\nbuild_tools=false\nbuild_explorer_backend=false\nbuild_network=false\nrun_runtime_contract=true\nruntime_contract_mode=last-success' \
+  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
+  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=true
 
-run_plan_case "CI-only pull request exercises the full orchestration graph" \
-  pull_request false false false false false false false false false false true \
-  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
-  run_network=true run_sdk_non_rust=true run_sdk_rust=true
-
-run_plan_case "CI-only main push reruns CI contracts without rebuilding unchanged products" \
-  push false false false false false false false false false false true \
-  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=false \
-  run_network=false run_sdk_non_rust=false run_sdk_rust=false
+run_plan_case "CI-only main push validates orchestration with known-good artifacts only" \
+  $'run_admin=false\nrun_cli=false\nrun_explorer_backend=false\nrun_explorer_web=false\nrun_network=false\nrun_sdk_non_rust=false\nrun_sdk_rust=false\nbuild_tools=false\nbuild_explorer_backend=false\nbuild_network=false\nrun_runtime_contract=true\nruntime_contract_mode=last-success' \
+  GITHUB_EVENT_NAME=push ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
+  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=true
 
 run_deploy_plan_case "Explorer backend source deploys only Explorer API" \
   false false true false false false false false false false \
