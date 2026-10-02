@@ -81,6 +81,30 @@ assert_bounded_runner_setup_contract() {
   echo "[ok] package setup is bounded and cache outages fail open to direct rustc"
 }
 
+assert_resilient_sccache_contract() {
+  local setup_action="$PIPELINE_DIR/setup/action.yml"
+  local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
+  local runtime_workflow="$PIPELINE_DIR/../../../workflows/devops-runtime-services.yml"
+  local sdk_workflow="$PIPELINE_DIR/../../../workflows/devops-sdk-validation.yml"
+  local cli_release="$PIPELINE_DIR/../../../workflows/cli-release.yml"
+
+  grep -Fq 'name: Configure resilient Rust compiler cache' "$setup_action"
+  grep -Fq 'continue-on-error: true' "$setup_action"
+  grep -Fq 'SCCACHE_GHA_ENABLED: "false"' "$setup_action"
+  grep -Fq 'SCCACHE_DIR=$cache_dir' "$setup_action"
+  grep -Fq 'SCCACHE_CACHE_SIZE=4G' "$setup_action"
+  grep -Fq 'continuing with direct rustc instead of failing the job' "$setup_action"
+
+  for file in "$workflow" "$runtime_workflow" "$sdk_workflow" "$cli_release"; do
+    if grep -Fq 'SCCACHE_GHA_ENABLED: "true"' "$file"; then
+      echo "Required AEKO DevOps jobs must not depend on the quota-limited GitHub sccache backend: $file" >&2
+      exit 1
+    fi
+  done
+
+  echo "[ok] required Rust jobs treat compiler caching as optional and local"
+}
+
 assert_full_validation_workflow_contract() {
   local workflow="$PIPELINE_DIR/../../../workflows/build-images.yml"
   local web_workflow="$PIPELINE_DIR/../../../workflows/devops-web-ui.yml"
@@ -103,8 +127,27 @@ assert_full_validation_workflow_contract() {
   grep -Fq 'build-image: "true"' "$runtime_workflow"
   grep -Fq 'build-image: "false"' "$runtime_workflow"
   grep -Fq 'name: Runtime / Tools producer' "$workflow"
-  grep -Fq 'run_sdk_non_rust' "$sdk_workflow"
-  grep -Fq 'run_sdk_rust' "$sdk_workflow"
+  grep -Fq 'name: Integration / Known-good baseline dispatch' "$workflow"
+  grep -Fq "needs.classify.outputs.run_cli == 'true'" "$workflow"
+  grep -Fq "needs.classify.outputs.run_explorer_backend == 'true'" "$workflow"
+  grep -Fq "needs.classify.outputs.run_network == 'true'" "$workflow"
+  grep -Fq 'name: Resolve compatible baseline' "$workflow"
+  grep -Fq "available=false" "$workflow"
+  grep -Fq "if: steps.baseline.outputs.available == 'true'" "$workflow"
+  grep -Fq 'No prior compatible runtime baseline exists' "$workflow"
+  grep -Fq -- '-f "selection_mode=last-success"' "$workflow"
+  grep -Fq -- '-f "selection_mode=exact"' "$workflow"
+  grep -Fq 'validate-source: "true"' "$workflow"
+  grep -Fq 'validate-source: "false"' "$workflow"
+  grep -Fq 'build-image: "true"' "$workflow"
+
+  for selector in \
+    'js: ${{ inputs.run_sdk_non_rust }}' \
+    'node: ${{ inputs.run_sdk_non_rust }}' \
+    'python: ${{ inputs.run_sdk_non_rust }}' \
+    'rust: "true"'; do
+    grep -Fq "$selector" "$sdk_workflow"
+  done
 
   echo "[ok] source validation and image production are independently selectable"
 }
@@ -437,6 +480,7 @@ assert_grouped_devops_workflow_contract
 assert_node24_action_majors
 assert_targeted_docker_publication_contract
 assert_bounded_runner_setup_contract
+assert_resilient_sccache_contract
 assert_runtime_artifact_handoff_contract
 assert_split_coolify_workflow_contract
 assert_full_validation_workflow_contract
@@ -444,25 +488,50 @@ assert_smart_contract_pipeline_separation
 assert_vercel_git_deployments_disabled
 assert_cli_release_after_main_contract
 
-run_plan_case "Explorer backend change builds only Explorer API and uses runtime overlay" \
-  $'run_cli=false\nrun_explorer_backend=true\nrun_network=false\nbuild_tools=false\nbuild_explorer_backend=true\nbuild_network=false\nrun_runtime_contract=true\nruntime_contract_mode=overlay' \
-  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=true EXPLORER_WEB=false \
-  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
+run_plan_case "Explorer Web-only main push stays scoped to Explorer Web" \
+  push false false false false false true false false false false false \
+  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=true \
+  run_network=false run_sdk_non_rust=false run_sdk_rust=false
 
-run_plan_case "Explorer Web-only change avoids Rust runtime lanes" \
-  $'run_explorer_web=true\nbuild_explorer_web=true\nrun_cli=false\nrun_explorer_backend=false\nrun_network=false\nrun_runtime_contract=false' \
-  GITHUB_EVENT_NAME=push ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=true \
-  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
+run_plan_case "SDK JS-only main push stays scoped to non-Rust SDK validation" \
+  push false false false false false false true false false false false \
+  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=false \
+  run_network=false run_sdk_non_rust=true run_sdk_rust=false
 
-run_plan_case "CI-only change uses known-good artifacts without rebuilding product images" \
-  $'run_admin=false\nrun_cli=false\nrun_explorer_backend=false\nrun_explorer_web=false\nrun_network=false\nrun_sdk_non_rust=false\nrun_sdk_rust=false\nbuild_tools=false\nbuild_explorer_backend=false\nbuild_network=false\nrun_runtime_contract=true\nruntime_contract_mode=last-success' \
-  GITHUB_EVENT_NAME=push ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
-  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=true
+run_plan_case "core pull request keeps runtime and SDK contracts together" \
+  pull_request false false true false false false false false false false false \
+  run_admin=false run_cli=true run_explorer_backend=true run_explorer_web=false \
+  run_network=true run_sdk_non_rust=true run_sdk_rust=true
 
-run_plan_case "Core change rebuilds coupled Rust runtime artifacts exactly" \
-  $'run_cli=true\nrun_explorer_backend=true\nrun_network=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_network=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
-  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=true PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
-  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
+run_plan_case "Explorer backend change keeps the exact runtime bundle together" \
+  pull_request false false false false true false false false false false false \
+  run_admin=false run_cli=true run_explorer_backend=true run_explorer_web=false \
+  run_network=true run_sdk_non_rust=false run_sdk_rust=false
+
+run_plan_case "CLI change keeps the exact runtime bundle together" \
+  pull_request false true false false false false false false false false false \
+  run_admin=false run_cli=true run_explorer_backend=true run_explorer_web=false \
+  run_network=true run_sdk_non_rust=false run_sdk_rust=false
+
+run_plan_case "core main push rebuilds deployable image and SDK surfaces" \
+  push false false true false false false false false false false false \
+  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
+  run_network=true run_sdk_non_rust=true run_sdk_rust=true
+
+run_plan_case "packaging main push validates every container target" \
+  push false false false true false false false false false false false \
+  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
+  run_network=true run_sdk_non_rust=false run_sdk_rust=false
+
+run_plan_case "CI-only pull request exercises the full orchestration graph" \
+  pull_request false false false false false false false false false false true \
+  run_admin=true run_cli=true run_explorer_backend=true run_explorer_web=true \
+  run_network=true run_sdk_non_rust=true run_sdk_rust=true
+
+run_plan_case "CI-only main push reruns CI contracts without rebuilding unchanged products" \
+  push false false false false false false false false false false true \
+  run_admin=false run_cli=false run_explorer_backend=false run_explorer_web=false \
+  run_network=false run_sdk_non_rust=false run_sdk_rust=false
 
 run_deploy_plan_case "Explorer backend source deploys only Explorer API" \
   false false true false false false false false false false \

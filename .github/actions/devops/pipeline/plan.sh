@@ -61,17 +61,18 @@ runtime_build_count=0
 [ "$build_network" = true ] && runtime_build_count=$((runtime_build_count + 1))
 [ "$build_explorer_backend" = true ] && runtime_build_count=$((runtime_build_count + 1))
 
-if [ "$runtime_build_count" -eq 3 ]; then
-  run_runtime_contract=true
-  runtime_contract_mode=exact
-elif [ "$runtime_build_count" -gt 0 ]; then
-  run_runtime_contract=true
-  runtime_contract_mode=overlay
-elif [ "$CI_PIPELINE" = true ]; then
-  # Orchestration-only changes test the new CI/runtime harness against known-good
-  # artifacts instead of recompiling the entire product graph.
-  run_runtime_contract=true
-  runtime_contract_mode=last-success
+# CI orchestration changes prove the complete graph on pull requests and
+# explicit manual validation. A CI-only merge to main reruns the CI contract
+# without recompiling every unchanged product surface a second time.
+# Product/core/packaging flags above still select their real lanes on main.
+if [ "$CI_PIPELINE" = "true" ] && [ "$GITHUB_EVENT_NAME" != "push" ]; then
+  run_admin=true
+  run_cli=true
+  run_explorer_backend=true
+  run_explorer_web=true
+  run_network=true
+  run_sdk_non_rust=true
+  run_sdk_rust=true
 fi
 
 deploy_explorer_api=false

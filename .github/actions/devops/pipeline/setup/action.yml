@@ -71,9 +71,45 @@ runs:
         protoc --version
         pkg-config --modversion libudev
 
-    - name: Set up shared Rust compilation cache
+    - name: Install local Rust compilation cache
       if: ${{ inputs.rust == 'true' }}
+      continue-on-error: true
       uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
+      env:
+        SCCACHE_GHA_ENABLED: "false"
+
+    - name: Configure resilient Rust compiler cache
+      if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        cache_dir="${RUNNER_TEMP}/aeko-sccache"
+        mkdir -p "$cache_dir"
+
+        sccache_bin="${SCCACHE_PATH:-}"
+        if [ -z "$sccache_bin" ]; then
+          sccache_bin="$(command -v sccache || true)"
+        fi
+
+        if [ -n "$sccache_bin" ] && \
+          SCCACHE_GHA_ENABLED=false \
+          SCCACHE_DIR="$cache_dir" \
+          SCCACHE_CACHE_SIZE=4G \
+          "$sccache_bin" --start-server; then
+          {
+            echo "SCCACHE_GHA_ENABLED=false"
+            echo "SCCACHE_DIR=$cache_dir"
+            echo "SCCACHE_CACHE_SIZE=4G"
+            echo "RUSTC_WRAPPER=$sccache_bin"
+          } >> "$GITHUB_ENV"
+          SCCACHE_GHA_ENABLED=false SCCACHE_DIR="$cache_dir" "$sccache_bin" --show-stats
+        else
+          echo "::warning::sccache is unavailable; continuing with direct rustc instead of failing the job."
+          {
+            echo "SCCACHE_GHA_ENABLED=false"
+            echo "RUSTC_WRAPPER="
+          } >> "$GITHUB_ENV"
+        fi
 
     - name: Verify shared Rust cache or fall back to direct rustc
       if: ${{ inputs.rust == 'true' }}
