@@ -31,6 +31,7 @@ require_result "${EXPECT_RUNTIME_TOOLS:-false}" "runtime-tools" "${RUNTIME_TOOLS
 require_result "${EXPECT_CLI_LINUX_RELEASE:-false}" "cli-linux-release" "${CLI_LINUX_RELEASE_RESULT:-}"
 require_result "${EXPECT_RUNTIME_SERVICES:-false}" "runtime-producers" "${RUNTIME_SERVICES_RESULT:-}"
 require_result "${EXPECT_SDK_VALIDATION:-false}" "sdk" "${SDK_VALIDATION_RESULT:-}"
+require_result "${EXPECT_RUNTIME_CONTRACT:-false}" "runtime-contract" "${RUNTIME_CONTRACT_RESULT:-}"
 
 if [ "${#failures[@]}" -gt 0 ]; then
   printf 'One or more selected AEKO DevOps job groups did not finish successfully:\n' >&2

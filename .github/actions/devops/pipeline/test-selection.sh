@@ -468,9 +468,11 @@ assert_grouped_devops_workflow_contract() {
 
   local gate_block
   gate_block="$(sed -n '/^  devops:/,/^  runtime_contract:/p' "$workflow")"
-  for required in ci_contract web_ui cli runtime_tools cli_linux_release runtime_services sdk_validation; do
+  for required in ci_contract web_ui cli runtime_tools cli_linux_release runtime_services sdk_validation runtime_contract; do
     grep -Eq "^[[:space:]]*-[[:space:]]+$required$" <<<"$gate_block"
   done
+  grep -Fq 'EXPECT_RUNTIME_CONTRACT:' <<<"$gate_block"
+  grep -Fq 'RUNTIME_CONTRACT_RESULT:' <<<"$gate_block"
 
   local runtime_block
   runtime_block="$(sed -n '/^  runtime_contract:/,/^  cli_release_publish:/p' "$workflow")"
@@ -494,6 +496,30 @@ assert_grouped_devops_workflow_contract() {
 
   echo "[ok] validation, runtime integration, and publication form one dependency chain"
 }
+test_runtime_contract_is_part_of_required_gate() {
+  local verifier="$PIPELINE_DIR/verify-results.sh"
+  local common_env=(
+    CLASSIFY_RESULT=success
+    CI_CONTRACT_RESULT=skipped
+    WEB_UI_RESULT=skipped
+    CLI_RESULT=skipped
+    RUNTIME_TOOLS_RESULT=skipped
+    CLI_LINUX_RELEASE_RESULT=skipped
+    RUNTIME_SERVICES_RESULT=skipped
+    SDK_VALIDATION_RESULT=skipped
+    EXPECT_RUNTIME_CONTRACT=true
+  )
+
+  env "${common_env[@]}" RUNTIME_CONTRACT_RESULT=success bash "$verifier"
+
+  if env "${common_env[@]}" RUNTIME_CONTRACT_RESULT=skipped bash "$verifier"; then
+    echo "Required gate unexpectedly accepted a skipped runtime contract." >&2
+    exit 1
+  fi
+
+  echo "[ok] required gate waits for a selected runtime contract and rejects skipped integration"
+}
+
 assert_grouped_devops_workflow_contract
 assert_node24_action_majors
 assert_targeted_docker_publication_contract
@@ -505,6 +531,7 @@ assert_full_validation_workflow_contract
 assert_smart_contract_pipeline_separation
 assert_vercel_git_deployments_disabled
 assert_cli_release_after_main_contract
+test_runtime_contract_is_part_of_required_gate
 
 run_plan_case "Explorer Web-only change stays scoped and skips runtime integration" \
   $'run_explorer_web=true\nbuild_explorer_web=true\nrun_cli=false\nrun_explorer_backend=false\nrun_network=false\nrun_runtime_contract=false\nruntime_contract_mode=last-success' \

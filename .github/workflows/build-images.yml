@@ -560,6 +560,7 @@ jobs:
       - cli_linux_release
       - runtime_services
       - sdk_validation
+      - runtime_contract
     if: ${{ always() && !cancelled() && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -585,6 +586,8 @@ jobs:
           RUNTIME_SERVICES_RESULT: ${{ needs.runtime_services.result }}
           EXPECT_SDK_VALIDATION: ${{ needs.classify.outputs.run_sdk_non_rust == 'true' || needs.classify.outputs.run_sdk_rust == 'true' }}
           SDK_VALIDATION_RESULT: ${{ needs.sdk_validation.result }}
+          EXPECT_RUNTIME_CONTRACT: ${{ needs.classify.outputs.run_runtime_contract == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+          RUNTIME_CONTRACT_RESULT: ${{ needs.runtime_contract.result }}
         run: bash .github/actions/devops/pipeline/verify-results.sh
 
   runtime_contract:
