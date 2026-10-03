@@ -36,13 +36,13 @@ export default function TransactionDetailPage() {
   const transaction = transactionQuery.data ?? null
 
   return (
-    <div className="mx-auto max-w-[1200px] space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-[1200px] space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <button
             type="button"
             onClick={() => router.push('/transactions')}
-            className="mb-3 min-h-[40px] rounded-lg border border-[#1e2135] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/5"
+            className="mb-3 min-h-11 rounded-lg border border-[#1e2135] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/5"
           >
             ← Transactions
           </button>
@@ -55,7 +55,7 @@ export default function TransactionDetailPage() {
           type="button"
           onClick={() => void transactionQuery.refetch()}
           disabled={transactionQuery.isFetching}
-          className="min-h-[42px] rounded-lg border border-[#1e2135] px-4 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40"
+          className="min-h-11 rounded-lg border border-[#1e2135] px-4 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40"
         >
           {transactionQuery.isFetching ? 'Refreshing…' : 'Refresh'}
         </button>
