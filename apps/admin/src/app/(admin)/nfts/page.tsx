@@ -82,8 +82,8 @@ export default function NftsPage() {
         rows={nfts.map((nft) => [
           shortAddr(nft.tokenId),
           shortAddr(nft.collectionId),
-          <AccountLink key={nft.tokenId + '-owner'} address={nft.owner} label={shortAddr(nft.owner)} />
-          <AccountLink key={nft.tokenId + '-creator'} address={nft.creator} label={shortAddr(nft.creator)} />
+          <AccountLink key={nft.tokenId + '-owner'} address={nft.owner} label={shortAddr(nft.owner)} />,
+          <AccountLink key={nft.tokenId + '-creator'} address={nft.creator} label={shortAddr(nft.creator)} />,
           shortText(nft.metadataUri),
           nft.frozen ? 'Frozen' : 'Active',
           nft.lastSeenSlot.toLocaleString(),

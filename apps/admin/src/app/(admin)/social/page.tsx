@@ -243,7 +243,7 @@ export default function SocialPage() {
                 columns={['Post ID', 'Creator', 'Kind', 'Visibility', 'Date']}
                 rows={posts.map((post) => [
                   post.postId.slice(0, 12) + '…',
-                  <AccountLink key={post.postId + '-creator'} address={post.creator} label={shortAddr(post.creator)} />
+                  <AccountLink key={post.postId + '-creator'} address={post.creator} label={shortAddr(post.creator)} />,
                   post.postKind,
                   <span key={post.postId} className={post.visibility === 'Public' ? 'text-emerald-400' : 'text-yellow-400'}>{post.visibility}</span>,
                   fmtTime(post.createdAtUnix),
@@ -256,7 +256,7 @@ export default function SocialPage() {
                 columns={['Staker', 'Creator', 'Staked', 'Yield', 'State']}
                 rows={stakes.map((stake) => [
                   <AccountLink key={stake.positionId + '-staker'} address={stake.staker} label={shortAddr(stake.staker)} />,
-                  <AccountLink key={stake.positionId + '-creator'} address={stake.creator} label={shortAddr(stake.creator)} />
+                  <AccountLink key={stake.positionId + '-creator'} address={stake.creator} label={shortAddr(stake.creator)} />,
                   fmtAeko(stake.stakedAmount),
                   fmtAeko(stake.accumulatedYield - stake.claimedYield),
                   <span key={stake.positionId} className={stake.state === 'active' ? 'text-emerald-400' : 'text-gray-500'}>{stake.state}</span>,
@@ -268,7 +268,7 @@ export default function SocialPage() {
                 paginationLabel="engagement events"
                 columns={['Actor', 'Action', 'Post', 'Slot']}
                 rows={engagement.map((event, index) => [
-                  <AccountLink key={event.slot + '-' + index + '-actor'} address={event.actor} label={shortAddr(event.actor)} />
+                  <AccountLink key={event.slot + '-' + index + '-actor'} address={event.actor} label={shortAddr(event.actor)} />,
                   event.actionKind,
                   event.targetPostId ? event.targetPostId.slice(0, 10) + '…' : '—',
                   <span key={event.slot + '-' + index} className="tabular-nums">{event.slot.toLocaleString()}</span>,

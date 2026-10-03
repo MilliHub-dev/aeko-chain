@@ -229,7 +229,7 @@ export default function ProtocolPage() {
             columns={['Program', 'Program ID', 'Present', 'Executable', 'Error']}
             rows={programEntries.map(([name, program]) => [
               name,
-              <AccountLink key={name + '-id'} address={program.programId} label={shortAddress(program.programId)} />
+              <AccountLink key={name + '-id'} address={program.programId} label={shortAddress(program.programId)} />,
               program.present ? 'yes' : 'no',
               <span key={name + '-exec'} className={program.executable ? 'text-emerald-300' : 'text-amber-300'}>{program.executable ? 'yes' : 'no'}</span>,
               program.error ?? '—',
@@ -250,7 +250,7 @@ export default function ProtocolPage() {
             columns={['State', 'Account', 'Owner', 'Data', 'Condition', 'Error']}
             rows={stateEntries.map(([name, item]) => [
               name,
-              <AccountLink key={name + '-account'} address={item.stateAccount} label={shortAddress(item.stateAccount)} />
+              <AccountLink key={name + '-account'} address={item.stateAccount} label={shortAddress(item.stateAccount)} />,
               <span key={name + '-owner'} className={item.present && item.ownerMatches ? 'text-emerald-300' : 'text-amber-300'}>{!item.present ? 'missing' : item.ownerMatches ? 'matches' : 'mismatch'}</span>,
               item.present ? item.dataLen.toLocaleString() + ' bytes' : '—',
               <span key={name + '-condition'} className={item.condition === 'healthy' ? 'text-emerald-300' : 'text-amber-300'}>{item.condition}</span>,

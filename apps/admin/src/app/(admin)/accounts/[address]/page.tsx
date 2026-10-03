@@ -179,7 +179,7 @@ export default function AccountPage() {
           paginationLabel="stake positions"
           columns={['Creator', 'Staked', 'State']}
           rows={stakes.map((stake) => [
-            <AccountLink key={stake.positionId + '-creator'} address={stake.creator} label={shortAddr(stake.creator)} />
+            <AccountLink key={stake.positionId + '-creator'} address={stake.creator} label={shortAddr(stake.creator)} />,
             fmtAeko(stake.stakedAmount),
             <span key={stake.positionId} className={stake.state === 'active' ? 'text-emerald-400' : 'text-gray-500'}>{stake.state}</span>,
           ])}
