@@ -6,9 +6,25 @@ import FeedbackAlert from '@/components/feedback-alert'
 import StatCard from '@/components/stat-card'
 import { adminQueryKeys, explorerQuery } from '@/lib/client-query'
 
-type Nft = { tokenId: string; collection: string; owner: string; creator: string; royaltyBps: number; name: string; uri: string }
+type Nft = {
+  tokenId: string
+  collectionId: string | null
+  owner: string
+  creator: string
+  metadataUri: string | null
+  frozen: boolean
+  lastSeenSlot: number
+}
 
-function shortAddr(a: string) { return a.slice(0, 8) + '…' + a.slice(-4) }
+function shortAddr(value: string | null | undefined) {
+  if (!value) return '—'
+  return value.slice(0, 8) + '…' + value.slice(-4)
+}
+
+function shortText(value: string | null | undefined, maxLength = 36) {
+  if (!value) return '—'
+  return value.length > maxLength ? value.slice(0, maxLength - 1) + '…' : value
+}
 
 export default function NftsPage() {
   const nftsQuery = useQuery({
@@ -21,11 +37,11 @@ export default function NftsPage() {
   const lastUpdate = nftsQuery.dataUpdatedAt
     ? new Date(nftsQuery.dataUpdatedAt).toLocaleTimeString()
     : ''
-  const uniqueCollections = new Set(nfts.map(nft => nft.collection)).size
-  const uniqueCreators = new Set(nfts.map(nft => nft.creator)).size
-  const avgRoyalty = nfts.length
-    ? (nfts.reduce((sum, nft) => sum + nft.royaltyBps, 0) / nfts.length / 100).toFixed(2) + '%'
-    : '—'
+  const uniqueCollections = new Set(
+    nfts.flatMap((nft) => (nft.collectionId ? [nft.collectionId] : [])),
+  ).size
+  const uniqueCreators = new Set(nfts.map((nft) => nft.creator)).size
+  const frozenCount = nfts.filter((nft) => nft.frozen).length
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
@@ -56,19 +72,20 @@ export default function NftsPage() {
         <StatCard label="Total NFTs" value={nfts.length} accent />
         <StatCard label="Collections" value={uniqueCollections} />
         <StatCard label="Creators" value={uniqueCreators} />
-        <StatCard label="Avg Royalty" value={avgRoyalty} />
+        <StatCard label="Frozen" value={frozenCount} />
       </div>
 
       <DataTable
         paginationLabel="NFTs"
-        columns={['Token ID', 'Name', 'Collection', 'Owner', 'Creator', 'Royalty']}
-        rows={nfts.map(nft => [
-          nft.tokenId.slice(0, 10) + '…',
-          nft.name,
-          shortAddr(nft.collection),
+        columns={['Token ID', 'Collection', 'Owner', 'Creator', 'Metadata', 'Status', 'Last Seen Slot']}
+        rows={nfts.map((nft) => [
+          shortAddr(nft.tokenId),
+          shortAddr(nft.collectionId),
           shortAddr(nft.owner),
           shortAddr(nft.creator),
-          (nft.royaltyBps / 100).toFixed(2) + '%',
+          shortText(nft.metadataUri),
+          nft.frozen ? 'Frozen' : 'Active',
+          nft.lastSeenSlot.toLocaleString(),
         ])}
         empty={nftsQuery.isLoading ? 'Loading NFTs…' : 'No NFTs indexed yet'}
       />
