@@ -1,7 +1,8 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { AccountLink, TransactionLink } from '@/components/chain-links'
 import DataTable from '@/components/data-table'
 import FeedbackAlert from '@/components/feedback-alert'
 import SectionTabs from '@/components/section-tabs'
@@ -135,6 +136,7 @@ export default function FundingPage() {
   const [address, setAddress] = useState('')
   const [amount, setAmount] = useState('10')
   const [view, setView] = useState<FundingView>('queue')
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null)
   const directFundingIntentRef = useRef<{
     recipient: string
     amountAeko: number
@@ -197,6 +199,10 @@ export default function FundingPage() {
   const fundingHistory = historyQuery.data ?? []
   const airdrops = airdropsQuery.data ?? []
   const requests = requestsQuery.data ?? []
+  const selectedRequest = selectedRequestId
+    ? requests.find((request) => request.id === selectedRequestId) ?? null
+    : null
+  const closeRequestDetail = useCallback(() => setSelectedRequestId(null), [])
 
   useEffect(() => {
     if (!settings) {
@@ -588,11 +594,12 @@ export default function FundingPage() {
                 <div className="text-xs text-gray-600">{attentionRequests.length} request{attentionRequests.length === 1 ? '' : 's'} requiring attention</div>
               </div>
               <DataTable
+                alwaysShowPagination
                 paginationLabel="requests"
-                columns={['Requested', 'Address', 'Amount', 'Source', 'Status', 'Decision']}
+                columns={['Requested', 'Address', 'Amount', 'Source', 'Status', 'Review']}
                 rows={attentionRequests.map((request) => [
                   new Date(request.requestedAt).toLocaleString(),
-                  request.address.slice(0, 10) + '…' + request.address.slice(-6),
+                  <AccountLink key={request.id + '-address'} address={request.address} />,
                   `${request.amountAeko} AEKO`,
                   request.source,
                   <span
@@ -607,65 +614,14 @@ export default function FundingPage() {
                   >
                     {request.status}
                   </span>,
-                  <div key={request.id} className="flex flex-wrap items-center gap-2">
-                    {request.status === 'pending' ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => decideRequest(request.id, 'approve')}
-                          disabled={Boolean(requestBusy)}
-                          className="min-h-[40px] w-full rounded-lg bg-emerald-400 px-3 sm:w-auto text-xs font-semibold text-black transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          {requestBusy === request.id ? 'Working…' : 'Approve & release'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => decideRequest(request.id, 'reject')}
-                          disabled={Boolean(requestBusy)}
-                          className="min-h-[40px] w-full rounded-lg border border-[#2b3048] px-3 sm:w-auto text-xs text-gray-300 transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    ) : request.status === 'submitted' ? (
-                      <button
-                        type="button"
-                        onClick={() => decideRequest(request.id, 'reconcile')}
-                        disabled={Boolean(requestBusy)}
-                        className="min-h-[40px] w-full rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 sm:w-auto text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
-                      >
-                        {requestBusy === request.id ? 'Checking…' : 'Check confirmation'}
-                      </button>
-                    ) : request.status === 'processing' ? (
-                      <div key={request.id} className="flex max-w-xs flex-col gap-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => decideRequest(request.id, 'reconcile')}
-                            disabled={Boolean(requestBusy)}
-                            className="min-h-[40px] w-full rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 sm:w-auto text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
-                          >
-                            {requestBusy === request.id ? 'Retrying…' : 'Retry submission'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => decideRequest(request.id, 'reject')}
-                            disabled={Boolean(requestBusy)}
-                            className="min-h-[40px] w-full rounded-lg border border-[#2b3048] px-3 sm:w-auto text-xs text-gray-300 transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            Cancel request
-                          </button>
-                        </div>
-                        <span className="text-xs leading-5 text-amber-200">
-                          Funding submission is retrying safely in the background. The persisted transaction intent is reused, so no duplicate transfer is created.
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="max-w-xs text-xs leading-5 text-red-300">
-                        Transfer failed on-chain. No funding history entry was recorded.
-                      </span>
-                    )}
-                  </div>,
+                  <button
+                    key={request.id}
+                    type="button"
+                    onClick={() => setSelectedRequestId(request.id)}
+                    className="min-h-[40px] rounded-lg border border-[#2b3048] px-3 text-xs font-semibold text-gray-200 transition-colors hover:border-emerald-400/40 hover:text-white"
+                  >
+                    View details
+                  </button>,
                 ])}
                 empty="No public funding requests need attention"
               />
@@ -736,11 +692,12 @@ export default function FundingPage() {
                 </p>
               </div>
               <DataTable
+                alwaysShowPagination
                 paginationLabel="airdrops"
                 columns={['Requested', 'Address', 'Amount', 'Status', 'Signature', 'Error']}
                 rows={airdrops.map((airdrop) => [
                   new Date(airdrop.requestedAt).toLocaleString(),
-                  airdrop.address.slice(0, 10) + '…' + airdrop.address.slice(-6),
+                  <AccountLink key={airdrop.id + '-address'} address={airdrop.address} />,
                   `${airdrop.amountAeko} AEKO`,
                   <span
                     key={airdrop.id}
@@ -754,7 +711,7 @@ export default function FundingPage() {
                   >
                     {airdrop.status}
                   </span>,
-                  airdrop.signature ? airdrop.signature.slice(0, 16) + '…' : '—',
+                  airdrop.signature ? <TransactionLink key={airdrop.id + '-signature'} signature={airdrop.signature} /> : '—',
                   airdropStateDetail(airdrop),
                 ])}
                 empty="No developer airdrops have been requested yet"
@@ -771,15 +728,16 @@ export default function FundingPage() {
                 </p>
               </div>
               <DataTable
+                alwaysShowPagination
                 paginationLabel="funding history"
                 columns={['When', 'Address', 'Amount', 'Source', 'Status', 'Signature']}
                 rows={fundingHistory.map((funding) => [
                   new Date(funding.fundedAt).toLocaleString(),
-                  funding.address.slice(0, 10) + '…' + funding.address.slice(-6),
+                  <AccountLink key={funding.id + '-address'} address={funding.address} />,
                   `${funding.amountAeko} AEKO`,
                   funding.source,
                   <span key={funding.id} className={funding.confirmed ? 'text-emerald-300' : 'text-yellow-300'}>{funding.confirmed ? 'confirmed' : 'submitted'}</span>,
-                  funding.signature ? funding.signature.slice(0, 16) + '…' : '—',
+                  funding.signature ? <TransactionLink key={funding.id + '-signature'} signature={funding.signature} /> : '—',
                 ])}
                 empty="No confirmed funding transfers yet"
               />
@@ -787,6 +745,231 @@ export default function FundingPage() {
           ) : null}
         </>
       ) : null}
+      <FundingDecisionAlert
+        request={selectedRequest}
+        busy={requestBusy === selectedRequest?.id}
+        onClose={closeRequestDetail}
+        onDecision={decideRequest}
+      />
+    </div>
+  )
+}
+
+function FundingDecisionAlert({
+  request,
+  busy,
+  onClose,
+  onDecision,
+}: {
+  request: FundingRequest | null
+  busy: boolean
+  onClose: () => void
+  onDecision: (id: string, action: 'approve' | 'reject' | 'reconcile') => Promise<void>
+}) {
+  const panelRef = useRef<HTMLElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const busyRef = useRef(busy)
+  const requestId = request?.id ?? null
+
+  useEffect(() => {
+    busyRef.current = busy
+  }, [busy])
+
+  useEffect(() => {
+    if (!requestId) return
+
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !busyRef.current) {
+        event.preventDefault()
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab') return
+
+      const focusable = Array.from(
+        panelRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      )
+      if (!focusable.length) return
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    closeButtonRef.current?.focus()
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      previousFocus?.focus()
+    }
+  }, [onClose, requestId])
+
+  if (!request) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center sm:p-6"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !busy) onClose()
+      }}
+    >
+      <section
+        ref={panelRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="funding-request-title"
+        aria-describedby="funding-request-description"
+        className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#2b3048] bg-[#12141f] shadow-2xl shadow-black/60"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-[#1e2135] px-5 py-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">Funding request</div>
+            <h2 id="funding-request-title" className="mt-1 text-lg font-semibold text-white">
+              Review request details
+            </h2>
+            <p id="funding-request-description" className="mt-1 text-sm leading-6 text-gray-500">
+              Verify the recipient and settlement state before making an operator decision.
+            </p>
+          </div>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="min-h-[40px] rounded-lg border border-[#2b3048] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40"
+          >
+            Close
+          </button>
+        </div>
+
+        <dl className="divide-y divide-[#1e2135] px-5">
+          <FundingDetail label="Request ID" value={request.id} mono />
+          <FundingDetail
+            label="Recipient"
+            value={<AccountLink address={request.address} label={request.address} />}
+          />
+          <FundingDetail label="Amount" value={`${request.amountAeko} AEKO`} />
+          <FundingDetail label="Source" value={request.source} />
+          <FundingDetail label="Status" value={request.status} />
+          <FundingDetail label="Requested" value={new Date(request.requestedAt).toLocaleString()} />
+          <FundingDetail
+            label="Decision time"
+            value={request.decidedAt ? new Date(request.decidedAt).toLocaleString() : '—'}
+          />
+          <FundingDetail
+            label="Submitted"
+            value={request.submittedAt ? new Date(request.submittedAt).toLocaleString() : '—'}
+          />
+          <FundingDetail
+            label="Confirmed"
+            value={request.confirmedAt ? new Date(request.confirmedAt).toLocaleString() : '—'}
+          />
+          <FundingDetail
+            label="Transaction"
+            value={request.signature
+              ? <TransactionLink signature={request.signature} label={request.signature} />
+              : '—'}
+          />
+          <FundingDetail label="Error" value={request.errorCode ?? '—'} />
+        </dl>
+
+        <div className="border-t border-[#1e2135] bg-[#0d0e16]/70 px-5 py-4">
+          {request.status === 'pending' ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => void onDecision(request.id, 'reject')}
+                disabled={busy}
+                className="min-h-[44px] rounded-lg border border-red-400/30 px-4 text-sm font-semibold text-red-200 transition-colors hover:bg-red-400/10 disabled:opacity-40"
+              >
+                Reject request
+              </button>
+              <button
+                type="button"
+                onClick={() => void onDecision(request.id, 'approve')}
+                disabled={busy}
+                className="min-h-[44px] rounded-lg bg-emerald-400 px-4 text-sm font-semibold text-black transition-colors hover:bg-emerald-300 disabled:opacity-40"
+              >
+                {busy ? 'Working…' : 'Approve & release'}
+              </button>
+            </div>
+          ) : request.status === 'submitted' ? (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => void onDecision(request.id, 'reconcile')}
+                disabled={busy}
+                className="min-h-[44px] rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 text-sm font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
+              >
+                {busy ? 'Checking…' : 'Check confirmation'}
+              </button>
+            </div>
+          ) : request.status === 'processing' ? (
+            <div className="space-y-3">
+              <div className="text-xs leading-5 text-amber-200">
+                Funding submission is retrying safely. The persisted transaction intent is reused so no duplicate transfer is created.
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => void onDecision(request.id, 'reject')}
+                  disabled={busy}
+                  className="min-h-[44px] rounded-lg border border-red-400/30 px-4 text-sm font-semibold text-red-200 transition-colors hover:bg-red-400/10 disabled:opacity-40"
+                >
+                  Cancel request
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void onDecision(request.id, 'reconcile')}
+                  disabled={busy}
+                  className="min-h-[44px] rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 text-sm font-semibold text-amber-100 transition-colors hover:bg-amber-400/15 disabled:opacity-40"
+                >
+                  {busy ? 'Retrying…' : 'Retry submission'}
+                </button>
+              </div>
+            </div>
+          ) : request.status === 'failed' ? (
+            <div className="text-sm leading-6 text-red-200">
+              Transfer failed on-chain. No funding history entry was recorded.
+            </div>
+          ) : (
+            <div className="text-sm leading-6 text-gray-400">
+              This request no longer requires an operator decision.
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function FundingDetail({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string
+  value: React.ReactNode
+  mono?: boolean
+}) {
+  return (
+    <div className="grid gap-2 py-3 sm:grid-cols-[150px_minmax(0,1fr)] sm:items-start">
+      <dt className="text-xs uppercase tracking-wider text-gray-600">{label}</dt>
+      <dd className={`min-w-0 break-all text-sm text-gray-200 ${mono ? 'font-mono' : ''}`}>
+        {value}
+      </dd>
     </div>
   )
 }

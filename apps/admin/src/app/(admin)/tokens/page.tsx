@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { AccountLink, TransactionLink } from '@/components/chain-links'
 import DataTable from '@/components/data-table'
 import FeedbackAlert from '@/components/feedback-alert'
 import StatCard from '@/components/stat-card'
@@ -10,7 +11,6 @@ type Supply = { total: number; circulating: number; nonCirculating: number }
 type SupplyResponse = { value: Supply }
 type Transfer = { signature: string; slot: number; mint: string; source: string; destination: string; amount: string }
 
-function shortAddr(a: string) { return a.slice(0, 8) + '…' + a.slice(-4) }
 function fmtAeko(lamports: number) {
   return (lamports / 1e9).toLocaleString(undefined, { maximumFractionDigits: 4 }) + ' AEKO'
 }
@@ -90,10 +90,10 @@ export default function TokensPage() {
           paginationLabel="token transfers"
           columns={['Signature', 'Mint', 'From', 'To', 'Amount', 'Slot']}
           rows={transfers.map(transfer => [
-            transfer.signature.slice(0, 12) + '…',
-            shortAddr(transfer.mint),
-            shortAddr(transfer.source),
-            shortAddr(transfer.destination),
+            <TransactionLink key={transfer.signature} signature={transfer.signature} />,
+            <AccountLink key={transfer.signature + '-mint'} address={transfer.mint} />,
+            <AccountLink key={transfer.signature + '-source'} address={transfer.source} />,
+            <AccountLink key={transfer.signature + '-destination'} address={transfer.destination} />,
             transfer.amount,
             transfer.slot.toLocaleString(),
           ])}

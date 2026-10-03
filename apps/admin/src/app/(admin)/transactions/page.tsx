@@ -2,15 +2,13 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { AccountLink, TransactionLink } from '@/components/chain-links'
 import DataTable from '@/components/data-table'
 import FeedbackAlert from '@/components/feedback-alert'
 import StatCard from '@/components/stat-card'
 import { adminQueryKeys, explorerQuery } from '@/lib/client-query'
 
-type Tx = { signature: string; slot: number; blockTime?: number; success: boolean; fee: number; signer?: string; primaryProgram?: string }
-
-function shortSig(sig: string) { return sig.slice(0, 14) + '…' + sig.slice(-6) }
-function fmtTime(ts?: number) { return ts ? new Date(ts * 1000).toLocaleString() : '—' }
+type Tx = { signature: string; slot: number; success: boolean; fee: number; signer?: string | null; primaryProgram?: string | null }
 function fmtFee(lamports: number) { return (lamports / 1e9).toFixed(6) + ' AEKO' }
 
 export default function TransactionsPage() {
@@ -79,16 +77,16 @@ export default function TransactionsPage() {
 
       <DataTable
         paginationLabel="transactions"
-        columns={['Signature', 'Slot', 'Status', 'Fee', 'Program', 'Time']}
+        columns={['Signature', 'Slot', 'Status', 'Fee', 'Signer', 'Program']}
         rows={filtered.map(tx => [
-          shortSig(tx.signature),
+          <TransactionLink key={tx.signature} signature={tx.signature} />,
           tx.slot.toLocaleString(),
-          <span key={tx.signature} className={tx.success ? 'text-emerald-400' : 'text-red-400'}>
+          <span key={tx.signature + '-status'} className={tx.success ? 'text-emerald-400' : 'text-red-400'}>
             {tx.success ? '✓ OK' : '✗ Fail'}
           </span>,
           fmtFee(tx.fee),
-          tx.primaryProgram ?? '—',
-          fmtTime(tx.blockTime),
+          tx.signer ? <AccountLink key={tx.signature + '-signer'} address={tx.signer} /> : '—',
+          tx.primaryProgram ? <AccountLink key={tx.signature + '-program'} address={tx.primaryProgram} /> : '—',
         ])}
         empty={transactionsQuery.isLoading ? 'Loading transactions…' : 'No transactions found'}
       />
