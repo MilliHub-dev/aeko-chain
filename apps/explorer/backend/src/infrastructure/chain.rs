@@ -860,9 +860,7 @@ fn parse_transaction_detail(value: &Value) -> Result<TransactionDetailRecord> {
         _ => None,
     };
     let error = (!err.is_null()).then(|| err.clone());
-    let compute_units_consumed = meta
-        .get("computeUnitsConsumed")
-        .and_then(Value::as_u64);
+    let compute_units_consumed = meta.get("computeUnitsConsumed").and_then(Value::as_u64);
     let return_data = meta
         .get("returnData")
         .filter(|value| !value.is_null())
@@ -1135,9 +1133,9 @@ fn transaction_token_balance_changes(
                 .get("programId")
                 .and_then(Value::as_str)
                 .map(ToOwned::to_owned);
-            let ui = item
-                .get("uiTokenAmount")
-                .ok_or_else(|| anyhow!("transaction {signature} {field} entry has no uiTokenAmount"))?;
+            let ui = item.get("uiTokenAmount").ok_or_else(|| {
+                anyhow!("transaction {signature} {field} entry has no uiTokenAmount")
+            })?;
             let amount = required_str(ui, "amount", "uiTokenAmount")?.to_string();
             let decimals = required_u64(ui, "decimals", "uiTokenAmount")?;
             let decimals = u8::try_from(decimals)
@@ -1166,21 +1164,19 @@ fn transaction_token_balance_changes(
 
     Ok(balances
         .into_iter()
-        .map(
-            |((account_index, mint, owner, program_id), value)| {
-                TransactionTokenBalanceChangeRecord {
-                    account_index,
-                    mint,
-                    owner,
-                    program_id,
-                    decimals: value.decimals,
-                    pre_amount: value.pre_amount,
-                    post_amount: value.post_amount,
-                    pre_ui_amount: value.pre_ui_amount,
-                    post_ui_amount: value.post_ui_amount,
-                }
-            },
-        )
+        .map(|((account_index, mint, owner, program_id), value)| {
+            TransactionTokenBalanceChangeRecord {
+                account_index,
+                mint,
+                owner,
+                program_id,
+                decimals: value.decimals,
+                pre_amount: value.pre_amount,
+                post_amount: value.post_amount,
+                pre_ui_amount: value.pre_ui_amount,
+                post_ui_amount: value.post_ui_amount,
+            }
+        })
         .collect())
 }
 

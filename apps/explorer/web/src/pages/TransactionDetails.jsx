@@ -1,3 +1,4 @@
+import { createElement } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   Activity,
@@ -132,11 +133,11 @@ function TransactionHeader({ tx }) {
   );
 }
 
-function HeaderMetric({ icon: Icon, label, value }) {
+function HeaderMetric({ icon, label, value }) {
   return (
     <div className="min-w-0 px-4 py-4 sm:px-5">
       <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] text-gray-500">
-        <Icon className="size-3.5" aria-hidden="true" />
+        {createElement(icon, { className: 'size-3.5', 'aria-hidden': true })}
         {label}
       </div>
       <div className="mt-2 min-w-0 break-words text-sm font-semibold tabular-nums text-gray-200">{value}</div>
@@ -182,7 +183,7 @@ function TransactionTabs({ tx, value, onChange }) {
         aria-label="Transaction detail sections"
         className="flex min-w-max gap-1 rounded-xl border border-white/10 bg-black/10 p-1"
       >
-        {tabs.map(({ key, label, icon: Icon, count }) => {
+        {tabs.map(({ key, label, icon, count }) => {
           const active = value === key;
           return (
             <button
@@ -198,7 +199,7 @@ function TransactionTabs({ tx, value, onChange }) {
                   : 'text-gray-500 hover:bg-white/[0.04] hover:text-gray-200')
               }
             >
-              <Icon className="size-4" aria-hidden="true" />
+              {createElement(icon, { className: 'size-4', 'aria-hidden': true })}
               {label}
               {typeof count === 'number' ? (
                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${active ? 'bg-aeko-accent/15 text-aeko-accent' : 'bg-white/5 text-gray-600'}`}>
@@ -627,10 +628,10 @@ function TokenDeltaCell({ change }) {
   );
 }
 
-function EmptySection({ icon: Icon, title, body }) {
+function EmptySection({ icon, title, body }) {
   return (
     <section className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-5 py-12 text-center">
-      <Icon className="mx-auto size-6 text-gray-600" aria-hidden="true" />
+      {createElement(icon, { className: 'mx-auto size-6 text-gray-600', 'aria-hidden': true })}
       <h2 className="mt-3 font-semibold text-gray-300">{title}</h2>
       <p className="mx-auto mt-1 max-w-xl text-sm leading-6 text-gray-500">{body}</p>
     </section>

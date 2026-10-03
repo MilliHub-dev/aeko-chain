@@ -1,4 +1,7 @@
-use {serde::{Deserialize, Serialize}, serde_json::Value};
+use {
+    serde::{Deserialize, Serialize},
+    serde_json::Value,
+};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
