@@ -473,6 +473,52 @@ test('Explorer dashboard server state is Query-owned and URL-driven', async () =
 });
 
 
+test('Explorer search results expose an explicit navigation affordance and transaction details surface real chain trace depth', async () => {
+  const explorer = await source('pages/Explorer.jsx');
+  const transaction = await source('pages/TransactionDetails.jsx');
+  const ledgerFeature = await source('../../../explorer/backend/src/features/ledger/mod.rs');
+  const chain = await source('../../../explorer/backend/src/infrastructure/chain.rs');
+  const domain = await source('../../../explorer/backend/src/domain/mod.rs');
+
+  assert.match(explorer, /View details/);
+  assert.match(explorer, /cursor-pointer/);
+  assert.match(explorer, /focus-visible:ring-2/);
+  assert.match(explorer, /ChevronRight/);
+  assert.match(explorer, /Search results/);
+
+  for (const section of [
+    'Overview',
+    'Instructions',
+    'Accounts',
+    'Transfers',
+    'Logs',
+    'Advanced',
+  ]) {
+    assert.match(transaction, new RegExp(section));
+  }
+  assert.match(transaction, /Transaction action/);
+  assert.match(transaction, /CopyButton/);
+  assert.match(transaction, /\/explorer\/block\/\$\{tx\.slot\}/);
+  assert.match(transaction, /tokenBalanceChanges/);
+  assert.match(transaction, /tokenTransfers/);
+  assert.match(transaction, /logMessages/);
+  assert.match(transaction, /rawTransaction/);
+  assert.match(transaction, /computeUnitsConsumed/);
+  assert.doesNotMatch(transaction, /function MetricCard/);
+
+  assert.match(domain, /pub struct TransactionDetailRecord/);
+  assert.match(domain, /detail_available: bool/);
+  assert.match(domain, /raw_transaction: Option<Value>/);
+  assert.match(chain, /fetch_transaction_detail/);
+  assert.match(chain, /"encoding": "jsonParsed"/);
+  assert.match(chain, /computeUnitsConsumed/);
+  assert.match(chain, /preTokenBalances/);
+  assert.match(chain, /logMessages/);
+  assert.match(ledgerFeature, /apply_indexed_transaction_context/);
+  assert.match(ledgerFeature, /indexer\+rpc-live/);
+  assert.match(ledgerFeature, /live transaction detail enrichment failed; returning finalized indexed detail/);
+});
+
 test('Explorer detail routes use the shared Query resource contract', async () => {
   const helper = await source('utils/explorerQueries.js');
   assert.match(helper, /useQuery/);

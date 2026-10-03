@@ -1,6 +1,9 @@
 use {
     super::PostgresRepository,
-    crate::models::{BlockRecord, CoreSlotRecord, TransactionRecord},
+    crate::models::{
+        BlockRecord, CoreSlotRecord, TokenTransferRecord, TransactionAccountRecord,
+        TransactionRecord,
+    },
     anyhow::{bail, Context, Result},
     sqlx::Row,
     std::collections::HashSet,
@@ -351,6 +354,66 @@ impl PostgresRepository {
         .await
         .context("getting transaction")?;
         row.map(transaction_from_row).transpose()
+    }
+
+    pub async fn list_transaction_accounts(
+        &self,
+        signature: &str,
+    ) -> Result<Vec<TransactionAccountRecord>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT signature, account_index, address
+            FROM transaction_accounts
+            WHERE signature = $1
+            ORDER BY account_index ASC
+            "#,
+        )
+        .bind(signature)
+        .fetch_all(&self.pool)
+        .await
+        .context("listing transaction accounts")?;
+        rows.into_iter()
+            .map(|row| {
+                Ok(TransactionAccountRecord {
+                    signature: row.get("signature"),
+                    account_index: usize::try_from(row.get::<i32, _>("account_index"))
+                        .context("negative transaction account index")?,
+                    address: row.get("address"),
+                })
+            })
+            .collect()
+    }
+
+    pub async fn list_transaction_transfers(
+        &self,
+        signature: &str,
+    ) -> Result<Vec<TokenTransferRecord>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT mint, source, destination, amount, signature, event_index, slot
+            FROM token_transfers
+            WHERE signature = $1
+            ORDER BY event_index ASC
+            "#,
+        )
+        .bind(signature)
+        .fetch_all(&self.pool)
+        .await
+        .context("listing transaction token transfers")?;
+        rows.into_iter()
+            .map(|row| {
+                Ok(TokenTransferRecord {
+                    mint: row.get("mint"),
+                    source: row.get("source"),
+                    destination: row.get("destination"),
+                    amount: row.get("amount"),
+                    signature: row.get("signature"),
+                    event_index: row.get("event_index"),
+                    slot: u64::try_from(row.get::<i64, _>("slot"))
+                        .context("negative token transfer slot")?,
+                })
+            })
+            .collect()
     }
 }
 
