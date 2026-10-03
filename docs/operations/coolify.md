@@ -258,14 +258,40 @@ protocol path with
 `AEKO_GOSSIP_ENTRYPOINT=gossip.aeko.online:8001 scripts/smoke-gossip.sh` or
 `aeko-gossip spy --entrypoint gossip.aeko.online:8001 --num-nodes 1 --timeout 20`.
 
-Faucet is also not an HTTP Coolify Domain. Point `faucet.aeko.online` to the
-Faucet host only when a split Validator needs that raw TCP endpoint, publish
-TCP `9900`, and firewall it to Validator source addresses. In Coolify, leave
-the Faucet Domains field empty and do not configure an HTTP health path for
-`9900`; the Compose healthcheck validates the mounted key locally. Do not
-attach a Cloudflare HTTP proxy or Traefik HTTP router to the Faucet port. The
-Faucet listener accepts only its binary TCP protocol and deliberately rejects
-HTTP-like traffic. PostgreSQL `5432` should remain private.
+Faucet is also not an HTTP Coolify Domain. The split Faucet Compose requires
+`AEKO_FAUCET_BIND_ADDRESS` and publishes raw TCP `9900` explicitly on that host
+interface. Prefer a private/overlay network such as VPC or WireGuard. If an
+operator uses `0.0.0.0`, the host/cloud firewall must restrict TCP `9900` to
+trusted Validator/RPC source addresses.
+
+Do not use `127.0.0.1`, `localhost`, or `::1` as the split Faucet bind for a
+Faucet consumed by another container, and do not use loopback or wildcard
+values as the split Validator's `AEKO_FAUCET_ADDRESS`. Separate Coolify
+resources do not share container loopback even when they run on the same
+Ubuntu server. Moving those resources to another provider keeps the same
+contract: route Faucet over the private/overlay network rather than changing
+application code.
+
+Point `faucet.aeko.online` or private DNS at the raw TCP endpoint only when it
+resolves to an address the consumers can actually reach. Leave the Faucet
+Domains field empty and do not configure an HTTP health path for `9900`; the
+Compose healthcheck validates the mounted key locally. Do not attach a
+Cloudflare HTTP proxy or Traefik HTTP router to the Faucet port.
+
+Verify the effective host publication and a consumer-side TCP connection:
+
+```bash
+# Faucet host
+docker ps --format 'table {{.Names}}\t{{.Ports}}' | grep -i faucet
+ss -lntp | grep ':9900'
+
+# Validator/RPC host (or inside that container)
+nc -vz <faucet-private-or-overlay-address> 9900
+```
+
+A split deployment is not accepted if Docker reports only
+`127.0.0.1:9900->9900/tcp` or the consumer-side probe fails. PostgreSQL
+`5432` should remain private.
 
 ## First deployment
 

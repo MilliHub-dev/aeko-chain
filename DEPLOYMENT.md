@@ -131,6 +131,14 @@ servers. These are independent stacks even when an operator happens to place
 several stacks on the same physical host. They do not share an Explorer
 process, Admin process, database, chain identity, or active `AEKO_NETWORK`.
 
+The Faucet is likewise independently deployable infrastructure. Split Faucet
+publication uses `AEKO_FAUCET_BIND_ADDRESS` for the host-side listener, while
+Validators/RPC nodes use `AEKO_FAUCET_ADDRESS` for the consumer-side endpoint.
+Keeping those concerns separate lets the same topology move from one Ubuntu
+host to multiple Scaleway, AWS, Hetzner, or other provider instances without
+introducing Docker-network assumptions. Prefer private/overlay routing;
+never use container loopback as split-resource service discovery.
+
 Aeko Scan is the exception: its generic values define the default network, and
 optional `AEKO_MAINNET_*` and `AEKO_TESTNET_*` RPC/WS/Explorer-API
 triplets let the UI switch to other independent public deployments. Browser
@@ -157,7 +165,10 @@ AEKO_EXPLORER_CORS_ORIGINS=https://scan.aeko.online
 # Operations Web resource:
 AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
 AEKO_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
-# Validator resource:
+# Faucet resource (split Coolify):
+AEKO_FAUCET_BIND_ADDRESS=<private-or-overlay-host-interface>
+AEKO_FAUCET_HOST_PORT=9900
+# Validator/RPC resource:
 AEKO_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
 
 AEKO_GOSSIP_HOST=gossip.aeko.online

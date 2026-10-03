@@ -63,8 +63,44 @@ session authentication and unauthenticated requests are redirected to
 
 Faucet and validator gossip are different. They are raw TCP/UDP protocols, not
 HTTP routes. Their DNS records identify the host, but the required host ports
-must still be reachable. Restrict Faucet TCP 9900 to Validator source addresses
-with the host/cloud firewall.
+must still be reachable.
+
+For split Faucet deployments, listener publication and consumer discovery are
+separate contracts:
+
+- `AEKO_FAUCET_BIND_ADDRESS` is the host interface on the Faucet machine where
+  Docker publishes raw TCP `9900`.
+- `AEKO_FAUCET_HOST_PORT` is the published host port, normally `9900`.
+- `AEKO_FAUCET_ADDRESS` belongs on every Validator/RPC consumer and names the
+  Faucet endpoint that container can actually reach.
+
+`AEKO_FAUCET_BIND_ADDRESS` is required by the split Faucet Compose contract so a
+deployment platform cannot silently fall back to a loopback-only publication
+such as `127.0.0.1:9900`. Prefer a private/overlay network (for example VPC or
+WireGuard). Use `0.0.0.0` only with a host/cloud firewall that restricts TCP
+`9900` to trusted Validator/RPC source addresses. A split Validator must not
+use `localhost`, `127.0.0.1`, `::1`, or `0.0.0.0` as
+`AEKO_FAUCET_ADDRESS`.
+
+Same-host placement does not weaken this contract: separate Coolify resources
+can be on different Docker networks today and different cloud providers later.
+Configure Faucet as independently reachable infrastructure even when all
+resources currently share one Ubuntu host.
+
+Verify both publication and consumer reachability before accepting a deployment:
+
+```bash
+# Faucet host
+docker ps --format 'table {{.Names}}\t{{.Ports}}' | grep -i faucet
+ss -lntp | grep ':9900'
+
+# Each Validator/RPC host (or inside its container)
+nc -vz <faucet-private-or-overlay-address> 9900
+```
+
+A remotely consumed split Faucet must not report only
+`127.0.0.1:9900->9900/tcp`. Restrict the reachable Faucet endpoint to trusted
+Validator/RPC sources with host/cloud firewall policy.
 
 ## Environment naming
 
