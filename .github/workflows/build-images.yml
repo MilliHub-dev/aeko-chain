@@ -50,7 +50,6 @@ jobs:
       sdk_release_python: ${{ steps.changes.outputs.sdk_release_python }}
       sdk_release_rust: ${{ steps.changes.outputs.sdk_release_rust }}
       dockerized: ${{ steps.changes.outputs.dockerized }}
-      deployable: ${{ steps.changes.outputs.deployable }}
       ci_pipeline: ${{ steps.changes.outputs.ci_pipeline }}
       publish: ${{ steps.release.outputs.publish }}
       publish_admin: ${{ steps.release.outputs.publish_admin }}
@@ -74,10 +73,6 @@ jobs:
       run_ci_contract: ${{ steps.plan.outputs.run_ci_contract }}
       run_runtime_contract: ${{ steps.plan.outputs.run_runtime_contract }}
       runtime_contract_mode: ${{ steps.plan.outputs.runtime_contract_mode }}
-      deploy_explorer_api: ${{ steps.plan.outputs.deploy_explorer_api }}
-      deploy_explorer_ui: ${{ steps.plan.outputs.deploy_explorer_ui }}
-      deploy_operations_web: ${{ steps.plan.outputs.deploy_operations_web }}
-      stateful_coolify_release: ${{ steps.plan.outputs.stateful_coolify_release }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
@@ -769,7 +764,7 @@ jobs:
           echo "Docker image promotion and production deployment are independent of SDK registry availability."
 
   release:
-    name: Deploy / Promote images
+    name: Promote / Validated images
     needs:
       - classify
       - devops
@@ -854,36 +849,98 @@ jobs:
           explorer-backend: ${{ needs.classify.outputs.publish_explorer_backend }}
           explorer-web: ${{ needs.classify.outputs.publish_explorer_web }}
 
-      - name: Trigger legacy production deployment after successful promotion
-        if: (needs.classify.outputs.deployable == 'true' || needs.classify.outputs.ci_pipeline == 'true') && vars.COOLIFY_DEPLOYMENT_MODE != 'split'
+  deploy_faucet:
+    name: Deploy / Faucet
+    needs:
+      - classify
+      - release
+    if: ${{ always() && needs.release.result == 'success' && needs.classify.outputs.publish_network == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+      - name: Trigger Faucet Coolify deployment
         shell: bash
         env:
-          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          COOLIFY_RESOURCE: Faucet
+          DEPLOY_ENDPOINT: ${{ secrets.WEBHOOK_FAUCET }}
           WEBHOOK_API_KEY: ${{ secrets.WEBHOOK_API_KEY }}
-        run: |
-          set -euo pipefail
-          : "${WEBHOOK_URL:?WEBHOOK_URL secret is required}"
-          : "${WEBHOOK_API_KEY:?WEBHOOK_API_KEY secret is required}"
-          WEBHOOK_URL="$(printf '%s' "$WEBHOOK_URL" | tr -d '\r\n')"
-          WEBHOOK_API_KEY="$(printf '%s' "$WEBHOOK_API_KEY" | tr -d '\r\n')"
+        run: bash .github/actions/devops/pipeline/deploy-coolify-split.sh
 
-          curl --fail-with-body --silent --show-error \
-            --request POST \
-            --header "Authorization: Bearer ${WEBHOOK_API_KEY}" \
-            "$WEBHOOK_URL"
-
-      - name: Trigger selected split Coolify application deployments
-        if: vars.COOLIFY_DEPLOYMENT_MODE == 'split' && (needs.classify.outputs.deploy_explorer_api == 'true' || needs.classify.outputs.deploy_explorer_ui == 'true' || needs.classify.outputs.deploy_operations_web == 'true' || needs.classify.outputs.stateful_coolify_release == 'true')
+  deploy_validator:
+    name: Deploy / Validator
+    needs:
+      - classify
+      - release
+      - deploy_faucet
+    if: ${{ always() && needs.release.result == 'success' && needs.classify.outputs.publish_network == 'true' && needs.deploy_faucet.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+      - name: Trigger Validator Coolify deployment
         shell: bash
         env:
-          DEPLOY_EXPLORER_API: ${{ needs.classify.outputs.deploy_explorer_api }}
-          DEPLOY_EXPLORER_UI: ${{ needs.classify.outputs.deploy_explorer_ui }}
-          DEPLOY_OPERATIONS_WEB: ${{ needs.classify.outputs.deploy_operations_web }}
-          STATEFUL_COOLIFY_RELEASE: ${{ needs.classify.outputs.stateful_coolify_release }}
-          COOLIFY_EXPLORER_API_WEBHOOK_URL: ${{ secrets.COOLIFY_EXPLORER_API_WEBHOOK_URL }}
-          COOLIFY_EXPLORER_API_WEBHOOK_API_KEY: ${{ secrets.COOLIFY_EXPLORER_API_WEBHOOK_API_KEY }}
-          COOLIFY_EXPLORER_UI_WEBHOOK_URL: ${{ secrets.COOLIFY_EXPLORER_UI_WEBHOOK_URL }}
-          COOLIFY_EXPLORER_UI_WEBHOOK_API_KEY: ${{ secrets.COOLIFY_EXPLORER_UI_WEBHOOK_API_KEY }}
-          COOLIFY_OPERATIONS_WEB_WEBHOOK_URL: ${{ secrets.COOLIFY_OPERATIONS_WEB_WEBHOOK_URL }}
-          COOLIFY_OPERATIONS_WEB_WEBHOOK_API_KEY: ${{ secrets.COOLIFY_OPERATIONS_WEB_WEBHOOK_API_KEY }}
+          COOLIFY_RESOURCE: Validator
+          DEPLOY_ENDPOINT: ${{ secrets.WEBHOOK_VALIDATOR }}
+          WEBHOOK_API_KEY: ${{ secrets.WEBHOOK_API_KEY }}
+        run: bash .github/actions/devops/pipeline/deploy-coolify-split.sh
+
+  deploy_explorer_api:
+    name: Deploy / Explorer API
+    needs:
+      - classify
+      - release
+    if: ${{ always() && needs.release.result == 'success' && needs.classify.outputs.publish_explorer_backend == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+      - name: Trigger Explorer API Coolify deployment
+        shell: bash
+        env:
+          COOLIFY_RESOURCE: Explorer API
+          DEPLOY_ENDPOINT: ${{ secrets.WEBHOOK_EXPLORER_API }}
+          WEBHOOK_API_KEY: ${{ secrets.WEBHOOK_API_KEY }}
+        run: bash .github/actions/devops/pipeline/deploy-coolify-split.sh
+
+  deploy_explorer_ui:
+    name: Deploy / Explorer UI
+    needs:
+      - classify
+      - release
+    if: ${{ always() && needs.release.result == 'success' && needs.classify.outputs.publish_explorer_web == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+      - name: Trigger Explorer UI Coolify deployment
+        shell: bash
+        env:
+          COOLIFY_RESOURCE: Explorer UI
+          DEPLOY_ENDPOINT: ${{ secrets.WEBHOOK_EXPLORER_UI }}
+          WEBHOOK_API_KEY: ${{ secrets.WEBHOOK_API_KEY }}
+        run: bash .github/actions/devops/pipeline/deploy-coolify-split.sh
+
+  deploy_admin:
+    name: Deploy / Aeko Admin
+    needs:
+      - classify
+      - release
+    if: ${{ always() && needs.release.result == 'success' && needs.classify.outputs.publish_admin == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+      - name: Trigger Aeko Admin Coolify deployment
+        shell: bash
+        env:
+          COOLIFY_RESOURCE: Aeko Admin
+          DEPLOY_ENDPOINT: ${{ secrets.WEBHOOK_AEKO_ADMIN }}
+          WEBHOOK_API_KEY: ${{ secrets.WEBHOOK_API_KEY }}
         run: bash .github/actions/devops/pipeline/deploy-coolify-split.sh

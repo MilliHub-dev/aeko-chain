@@ -287,46 +287,6 @@ run_release_case() {
   echo "[ok] $label"
 }
 
-run_deploy_plan_case() {
-  local label="$1"
-  local admin="$2"
-  local core="$3"
-  local explorer_backend="$4"
-  local explorer_web="$5"
-  local coolify_bootstrap="$6"
-  local coolify_faucet_tools="$7"
-  local coolify_validator="$8"
-  local coolify_explorer_api="$9"
-  local coolify_explorer_ui="${10}"
-  local coolify_operations_web="${11}"
-  local expected_api="${12}"
-  local expected_ui="${13}"
-  local expected_ops="${14}"
-  local expected_stateful="${15}"
-  local output
-  output="$(mktemp)"
-
-  GITHUB_OUTPUT="$output" GITHUB_EVENT_NAME=push \
-  ADMIN="$admin" CLI=false CORE="$core" PACKAGING=false \
-  EXPLORER_BACKEND="$explorer_backend" EXPLORER_WEB="$explorer_web" \
-  COOLIFY_BOOTSTRAP="$coolify_bootstrap" \
-  COOLIFY_FAUCET_TOOLS="$coolify_faucet_tools" \
-  COOLIFY_VALIDATOR="$coolify_validator" \
-  COOLIFY_EXPLORER_API="$coolify_explorer_api" \
-  COOLIFY_EXPLORER_UI="$coolify_explorer_ui" \
-  COOLIFY_OPERATIONS_WEB="$coolify_operations_web" \
-  SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false \
-  CI_PIPELINE=false bash "$PIPELINE_DIR/plan.sh"
-
-  assert_output "$output" "deploy_explorer_api=$expected_api"
-  assert_output "$output" "deploy_explorer_ui=$expected_ui"
-  assert_output "$output" "deploy_operations_web=$expected_ops"
-  assert_output "$output" "stateful_coolify_release=$expected_stateful"
-
-  rm -f "$output"
-  echo "[ok] $label"
-}
-
 test_split_deploy_trigger() {
   local fake_dir log fake_curl
   fake_dir="$(mktemp -d)"
@@ -340,38 +300,34 @@ EOF
   chmod +x "$fake_curl"
 
   COOLIFY_TEST_CURL_LOG="$log" CURL_BIN="$fake_curl" \
-  DEPLOY_EXPLORER_API=true \
-  DEPLOY_EXPLORER_UI=false \
-  DEPLOY_OPERATIONS_WEB=true \
-  STATEFUL_COOLIFY_RELEASE=true \
-  COOLIFY_EXPLORER_API_WEBHOOK_URL=https://api.coolify.invalid/deploy/api \
-  COOLIFY_EXPLORER_API_WEBHOOK_API_KEY=api-token \
-  COOLIFY_EXPLORER_UI_WEBHOOK_URL=https://ui.coolify.invalid/deploy/ui \
-  COOLIFY_EXPLORER_UI_WEBHOOK_API_KEY=ui-token \
-  COOLIFY_OPERATIONS_WEB_WEBHOOK_URL=https://ops.coolify.invalid/deploy/ops \
-  COOLIFY_OPERATIONS_WEB_WEBHOOK_API_KEY=ops-token \
+  COOLIFY_RESOURCE="Explorer API" \
+  DEPLOY_ENDPOINT=https://api.coolify.invalid/deploy/api \
+  WEBHOOK_API_KEY=shared-token \
     bash "$PIPELINE_DIR/deploy-coolify-split.sh"
 
   grep -Fq "https://api.coolify.invalid/deploy/api" "$log"
-  grep -Fq "Authorization: Bearer api-token" "$log"
-  grep -Fq "https://ops.coolify.invalid/deploy/ops" "$log"
-  grep -Fq "Authorization: Bearer ops-token" "$log"
-  if grep -Fq "https://ui.coolify.invalid/deploy/ui" "$log"; then
-    echo "Disabled Explorer UI deployment unexpectedly called curl." >&2
+  grep -Fq "Authorization: Bearer shared-token" "$log"
+
+  if COOLIFY_TEST_CURL_LOG="$log" CURL_BIN="$fake_curl" \
+    COOLIFY_RESOURCE="Explorer API" \
+    DEPLOY_ENDPOINT= \
+    WEBHOOK_API_KEY=shared-token \
+      bash "$PIPELINE_DIR/deploy-coolify-split.sh"; then
+    echo "Split deployment unexpectedly accepted a missing resource webhook." >&2
     exit 1
   fi
 
   if COOLIFY_TEST_CURL_LOG="$log" CURL_BIN="$fake_curl" \
-    DEPLOY_EXPLORER_API=true \
-    COOLIFY_EXPLORER_API_WEBHOOK_URL= \
-    COOLIFY_EXPLORER_API_WEBHOOK_API_KEY= \
+    COOLIFY_RESOURCE="Explorer API" \
+    DEPLOY_ENDPOINT=https://api.coolify.invalid/deploy/api \
+    WEBHOOK_API_KEY= \
       bash "$PIPELINE_DIR/deploy-coolify-split.sh"; then
-    echo "Split deployment unexpectedly accepted missing selected-resource credentials." >&2
+    echo "Split deployment unexpectedly accepted a missing shared API key." >&2
     exit 1
   fi
 
   rm -rf "$fake_dir"
-  echo "[ok] split Coolify deployment triggers only selected resources and fails closed on missing credentials"
+  echo "[ok] resource-scoped Coolify deployment uses one selected webhook and fails closed on missing credentials"
 }
 
 assert_split_coolify_workflow_contract() {
@@ -388,18 +344,31 @@ assert_split_coolify_workflow_contract() {
     grep -Fq "$path" "$classifier"
   done
 
-  grep -Fq "COOLIFY_DEPLOYMENT_MODE" "$workflow"
-  grep -Fq "deploy-coolify-split.sh" "$workflow"
-  grep -Fq "COOLIFY_EXPLORER_API_WEBHOOK_URL" "$workflow"
-  grep -Fq "COOLIFY_EXPLORER_UI_WEBHOOK_URL" "$workflow"
-  grep -Fq "COOLIFY_OPERATIONS_WEB_WEBHOOK_URL" "$workflow"
+  for job in deploy_faucet deploy_validator deploy_explorer_api deploy_explorer_ui deploy_admin; do
+    grep -Eq "^  ${job}:$" "$workflow"
+  done
 
-  if grep -Eq 'COOLIFY_(VALIDATOR|BOOTSTRAP|FAUCET_TOOLS)_WEBHOOK_URL' "$workflow"; then
-    echo "Stateful Coolify resource gained an automatic deploy webhook." >&2
-    exit 1
-  fi
+  for secret in WEBHOOK_AEKO_ADMIN WEBHOOK_EXPLORER_API WEBHOOK_EXPLORER_UI WEBHOOK_FAUCET WEBHOOK_VALIDATOR; do
+    grep -Fq "secrets.${secret}" "$workflow"
+  done
+  grep -Fq 'secrets.WEBHOOK_API_KEY' "$workflow"
+  grep -Fq 'needs.classify.outputs.publish_network' "$workflow"
+  grep -Fq "needs.deploy_faucet.result == 'success'" "$workflow"
 
-  echo "[ok] split Coolify workflow keeps stateful resources manual and app hooks independent"
+  for retired in \
+    'secrets.WEBHOOK_URL' \
+    'COOLIFY_DEPLOYMENT_MODE' \
+    'COOLIFY_EXPLORER_API_WEBHOOK_URL' \
+    'COOLIFY_EXPLORER_UI_WEBHOOK_URL' \
+    'COOLIFY_OPERATIONS_WEB_WEBHOOK_URL' \
+    'DOKPLOY_WEBHOOK_URL'; do
+    if grep -Fq "$retired" "$workflow"; then
+      echo "Retired production deploy contract remains in AEKO DevOps: $retired" >&2
+      exit 1
+    fi
+  done
+
+  echo "[ok] promotion fans out to the five current resource-scoped Coolify webhooks"
 }
 
 assert_runtime_artifact_handoff_contract() {
@@ -586,22 +555,6 @@ run_plan_case "Product ownership does not suppress any PR validation lane" \
   $'run_admin=true\nrun_cli=true\nrun_explorer_backend=true\nrun_explorer_web=true\nrun_network=true\nrun_sdk_non_rust=true\nrun_sdk_rust=true\nbuild_admin=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_explorer_web=true\nbuild_network=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
   GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=true EXPLORER_WEB=false \
   SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
-
-run_deploy_plan_case "Explorer backend source deploys only Explorer API" \
-  false false true false false false false false false false \
-  true false false false
-run_deploy_plan_case "Explorer UI source deploys only Explorer UI" \
-  false false false true false false false false false false \
-  false true false false
-run_deploy_plan_case "Admin source deploys only Operations Web" \
-  true false false false false false false false false false \
-  false false true false
-run_deploy_plan_case "Split Explorer API Compose change deploys only Explorer API" \
-  false false false false false false false true false false \
-  true false false false
-run_deploy_plan_case "Stateful Coolify config remains manual" \
-  false false false false true true true false false false \
-  false false false true
 
 test_split_deploy_trigger
 
