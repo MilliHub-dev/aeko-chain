@@ -86,20 +86,20 @@ export default function AccountPage() {
   const tabs = ['txs', 'nfts', 'posts', 'stakes', 'rewards'] as const
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-[1400px] space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => router.back()} className="text-gray-500 hover:text-white transition-colors text-sm">← Back</button>
+          <button type="button" onClick={() => router.back()} className="min-h-11 shrink-0 rounded-xl border border-[#252a3e] px-3 text-sm text-gray-500 transition-colors hover:bg-white/5 hover:text-white">← Back</button>
           <div>
             <h1 className="text-xl font-bold text-white mono">{shortAddr(address)}</h1>
-            <div className="text-gray-600 text-xs mono mt-0.5">{address}</div>
+            <div className="mt-1 break-all text-xs text-gray-600 mono">{address}</div>
           </div>
         </div>
         <button
           type="button"
           onClick={() => void accountQuery.refetch()}
           disabled={accountQuery.isFetching}
-          className="min-h-[40px] rounded-lg border border-[#1e2135] px-3 text-xs font-semibold text-gray-300 hover:bg-white/5 disabled:opacity-40"
+          className="min-h-11 rounded-lg border border-[#1e2135] px-3 text-xs font-semibold text-gray-300 hover:bg-white/5 disabled:opacity-40"
         >
           {accountQuery.isFetching ? 'Refreshing…' : 'Refresh'}
         </button>
@@ -111,7 +111,7 @@ export default function AccountPage() {
         </FeedbackAlert>
       ) : null}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
         <StatCard label="Balance" value={balance !== null ? fmtAeko(balance) : '—'} accent />
         <StatCard label="Owner" value={data ? (data.account.owner === '11111111111111111111111111111111' ? 'System' : shortAddr(data.account.owner)) : '—'} sub={data?.account.executable ? 'executable program' : undefined} />
         <StatCard label="NFTs" value={data?.profile.nftCount ?? '—'} />
@@ -124,13 +124,15 @@ export default function AccountPage() {
         </FeedbackAlert>
       ) : null}
 
-      <div className="flex gap-1 overflow-x-auto border-b border-[#1e2135]">
+      <div className="flex snap-x gap-1 overflow-x-auto overscroll-x-contain border-b border-[#1e2135]" role="tablist" aria-label="Account activity sections">
         {tabs.map((value) => (
           <button
             key={value}
             type="button"
+            role="tab"
+            aria-selected={tab === value}
             onClick={() => setTab(value)}
-            className={`px-4 py-2 text-sm capitalize transition-colors border-b-2 -mb-px ${tab === value ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+            className={`-mb-px min-h-11 shrink-0 snap-start border-b-2 px-4 text-sm capitalize transition-colors ${tab === value ? 'border-emerald-400 text-emerald-400' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
           >
             {value}
           </button>
@@ -177,7 +179,7 @@ export default function AccountPage() {
           paginationLabel="stake positions"
           columns={['Creator', 'Staked', 'State']}
           rows={stakes.map((stake) => [
-            shortAddr(stake.creator),
+            <AccountLink key={stake.positionId + '-creator'} address={stake.creator} label={shortAddr(stake.creator)} />,
             fmtAeko(stake.stakedAmount),
             <span key={stake.positionId} className={stake.state === 'active' ? 'text-emerald-400' : 'text-gray-500'}>{stake.state}</span>,
           ])}

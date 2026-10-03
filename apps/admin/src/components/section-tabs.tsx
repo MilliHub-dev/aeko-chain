@@ -21,10 +21,10 @@ export default function SectionTabs<T extends string>({
   const activeItem = items.find((item) => item.value === value)
 
   return (
-    <div className="space-y-2">
-      <div className="overflow-x-auto pb-1">
+    <div className="min-w-0 space-y-2">
+      <div className="min-w-0 overflow-x-auto overscroll-x-contain pb-1">
         <div
-          role="group"
+          role="tablist"
           aria-label={label}
           className="flex min-w-max gap-1 rounded-xl border border-[#1e2135] bg-[#0a0b12] p-1 sm:min-w-full"
         >
@@ -34,10 +34,11 @@ export default function SectionTabs<T extends string>({
               <button
                 key={item.value}
                 type="button"
-                aria-pressed={active}
+                role="tab"
+                aria-selected={active}
                 onClick={() => onChange(item.value)}
                 className={
-                  'inline-flex min-h-[44px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 sm:flex-1 ' +
+                  'inline-flex min-h-11 shrink-0 snap-start items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 sm:flex-1 ' +
                   (active
                     ? 'bg-[#171a29] text-white shadow-sm'
                     : 'text-gray-500 hover:bg-white/[0.035] hover:text-gray-300')

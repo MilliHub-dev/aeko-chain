@@ -37,21 +37,22 @@ function LoginForm() {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <label className="block text-xs text-gray-500 uppercase tracking-wider mb-1.5">Operator password</label>
+        <label htmlFor="operator-password" className="mb-1.5 block text-xs uppercase tracking-wider text-gray-500">Operator password</label>
         <input
+          id="operator-password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoFocus
           required
-          className="w-full bg-[#0d0e16] border border-[#1e2135] rounded-lg px-4 py-3 text-sm text-gray-100 focus:outline-none focus:border-emerald-500 transition-colors"
+          className="min-h-11 w-full rounded-xl border border-[#252a3e] bg-[#0d0e16] px-4 py-3 text-base text-gray-100 outline-none transition-colors focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/15 sm:text-sm"
         />
       </div>
-      {error && <div className="text-red-400 text-sm">{error}</div>}
+      {error ? <div role="alert" className="rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-200">{error}</div> : null}
       <button
         type="submit"
         disabled={busy || !password}
-        className="w-full py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-black font-semibold text-sm transition-colors"
+        className="min-h-11 w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
@@ -61,7 +62,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
+    <div className="flex min-h-dvh items-center justify-center px-4 py-8 sm:p-6">
       <div className="w-full max-w-sm space-y-6">
         <div>
           <div className="text-emerald-400 font-bold text-xl tracking-wide">AEKO Operations</div>

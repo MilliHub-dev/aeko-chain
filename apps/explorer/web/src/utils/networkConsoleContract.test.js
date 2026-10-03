@@ -300,6 +300,8 @@ test('Operations server state uses TanStack Query while privileged transport sta
 
 test('Operations Web paginates long datasets and keeps dense control pages focused', async () => {
   const dataTable = await source('../../../admin/src/components/data-table.tsx');
+  const adminShell = await source('../../../admin/src/components/admin-shell.tsx');
+  const sidebar = await source('../../../admin/src/components/sidebar.tsx');
   const fundingPage = await source('../../../admin/src/app/(admin)/funding/page.tsx');
   const settingsPage = await source('../../../admin/src/app/(admin)/settings/page.tsx');
   const socialPage = await source('../../../admin/src/app/(admin)/social/page.tsx');
@@ -321,17 +323,22 @@ test('Operations Web paginates long datasets and keeps dense control pages focus
   assert.match(fundingPage, /Live funding data could not refresh/);
   assert.match(fundingPage, /Retry sync/);
   assert.doesNotMatch(fundingPage, /notice\.ok \? 5_000 : 9_000/);
-  assert.match(dataTable, /md:hidden/);
-  assert.match(dataTable, /hidden overflow-x-auto md:block/);
-  assert.match(dataTable, /min-w-\[760px\]/);
+  assert.match(dataTable, /xl:hidden/);
+  assert.match(dataTable, /hidden min-w-0 overflow-x-auto overscroll-x-contain xl:block/);
+  assert.match(dataTable, /min-w-\[820px\]/);
+  assert.match(adminShell, /h-dvh/);
+  assert.match(adminShell, /overflow-y-auto overscroll-y-contain/);
+  assert.match(sidebar, /lg:hidden/);
+  assert.match(sidebar, /overflow-y-auto overscroll-y-contain/);
 
   assert.match(settingsPage, /Settings sections/);
-  assert.match(settingsPage, /sticky top-14/);
+  assert.match(settingsPage, /lg:sticky lg:top-20/);
   assert.match(settingsPage, /id="public-features"/);
   assert.match(settingsPage, /id="chain-binding"/);
 
   assert.match(socialPage, /Health & registry/);
   assert.match(socialPage, /Indexed activity/);
+  assert.doesNotMatch(socialPage, /max-h-48 overflow-auto/);
   assert.match(protocolPage, /Native programs/);
   assert.match(protocolPage, /State accounts/);
 });

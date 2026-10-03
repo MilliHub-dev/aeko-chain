@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { AccountLink } from '@/components/chain-links'
 import DataTable from '@/components/data-table'
 import FeedbackAlert from '@/components/feedback-alert'
 import SectionTabs from '@/components/section-tabs'
@@ -106,7 +107,7 @@ export default function ProtocolPage() {
   const healthyStates = stateEntries.filter(([, value]) => value.condition === 'healthy').length
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="text-xs uppercase tracking-[0.22em] text-emerald-400">Chain control plane</div>
@@ -120,7 +121,7 @@ export default function ProtocolPage() {
           type="button"
           onClick={refresh}
           disabled={protocolQuery.isFetching}
-          className="min-h-[42px] rounded-lg border border-[#1e2135] px-4 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40"
+          className="min-h-11 rounded-lg border border-[#1e2135] px-4 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40"
         >
           {protocolQuery.isFetching ? 'Refreshing…' : 'Refresh'}
         </button>
@@ -190,7 +191,7 @@ export default function ProtocolPage() {
                       </span>
                     </div>
                     <dl className="mt-4 space-y-2 text-xs">
-                      <StatusRow label="Feature ID" value={shortAddress(feature.featureId)} mono />
+                      <StatusRow label="Feature ID" value={feature.featureId ? <AccountLink address={feature.featureId} label={shortAddress(feature.featureId)} /> : '—'} />
                       <StatusRow label="On-chain activation slot" value={feature.activatedAt === null ? 'pending' : String(feature.activatedAt)} />
                       <StatusRow label="Registry activation slot" value={feature.registryActivatedAt === null ? 'missing' : String(feature.registryActivatedAt)} />
                       <StatusRow label="Owner" value={feature.ownerMatches ? 'matches feature program' : 'mismatch'} />
@@ -208,7 +209,7 @@ export default function ProtocolPage() {
               <p className="mt-1 text-sm text-gray-500">Canonical authority and registry inventory for this chain.</p>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <StatusRow label="Protocol authority" value={shortAddress(registry?.authority)} mono />
+              <StatusRow label="Protocol authority" value={registry?.authority ? <AccountLink address={registry.authority} label={shortAddress(registry.authority)} /> : '—'} />
               <StatusRow label="Registered programs" value={registry ? String(Object.keys(registry.programs).length) : '—'} />
               <StatusRow label="Registered state accounts" value={registry ? String(Object.keys(registry.states).length) : '—'} />
               <StatusRow label="Registered protocol accounts" value={registry ? String(Object.keys(registry.accounts).length) : '—'} />
@@ -228,7 +229,7 @@ export default function ProtocolPage() {
             columns={['Program', 'Program ID', 'Present', 'Executable', 'Error']}
             rows={programEntries.map(([name, program]) => [
               name,
-              <span key={name + '-id'} className="font-mono text-gray-500">{shortAddress(program.programId)}</span>,
+              <AccountLink key={name + '-id'} address={program.programId} label={shortAddress(program.programId)} />,
               program.present ? 'yes' : 'no',
               <span key={name + '-exec'} className={program.executable ? 'text-emerald-300' : 'text-amber-300'}>{program.executable ? 'yes' : 'no'}</span>,
               program.error ?? '—',
@@ -249,7 +250,7 @@ export default function ProtocolPage() {
             columns={['State', 'Account', 'Owner', 'Data', 'Condition', 'Error']}
             rows={stateEntries.map(([name, item]) => [
               name,
-              <span key={name + '-account'} className="font-mono text-gray-500">{shortAddress(item.stateAccount)}</span>,
+              <AccountLink key={name + '-account'} address={item.stateAccount} label={shortAddress(item.stateAccount)} />,
               <span key={name + '-owner'} className={item.present && item.ownerMatches ? 'text-emerald-300' : 'text-amber-300'}>{!item.present ? 'missing' : item.ownerMatches ? 'matches' : 'mismatch'}</span>,
               item.present ? item.dataLen.toLocaleString() + ' bytes' : '—',
               <span key={name + '-condition'} className={item.condition === 'healthy' ? 'text-emerald-300' : 'text-amber-300'}>{item.condition}</span>,
@@ -263,7 +264,7 @@ export default function ProtocolPage() {
   )
 }
 
-function StatusRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function StatusRow({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-[#1e2135] pb-2 last:border-b-0">
       <span className="text-xs text-gray-600">{label}</span>

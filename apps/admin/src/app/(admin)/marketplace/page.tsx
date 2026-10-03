@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
+import { AccountLink } from '@/components/chain-links'
 import FeedbackAlert from '@/components/feedback-alert'
 import StatCard from '@/components/stat-card'
 import { adminQueryKeys, explorerQuery } from '@/lib/client-query'
@@ -45,7 +46,7 @@ export default function MarketplacePage() {
   const allLive = programs.every((program) => program.status?.present && program.status.executable && !program.status.error)
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Marketplace</h1>
@@ -55,16 +56,16 @@ export default function MarketplacePage() {
           type="button"
           onClick={() => void protocolQuery.refetch()}
           disabled={protocolQuery.isFetching}
-          className="min-h-[42px] rounded-lg border border-[#1e2135] px-4 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40"
+          className="min-h-11 rounded-lg border border-[#1e2135] px-4 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40"
         >
           {protocolQuery.isFetching ? 'Refreshing…' : 'Refresh protocol'}
         </button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Active Listings" value="—" />
-        <StatCard label="Volume (24h)" value="—" />
-        <StatCard label="Sales (24h)" value="—" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+        <StatCard label="Marketplace readiness" value={allLive ? 'Ready' : protocol ? 'Attention' : '—'} accent={allLive} />
+        <StatCard label="AEKO-721 program" value={programs[0]?.status?.present && programs[0]?.status?.executable ? 'Executable' : programs[0]?.status ? 'Not ready' : '—'} />
+        <StatCard label="Marketplace program" value={programs[1]?.status?.present && programs[1]?.status?.executable ? 'Executable' : programs[1]?.status ? 'Not ready' : '—'} />
       </div>
 
       {protocolQuery.error ? (
@@ -92,7 +93,7 @@ export default function MarketplacePage() {
               <div key={program.key} className="flex flex-col gap-2 rounded-lg border border-[#1e2135] bg-[#0a0b12] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="text-sm text-gray-200">{program.label}</div>
-                  <div className="mt-1 font-mono text-xs text-gray-600">{item?.programId ? shortAddr(item.programId) : 'registry value unavailable'}</div>
+                  <div className="mt-1 text-xs text-gray-600">{item?.programId ? <AccountLink address={item.programId} label={shortAddr(item.programId)} /> : 'registry value unavailable'}</div>
                 </div>
                 <span className={ready ? 'text-sm text-emerald-400' : item ? 'text-sm text-amber-300' : 'text-sm text-gray-500'}>
                   {ready ? 'executable' : item ? 'not ready' : 'unknown'}

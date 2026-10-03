@@ -168,7 +168,7 @@ export default function SettingsPage() {
     : 'Waiting for Explorer backend'
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div>
         <div className="text-xs uppercase tracking-[0.22em] text-emerald-400">Control plane</div>
         <h1 className="mt-1 text-2xl font-bold text-white">Application settings</h1>
@@ -178,7 +178,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div className="sticky top-14 z-30 -mx-1 rounded-xl border border-[#1e2135] bg-[#0d0e16]/95 p-3 shadow-xl shadow-black/10 backdrop-blur sm:p-4">
+      <div className="-mx-1 rounded-xl border border-[#1e2135] bg-[#0d0e16]/95 p-3 shadow-xl shadow-black/10 backdrop-blur sm:p-4 lg:sticky lg:top-20 lg:z-30">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-3">
             <div className={
@@ -206,7 +206,7 @@ export default function SettingsPage() {
               type="button"
               onClick={() => setDraft(snapshot ? toDraft(snapshot) : SAFE_DRAFT)}
               disabled={!dirty || saving}
-              className="min-h-[42px] rounded-lg border border-[#2b3048] px-4 text-sm font-medium text-gray-300 transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 rounded-lg border border-[#2b3048] px-4 text-sm font-medium text-gray-300 transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Discard changes
             </button>
@@ -214,7 +214,7 @@ export default function SettingsPage() {
               type="button"
               onClick={save}
               disabled={!dirty || saving}
-              className="min-h-[42px] rounded-lg bg-emerald-400 px-5 text-sm font-semibold text-black transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 rounded-lg bg-emerald-400 px-5 text-sm font-semibold text-black transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {saving ? 'Saving…' : 'Save changes'}
             </button>
@@ -243,12 +243,12 @@ export default function SettingsPage() {
 
       <div className="grid gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="self-start xl:sticky xl:top-32">
-          <nav aria-label="Settings sections" className="flex gap-2 overflow-x-auto rounded-xl border border-[#1e2135] bg-[#0a0b12] p-2 xl:block xl:space-y-1 xl:overflow-visible">
+          <nav aria-label="Settings sections" className="flex snap-x gap-2 overflow-x-auto overscroll-x-contain rounded-xl border border-[#1e2135] bg-[#0a0b12] p-2 xl:block xl:space-y-1 xl:overflow-visible">
             {SECTIONS.map((section, index) => (
               <a
                 key={section.id}
                 href={'#' + section.id}
-                className="min-w-[180px] rounded-lg px-3 py-3 transition-colors hover:bg-white/5 xl:block xl:min-w-0"
+                className="min-w-[180px] snap-start rounded-lg px-3 py-3 transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 xl:block xl:min-w-0"
               >
                 <div className="flex items-center gap-2">
                   <span className="flex h-6 w-6 items-center justify-center rounded-md border border-[#2b3048] bg-[#12141f] text-[10px] tabular-nums text-gray-500">
@@ -263,7 +263,7 @@ export default function SettingsPage() {
         </aside>
 
         <div className="min-w-0 space-y-6">
-          <section id="public-features" className="scroll-mt-32 rounded-2xl border border-[#1e2135] bg-[#12141f]">
+          <section id="public-features" className="scroll-mt-24 rounded-2xl border border-[#1e2135] bg-[#12141f]">
             <div className="border-b border-[#1e2135] px-5 py-4">
               <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">01 · Public surfaces</div>
               <h2 className="mt-1 font-semibold text-white">Routes, developer tools and demos</h2>
@@ -281,7 +281,7 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          <section id="explorer-experience" className="scroll-mt-32 rounded-2xl border border-[#1e2135] bg-[#12141f]">
+          <section id="explorer-experience" className="scroll-mt-24 rounded-2xl border border-[#1e2135] bg-[#12141f]">
             <div className="border-b border-[#1e2135] px-5 py-4">
               <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">02 · Explorer behavior</div>
               <h2 className="mt-1 font-semibold text-white">Search depth, data density and refresh cadence</h2>
@@ -295,7 +295,7 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          <section id="readiness-policy" className="scroll-mt-32 rounded-2xl border border-[#1e2135] bg-[#12141f]">
+          <section id="readiness-policy" className="scroll-mt-24 rounded-2xl border border-[#1e2135] bg-[#12141f]">
             <div className="border-b border-[#1e2135] px-5 py-4">
               <div className="text-xs uppercase tracking-[0.18em] text-emerald-400">03 · Readiness policy</div>
               <h2 className="mt-1 font-semibold text-white">Blockchain readiness thresholds</h2>
@@ -327,7 +327,7 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          <section id="chain-binding" className="scroll-mt-32 rounded-2xl border border-[#1e2135] bg-[#12141f]">
+          <section id="chain-binding" className="scroll-mt-24 rounded-2xl border border-[#1e2135] bg-[#12141f]">
             <div className="border-b border-[#1e2135] px-5 py-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>

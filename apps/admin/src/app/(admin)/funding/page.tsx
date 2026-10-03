@@ -448,7 +448,7 @@ export default function FundingPage() {
   )
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-5 p-3 sm:space-y-6 sm:p-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-5 px-4 py-5 sm:space-y-6 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <div className="text-xs uppercase tracking-[0.22em] text-emerald-400">Funding operations</div>
@@ -503,7 +503,7 @@ export default function FundingPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-6 2xl:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 2xl:gap-4">
         <StatCard
           label="Network"
           value={snapshot?.network ?? '—'}
@@ -558,7 +558,7 @@ export default function FundingPage() {
               type="button"
               onClick={() => void refresh()}
               disabled={syncing}
-              className="min-h-[40px] rounded-lg border border-red-300/25 px-3 text-xs font-semibold transition-colors hover:bg-red-300/10 disabled:opacity-40"
+              className="min-h-11 rounded-lg border border-red-300/25 px-3 text-xs font-semibold transition-colors hover:bg-red-300/10 disabled:opacity-40"
             >
               {syncing ? 'Retrying…' : 'Retry sync'}
             </button>
@@ -618,7 +618,7 @@ export default function FundingPage() {
                     key={request.id}
                     type="button"
                     onClick={() => setSelectedRequestId(request.id)}
-                    className="min-h-[40px] rounded-lg border border-[#2b3048] px-3 text-xs font-semibold text-gray-200 transition-colors hover:border-emerald-400/40 hover:text-white"
+                    className="min-h-11 rounded-lg border border-[#2b3048] px-3 text-xs font-semibold text-gray-200 transition-colors hover:border-emerald-400/40 hover:text-white"
                   >
                     View details
                   </button>,
@@ -820,7 +820,7 @@ function FundingDecisionAlert({
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm sm:items-center sm:p-6"
+      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !busy) onClose()
       }}
@@ -848,7 +848,7 @@ function FundingDecisionAlert({
             type="button"
             onClick={onClose}
             disabled={busy}
-            className="min-h-[40px] rounded-lg border border-[#2b3048] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40"
+            className="min-h-11 rounded-lg border border-[#2b3048] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40"
           >
             Close
           </button>

@@ -20,7 +20,9 @@ function pageWindow(current: number, total: number): Array<number | 'ellipsis'> 
   if (total <= 5) return Array.from({ length: total }, (_, index) => index + 1)
 
   const pages = new Set([1, total, current - 1, current, current + 1])
-  const ordered = Array.from(pages).filter((page) => page >= 1 && page <= total).sort((a, b) => a - b)
+  const ordered = Array.from(pages)
+    .filter((page) => page >= 1 && page <= total)
+    .sort((a, b) => a - b)
   const result: Array<number | 'ellipsis'> = []
 
   ordered.forEach((page, index) => {
@@ -42,7 +44,10 @@ export default function DataTable({
   alwaysShowPagination = false,
 }: DataTableProps) {
   const options = useMemo(
-    () => Array.from(new Set([...pageSizeOptions, pageSize])).filter((value) => value > 0).sort((a, b) => a - b),
+    () =>
+      Array.from(new Set([...pageSizeOptions, pageSize]))
+        .filter((value) => value > 0)
+        .sort((a, b) => a - b),
     [pageSize, pageSizeOptions],
   )
   const [rowsPerPage, setRowsPerPage] = useState(pageSize)
@@ -68,25 +73,25 @@ export default function DataTable({
   const displayStart = rows.length === 0 ? 0 : start + 1
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[#1e2135] bg-[#12141f]">
-      <div className="grid gap-3 p-3 md:hidden">
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-[#1e2135] bg-[#12141f]">
+      <div className="grid gap-3 p-3 xl:hidden">
         {rows.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-[#2b3048] bg-[#0d0e16]/70 px-4 py-8 text-center text-sm text-gray-600">
+          <div className="rounded-xl border border-dashed border-[#2b3048] bg-[#0d0e16]/70 px-4 py-10 text-center text-sm text-gray-600">
             {empty}
           </div>
         ) : (
           visibleRows.map((row, rowIndex) => (
-            <article key={start + rowIndex} className="rounded-xl border border-[#24283b] bg-[#0d0e16]/70 p-4">
-              <dl className="grid gap-3 sm:grid-cols-2">
+            <article
+              key={start + rowIndex}
+              className="min-w-0 rounded-xl border border-[#24283b] bg-[#0d0e16]/70 p-4"
+            >
+              <dl className="grid min-w-0 gap-x-5 gap-y-3 sm:grid-cols-2">
                 {row.map((cell, cellIndex) => (
-                  <div
-                    key={cellIndex}
-                    className={cellIndex === row.length - 1 ? 'min-w-0 sm:col-span-2' : 'min-w-0'}
-                  >
-                    <dt className="text-[10px] font-medium uppercase tracking-[0.13em] text-gray-600">
+                  <div key={cellIndex} className="min-w-0">
+                    <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-gray-600">
                       {columns[cellIndex] ?? 'Value'}
                     </dt>
-                    <dd className="mt-1 break-words text-xs text-gray-200 mono">
+                    <dd className="mt-1 min-w-0 break-all text-sm leading-5 text-gray-200">
                       {cell}
                     </dd>
                   </div>
@@ -97,13 +102,17 @@ export default function DataTable({
         )}
       </div>
 
-      <div className="hidden overflow-x-auto md:block">
-        <table className="min-w-[760px] w-full text-sm">
+      <div className="hidden min-w-0 overflow-x-auto overscroll-x-contain xl:block">
+        <table className="w-full min-w-[820px] table-auto text-sm">
           <thead>
             <tr className="border-b border-[#1e2135] bg-[#0d0e16]">
-              {columns.map((col) => (
-                <th key={col} scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  {col}
+              {columns.map((column) => (
+                <th
+                  key={column}
+                  scope="col"
+                  className="whitespace-nowrap px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                >
+                  {column}
                 </th>
               ))}
             </tr>
@@ -111,7 +120,7 @@ export default function DataTable({
           <tbody className="divide-y divide-[#1a1c2a]">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-10 text-center text-sm text-gray-600">
+                <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-gray-600">
                   {empty}
                 </td>
               </tr>
@@ -119,8 +128,8 @@ export default function DataTable({
               visibleRows.map((row, rowIndex) => (
                 <tr key={start + rowIndex} className="bg-[#12141f] transition-colors hover:bg-[#161828]">
                   {row.map((cell, cellIndex) => (
-                    <td key={cellIndex} className="px-4 py-3 text-xs text-gray-300 mono">
-                      {cell}
+                    <td key={cellIndex} className="max-w-[24rem] px-4 py-3 text-xs leading-5 text-gray-300">
+                      <div className="min-w-0 break-all">{cell}</div>
                     </td>
                   ))}
                 </tr>
@@ -131,8 +140,8 @@ export default function DataTable({
       </div>
 
       {showPagination ? (
-        <div className="flex flex-col gap-3 border-t border-[#1e2135] bg-[#0d0e16]/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-xs text-gray-500">
+        <div className="flex flex-col gap-3 border-t border-[#1e2135] bg-[#0d0e16]/70 px-3 py-3 sm:px-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="text-xs text-gray-500" aria-live="polite">
             Showing <span className="font-medium tabular-nums text-gray-300">{displayStart}</span>
             {'–'}
             <span className="font-medium tabular-nums text-gray-300">{end}</span>
@@ -140,8 +149,8 @@ export default function DataTable({
             <span className="font-medium tabular-nums text-gray-300">{rows.length}</span> {paginationLabel}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <label className="flex min-h-11 items-center gap-2 text-xs text-gray-500">
               Rows
               <select
                 aria-label="Rows per page"
@@ -150,7 +159,7 @@ export default function DataTable({
                   setRowsPerPage(Number(event.target.value))
                   setPage(1)
                 }}
-                className="h-11 rounded-lg border border-[#2b3048] bg-[#12141f] px-2 text-xs text-gray-200 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/40"
+                className="h-11 rounded-lg border border-[#2b3048] bg-[#12141f] px-2 text-xs text-gray-200 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20"
               >
                 {options.map((option) => (
                   <option key={option} value={option}>{option}</option>
@@ -158,19 +167,19 @@ export default function DataTable({
               </select>
             </label>
 
-            <div className="flex items-center gap-1" role="navigation" aria-label="Table pagination">
+            <div className="flex min-w-0 items-center gap-1" role="navigation" aria-label="Table pagination">
               <button
                 type="button"
                 aria-label="Previous page"
                 onClick={() => setPage((current) => Math.max(1, current - 1))}
                 disabled={safePage === 1}
-                className="min-h-[44px] rounded-lg border border-[#2b3048] px-3 text-xs text-gray-300 transition-colors hover:border-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                className="min-h-11 rounded-lg border border-[#2b3048] px-3 text-xs font-medium text-gray-300 transition-colors hover:border-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
               >
                 Previous
               </button>
 
-              <div className="hidden items-center gap-1 md:flex">
-                {pageWindow(safePage, totalPages).map((item, index) => (
+              <div className="hidden items-center gap-1 2xl:flex">
+                {pageWindow(safePage, totalPages).map((item, index) =>
                   item === 'ellipsis' ? (
                     <span key={'ellipsis-' + index} className="px-1.5 text-xs text-gray-600">…</span>
                   ) : (
@@ -189,11 +198,11 @@ export default function DataTable({
                     >
                       {item}
                     </button>
-                  )
-                ))}
+                  ),
+                )}
               </div>
 
-              <span className="px-1 text-xs tabular-nums text-gray-500 md:hidden">
+              <span className="min-w-14 px-1 text-center text-xs tabular-nums text-gray-500 2xl:hidden">
                 {safePage} / {totalPages}
               </span>
 
@@ -202,7 +211,7 @@ export default function DataTable({
                 aria-label="Next page"
                 onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
                 disabled={safePage === totalPages}
-                className="min-h-[44px] rounded-lg border border-[#2b3048] px-3 text-xs text-gray-300 transition-colors hover:border-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                className="min-h-11 rounded-lg border border-[#2b3048] px-3 text-xs font-medium text-gray-300 transition-colors hover:border-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
               >
                 Next
               </button>

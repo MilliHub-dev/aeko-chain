@@ -15,7 +15,7 @@ export default function ErrorBoundary({
   }, [error])
 
   return (
-    <main className="min-h-screen bg-[#0d0e16] px-6 py-24 text-gray-100">
+    <main className="flex min-h-dvh items-center bg-[#0d0e16] px-4 py-10 text-gray-100 sm:px-6">
       <div className="mx-auto max-w-xl rounded-2xl border border-white/10 bg-white/5 p-8">
         <h1 className="text-2xl font-semibold">Operations Web hit an unexpected error</h1>
         <p className="mt-3 text-sm text-gray-400">
@@ -23,7 +23,7 @@ export default function ErrorBoundary({
         </p>
         <button
           type="button"
-          className="mt-6 rounded-lg bg-white px-4 py-2 text-sm font-medium text-black"
+          className="mt-6 min-h-11 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           onClick={reset}
         >
           Retry

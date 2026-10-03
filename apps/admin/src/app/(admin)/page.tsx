@@ -77,8 +77,8 @@ export default function Dashboard() {
     : ''
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Dashboard</h1>
           <p className="text-gray-500 text-sm mt-0.5">
@@ -100,7 +100,7 @@ export default function Dashboard() {
               type="button"
               onClick={() => void dashboardQuery.refetch()}
               disabled={dashboardQuery.isFetching}
-              className="min-h-[40px] rounded-lg border border-red-300/25 px-3 text-xs font-semibold hover:bg-red-300/10 disabled:opacity-40"
+              className="min-h-11 rounded-lg border border-red-300/25 px-3 text-xs font-semibold hover:bg-red-300/10 disabled:opacity-40"
             >
               {dashboardQuery.isFetching ? 'Retrying…' : 'Retry'}
             </button>
@@ -110,14 +110,14 @@ export default function Dashboard() {
         </FeedbackAlert>
       ) : null}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
         <StatCard label="Current Slot" value={stats.slot?.toLocaleString() ?? '—'} accent />
         <StatCard label="Total Supply" value={stats.supply ? fmtAeko(stats.supply) : '—'} sub={stats.circulating ? `Circulating: ${fmtAeko(stats.circulating)}` : undefined} />
         <StatCard label="Transactions" value={stats.txCount?.toLocaleString() ?? '—'} />
         <StatCard label="Validators" value={stats.validators ?? '—'} sub={stats.delinquent ? `${stats.delinquent} delinquent` : undefined} />
         <StatCard label="Epoch" value={stats.epoch ?? '—'} sub={stats.epochProgress !== undefined ? `${stats.epochProgress}% complete` : undefined} />
         <StatCard label="Node Version" value={stats.version ?? '—'} />
-        <div className="col-span-2 bg-[#12141f] border border-[#1e2135] rounded-xl p-5">
+        <div className="col-span-1 rounded-2xl border border-[#1e2135] bg-[#12141f] p-5 sm:col-span-2">
           <div className="text-xs text-gray-500 uppercase tracking-widest mb-3">Epoch Progress</div>
           <div className="w-full bg-[#1e2135] rounded-full h-2">
             <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: `${stats.epochProgress ?? 0}%` }} />
