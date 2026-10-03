@@ -1,7 +1,21 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Activity, Blocks, ChevronLeft, ChevronRight, Image, RotateCcw, Search, Sparkles, Wallet } from 'lucide-react';
+import {
+  Activity,
+  ArrowRightLeft,
+  Blocks,
+  ChevronLeft,
+  ChevronRight,
+  CircleDollarSign,
+  Image,
+  Layers3,
+  MessageSquare,
+  RotateCcw,
+  Search,
+  Sparkles,
+  Wallet,
+} from 'lucide-react';
 import NetworkToggle from '../components/NetworkToggle';
 import { useNetwork } from '../components/NetworkContext';
 import { fetchExplorerHome, fetchExplorerOverview, getExplorerAvailability, searchExplorer } from '../utils/explorerApi';
@@ -372,29 +386,41 @@ export default function Explorer() {
       />
 
       {!unavailable && (searchState.loading || searchState.searchedQuery) ? (
-        <div className="mb-10 bg-white/5 border border-white/10 rounded-2xl p-6">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-4">
-            <h2 className="text-lg font-bold">Search Results</h2>
+        <section className="mb-10 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]" aria-labelledby="search-results-heading">
+          <div className="flex flex-col gap-2 border-b border-white/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl border border-aeko-accent/20 bg-aeko-accent/10 text-aeko-accent">
+                <Search className="size-4" aria-hidden="true" />
+              </div>
+              <div>
+                <h2 id="search-results-heading" className="font-semibold text-white">Search results</h2>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {searchState.loading
+                    ? 'Checking indexed records and exact live-chain matches'
+                    : `${searchState.matches.length} result${searchState.matches.length === 1 ? '' : 's'} found`}
+                </p>
+              </div>
+            </div>
             {searchState.searchedQuery ? (
-              <span className="text-xs text-gray-500">
-                Query: <span className="font-mono text-gray-300">{searchState.searchedQuery}</span>
-              </span>
+              <div className="max-w-full rounded-lg border border-white/10 bg-black/15 px-3 py-2 text-xs text-gray-500">
+                Query <span className="ml-1 break-all font-mono text-gray-300">{searchState.searchedQuery}</span>
+              </div>
             ) : null}
           </div>
           {searchState.loading ? (
-            <div className="text-gray-400">Searching indexed data and exact live chain records…</div>
+            <div className="px-5 py-8 text-sm text-gray-400">Searching indexed data and exact live chain records…</div>
           ) : searchState.matches.length ? (
-            <div className="divide-y divide-white/5">
+            <div className="grid gap-2 p-2 sm:p-3">
               {searchState.matches.map((match, index) => (
                 <SearchResultRow key={`${match.kind}-${index}`} match={match} />
               ))}
             </div>
           ) : !searchState.error ? (
-            <div className="rounded-xl border border-white/10 bg-black/10 px-4 py-6 text-sm text-gray-400">
+            <div className="m-3 rounded-xl border border-dashed border-white/10 bg-black/10 px-4 py-8 text-sm text-gray-400">
               No matching saved or live record was found for this query.
             </div>
           ) : null}
-        </div>
+        </section>
       ) : null}
 
       {!unavailable && homeState.error && (
@@ -629,47 +655,56 @@ function SearchResultRow({ match }) {
   let label = match.kind;
   let primary = '';
   let secondary = '';
+  let Icon = Search;
 
   if (match.kind === 'block') {
     href = `/explorer/block/${data.slot}`;
     label = 'Block';
     primary = `#${data.slot}`;
     secondary = data.blockhash || '';
+    Icon = Blocks;
   } else if (match.kind === 'transaction') {
     href = `/explorer/tx/${data.signature}`;
     label = 'Transaction';
     primary = data.signature || '';
     secondary = `Slot ${data.slot ?? '—'} · ${data.success ? 'Success' : 'Failed'}`;
+    Icon = Activity;
   } else if (match.kind === 'wallet') {
     href = `/explorer/account/${data.address}`;
     label = 'Account';
     primary = data.address || '';
     secondary = `${data.tokenCount ?? 0} token types · ${data.nftCount ?? 0} NFTs`;
+    Icon = Wallet;
   } else if (match.kind === 'tokenMint') {
     href = `/explorer/token/${data.mint}`;
     label = 'Token';
     primary = [data.symbol, data.name].filter(Boolean).join(' · ') || data.mint || '';
     secondary = data.mint || '';
+    Icon = CircleDollarSign;
   } else if (match.kind === 'collection') {
     href = `/explorer/collection/${data.collectionId}`;
     label = 'NFT Collection';
     primary = [data.symbol, data.name].filter(Boolean).join(' · ') || data.collectionId || '';
     secondary = data.collectionId || '';
+    Icon = Layers3;
   } else if (match.kind === 'tokenTransfer') {
     href = `/explorer/tx/${data.signature}`;
     label = 'Token Transfer';
     primary = data.signature || '';
     secondary = data.mint ? `Mint ${data.mint}` : '';
+    Icon = ArrowRightLeft;
   } else if (match.kind === 'socialPost') {
     href = `/explorer/post/${data.postId}`;
     label = 'Post';
     primary = data.postId || '';
     secondary = data.creator ? `Creator ${data.creator}` : '';
+    Icon = MessageSquare;
   } else if (match.kind === 'nft') {
     href = `/explorer/nft/${data.tokenId}`;
     label = 'NFT';
     primary = data.tokenId || '';
     secondary = data.collectionId ? `Collection ${data.collectionId}` : data.owner || '';
+    Icon = Image;
   } else if (match.kind === 'engagement') {
     href = data.targetPostId
       ? `/explorer/post/${data.targetPostId}`
@@ -679,20 +714,42 @@ function SearchResultRow({ match }) {
     label = 'Engagement';
     primary = data.proofId || data.targetPostId || '';
     secondary = [data.actionKind, data.actor].filter(Boolean).join(' · ');
+    Icon = Sparkles;
   }
 
   return (
     <Link
       to={href}
-      className="flex flex-col gap-2 py-4 transition-colors hover:bg-white/[0.025] sm:flex-row sm:items-center sm:justify-between sm:px-2"
+      aria-label={`View ${label.toLowerCase()} details`}
+      className="group flex cursor-pointer flex-col gap-3 rounded-xl border border-transparent bg-white/[0.025] p-4 transition-[background-color,border-color,transform] duration-200 hover:-translate-y-px hover:border-aeko-accent/30 hover:bg-aeko-accent/[0.065] active:translate-y-0 active:bg-aeko-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent/70 sm:flex-row sm:items-center"
     >
-      <div className="min-w-0">
-        <div className="text-xs font-medium uppercase tracking-[0.14em] text-gray-500">{label}</div>
-        <div className="mt-1 break-all font-mono text-sm text-aeko-accent">{primary}</div>
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/15 text-gray-300 transition-colors group-hover:border-aeko-accent/25 group-hover:text-aeko-accent">
+          <Icon className="size-4" aria-hidden="true" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.13em] text-gray-400">
+              {label}
+            </span>
+            {match.kind === 'transaction' ? (
+              <span className={`text-xs font-medium ${data.success ? 'text-emerald-300' : 'text-red-300'}`}>
+                {data.success ? 'Success' : 'Failed'}
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-2 break-all font-mono text-sm leading-6 text-white group-hover:text-aeko-accent">
+            {primary || 'Unnamed result'}
+          </div>
+          {secondary ? (
+            <div className="mt-1 break-all text-xs leading-5 text-gray-500">{secondary}</div>
+          ) : null}
+        </div>
       </div>
-      {secondary ? (
-        <div className="break-all text-xs text-gray-500 sm:max-w-[42%] sm:text-right">{secondary}</div>
-      ) : null}
+      <div className="flex min-h-11 shrink-0 items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/10 px-3 text-xs font-semibold text-gray-300 transition-colors group-hover:border-aeko-accent/30 group-hover:text-aeko-accent sm:justify-center">
+        <span>View details</span>
+        <ChevronRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden="true" />
+      </div>
     </Link>
   );
 }

@@ -1,4 +1,7 @@
-use serde::{Deserialize, Serialize};
+use {
+    serde::{Deserialize, Serialize},
+    serde_json::Value,
+};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -20,6 +23,99 @@ pub struct TransactionRecord {
     pub primary_program: Option<String>,
     pub signer: Option<String>,
 }
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionAccountDetailRecord {
+    pub index: usize,
+    pub address: String,
+    pub signer: Option<bool>,
+    pub writable: Option<bool>,
+    pub source: Option<String>,
+    pub pre_balance: Option<String>,
+    pub post_balance: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionInstructionDetailRecord {
+    pub index: usize,
+    pub program_id: String,
+    pub program: Option<String>,
+    pub accounts: Vec<String>,
+    pub data: Option<String>,
+    pub parsed: Option<Value>,
+    pub stack_height: Option<u64>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionInnerInstructionGroupRecord {
+    pub index: usize,
+    pub instructions: Vec<TransactionInstructionDetailRecord>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionTokenBalanceChangeRecord {
+    pub account_index: usize,
+    pub mint: String,
+    pub owner: Option<String>,
+    pub program_id: Option<String>,
+    pub decimals: u8,
+    pub pre_amount: Option<String>,
+    pub post_amount: Option<String>,
+    pub pre_ui_amount: Option<String>,
+    pub post_ui_amount: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionDetailRecord {
+    pub signature: String,
+    pub slot: u64,
+    pub success: bool,
+    pub fee: u64,
+    pub primary_program: Option<String>,
+    pub signer: Option<String>,
+    pub block_time: Option<i64>,
+    pub recent_blockhash: Option<String>,
+    pub version: Option<String>,
+    pub error: Option<Value>,
+    pub compute_units_consumed: Option<u64>,
+    pub accounts: Vec<TransactionAccountDetailRecord>,
+    pub instructions: Vec<TransactionInstructionDetailRecord>,
+    pub inner_instructions: Vec<TransactionInnerInstructionGroupRecord>,
+    pub token_balance_changes: Vec<TransactionTokenBalanceChangeRecord>,
+    pub token_transfers: Vec<TokenTransferRecord>,
+    pub log_messages: Vec<String>,
+    pub return_data: Option<Value>,
+    pub raw_transaction: Option<Value>,
+    pub detail_available: bool,
+}
+
+impl TransactionDetailRecord {
+    pub fn from_summary(summary: TransactionRecord) -> Self {
+        Self {
+            signature: summary.signature,
+            slot: summary.slot,
+            success: summary.success,
+            fee: summary.fee,
+            primary_program: summary.primary_program,
+            signer: summary.signer,
+            ..Self::default()
+        }
+    }
+
+    pub fn apply_summary(&mut self, summary: &TransactionRecord) {
+        self.signature.clone_from(&summary.signature);
+        self.slot = summary.slot;
+        self.success = summary.success;
+        self.fee = summary.fee;
+        self.primary_program.clone_from(&summary.primary_program);
+        self.signer.clone_from(&summary.signer);
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TransactionAccountRecord {
     pub signature: String,

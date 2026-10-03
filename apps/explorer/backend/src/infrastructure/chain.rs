@@ -5,7 +5,9 @@ use {
         models::{
             AssetSnapshot, BlockRecord, ChainAccountRecord, CoreSlotRecord, NftCollectionRecord,
             NftRecord, TokenAccountRecord, TokenMintRecord, TokenTransferRecord,
-            TransactionAccountRecord, TransactionRecord,
+            TransactionAccountDetailRecord, TransactionAccountRecord, TransactionDetailRecord,
+            TransactionInnerInstructionGroupRecord, TransactionInstructionDetailRecord,
+            TransactionRecord, TransactionTokenBalanceChangeRecord,
         },
     },
     aeko_sdk::{hash::Hash, pubkey::Pubkey, signature::Signature},
@@ -21,7 +23,7 @@ use {
     serde::de::DeserializeOwned,
     serde::Deserialize,
     serde_json::{json, Value},
-    std::collections::{BTreeSet, HashMap},
+    std::collections::{BTreeMap, BTreeSet, HashMap},
 };
 
 const MAX_MULTIPLE_ACCOUNTS: usize = 100;
@@ -155,6 +157,49 @@ impl RpcChainClient {
             );
         }
         Ok(Some(record))
+    }
+
+    /// Resolve the full public transaction trace used by the Explorer detail page.
+    ///
+    /// Lists and search continue to use the compact TransactionRecord projection. The
+    /// detail route calls this method on demand so PostgreSQL does not need to persist a
+    /// second copy of variable-shape RPC metadata such as program logs and parsed
+    /// instructions.
+    pub fn fetch_transaction_detail(
+        &self,
+        signature: &str,
+        commitment: &str,
+    ) -> Result<Option<TransactionDetailRecord>> {
+        let requested = signature
+            .parse::<Signature>()
+            .with_context(|| format!("invalid AEKO transaction signature {signature:?}"))?;
+        let value: Option<Value> = self.rpc_request(
+            "getTransaction",
+            json!([
+                signature,
+                {
+                    "commitment": commitment,
+                    "encoding": "jsonParsed",
+                    "maxSupportedTransactionVersion": 0
+                }
+            ]),
+        )?;
+        let Some(value) = value else {
+            return Ok(None);
+        };
+
+        let detail = parse_transaction_detail(&value)?;
+        let returned = detail
+            .signature
+            .parse::<Signature>()
+            .context("getTransaction returned an invalid primary signature")?;
+        if returned != requested {
+            bail!(
+                "getTransaction signature mismatch: requested {signature}, returned {}",
+                detail.signature
+            );
+        }
+        Ok(Some(detail))
     }
 
     /// Protocol verification needs the account metadata plus raw account bytes
@@ -700,6 +745,441 @@ impl RpcChainClient {
     }
 }
 
+fn parse_transaction_detail(value: &Value) -> Result<TransactionDetailRecord> {
+    let slot = required_u64(value, "slot", "getTransaction")?;
+    let transaction = value
+        .get("transaction")
+        .ok_or_else(|| anyhow!("getTransaction({slot}) is missing transaction"))?;
+    let signatures = transaction
+        .get("signatures")
+        .and_then(Value::as_array)
+        .ok_or_else(|| anyhow!("getTransaction({slot}) transaction is missing signatures"))?;
+    let signature = signatures
+        .first()
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| anyhow!("getTransaction({slot}) transaction has no primary signature"))?
+        .to_string();
+    let message = transaction
+        .get("message")
+        .ok_or_else(|| anyhow!("transaction {signature} is missing message"))?;
+    let meta = value
+        .get("meta")
+        .filter(|value| !value.is_null())
+        .ok_or_else(|| anyhow!("transaction {signature} is missing meta"))?;
+    let err = meta
+        .get("err")
+        .ok_or_else(|| anyhow!("transaction {signature} meta is missing err"))?;
+    let success = err.is_null();
+    let fee = required_u64(meta, "fee", "transaction meta")?;
+
+    let accounts = transaction_account_details(message, meta, &signature)?;
+    let signer = accounts
+        .iter()
+        .find(|account| account.signer == Some(true))
+        .or_else(|| accounts.first())
+        .map(|account| account.address.clone());
+
+    let instruction_values = message
+        .get("instructions")
+        .and_then(Value::as_array)
+        .ok_or_else(|| anyhow!("transaction {signature} message is missing instructions"))?;
+    let instructions = instruction_values
+        .iter()
+        .enumerate()
+        .map(|(index, instruction)| {
+            parse_transaction_instruction_detail(index, instruction, &accounts, &signature)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let primary_program = instructions.first().map(|item| item.program_id.clone());
+
+    let inner_instructions = meta
+        .get("innerInstructions")
+        .and_then(Value::as_array)
+        .map(|groups| {
+            groups
+                .iter()
+                .map(|group| {
+                    let parent_index =
+                        required_u64(group, "index", "innerInstructions")? as usize;
+                    let items = group
+                        .get("instructions")
+                        .and_then(Value::as_array)
+                        .ok_or_else(|| {
+                            anyhow!(
+                                "transaction {signature} innerInstructions[{parent_index}] has no instructions"
+                            )
+                        })?;
+                    let instructions = items
+                        .iter()
+                        .enumerate()
+                        .map(|(index, instruction)| {
+                            parse_transaction_instruction_detail(
+                                index,
+                                instruction,
+                                &accounts,
+                                &signature,
+                            )
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    Ok(TransactionInnerInstructionGroupRecord {
+                        index: parent_index,
+                        instructions,
+                    })
+                })
+                .collect::<Result<Vec<_>>>()
+        })
+        .transpose()?
+        .unwrap_or_default();
+
+    let log_messages = meta
+        .get("logMessages")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    let token_balance_changes = transaction_token_balance_changes(meta, &signature)?;
+
+    let block_time = match value.get("blockTime") {
+        Some(Value::Number(number)) => number.as_i64(),
+        _ => None,
+    };
+    let recent_blockhash = message
+        .get("recentBlockhash")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned);
+    let version = match value.get("version") {
+        Some(Value::String(value)) => Some(value.clone()),
+        Some(Value::Number(value)) => Some(value.to_string()),
+        _ => None,
+    };
+    let error = (!err.is_null()).then(|| err.clone());
+    let compute_units_consumed = meta.get("computeUnitsConsumed").and_then(Value::as_u64);
+    let return_data = meta
+        .get("returnData")
+        .filter(|value| !value.is_null())
+        .cloned();
+
+    Ok(TransactionDetailRecord {
+        signature,
+        slot,
+        success,
+        fee,
+        primary_program,
+        signer,
+        block_time,
+        recent_blockhash,
+        version,
+        error,
+        compute_units_consumed,
+        accounts,
+        instructions,
+        inner_instructions,
+        token_balance_changes,
+        token_transfers: Vec::new(),
+        log_messages,
+        return_data,
+        raw_transaction: Some(value.clone()),
+        detail_available: true,
+    })
+}
+
+fn transaction_account_details(
+    message: &Value,
+    meta: &Value,
+    signature: &str,
+) -> Result<Vec<TransactionAccountDetailRecord>> {
+    let raw_keys = message
+        .get("accountKeys")
+        .and_then(Value::as_array)
+        .ok_or_else(|| anyhow!("transaction {signature} message is missing accountKeys"))?;
+    let static_count = raw_keys.len();
+    let header = message.get("header");
+    let required_signatures = header
+        .and_then(|value| value.get("numRequiredSignatures"))
+        .and_then(Value::as_u64)
+        .map(|value| value as usize);
+    let readonly_signed = header
+        .and_then(|value| value.get("numReadonlySignedAccounts"))
+        .and_then(Value::as_u64)
+        .map(|value| value as usize);
+    let readonly_unsigned = header
+        .and_then(|value| value.get("numReadonlyUnsignedAccounts"))
+        .and_then(Value::as_u64)
+        .map(|value| value as usize);
+
+    let inferred_flags = |index: usize| -> (Option<bool>, Option<bool>) {
+        let (Some(required), Some(readonly_signed), Some(readonly_unsigned)) =
+            (required_signatures, readonly_signed, readonly_unsigned)
+        else {
+            return (None, None);
+        };
+        if index >= static_count || required > static_count {
+            return (None, None);
+        }
+
+        let signer = index < required;
+        let writable = if signer {
+            index < required.saturating_sub(readonly_signed)
+        } else {
+            index < static_count.saturating_sub(readonly_unsigned)
+        };
+        (Some(signer), Some(writable))
+    };
+
+    let has_lookup_source = raw_keys.iter().any(|value| {
+        value
+            .get("source")
+            .and_then(Value::as_str)
+            .is_some_and(|source| source.eq_ignore_ascii_case("lookupTable"))
+    });
+
+    let mut accounts = Vec::with_capacity(raw_keys.len());
+    for (index, value) in raw_keys.iter().enumerate() {
+        let (inferred_signer, inferred_writable) = inferred_flags(index);
+        let (address, signer, writable, source) = if let Some(address) = value.as_str() {
+            (
+                address.to_string(),
+                inferred_signer,
+                inferred_writable,
+                Some("transaction".to_string()),
+            )
+        } else {
+            let address = value
+                .get("pubkey")
+                .and_then(Value::as_str)
+                .filter(|address| !address.is_empty())
+                .ok_or_else(|| anyhow!("transaction {signature} has an invalid account key"))?
+                .to_string();
+            (
+                address,
+                value
+                    .get("signer")
+                    .and_then(Value::as_bool)
+                    .or(inferred_signer),
+                value
+                    .get("writable")
+                    .and_then(Value::as_bool)
+                    .or(inferred_writable),
+                value
+                    .get("source")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .or_else(|| Some("transaction".to_string())),
+            )
+        };
+        accounts.push(TransactionAccountDetailRecord {
+            index,
+            address,
+            signer,
+            writable,
+            source,
+            pre_balance: None,
+            post_balance: None,
+        });
+    }
+
+    if !has_lookup_source {
+        if let Some(loaded) = meta.get("loadedAddresses").filter(|value| !value.is_null()) {
+            for (field, writable) in [("writable", true), ("readonly", false)] {
+                if let Some(items) = loaded.get(field).and_then(Value::as_array) {
+                    for value in items {
+                        let address = value.as_str().ok_or_else(|| {
+                            anyhow!(
+                                "transaction {signature} loadedAddresses.{field} contains a non-string"
+                            )
+                        })?;
+                        accounts.push(TransactionAccountDetailRecord {
+                            index: accounts.len(),
+                            address: address.to_string(),
+                            signer: Some(false),
+                            writable: Some(writable),
+                            source: Some("lookupTable".to_string()),
+                            pre_balance: None,
+                            post_balance: None,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    let pre_balances = meta.get("preBalances").and_then(Value::as_array);
+    let post_balances = meta.get("postBalances").and_then(Value::as_array);
+    for account in &mut accounts {
+        account.pre_balance = pre_balances
+            .and_then(|items| items.get(account.index))
+            .and_then(Value::as_u64)
+            .map(|value| value.to_string());
+        account.post_balance = post_balances
+            .and_then(|items| items.get(account.index))
+            .and_then(Value::as_u64)
+            .map(|value| value.to_string());
+    }
+
+    Ok(accounts)
+}
+
+fn parse_transaction_instruction_detail(
+    index: usize,
+    instruction: &Value,
+    accounts: &[TransactionAccountDetailRecord],
+    signature: &str,
+) -> Result<TransactionInstructionDetailRecord> {
+    let program_id = if let Some(value) = instruction.get("programId").and_then(Value::as_str) {
+        value.to_string()
+    } else {
+        let program_index = instruction
+            .get("programIdIndex")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| {
+                anyhow!(
+                    "transaction {signature} instruction {index} has no programId/programIdIndex"
+                )
+            })? as usize;
+        accounts
+            .get(program_index)
+            .map(|account| account.address.clone())
+            .ok_or_else(|| {
+                anyhow!(
+                    "transaction {signature} instruction {index} programIdIndex {program_index} is out of bounds"
+                )
+            })?
+    };
+
+    let referenced_accounts = instruction
+        .get("accounts")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .map(|value| {
+                    if let Some(address) = value.as_str() {
+                        return Ok(address.to_string());
+                    }
+                    let account_index = value.as_u64().ok_or_else(|| {
+                        anyhow!(
+                            "transaction {signature} instruction {index} has an invalid account reference"
+                        )
+                    })? as usize;
+                    accounts
+                        .get(account_index)
+                        .map(|account| account.address.clone())
+                        .ok_or_else(|| {
+                            anyhow!(
+                                "transaction {signature} instruction {index} account index {account_index} is out of bounds"
+                            )
+                        })
+                })
+                .collect::<Result<Vec<_>>>()
+        })
+        .transpose()?
+        .unwrap_or_default();
+
+    Ok(TransactionInstructionDetailRecord {
+        index,
+        program_id,
+        program: instruction
+            .get("program")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned),
+        accounts: referenced_accounts,
+        data: instruction
+            .get("data")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned),
+        parsed: instruction
+            .get("parsed")
+            .filter(|value| !value.is_null())
+            .cloned(),
+        stack_height: instruction.get("stackHeight").and_then(Value::as_u64),
+    })
+}
+
+#[derive(Default)]
+struct TokenBalanceAccumulator {
+    decimals: u8,
+    pre_amount: Option<String>,
+    post_amount: Option<String>,
+    pre_ui_amount: Option<String>,
+    post_ui_amount: Option<String>,
+}
+
+fn transaction_token_balance_changes(
+    meta: &Value,
+    signature: &str,
+) -> Result<Vec<TransactionTokenBalanceChangeRecord>> {
+    type TokenKey = (usize, String, Option<String>, Option<String>);
+    let mut balances = BTreeMap::<TokenKey, TokenBalanceAccumulator>::new();
+
+    for (field, before) in [("preTokenBalances", true), ("postTokenBalances", false)] {
+        let Some(items) = meta.get(field).and_then(Value::as_array) else {
+            continue;
+        };
+        for item in items {
+            let account_index = required_u64(item, "accountIndex", field)? as usize;
+            let mint = required_str(item, "mint", field)?.to_string();
+            let owner = item
+                .get("owner")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned);
+            let program_id = item
+                .get("programId")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned);
+            let ui = item.get("uiTokenAmount").ok_or_else(|| {
+                anyhow!("transaction {signature} {field} entry has no uiTokenAmount")
+            })?;
+            let amount = required_str(ui, "amount", "uiTokenAmount")?.to_string();
+            let decimals = required_u64(ui, "decimals", "uiTokenAmount")?;
+            let decimals = u8::try_from(decimals)
+                .with_context(|| format!("transaction {signature} token decimals exceed u8"))?;
+            let ui_amount = ui
+                .get("uiAmountString")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned);
+
+            let entry = balances
+                .entry((account_index, mint, owner, program_id))
+                .or_insert_with(|| TokenBalanceAccumulator {
+                    decimals,
+                    ..TokenBalanceAccumulator::default()
+                });
+            entry.decimals = decimals;
+            if before {
+                entry.pre_amount = Some(amount);
+                entry.pre_ui_amount = ui_amount;
+            } else {
+                entry.post_amount = Some(amount);
+                entry.post_ui_amount = ui_amount;
+            }
+        }
+    }
+
+    Ok(balances
+        .into_iter()
+        .map(|((account_index, mint, owner, program_id), value)| {
+            TransactionTokenBalanceChangeRecord {
+                account_index,
+                mint,
+                owner,
+                program_id,
+                decimals: value.decimals,
+                pre_amount: value.pre_amount,
+                post_amount: value.post_amount,
+                pre_ui_amount: value.pre_ui_amount,
+                post_ui_amount: value.post_ui_amount,
+            }
+        })
+        .collect())
+}
+
 fn parse_transaction(
     slot: u64,
     value: &Value,
@@ -1128,6 +1608,121 @@ mod tests {
 
         let (_, accounts, _) = parse_transaction(9, &value).unwrap();
         assert_eq!(accounts, vec![payer, program, writable, readonly]);
+    }
+
+    #[test]
+    fn transaction_detail_parser_preserves_rpc_trace_context() {
+        let payer = Pubkey::new_unique().to_string();
+        let program = Pubkey::new_unique().to_string();
+        let token_account = Pubkey::new_unique().to_string();
+        let mint = Pubkey::new_unique().to_string();
+        let value = json!({
+            "slot": 77,
+            "blockTime": 1_700_000_123,
+            "version": 0,
+            "transaction": {
+                "signatures": ["signature"],
+                "message": {
+                    "recentBlockhash": "recent-blockhash",
+                    "accountKeys": [
+                        {"pubkey": payer.clone(), "signer": true, "writable": true, "source": "transaction"},
+                        {"pubkey": program.clone(), "signer": false, "writable": false, "source": "transaction"},
+                        {"pubkey": token_account.clone(), "signer": false, "writable": true, "source": "transaction"}
+                    ],
+                    "instructions": [{
+                        "program": "system",
+                        "programId": program.clone(),
+                        "parsed": {
+                            "type": "transfer",
+                            "info": {"source": payer.clone(), "destination": token_account.clone()}
+                        },
+                        "stackHeight": 1
+                    }]
+                }
+            },
+            "meta": {
+                "err": null,
+                "fee": 5000,
+                "preBalances": [10000, 1, 10],
+                "postBalances": [4000, 1, 6000],
+                "computeUnitsConsumed": 99,
+                "logMessages": ["Program invoke [1]", "Program success"],
+                "preTokenBalances": [{
+                    "accountIndex": 2,
+                    "mint": mint.clone(),
+                    "owner": payer.clone(),
+                    "programId": program.clone(),
+                    "uiTokenAmount": {
+                        "amount": "10",
+                        "decimals": 2,
+                        "uiAmountString": "0.10"
+                    }
+                }],
+                "postTokenBalances": [{
+                    "accountIndex": 2,
+                    "mint": mint.clone(),
+                    "owner": payer.clone(),
+                    "programId": program.clone(),
+                    "uiTokenAmount": {
+                        "amount": "25",
+                        "decimals": 2,
+                        "uiAmountString": "0.25"
+                    }
+                }],
+                "innerInstructions": [{
+                    "index": 0,
+                    "instructions": [{
+                        "programId": program.clone(),
+                        "accounts": [payer.clone(), token_account.clone()],
+                        "data": "abc",
+                        "stackHeight": 2
+                    }]
+                }],
+                "returnData": {
+                    "programId": program.clone(),
+                    "data": ["AQID", "base64"]
+                }
+            }
+        });
+
+        let detail = parse_transaction_detail(&value).unwrap();
+        assert_eq!(detail.signature, "signature");
+        assert_eq!(detail.slot, 77);
+        assert!(detail.success);
+        assert_eq!(detail.block_time, Some(1_700_000_123));
+        assert_eq!(detail.version.as_deref(), Some("0"));
+        assert_eq!(detail.recent_blockhash.as_deref(), Some("recent-blockhash"));
+        assert_eq!(detail.compute_units_consumed, Some(99));
+        assert_eq!(detail.signer.as_deref(), Some(payer.as_str()));
+        assert_eq!(detail.primary_program.as_deref(), Some(program.as_str()));
+        assert_eq!(detail.accounts.len(), 3);
+        assert_eq!(detail.accounts[0].signer, Some(true));
+        assert_eq!(detail.accounts[0].pre_balance.as_deref(), Some("10000"));
+        assert_eq!(detail.accounts[2].post_balance.as_deref(), Some("6000"));
+        assert_eq!(detail.instructions.len(), 1);
+        assert_eq!(
+            detail.instructions[0]
+                .parsed
+                .as_ref()
+                .and_then(|parsed| parsed.get("type"))
+                .and_then(Value::as_str),
+            Some("transfer")
+        );
+        assert_eq!(detail.inner_instructions.len(), 1);
+        assert_eq!(detail.inner_instructions[0].instructions.len(), 1);
+        assert_eq!(detail.token_balance_changes.len(), 1);
+        assert_eq!(
+            detail.token_balance_changes[0].pre_amount.as_deref(),
+            Some("10")
+        );
+        assert_eq!(
+            detail.token_balance_changes[0].post_amount.as_deref(),
+            Some("25")
+        );
+        assert_eq!(detail.log_messages.len(), 2);
+        assert!(detail.return_data.is_some());
+        assert!(detail.raw_transaction.is_some());
+        assert!(detail.detail_available);
     }
 
     #[test]
