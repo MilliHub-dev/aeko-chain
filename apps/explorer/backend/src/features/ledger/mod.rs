@@ -180,9 +180,8 @@ async fn apply_indexed_transaction_context(
             .await?
             .into_iter()
             .map(|account| {
-                let is_signer = signer.map(|value| {
-                    account.account_index == 0 && value == account.address.as_str()
-                });
+                let is_signer = signer
+                    .map(|value| account.account_index == 0 && value == account.address.as_str());
                 TransactionAccountDetailRecord {
                     index: account.account_index,
                     signer: is_signer,
