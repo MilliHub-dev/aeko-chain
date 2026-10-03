@@ -103,7 +103,7 @@ export function ToasterProvider({ children }: { children: React.ReactNode }) {
     <ToasterContext.Provider value={api}>
       {children}
       <div
-        className="pointer-events-none fixed inset-x-3 top-16 z-[100] flex flex-col items-stretch gap-2 sm:inset-x-auto sm:right-4 sm:top-16 sm:w-[380px]"
+        className="pointer-events-none fixed inset-x-3 top-[calc(4.5rem+env(safe-area-inset-top))] z-[100] flex flex-col items-stretch gap-2 sm:inset-x-auto sm:right-4 sm:w-[380px]"
         role="region"
         aria-label="Notifications"
       >
@@ -170,7 +170,7 @@ function ToastCard({
         <button
           type="button"
           onClick={onDismiss}
-          className="min-h-[36px] shrink-0 rounded-lg border border-white/15 px-2.5 text-xs font-semibold text-gray-200 transition-colors hover:bg-white/10"
+          className="min-h-11 shrink-0 rounded-lg border border-white/15 px-3 text-xs font-semibold text-gray-200 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
         >
           Dismiss
         </button>

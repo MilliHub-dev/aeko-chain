@@ -32,7 +32,7 @@ export default function TransactionsPage() {
   const successRate = txs.length ? Math.round((successCount / txs.length) * 100) : 0
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Transactions</h1>
@@ -44,7 +44,7 @@ export default function TransactionsPage() {
           type="button"
           onClick={() => void transactionsQuery.refetch()}
           disabled={transactionsQuery.isFetching}
-          className="text-sm text-gray-400 hover:text-white border border-[#1e2135] rounded-lg px-4 py-2 transition-colors disabled:opacity-40"
+          className="min-h-11 rounded-xl border border-[#1e2135] px-4 text-sm text-gray-400 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
         >
           {transactionsQuery.isFetching ? 'Refreshing…' : 'Refresh'}
         </button>
@@ -56,19 +56,20 @@ export default function TransactionsPage() {
         </FeedbackAlert>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         <StatCard label="Shown" value={txs.length} />
         <StatCard label="Success" value={successCount} accent />
         <StatCard label="Success Rate" value={`${successRate}%`} />
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Transaction status filter">
         {(['all', 'success', 'failed'] as const).map(value => (
           <button
             key={value}
             type="button"
+            aria-pressed={filter === value}
             onClick={() => setFilter(value)}
-            className={`px-4 py-1.5 rounded-lg text-sm capitalize transition-colors ${filter === value ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`min-h-11 rounded-xl border px-4 text-sm capitalize transition-colors ${filter === value ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-500 hover:text-gray-300'}`}
           >
             {value}
           </button>

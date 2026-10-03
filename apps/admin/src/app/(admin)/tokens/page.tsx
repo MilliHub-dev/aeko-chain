@@ -38,7 +38,7 @@ export default function TokensPage() {
     : 0
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Tokens</h1>
@@ -50,7 +50,7 @@ export default function TokensPage() {
           type="button"
           onClick={() => void tokensQuery.refetch()}
           disabled={tokensQuery.isFetching}
-          className="text-sm text-gray-400 hover:text-white border border-[#1e2135] rounded-lg px-4 py-2 transition-colors disabled:opacity-40"
+          className="min-h-11 rounded-xl border border-[#1e2135] px-4 text-sm text-gray-400 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
         >
           {tokensQuery.isFetching ? 'Refreshing…' : 'Refresh'}
         </button>
@@ -62,7 +62,7 @@ export default function TokensPage() {
         </FeedbackAlert>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         <StatCard label="Total Supply" value={supply ? fmtAeko(supply.total) : '—'} accent />
         <StatCard label="Circulating" value={supply ? fmtAeko(supply.circulating) : '—'} sub={`${circulatingPct}% of total`} />
         <StatCard label="Non-Circulating" value={supply ? fmtAeko(supply.nonCirculating) : '—'} />
@@ -77,7 +77,7 @@ export default function TokensPage() {
           <div className="w-full bg-[#1e2135] rounded-full h-3">
             <div className="bg-emerald-500 h-3 rounded-full transition-all" style={{ width: `${circulatingPct}%` }} />
           </div>
-          <div className="flex justify-between text-xs text-gray-600 mt-2">
+          <div className="mt-2 flex flex-col gap-1 text-xs text-gray-600 sm:flex-row sm:justify-between">
             <span>{fmtAeko(supply.circulating)} circulating</span>
             <span>{fmtAeko(supply.nonCirculating)} locked</span>
           </div>

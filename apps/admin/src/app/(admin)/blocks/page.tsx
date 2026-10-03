@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { AccountLink } from '@/components/chain-links'
 import DataTable from '@/components/data-table'
 import FeedbackAlert from '@/components/feedback-alert'
 import StatCard from '@/components/stat-card'
@@ -29,7 +30,7 @@ export default function BlocksPage() {
   const avgTxsPerBlock = blocks.length ? Math.round(totalTxs / blocks.length) : 0
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Blocks</h1>
@@ -41,7 +42,7 @@ export default function BlocksPage() {
           type="button"
           onClick={() => void blocksQuery.refetch()}
           disabled={blocksQuery.isFetching}
-          className="text-sm text-gray-400 hover:text-white border border-[#1e2135] rounded-lg px-4 py-2 transition-colors disabled:opacity-40"
+          className="min-h-11 rounded-xl border border-[#1e2135] px-4 text-sm text-gray-400 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
         >
           {blocksQuery.isFetching ? 'Refreshing…' : 'Refresh'}
         </button>
@@ -53,7 +54,7 @@ export default function BlocksPage() {
         </FeedbackAlert>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         <StatCard label="Latest Slot" value={blocks[0]?.slot.toLocaleString() ?? '—'} accent />
         <StatCard label="Total Txs (shown)" value={totalTxs.toLocaleString()} />
         <StatCard label="Avg Txs / Block" value={avgTxsPerBlock} />
@@ -67,7 +68,7 @@ export default function BlocksPage() {
           shortHash(block.blockhash),
           block.parentSlot.toLocaleString(),
           block.transactionCount,
-          block.producer ? shortHash(block.producer) : '—',
+          block.producer ? <AccountLink key={block.slot + '-producer'} address={block.producer} label={shortHash(block.producer)} /> : '—',
           fmtTime(block.unixTimestamp),
         ])}
         empty={blocksQuery.isLoading ? 'Loading blocks…' : 'No blocks indexed yet'}
