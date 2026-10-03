@@ -39,22 +39,32 @@ established-chain storage safeguards.
 ## Auto-deploy isolation
 
 Creating separate Coolify applications is only half of validator isolation.
-The release trigger must also stop targeting one monolithic application.
+The GitHub release workflow now deploys five resources independently after
+validated image promotion; there is no monolithic deployment-mode switch.
 
-Keep the default legacy webhook mode during migration. After all six resources
-exist and are validated, set the GitHub repository variable
-`COOLIFY_DEPLOYMENT_MODE=split`. In that mode CI triggers separate post-image-
-promotion webhooks only for Explorer API, Explorer UI and Operations Web.
-Validator, bootstrap and faucet-tools remain manual releases.
+Configure these repository secrets:
 
-Disable Coolify Git Auto Deploy for webhook-managed resources so a repository
-push cannot race ahead of Docker image promotion. Validator/bootstrap/
-faucet-tools should also stay manual.
+```text
+WEBHOOK_AEKO_ADMIN=<Aeko Admin webhook>
+WEBHOOK_EXPLORER_API=<Explorer API webhook>
+WEBHOOK_EXPLORER_UI=<Explorer UI webhook>
+WEBHOOK_FAUCET=<Faucet webhook>
+WEBHOOK_VALIDATOR=<Validator webhook>
+WEBHOOK_API_KEY=<shared Coolify API token>
+```
 
-The three application resources use `AEKO_IMAGE_TAG=latest` in their split
-examples so the post-promotion webhook actually pulls the newly promoted image.
-If you pin them to immutable SHA tags, update the environment tag as part of
-the deployment because a webhook alone cannot change it.
+Disable Coolify Git Auto Deploy for all five webhook-managed resources so a
+repository push cannot race ahead of Docker image validation/promotion. Set
+`AEKO_IMAGE_TAG=latest` on those resources; the webhook then pulls the image
+family CI just promoted. The immutable SHA tag remains available for rollback.
+
+Network releases trigger Faucet first and Validator only after the Faucet
+webhook call succeeds. This ordering protects the funding dependency during
+automatic rollouts without coupling the two resources onto one Docker network.
+
+Bootstrap is the only split resource that remains manual because the current
+repository secret contract contains no Bootstrap webhook. Keep its lifecycle
+deployment explicit and do not reuse another resource's webhook.
 
 Coolify domains are the normal cross-resource contract for HTTP/WebSocket
 services. Configure the domains listed below against each service's container
@@ -84,8 +94,9 @@ AEKO_LOG_MAX_FILES=3
 ~~~
 
 Keep Validator/bootstrap/faucet-tools on an immutable validated image tag.
-Explorer API/UI and Operations Web may use the promoted `latest` tag when
-their independent deployment webhook runs only after image promotion.
+Explorer API/UI, Operations Web, Faucet, and Validator use the promoted
+`latest` tag when their independent deployment webhook runs after image
+promotion. Bootstrap remains an explicit operator-controlled release.
 
 Each chain deployment has one active network, but public client endpoints are
 not reused for backend-to-backend traffic. Aeko Scan publishes the active
@@ -258,14 +269,40 @@ protocol path with
 `AEKO_GOSSIP_ENTRYPOINT=gossip.aeko.online:8001 scripts/smoke-gossip.sh` or
 `aeko-gossip spy --entrypoint gossip.aeko.online:8001 --num-nodes 1 --timeout 20`.
 
-Faucet is also not an HTTP Coolify Domain. Point `faucet.aeko.online` to the
-Faucet host only when a split Validator needs that raw TCP endpoint, publish
-TCP `9900`, and firewall it to Validator source addresses. In Coolify, leave
-the Faucet Domains field empty and do not configure an HTTP health path for
-`9900`; the Compose healthcheck validates the mounted key locally. Do not
-attach a Cloudflare HTTP proxy or Traefik HTTP router to the Faucet port. The
-Faucet listener accepts only its binary TCP protocol and deliberately rejects
-HTTP-like traffic. PostgreSQL `5432` should remain private.
+Faucet is also not an HTTP Coolify Domain. The split Faucet Compose requires
+`AEKO_FAUCET_BIND_ADDRESS` and publishes raw TCP `9900` explicitly on that host
+interface. Prefer a private/overlay network such as VPC or WireGuard. If an
+operator uses `0.0.0.0`, the host/cloud firewall must restrict TCP `9900` to
+trusted Validator/RPC source addresses.
+
+Do not use `127.0.0.1`, `localhost`, or `::1` as the split Faucet bind for a
+Faucet consumed by another container, and do not use loopback or wildcard
+values as the split Validator's `AEKO_FAUCET_ADDRESS`. Separate Coolify
+resources do not share container loopback even when they run on the same
+Ubuntu server. Moving those resources to another provider keeps the same
+contract: route Faucet over the private/overlay network rather than changing
+application code.
+
+Point `faucet.aeko.online` or private DNS at the raw TCP endpoint only when it
+resolves to an address the consumers can actually reach. Leave the Faucet
+Domains field empty and do not configure an HTTP health path for `9900`; the
+Compose healthcheck validates the mounted key locally. Do not attach a
+Cloudflare HTTP proxy or Traefik HTTP router to the Faucet port.
+
+Verify the effective host publication and a consumer-side TCP connection:
+
+```bash
+# Faucet host
+docker ps --format 'table {{.Names}}\t{{.Ports}}' | grep -i faucet
+ss -lntp | grep ':9900'
+
+# Validator/RPC host (or inside that container)
+nc -vz <faucet-private-or-overlay-address> 9900
+```
+
+A split deployment is not accepted if Docker reports only
+`127.0.0.1:9900->9900/tcp` or the consumer-side probe fails. PostgreSQL
+`5432` should remain private.
 
 ## First deployment
 

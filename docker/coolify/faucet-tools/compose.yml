@@ -23,11 +23,16 @@ services:
       - ${AEKO_FAUCET_PER_REQUEST_CAP:-100}
     expose:
       - "9900"
-    # Faucet is raw TCP, not HTTP. DNS may identify the host, but Validator
-    # still connects to TCP 9900. Restrict this host port to Validator source
-    # addresses with the host/cloud firewall.
+    # Faucet is raw TCP, not HTTP. Split resources may live on different
+    # Docker networks, hosts, or cloud providers, so the host bind is explicit.
+    # Bind a private/overlay interface whenever possible. If 0.0.0.0 is used,
+    # the host/cloud firewall MUST restrict TCP 9900 to trusted Validator/RPC
+    # source addresses. Never use loopback for a remotely consumed Faucet.
     ports:
-      - "${AEKO_FAUCET_HOST_PORT:-9900}:9900"
+      - target: 9900
+        published: "${AEKO_FAUCET_HOST_PORT:-9900}"
+        host_ip: "${AEKO_FAUCET_BIND_ADDRESS:?Set AEKO_FAUCET_BIND_ADDRESS to a Validator-reachable private/overlay host IP, or 0.0.0.0 with a source-restricted firewall}"
+        protocol: tcp
     healthcheck:
       test: ["CMD-SHELL", "test -s /keys/faucet-keypair.json"]
       interval: 30s

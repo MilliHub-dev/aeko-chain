@@ -63,8 +63,44 @@ session authentication and unauthenticated requests are redirected to
 
 Faucet and validator gossip are different. They are raw TCP/UDP protocols, not
 HTTP routes. Their DNS records identify the host, but the required host ports
-must still be reachable. Restrict Faucet TCP 9900 to Validator source addresses
-with the host/cloud firewall.
+must still be reachable.
+
+For split Faucet deployments, listener publication and consumer discovery are
+separate contracts:
+
+- `AEKO_FAUCET_BIND_ADDRESS` is the host interface on the Faucet machine where
+  Docker publishes raw TCP `9900`.
+- `AEKO_FAUCET_HOST_PORT` is the published host port, normally `9900`.
+- `AEKO_FAUCET_ADDRESS` belongs on every Validator/RPC consumer and names the
+  Faucet endpoint that container can actually reach.
+
+`AEKO_FAUCET_BIND_ADDRESS` is required by the split Faucet Compose contract so a
+deployment platform cannot silently fall back to a loopback-only publication
+such as `127.0.0.1:9900`. Prefer a private/overlay network (for example VPC or
+WireGuard). Use `0.0.0.0` only with a host/cloud firewall that restricts TCP
+`9900` to trusted Validator/RPC source addresses. A split Validator must not
+use `localhost`, `127.0.0.1`, `::1`, or `0.0.0.0` as
+`AEKO_FAUCET_ADDRESS`.
+
+Same-host placement does not weaken this contract: separate Coolify resources
+can be on different Docker networks today and different cloud providers later.
+Configure Faucet as independently reachable infrastructure even when all
+resources currently share one Ubuntu host.
+
+Verify both publication and consumer reachability before accepting a deployment:
+
+```bash
+# Faucet host
+docker ps --format 'table {{.Names}}\t{{.Ports}}' | grep -i faucet
+ss -lntp | grep ':9900'
+
+# Each Validator/RPC host (or inside its container)
+nc -vz <faucet-private-or-overlay-address> 9900
+```
+
+A remotely consumed split Faucet must not report only
+`127.0.0.1:9900->9900/tcp`. Restrict the reachable Faucet endpoint to trusted
+Validator/RPC sources with host/cloud firewall policy.
 
 ## Environment naming
 
@@ -308,18 +344,26 @@ then return all reset/first-boot flags to their established values.
 
 ## Coolify deployment triggers
 
-Stateful/security-sensitive resources remain intentional releases:
+GitHub production deployment automation targets five independent Coolify
+resources after validated image promotion:
 
-- Validator
-- Bootstrap
-- Faucet + tools
+- Faucet + tools via `WEBHOOK_FAUCET`;
+- Validator via `WEBHOOK_VALIDATOR`;
+- Explorer API via `WEBHOOK_EXPLORER_API`;
+- Scan / Explorer UI via `WEBHOOK_EXPLORER_UI`;
+- Operations Web / Aeko Admin via `WEBHOOK_AEKO_ADMIN`.
 
-Explorer API, Scan, and Operations Web may use the split post-promotion webhook
-flow documented in `DEPLOYMENT.md`.
+All five webhook calls use the shared `WEBHOOK_API_KEY`. Network releases
+dispatch Faucet before Validator; Validator deployment proceeds only if the
+Faucet webhook dispatch succeeds.
 
-Keep Validator/bootstrap/Faucet on immutable image tags. Application resources
-may use the promoted `latest` tag when their deployment webhook runs only
-after CI promotion.
+These five resources should use `AEKO_IMAGE_TAG=latest` with `pull_policy:
+always` so the post-promotion webhook pulls the just-promoted image. Keep the
+immutable SHA tag as the rollback/provenance reference.
+
+Bootstrap remains an explicit operator release because there is no Bootstrap
+webhook in the current repository secret contract. Do not substitute another
+resource webhook for it.
 
 ## Acceptance
 

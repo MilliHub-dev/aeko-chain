@@ -131,6 +131,14 @@ servers. These are independent stacks even when an operator happens to place
 several stacks on the same physical host. They do not share an Explorer
 process, Admin process, database, chain identity, or active `AEKO_NETWORK`.
 
+The Faucet is likewise independently deployable infrastructure. Split Faucet
+publication uses `AEKO_FAUCET_BIND_ADDRESS` for the host-side listener, while
+Validators/RPC nodes use `AEKO_FAUCET_ADDRESS` for the consumer-side endpoint.
+Keeping those concerns separate lets the same topology move from one Ubuntu
+host to multiple Scaleway, AWS, Hetzner, or other provider instances without
+introducing Docker-network assumptions. Prefer private/overlay routing;
+never use container loopback as split-resource service discovery.
+
 Aeko Scan is the exception: its generic values define the default network, and
 optional `AEKO_MAINNET_*` and `AEKO_TESTNET_*` RPC/WS/Explorer-API
 triplets let the UI switch to other independent public deployments. Browser
@@ -157,7 +165,10 @@ AEKO_EXPLORER_CORS_ORIGINS=https://scan.aeko.online
 # Operations Web resource:
 AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
 AEKO_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
-# Validator resource:
+# Faucet resource (split Coolify):
+AEKO_FAUCET_BIND_ADDRESS=<private-or-overlay-host-interface>
+AEKO_FAUCET_HOST_PORT=9900
+# Validator/RPC resource:
 AEKO_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900
 
 AEKO_GOSSIP_HOST=gossip.aeko.online
@@ -371,80 +382,63 @@ Before moving a live ledger to attached storage, inspect the current container m
 
 ## Deploy / update behavior
 
-Manual Dokploy equivalent:
+The GitHub `AEKO DevOps (single runner)` workflow validates release surfaces,
+publishes immutable SHA-tagged images, promotes only validated selected image
+families to `latest`, and then deploys the currently operated split Coolify
+resources through independent webhooks.
 
-```bash
-docker compose -f docker/compose.dokploy.yml pull
-docker compose -f docker/compose.dokploy.yml up -d
-docker compose -f docker/compose.dokploy.yml ps
-```
-
-Manual Coolify equivalent uses the separate Coolify deployment contract:
-
-```bash
-docker compose -f docker/compose.coolify.yml pull
-docker compose -f docker/compose.coolify.yml up -d
-docker compose -f docker/compose.coolify.yml ps
-```
-
-The GitHub `AEKO DevOps (single runner)` workflow validates selected release surfaces and promotes validated images on `main`. Deployment behavior is deliberately separated from the build/validation DAG.
-
-### Legacy single-resource deployment
-
-Until the split Coolify migration is deliberately enabled, the existing production trigger remains backward-compatible:
+Production deployment automation no longer targets the legacy all-in-one
+`WEBHOOK_URL` contract and does not target Dokploy. The five webhook-managed
+Coolify resources use these repository secrets:
 
 ```text
-WEBHOOK_URL=<authenticated production deploy webhook>
-WEBHOOK_API_KEY=<deployment API token>
+WEBHOOK_AEKO_ADMIN=<Aeko Admin / Operations Web Coolify webhook>
+WEBHOOK_EXPLORER_API=<Explorer API Coolify webhook>
+WEBHOOK_EXPLORER_UI=<Explorer UI / Scan Coolify webhook>
+WEBHOOK_FAUCET=<Faucet + tools Coolify webhook>
+WEBHOOK_VALIDATOR=<Validator Coolify webhook>
+WEBHOOK_API_KEY=<shared Coolify API token used to authorize the webhook calls>
 ```
 
-This triggers the one preconfigured legacy production resource after promotion.
+Promotion and deployment are deliberately separate jobs. A resource webhook is
+called only after the image family it consumes was successfully published and
+promoted. Network releases dispatch the Faucet webhook first; Validator
+deployment is gated on a successful Faucet webhook dispatch so a failed Faucet
+trigger cannot be followed by an automatic Validator rollout.
 
-### Split Coolify deployment
+The mapping is:
 
-After the six split Coolify resources are created and validated, set the GitHub repository variable:
+| Promoted image family | Coolify deployment webhook |
+| --- | --- |
+| Operations Web | `WEBHOOK_AEKO_ADMIN` |
+| Explorer API/backend | `WEBHOOK_EXPLORER_API` |
+| Explorer UI | `WEBHOOK_EXPLORER_UI` |
+| Network Faucet | `WEBHOOK_FAUCET` |
+| Network Validator | `WEBHOOK_VALIDATOR` |
 
-```text
-COOLIFY_DEPLOYMENT_MODE=split
-```
+The Bootstrap resource has no automatic webhook in the current repository
+secret contract. It remains an explicit operator deployment/verification step
+for lifecycle changes that require Social/Protocol bootstrap or registry work.
+Do not reuse one of the five runtime webhooks for Bootstrap.
 
-Split mode never auto-deploys `validator`, `bootstrap`, or `faucet-tools`.
-Those resources remain explicit operator releases even when a core/network image
-was rebuilt and promoted.
+Webhook-managed resources must use `AEKO_IMAGE_TAG=latest` (with
+`pull_policy: always`) so the post-promotion webhook actually pulls the image
+that CI just promoted. The immutable 12-character SHA tag remains the rollback
+and provenance reference. Bootstrap may remain pinned to an explicitly chosen
+immutable tag until an operator intentionally redeploys it.
 
-The three application resources use independent deploy credentials so they may
-live on different Coolify instances:
+A webhook never chooses a Compose path. Each Coolify resource must already
+point at its own split Compose definition:
 
-```text
-COOLIFY_EXPLORER_API_WEBHOOK_URL=<Explorer API deploy webhook>
-COOLIFY_EXPLORER_API_WEBHOOK_API_KEY=<Explorer API deploy token>
+- Faucet: `docker/coolify/faucet-tools/compose.yml`
+- Validator: `docker/coolify/validator/compose.yml`
+- Explorer API: `apps/explorer/backend/compose.coolify.yml`
+- Explorer UI: `apps/explorer/web/compose.coolify.yml`
+- Aeko Admin: `apps/admin/compose.coolify.yml`
+- Bootstrap (manual): `docker/coolify/bootstrap/compose.yml`
 
-COOLIFY_EXPLORER_UI_WEBHOOK_URL=<Explorer UI deploy webhook>
-COOLIFY_EXPLORER_UI_WEBHOOK_API_KEY=<Explorer UI deploy token>
-
-COOLIFY_OPERATIONS_WEB_WEBHOOK_URL=<Operations Web deploy webhook>
-COOLIFY_OPERATIONS_WEB_WEBHOOK_API_KEY=<Operations Web deploy token>
-```
-
-CI only triggers an application resource when its own source or split Compose
-configuration selected that deployment. Broad packaging/core validation does
-not imply a broad production redeploy.
-
-For webhook-managed application resources, `AEKO_IMAGE_TAG=latest` is the
-supported automatic flow: CI promotes the validated selected image to
-`latest` before invoking that resource's webhook. If an application resource
-is pinned to an immutable SHA, update the Coolify environment tag as part of
-the release because a webhook cannot rewrite it.
-
-Validator/bootstrap/faucet-tools should remain pinned to immutable validated
-tags. Their promotion/deployment is intentional and independent of Explorer or
-Admin releases.
-
-A webhook never chooses a Compose path. Each Coolify split resource must already point at its matching Compose file:
-`docker/coolify/<resource>/compose.yml` for infrastructure, or the app-local
-`compose.coolify.yml` for Explorer API, Scan, and Operations Web. Their app-local
-`.env.coolify.example` documents the matching deployment environment. The legacy
-resource remains on `docker/compose.coolify.yml`.
+Dokploy and `docker/compose.coolify.yml` remain repository compatibility/manual
+contracts only; GitHub production deployment automation does not call them.
 
 ## Mandatory Aeko Social and AEKO Protocol lifecycle
 

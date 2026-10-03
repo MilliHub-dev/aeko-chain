@@ -108,8 +108,20 @@ the operator explicitly publishes that port and restricts it appropriately.
 
 Raw Faucet and validator transport are exceptions:
 
-- publish Faucet TCP `9900` and firewall it to Validator source addresses;
-- set `AEKO_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900` on the Validator resource;
+- the split Faucet resource requires
+  `AEKO_FAUCET_BIND_ADDRESS=<private-or-overlay-host-interface>` and publishes
+  TCP `9900` on that exact host interface;
+- prefer a private/overlay network such as VPC or WireGuard; `0.0.0.0` is
+  acceptable only with a source-restricted host/cloud firewall;
+- never use `127.0.0.1`, `localhost`, or `::1` for a remotely consumed split
+  Faucet publication;
+- set `AEKO_FAUCET_ADDRESS=<private-or-dns-only-faucet-host>:9900` on every
+  Validator/RPC resource that consumes the Faucet;
+- split Validators reject loopback/wildcard Faucet targets because container
+  loopback is not cross-resource service discovery;
+- when the Faucet is host-published, firewall it to Validator source addresses;
+  also allow only explicitly trusted RPC-node sources when those nodes consume
+  the Faucet directly;
 - do not attach HTTP/WAF routing or HTTP health probes to Faucet `9900`;
 - publish Validator TCP+UDP `8000-8050`;
 - point `gossip.aeko.online` directly at the Validator host; the Validator

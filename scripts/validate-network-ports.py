@@ -192,6 +192,32 @@ def main() -> int:
             ),
         )
 
+    split_faucet = service_block(split["faucet-tools"], "faucet")
+    require_contains_all(
+        "split Faucet",
+        split_faucet,
+        (
+            "target: 9900",
+            'published: "${AEKO_FAUCET_HOST_PORT:-9900}"',
+            'host_ip: "${AEKO_FAUCET_BIND_ADDRESS:?',
+            "protocol: tcp",
+        ),
+    )
+    require(
+        re.search(r"^AEKO_FAUCET_BIND_ADDRESS=$", split_envs["faucet-tools"], re.MULTILINE)
+        is not None,
+        "split Faucet must force operators to choose a non-implicit host bind address",
+    )
+    require_contains_all(
+        "network port/domain documentation",
+        port_doc,
+        (
+            "AEKO_FAUCET_BIND_ADDRESS",
+            "127.0.0.1",
+            "private/overlay",
+        ),
+    )
+
     # Split server-to-server dependencies use private or DNS-only origins.
     # Public RPC/WS/API domains are for clients and browser runtime only.
     bootstrap_social = service_block(split["bootstrap"], "social-bootstrap")
@@ -257,15 +283,7 @@ def main() -> int:
             '- "8900"',
         ),
     )
-    require_contains_all(
-        "split Faucet",
-        split["faucet-tools"],
-        (
-            '- "9900"',
-            '"${AEKO_FAUCET_HOST_PORT:-9900}:9900"',
-        ),
-    )
-    split_faucet = service_block(split["faucet-tools"], "faucet")
+
     require(
         "test -s /keys/faucet-keypair.json" in split_faucet,
         "split Faucet healthcheck must verify local key readiness without speaking HTTP to raw TCP 9900",
