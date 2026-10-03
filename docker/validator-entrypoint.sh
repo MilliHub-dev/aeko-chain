@@ -77,6 +77,18 @@ if [[ "$FAUCET_ADDRESS" =~ [[:space:]] ]] || [[ "$FAUCET_ADDRESS" != *:* ]]; the
   exit 64
 fi
 
+if [ "$REQUIRE_REMOTE_FAUCET" = "1" ]; then
+  FAUCET_HOST="${FAUCET_ADDRESS%:*}"
+  FAUCET_HOST="${FAUCET_HOST#[}"
+  FAUCET_HOST="${FAUCET_HOST%]}"
+  case "$FAUCET_HOST" in
+    localhost|localhost.*|127.*|0.0.0.0|::1|::)
+      echo "error: AEKO_FAUCET_ADDRESS must identify a remotely reachable Faucet host, not loopback/wildcard: $FAUCET_ADDRESS" >&2
+      exit 64
+      ;;
+  esac
+fi
+
 GOSSIP_HOST="${AEKO_GOSSIP_HOST:-}"
 if [ -z "$GOSSIP_HOST" ] && [ "$REQUIRE_GOSSIP_HOST" = "1" ]; then
   echo "error: AEKO_GOSSIP_HOST is required for this Validator deployment" >&2

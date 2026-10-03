@@ -273,10 +273,21 @@ def main() -> int:
     faucet = service_block(faucet_tools, "faucet")
     wallet_tools = service_block(faucet_tools, "wallet-tools")
     require(
-        '"${AEKO_FAUCET_HOST_PORT:-9900}:9900"' in faucet,
-        "Faucet must publish raw TCP 9900 for a remote Validator",
+        'target: 9900' in faucet
+        and 'published: "${AEKO_FAUCET_HOST_PORT:-9900}"' in faucet
+        and 'host_ip: "${AEKO_FAUCET_BIND_ADDRESS:?' in faucet
+        and 'protocol: tcp' in faucet,
+        "Faucet must publish raw TCP 9900 on an explicit Validator-reachable host interface",
     )
-    require("AEKO_FAUCET_BIND_IP" not in faucet_tools, "Faucet must not require an IP-specific bind variable")
+    require(
+        re.search(r"^AEKO_FAUCET_BIND_ADDRESS=$", envs["faucet-tools"], re.MULTILINE) is not None,
+        "Faucet env example must require an explicit host bind address for split deployment",
+    )
+    for forbidden_bind in ("127.0.0.1", "localhost", "::1"):
+        require(
+            f"AEKO_FAUCET_BIND_ADDRESS={forbidden_bind}" not in envs["faucet-tools"],
+            f"split Faucet must not default its host publication to loopback ({forbidden_bind})",
+        )
     require("source: /data/aeko/keys" in faucet, "Faucet must read the persistent key store")
     require("curl " not in faucet and "wget " not in faucet, "Faucet healthcheck must never send HTTP to raw TCP 9900")
     require("traefik.http" not in faucet, "Faucet must never declare an HTTP reverse-proxy route")

@@ -18,6 +18,7 @@ AEKO_GOSSIP_HOST=gossip.ci.invalid \
 AEKO_KEYS_DIR=/tmp/aeko-keys \
 AEKO_NETWORK=testnet \
 AEKO_FAUCET_ADDRESS=faucet.ci.invalid:9900 \
+AEKO_FAUCET_BIND_ADDRESS=0.0.0.0 \
 AEKO_RPC_URL=https://rpc.ci.invalid \
 AEKO_WS_URL=wss://ws.ci.invalid \
 AEKO_EXPLORER_API_URL=https://api.ci.invalid \

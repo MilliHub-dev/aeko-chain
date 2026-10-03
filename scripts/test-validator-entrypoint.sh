@@ -75,6 +75,16 @@ fi
 grep -Fq "AEKO_FAUCET_ADDRESS contains placeholder/guidance text" "$TMP_DIR/placeholder-faucet.out"
 echo "[ok] split validator rejects angle-bracket Faucet placeholders before startup"
 
+for faucet_address in "127.0.0.1:9900" "localhost:9900" "0.0.0.0:9900" "[::1]:9900"; do
+  label=$(printf '%s' "$faucet_address" | sed 's/[^A-Za-z0-9]/_/g')
+  if AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/invalid-remote-faucet-${label}.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_REQUIRE_REMOTE_FAUCET=1 AEKO_FAUCET_ADDRESS="$faucet_address" bash "$ENTRYPOINT" >"$TMP_DIR/invalid-remote-faucet-${label}.out" 2>&1; then
+    echo "split validator unexpectedly accepted non-routable remote Faucet address: $faucet_address" >&2
+    exit 1
+  fi
+  grep -Fq "must identify a remotely reachable Faucet host, not loopback/wildcard" "$TMP_DIR/invalid-remote-faucet-${label}.out"
+done
+echo "[ok] split validator rejects loopback/wildcard Faucet targets"
+
 if env -u AEKO_GOSSIP_HOST AEKO_TEST_VALIDATOR_ARGS="$TMP_DIR/missing-gossip.args" PATH="$FAKE_BIN:$PATH" AEKO_LEDGER_PATH="$ESTABLISHED_LEDGER" AEKO_IDENTITY_FILE="$KEYS/identity.json" AEKO_VOTE_FILE="$KEYS/vote.json" AEKO_BOOTSTRAP=1 AEKO_REQUIRE_EXISTING_LEDGER=1 AEKO_FAUCET_ADDRESS="10.20.30.40:9900" AEKO_REQUIRE_GOSSIP_HOST=1 bash "$ENTRYPOINT" >"$TMP_DIR/missing-gossip.out" 2>&1; then
   echo "split validator unexpectedly accepted a missing gossip host" >&2
   exit 1
