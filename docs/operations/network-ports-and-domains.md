@@ -119,6 +119,9 @@ Raw Faucet and validator transport are exceptions:
   Validator/RPC resource that consumes the Faucet;
 - split Validators reject loopback/wildcard Faucet targets because container
   loopback is not cross-resource service discovery;
+- when the Faucet is host-published, firewall it to Validator source addresses;
+  also allow only explicitly trusted RPC-node sources when those nodes consume
+  the Faucet directly;
 - do not attach HTTP/WAF routing or HTTP health probes to Faucet `9900`;
 - publish Validator TCP+UDP `8000-8050`;
 - point `gossip.aeko.online` directly at the Validator host; the Validator
