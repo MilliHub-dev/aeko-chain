@@ -344,18 +344,26 @@ then return all reset/first-boot flags to their established values.
 
 ## Coolify deployment triggers
 
-Stateful/security-sensitive resources remain intentional releases:
+GitHub production deployment automation targets five independent Coolify
+resources after validated image promotion:
 
-- Validator
-- Bootstrap
-- Faucet + tools
+- Faucet + tools via `WEBHOOK_FAUCET`;
+- Validator via `WEBHOOK_VALIDATOR`;
+- Explorer API via `WEBHOOK_EXPLORER_API`;
+- Scan / Explorer UI via `WEBHOOK_EXPLORER_UI`;
+- Operations Web / Aeko Admin via `WEBHOOK_AEKO_ADMIN`.
 
-Explorer API, Scan, and Operations Web may use the split post-promotion webhook
-flow documented in `DEPLOYMENT.md`.
+All five webhook calls use the shared `WEBHOOK_API_KEY`. Network releases
+dispatch Faucet before Validator; Validator deployment proceeds only if the
+Faucet webhook dispatch succeeds.
 
-Keep Validator/bootstrap/Faucet on immutable image tags. Application resources
-may use the promoted `latest` tag when their deployment webhook runs only
-after CI promotion.
+These five resources should use `AEKO_IMAGE_TAG=latest` with `pull_policy:
+always` so the post-promotion webhook pulls the just-promoted image. Keep the
+immutable SHA tag as the rollback/provenance reference.
+
+Bootstrap remains an explicit operator release because there is no Bootstrap
+webhook in the current repository secret contract. Do not substitute another
+resource webhook for it.
 
 ## Acceptance
 

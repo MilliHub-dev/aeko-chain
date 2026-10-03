@@ -39,22 +39,32 @@ established-chain storage safeguards.
 ## Auto-deploy isolation
 
 Creating separate Coolify applications is only half of validator isolation.
-The release trigger must also stop targeting one monolithic application.
+The GitHub release workflow now deploys five resources independently after
+validated image promotion; there is no monolithic deployment-mode switch.
 
-Keep the default legacy webhook mode during migration. After all six resources
-exist and are validated, set the GitHub repository variable
-`COOLIFY_DEPLOYMENT_MODE=split`. In that mode CI triggers separate post-image-
-promotion webhooks only for Explorer API, Explorer UI and Operations Web.
-Validator, bootstrap and faucet-tools remain manual releases.
+Configure these repository secrets:
 
-Disable Coolify Git Auto Deploy for webhook-managed resources so a repository
-push cannot race ahead of Docker image promotion. Validator/bootstrap/
-faucet-tools should also stay manual.
+```text
+WEBHOOK_AEKO_ADMIN=<Aeko Admin webhook>
+WEBHOOK_EXPLORER_API=<Explorer API webhook>
+WEBHOOK_EXPLORER_UI=<Explorer UI webhook>
+WEBHOOK_FAUCET=<Faucet webhook>
+WEBHOOK_VALIDATOR=<Validator webhook>
+WEBHOOK_API_KEY=<shared Coolify API token>
+```
 
-The three application resources use `AEKO_IMAGE_TAG=latest` in their split
-examples so the post-promotion webhook actually pulls the newly promoted image.
-If you pin them to immutable SHA tags, update the environment tag as part of
-the deployment because a webhook alone cannot change it.
+Disable Coolify Git Auto Deploy for all five webhook-managed resources so a
+repository push cannot race ahead of Docker image validation/promotion. Set
+`AEKO_IMAGE_TAG=latest` on those resources; the webhook then pulls the image
+family CI just promoted. The immutable SHA tag remains available for rollback.
+
+Network releases trigger Faucet first and Validator only after the Faucet
+webhook call succeeds. This ordering protects the funding dependency during
+automatic rollouts without coupling the two resources onto one Docker network.
+
+Bootstrap is the only split resource that remains manual because the current
+repository secret contract contains no Bootstrap webhook. Keep its lifecycle
+deployment explicit and do not reuse another resource's webhook.
 
 Coolify domains are the normal cross-resource contract for HTTP/WebSocket
 services. Configure the domains listed below against each service's container
@@ -84,8 +94,9 @@ AEKO_LOG_MAX_FILES=3
 ~~~
 
 Keep Validator/bootstrap/faucet-tools on an immutable validated image tag.
-Explorer API/UI and Operations Web may use the promoted `latest` tag when
-their independent deployment webhook runs only after image promotion.
+Explorer API/UI, Operations Web, Faucet, and Validator use the promoted
+`latest` tag when their independent deployment webhook runs after image
+promotion. Bootstrap remains an explicit operator-controlled release.
 
 Each chain deployment has one active network, but public client endpoints are
 not reused for backend-to-backend traffic. Aeko Scan publishes the active
