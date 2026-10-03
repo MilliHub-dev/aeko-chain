@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { AccountLink, TransactionLink } from '@/components/chain-links'
 import DataTable from '@/components/data-table'
 import FeedbackAlert from '@/components/feedback-alert'
 import StatCard from '@/components/stat-card'
@@ -141,11 +142,11 @@ export default function AccountPage() {
           paginationLabel="transactions"
           columns={['Signature', 'Slot', 'Status', 'Fee', 'Program']}
           rows={(data?.recentTransactions ?? []).map((tx) => [
-            tx.signature.slice(0, 14) + '…',
+            <TransactionLink key={tx.signature} signature={tx.signature} />,
             tx.slot.toLocaleString(),
-            <span key={tx.signature} className={tx.success ? 'text-emerald-400' : 'text-red-400'}>{tx.success ? '✓ OK' : '✗ Fail'}</span>,
+            <span key={tx.signature + '-status'} className={tx.success ? 'text-emerald-400' : 'text-red-400'}>{tx.success ? '✓ OK' : '✗ Fail'}</span>,
             fmtAeko(tx.fee),
-            tx.primaryProgram ? shortAddr(tx.primaryProgram) : '—',
+            tx.primaryProgram ? <AccountLink key={tx.signature + '-program'} address={tx.primaryProgram} /> : '—',
           ])}
           empty="No transactions"
         />

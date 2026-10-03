@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { TransactionLink } from '@/components/chain-links'
 import DataTable from '@/components/data-table'
 import FeedbackAlert from '@/components/feedback-alert'
 import StatCard from '@/components/stat-card'
@@ -25,7 +26,6 @@ type SupplyResponse = { value: { total: number; circulating: number } }
 type VersionResponse = { 'aeko-core'?: string }
 type VoteAccounts = { current?: unknown[]; delinquent?: unknown[] }
 
-function shortSig(sig: string) { return sig.slice(0, 12) + '…' + sig.slice(-6) }
 function fmtTime(ts?: number) {
   if (!ts) return '—'
   return new Date(ts * 1000).toLocaleTimeString()
@@ -147,9 +147,9 @@ export default function Dashboard() {
           <DataTable
             columns={['Signature', 'Slot', 'Status']}
             rows={txs.map(tx => [
-              shortSig(tx.signature),
+              <TransactionLink key={tx.signature} signature={tx.signature} />,
               tx.slot.toLocaleString(),
-              <span key={tx.signature} className={tx.success ? 'text-emerald-400' : 'text-red-400'}>
+              <span key={tx.signature + '-status'} className={tx.success ? 'text-emerald-400' : 'text-red-400'}>
                 {tx.success ? 'OK' : 'Fail'}
               </span>,
             ])}

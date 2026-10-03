@@ -13,6 +13,7 @@ type DataTableProps = {
   pageSize?: number
   pageSizeOptions?: number[]
   paginationLabel?: string
+  alwaysShowPagination?: boolean
 }
 
 function pageWindow(current: number, total: number): Array<number | 'ellipsis'> {
@@ -38,6 +39,7 @@ export default function DataTable({
   pageSize = 15,
   pageSizeOptions = DEFAULT_PAGE_SIZES,
   paginationLabel = 'records',
+  alwaysShowPagination = false,
 }: DataTableProps) {
   const options = useMemo(
     () => Array.from(new Set([...pageSizeOptions, pageSize])).filter((value) => value > 0).sort((a, b) => a - b),
@@ -62,7 +64,8 @@ export default function DataTable({
   const end = Math.min(start + rowsPerPage, rows.length)
   const visibleRows = rows.slice(start, end)
   const smallestPageSize = options[0] ?? pageSize
-  const showPagination = rows.length > smallestPageSize
+  const showPagination = alwaysShowPagination || rows.length > smallestPageSize
+  const displayStart = rows.length === 0 ? 0 : start + 1
 
   return (
     <div className="overflow-hidden rounded-xl border border-[#1e2135] bg-[#12141f]">
@@ -130,7 +133,7 @@ export default function DataTable({
       {showPagination ? (
         <div className="flex flex-col gap-3 border-t border-[#1e2135] bg-[#0d0e16]/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-xs text-gray-500">
-            Showing <span className="font-medium tabular-nums text-gray-300">{start + 1}</span>
+            Showing <span className="font-medium tabular-nums text-gray-300">{displayStart}</span>
             {'–'}
             <span className="font-medium tabular-nums text-gray-300">{end}</span>
             {' of '}

@@ -70,4 +70,5 @@ export const adminQueryKeys = {
   protocol: ['admin', 'protocol'] as const,
   settings: ['admin', 'settings'] as const,
   account: (address: string) => ['admin', 'account', address] as const,
+  transaction: (signature: string) => ['admin', 'transaction', signature] as const,
 }
