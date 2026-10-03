@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { AccountLink } from '@/components/chain-links'
 import DataTable from '@/components/data-table'
 import FeedbackAlert from '@/components/feedback-alert'
 import SectionTabs from '@/components/section-tabs'
@@ -111,7 +112,7 @@ export default function SocialPage() {
   const activityCount = posts.length + stakes.length + engagement.length
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="text-xs uppercase tracking-[0.22em] text-emerald-400">SocialFi control plane</div>
@@ -121,7 +122,7 @@ export default function SocialPage() {
           </p>
           <p className="mt-1 text-xs text-gray-600">{lastUpdate ? 'Updated ' + lastUpdate : 'Loading…'}</p>
         </div>
-        <button onClick={refresh} disabled={socialQuery.isFetching} className="min-h-[42px] rounded-lg border border-[#1e2135] px-4 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40">
+        <button onClick={refresh} disabled={socialQuery.isFetching} className="min-h-11 rounded-lg border border-[#1e2135] px-4 text-sm text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-40">
           {socialQuery.isFetching ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
@@ -197,9 +198,12 @@ export default function SocialPage() {
                       <InfoRow label="Condition" value={domain.condition} />
                     </div>
                     {Object.keys(domain.metrics ?? {}).length ? (
-                      <pre className="mt-3 max-h-48 overflow-auto rounded-lg border border-[#1e2135] bg-black/20 p-3 text-[11px] leading-5 text-gray-500">
-                        {JSON.stringify(domain.metrics, null, 2)}
-                      </pre>
+                      <details className="mt-3 rounded-lg border border-[#1e2135] bg-black/20">
+                        <summary className="min-h-11 cursor-pointer px-3 py-3 text-xs font-medium text-gray-400">View domain metrics</summary>
+                        <pre className="overflow-x-auto border-t border-[#1e2135] p-3 text-[11px] leading-5 text-gray-500">
+                          {JSON.stringify(domain.metrics, null, 2)}
+                        </pre>
+                      </details>
                     ) : null}
                     {domain.error ? <div className="mt-3 text-xs text-amber-200">{domain.error}</div> : null}
                   </div>
@@ -220,23 +224,16 @@ export default function SocialPage() {
           </div>
 
           <div className="rounded-2xl border border-[#1e2135] bg-[#12141f] p-4 sm:p-5">
-            <div className="mb-4 flex gap-1 overflow-x-auto border-b border-[#1e2135]">
-              {(['posts', 'stakes', 'engagement'] as ActivityTab[]).map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setActivityTab(item)}
-                  className={
-                    '-mb-px min-h-[42px] border-b-2 px-4 text-sm capitalize transition-colors ' +
-                    (activityTab === item
-                      ? 'border-emerald-400 text-emerald-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-300')
-                  }
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
+            <SectionTabs
+              label="Social activity categories"
+              value={activityTab}
+              onChange={setActivityTab}
+              items={[
+                { value: 'posts', label: 'Posts', count: posts.length },
+                { value: 'stakes', label: 'Stakes', count: stakes.length },
+                { value: 'engagement', label: 'Engagement', count: engagement.length },
+              ]}
+            />
 
             {loading ? (
               <div className="py-12 text-center text-sm text-gray-600">Loading…</div>
@@ -246,7 +243,7 @@ export default function SocialPage() {
                 columns={['Post ID', 'Creator', 'Kind', 'Visibility', 'Date']}
                 rows={posts.map((post) => [
                   post.postId.slice(0, 12) + '…',
-                  shortAddr(post.creator),
+                  <AccountLink key={post.postId + '-creator'} address={post.creator} label={shortAddr(post.creator)} />
                   post.postKind,
                   <span key={post.postId} className={post.visibility === 'Public' ? 'text-emerald-400' : 'text-yellow-400'}>{post.visibility}</span>,
                   fmtTime(post.createdAtUnix),
@@ -258,8 +255,8 @@ export default function SocialPage() {
                 paginationLabel="stake positions"
                 columns={['Staker', 'Creator', 'Staked', 'Yield', 'State']}
                 rows={stakes.map((stake) => [
-                  shortAddr(stake.staker),
-                  shortAddr(stake.creator),
+                  <AccountLink key={stake.positionId + '-staker'} address={stake.staker} label={shortAddr(stake.staker)} />,
+                  <AccountLink key={stake.positionId + '-creator'} address={stake.creator} label={shortAddr(stake.creator)} />
                   fmtAeko(stake.stakedAmount),
                   fmtAeko(stake.accumulatedYield - stake.claimedYield),
                   <span key={stake.positionId} className={stake.state === 'active' ? 'text-emerald-400' : 'text-gray-500'}>{stake.state}</span>,
@@ -271,7 +268,7 @@ export default function SocialPage() {
                 paginationLabel="engagement events"
                 columns={['Actor', 'Action', 'Post', 'Slot']}
                 rows={engagement.map((event, index) => [
-                  shortAddr(event.actor),
+                  <AccountLink key={event.slot + '-' + index + '-actor'} address={event.actor} label={shortAddr(event.actor)} />
                   event.actionKind,
                   event.targetPostId ? event.targetPostId.slice(0, 10) + '…' : '—',
                   <span key={event.slot + '-' + index} className="tabular-nums">{event.slot.toLocaleString()}</span>,
@@ -286,7 +283,7 @@ export default function SocialPage() {
   )
 }
 
-function InfoRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function InfoRow({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-4">
       <span className="text-gray-600">{label}</span>

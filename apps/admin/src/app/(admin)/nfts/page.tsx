@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { AccountLink } from '@/components/chain-links'
 import DataTable from '@/components/data-table'
 import FeedbackAlert from '@/components/feedback-alert'
 import StatCard from '@/components/stat-card'
@@ -44,7 +45,7 @@ export default function NftsPage() {
   const frozenCount = nfts.filter((nft) => nft.frozen).length
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">NFTs</h1>
@@ -56,7 +57,7 @@ export default function NftsPage() {
           type="button"
           onClick={() => void nftsQuery.refetch()}
           disabled={nftsQuery.isFetching}
-          className="text-sm text-gray-400 hover:text-white border border-[#1e2135] rounded-lg px-4 py-2 transition-colors disabled:opacity-40"
+          className="min-h-11 rounded-xl border border-[#1e2135] px-4 text-sm text-gray-400 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
         >
           {nftsQuery.isFetching ? 'Refreshing…' : 'Refresh'}
         </button>
@@ -68,7 +69,7 @@ export default function NftsPage() {
         </FeedbackAlert>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
         <StatCard label="Total NFTs" value={nfts.length} accent />
         <StatCard label="Collections" value={uniqueCollections} />
         <StatCard label="Creators" value={uniqueCreators} />
@@ -81,8 +82,8 @@ export default function NftsPage() {
         rows={nfts.map((nft) => [
           shortAddr(nft.tokenId),
           shortAddr(nft.collectionId),
-          shortAddr(nft.owner),
-          shortAddr(nft.creator),
+          <AccountLink key={nft.tokenId + '-owner'} address={nft.owner} label={shortAddr(nft.owner)} />
+          <AccountLink key={nft.tokenId + '-creator'} address={nft.creator} label={shortAddr(nft.creator)} />
           shortText(nft.metadataUri),
           nft.frozen ? 'Frozen' : 'Active',
           nft.lastSeenSlot.toLocaleString(),
