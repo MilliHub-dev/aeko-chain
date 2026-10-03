@@ -109,9 +109,15 @@ async fn get_transaction(
         .map_err(|_| ApiError::BadRequest("invalid AEKO transaction signature".to_string()))?;
 
     let indexed = state.repository.get_transaction(&signature).await?;
+    let commitment = if indexed.is_some() {
+        "finalized"
+    } else {
+        "confirmed"
+    };
     let rpc = state.rpc.clone();
     let requested = signature.clone();
-    let rpc_detail = tokio::task::spawn_blocking(move || rpc.fetch_transaction_detail(&requested))
+    let rpc_detail =
+        tokio::task::spawn_blocking(move || rpc.fetch_transaction_detail(&requested, commitment))
         .await
         .context("live transaction detail RPC worker panicked")?;
 
@@ -176,13 +182,13 @@ async fn apply_indexed_transaction_context(
             .map(|account| {
                 let is_signer = signer.map(|value| value == account.address.as_str());
                 TransactionAccountDetailRecord {
-                index: account.account_index,
-                signer: is_signer,
-                address: account.address,
-                writable: None,
-                source: Some("indexer".to_string()),
-                pre_balance: None,
-                post_balance: None,
+                    index: account.account_index,
+                    signer: is_signer,
+                    address: account.address,
+                    writable: None,
+                    source: Some("indexer".to_string()),
+                    pre_balance: None,
+                    post_balance: None,
                 }
             })
             .collect();

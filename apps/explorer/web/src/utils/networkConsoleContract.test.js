@@ -515,6 +515,7 @@ test('Explorer search results expose an explicit navigation affordance and trans
   assert.match(chain, /preTokenBalances/);
   assert.match(chain, /logMessages/);
   assert.match(ledgerFeature, /apply_indexed_transaction_context/);
+  assert.match(ledgerFeature, /indexed\.is_some\(\)[\s\S]*"finalized"[\s\S]*"confirmed"/);
   assert.match(ledgerFeature, /indexer\+rpc-live/);
   assert.match(ledgerFeature, /live transaction detail enrichment failed; returning finalized indexed detail/);
 });

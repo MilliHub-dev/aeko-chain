@@ -144,6 +144,18 @@ async fn postgres_cursor_filters_assets_and_social_are_durable() -> Result<()> {
         .await?;
     assert_eq!(transactions.len(), 1);
 
+    let detail_accounts = repository
+        .list_transaction_accounts("integration-signature-match")
+        .await?;
+    assert_eq!(detail_accounts.len(), 2);
+    assert_eq!(detail_accounts[0].address, signer);
+
+    let detail_transfers = repository
+        .list_transaction_transfers("integration-signature-match")
+        .await?;
+    assert_eq!(detail_transfers.len(), 1);
+    assert_eq!(detail_transfers[0].amount, "25");
+
     let participant_transactions = repository
         .list_transactions(&TransactionQuery {
             address: Some(participant.clone()),

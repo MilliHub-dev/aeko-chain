@@ -168,6 +168,7 @@ impl RpcChainClient {
     pub fn fetch_transaction_detail(
         &self,
         signature: &str,
+        commitment: &str,
     ) -> Result<Option<TransactionDetailRecord>> {
         let requested = signature
             .parse::<Signature>()
@@ -177,7 +178,7 @@ impl RpcChainClient {
             json!([
                 signature,
                 {
-                    "commitment": "confirmed",
+                    "commitment": commitment,
                     "encoding": "jsonParsed",
                     "maxSupportedTransactionVersion": 0
                 }
