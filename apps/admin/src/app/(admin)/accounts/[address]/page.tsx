@@ -8,13 +8,24 @@ import FeedbackAlert from '@/components/feedback-alert'
 import StatCard from '@/components/stat-card'
 import { adminQueryKeys, ClientApiError, explorerQuery, rpcQuery } from '@/lib/client-query'
 
-function shortAddr(a: string) { return a.slice(0, 10) + '…' + a.slice(-6) }
+function shortAddr(value: string | null | undefined) {
+  if (!value) return '—'
+  return value.slice(0, 10) + '…' + value.slice(-6)
+}
 function fmtAeko(lamports: number) { return (lamports / 1e9).toLocaleString(undefined, { maximumFractionDigits: 6 }) + ' AEKO' }
 
 type Account = {
   account: { address: string; lamports: number; owner: string; executable: boolean; dataLen: number }
   profile: { nativeBalance: number; tokenCount: number; nftCount: number; reputationScore: number | null }
-  nftHoldings: { tokenId: string; name: string; collection: string }[]
+  nftHoldings: {
+    tokenId: string
+    collectionId: string | null
+    owner: string
+    creator: string
+    metadataUri: string | null
+    frozen: boolean
+    lastSeenSlot: number
+  }[]
   recentTransactions: { signature: string; slot: number; success: boolean; fee: number; primaryProgram?: string }[]
 }
 type Post = { postId: string; contentUri: string; postKind: string; createdAtUnix: number }
@@ -142,8 +153,13 @@ export default function AccountPage() {
       {tab === 'nfts' ? (
         <DataTable
           paginationLabel="NFTs"
-          columns={['Token', 'Name', 'Collection']}
-          rows={(data?.nftHoldings ?? []).map((nft) => [nft.tokenId.slice(0, 12) + '…', nft.name, shortAddr(nft.collection)])}
+          columns={['Token', 'Collection', 'Status', 'Last Seen Slot']}
+          rows={(data?.nftHoldings ?? []).map((nft) => [
+            shortAddr(nft.tokenId),
+            shortAddr(nft.collectionId),
+            nft.frozen ? 'Frozen' : 'Active',
+            nft.lastSeenSlot.toLocaleString(),
+          ])}
           empty="No NFTs"
         />
       ) : null}
