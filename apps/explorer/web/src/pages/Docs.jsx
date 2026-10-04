@@ -7,7 +7,7 @@ import {
   Network,
 } from 'lucide-react';
 import { motion as Motion, useReducedMotion } from 'framer-motion';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import DocsContent from '../components/docs/DocsContent';
 import DocsSidebar from '../components/docs/DocsSidebar';
 import NetworkToggle from '../components/NetworkToggle';
@@ -301,7 +301,14 @@ export default function Docs() {
                       </div>
                       <NetworkToggle />
                     </div>
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <Link
+                        to="/docs/editor"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-aeko-accent/35 bg-aeko-accent/10 px-3 text-xs font-semibold text-aeko-accent no-underline transition hover:bg-aeko-accent/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent/70"
+                      >
+                        Open browser editor
+                        <ArrowRight size={14} aria-hidden="true" />
+                      </Link>
                       <span className="text-[11px] font-medium text-gray-500">Share guide</span>
                       <CopyButton value={guideUrl} label="Copy guide link" compact />
                     </div>

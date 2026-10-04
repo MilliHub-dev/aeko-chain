@@ -3,6 +3,7 @@ import Layout from './components/Layout';
 import { ToasterProvider } from './components/Toaster';
 import Home from './pages/Home';
 import Docs from './pages/Docs';
+import SmartContractEditor from './pages/SmartContractEditor';
 import Token from './pages/Token';
 import Developers from './pages/Developers';
 import Contact from './pages/Contact';
@@ -43,6 +44,7 @@ function ConfiguredApp() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/docs" element={optionalRoute(settings.docsEnabled, <Docs />)} />
+          <Route path="/docs/editor" element={optionalRoute(settings.docsEnabled, <SmartContractEditor />)} />
           <Route path="/token" element={<Token />} />
           <Route path="/developers" element={optionalRoute(settings.developersEnabled, <Developers />)} />
           <Route path="/contact" element={<Contact />} />

@@ -63,6 +63,17 @@ export async function getBalance(rpcUrl, address) {
   return typeof r === 'number' ? r : r?.value ?? 0;
 }
 
+export async function getMinimumBalanceForRentExemption(rpcUrl, space) {
+  const value = await rpc(rpcUrl, 'getMinimumBalanceForRentExemption', [
+    Number(space),
+    { commitment: 'confirmed' },
+  ]);
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error('RPC did not return a valid rent-exemption balance.');
+  }
+  return value;
+}
+
 export async function requestAirdrop(rpcUrl, address, lamports) {
   return rpc(rpcUrl, 'requestAirdrop', [address, lamports]);
 }
