@@ -10,7 +10,10 @@ use {
     },
     serde::{Deserialize, Serialize},
     serde_json::{json, Value},
-    std::{path::{Component, Path}, str::FromStr},
+    std::{
+        path::{Component, Path},
+        str::FromStr,
+    },
 };
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -113,9 +116,7 @@ pub fn router() -> Router<SharedState> {
         .route("/editor/program-data-address", post(program_data_address))
 }
 
-async fn capabilities(
-    State(state): State<SharedState>,
-) -> Json<DataEnvelope<EditorCapabilities>> {
+async fn capabilities(State(state): State<SharedState>) -> Json<DataEnvelope<EditorCapabilities>> {
     let runner_enabled = state.editor.runner_url.is_some();
     response::data_from_source(
         &state.network,
@@ -291,11 +292,9 @@ async fn proxy_job(
     action: &'static str,
     request: EditorJobRequest,
 ) -> EditorResult<Json<DataEnvelope<Value>>> {
-    let base = state
-        .editor
-        .runner_url
-        .as_deref()
-        .ok_or_else(|| EditorHttpError::unavailable("The isolated AEKO compiler runner is not configured."))?;
+    let base = state.editor.runner_url.as_deref().ok_or_else(|| {
+        EditorHttpError::unavailable("The isolated AEKO compiler runner is not configured.")
+    })?;
     let url = format!("{}/v1/{action}", base.trim_end_matches('/'));
     let client = reqwest::Client::builder()
         .timeout(state.editor.request_timeout)

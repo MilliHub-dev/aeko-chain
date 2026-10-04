@@ -156,7 +156,6 @@ impl FundingControlConfig {
     }
 }
 
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EditorControlConfig {
     pub runner_url: Option<String>,
@@ -180,7 +179,9 @@ impl EditorControlConfig {
             return Err(anyhow!("AEKO_EDITOR_MAX_FILES must be greater than zero"));
         }
         if max_source_bytes == 0 {
-            return Err(anyhow!("AEKO_EDITOR_MAX_SOURCE_BYTES must be greater than zero"));
+            return Err(anyhow!(
+                "AEKO_EDITOR_MAX_SOURCE_BYTES must be greater than zero"
+            ));
         }
         if request_timeout_seconds == 0 {
             return Err(anyhow!(

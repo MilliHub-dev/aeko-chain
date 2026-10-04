@@ -320,7 +320,8 @@ async fn execute_job(
     };
 
     let diagnostics = diagnostics_from(&output.stderr);
-    let artifact = if matches!(kind, JobKind::Build) && output.status.success() && !output.timed_out {
+    let artifact = if matches!(kind, JobKind::Build) && output.status.success() && !output.timed_out
+    {
         Some(read_artifact(root, state.config.max_artifact_bytes)?)
     } else {
         None
@@ -348,7 +349,9 @@ async fn execute_job(
 
 fn validate_files(files: &[SourceFile], config: &RunnerConfig) -> Result<(), RunnerError> {
     if files.is_empty() {
-        return Err(RunnerError::bad_request("At least one Rust source file is required."));
+        return Err(RunnerError::bad_request(
+            "At least one Rust source file is required.",
+        ));
     }
     if files.len() > config.max_files {
         return Err(RunnerError::bad_request(format!(
@@ -392,14 +395,20 @@ fn validate_relative_rust_path(raw: &str) -> Result<PathBuf, RunnerError> {
     }
     let path = Path::new(raw);
     if path.is_absolute() {
-        return Err(RunnerError::bad_request("Absolute source paths are not allowed."));
+        return Err(RunnerError::bad_request(
+            "Absolute source paths are not allowed.",
+        ));
     }
 
     let mut depth = 0usize;
     for component in path.components() {
         match component {
             Component::Normal(_) => depth += 1,
-            _ => return Err(RunnerError::bad_request("Source path traversal is not allowed.")),
+            _ => {
+                return Err(RunnerError::bad_request(
+                    "Source path traversal is not allowed.",
+                ))
+            }
         }
     }
     if depth < 2 || depth > 8 || path.extension().and_then(|value| value.to_str()) != Some("rs") {
@@ -438,8 +447,9 @@ fn write_project(root: &Path, repo_root: &Path, files: &[SourceFile]) -> Result<
         let relative = validate_relative_rust_path(&file.path)?;
         let path = root.join(relative);
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|error| RunnerError::internal(format!("creating source directory: {error}")))?;
+            std::fs::create_dir_all(parent).map_err(|error| {
+                RunnerError::internal(format!("creating source directory: {error}"))
+            })?;
         }
         let mut output = File::create(&path)
             .map_err(|error| RunnerError::internal(format!("creating source file: {error}")))?;
@@ -517,10 +527,9 @@ async fn run_bounded(
         .stderr(Stdio::from(stderr))
         .kill_on_drop(true);
 
-    let status = command
-        .status()
-        .await
-        .map_err(|error| RunnerError::internal(format!("starting bounded toolchain job: {error}")))?;
+    let status = command.status().await.map_err(|error| {
+        RunnerError::internal(format!("starting bounded toolchain job: {error}"))
+    })?;
     let timed_out = matches!(status.code(), Some(124 | 137));
     Ok(ProcessOutput {
         status,
@@ -538,7 +547,9 @@ fn read_capped(path: &Path, max: usize) -> Result<String, RunnerError> {
         .read_to_end(&mut bytes)
         .map_err(|error| RunnerError::internal(format!("reading job output: {error}")))?;
     let mut output = String::from_utf8_lossy(&bytes).to_string();
-    let full_len = std::fs::metadata(path).map(|value| value.len() as usize).unwrap_or(bytes.len());
+    let full_len = std::fs::metadata(path)
+        .map(|value| value.len() as usize)
+        .unwrap_or(bytes.len());
     if full_len > bytes.len() {
         output.push_str("\n[output truncated by AEKO editor runner]\n");
     }
@@ -626,12 +637,24 @@ mod tests {
     #[test]
     fn source_hash_is_stable_across_file_order() {
         let left = vec![
-            SourceFile { path: "src/lib.rs".into(), content: "pub fn a() {}".into() },
-            SourceFile { path: "tests/a.rs".into(), content: "#[test] fn a() {}".into() },
+            SourceFile {
+                path: "src/lib.rs".into(),
+                content: "pub fn a() {}".into(),
+            },
+            SourceFile {
+                path: "tests/a.rs".into(),
+                content: "#[test] fn a() {}".into(),
+            },
         ];
         let right = vec![
-            SourceFile { path: "tests/a.rs".into(), content: "#[test] fn a() {}".into() },
-            SourceFile { path: "src/lib.rs".into(), content: "pub fn a() {}".into() },
+            SourceFile {
+                path: "tests/a.rs".into(),
+                content: "#[test] fn a() {}".into(),
+            },
+            SourceFile {
+                path: "src/lib.rs".into(),
+                content: "pub fn a() {}".into(),
+            },
         ];
         assert_eq!(hash_sources(&left), hash_sources(&right));
     }
