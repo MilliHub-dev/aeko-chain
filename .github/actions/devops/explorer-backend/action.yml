@@ -44,7 +44,9 @@ runs:
     - name: Explorer backend and editor runner format
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
-      run: cargo fmt --manifest-path apps/explorer/backend/Cargo.toml --manifest-path apps/editor-runner/Cargo.toml -- --check
+      run: |
+        cargo fmt --manifest-path apps/explorer/backend/Cargo.toml -- --check
+        cargo fmt --manifest-path apps/editor-runner/Cargo.toml -- --check
 
     - name: Explorer backend and editor runner lint
       if: ${{ inputs.validate-source == 'true' }}
