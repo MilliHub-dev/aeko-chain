@@ -53,6 +53,18 @@ export async function getGenesisHash(rpcUrl) {
   return rpc(rpcUrl, 'getGenesisHash', []);
 }
 
+export async function getVersion(rpcUrl) {
+  return rpc(rpcUrl, 'getVersion', []);
+}
+
+export async function getSupply(rpcUrl) {
+  return rpc(rpcUrl, 'getSupply', [{ commitment: 'confirmed' }]);
+}
+
+export async function getVoteAccounts(rpcUrl) {
+  return rpc(rpcUrl, 'getVoteAccounts', [{ commitment: 'confirmed' }]);
+}
+
 export async function getLatestBlockhash(rpcUrl) {
   const r = await rpc(rpcUrl, 'getLatestBlockhash', [{ commitment: 'confirmed' }]);
   return r?.value?.blockhash || r?.blockhash;

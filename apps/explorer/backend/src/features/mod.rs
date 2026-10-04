@@ -31,6 +31,7 @@ pub fn router() -> Router<SharedState> {
         .merge(registry::router())
         .merge(accounts::router())
         .merge(assets::router())
+        .merge(editor::router())
         .merge(funding::router())
         .merge(social::router())
         .merge(social_feed::router())

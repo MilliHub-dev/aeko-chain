@@ -23,6 +23,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import NetworkToggle from '../components/NetworkToggle';
+import EditorTerminal from '../components/editor/EditorTerminal';
 import { useNetwork } from '../components/NetworkContext';
 import {
   aekoToLamports,
@@ -264,11 +265,22 @@ function CodeEditor({ path, value, onChange, onSave }) {
   );
 }
 
-function OutputPanel({ tab, setTab, buildResult, testResult, deploymentLog, job }) {
+function OutputPanel({
+  tab,
+  setTab,
+  buildResult,
+  testResult,
+  deploymentLog,
+  job,
+  network,
+  config,
+  wallet,
+}) {
   const tabs = [
     ['problems', 'Problems'],
     ['build', 'Build'],
     ['tests', 'Tests'],
+    ['terminal', 'Terminal'],
     ['logs', 'Deploy logs'],
   ];
   const content = (() => {
@@ -285,9 +297,12 @@ function OutputPanel({ tab, setTab, buildResult, testResult, deploymentLog, job 
       if (!testResult) return 'Run Test to execute the project test suite in the isolated runner.';
       return [testResult.stdout, testResult.stderr].filter(Boolean).join('\n') || 'Tests completed without textual output.';
     }
-    return deploymentLog.length
-      ? deploymentLog.map((entry) => `[${entry.time}] ${entry.message}`).join('\n')
-      : 'Deploy and upgrade progress will appear here.';
+    if (tab === 'logs') {
+      return deploymentLog.length
+        ? deploymentLog.map((entry) => `[${entry.time}] ${entry.message}`).join('\n')
+        : 'Deploy and upgrade progress will appear here.';
+    }
+    return '';
   })();
 
   return (
@@ -320,9 +335,17 @@ function OutputPanel({ tab, setTab, buildResult, testResult, deploymentLog, job 
           </div>
         ) : null}
       </div>
-      <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-xs leading-5 text-gray-400">
-        {content}
-      </pre>
+      {tab === 'terminal' ? (
+        <EditorTerminal
+          network={network}
+          rpcUrl={config.rpcUrl}
+          wallet={wallet}
+        />
+      ) : (
+        <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-xs leading-5 text-gray-400">
+          {content}
+        </pre>
+      )}
     </section>
   );
 }
@@ -1120,6 +1143,9 @@ export default function SmartContractEditor() {
               testResult={testResult}
               deploymentLog={deploymentLog}
               job={job}
+              network={network}
+              config={config}
+              wallet={wallet}
             />
           </main>
 
