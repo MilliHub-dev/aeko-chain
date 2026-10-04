@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  createEmptyProject,
   createStarterProject,
   deleteFile,
   exportProject,
@@ -46,4 +47,13 @@ test('project export/import roundtrip preserves source', () => {
   const imported = importProject(exportProject(project));
   assert.equal(imported.name, 'roundtrip');
   assert.deepEqual(imported.files, project.files);
+});
+
+
+test('empty project template keeps only the required native Rust entrypoint', () => {
+  const project = createEmptyProject('blank');
+  assert.equal(project.name, 'blank');
+  assert.deepEqual(project.files.map((file) => file.path), ['src/lib.rs']);
+  assert.match(project.files[0].content, /entrypoint!\(process_instruction\)/);
+  assert.equal(validateProjectFiles(project.files), true);
 });

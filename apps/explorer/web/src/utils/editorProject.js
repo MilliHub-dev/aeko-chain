@@ -29,6 +29,24 @@ fn editor_test_harness_is_running() {
 }
 `;
 
+export const EMPTY_AEKO_SOURCE = `use aeko_program::{
+    account_info::AccountInfo,
+    entrypoint,
+    entrypoint::ProgramResult,
+    pubkey::Pubkey,
+};
+
+entrypoint!(process_instruction);
+
+pub fn process_instruction(
+    _program_id: &Pubkey,
+    _accounts: &[AccountInfo],
+    _instruction_data: &[u8],
+) -> ProgramResult {
+    Ok(())
+}
+`;
+
 function now() {
   return new Date().toISOString();
 }
@@ -93,6 +111,15 @@ export function createStarterProject(name = 'hello-aeko') {
     createdAt,
     updatedAt: createdAt,
     deployments: [],
+  };
+}
+
+export function createEmptyProject(name = 'aeko-program') {
+  const project = createStarterProject(name);
+  return {
+    ...project,
+    files: [{ path: 'src/lib.rs', content: EMPTY_AEKO_SOURCE }],
+    activeFile: 'src/lib.rs',
   };
 }
 

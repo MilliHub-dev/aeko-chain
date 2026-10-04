@@ -46,6 +46,7 @@ import {
   testEditorProject,
 } from '../utils/editorApi';
 import {
+  createEmptyProject,
   createStarterProject,
   EDITOR_MAX_SOURCE_BYTES,
   deleteFile,
@@ -72,6 +73,32 @@ const EMPTY_CAPABILITIES = {
 
 function cx(...values) {
   return values.filter(Boolean).join(' ');
+}
+
+function handleContainedDialogKeyDown(event, onClose) {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    onClose();
+    return;
+  }
+  if (event.key !== 'Tab') return;
+
+  const focusable = Array.from(event.currentTarget.querySelectorAll(
+    'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+  ));
+  if (!focusable.length) {
+    event.preventDefault();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }
 
 function ActionButton({ icon: Icon, label, onClick, disabled, primary = false, busy = false }) {
@@ -451,6 +478,7 @@ function EditorDialog({ dialog, onClose, onSubmit }) {
         aria-modal="true"
         aria-labelledby="editor-dialog-title"
         onMouseDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => handleContainedDialogKeyDown(event, onClose)}
         className="w-full max-w-md rounded-2xl border border-white/10 bg-[#111118] p-5 shadow-2xl shadow-black/50"
       >
         <div className="flex items-center justify-between gap-4">
@@ -471,8 +499,10 @@ function EditorDialog({ dialog, onClose, onSubmit }) {
             className="mt-4"
             onSubmit={(event) => {
               event.preventDefault();
-              const value = new FormData(event.currentTarget).get('value');
-              onSubmit(String(value || ''));
+              const form = new FormData(event.currentTarget);
+              const value = form.get('value');
+              const template = form.get('template');
+              onSubmit(String(value || ''), String(template || 'hello'));
             }}
           >
             <label htmlFor="editor-dialog-value" className="mb-2 block text-xs font-medium text-gray-400">
@@ -486,6 +516,22 @@ function EditorDialog({ dialog, onClose, onSubmit }) {
               placeholder={dialog.type === 'new-project' || dialog.type === 'rename-project' ? 'hello-aeko' : 'src/state.rs'}
               className="min-h-11 w-full rounded-lg border border-white/10 bg-black/30 px-3 font-mono text-sm text-white outline-none focus:border-aeko-accent focus:ring-1 focus:ring-aeko-accent"
             />
+            {dialog.type === 'new-project' ? (
+              <div className="mt-4">
+                <label htmlFor="editor-project-template" className="mb-2 block text-xs font-medium text-gray-400">
+                  Template
+                </label>
+                <select
+                  id="editor-project-template"
+                  name="template"
+                  defaultValue="hello"
+                  className="min-h-11 w-full rounded-lg border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-aeko-accent focus:ring-1 focus:ring-aeko-accent"
+                >
+                  <option value="hello">Hello AEKO starter</option>
+                  <option value="empty">Empty native Rust program</option>
+                </select>
+              </div>
+            ) : null}
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" onClick={onClose} className="min-h-11 rounded-lg px-4 text-sm text-gray-400 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent">Cancel</button>
               <button type="submit" className="min-h-11 rounded-lg bg-aeko-accent px-4 text-sm font-semibold text-black hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent">{dialog.type === 'rename' || dialog.type === 'rename-project' ? 'Rename' : 'Create'}</button>
@@ -758,10 +804,10 @@ export default function SmartContractEditor() {
     }
   };
 
-  const submitDialog = (value) => {
+  const submitDialog = (value, template = 'hello') => {
     try {
       if (dialog.type === 'new-project') {
-        const next = createStarterProject(value);
+        const next = template === 'empty' ? createEmptyProject(value) : createStarterProject(value);
         setProjects((current) => [...current, next]);
         setProjectId(next.id);
         setBuildResult(null);
@@ -1002,8 +1048,9 @@ export default function SmartContractEditor() {
             aria-modal="true"
             aria-label="Editor tools"
             onMouseDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => handleContainedDialogKeyDown(event, () => setMobilePanel(null))}
           >
-            <button type="button" onClick={() => setMobilePanel(null)} aria-label="Close editor tools" className="absolute right-3 top-20 rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent"><X size={18} /></button>
+            <button type="button" autoFocus onClick={() => setMobilePanel(null)} aria-label="Close editor tools" className="absolute right-3 top-20 rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent"><X size={18} /></button>
             {mobilePanel === 'files' ? (
               <>
                 <PanelHeader
