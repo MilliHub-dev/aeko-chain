@@ -65,6 +65,7 @@ assert_targeted_docker_publication_contract() {
   grep -Fq 'PUBLISH_NETWORK' "$publisher"
   grep -Fq 'push_image aeko-validator aeko-validator aeko-node' "$publisher"
   grep -Fq 'push_image aeko-explorer-api aeko-explorer-api aeko-explorer-backend' "$publisher"
+  grep -Fq 'push_image aeko-editor-runner aeko-editor-runner' "$publisher"
 
   echo "[ok] Docker publication is post-gate, selective, and owns one registry login"
 }
@@ -339,6 +340,7 @@ assert_split_coolify_workflow_contract() {
     "docker/coolify/faucet-tools/*" \
     "docker/coolify/validator/*" \
     "apps/explorer/backend/compose.coolify.yml|apps/explorer/backend/.env.coolify.example)" \
+    "apps/editor-runner/*)" \
     "apps/explorer/web/compose.coolify.yml|apps/explorer/web/.env.coolify.example)" \
     "apps/admin/compose.coolify.yml|apps/admin/.env.coolify.example)"; do
     grep -Fq "$path" "$classifier"

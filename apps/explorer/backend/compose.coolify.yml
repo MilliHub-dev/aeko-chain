@@ -45,7 +45,17 @@ services:
       AEKO_FUNDING_REQUESTS_PER_10_MIN: ${AEKO_FUNDING_REQUESTS_PER_10_MIN:-5}
       AEKO_FUNDING_RECONCILE_INTERVAL_SECS: ${AEKO_FUNDING_RECONCILE_INTERVAL_SECS:-5}
       AEKO_FAUCET_PER_REQUEST_CAP: ${AEKO_FAUCET_PER_REQUEST_CAP:-100}
+      AEKO_EDITOR_RUNNER_URL: http://editor-runner:8090
+      AEKO_EDITOR_MAX_FILES: ${AEKO_EDITOR_MAX_FILES:-48}
+      AEKO_EDITOR_MAX_SOURCE_BYTES: ${AEKO_EDITOR_MAX_SOURCE_BYTES:-786432}
+      AEKO_EDITOR_REQUEST_TIMEOUT_SECS: ${AEKO_EDITOR_REQUEST_TIMEOUT_SECS:-150}
       DATABASE_URL: ${EXPLORER_DATABASE_URL:-}
+    depends_on:
+      editor-runner:
+        condition: service_healthy
+    networks:
+      - default
+      - editor-internal
     expose:
       - "8088"
     healthcheck:
@@ -55,3 +65,46 @@ services:
       retries: 5
       start_period: 90s
     logging: *default-logging
+
+
+  editor-runner:
+    image: ${AEKO_IMAGE_REPOSITORY:-surdma}/aeko-editor-runner:${AEKO_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      AEKO_EDITOR_RUNNER_BIND: 0.0.0.0:8090
+      AEKO_EDITOR_REPO_ROOT: /opt/aeko
+      AEKO_EDITOR_WORK_ROOT: /work
+      AEKO_EDITOR_MAX_FILES: ${AEKO_EDITOR_MAX_FILES:-48}
+      AEKO_EDITOR_MAX_SOURCE_BYTES: ${AEKO_EDITOR_MAX_SOURCE_BYTES:-786432}
+      AEKO_EDITOR_MAX_OUTPUT_BYTES: ${AEKO_EDITOR_MAX_OUTPUT_BYTES:-524288}
+      AEKO_EDITOR_MAX_ARTIFACT_BYTES: ${AEKO_EDITOR_MAX_ARTIFACT_BYTES:-2097152}
+      AEKO_EDITOR_JOB_TIMEOUT_SECS: ${AEKO_EDITOR_JOB_TIMEOUT_SECS:-120}
+      AEKO_EDITOR_MAX_CONCURRENCY: ${AEKO_EDITOR_MAX_CONCURRENCY:-2}
+      RUST_LOG: ${AEKO_EDITOR_RUNNER_LOG_FILTER:-info,tower_http=info}
+    expose:
+      - "8090"
+    read_only: true
+    tmpfs:
+      - /work:rw,nosuid,size=2147483648
+      - /tmp:rw,nosuid,noexec,size=67108864
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 160
+    mem_limit: 2g
+    cpus: 2.0
+    networks:
+      - editor-internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8090/healthz >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *default-logging
+
+networks:
+  editor-internal:
+    internal: true

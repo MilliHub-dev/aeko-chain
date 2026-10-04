@@ -41,15 +41,15 @@ runs:
           fi
         fi
 
-    - name: Explorer backend format
+    - name: Explorer backend and editor runner format
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
-      run: cargo fmt --manifest-path apps/explorer/backend/Cargo.toml -- --check
+      run: cargo fmt --manifest-path apps/explorer/backend/Cargo.toml --manifest-path apps/editor-runner/Cargo.toml -- --check
 
-    - name: Explorer backend lint
+    - name: Explorer backend and editor runner lint
       if: ${{ inputs.validate-source == 'true' }}
       shell: bash
-      run: cargo clippy --locked -p aeko-explorer-backend --all-targets --no-deps -- -D warnings
+      run: cargo clippy --locked -p aeko-explorer-backend -p aeko-editor-runner --all-targets --no-deps -- -D warnings
 
     - name: Start isolated PostgreSQL
       if: ${{ inputs.validate-source == 'true' }}
@@ -83,7 +83,7 @@ runs:
       shell: bash
       env:
         AEKO_EXPLORER_TEST_DATABASE_URL: postgres://aeko:aeko@127.0.0.1:5432/aeko_explorer_test
-      run: cargo test --locked -p aeko-explorer-backend
+      run: cargo test --locked -p aeko-explorer-backend -p aeko-editor-runner
 
     - name: Stop isolated PostgreSQL
       if: ${{ always() && inputs.validate-source == 'true' }}
@@ -93,7 +93,7 @@ runs:
     - name: Explorer backend release build
       if: ${{ inputs.validate-source == 'true' && inputs.host-build == 'true' && inputs.build-image != 'true' }}
       shell: bash
-      run: cargo build --locked --release -p aeko-explorer-backend
+      run: cargo build --locked --release -p aeko-explorer-backend -p aeko-editor-runner
 
     - name: Build Explorer API image
       if: ${{ inputs.build-image == 'true' }}
@@ -121,9 +121,22 @@ runs:
           --load \
           .
 
+        runner_tags=(--tag "aeko-ci/aeko-editor-runner:${SHA_TAG}")
+        if [ "$PUBLISH" = "true" ]; then
+          runner_tags+=(--tag "${REGISTRY_USER}/aeko-editor-runner:${SHA_TAG}")
+        fi
+        docker buildx build \
+          --file apps/editor-runner/Dockerfile \
+          --cache-from "type=gha,scope=aeko-editor-runner" \
+          --cache-to "type=gha,scope=aeko-editor-runner,mode=max,ignore-error=true" \
+          "${runner_tags[@]}" \
+          --load \
+          .
+
         if [ "$PUBLISH" = "true" ]; then
           docker push "${REGISTRY_USER}/aeko-explorer-api:${SHA_TAG}"
           docker push "${REGISTRY_USER}/aeko-explorer-backend:${SHA_TAG}"
+          docker push "${REGISTRY_USER}/aeko-editor-runner:${SHA_TAG}"
         fi
 
     - name: Verify Explorer API image exists
@@ -131,4 +144,6 @@ runs:
       shell: bash
       env:
         SHA_TAG: ${{ inputs.sha-tag }}
-      run: docker image inspect "aeko-ci/aeko-explorer-api:${SHA_TAG}" >/dev/null
+      run: |
+        docker image inspect "aeko-ci/aeko-explorer-api:${SHA_TAG}" >/dev/null
+        docker image inspect "aeko-ci/aeko-editor-runner:${SHA_TAG}" >/dev/null

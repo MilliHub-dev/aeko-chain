@@ -923,6 +923,22 @@ dependencies = [
  "serde",
 ]
 
+
+[[package]]
+name = "aeko-editor-runner"
+version = "2.0.0"
+dependencies = [
+ "axum 0.7.5",
+ "base64 0.22.0",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "tempfile",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+]
 [[package]]
 name = "aeko-explorer-backend"
 version = "2.0.0"

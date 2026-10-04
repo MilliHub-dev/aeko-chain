@@ -5,6 +5,7 @@ use {crate::state::SharedState, axum::Router};
 
 pub mod accounts;
 pub mod assets;
+pub mod editor;
 pub mod funding;
 pub mod health;
 pub mod ledger;

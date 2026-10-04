@@ -57,8 +57,9 @@ if [ "$PUBLISH_NETWORK" = true ]; then
 fi
 
 if [ "$PUBLISH_EXPLORER_BACKEND" = true ]; then
-  load_image_set "$ARTIFACT_ROOT/explorer-api" aeko-explorer-api-image.tar.gz
+  load_image_set "$ARTIFACT_ROOT/explorer-api" aeko-explorer-backend-images.tar.gz
   push_image aeko-explorer-api aeko-explorer-api aeko-explorer-backend
+  push_image aeko-editor-runner aeko-editor-runner
 fi
 
 if [ "$PUBLISH_EXPLORER_WEB" = true ]; then

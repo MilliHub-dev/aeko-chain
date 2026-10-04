@@ -1,6 +1,6 @@
 use {
     crate::{
-        config::{FundingControlConfig, ServerConfig, SettingsControlConfig},
+        config::{EditorControlConfig, FundingControlConfig, ServerConfig, SettingsControlConfig},
         features::funding,
         http::{self, state::AppState},
         indexing::service::IndexerService,
@@ -24,6 +24,8 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
         .context("loading Explorer settings control environment")?;
     let funding_control = FundingControlConfig::from_env(&backend.network)
         .context("loading Explorer funding control environment")?;
+    let editor_control = EditorControlConfig::from_env()
+        .context("loading Explorer editor control environment")?;
 
     let startup_rpc = rpc.clone();
     tokio::task::spawn_blocking(move || startup_rpc.health())
@@ -112,6 +114,7 @@ pub async fn run(rpc: RpcChainClient) -> Result<()> {
         funding_control.requests_per_10_min,
         funding_control.faucet_per_request_cap_aeko,
     )
+    .with_editor_config(editor_control)
     .shared();
 
     if state.is_funding_available() {
