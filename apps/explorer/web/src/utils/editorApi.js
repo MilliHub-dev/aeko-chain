@@ -11,10 +11,13 @@ async function read(response, label) {
   }
   const payload = await response.json();
   if (!response.ok || !payload?.data) {
-    const error = new Error(payload?.error?.message || `${label} failed with HTTP ${response.status}.`);
-    error.code = payload?.error?.code;
-    error.status = response.status;
-    throw error;
+    throw Object.assign(
+      new Error(payload?.error?.message || `${label} failed with HTTP ${response.status}.`),
+      {
+        code: payload?.error?.code,
+        status: response.status,
+      },
+    );
   }
   return payload.data;
 }

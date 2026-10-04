@@ -109,7 +109,7 @@ function handleContainedDialogKeyDown(event, onClose) {
   }
 }
 
-function ActionButton({ icon: Icon, label, onClick, disabled, primary = false, busy = false }) {
+function ActionButton({ icon: Icon, label, onClick, disabled = false, primary = false, busy = false }) {
   return (
     <button
       type="button"
@@ -130,7 +130,7 @@ function ActionButton({ icon: Icon, label, onClick, disabled, primary = false, b
   );
 }
 
-function PanelHeader({ title, action }) {
+function PanelHeader({ title, action = null }) {
   return (
     <div className="flex h-11 items-center justify-between border-b border-white/10 px-3">
       <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">{title}</span>

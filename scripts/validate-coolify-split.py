@@ -30,7 +30,7 @@ RESOURCES = {
     "explorer-api": (
         ROOT / "apps" / "explorer" / "backend" / "compose.coolify.yml",
         ROOT / "apps" / "explorer" / "backend" / ".env.coolify.example",
-        ["explorer-api"],
+        ["explorer-api", "editor-runner"],
     ),
     "explorer-ui": (
         ROOT / "apps" / "explorer" / "web" / "compose.coolify.yml",
@@ -74,6 +74,9 @@ def service_names(compose: str) -> list[str]:
     marker = re.search(r"^services:\s*$", compose, re.MULTILINE)
     require(marker is not None, "Compose file has no services block")
     tail = compose[marker.end() :]
+    top_level = re.search(r"^(?:networks|volumes):\s*$", tail, re.MULTILINE)
+    if top_level:
+        tail = tail[: top_level.start()]
     return re.findall(r"^  ([A-Za-z0-9_.-]+):\s*$", tail, re.MULTILINE)
 
 
@@ -81,8 +84,12 @@ def service_block(compose: str, service: str) -> str:
     match = re.search(rf"^  {re.escape(service)}:\s*$", compose, re.MULTILINE)
     require(match is not None, f"missing service block: {service}")
     tail = compose[match.end() :]
-    next_service = re.search(r"^  [A-Za-z0-9_.-]+:\s*$", tail, re.MULTILINE)
-    return tail[: next_service.start()] if next_service else tail
+    boundary = re.search(
+        r"^(?:  [A-Za-z0-9_.-]+:|networks:|volumes:)\s*$",
+        tail,
+        re.MULTILINE,
+    )
+    return tail[: boundary.start()] if boundary else tail
 
 
 def interpolated_names(compose: str) -> set[str]:
@@ -372,6 +379,39 @@ def main() -> int:
     require(
         "AEKO_EXPLORER_CORS_ORIGINS: ${AEKO_EXPLORER_CORS_ORIGINS:-}" in explorer_api,
         "Explorer API split resource must pass the browser CORS allowlist through for application validation",
+    )
+    explorer_service = service_block(explorer_api, "explorer-api")
+    editor_runner = service_block(explorer_api, "editor-runner")
+    require(
+        "AEKO_EDITOR_RUNNER_URL: http://editor-runner:8090" in explorer_service
+        and "editor-runner:" in explorer_service
+        and "condition: service_healthy" in explorer_service,
+        "Explorer API must reach the editor runner only through its private service contract",
+    )
+    require(
+        "ports:" not in editor_runner and 'expose:\n      - "8090"' in editor_runner,
+        "editor runner must not publish a host port",
+    )
+    for isolation_contract in (
+        "read_only: true",
+        "cap_drop:",
+        "- ALL",
+        "no-new-privileges:true",
+        "/work:rw,nosuid",
+        "/tmp:rw,nosuid,noexec",
+        "pids_limit:",
+        "mem_limit:",
+        "cpus:",
+        "- editor-internal",
+    ):
+        require(
+            isolation_contract in editor_runner,
+            f"editor runner missing isolation control: {isolation_contract}",
+        )
+    require(
+        re.search(r"^networks:\s*\n  editor-internal:\s*\n    internal: true\s*$", explorer_api, re.MULTILINE)
+        is not None,
+        "editor runner network must remain internal-only",
     )
     for forbidden_prompt in (
         "AEKO_RPC_URL:?Set ",

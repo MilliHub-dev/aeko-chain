@@ -85,7 +85,7 @@ function upgradeInstruction({ program, programData, buffer, authority, spill }) 
   ]);
 }
 
-function closeInstruction({ closeAddress, recipient, authority, program }) {
+function closeInstruction({ closeAddress, recipient, authority, program = null }) {
   return loaderInstruction(5, new Uint8Array(), [
     { address: closeAddress, isWritable: true },
     { address: recipient, isWritable: true },
@@ -145,13 +145,10 @@ function parseProgramDataState(programDataAccount) {
 }
 
 function attachRecovery(error, bufferAddress) {
-  if (error && typeof error === 'object') {
-    error.recoveryBufferAddress = bufferAddress;
-    return error;
-  }
-  const wrapped = new Error(String(error || 'Program deployment failed.'));
-  wrapped.recoveryBufferAddress = bufferAddress;
-  return wrapped;
+  const wrapped = error instanceof Error
+    ? error
+    : new Error(String(error || 'Program deployment failed.'));
+  return Object.assign(wrapped, { recoveryBufferAddress: bufferAddress });
 }
 
 async function submit({ rpcUrl, wallet, instructions, additionalSigners = [] }) {
