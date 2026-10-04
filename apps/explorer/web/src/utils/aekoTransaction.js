@@ -39,6 +39,7 @@ export function decodeBase58(value) {
 export function encodeBase58(bytes) {
   let zeros = 0;
   while (zeros < bytes.length && bytes[zeros] === 0) zeros += 1;
+  if (zeros === bytes.length) return '1'.repeat(zeros);
   const digits = [0];
   for (let index = zeros; index < bytes.length; index += 1) {
     let carry = bytes[index];
