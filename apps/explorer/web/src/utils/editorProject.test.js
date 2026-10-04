@@ -6,6 +6,7 @@ import {
   deleteFile,
   exportProject,
   importProject,
+  removeDeployment,
   normalizeEditorPath,
   renameFile,
   setFileContent,
@@ -56,4 +57,21 @@ test('empty project template keeps only the required native Rust entrypoint', ()
   assert.deepEqual(project.files.map((file) => file.path), ['src/lib.rs']);
   assert.match(project.files[0].content, /entrypoint!\(process_instruction\)/);
   assert.equal(validateProjectFiles(project.files), true);
+});
+
+
+test('closed deployments are removed only for the matching network and program', () => {
+  const project = {
+    ...createStarterProject('deployments'),
+    deployments: [
+      { network: 'testnet', programId: 'one' },
+      { network: 'testnet', programId: 'two' },
+      { network: 'localnet', programId: 'one' },
+    ],
+  };
+  const next = removeDeployment(project, 'testnet', 'one');
+  assert.deepEqual(
+    next.deployments.map((item) => [item.network, item.programId]),
+    [['testnet', 'two'], ['localnet', 'one']],
+  );
 });

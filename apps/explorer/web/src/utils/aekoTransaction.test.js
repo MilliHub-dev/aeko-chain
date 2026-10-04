@@ -70,3 +70,21 @@ test('system create-account instruction uses the canonical 52-byte wire payload'
   assert.equal(instruction.data.length, 52);
   assert.deepEqual(Array.from(instruction.data.slice(0, 4)), [0, 0, 0, 0]);
 });
+
+
+test('legacy transaction builder rejects packets larger than the AEKO wire limit', () => {
+  const payer = generateTestWallet('payer');
+  const recentBlockhash = encodeBase58(new Uint8Array(32).fill(9));
+  assert.throws(
+    () => buildSignedLegacyTransaction({
+      feePayer: payer,
+      recentBlockhash,
+      instructions: [{
+        programId: SYSTEM_PROGRAM_ID,
+        keys: [{ address: payer.address, isSigner: true, isWritable: true }],
+        data: new Uint8Array(1400),
+      }],
+    }),
+    /1232 bytes/,
+  );
+});

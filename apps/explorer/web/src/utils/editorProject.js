@@ -277,3 +277,13 @@ export function recordDeployment(project, deployment) {
     updatedAt: now(),
   };
 }
+
+export function removeDeployment(project, network, programId) {
+  return {
+    ...project,
+    deployments: (project.deployments || []).filter(
+      (item) => !(item.network === network && item.programId === programId),
+    ),
+    updatedAt: now(),
+  };
+}

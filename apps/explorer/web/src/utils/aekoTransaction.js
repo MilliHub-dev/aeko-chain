@@ -214,7 +214,15 @@ export function buildSignedLegacyTransaction({
     return nacl.sign.detached(message, signer.secretKey);
   });
 
-  return bytesToBase64(
-    concatBytes(encodeShortVec(signatures.length), ...signatures, message),
+  const transaction = concatBytes(
+    encodeShortVec(signatures.length),
+    ...signatures,
+    message,
   );
+  if (transaction.length > 1232) {
+    throw new Error(
+      `Transaction is ${transaction.length} bytes; AEKO legacy transactions must fit within 1232 bytes.`,
+    );
+  }
+  return bytesToBase64(transaction);
 }

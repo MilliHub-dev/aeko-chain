@@ -85,6 +85,24 @@ function upgradeInstruction({ program, programData, buffer, authority, spill }) 
   ]);
 }
 
+function closeInstruction({ closeAddress, recipient, authority, program }) {
+  return loaderInstruction(5, new Uint8Array(), [
+    { address: closeAddress, isWritable: true },
+    { address: recipient, isWritable: true },
+    ...(authority ? [{ address: authority, isSigner: true }] : []),
+    ...(program ? [{ address: program, isWritable: true }] : []),
+  ]);
+}
+
+function extendProgramInstruction({ program, programData, payer, additionalBytes }) {
+  return loaderInstruction(6, encodeU32(additionalBytes), [
+    { address: programData, isWritable: true },
+    { address: program, isWritable: true },
+    { address: SYSTEM_PROGRAM_ID },
+    { address: payer, isSigner: true, isWritable: true },
+  ]);
+}
+
 function decodeAccountData(account) {
   const encoded = account?.data?.[0];
   if (!encoded) throw new Error('Program account did not return base64 account data.');
@@ -102,7 +120,7 @@ function parseUpgradeableProgram(programAccount) {
   return encodeBase58(bytes.slice(4, 36));
 }
 
-function parseProgramDataAuthority(programDataAccount) {
+function parseProgramDataState(programDataAccount) {
   if (programDataAccount?.owner !== UPGRADEABLE_LOADER_ID) {
     throw new Error('ProgramData account is not owned by the AEKO upgradeable loader.');
   }
@@ -111,11 +129,29 @@ function parseProgramDataAuthority(programDataAccount) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (view.getUint32(0, true) !== 3) throw new Error('Account is not upgradeable ProgramData.');
   const option = bytes[12];
-  if (option === 0) return null;
-  if (option !== 1 || bytes.length < PROGRAMDATA_METADATA_BYTES) {
+  let authority = null;
+  if (option === 1) {
+    if (bytes.length < PROGRAMDATA_METADATA_BYTES) {
+      throw new Error('ProgramData authority metadata is invalid.');
+    }
+    authority = encodeBase58(bytes.slice(13, 45));
+  } else if (option !== 0) {
     throw new Error('ProgramData authority metadata is invalid.');
   }
-  return encodeBase58(bytes.slice(13, 45));
+  return {
+    authority,
+    capacity: Math.max(0, bytes.length - PROGRAMDATA_METADATA_BYTES),
+  };
+}
+
+function attachRecovery(error, bufferAddress) {
+  if (error && typeof error === 'object') {
+    error.recoveryBufferAddress = bufferAddress;
+    return error;
+  }
+  const wrapped = new Error(String(error || 'Program deployment failed.'));
+  wrapped.recoveryBufferAddress = bufferAddress;
+  return wrapped;
 }
 
 async function submit({ rpcUrl, wallet, instructions, additionalSigners = [] }) {
@@ -134,57 +170,65 @@ async function submit({ rpcUrl, wallet, instructions, additionalSigners = [] }) 
 
 async function createAndFillBuffer({ rpcUrl, wallet, programBytes, onProgress }) {
   const buffer = generateEphemeralSigner();
-  const rent = await getMinimumBalanceForRentExemption(
-    rpcUrl,
-    BUFFER_METADATA_BYTES + programBytes.length,
-  );
+  try {
+    const rent = await getMinimumBalanceForRentExemption(
+      rpcUrl,
+      BUFFER_METADATA_BYTES + programBytes.length,
+    );
 
-  onProgress?.({ stage: 'buffer', message: 'Creating upgradeable program buffer…', progress: 5 });
-  const createSignature = await submit({
-    rpcUrl,
-    wallet,
-    additionalSigners: [buffer],
-    instructions: [
-      createSystemAccountInstruction({
-        from: wallet.address,
-        newAccount: buffer.address,
-        lamports: rent,
-        space: BUFFER_METADATA_BYTES + programBytes.length,
-        owner: UPGRADEABLE_LOADER_ID,
-      }),
-      initializeBufferInstruction(buffer.address, wallet.address),
-    ],
-  });
-
-  const totalChunks = Math.ceil(programBytes.length / WRITE_CHUNK_BYTES);
-  const writeSignatures = [];
-  for (let index = 0; index < totalChunks; index += 1) {
-    const offset = index * WRITE_CHUNK_BYTES;
-    const chunk = programBytes.slice(offset, offset + WRITE_CHUNK_BYTES);
-    onProgress?.({
-      stage: 'write',
-      message: `Writing program bytes ${index + 1}/${totalChunks}…`,
-      progress: 10 + Math.round(((index + 1) / totalChunks) * 65),
-    });
-    const signature = await submit({
+    onProgress?.({ stage: 'buffer', message: 'Creating upgradeable program buffer…', progress: 5 });
+    const createSignature = await submit({
       rpcUrl,
       wallet,
+      additionalSigners: [buffer],
       instructions: [
-        writeBufferInstruction(buffer.address, wallet.address, offset, chunk),
+        createSystemAccountInstruction({
+          from: wallet.address,
+          newAccount: buffer.address,
+          lamports: rent,
+          space: BUFFER_METADATA_BYTES + programBytes.length,
+          owner: UPGRADEABLE_LOADER_ID,
+        }),
+        initializeBufferInstruction(buffer.address, wallet.address),
       ],
     });
-    writeSignatures.push(signature);
-  }
 
-  return { buffer, createSignature, writeSignatures };
+    const totalChunks = Math.ceil(programBytes.length / WRITE_CHUNK_BYTES);
+    const writeSignatures = [];
+    for (let index = 0; index < totalChunks; index += 1) {
+      const offset = index * WRITE_CHUNK_BYTES;
+      const chunk = programBytes.slice(offset, offset + WRITE_CHUNK_BYTES);
+      onProgress?.({
+        stage: 'write',
+        message: `Writing program bytes ${index + 1}/${totalChunks}…`,
+        progress: 10 + Math.round(((index + 1) / totalChunks) * 65),
+      });
+      const signature = await submit({
+        rpcUrl,
+        wallet,
+        instructions: [
+          writeBufferInstruction(buffer.address, wallet.address, offset, chunk),
+        ],
+      });
+      writeSignatures.push(signature);
+    }
+
+    return { buffer, createSignature, writeSignatures };
+  } catch (error) {
+    throw attachRecovery(error, buffer.address);
+  }
+}
+
+function assertWritableLifecycle({ network, wallet }) {
+  if (!wallet?.address) throw new Error('Select a development wallet first.');
+  if (network === 'mainnet') {
+    throw new Error('Browser editor program writes are intentionally disabled on AEKO Mainnet.');
+  }
 }
 
 function assertDeployable({ network, artifact, wallet }) {
-  if (!wallet?.address) throw new Error('Select a development wallet before deploying.');
+  assertWritableLifecycle({ network, wallet });
   if (!artifact?.base64) throw new Error('Build the project successfully before deploying.');
-  if (network === 'mainnet') {
-    throw new Error('Browser editor deployment is intentionally disabled on AEKO Mainnet.');
-  }
 }
 
 export async function deployProgram({
@@ -222,28 +266,33 @@ export async function deployProgram({
   });
 
   onProgress?.({ stage: 'deploy', message: 'Finalizing upgradeable program…', progress: 90 });
-  const deploySignature = await submit({
-    rpcUrl,
-    wallet,
-    additionalSigners: [program],
-    instructions: [
-      createSystemAccountInstruction({
-        from: wallet.address,
-        newAccount: program.address,
-        lamports: programRent,
-        space: PROGRAM_ACCOUNT_BYTES,
-        owner: UPGRADEABLE_LOADER_ID,
-      }),
-      deployInstruction({
-        payer: wallet.address,
-        program: program.address,
-        programData: programDataAddress,
-        buffer: bufferResult.buffer.address,
-        authority: wallet.address,
-        maxDataLen,
-      }),
-    ],
-  });
+  let deploySignature;
+  try {
+    deploySignature = await submit({
+      rpcUrl,
+      wallet,
+      additionalSigners: [program],
+      instructions: [
+        createSystemAccountInstruction({
+          from: wallet.address,
+          newAccount: program.address,
+          lamports: programRent,
+          space: PROGRAM_ACCOUNT_BYTES,
+          owner: UPGRADEABLE_LOADER_ID,
+        }),
+        deployInstruction({
+          payer: wallet.address,
+          program: program.address,
+          programData: programDataAddress,
+          buffer: bufferResult.buffer.address,
+          authority: wallet.address,
+          maxDataLen,
+        }),
+      ],
+    });
+  } catch (error) {
+    throw attachRecovery(error, bufferResult.buffer.address);
+  }
 
   onProgress?.({ stage: 'confirmed', message: 'Program deployed and confirmed.', progress: 100 });
   return {
@@ -274,13 +323,39 @@ export async function upgradeProgram({
   const programDataAddress = parseUpgradeableProgram(programAccount);
   const programDataAccount = await getAccountInfo(rpcUrl, programDataAddress);
   if (!programDataAccount) throw new Error('ProgramData account was not found on the selected network.');
-  const authority = parseProgramDataAuthority(programDataAccount);
+  const programDataState = parseProgramDataState(programDataAccount);
+  const authority = programDataState.authority;
   if (!authority) throw new Error('This program is immutable and cannot be upgraded.');
   if (authority !== wallet.address) {
     throw new Error(`Selected wallet is not the program upgrade authority. Authority: ${authority}`);
   }
 
   const programBytes = decodeBase64(artifact.base64);
+  if (programBytes.length > programDataState.capacity) {
+    const targetCapacity = Math.max(programBytes.length, programBytes.length * 2);
+    const additionalBytes = targetCapacity - programDataState.capacity;
+    if (additionalBytes > 0xffffffff) {
+      throw new Error('Program growth exceeds the upgradeable loader extension limit.');
+    }
+    onProgress?.({
+      stage: 'extend',
+      message: `Extending ProgramData capacity by ${additionalBytes.toLocaleString()} bytes…`,
+      progress: 4,
+    });
+    await submit({
+      rpcUrl,
+      wallet,
+      instructions: [
+        extendProgramInstruction({
+          program: programId,
+          programData: programDataAddress,
+          payer: wallet.address,
+          additionalBytes,
+        }),
+      ],
+    });
+  }
+
   const bufferResult = await createAndFillBuffer({
     rpcUrl,
     wallet,
@@ -289,19 +364,24 @@ export async function upgradeProgram({
   });
 
   onProgress?.({ stage: 'upgrade', message: 'Applying program upgrade…', progress: 92 });
-  const signature = await submit({
-    rpcUrl,
-    wallet,
-    instructions: [
-      upgradeInstruction({
-        program: programId,
-        programData: programDataAddress,
-        buffer: bufferResult.buffer.address,
-        authority: wallet.address,
-        spill: wallet.address,
-      }),
-    ],
-  });
+  let signature;
+  try {
+    signature = await submit({
+      rpcUrl,
+      wallet,
+      instructions: [
+        upgradeInstruction({
+          program: programId,
+          programData: programDataAddress,
+          buffer: bufferResult.buffer.address,
+          authority: wallet.address,
+          spill: wallet.address,
+        }),
+      ],
+    });
+  } catch (error) {
+    throw attachRecovery(error, bufferResult.buffer.address);
+  }
 
   onProgress?.({ stage: 'confirmed', message: 'Program upgrade confirmed.', progress: 100 });
   return {
@@ -312,6 +392,82 @@ export async function upgradeProgram({
     bufferSignature: bufferResult.createSignature,
     writeSignatures: bufferResult.writeSignatures,
   };
+}
+
+export async function recoverProgramBuffer({
+  network,
+  rpcUrl,
+  wallet,
+  bufferAddress,
+  onProgress,
+}) {
+  assertWritableLifecycle({ network, wallet });
+  if (!bufferAddress) throw new Error('No recoverable buffer address was supplied.');
+
+  onProgress?.({ stage: 'recover', message: 'Checking interrupted deployment buffer…', progress: 20 });
+  const account = await getAccountInfo(rpcUrl, bufferAddress);
+  if (!account) {
+    onProgress?.({ stage: 'recover', message: 'Buffer is already consumed or closed.', progress: 100 });
+    return { bufferAddress, signature: null, alreadyClosed: true };
+  }
+  if (account.owner !== UPGRADEABLE_LOADER_ID) {
+    throw new Error('Recovery address is not owned by the AEKO upgradeable loader.');
+  }
+
+  const signature = await submit({
+    rpcUrl,
+    wallet,
+    instructions: [
+      closeInstruction({
+        closeAddress: bufferAddress,
+        recipient: wallet.address,
+        authority: wallet.address,
+      }),
+    ],
+  });
+  onProgress?.({ stage: 'recover', message: 'Recovered buffer rent to the development wallet.', progress: 100 });
+  return { bufferAddress, signature, alreadyClosed: false };
+}
+
+export async function closeProgram({
+  network,
+  rpcUrl,
+  wallet,
+  programId,
+  onProgress,
+}) {
+  assertWritableLifecycle({ network, wallet });
+  if (!programId) throw new Error('A deployed program id is required.');
+
+  onProgress?.({ stage: 'verify', message: 'Verifying program close authority…', progress: 10 });
+  const programAccount = await getAccountInfo(rpcUrl, programId);
+  if (!programAccount) {
+    return { programId, signature: null, alreadyClosed: true };
+  }
+  const programDataAddress = parseUpgradeableProgram(programAccount);
+  const programDataAccount = await getAccountInfo(rpcUrl, programDataAddress);
+  if (!programDataAccount) throw new Error('ProgramData account was not found on the selected network.');
+  const { authority } = parseProgramDataState(programDataAccount);
+  if (!authority) throw new Error('This program is immutable and cannot be closed by an upgrade authority.');
+  if (authority !== wallet.address) {
+    throw new Error(`Selected wallet is not the program close authority. Authority: ${authority}`);
+  }
+
+  onProgress?.({ stage: 'close', message: 'Closing program and recovering program rent…', progress: 70 });
+  const signature = await submit({
+    rpcUrl,
+    wallet,
+    instructions: [
+      closeInstruction({
+        closeAddress: programDataAddress,
+        recipient: wallet.address,
+        authority: wallet.address,
+        program: programId,
+      }),
+    ],
+  });
+  onProgress?.({ stage: 'close', message: 'Program closed and rent recovered.', progress: 100 });
+  return { programId, programDataAddress, signature, alreadyClosed: false };
 }
 
 export function validateProgramArtifactBase64(value) {

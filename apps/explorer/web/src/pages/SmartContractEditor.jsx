@@ -39,7 +39,13 @@ import {
   saveWallets,
   shortAddress,
 } from '../utils/aekoTestKeypair';
-import { deployProgram, upgradeProgram, validateProgramArtifactBase64 } from '../utils/aekoProgramDeploy';
+import {
+  closeProgram,
+  deployProgram,
+  recoverProgramBuffer,
+  upgradeProgram,
+  validateProgramArtifactBase64,
+} from '../utils/aekoProgramDeploy';
 import {
   buildEditorProject,
   getEditorCapabilities,
@@ -55,6 +61,7 @@ import {
   loadProjects,
   recordBuild,
   recordDeployment,
+  removeDeployment,
   renameFile,
   saveProjects,
   setFileContent,
@@ -335,6 +342,10 @@ function ContextPanel({
   fundingBusy,
   buildResult,
   deployment,
+  recoverableBuffer,
+  onRecoverBuffer,
+  onRequestCloseProgram,
+  lifecycleBusy,
 }) {
   return (
     <aside className="flex min-h-0 flex-col bg-[#0b0b10]">
@@ -433,6 +444,23 @@ function ContextPanel({
           )}
         </section>
 
+        {recoverableBuffer ? (
+          <section className="border-t border-amber-400/15 pt-4">
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-300">Interrupted buffer</div>
+            <p className="truncate font-mono text-[10px] text-gray-500" title={recoverableBuffer}>
+              {recoverableBuffer}
+            </p>
+            <button
+              type="button"
+              onClick={onRecoverBuffer}
+              disabled={lifecycleBusy}
+              className="mt-2 min-h-10 w-full rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-3 text-xs font-medium text-amber-200 hover:bg-amber-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:opacity-50"
+            >
+              Recover buffer rent
+            </button>
+          </section>
+        ) : null}
+
         <section className="border-t border-white/10 pt-4">
           <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-600">Latest deployment</div>
           {deployment ? (
@@ -449,6 +477,16 @@ function ContextPanel({
               >
                 tx {shortAddress(deployment.signature)}
               </Link>
+              {network !== 'mainnet' ? (
+                <button
+                  type="button"
+                  onClick={onRequestCloseProgram}
+                  disabled={lifecycleBusy}
+                  className="mt-2 min-h-10 w-full rounded-lg border border-red-500/20 px-3 text-xs font-medium text-red-300 hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-50"
+                >
+                  Close program and recover rent
+                </button>
+              ) : null}
             </div>
           ) : (
             <p className="text-xs text-gray-600">Nothing deployed from this project on {config.label} yet.</p>
@@ -461,7 +499,7 @@ function ContextPanel({
 
 function EditorDialog({ dialog, onClose, onSubmit }) {
   if (!dialog) return null;
-  const isDelete = dialog.type === 'delete' || dialog.type === 'delete-project';
+  const isDelete = dialog.type === 'delete' || dialog.type === 'delete-project' || dialog.type === 'close-program';
   const title = {
     'new-project': 'New AEKO project',
     'new-file': 'New Rust file',
@@ -469,6 +507,7 @@ function EditorDialog({ dialog, onClose, onSubmit }) {
     'rename-project': 'Rename project',
     delete: 'Delete source file',
     'delete-project': 'Delete project',
+    'close-program': 'Close deployed program',
   }[dialog.type];
 
   return (
@@ -489,10 +528,13 @@ function EditorDialog({ dialog, onClose, onSubmit }) {
         </div>
         {isDelete ? (
           <p className="mt-4 text-sm leading-6 text-gray-400">
-            Delete <span className="font-mono text-gray-200">{dialog.path || dialog.value}</span>?
+            {dialog.type === 'close-program' ? 'Close ' : 'Delete '}
+            <span className="font-mono text-gray-200">{dialog.path || dialog.value}</span>?
             {dialog.type === 'delete-project'
               ? ' This removes the browser-local project and its saved deployment history.'
-              : ' This removes the file from the local project.'}
+              : dialog.type === 'close-program'
+                ? ' This submits an irreversible loader Close transaction and returns the program rent to the selected development wallet.'
+                : ' This removes the file from the local project.'}
           </p>
         ) : (
           <form
@@ -541,7 +583,9 @@ function EditorDialog({ dialog, onClose, onSubmit }) {
         {isDelete ? (
           <div className="mt-5 flex justify-end gap-2">
             <button type="button" onClick={onClose} className="min-h-11 rounded-lg px-4 text-sm text-gray-400 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent">Cancel</button>
-            <button type="button" autoFocus onClick={() => onSubmit(dialog.path || dialog.value)} className="min-h-11 rounded-lg bg-red-500 px-4 text-sm font-semibold text-white hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400">{dialog.type === 'delete-project' ? 'Delete project' : 'Delete file'}</button>
+            <button type="button" autoFocus onClick={() => onSubmit(dialog.path || dialog.value)} className="min-h-11 rounded-lg bg-red-500 px-4 text-sm font-semibold text-white hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
+              {dialog.type === 'delete-project' ? 'Delete project' : dialog.type === 'close-program' ? 'Close program' : 'Delete file'}
+            </button>
           </div>
         ) : null}
       </div>
@@ -573,6 +617,7 @@ export default function SmartContractEditor() {
   const [walletId, setWalletId] = useState(() => loadWallets()[0]?.id || '');
   const [balance, setBalance] = useState(0);
   const [fundingBusy, setFundingBusy] = useState(false);
+  const [recoverableBuffer, setRecoverableBuffer] = useState(null);
   const [saveState, setSaveState] = useState('saved');
   const importRef = useRef(null);
 
@@ -734,6 +779,7 @@ export default function SmartContractEditor() {
         signature: result.signature,
       });
       updateProject(next);
+      setRecoverableBuffer(null);
       setNotice({
         type: 'success',
         message: upgrade
@@ -742,7 +788,69 @@ export default function SmartContractEditor() {
       });
       await refreshBalance();
     } catch (error) {
+      if (error?.recoveryBufferAddress) {
+        setRecoverableBuffer(error.recoveryBufferAddress);
+        logDeploy({
+          message: `A loader buffer may still hold recoverable rent: ${error.recoveryBufferAddress}`,
+        });
+      }
       logDeploy({ message: `Deployment failed: ${error.message}` });
+      setNotice({ type: 'error', message: error.message });
+    } finally {
+      setDeployBusy(false);
+    }
+  };
+
+  const recoverBuffer = async () => {
+    if (!recoverableBuffer || !wallet) return;
+    setDeployBusy(true);
+    setNotice(null);
+    try {
+      const result = await recoverProgramBuffer({
+        network,
+        rpcUrl: config.rpcUrl,
+        wallet,
+        bufferAddress: recoverableBuffer,
+        onProgress: logDeploy,
+      });
+      setRecoverableBuffer(null);
+      setNotice({
+        type: 'success',
+        message: result.alreadyClosed
+          ? 'The interrupted buffer was already consumed or closed.'
+          : 'Interrupted buffer rent recovered.',
+      });
+      await refreshBalance();
+    } catch (error) {
+      logDeploy({ message: `Buffer recovery failed: ${error.message}` });
+      setNotice({ type: 'error', message: error.message });
+    } finally {
+      setDeployBusy(false);
+    }
+  };
+
+  const closeCurrentProgram = async () => {
+    if (!deployment || !wallet) return;
+    setDeployBusy(true);
+    setNotice(null);
+    try {
+      const result = await closeProgram({
+        network,
+        rpcUrl: config.rpcUrl,
+        wallet,
+        programId: deployment.programId,
+        onProgress: logDeploy,
+      });
+      updateProject(removeDeployment(project, network, deployment.programId));
+      setNotice({
+        type: 'success',
+        message: result.alreadyClosed
+          ? 'Program was already closed.'
+          : `Program ${shortAddress(deployment.programId)} closed and rent recovered.`,
+      });
+      await refreshBalance();
+    } catch (error) {
+      logDeploy({ message: `Program close failed: ${error.message}` });
       setNotice({ type: 'error', message: error.message });
     } finally {
       setDeployBusy(false);
@@ -806,6 +914,11 @@ export default function SmartContractEditor() {
 
   const submitDialog = (value, template = 'hello') => {
     try {
+      if (dialog.type === 'close-program') {
+        setDialog(null);
+        closeCurrentProgram();
+        return;
+      }
       if (dialog.type === 'new-project') {
         const next = template === 'empty' ? createEmptyProject(value) : createStarterProject(value);
         setProjects((current) => [...current, next]);
@@ -1026,6 +1139,10 @@ export default function SmartContractEditor() {
               fundingBusy={fundingBusy}
               buildResult={buildResult}
               deployment={deployment}
+              recoverableBuffer={recoverableBuffer}
+              onRecoverBuffer={recoverBuffer}
+              onRequestCloseProgram={() => setDialog({ type: 'close-program', value: deployment?.programId })}
+              lifecycleBusy={deployBusy}
             />
           </div>
         </div>
@@ -1097,6 +1214,10 @@ export default function SmartContractEditor() {
                 fundingBusy={fundingBusy}
                 buildResult={buildResult}
                 deployment={deployment}
+                recoverableBuffer={recoverableBuffer}
+                onRecoverBuffer={recoverBuffer}
+                onRequestCloseProgram={() => setDialog({ type: 'close-program', value: deployment?.programId })}
+                lifecycleBusy={deployBusy}
               />
             ) : null}
             {mobilePanel === 'actions' ? (
