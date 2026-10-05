@@ -6,3 +6,6 @@ web/dist/
 *.md
 *.pem
 .env*
+
+apps/explorer/editor/node_modules/
+apps/explorer/editor/dist/
