@@ -124,13 +124,24 @@ export function createSystemAccountInstruction({ from, newAccount, lamports, spa
   };
 }
 
-export function buildSignedLegacyTransaction({
-  feePayer,
-  recentBlockhash,
-  instructions,
-  additionalSigners = [],
-}) {
-  if (!feePayer?.address) throw new Error('A fee payer wallet is required.');
+export function createSystemTransferInstruction({ from, to, lamports }) {
+  const amount = BigInt(lamports);
+  if (amount <= 0n) throw new Error('Transfer amount must be greater than zero lamports.');
+  return {
+    programId: SYSTEM_PROGRAM_ID,
+    keys: [
+      { address: from, isSigner: true, isWritable: true },
+      { address: to, isSigner: false, isWritable: true },
+    ],
+    data: concatBytes(
+      encodeU32(2),
+      encodeU64(amount),
+    ),
+  };
+}
+
+function compileLegacyMessage({ feePayerAddress, recentBlockhash, instructions }) {
+  if (!feePayerAddress) throw new Error('A fee payer address is required.');
   if (!Array.isArray(instructions) || instructions.length === 0) {
     throw new Error('At least one instruction is required.');
   }
@@ -148,7 +159,7 @@ export function buildSignedLegacyTransaction({
     metas.set(id, { bytes, isSigner: Boolean(isSigner), isWritable: Boolean(isWritable) });
   };
 
-  const payerBytes = decodeBase58(feePayer.address);
+  const payerBytes = decodeBase58(feePayerAddress);
   merge(payerBytes, true, true);
   for (const instruction of instructions) {
     for (const account of instruction.keys || []) {
@@ -178,11 +189,11 @@ export function buildSignedLegacyTransaction({
   const compiled = instructions.map((instruction) => {
     const accountIndices = (instruction.keys || []).map((account) => {
       const index = indices.get(keyOf(decodeBase58(account.address)));
-      if (index == null) throw new Error(`Instruction account ${account.address} is missing.`);
+      if (index == null) throw new Error('Instruction account ' + account.address + ' is missing.');
       return index;
     });
     const programIndex = indices.get(keyOf(decodeBase58(instruction.programId)));
-    if (programIndex == null) throw new Error(`Program ${instruction.programId} is missing.`);
+    if (programIndex == null) throw new Error('Program ' + instruction.programId + ' is missing.');
     const data = instruction.data || new Uint8Array();
     return concatBytes(
       Uint8Array.from([programIndex]),
@@ -202,6 +213,31 @@ export function buildSignedLegacyTransaction({
     ...compiled,
   );
 
+  return { message, ordered, requiredSignatures };
+}
+
+export function buildLegacyMessageBase64({ feePayerAddress, recentBlockhash, instructions }) {
+  const { message } = compileLegacyMessage({
+    feePayerAddress,
+    recentBlockhash,
+    instructions,
+  });
+  return bytesToBase64(message);
+}
+
+export function buildSignedLegacyTransaction({
+  feePayer,
+  recentBlockhash,
+  instructions,
+  additionalSigners = [],
+}) {
+  if (!feePayer?.address) throw new Error('A fee payer wallet is required.');
+  const { message, ordered, requiredSignatures } = compileLegacyMessage({
+    feePayerAddress: feePayer.address,
+    recentBlockhash,
+    instructions,
+  });
+
   const localSigners = new Map(
     additionalSigners.map((signer) => [signer.address, signer]),
   );
@@ -210,7 +246,7 @@ export function buildSignedLegacyTransaction({
     if (address === feePayer.address) return signMessage(feePayer, message);
     const signer = localSigners.get(address);
     if (!signer?.secretKey) {
-      throw new Error(`Missing local signer for ${address}.`);
+      throw new Error('Missing local signer for ' + address + '.');
     }
     return nacl.sign.detached(message, signer.secretKey);
   });
@@ -222,7 +258,7 @@ export function buildSignedLegacyTransaction({
   );
   if (transaction.length > 1232) {
     throw new Error(
-      `Transaction is ${transaction.length} bytes; AEKO legacy transactions must fit within 1232 bytes.`,
+      'Transaction is ' + transaction.length + ' bytes; AEKO legacy transactions must fit within 1232 bytes.',
     );
   }
   return bytesToBase64(transaction);

@@ -7,6 +7,7 @@ import {
   SYSTEM_PROGRAM_ID,
   buildSignedLegacyTransaction,
   createSystemAccountInstruction,
+  createSystemTransferInstruction,
   decodeBase58,
   encodeBase58,
   generateEphemeralSigner,
@@ -86,5 +87,33 @@ test('legacy transaction builder rejects packets larger than the AEKO wire limit
       }],
     }),
     /1232 bytes/,
+  );
+});
+
+test('system transfer instruction uses canonical tag and u64 lamports payload', () => {
+  const from = generateTestWallet('from');
+  const to = generateTestWallet('to');
+  const instruction = createSystemTransferInstruction({
+    from: from.address,
+    to: to.address,
+    lamports: 123456,
+  });
+
+  assert.equal(instruction.programId, SYSTEM_PROGRAM_ID);
+  assert.deepEqual(
+    instruction.keys,
+    [
+      { address: from.address, isSigner: true, isWritable: true },
+      { address: to.address, isSigner: false, isWritable: true },
+    ],
+  );
+  assert.equal(instruction.data.length, 12);
+  assert.deepEqual(
+    Array.from(instruction.data.slice(0, 4)),
+    [2, 0, 0, 0],
+  );
+  assert.equal(
+    new DataView(instruction.data.buffer).getBigUint64(4, true),
+    123456n,
   );
 });

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getFinalizedSlot, getGenesisHash } from './aekoRpcClient.js';
+import { getFeeForMessage, getFinalizedSlot, getGenesisHash } from './aekoRpcClient.js';
 
 test('Explorer compatibility fallback requests a finalized validator slot', async () => {
   const originalFetch = globalThis.fetch;
@@ -47,6 +47,38 @@ test('chain identity reads the validator genesis hash', async () => {
     assert.equal(genesisHash, 'genesis-test-hash');
     assert.equal(requestBody.method, 'getGenesisHash');
     assert.deepEqual(requestBody.params, []);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('fee estimation sends the serialized legacy message to getFeeForMessage', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody = null;
+
+  globalThis.fetch = async (_url, options) => {
+    requestBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ({
+        jsonrpc: '2.0',
+        id: 1,
+        result: { context: { slot: 123 }, value: 5000 },
+      }),
+      text: async () => '',
+    };
+  };
+
+  try {
+    const fee = await getFeeForMessage('https://rpc.example.invalid', 'AQID');
+    assert.equal(fee, 5000);
+    assert.equal(requestBody.method, 'getFeeForMessage');
+    assert.deepEqual(
+      requestBody.params,
+      ['AQID', { commitment: 'confirmed' }],
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

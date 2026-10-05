@@ -1,18 +1,15 @@
 import {
   AlertTriangle,
   CheckCircle2,
-  ChevronDown,
   Code2,
   Download,
   FileCode2,
   FlaskConical,
   FolderOpen,
   Hammer,
-  Loader2,
   Menu,
   MoreHorizontal,
   Plus,
-  RefreshCw,
   Rocket,
   Save,
   Trash2,
@@ -21,14 +18,10 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import NetworkToggle from '../components/NetworkToggle';
-import EditorTerminal from '../components/editor/EditorTerminal';
 import { useNetwork } from '../components/NetworkContext';
 import {
   aekoToLamports,
   confirmSignature,
-  formatAeko,
   getBalance,
   getFundingPolicy,
   requestAirdrop,
@@ -46,12 +39,12 @@ import {
   recoverProgramBuffer,
   upgradeProgram,
   validateProgramArtifactBase64,
-} from '../utils/aekoProgramDeploy';
+} from '../features/editor/programs/programLifecycle';
 import {
   buildEditorProject,
   getEditorCapabilities,
   testEditorProject,
-} from '../utils/editorApi';
+} from '../features/editor/runtime/editorApi';
 import {
   createEmptyProject,
   createStarterProject,
@@ -67,7 +60,20 @@ import {
   saveProjects,
   setFileContent,
   upsertFile,
-} from '../utils/editorProject';
+} from '../features/editor/project/project';
+import EditorDialog from '../features/editor/workbench/EditorDialog';
+import {
+  cx,
+  handleContainedDialogKeyDown,
+} from '../features/editor/workbench/helpers';
+import {
+  ActionButton,
+  CodeEditor,
+  ContextPanel,
+  FileTree,
+  OutputPanel,
+  PanelHeader,
+} from '../features/editor/workbench/EditorWorkbench';
 import { getNetworkConfig } from '../utils/networkConfig';
 
 const EMPTY_CAPABILITIES = {
@@ -78,543 +84,6 @@ const EMPTY_CAPABILITIES = {
   upgradeEnabled: false,
   mainnetDeployBlocked: true,
 };
-
-function cx(...values) {
-  return values.filter(Boolean).join(' ');
-}
-
-function handleContainedDialogKeyDown(event, onClose) {
-  if (event.key === 'Escape') {
-    event.preventDefault();
-    onClose();
-    return;
-  }
-  if (event.key !== 'Tab') return;
-
-  const focusable = Array.from(event.currentTarget.querySelectorAll(
-    'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
-  ));
-  if (!focusable.length) {
-    event.preventDefault();
-    return;
-  }
-  const first = focusable[0];
-  const last = focusable[focusable.length - 1];
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault();
-    first.focus();
-  }
-}
-
-function ActionButton({ icon: Icon, label, onClick, disabled = false, primary = false, busy = false }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled || busy}
-      className={cx(
-        'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090d]',
-        primary
-          ? 'border-aeko-accent bg-aeko-accent text-black hover:bg-white'
-          : 'border-white/10 bg-white/[0.04] text-gray-200 hover:border-white/20 hover:bg-white/[0.08]',
-        (disabled || busy) && 'cursor-not-allowed opacity-45',
-      )}
-    >
-      {busy ? <Loader2 size={16} className="animate-spin motion-reduce:animate-none" /> : <Icon size={16} />}
-      <span>{label}</span>
-    </button>
-  );
-}
-
-function PanelHeader({ title, action = null }) {
-  return (
-    <div className="flex h-11 items-center justify-between border-b border-white/10 px-3">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">{title}</span>
-      {action}
-    </div>
-  );
-}
-
-function FileTree({ project, onOpen, onCreate, onRename, onDelete }) {
-  const groups = useMemo(() => {
-    const result = new Map();
-    for (const file of [...project.files].sort((a, b) => a.path.localeCompare(b.path))) {
-      const [root] = file.path.split('/');
-      const items = result.get(root) || [];
-      items.push(file);
-      result.set(root, items);
-    }
-    return Array.from(result.entries());
-  }, [project.files]);
-
-  return (
-    <div className="min-h-0 flex-1 overflow-auto py-2">
-      {groups.map(([folder, files]) => (
-        <div key={folder} className="mb-2">
-          <div className="flex h-8 items-center gap-2 px-3 text-xs font-semibold text-gray-400">
-            <ChevronDown size={13} />
-            <span>{folder}</span>
-          </div>
-          {files.map((file) => (
-            <div
-              key={file.path}
-              className={cx(
-                'group flex h-9 items-center gap-2 border-l-2 pr-1 text-sm',
-                project.activeFile === file.path
-                  ? 'border-aeko-accent bg-white/[0.07] text-white'
-                  : 'border-transparent text-gray-400 hover:bg-white/[0.04] hover:text-gray-200',
-              )}
-            >
-              <button
-                type="button"
-                onClick={() => onOpen(file.path)}
-                className="flex min-w-0 flex-1 items-center gap-2 px-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-aeko-accent"
-              >
-                <FileCode2 size={14} className="shrink-0 text-aeko-accent/80" />
-                <span className="truncate">{file.path.split('/').slice(1).join('/')}</span>
-              </button>
-              {file.path !== 'src/lib.rs' ? (
-                <div className="hidden items-center group-hover:flex group-focus-within:flex">
-                  <button
-                    type="button"
-                    aria-label={`Rename ${file.path}`}
-                    onClick={() => onRename(file.path)}
-                    className="rounded p-2 text-gray-500 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent"
-                  >
-                    <MoreHorizontal size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Delete ${file.path}`}
-                    onClick={() => onDelete(file.path)}
-                    className="rounded p-2 text-gray-500 hover:bg-red-500/10 hover:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={onCreate}
-        className="mx-2 flex min-h-10 w-[calc(100%-1rem)] items-center gap-2 rounded-md px-3 text-sm text-gray-500 hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent"
-      >
-        <Plus size={14} />
-        New Rust file
-      </button>
-    </div>
-  );
-}
-
-function CodeEditor({ path, value, onChange, onSave }) {
-  const gutterRef = useRef(null);
-  const lineCount = Math.max(1, value.split('\n').length);
-  const lineNumbers = Array.from({ length: lineCount }, (_, index) => index + 1).join('\n');
-
-  const handleKeyDown = (event) => {
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
-      event.preventDefault();
-      onSave();
-      return;
-    }
-    if (event.key === 'Tab') {
-      event.preventDefault();
-      const target = event.currentTarget;
-      const start = target.selectionStart;
-      const end = target.selectionEnd;
-      const next = `${value.slice(0, start)}  ${value.slice(end)}`;
-      onChange(next);
-      requestAnimationFrame(() => {
-        target.selectionStart = target.selectionEnd = start + 2;
-      });
-    }
-  };
-
-  return (
-    <div className="relative min-h-0 flex-1 overflow-hidden bg-[#09090d]">
-      <div className="absolute inset-0 flex">
-        <pre
-          ref={gutterRef}
-          aria-hidden="true"
-          className="w-14 shrink-0 overflow-hidden border-r border-white/[0.06] bg-black/20 py-4 pr-3 text-right font-mono text-[13px] leading-6 text-gray-700"
-        >
-          {lineNumbers}
-        </pre>
-        <textarea
-          aria-label={`Rust editor for ${path}`}
-          value={value}
-          spellCheck={false}
-          autoCapitalize="off"
-          autoCorrect="off"
-          onChange={(event) => onChange(event.target.value)}
-          onKeyDown={handleKeyDown}
-          onScroll={(event) => {
-            if (gutterRef.current) gutterRef.current.scrollTop = event.currentTarget.scrollTop;
-          }}
-          className="min-w-0 flex-1 resize-none overflow-auto bg-transparent p-4 font-mono text-[13px] leading-6 text-gray-200 caret-aeko-accent outline-none selection:bg-aeko-accent/25"
-        />
-      </div>
-    </div>
-  );
-}
-
-function OutputPanel({
-  tab,
-  setTab,
-  buildResult,
-  testResult,
-  deploymentLog,
-  job,
-  network,
-  config,
-  wallet,
-}) {
-  const tabs = [
-    ['problems', 'Problems'],
-    ['build', 'Build'],
-    ['tests', 'Tests'],
-    ['terminal', 'Terminal'],
-    ['logs', 'Deploy logs'],
-  ];
-  const content = (() => {
-    if (tab === 'problems') {
-      const diagnostics = buildResult?.diagnostics || [];
-      if (!diagnostics.length) return 'No compiler diagnostics.';
-      return diagnostics.map((item) => `[${item.level}] ${item.message}`).join('\n');
-    }
-    if (tab === 'build') {
-      if (!buildResult) return 'Run Build to compile this project with the AEKO SBF toolchain.';
-      return [buildResult.stdout, buildResult.stderr].filter(Boolean).join('\n') || 'Build completed without textual output.';
-    }
-    if (tab === 'tests') {
-      if (!testResult) return 'Run Test to execute the project test suite in the isolated runner.';
-      return [testResult.stdout, testResult.stderr].filter(Boolean).join('\n') || 'Tests completed without textual output.';
-    }
-    if (tab === 'logs') {
-      return deploymentLog.length
-        ? deploymentLog.map((entry) => `[${entry.time}] ${entry.message}`).join('\n')
-        : 'Deploy and upgrade progress will appear here.';
-    }
-    return '';
-  })();
-
-  return (
-    <section className="flex h-52 min-h-40 flex-col border-t border-white/10 bg-[#0b0b10]">
-      <div className="flex h-10 items-center gap-1 overflow-x-auto border-b border-white/10 px-2">
-        {tabs.map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={cx(
-              'h-10 shrink-0 border-b-2 px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-aeko-accent',
-              tab === id ? 'border-aeko-accent text-white' : 'border-transparent text-gray-500 hover:text-gray-300',
-            )}
-          >
-            {label}
-          </button>
-        ))}
-        {job?.status === 'running' ? (
-          <div className="ml-auto flex items-center gap-2 px-2 text-xs text-gray-400" role="status" aria-live="polite">
-            <Loader2 size={13} className="animate-spin motion-reduce:animate-none" />
-            <span>{job.label}</span>
-            <button
-              type="button"
-              onClick={() => job.controller?.abort()}
-              className="rounded-md border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent"
-            >
-              Cancel
-            </button>
-          </div>
-        ) : null}
-      </div>
-      {tab === 'terminal' ? (
-        <EditorTerminal
-          network={network}
-          rpcUrl={config.rpcUrl}
-          wallet={wallet}
-        />
-      ) : (
-        <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-xs leading-5 text-gray-400">
-          {content}
-        </pre>
-      )}
-    </section>
-  );
-}
-
-function ContextPanel({
-  network,
-  config,
-  capabilities,
-  wallet,
-  wallets,
-  walletId,
-  setWalletId,
-  onCreateWallet,
-  balance,
-  onRefreshBalance,
-  onFund,
-  fundingBusy,
-  buildResult,
-  deployment,
-  recoverableBuffer,
-  onRecoverBuffer,
-  onRequestCloseProgram,
-  lifecycleBusy,
-}) {
-  return (
-    <aside className="flex min-h-0 flex-col bg-[#0b0b10]">
-      <PanelHeader title="Runtime" />
-      <div className="space-y-5 overflow-auto p-4">
-        <section>
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-600">Network</div>
-          <NetworkToggle />
-          <div className="mt-2 flex items-center justify-between text-xs">
-            <span className="text-gray-500">Editor lifecycle</span>
-            <span className={capabilities.enabled ? 'text-emerald-300' : 'text-amber-300'}>
-              {capabilities.enabled ? 'Runner ready' : 'Runner unavailable'}
-            </span>
-          </div>
-          {network === 'mainnet' ? (
-            <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] p-3 text-xs leading-5 text-amber-200">
-              Mainnet deployment is disabled. You can still edit code, but deploy from the browser only on Testnet or local development.
-            </div>
-          ) : null}
-        </section>
-
-        <section className="border-t border-white/10 pt-4">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-600">Development wallet</div>
-            <button
-              type="button"
-              onClick={onRefreshBalance}
-              aria-label="Refresh wallet balance"
-              className="rounded p-2 text-gray-500 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent"
-            >
-              <RefreshCw size={14} />
-            </button>
-          </div>
-          {wallets.length ? (
-            <>
-              <label className="sr-only" htmlFor="editor-wallet">Development wallet</label>
-              <select
-                id="editor-wallet"
-                value={walletId}
-                onChange={(event) => setWalletId(event.target.value)}
-                className="min-h-11 w-full rounded-lg border border-white/10 bg-black/30 px-3 text-sm text-gray-200 outline-none focus:border-aeko-accent"
-              >
-                {wallets.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name} · {shortAddress(item.address)}</option>
-                ))}
-              </select>
-              <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3">
-                <div className="font-mono text-xs text-gray-300">{shortAddress(wallet?.address)}</div>
-                <div className="mt-1 text-sm font-semibold text-white">{formatAeko(balance)}</div>
-              </div>
-              {network !== 'mainnet' && (config.fundingEnabled || config.key === 'localnet') ? (
-                <button
-                  type="button"
-                  onClick={onFund}
-                  disabled={fundingBusy}
-                  className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-white/10 text-sm text-gray-300 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent disabled:opacity-50"
-                >
-                  {fundingBusy ? <Loader2 size={15} className="animate-spin motion-reduce:animate-none" /> : <WalletCards size={15} />}
-                  Fund with Test AEKO
-                </button>
-              ) : null}
-              <p className="mt-2 text-[11px] leading-4 text-gray-600">
-                Development wallets are stored unencrypted in this browser. Never use them for valuable funds.
-              </p>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={onCreateWallet}
-              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-aeko-accent/40 bg-aeko-accent/10 text-sm text-aeko-accent hover:bg-aeko-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent"
-            >
-              <Plus size={15} />
-              Create development wallet
-            </button>
-          )}
-        </section>
-
-        <section className="border-t border-white/10 pt-4">
-          <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-600">Artifact</div>
-          {buildResult?.artifact ? (
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-gray-500">SBF</span>
-                <span className="text-emerald-300">Built</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-gray-500">Size</span>
-                <span className="text-gray-300">{buildResult.artifact.byteLength.toLocaleString()} bytes</span>
-              </div>
-              <div className="truncate font-mono text-[10px] text-gray-600" title={buildResult.artifact.sha256}>
-                {buildResult.artifact.sha256}
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs leading-5 text-gray-600">No current build artifact. Editing source invalidates the previous build.</p>
-          )}
-        </section>
-
-        {recoverableBuffer ? (
-          <section className="border-t border-amber-400/15 pt-4">
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-300">Interrupted buffer</div>
-            <p className="truncate font-mono text-[10px] text-gray-500" title={recoverableBuffer}>
-              {recoverableBuffer}
-            </p>
-            <button
-              type="button"
-              onClick={onRecoverBuffer}
-              disabled={lifecycleBusy}
-              className="mt-2 min-h-10 w-full rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-3 text-xs font-medium text-amber-200 hover:bg-amber-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:opacity-50"
-            >
-              Recover buffer rent
-            </button>
-          </section>
-        ) : null}
-
-        <section className="border-t border-white/10 pt-4">
-          <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-600">Latest deployment</div>
-          {deployment ? (
-            <div className="space-y-2 text-xs">
-              <Link
-                to={`/explorer/account/${deployment.programId}`}
-                className="block truncate font-mono text-aeko-accent hover:text-white"
-              >
-                {deployment.programId}
-              </Link>
-              <Link
-                to={`/explorer/tx/${deployment.signature}`}
-                className="block truncate text-gray-500 hover:text-white"
-              >
-                tx {shortAddress(deployment.signature)}
-              </Link>
-              {network !== 'mainnet' ? (
-                <button
-                  type="button"
-                  onClick={onRequestCloseProgram}
-                  disabled={lifecycleBusy}
-                  className="mt-2 min-h-10 w-full rounded-lg border border-red-500/20 px-3 text-xs font-medium text-red-300 hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-50"
-                >
-                  Close program and recover rent
-                </button>
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-xs text-gray-600">Nothing deployed from this project on {config.label} yet.</p>
-          )}
-        </section>
-      </div>
-    </aside>
-  );
-}
-
-function EditorDialog({ dialog, onClose, onSubmit }) {
-  if (!dialog) return null;
-  const isDelete = dialog.type === 'delete' || dialog.type === 'delete-project' || dialog.type === 'close-program';
-  const title = {
-    'new-project': 'New AEKO project',
-    'new-file': 'New Rust file',
-    rename: 'Rename Rust file',
-    'rename-project': 'Rename project',
-    delete: 'Delete source file',
-    'delete-project': 'Delete project',
-    'close-program': 'Close deployed program',
-  }[dialog.type];
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="presentation" onMouseDown={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="editor-dialog-title"
-        onMouseDown={(event) => event.stopPropagation()}
-        onKeyDown={(event) => handleContainedDialogKeyDown(event, onClose)}
-        className="w-full max-w-md rounded-2xl border border-white/10 bg-[#111118] p-5 shadow-2xl shadow-black/50"
-      >
-        <div className="flex items-center justify-between gap-4">
-          <h2 id="editor-dialog-title" className="text-lg font-semibold text-white">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close dialog" className="rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent">
-            <X size={18} />
-          </button>
-        </div>
-        {isDelete ? (
-          <p className="mt-4 text-sm leading-6 text-gray-400">
-            {dialog.type === 'close-program' ? 'Close ' : 'Delete '}
-            <span className="font-mono text-gray-200">{dialog.path || dialog.value}</span>?
-            {dialog.type === 'delete-project'
-              ? ' This removes the browser-local project and its saved deployment history.'
-              : dialog.type === 'close-program'
-                ? ' This submits an irreversible loader Close transaction and returns the program rent to the selected development wallet.'
-                : ' This removes the file from the local project.'}
-          </p>
-        ) : (
-          <form
-            className="mt-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const form = new FormData(event.currentTarget);
-              const value = form.get('value');
-              const template = form.get('template');
-              onSubmit(String(value || ''), String(template || 'hello'));
-            }}
-          >
-            <label htmlFor="editor-dialog-value" className="mb-2 block text-xs font-medium text-gray-400">
-              {dialog.type === 'new-project' || dialog.type === 'rename-project' ? 'Project name' : 'Path'}
-            </label>
-            <input
-              id="editor-dialog-value"
-              name="value"
-              autoFocus
-              defaultValue={dialog.value || ''}
-              placeholder={dialog.type === 'new-project' || dialog.type === 'rename-project' ? 'hello-aeko' : 'src/state.rs'}
-              className="min-h-11 w-full rounded-lg border border-white/10 bg-black/30 px-3 font-mono text-sm text-white outline-none focus:border-aeko-accent focus:ring-1 focus:ring-aeko-accent"
-            />
-            {dialog.type === 'new-project' ? (
-              <div className="mt-4">
-                <label htmlFor="editor-project-template" className="mb-2 block text-xs font-medium text-gray-400">
-                  Template
-                </label>
-                <select
-                  id="editor-project-template"
-                  name="template"
-                  defaultValue="hello"
-                  className="min-h-11 w-full rounded-lg border border-white/10 bg-black/30 px-3 text-sm text-white outline-none focus:border-aeko-accent focus:ring-1 focus:ring-aeko-accent"
-                >
-                  <option value="hello">Hello AEKO starter</option>
-                  <option value="empty">Empty native Rust program</option>
-                </select>
-              </div>
-            ) : null}
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={onClose} className="min-h-11 rounded-lg px-4 text-sm text-gray-400 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent">Cancel</button>
-              <button type="submit" className="min-h-11 rounded-lg bg-aeko-accent px-4 text-sm font-semibold text-black hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent">{dialog.type === 'rename' || dialog.type === 'rename-project' ? 'Rename' : 'Create'}</button>
-            </div>
-          </form>
-        )}
-        {isDelete ? (
-          <div className="mt-5 flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="min-h-11 rounded-lg px-4 text-sm text-gray-400 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent">Cancel</button>
-            <button type="button" autoFocus onClick={() => onSubmit(dialog.path || dialog.value)} className="min-h-11 rounded-lg bg-red-500 px-4 text-sm font-semibold text-white hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
-              {dialog.type === 'delete-project' ? 'Delete project' : dialog.type === 'close-program' ? 'Close program' : 'Delete file'}
-            </button>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 export default function SmartContractEditor() {
   const { network } = useNetwork();
@@ -1146,6 +615,7 @@ export default function SmartContractEditor() {
               network={network}
               config={config}
               wallet={wallet}
+              onTransactionConfirmed={refreshBalance}
             />
           </main>
 

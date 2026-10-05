@@ -70,6 +70,20 @@ export async function getLatestBlockhash(rpcUrl) {
   return r?.value?.blockhash || r?.blockhash;
 }
 
+export async function getFeeForMessage(rpcUrl, messageBase64) {
+  const message = String(messageBase64 || '').trim();
+  if (!message) throw new Error('A serialized transaction message is required for fee estimation.');
+  const result = await rpc(rpcUrl, 'getFeeForMessage', [
+    message,
+    { commitment: 'confirmed' },
+  ]);
+  const value = typeof result === 'number' ? result : result?.value;
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error('RPC did not return a valid transaction fee estimate.');
+  }
+  return value;
+}
+
 export async function getBalance(rpcUrl, address) {
   const r = await rpc(rpcUrl, 'getBalance', [address, { commitment: 'confirmed' }]);
   return typeof r === 'number' ? r : r?.value ?? 0;

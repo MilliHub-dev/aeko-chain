@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import test from 'node:test';
-import { closeProgram, recoverProgramBuffer, validateProgramArtifactBase64 } from './aekoProgramDeploy.js';
+import { closeProgram, recoverProgramBuffer, validateProgramArtifactBase64 } from '../features/editor/programs/programLifecycle.js';
 
 test('SBF artifact validation requires the ELF magic header', () => {
   const valid = Buffer.from([0x7f, 0x45, 0x4c, 0x46, 1, 2, 3]).toString('base64');

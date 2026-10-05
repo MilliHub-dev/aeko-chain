@@ -3,13 +3,16 @@ import {
   getAccountInfo,
   getBalance,
   getEpochInfo,
+  getFeeForMessage,
   getGenesisHash,
   getHealth,
+  getLatestBlockhash,
   getSlot,
   getSupply,
   getVersion,
   getVoteAccounts,
-} from './aekoRpcClient.js';
+} from '../../../utils/aekoRpcClient.js';
+import { prepareEditorTransfer } from '../transactions/transfer.js';
 
 export const EDITOR_SHELL_COMMANDS = Object.freeze([
   { name: 'help', usage: 'help [command]', description: 'Show available AEKO shell commands.', risk: 'local' },
@@ -24,6 +27,7 @@ export const EDITOR_SHELL_COMMANDS = Object.freeze([
   { name: 'version', usage: 'version', description: 'Read the validator software version.', risk: 'read' },
   { name: 'balance', usage: 'balance [address]', description: 'Read an account balance. Defaults to the selected development wallet.', risk: 'read' },
   { name: 'account', usage: 'account <address>', description: 'Read account owner, balance and executable state.', risk: 'read' },
+  { name: 'transfer', usage: 'transfer <recipient> <amount-aeko>', description: 'Review and submit a browser-signed AEKO transfer.', risk: 'transaction' },
   { name: 'supply', usage: 'supply', description: 'Read total and circulating AEKO supply.', risk: 'read' },
   { name: 'validators', usage: 'validators', description: 'Read validator vote-account status.', risk: 'read' },
   { name: 'exit', usage: 'exit', description: 'Explain how to leave the embedded editor shell.', risk: 'local' },
@@ -55,13 +59,12 @@ const SYSTEM_COMMANDS = new Set([
   'zsh',
 ]);
 
-const TRANSACTION_COMMANDS = new Set([
+const DEFERRED_TRANSACTION_COMMANDS = new Set([
   'address-lookup-table',
   'feature',
   'nonce',
   'program',
   'stake',
-  'transfer',
   'vote',
 ]);
 
@@ -69,8 +72,10 @@ const DEFAULT_RPC_CLIENT = Object.freeze({
   getAccountInfo,
   getBalance,
   getEpochInfo,
+  getFeeForMessage,
   getGenesisHash,
   getHealth,
+  getLatestBlockhash,
   getSlot,
   getSupply,
   getVersion,
@@ -97,25 +102,35 @@ function requireRpc(context) {
   }
 }
 
+function executionClassLabel(risk) {
+  if (risk === 'read') return 'READ · selected-network RPC';
+  if (risk === 'transaction') return 'TRANSACTION · explicit browser-wallet approval';
+  return 'LOCAL · browser only';
+}
+
 function helpLines(commandName) {
   if (commandName) {
     const canonical = ALIASES.get(commandName) || commandName;
     const command = COMMANDS.get(canonical);
-    if (!command) return ['Unknown command "' + commandName + '". Run help for the available command set.'];
+    if (!command) {
+      return ['Unknown command "' + commandName + '". Run help for the available command set.'];
+    }
     return [
       command.usage,
       command.description,
-      'Execution class: ' + (command.risk === 'read' ? 'READ · selected-network RPC' : 'LOCAL · browser only'),
+      'Execution class: ' + executionClassLabel(command.risk),
     ];
   }
 
   return [
-    'AEKO Shell · read-only developer console',
+    'AEKO Shell · structured developer console',
     'Type a command directly or prefix it with "aeko".',
     '',
-    ...EDITOR_SHELL_COMMANDS.map((command) => command.usage.padEnd(24) + command.description),
+    ...EDITOR_SHELL_COMMANDS.map(
+      (command) => command.usage.padEnd(36) + command.description,
+    ),
     '',
-    'Transaction, operator and OS-shell commands are intentionally unavailable in this first execution class.',
+    'Transaction commands require explicit in-terminal review before signing. Operator and OS-shell commands remain unavailable.',
   ];
 }
 
@@ -139,7 +154,13 @@ function formatAccount(address, value) {
     'Owner: ' + line(value.owner ?? '—'),
     'Executable: ' + line(Boolean(value.executable)),
     'Rent epoch: ' + line(value.rentEpoch ?? '—'),
-    'Data encoding: ' + (value.data == null ? 'none' : Array.isArray(value.data) ? line(value.data[1] || 'base64') : typeof value.data),
+    'Data encoding: ' + (
+      value.data == null
+        ? 'none'
+        : Array.isArray(value.data)
+          ? line(value.data[1] || 'base64')
+          : typeof value.data
+    ),
   ];
 }
 
@@ -156,7 +177,9 @@ function validatorLine(status, validator) {
   const identity = validator.nodePubkey || validator.identityPubkey || validator.node_pubkey || '—';
   const vote = validator.votePubkey || validator.voteAccount || validator.vote_pubkey || '—';
   const stake = formatAeko(validator.activatedStake ?? validator.activated_stake ?? 0);
-  const commission = validator.commission === undefined ? '—' : String(validator.commission) + '%';
+  const commission = validator.commission === undefined
+    ? '—'
+    : String(validator.commission) + '%';
   return status.padEnd(10)
     + ' identity=' + shortAddress(identity)
     + ' vote=' + shortAddress(vote)
@@ -268,14 +291,16 @@ export async function executeEditorShellCommand(input, context = {}, client = DE
       '"' + command + '" is an operating-system command. The AEKO editor shell never forwards input to Bash or the host OS.',
     ]);
   }
-  if (TRANSACTION_COMMANDS.has(command)) {
+  if (DEFERRED_TRANSACTION_COMMANDS.has(command)) {
     return response('error', [
-      '"' + command + '" is a transaction/operator command and is not enabled in the read-only editor shell yet.',
-      'Wallet-signing and isolated native CLI execution require their dedicated execution path.',
+      '"' + command + '" is not enabled in the structured editor shell yet.',
+      'Only commands with a complete review, signing, submission, and confirmation path are exposed.',
     ]);
   }
   if (!COMMANDS.has(command)) {
-    return response('error', ['Unknown AEKO shell command "' + command + '". Run help to list supported commands.']);
+    return response('error', [
+      'Unknown AEKO shell command "' + command + '". Run help to list supported commands.',
+    ]);
   }
 
   switch (command) {
@@ -287,7 +312,9 @@ export async function executeEditorShellCommand(input, context = {}, client = DE
       return response(
         'output',
         (context.history || []).length
-          ? context.history.map((entry, index) => String(index + 1).padStart(3) + '  ' + entry)
+          ? context.history.map(
+              (entry, index) => String(index + 1).padStart(3) + '  ' + entry,
+            )
           : ['No commands in this editor session yet.'],
       );
     case 'network':
@@ -296,11 +323,16 @@ export async function executeEditorShellCommand(input, context = {}, client = DE
         'RPC: ' + line(context.rpcUrl || 'not configured'),
       ]);
     case 'whoami':
-      return response('output', context.wallet?.address
-        ? ['Development wallet: ' + context.wallet.address]
-        : ['No development wallet selected. Create one in the Runtime panel.']);
+      return response(
+        'output',
+        context.wallet?.address
+          ? ['Development wallet: ' + context.wallet.address]
+          : ['No development wallet selected. Create one in the Runtime panel.'],
+      );
     case 'exit':
-      return response('output', ['The AEKO shell is embedded in /docs/editor. Use normal browser navigation to leave the editor.']);
+      return response('output', [
+        'The AEKO shell is embedded in /docs/editor. Use normal browser navigation to leave the editor.',
+      ]);
     case 'health': {
       requireRpc(context);
       const health = await client.getHealth(context.rpcUrl);
@@ -317,7 +349,9 @@ export async function executeEditorShellCommand(input, context = {}, client = DE
     }
     case 'genesis-hash': {
       requireRpc(context);
-      return response('output', ['Genesis hash: ' + line(await client.getGenesisHash(context.rpcUrl))]);
+      return response('output', [
+        'Genesis hash: ' + line(await client.getGenesisHash(context.rpcUrl)),
+      ]);
     }
     case 'version': {
       requireRpc(context);
@@ -326,7 +360,11 @@ export async function executeEditorShellCommand(input, context = {}, client = DE
     case 'balance': {
       requireRpc(context);
       const address = args[0] || context.wallet?.address;
-      if (!address) return response('error', ['Usage: balance <address> or select a development wallet first.']);
+      if (!address) {
+        return response('error', [
+          'Usage: balance <address> or select a development wallet first.',
+        ]);
+      }
       return response('output', [
         'Address: ' + address,
         'Balance: ' + formatAeko(await client.getBalance(context.rpcUrl, address)),
@@ -335,8 +373,13 @@ export async function executeEditorShellCommand(input, context = {}, client = DE
     case 'account': {
       requireRpc(context);
       if (!args[0]) return response('error', ['Usage: account <address>']);
-      return response('output', formatAccount(args[0], await client.getAccountInfo(context.rpcUrl, args[0])));
+      return response(
+        'output',
+        formatAccount(args[0], await client.getAccountInfo(context.rpcUrl, args[0])),
+      );
     }
+    case 'transfer':
+      return prepareEditorTransfer(args, context, client);
     case 'supply': {
       requireRpc(context);
       return response('output', formatSupply(await client.getSupply(context.rpcUrl)));

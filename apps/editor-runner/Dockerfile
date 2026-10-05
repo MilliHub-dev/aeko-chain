@@ -17,6 +17,7 @@ ENV HOME=/home/editor \
     CARGO_HOME=/home/editor/.cargo \
     RUSTUP_HOME=/home/editor/.rustup \
     CARGO_NET_OFFLINE=false \
+    RUSTC_WRAPPER="" \
     RUST_BACKTRACE=0
 
 # Build the runner and pre-install the exact SBF platform toolchain while the

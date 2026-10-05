@@ -5,7 +5,7 @@ import {
   getLatestBlockhash,
   getMinimumBalanceForRentExemption,
   sendTransaction,
-} from './aekoRpcClient.js';
+} from '../../../utils/aekoRpcClient.js';
 import {
   CLOCK_SYSVAR_ID,
   RENT_SYSVAR_ID,
@@ -19,8 +19,8 @@ import {
   encodeU32,
   encodeU64,
   generateEphemeralSigner,
-} from './aekoTransaction.js';
-import { deriveProgramDataAddress } from './editorApi.js';
+} from '../../../utils/aekoTransaction.js';
+import { deriveProgramDataAddress } from '../runtime/editorApi.js';
 
 const BUFFER_METADATA_BYTES = 37;
 const PROGRAM_ACCOUNT_BYTES = 36;

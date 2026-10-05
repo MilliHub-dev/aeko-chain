@@ -11,7 +11,7 @@ import {
   renameFile,
   setFileContent,
   validateProjectFiles,
-} from './editorProject.js';
+} from '../features/editor/project/project.js';
 
 test('starter project is a valid native Rust AEKO project', () => {
   const project = createStarterProject();

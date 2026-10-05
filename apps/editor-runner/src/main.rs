@@ -411,7 +411,9 @@ fn validate_relative_rust_path(raw: &str) -> Result<PathBuf, RunnerError> {
             }
         }
     }
-    if depth < 2 || depth > 8 || path.extension().and_then(|value| value.to_str()) != Some("rs") {
+    if !(2..=8).contains(&depth)
+        || path.extension().and_then(|value| value.to_str()) != Some("rs")
+    {
         return Err(RunnerError::bad_request(
             "Only Rust files under src/ or tests/ are supported.",
         ));
@@ -519,6 +521,7 @@ async fn run_bounded(
         .args(args)
         .current_dir(root)
         .env("CARGO_NET_OFFLINE", "true")
+        .env("RUSTC_WRAPPER", "")
         .env("CARGO_TERM_COLOR", "never")
         .env("RUST_BACKTRACE", "0")
         .env("CARGO_TARGET_DIR", root.join("target"))
@@ -617,7 +620,13 @@ fn summarize_tests(stdout: &str, success: bool) -> TestSummary {
 }
 
 fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        output.push(HEX[(byte >> 4) as usize] as char);
+        output.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    output
 }
 
 #[cfg(test)]
