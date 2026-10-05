@@ -110,3 +110,29 @@ test('workspace API refuses symlinks, including links that target outside the pr
     /symlinks are not editable/,
   )
 })
+
+
+test('new API-created files use the authenticated session identity inputs', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'aeko-studio-test-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+
+  const manager = await new WorkspaceManager(config(root)).init()
+  const owner = session('session-identity')
+  const workspace = await manager.create(owner, {
+    name: 'identity-test',
+    template: 'python-client',
+  })
+
+  await manager.createDirectory(owner, workspace.id, 'src/nested')
+  await manager.write(
+    owner,
+    workspace.id,
+    'src/nested/created.py',
+    'answer = 42\n',
+    { createOnly: true },
+  )
+  assert.equal(
+    (await manager.read(owner, workspace.id, 'src/nested/created.py')).content,
+    'answer = 42\n',
+  )
+})

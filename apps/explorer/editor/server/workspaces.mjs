@@ -298,8 +298,8 @@ export class WorkspaceManager {
     const directory = await ensureDirectory(
       root,
       rawPath,
-      this.config.sandboxUid,
-      this.config.sandboxGid,
+      session.uid,
+      session.gid,
     )
     await this.touch(session, workspaceId, metadata)
     return { path: directory.relativePath }
@@ -328,8 +328,8 @@ export class WorkspaceManager {
       target = await containedNewFile(
         root,
         rawPath,
-        this.config.sandboxUid,
-        this.config.sandboxGid,
+        session.uid,
+        session.gid,
       )
       isNew = true
     }

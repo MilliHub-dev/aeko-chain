@@ -33,6 +33,9 @@ export function loadConfig() {
   if (!accessToken && !(allowInsecureLocal && !production)) {
     throw new Error('AEKO_EDITOR_ACCESS_TOKEN is required unless explicit insecure local mode is enabled.')
   }
+  if (production && accessToken.length < 32) {
+    throw new Error('AEKO_EDITOR_ACCESS_TOKEN must contain at least 32 characters in production.')
+  }
 
   const logLevel = String(process.env.AEKO_LOG_LEVEL || 'info').trim().toLowerCase()
   const logFormat = String(process.env.AEKO_LOG_FORMAT || 'json').trim().toLowerCase()

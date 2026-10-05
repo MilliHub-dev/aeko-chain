@@ -20,6 +20,10 @@ const io = new SocketServer(server, {
     origin: config.publicOrigin || true,
     credentials: true,
   },
+  allowRequest: (request, callback) => {
+    const origin = String(request.headers.origin || '')
+    callback(null, !config.production || origin === config.publicOrigin)
+  },
   maxHttpBufferSize: 128 * 1024,
 })
 const terminals = new TerminalManager(config, io, workspaces)
