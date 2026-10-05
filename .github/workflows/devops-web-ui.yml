@@ -15,6 +15,12 @@ on:
       build_explorer_web:
         required: true
         type: string
+      validate_editor:
+        required: true
+        type: string
+      build_editor:
+        required: true
+        type: string
       sha_tag:
         required: true
         type: string
@@ -119,6 +125,55 @@ jobs:
         with:
           name: aeko-runtime-explorer-ui
           path: ${{ runner.temp }}/aeko-runtime-explorer-ui
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
+
+  editor:
+    name: Contract Studio
+    if: inputs.validate_editor == 'true' || inputs.build_editor == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Prepare Contract Studio runner
+        uses: ./.github/actions/devops/pipeline/setup
+        with:
+          node: ${{ inputs.validate_editor }}
+          docker: ${{ inputs.build_editor }}
+
+      - name: Validate and/or build Contract Studio
+        uses: ./.github/actions/devops/explorer-editor
+        with:
+          validate-source: ${{ inputs.validate_editor }}
+          build-image: ${{ inputs.build_editor }}
+          sha-tag: ${{ inputs.sha_tag }}
+
+      - name: Package Contract Studio image
+        if: inputs.build_editor == 'true'
+        shell: bash
+        env:
+          SHA_TAG: ${{ inputs.sha_tag }}
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/aeko-runtime-editor-web"
+          rm -rf "$out"
+          mkdir -p "$out"
+          image="aeko-ci/aeko-editor-web:$SHA_TAG"
+          docker image inspect "$image" >/dev/null
+          docker save "$image" | gzip -1 > "$out/aeko-editor-web-image.tar.gz"
+          printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
+
+      - name: Upload Contract Studio image
+        if: inputs.build_editor == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aeko-runtime-editor-web
+          path: ${{ runner.temp }}/aeko-runtime-editor-web
           if-no-files-found: error
           compression-level: 0
           retention-days: 3

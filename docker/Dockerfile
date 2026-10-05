@@ -10,6 +10,7 @@
 #   tools            aeko CLI + aeko-keygen operator utilities
 #   explorer-api     Rust explorer indexer / REST API
 #   explorer-ui      Vite explorer frontend
+#   editor-web       standalone Monaco/xterm Contract Studio + isolated PTY runtime
 #   operations-web   Next.js Funding Gateway + operator Admin Console
 
 # Keep the container release builds on the same compiler selected by

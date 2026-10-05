@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -25,8 +26,62 @@ const terminals = new TerminalManager(config, io, workspaces)
 const auth = sessions.middleware()
 const here = dirname(fileURLToPath(import.meta.url))
 const dist = resolve(here, '../dist')
+const LOG_LEVELS = { debug: 10, info: 20, warn: 30, error: 40 }
+
+function truncate(value, max = 1200) {
+  const text = String(value ?? '')
+  return text.length > max ? text.slice(0, max) + '…' : text
+}
+
+function log(level, event, fields = {}) {
+  if ((LOG_LEVELS[level] ?? LOG_LEVELS.info) < (LOG_LEVELS[config.logLevel] ?? LOG_LEVELS.info)) return
+  const record = {
+    timestamp: new Date().toISOString(),
+    level,
+    service: 'aeko-contract-studio',
+    network: config.network,
+    event,
+    ...fields,
+  }
+  const line = config.logFormat === 'json'
+    ? JSON.stringify(record)
+    : `${record.timestamp} ${level.toUpperCase()} aeko-contract-studio ${event} ${JSON.stringify(fields)}`
+  const target = level === 'warn' || level === 'error' ? process.stderr : process.stdout
+  target.write(line + '\n')
+}
+
+function errorFields(error) {
+  if (!(error instanceof Error)) return { error_message: truncate(error || 'unknown error') }
+  return {
+    error_name: truncate(error.name, 120),
+    error_message: truncate(error.message),
+    error_stack: truncate(error.stack || '', 6000),
+  }
+}
+
+function requestId(request) {
+  const incoming = String(request.headers['x-request-id'] || '').trim()
+  return incoming && incoming.length <= 128 ? incoming : randomUUID()
+}
 
 app.disable('x-powered-by')
+app.use((request, response, next) => {
+  const id = requestId(request)
+  const startedAt = performance.now()
+  request.editorRequestId = id
+  response.setHeader('x-request-id', id)
+  response.once('finish', () => {
+    const level = response.statusCode >= 500 ? 'error' : response.statusCode >= 400 ? 'warn' : 'info'
+    log(level, 'http_request_completed', {
+      request_id: id,
+      method: request.method,
+      path: request.path,
+      status: response.statusCode,
+      latency_ms: Math.round(performance.now() - startedAt),
+    })
+  })
+  next()
+})
 app.use((request, response, next) => {
   response.setHeader('x-content-type-options', 'nosniff')
   response.setHeader('referrer-policy', 'same-origin')
@@ -214,7 +269,12 @@ io.on('connection', (socket) => {
 app.use((error, _request, response, _next) => {
   const status = Number(error?.status) || (error?.code === 'ENOENT' ? 404 : 400)
   const safeStatus = status >= 400 && status < 600 ? status : 500
-  if (safeStatus >= 500) console.error('studio_request_failed', error)
+  if (safeStatus >= 500) {
+    log('error', 'studio_request_failed', {
+      request_id: _request.editorRequestId,
+      ...errorFields(error),
+    })
+  }
   response.status(safeStatus).json({
     error: {
       code: safeStatus === 404 ? 'NOT_FOUND' : safeStatus === 413 ? 'LIMIT_EXCEEDED' : 'EDITOR_REQUEST_FAILED',
@@ -240,16 +300,22 @@ const interval = setInterval(async () => {
   sessions.sweep()
   terminals.sweep(config.workspaceTtlMs)
   const active = new Set([...sessions.sessions.values()].map((session) => session.id))
-  await workspaces.sweep(active).catch((error) => console.error('workspace_sweep_failed', error))
+  await workspaces.sweep(active).catch((error) => log('error', 'workspace_sweep_failed', errorFields(error)))
 }, 60_000)
 interval.unref()
 
+process.on('uncaughtExceptionMonitor', (error) => {
+  log('error', 'process_uncaught_exception', errorFields(error))
+})
+process.on('unhandledRejection', (reason) => {
+  log('error', 'process_unhandled_rejection', errorFields(reason))
+})
+
 server.listen(config.port, '0.0.0.0', () => {
-  console.log(JSON.stringify({
-    level: 'info',
-    service: 'aeko-contract-studio',
-    event: 'service_started',
+  log('info', 'service_started', {
     bind: `0.0.0.0:${config.port}`,
-    network: config.network,
-  }))
+    public_origin: config.publicOrigin,
+    log_format: config.logFormat,
+    log_level: config.logLevel,
+  })
 })

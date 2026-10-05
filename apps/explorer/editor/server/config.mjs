@@ -34,8 +34,19 @@ export function loadConfig() {
     throw new Error('AEKO_EDITOR_ACCESS_TOKEN is required unless explicit insecure local mode is enabled.')
   }
 
+  const logLevel = String(process.env.AEKO_LOG_LEVEL || 'info').trim().toLowerCase()
+  const logFormat = String(process.env.AEKO_LOG_FORMAT || 'json').trim().toLowerCase()
+  if (!['debug', 'info', 'warn', 'error'].includes(logLevel)) {
+    throw new Error('AEKO_LOG_LEVEL must be debug, info, warn, or error.')
+  }
+  if (!['json', 'text'].includes(logFormat)) {
+    throw new Error('AEKO_LOG_FORMAT must be json or text.')
+  }
+
   return Object.freeze({
     production,
+    logLevel,
+    logFormat,
     port: positiveInteger('PORT', 4100, { max: 65535 }),
     publicOrigin,
     accessToken,

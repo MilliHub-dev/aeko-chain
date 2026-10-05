@@ -39,7 +39,7 @@ Production isolation rules:
 - Root filesystem is read-only.
 - No Docker socket, PostgreSQL credentials, validator keys, chain key directory, or host filesystem is mounted.
 - `no-new-privileges` is enabled.
-- Workspace count, file size, workspace size, process count, memory, CPU, session lifetime, and terminal history are bounded.
+- HTTP file operations enforce workspace/file limits, while the container-level tmpfs, PID, memory, CPU, session-lifetime, and terminal-history limits bound the shell runtime as a whole. A shell can create files outside the HTTP API, so per-session disk quotas require a stronger per-session container/microVM runtime before anonymous multi-tenant exposure.
 - Mutating HTTP APIs reject cross-origin requests in production.
 
 This makes the terminal a real shell in an isolated editor runtime, not a shell on the Explorer, API, or validator host.
@@ -85,4 +85,4 @@ Port: 4100
 
 Set `AEKO_EDITOR_ACCESS_TOKEN` to a long random secret stored only in Coolify. The deployment must not mount the Docker socket, validator keys, Explorer database credentials, or host source directories into the Studio container.
 
-The dedicated `AEKO Contract Studio` workflow validates the app and `editor-web` image. On `main`, it can publish `aeko-editor-web` and trigger the resource-scoped `WEBHOOK_EXPLORER_EDITOR` deployment hook.
+The canonical `AEKO DevOps (single runner)` workflow treats Contract Studio as its own editor domain. Pull requests validate the Studio source and image through the self-contained `explorer-editor` action; eligible `main` changes publish and promote `aeko-editor-web`, then trigger the resource-scoped `WEBHOOK_EXPLORER_EDITOR` deployment hook.

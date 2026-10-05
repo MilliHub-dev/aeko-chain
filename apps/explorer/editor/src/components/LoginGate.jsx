@@ -33,18 +33,24 @@ export default function LoginGate({ onAuthenticated, config }) {
           </p>
         </div>
         <form onSubmit={submit}>
-          <label htmlFor="studio-access-token">Studio access token</label>
-          <input
-            id="studio-access-token"
-            type="password"
-            value={token}
-            onChange={(event) => setToken(event.target.value)}
-            autoComplete="current-password"
-            autoFocus
-            required
-          />
+          {config?.authRequired ? (
+            <>
+              <label htmlFor="studio-access-token">Studio access token</label>
+              <input
+                id="studio-access-token"
+                type="password"
+                value={token}
+                onChange={(event) => setToken(event.target.value)}
+                autoComplete="current-password"
+                autoFocus
+                required
+              />
+            </>
+          ) : (
+            <p className="local-dev-note">Local insecure mode is enabled. No access token is required.</p>
+          )}
           {error ? <p className="form-error" role="alert">{error}</p> : null}
-          <button className="primary-button" type="submit" disabled={busy || !token}>
+          <button className="primary-button" type="submit" disabled={busy || (config?.authRequired && !token)}>
             {busy ? 'Opening studio…' : 'Open Contract Studio'}
           </button>
         </form>

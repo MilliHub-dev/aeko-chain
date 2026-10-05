@@ -23,6 +23,12 @@ outputs:
   explorer_web:
     description: Explorer web application changed or must be validated by the orchestrator change.
     value: ${{ steps.classify.outputs.explorer_web }}
+  editor:
+    description: Standalone AEKO Contract Studio changed or must be validated by the orchestrator change.
+    value: ${{ steps.classify.outputs.editor }}
+  coolify_editor:
+    description: Split Coolify Contract Studio resource configuration changed.
+    value: ${{ steps.classify.outputs.coolify_editor }}
   coolify_bootstrap:
     description: Split Coolify bootstrap resource configuration changed.
     value: ${{ steps.classify.outputs.coolify_bootstrap }}
@@ -106,6 +112,8 @@ runs:
         cli=false
         explorer_backend=false
         explorer_web=false
+        editor=false
+        coolify_editor=false
         coolify_bootstrap=false
         coolify_faucet_tools=false
         coolify_validator=false
@@ -128,6 +136,7 @@ runs:
           cli=true
           explorer_backend=true
           explorer_web=true
+          editor=true
           sdk_js=true
           sdk_node=true
           sdk_python=true
@@ -193,6 +202,11 @@ runs:
                 explorer_web=true
                 coolify_explorer_ui=true
                 ;;
+              apps/explorer/editor/compose.coolify.yml|apps/explorer/editor/.env.coolify.example)
+                packaging=true
+                editor=true
+                coolify_editor=true
+                ;;
               apps/admin/*)
                 admin=true
                 ;;
@@ -222,10 +236,14 @@ runs:
               apps/explorer/web/*)
                 explorer_web=true
                 ;;
+              apps/explorer/editor/*)
+                editor=true
+                ;;
               apps/explorer/*)
-                # Shared Explorer-level files can affect both deployable surfaces.
+                # Shared Explorer-level files can affect all Explorer-family deployable surfaces.
                 explorer_backend=true
                 explorer_web=true
+                editor=true
                 ;;
               apps/sdk/js/*)
                 sdk_js=true
@@ -375,7 +393,7 @@ runs:
         fi
 
         node_needed=false
-        if [ "$core" = true ] || [ "$admin" = true ] || [ "$explorer_web" = true ] || [ "$sdk_js" = true ] || [ "$sdk_node" = true ]; then
+        if [ "$core" = true ] || [ "$admin" = true ] || [ "$explorer_web" = true ] || [ "$editor" = true ] || [ "$sdk_js" = true ] || [ "$sdk_node" = true ]; then
           node_needed=true
         fi
 
@@ -385,7 +403,7 @@ runs:
         fi
 
         dockerized=false
-        if [ "$core" = true ] || [ "$packaging" = true ] || [ "$admin" = true ] || [ "$cli" = true ] || [ "$explorer_backend" = true ] || [ "$explorer_web" = true ]; then
+        if [ "$core" = true ] || [ "$packaging" = true ] || [ "$admin" = true ] || [ "$cli" = true ] || [ "$explorer_backend" = true ] || [ "$explorer_web" = true ] || [ "$editor" = true ]; then
           dockerized=true
         fi
 
@@ -398,6 +416,8 @@ runs:
           echo "cli=$cli"
           echo "explorer_backend=$explorer_backend"
           echo "explorer_web=$explorer_web"
+          echo "editor=$editor"
+          echo "coolify_editor=$coolify_editor"
           echo "coolify_bootstrap=$coolify_bootstrap"
           echo "coolify_faucet_tools=$coolify_faucet_tools"
           echo "coolify_validator=$coolify_validator"
@@ -422,8 +442,8 @@ runs:
           echo "ci_pipeline=$ci_pipeline"
         } >> "$GITHUB_OUTPUT"
 
-        printf 'Selection: core=%s packaging=%s smart-contracts=%s admin=%s cli=%s backend=%s web=%s coolify(bootstrap=%s,faucet-tools=%s,validator=%s,api=%s,ui=%s,ops=%s) sdk(js=%s,node=%s,python=%s,rust=%s) sdk-release(js=%s,node=%s,python=%s,rust=%s) ci-pipeline=%s unmapped=%s\n' \
-          "$core" "$packaging" "$smart_contracts" "$admin" "$cli" "$explorer_backend" "$explorer_web" \
-          "$coolify_bootstrap" "$coolify_faucet_tools" "$coolify_validator" "$coolify_explorer_api" "$coolify_explorer_ui" "$coolify_operations_web" \
+        printf 'Selection: core=%s packaging=%s smart-contracts=%s admin=%s cli=%s backend=%s web=%s editor=%s coolify(editor=%s,bootstrap=%s,faucet-tools=%s,validator=%s,api=%s,ui=%s,ops=%s) sdk(js=%s,node=%s,python=%s,rust=%s) sdk-release(js=%s,node=%s,python=%s,rust=%s) ci-pipeline=%s unmapped=%s\n' \
+          "$core" "$packaging" "$smart_contracts" "$admin" "$cli" "$explorer_backend" "$explorer_web" "$editor" \
+          "$coolify_editor" "$coolify_bootstrap" "$coolify_faucet_tools" "$coolify_validator" "$coolify_explorer_api" "$coolify_explorer_ui" "$coolify_operations_web" \
           "$sdk_js" "$sdk_node" "$sdk_python" "$sdk_rust" \
           "$sdk_release_js" "$sdk_release_node" "$sdk_release_python" "$sdk_release_rust" "$ci_pipeline" "$unmapped_app"

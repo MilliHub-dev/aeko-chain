@@ -48,6 +48,7 @@ Use these names in Coolify and DNS:
 | Bootstrap registry | `https://registry.aeko.online` | `registry:8089` |
 | Explorer API | `https://api.aeko.online` | `explorer-api:8088` |
 | Aeko Scan | `https://scan.aeko.online` | `explorer-ui:4000` |
+| Contract Studio | `https://editor.aeko.online` | `editor-web:4100` |
 | Operations Web | `https://admin.aeko.online` | `operations-web:3001` |
 | Faucet | `faucet.aeko.online:9900` | direct TCP `9900` on the Faucet host |
 | Validator gossip/transport | `gossip.aeko.online` | direct TCP+UDP `8000-8050` |
@@ -344,20 +345,21 @@ then return all reset/first-boot flags to their established values.
 
 ## Coolify deployment triggers
 
-GitHub production deployment automation targets five independent Coolify
+GitHub production deployment automation targets six independent Coolify
 resources after validated image promotion:
 
 - Faucet + tools via `WEBHOOK_FAUCET`;
 - Validator via `WEBHOOK_VALIDATOR`;
 - Explorer API via `WEBHOOK_EXPLORER_API`;
 - Scan / Explorer UI via `WEBHOOK_EXPLORER_UI`;
+- Contract Studio via `WEBHOOK_EXPLORER_EDITOR`;
 - Operations Web / Aeko Admin via `WEBHOOK_AEKO_ADMIN`.
 
-All five webhook calls use the shared `WEBHOOK_API_KEY`. Network releases
+All six webhook calls use the shared `WEBHOOK_API_KEY`. Network releases
 dispatch Faucet before Validator; Validator deployment proceeds only if the
 Faucet webhook dispatch succeeds.
 
-These five resources should use `AEKO_IMAGE_TAG=latest` with `pull_policy:
+These six resources should use `AEKO_IMAGE_TAG=latest` with `pull_policy:
 always` so the post-promotion webhook pulls the just-promoted image. Keep the
 immutable SHA tag as the rollback/provenance reference.
 

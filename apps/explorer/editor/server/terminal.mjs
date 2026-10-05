@@ -46,7 +46,7 @@ export class TerminalManager {
         HOME: root,
         LANG: 'C.UTF-8',
         TERM: 'xterm-256color',
-        PATH: '/app/node_modules/.bin:/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin',
+        PATH: '/app/node_modules/.bin:/opt/aeko:/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin',
         CARGO_HOME: `${root}/.cargo`,
         RUSTUP_HOME: '/usr/local/rustup',
         CARGO_NET_OFFLINE: 'false',

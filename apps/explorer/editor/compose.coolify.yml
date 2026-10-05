@@ -15,6 +15,8 @@ services:
       PORT: "4100"
       AEKO_EDITOR_PUBLIC_ORIGIN: ${AEKO_EDITOR_PUBLIC_ORIGIN:-https://editor.aeko.online}
       AEKO_EDITOR_ACCESS_TOKEN: ${AEKO_EDITOR_ACCESS_TOKEN:?AEKO_EDITOR_ACCESS_TOKEN is required}
+      AEKO_LOG_FORMAT: ${AEKO_LOG_FORMAT:-json}
+      AEKO_LOG_LEVEL: ${AEKO_LOG_LEVEL:-info}
       AEKO_NETWORK: ${AEKO_NETWORK:-testnet}
       AEKO_RPC_URL: ${AEKO_RPC_URL:-https://rpc.aeko.online}
       AEKO_EXPLORER_URL: ${AEKO_EXPLORER_URL:-https://scan.aeko.online}
