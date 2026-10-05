@@ -291,6 +291,7 @@ button:focus-visible, input:focus-visible {
 .tab-close, .dirty-dot { flex: 0 0 auto; }
 .dirty-dot { font-size: 10px; color: #cccccc; }
 .monaco-slot { min-height: 0; flex: 1; background: #1f1f1f; }
+.monaco-editor-host { width: 100%; height: 100%; }
 .editor-empty { height: 100%; display: grid; place-items: center; align-content: center; gap: 15px; color: #666; }
 .editor-empty-mark { font-size: 54px; color: #2e2e2e; font-weight: 800; letter-spacing: -.08em; }
 

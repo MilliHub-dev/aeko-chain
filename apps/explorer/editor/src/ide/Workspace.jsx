@@ -208,6 +208,7 @@ export default function Workspace({ workspace, config, onHome, onLogout }) {
       />
       <div className="monaco-slot">
         <MonacoEditor
+          key={`${workspace.id}:${activePath}`}
           workspaceId={workspace.id}
           file={activeFile}
           onChange={changeFile}

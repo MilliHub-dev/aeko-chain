@@ -1,5 +1,4 @@
 import * as monaco from 'monaco-editor'
-import { loader } from '@monaco-editor/react'
 import { initialize } from '@codingame/monaco-vscode-api'
 import getConfigurationServiceOverride, { updateUserConfiguration } from '@codingame/monaco-vscode-configuration-service-override'
 import getKeybindingsServiceOverride from '@codingame/monaco-vscode-keybindings-service-override'
@@ -48,7 +47,6 @@ export async function initializeVscode() {
     'workbench.colorTheme': 'Default Dark Modern',
   }))
 
-  loader.config({ monaco })
   initialized = true
   return monaco
 }
