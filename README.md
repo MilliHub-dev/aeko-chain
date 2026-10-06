@@ -80,7 +80,7 @@ Consumers, wallets and dApps use **RPC/WS**, never gossip. Index-heavy reads can
 | Protocol bootstrap | `surdma/aeko-protocol-bootstrap` | always participates in the default network lifecycle; verifies/initializes canonical token/security protocol state and writes the protocol registry |
 | Explorer API | `surdma/aeko-explorer-api` | chain indexer, REST API and SocialFi registry/read endpoints |
 | Explorer UI | `surdma/aeko-explorer-ui` | browser block/social explorer and test console |
-| Contract Studio | `surdma/aeko-editor-web` | standalone Monaco/xterm browser IDE with an isolated per-session PTY workspace |
+| Contract Studio | `surdma/aeko-editor-web` | standalone AEKO blockchain Studio with Monaco editing and isolated project command execution |
 | Wallet/operator tools | `surdma/aeko-tools` | `aeko` CLI and `aeko-keygen`; wallets are signers, not a network daemon |
 
 A **WebSocket node is not a separate daemon**. PubSub/WebSocket is served by the validator/RPC process on port `8900`. Likewise, there is no permanent **wallet node**: wallet identity/signing belongs to a client, wallet adapter, HSM/custody service or application backend. `aeko-tools` supplies CLI/key generation.
