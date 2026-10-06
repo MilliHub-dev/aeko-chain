@@ -157,7 +157,7 @@ No package install is required for this starter; TypeScript is provided by the s
   "devDependencies": {}
 }
 `,
-      'index.html': `<!doctype html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>AEKO DApp</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>
+      'biome.json': `{\n  "formatter": { "enabled": true, "indentStyle": "space" },\n  "linter": { "enabled": true, "rules": { "recommended": true } },\n  "javascript": { "formatter": { "quoteStyle": "single" } }\n}\n`,\n      'index.html': `<!doctype html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>AEKO DApp</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>
 `,
       'vite.config.ts': `import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
