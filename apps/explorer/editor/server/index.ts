@@ -301,6 +301,7 @@ io.on('connection', (socket) => {
 })
 
 app.use((error: unknown, request: Request, response: Response, _next: NextFunction) => {
+  void _next
   const explicitStatus = errorStatus(error)
   const status = explicitStatus ?? (errorCode(error) === 'ENOENT' ? 404 : 400)
   const safeStatus = status >= 400 && status < 600 ? status : 500

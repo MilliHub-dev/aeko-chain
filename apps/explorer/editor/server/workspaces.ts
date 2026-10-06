@@ -60,7 +60,11 @@ function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
 }
 
 function cleanName(value: unknown): string {
-  const name = String(value || '').trim().replace(/[<>:"/\\|?*\x00-\x1f]/g, '-').slice(0, 80)
+  const invalidFilenameCharacter = /[<>:"/\\|?*]/
+  const name = Array.from(String(value || '').trim())
+    .map((character) => character.charCodeAt(0) <= 0x1f || invalidFilenameCharacter.test(character) ? '-' : character)
+    .join('')
+    .slice(0, 80)
   if (!name) throw new Error('Project name is required.')
   return name
 }
