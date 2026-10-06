@@ -13,7 +13,11 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     dedupe: ['vscode', 'monaco-editor', 'react', 'react-dom'],
   },
-  server: { port: 5174, strictPort: true },
+  server: {
+    port: 5174,
+    strictPort: true,
+    watch: { ignored: ['**/.aeko-workspaces/**'] },
+  },
   worker: { format: 'es' },
   build: { target: 'es2022', sourcemap: false, chunkSizeWarningLimit: 2500 },
 })
