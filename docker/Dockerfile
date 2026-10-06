@@ -172,6 +172,7 @@ COPY apps/explorer/editor/ ./
 RUN npm run build
 
 FROM rust:1.85-bookworm AS editor-web
+RUN rustup component add rust-analyzer rustfmt clippy
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        bash build-essential ca-certificates curl git libudev-dev pkg-config protobuf-compiler python3 tini \
