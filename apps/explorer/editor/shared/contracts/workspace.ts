@@ -1,6 +1,6 @@
 export type WorkspaceId = string
 
-export type ProjectTemplate = 'rust-program' | 'typescript-client' | 'python-client'
+export type ProjectTemplate = 'rust-program' | 'typescript-client' | 'typescript-dapp' | 'python-client'
 
 export interface Workspace {
   id: WorkspaceId

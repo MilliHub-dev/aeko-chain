@@ -1,37 +1,7 @@
-interface ActivityBarProps {
-  onHome: () => void
-  onLogout: () => void
-}
-
-const ITEMS = [
-  ['files', 'Explorer', true],
-  ['search', 'Search', false],
-  ['source-control', 'Source Control', false],
-  ['debug-alt', 'Run and Debug', false],
-  ['extensions', 'Extensions', false],
-] as const
-
-export default function ActivityBar({ onHome, onLogout }: ActivityBarProps) {
-  return (
-    <nav className="activity-bar" aria-label="IDE activity">
-      <div>
-        {ITEMS.map(([icon, label, enabled], index) => (
-          <button
-            key={label}
-            type="button"
-            className={index === 0 ? 'active' : ''}
-            title={enabled ? label : `${label} is not enabled in this Studio release`}
-            aria-label={label}
-            disabled={!enabled}
-          >
-            <i className={`codicon codicon-${icon}`} />
-          </button>
-        ))}
-      </div>
-      <div>
-        <button type="button" title="Projects" aria-label="Projects" onClick={onHome}><i className="codicon codicon-account" /></button>
-        <button type="button" title="Sign out" aria-label="Sign out" onClick={onLogout}><i className="codicon codicon-sign-out" /></button>
-      </div>
-    </nav>
-  )
-}
+import { Blocks, Boxes, Code2, FolderKanban, LogOut, RadioTower, Rocket, WalletCards } from 'lucide-react'
+import { Button } from './ui/button'
+import { Tooltip } from './ui/tooltip'
+export type WorkbenchView='code'|'contracts'|'deployments'|'interact'|'accounts'|'transactions'
+interface ActivityBarProps{active:WorkbenchView;onSelect:(view:WorkbenchView)=>void;onHome:()=>void;onLogout:()=>void}
+const ITEMS=[[Code2,'Code','code'],[Blocks,'Contracts','contracts'],[Rocket,'Deployments','deployments'],[RadioTower,'Interact','interact'],[WalletCards,'Accounts','accounts'],[Boxes,'Transactions','transactions']] as const
+export default function ActivityBar({active,onSelect,onHome,onLogout}:ActivityBarProps){return <nav className="flex w-14 shrink-0 flex-col items-center border-r border-border bg-background py-3" aria-label="AEKO Studio"><div className="mb-4 grid size-9 place-items-center rounded-lg bg-primary font-black text-primary-foreground">A</div><div className="flex flex-1 flex-col gap-1">{ITEMS.map(([Icon,label,view])=><Tooltip key={view} label={label}><Button variant={active===view?'secondary':'ghost'} size="icon" aria-label={label} aria-pressed={active===view} onClick={()=>onSelect(view)}><Icon/></Button></Tooltip>)}</div><div className="flex flex-col gap-1"><Tooltip label="Projects"><Button variant="ghost" size="icon" aria-label="Projects" onClick={onHome}><FolderKanban/></Button></Tooltip><Tooltip label="Sign out"><Button variant="ghost" size="icon" aria-label="Sign out" onClick={onLogout}><LogOut/></Button></Tooltip></div></nav>}

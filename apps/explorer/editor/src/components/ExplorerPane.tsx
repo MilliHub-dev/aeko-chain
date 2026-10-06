@@ -1,109 +1,11 @@
 import { useMemo, useState } from 'react'
+import { ChevronDown, ChevronRight, File, FilePlus2, Folder, FolderPlus, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import type { FileEntry } from '../../shared/contracts/filesystem.js'
 import type { Workspace } from '../../shared/contracts/workspace.js'
-import { fileIcon } from '../lib/language'
-
-interface ExplorerPaneProps {
-  workspace: Workspace
-  entries: FileEntry[]
-  activePath: string
-  onOpen: (path: string) => void | Promise<void>
-  onNewFile: () => void | Promise<void>
-  onNewDirectory: () => void | Promise<void>
-  onRename: (entry: FileEntry) => void | Promise<void>
-  onDelete: (entry: FileEntry) => void | Promise<void>
-  onRefresh: () => void
-}
-
-function hiddenByCollapsedDirectory(entry: FileEntry, collapsed: ReadonlySet<string>): boolean {
-  const parts = entry.path.split('/')
-  parts.pop()
-  let current = ''
-  for (const part of parts) {
-    current = current ? `${current}/${part}` : part
-    if (collapsed.has(current)) return true
-  }
-  return false
-}
-
-export default function ExplorerPane({
-  workspace,
-  entries,
-  activePath,
-  onOpen,
-  onNewFile,
-  onNewDirectory,
-  onRename,
-  onDelete,
-  onRefresh,
-}: ExplorerPaneProps) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
-  const visible = useMemo(
-    () => entries.filter((entry) => !hiddenByCollapsedDirectory(entry, collapsed)),
-    [collapsed, entries],
-  )
-
-  const toggleDirectory = (path: string): void => {
-    setCollapsed((current) => {
-      const next = new Set(current)
-      if (next.has(path)) next.delete(path)
-      else next.add(path)
-      return next
-    })
-  }
-
-  return (
-    <aside className="explorer-pane">
-      <div className="pane-title">EXPLORER</div>
-      <div className="workspace-heading">
-        <strong title={workspace.name}>{workspace.name.toUpperCase()}</strong>
-        <div className="pane-actions">
-          <button type="button" title="New File" onClick={() => void onNewFile()}><i className="codicon codicon-new-file" /></button>
-          <button type="button" title="New Folder" onClick={() => void onNewDirectory()}><i className="codicon codicon-new-folder" /></button>
-          <button type="button" title="Refresh" onClick={onRefresh}><i className="codicon codicon-refresh" /></button>
-        </div>
-      </div>
-      <div className="file-tree" role="tree" aria-label="Project files">
-        {visible.map((entry) => {
-          const directory = entry.type === 'directory'
-          const isCollapsed = directory && collapsed.has(entry.path)
-          return (
-            <div
-              key={entry.path}
-              className={`file-row ${activePath === entry.path ? 'active' : ''}`}
-              style={{ paddingLeft: `${8 + entry.depth * 12}px` }}
-              role="treeitem"
-              aria-expanded={directory ? !isCollapsed : undefined}
-            >
-              <button
-                type="button"
-                className="file-open"
-                title={entry.path}
-                onClick={() => directory ? toggleDirectory(entry.path) : void onOpen(entry.path)}
-              >
-                {directory ? (
-                  <>
-                    <i className={`codicon codicon-chevron-${isCollapsed ? 'right' : 'down'}`} aria-hidden="true" />
-                    <i className={`codicon codicon-folder${isCollapsed ? '' : '-opened'}`} aria-hidden="true" />
-                  </>
-                ) : (
-                  <span className="tree-indent-spacer" aria-hidden="true" />
-                )}
-                {!directory ? <i className={`codicon codicon-${fileIcon(entry.path)}`} aria-hidden="true" /> : null}
-                <span>{entry.name}</span>
-              </button>
-              <div className="file-actions">
-                <button type="button" title="Rename" onClick={() => void onRename(entry)}>
-                  <i className="codicon codicon-edit" />
-                </button>
-                <button type="button" title="Delete" onClick={() => void onDelete(entry)}>
-                  <i className="codicon codicon-trash" />
-                </button>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </aside>
-  )
-}
+import { Button } from './ui/button'
+import { cn } from '../lib/utils'
+interface Props{workspace:Workspace;entries:FileEntry[];activePath:string;onOpen:(path:string)=>void|Promise<void>;onNewFile:()=>void|Promise<void>;onNewDirectory:()=>void|Promise<void>;onRename:(entry:FileEntry)=>void|Promise<void>;onDelete:(entry:FileEntry)=>void|Promise<void>;onRefresh:()=>void}
+const DEPTH=['pl-2','pl-5','pl-8','pl-11','pl-14','pl-17','pl-20','pl-23','pl-26','pl-29'] as const
+function depthClass(depth:number){return DEPTH[Math.min(depth,DEPTH.length-1)]}
+function hidden(entry:FileEntry,collapsed:ReadonlySet<string>){const parts=entry.path.split('/');parts.pop();let current='';for(const part of parts){current=current?current+'/'+part:part;if(collapsed.has(current))return true}return false}
+export default function ExplorerPane({workspace,entries,activePath,onOpen,onNewFile,onNewDirectory,onRename,onDelete,onRefresh}:Props){const [collapsed,setCollapsed]=useState<Set<string>>(()=>new Set());const visible=useMemo(()=>entries.filter(e=>!hidden(e,collapsed)),[collapsed,entries]);const toggle=(path:string)=>setCollapsed(current=>{const next=new Set(current);if(next.has(path))next.delete(path);else next.add(path);return next});return <aside className="flex h-full min-h-0 flex-col border-r border-border bg-background"><div className="flex h-12 items-center justify-between border-b border-border px-3"><span className="text-xs font-semibold uppercase tracking-wider">Project</span><span className="truncate text-[10px] text-muted-foreground">{workspace.templateLabel}</span></div><div className="flex h-10 items-center gap-1 border-b border-border px-2"><strong className="min-w-0 flex-1 truncate text-xs">{workspace.name}</strong><Button variant="ghost" size="icon" className="size-7" aria-label="New file" onClick={()=>void onNewFile()}><FilePlus2/></Button><Button variant="ghost" size="icon" className="size-7" aria-label="New directory" onClick={()=>void onNewDirectory()}><FolderPlus/></Button><Button variant="ghost" size="icon" className="size-7" aria-label="Refresh files" onClick={onRefresh}><RefreshCw/></Button></div><div className="min-h-0 flex-1 overflow-auto py-1" role="tree" aria-label="Project files">{visible.map(entry=>{const dir=entry.type==='directory';const shut=dir&&collapsed.has(entry.path);return <div key={entry.path} className={cn('group flex h-7 items-center pr-1',depthClass(entry.depth),activePath===entry.path&&'bg-accent')} role="treeitem" aria-expanded={dir?!shut:undefined}><button type="button" className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left text-xs text-muted-foreground hover:text-foreground" title={entry.path} onClick={()=>dir?toggle(entry.path):void onOpen(entry.path)}>{dir?(shut?<ChevronRight className="size-3.5 shrink-0"/>:<ChevronDown className="size-3.5 shrink-0"/>):<span className="size-3.5 shrink-0"/>}{dir?<Folder className="size-3.5 shrink-0 text-primary"/>:<File className="size-3.5 shrink-0"/>}<span className="truncate">{entry.name}</span></button><div className="hidden items-center group-hover:flex group-focus-within:flex"><Button variant="ghost" size="icon" className="size-6" aria-label={'Rename '+entry.name} onClick={()=>void onRename(entry)}><Pencil/></Button><Button variant="ghost" size="icon" className="size-6 text-destructive" aria-label={'Delete '+entry.name} onClick={()=>void onDelete(entry)}><Trash2/></Button></div></div>})}</div></aside>}

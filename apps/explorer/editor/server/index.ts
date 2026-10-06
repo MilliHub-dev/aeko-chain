@@ -12,11 +12,14 @@ import type {
 import { errorCode, errorMessage, errorStatus } from '../shared/errors/editor-errors.js'
 import { SessionStore, socketSession } from './auth.js'
 import { loadConfig } from './config.js'
+import { CommandManager } from './commands.js'
+import { createStudioLogger, errorFields } from './logger.js'
 import { TerminalManager } from './terminal.js'
 import { editorRequestId, requireEditorSession, setEditorRequestId } from './types.js'
 import { WorkspaceManager } from './workspaces.js'
 
 const config = loadConfig({ localDevelopment: process.argv.includes('--dev') })
+const logger = createStudioLogger(config)
 const sessions = new SessionStore(config)
 const workspaces = await new WorkspaceManager(config).init()
 const app = express()
@@ -38,43 +41,10 @@ const io = new SocketServer<
   },
   maxHttpBufferSize: 128 * 1024,
 })
+const commands = new CommandManager(config, io, workspaces)
 const terminals = new TerminalManager(config, io, workspaces)
 const auth = sessions.middleware()
 const dist = resolve(process.cwd(), 'dist')
-const LOG_LEVELS = { debug: 10, info: 20, warn: 30, error: 40 } as const
-
-type LogLevel = keyof typeof LOG_LEVELS
-
-function truncate(value: unknown, max = 1200): string {
-  const text = String(value ?? '')
-  return text.length > max ? text.slice(0, max) + '…' : text
-}
-
-function log(level: LogLevel, event: string, fields: Record<string, unknown> = {}): void {
-  if (LOG_LEVELS[level] < LOG_LEVELS[config.logLevel]) return
-  const record = {
-    timestamp: new Date().toISOString(),
-    level,
-    service: 'aeko-contract-studio',
-    network: config.network,
-    event,
-    ...fields,
-  }
-  const line = config.logFormat === 'json'
-    ? JSON.stringify(record)
-    : `${record.timestamp} ${level.toUpperCase()} aeko-contract-studio ${event} ${JSON.stringify(fields)}`
-  const target = level === 'warn' || level === 'error' ? process.stderr : process.stdout
-  target.write(line + '\n')
-}
-
-function errorFields(error: unknown): Record<string, string> {
-  if (!(error instanceof Error)) return { error_message: truncate(error || 'unknown error') }
-  return {
-    error_name: truncate(error.name, 120),
-    error_message: truncate(error.message),
-    error_stack: truncate(error.stack || '', 6000),
-  }
-}
 
 function requestId(request: Request): string {
   const incoming = String(request.headers['x-request-id'] || '').trim()
@@ -110,9 +80,13 @@ app.use((request, response, next) => {
   const startedAt = performance.now()
   setEditorRequestId(request, id)
   response.setHeader('x-request-id', id)
+  logger.requestStarted({
+    request_id: id,
+    method: request.method,
+    path: request.path,
+  })
   response.once('finish', () => {
-    const level: LogLevel = response.statusCode >= 500 ? 'error' : response.statusCode >= 400 ? 'warn' : 'info'
-    log(level, 'http_request_completed', {
+    logger.requestCompleted({
       request_id: id,
       method: request.method,
       path: request.path,
@@ -177,7 +151,7 @@ app.post('/api/session', (request, response) => {
 
 app.delete('/api/session', (request, response) => {
   const session = sessions.fromRequest(request)
-  if (session) terminals.closeSession(session.id)
+  if (session) { commands.closeSession(session.id); terminals.closeSession(session.id) }
   sessions.destroy(request)
   response.setHeader('set-cookie', sessions.clearCookie())
   data(response, { authenticated: false })
@@ -196,13 +170,10 @@ app.post('/api/workspaces', auth, asyncRoute(async (request, response) => {
 
 app.delete('/api/workspaces/:workspaceId', auth, asyncRoute(async (request, response) => {
   const session = requireEditorSession(request)
-  const key = terminals.key(session.id, routeParam(request, 'workspaceId'))
-  const terminal = terminals.terminals.get(key)
-  if (terminal) {
-    try { terminal.terminal.kill() } catch { /* Best-effort terminal cleanup. */ }
-    terminals.terminals.delete(key)
-  }
-  await workspaces.removeWorkspace(session, routeParam(request, 'workspaceId'))
+  const workspaceId = routeParam(request, 'workspaceId')
+  commands.closeWorkspace(session.id, workspaceId)
+  terminals.closeWorkspace(session.id, workspaceId)
+  await workspaces.removeWorkspace(session, workspaceId)
   data(response, { deleted: true as const })
 }))
 
@@ -279,29 +250,35 @@ io.on('connection', (socket) => {
   const session = socket.data.editorSession
 
   socket.on('terminal:start', async (payload) => {
+    try { const workspaceId=String(payload.workspaceId||''); const record=await terminals.start(session,workspaceId,payload); await socket.join(record.room); socket.emit('terminal:ready',{history:record.history}) } catch(error) { socket.emit('terminal:error',errorMessage(error,'Terminal failed to start.')) }
+  })
+  socket.on('terminal:input', (payload) => { try { terminals.input(session,String(payload.workspaceId||''),payload.data) } catch(error) { socket.emit('terminal:error',errorMessage(error,'Terminal input failed.')) } })
+  socket.on('terminal:resize', (payload) => { try { terminals.resize(session,String(payload.workspaceId||''),payload.cols,payload.rows) } catch(error) { socket.emit('terminal:error',errorMessage(error,'Terminal resize failed.')) } })
+
+  socket.on('console:attach', async (payload) => {
     try {
       const workspaceId = String(payload.workspaceId || '')
-      const record = await terminals.start(session, workspaceId, payload)
-      await socket.join(record.room)
-      socket.emit('terminal:ready', { history: record.history })
+      const snapshot = await commands.snapshot(session, workspaceId)
+      await socket.join(snapshot.room)
+      socket.emit('console:ready', snapshot.ready)
     } catch (error) {
-      socket.emit('terminal:error', errorMessage(error, 'Terminal failed to start.'))
+      socket.emit('console:error', errorMessage(error, 'AEKO Console failed to attach.'))
     }
   })
 
-  socket.on('terminal:input', (payload) => {
+  socket.on('console:run', async (payload) => {
     try {
-      terminals.input(session, String(payload.workspaceId || ''), payload.data)
+      await commands.run(session, String(payload.workspaceId || ''), payload.command)
     } catch (error) {
-      socket.emit('terminal:error', errorMessage(error, 'Terminal input failed.'))
+      socket.emit('console:error', errorMessage(error, 'AEKO command failed to start.'))
     }
   })
 
-  socket.on('terminal:resize', (payload) => {
+  socket.on('console:cancel', (payload) => {
     try {
-      terminals.resize(session, String(payload.workspaceId || ''), payload.cols, payload.rows)
+      commands.cancel(session, String(payload.workspaceId || ''))
     } catch (error) {
-      socket.emit('terminal:error', errorMessage(error, 'Terminal resize failed.'))
+      socket.emit('console:error', errorMessage(error, 'AEKO command could not be cancelled.'))
     }
   })
 })
@@ -312,7 +289,7 @@ app.use((error: unknown, request: Request, response: Response, _next: NextFuncti
   const status = explicitStatus ?? (errorCode(error) === 'ENOENT' ? 404 : 400)
   const safeStatus = status >= 400 && status < 600 ? status : 500
   if (safeStatus >= 500) {
-    log('error', 'studio_request_failed', {
+    logger.error('studio_request_failed', {
       request_id: editorRequestId(request),
       ...errorFields(error),
     })
@@ -340,21 +317,22 @@ if (config.production) {
 
 const interval = setInterval(async () => {
   sessions.sweep()
+  commands.sweep(config.workspaceTtlMs)
   terminals.sweep(config.workspaceTtlMs)
   const active = new Set([...sessions.sessions.values()].map((session) => session.id))
-  await workspaces.sweep(active).catch((error: unknown) => log('error', 'workspace_sweep_failed', errorFields(error)))
+  await workspaces.sweep(active).catch((error: unknown) => logger.error('workspace_sweep_failed', errorFields(error)))
 }, 60_000)
 interval.unref()
 
 process.on('uncaughtExceptionMonitor', (error) => {
-  log('error', 'process_uncaught_exception', errorFields(error))
+  logger.error('process_uncaught_exception', errorFields(error))
 })
 process.on('unhandledRejection', (reason) => {
-  log('error', 'process_unhandled_rejection', errorFields(reason))
+  logger.error('process_unhandled_rejection', errorFields(reason))
 })
 
 server.listen(config.port, '0.0.0.0', () => {
-  log('info', 'service_started', {
+  logger.success('service_started', {
     bind: `0.0.0.0:${config.port}`,
     public_origin: config.publicOrigin,
     log_format: config.logFormat,

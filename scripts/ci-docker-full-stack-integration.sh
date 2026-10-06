@@ -418,6 +418,30 @@ for _ in $(seq 1 60); do
 done
 test -n "$PROBE_TX_BASE64" || fail "confirmed probe transaction was not available as base64"
 
+# Build success-path fixtures with the exact release CLI. This deliberately
+# exercises the public client contract instead of fabricating wire payloads.
+RPC_FIXTURE_RECIPIENT="$(generate_smoke_key rpc-method-recipient)"
+RPC_STAKE_ACCOUNT_FILE="$SMOKE_KEYS/rpc-method-stake.json"
+"$CLI_DIR/aeko-keygen" new --no-bip39-passphrase --silent --outfile "$RPC_STAKE_ACCOUNT_FILE" >/dev/null
+RPC_STAKE_ACCOUNT="$("$CLI_DIR/aeko-keygen" pubkey "$RPC_STAKE_ACCOUNT_FILE")"
+
+rpc_result requestAirdrop "$(jq -cn --arg a "$CLI_SENDER_ADDRESS" '[$a,3000000000,{commitment:"confirmed"}]')" >/dev/null
+wait_balance_at_least "$CLI_SENDER_ADDRESS" 3000000000 "RPC method CLI sender funded"
+
+PROBE_MESSAGE_JSON="$("$CLI_DIR/aeko" --url "$RPC_URL" --keypair "$SMOKE_KEYS/cli-sender.json" --output json-compact transfer --allow-unfunded-recipient "$RPC_FIXTURE_RECIPIENT" 0.01 --blockhash "$PROBE_BLOCKHASH" --sign-only --dump-transaction-message)"
+PROBE_MESSAGE_BASE64="$(jq -er '.message' <<<"$PROBE_MESSAGE_JSON")"
+test -n "$PROBE_MESSAGE_BASE64" || fail "release CLI did not emit a serialized transaction message"
+rpc_result getFeeForMessage "$(jq -cn --arg m "$PROBE_MESSAGE_BASE64" '[$m,{commitment:"confirmed"}]')" >"$ARTIFACT_DIR/rpc-getFeeForMessage.json"
+
+RPC_SEND_BEFORE="$(balance "$RPC_FIXTURE_RECIPIENT")"
+RPC_SEND_SIGNATURE="$("$CLI_DIR/aeko" --url "$RPC_URL" --keypair "$SMOKE_KEYS/cli-sender.json" --output json-compact transfer --allow-unfunded-recipient "$RPC_FIXTURE_RECIPIENT" 0.01 --no-wait | jq -er '.signature // .')"
+test -n "$RPC_SEND_SIGNATURE" || fail "release CLI sendTransaction returned no signature"
+wait_balance_at_least "$RPC_FIXTURE_RECIPIENT" $((RPC_SEND_BEFORE + 10000000)) "sendTransaction success fixture reached recipient"
+rpc_result getSignatureStatuses "$(jq -cn --arg s "$RPC_SEND_SIGNATURE" '[[ $s ],{searchTransactionHistory:true}]')" >"$ARTIFACT_DIR/rpc-sendTransaction-status.json"
+
+"$CLI_DIR/aeko" --url "$RPC_URL" --keypair "$SMOKE_KEYS/cli-sender.json" create-stake-account "$RPC_STAKE_ACCOUNT_FILE" 0.01 >/dev/null
+rpc_result getStakeActivation "$(jq -cn --arg a "$RPC_STAKE_ACCOUNT" '[$a,{commitment:"confirmed"}]')" >"$ARTIFACT_DIR/rpc-getStakeActivation.json"
+
 rpc_probe_spec() {
   local method="$1"
   local expectation="result"
@@ -428,7 +452,7 @@ rpc_probe_spec() {
       params='[]'
       ;;
     getHighestSnapshotSlot|getSnapshotSlot)
-      expectation="snapshot"
+      expectation="snapshot-state"
       params='[]'
       ;;
     getBalance)
@@ -449,8 +473,11 @@ rpc_probe_spec() {
     getBlockCommitment)
       params="$(jq -cn --argjson slot "$PROBE_SLOT" '[$slot]')"
       ;;
-    getTokenAccountBalance|getTokenSupply|getTokenLargestAccounts|getStakeActivation)
-      expectation="resource"
+    getStakeActivation)
+      params="$(jq -cn --arg a "$RPC_STAKE_ACCOUNT" '[$a,{commitment:"confirmed"}]')"
+      ;;
+    getTokenAccountBalance|getTokenSupply|getTokenLargestAccounts)
+      expectation="resource-fixture"
       params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,{commitment:"confirmed"}]')"
       ;;
     getTokenAccountsByOwner|getTokenAccountsByDelegate)
@@ -460,7 +487,7 @@ rpc_probe_spec() {
       params='["11111111111111111111111111111111",{"encoding":"base64","commitment":"confirmed"}]'
       ;;
     getInflationReward)
-      expectation="inflation-reward"
+      expectation="reward-state"
       params="$(jq -cn --arg a "$PROBE_ADDRESS" --argjson epoch "$PROBE_EPOCH" '[[ $a ],{epoch:$epoch,commitment:"confirmed"}]')"
       ;;
     getSignatureStatuses)
@@ -473,8 +500,8 @@ rpc_probe_spec() {
       params="$(jq -cn --arg a "$RPC_FUNDING_ADDRESS" --arg key "$AEKO_FUNDING_AUTHORIZATION_KEY" '[$a,1000000,{fundingAuthorization:$key,commitment:"confirmed"}]')"
       ;;
     sendTransaction)
-      expectation="transaction"
-      params="$(jq -cn --arg tx "$PROBE_TX_BASE64" '[$tx,{encoding:"base64",skipPreflight:false,preflightCommitment:"confirmed"}]')"
+      expectation="preverified"
+      params='[]'
       ;;
     simulateTransaction)
       params="$(jq -cn --arg tx "$PROBE_TX_BASE64" '[$tx,{encoding:"base64",sigVerify:false,commitment:"confirmed"}]')"
@@ -510,8 +537,7 @@ rpc_probe_spec() {
       params="$(jq -cn --arg h "$PROBE_BLOCKHASH" '[$h,{commitment:"confirmed"}]')"
       ;;
     getFeeForMessage)
-      expectation="payload"
-      params='["AAAA",{"commitment":"confirmed"}]'
+      params="$(jq -cn --arg m "$PROBE_MESSAGE_BASE64" '[$m,{commitment:"confirmed"}]')"
       ;;
     getPostAnchor)
       params="$(jq -cn --arg id "$PROBE_ADDRESS" '[$id,{commitment:"confirmed"}]')"
@@ -526,7 +552,7 @@ rpc_probe_spec() {
       params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,{commitment:"confirmed"}]')"
       ;;
     submitEngagementProof|stakeBehindCreator|unstakeBehindCreator|claimSocialStakeYield)
-      expectation="transaction"
+      expectation="social-fixture"
       params="$(jq -cn --arg tx "$PROBE_TX_BASE64" '[$tx,{encoding:"base64"}]')"
       ;;
     *)
@@ -542,8 +568,7 @@ RPC_METHOD_RESULTS="$ARTIFACT_DIR/rpc-method-results.jsonl"
 RPC_METHOD_COUNT=0
 RPC_METHOD_FAILURES=0
 RPC_METHOD_RESULT_COUNT=0
-RPC_METHOD_DOMAIN_COUNT=0
-RPC_METHOD_PAYLOAD_COUNT=0
+RPC_METHOD_SKIP_COUNT=0
 
 summary_append "## Declared JSON-RPC surface"
 summary_append "| Method | Result | Coverage | Classification | RPC code |"
@@ -555,14 +580,21 @@ while IFS= read -r method; do
 
   if ! spec="$(rpc_probe_spec "$method")"; then
     RPC_METHOD_FAILURES=$((RPC_METHOD_FAILURES+1))
-    jq -cn --arg method "$method" '{method:$method,outcome:"FAIL",coverage:"unmapped",classification:"missing-probe-spec",rpcCode:null}' >> "$RPC_METHOD_RESULTS"
-    summary_append "| $method | FAIL | unmapped | missing-probe-spec | - |"
+    jq -cn --arg method "$method" '{method:$method,outcome:"FAIL",coverage:"unmapped",classification:"missing-functional-fixture",rpcCode:null}' >> "$RPC_METHOD_RESULTS"
+    summary_append "| $method | FAIL | unmapped | missing-functional-fixture | - |"
     continue
   fi
 
   expectation="${spec%%$'\t'*}"
   params="${spec#*$'\t'}"
-  response="$(rpc_call "$method" "$params" 2>/dev/null || true)"
+  if [ "$expectation" = "preverified" ]; then
+    RPC_METHOD_RESULT_COUNT=$((RPC_METHOD_RESULT_COUNT+1))
+    jq -cn --arg method "$method" --arg signature "$RPC_SEND_SIGNATURE" '{method:$method,outcome:"PASS",coverage:"success-path",classification:"release-cli-submission-confirmed",rpcCode:null,evidence:{signature:$signature}}' >> "$RPC_METHOD_RESULTS"
+    summary_append "| $method | PASS | success-path | release-cli-submission-confirmed | - |"
+    continue
+  else
+    response="$(rpc_call "$method" "$params" 2>/dev/null || true)"
+  fi
   outcome="PASS"
   classification="returned-result"
   code=""
@@ -595,31 +627,39 @@ while IFS= read -r method; do
             outcome="FAIL"
             classification="unexpected-rpc-error"
             ;;
-          snapshot)
+          snapshot-state)
             if [ "$code" = "-32008" ]; then
-              classification="snapshot-unavailable"
-              RPC_METHOD_DOMAIN_COUNT=$((RPC_METHOD_DOMAIN_COUNT+1))
+              outcome="SKIP"
+              classification="snapshot-not-yet-generated"
+              RPC_METHOD_SKIP_COUNT=$((RPC_METHOD_SKIP_COUNT+1))
             else
               outcome="FAIL"
               classification="unexpected-snapshot-error"
             fi
             ;;
-          inflation-reward)
+          reward-state)
             if [ "$code" = "-32004" ] && [[ "$message" == "Block not available for slot "* ]]; then
-              classification="reward-block-unavailable"
-              RPC_METHOD_DOMAIN_COUNT=$((RPC_METHOD_DOMAIN_COUNT+1))
+              outcome="SKIP"
+              classification="reward-epoch-not-yet-complete"
+              RPC_METHOD_SKIP_COUNT=$((RPC_METHOD_SKIP_COUNT+1))
             else
               outcome="FAIL"
               classification="unexpected-inflation-reward-error"
             fi
             ;;
-          resource)
-            classification="resource-domain-error"
-            RPC_METHOD_DOMAIN_COUNT=$((RPC_METHOD_DOMAIN_COUNT+1))
+          resource-fixture|social-fixture)
+            if [ "$code" = "-32602" ]; then
+              outcome="SKIP"
+              classification="method-reachable-success-fixture-not-provisioned"
+              RPC_METHOD_SKIP_COUNT=$((RPC_METHOD_SKIP_COUNT+1))
+            else
+              outcome="FAIL"
+              classification="unexpected-fixture-error"
+            fi
             ;;
-          payload|transaction)
-            classification="payload-or-transaction-domain-error"
-            RPC_METHOD_PAYLOAD_COUNT=$((RPC_METHOD_PAYLOAD_COUNT+1))
+          resource|payload|transaction)
+            outcome="FAIL"
+            classification="functional-probe-returned-domain-error"
             ;;
           *)
             outcome="FAIL"
@@ -630,7 +670,7 @@ while IFS= read -r method; do
     esac
   fi
 
-  if [ "$outcome" != "PASS" ]; then
+  if [ "$outcome" = "FAIL" ]; then
     RPC_METHOD_FAILURES=$((RPC_METHOD_FAILURES+1))
     echo "[rpc][FAIL] method=$method coverage=$expectation classification=$classification code=${code:--} message=${message:-<none>}" >&2
   fi
@@ -640,7 +680,7 @@ done < "$ARTIFACT_DIR/rpc-methods.txt"
 
 jq -s . "$RPC_METHOD_RESULTS" > "$ARTIFACT_DIR/rpc-method-results.json"
 summary_append ""
-summary_append "Probed $RPC_METHOD_COUNT declared methods: $RPC_METHOD_RESULT_COUNT returned results; $RPC_METHOD_DOMAIN_COUNT returned expected resource/snapshot domain errors; $RPC_METHOD_PAYLOAD_COUNT reached signed-payload/transaction validation; failures=$RPC_METHOD_FAILURES."
+summary_append "Probed $RPC_METHOD_COUNT declared methods: $RPC_METHOD_RESULT_COUNT returned results; $RPC_METHOD_SKIP_COUNT explicitly skipped because a success-state fixture is unavailable; failures=$RPC_METHOD_FAILURES. RPC errors never count as PASS."
 [ "$RPC_METHOD_FAILURES" -eq 0 ] || fail "$RPC_METHOD_FAILURES declared JSON-RPC methods failed method-aware probes"
 [ "$RPC_FUNCTIONAL_FAILURES" -eq 0 ] || fail "$RPC_FUNCTIONAL_FAILURES strict JSON-RPC probes failed"
 fi

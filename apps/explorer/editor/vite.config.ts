@@ -1,26 +1,23 @@
+import { esmUrlPlugin } from '@vscode/rollup-plugin-esm-url'
+import { fileURLToPath, URL } from 'node:url'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, type PluginOption } from 'vite'
+
+// The package is built for Vite, but its Rollup hook types differ from Vite 7's
+// local hook types. Keep that compatibility cast at this one configuration seam.
+const esmUrlVitePlugin = esmUrlPlugin() as unknown as PluginOption
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [esmUrlVitePlugin, react()],
   resolve: {
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     dedupe: ['vscode', 'monaco-editor', 'react', 'react-dom'],
   },
   server: {
     port: 5174,
     strictPort: true,
+    watch: { ignored: ['**/.aeko-workspaces/**'] },
   },
-  optimizeDeps: {
-    // @vscode/diff owns an ESM worker URL and must stay source-served in development.
-    // Prebundling it pulls a Node-only filesystem fallback into the browser worker build.
-    exclude: ['@vscode/diff'],
-  },
-  worker: {
-    format: 'es',
-  },
-  build: {
-    target: 'es2022',
-    sourcemap: false,
-    chunkSizeWarningLimit: 2500,
-  },
+  worker: { format: 'es' },
+  build: { target: 'es2022', sourcemap: false, chunkSizeWarningLimit: 2500 },
 })
