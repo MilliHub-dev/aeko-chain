@@ -428,7 +428,6 @@ rpc_probe_spec() {
       params='[]'
       ;;
     getHighestSnapshotSlot|getSnapshotSlot)
-      expectation="snapshot"
       params='[]'
       ;;
     getBalance)
@@ -450,8 +449,7 @@ rpc_probe_spec() {
       params="$(jq -cn --argjson slot "$PROBE_SLOT" '[$slot]')"
       ;;
     getTokenAccountBalance|getTokenSupply|getTokenLargestAccounts|getStakeActivation)
-      expectation="resource"
-      params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,{commitment:"confirmed"}]')"
+      # A funded system account is not a valid token/stake fixture.\n      return 2
       ;;
     getTokenAccountsByOwner|getTokenAccountsByDelegate)
       params="$(jq -cn --arg a "$PROBE_ADDRESS" --arg p "$PROBE_TOKEN_PROGRAM" '[$a,{programId:$p},{encoding:"base64",commitment:"confirmed"}]')"
@@ -460,8 +458,7 @@ rpc_probe_spec() {
       params='["11111111111111111111111111111111",{"encoding":"base64","commitment":"confirmed"}]'
       ;;
     getInflationReward)
-      expectation="inflation-reward"
-      params="$(jq -cn --arg a "$PROBE_ADDRESS" --argjson epoch "$PROBE_EPOCH" '[[ $a ],{epoch:$epoch,commitment:"confirmed"}]')"
+      # A completed reward epoch is required for functional coverage.\n      return 2
       ;;
     getSignatureStatuses)
       params="$(jq -cn --arg s "$PROBE_SIGNATURE" '[[ $s ],{searchTransactionHistory:true}]')"
@@ -473,8 +470,7 @@ rpc_probe_spec() {
       params="$(jq -cn --arg a "$RPC_FUNDING_ADDRESS" --arg key "$AEKO_FUNDING_AUTHORIZATION_KEY" '[$a,1000000,{fundingAuthorization:$key,commitment:"confirmed"}]')"
       ;;
     sendTransaction)
-      expectation="transaction"
-      params="$(jq -cn --arg tx "$PROBE_TX_BASE64" '[$tx,{encoding:"base64",skipPreflight:false,preflightCommitment:"confirmed"}]')"
+      # Replaying the confirmed airdrop is rejection coverage, not sendTransaction success.\n      return 2
       ;;
     simulateTransaction)
       params="$(jq -cn --arg tx "$PROBE_TX_BASE64" '[$tx,{encoding:"base64",sigVerify:false,commitment:"confirmed"}]')"
@@ -510,8 +506,7 @@ rpc_probe_spec() {
       params="$(jq -cn --arg h "$PROBE_BLOCKHASH" '[$h,{commitment:"confirmed"}]')"
       ;;
     getFeeForMessage)
-      expectation="payload"
-      params='["AAAA",{"commitment":"confirmed"}]'
+      # Malformed input is decoder coverage, not getFeeForMessage success.\n      return 2
       ;;
     getPostAnchor)
       params="$(jq -cn --arg id "$PROBE_ADDRESS" '[$id,{commitment:"confirmed"}]')"
@@ -526,8 +521,7 @@ rpc_probe_spec() {
       params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,{commitment:"confirmed"}]')"
       ;;
     submitEngagementProof|stakeBehindCreator|unstakeBehindCreator|claimSocialStakeYield)
-      expectation="transaction"
-      params="$(jq -cn --arg tx "$PROBE_TX_BASE64" '[$tx,{encoding:"base64"}]')"
+      # SocialFi writes require instruction-specific signed transactions.\n      return 2
       ;;
     *)
       return 2
@@ -555,8 +549,8 @@ while IFS= read -r method; do
 
   if ! spec="$(rpc_probe_spec "$method")"; then
     RPC_METHOD_FAILURES=$((RPC_METHOD_FAILURES+1))
-    jq -cn --arg method "$method" '{method:$method,outcome:"FAIL",coverage:"unmapped",classification:"missing-probe-spec",rpcCode:null}' >> "$RPC_METHOD_RESULTS"
-    summary_append "| $method | FAIL | unmapped | missing-probe-spec | - |"
+    jq -cn --arg method "$method" '{method:$method,outcome:"FAIL",coverage:"unmapped",classification:"missing-functional-fixture",rpcCode:null}' >> "$RPC_METHOD_RESULTS"
+    summary_append "| $method | FAIL | unmapped | missing-functional-fixture | - |"
     continue
   fi
 
@@ -613,14 +607,7 @@ while IFS= read -r method; do
               classification="unexpected-inflation-reward-error"
             fi
             ;;
-          resource)
-            classification="resource-domain-error"
-            RPC_METHOD_DOMAIN_COUNT=$((RPC_METHOD_DOMAIN_COUNT+1))
-            ;;
-          payload|transaction)
-            classification="payload-or-transaction-domain-error"
-            RPC_METHOD_PAYLOAD_COUNT=$((RPC_METHOD_PAYLOAD_COUNT+1))
-            ;;
+          resource|payload|transaction)\n            outcome="FAIL"\n            classification="functional-probe-returned-domain-error"\n            ;;
           *)
             outcome="FAIL"
             classification="unknown-expectation"
@@ -640,7 +627,7 @@ done < "$ARTIFACT_DIR/rpc-methods.txt"
 
 jq -s . "$RPC_METHOD_RESULTS" > "$ARTIFACT_DIR/rpc-method-results.json"
 summary_append ""
-summary_append "Probed $RPC_METHOD_COUNT declared methods: $RPC_METHOD_RESULT_COUNT returned results; $RPC_METHOD_DOMAIN_COUNT returned expected resource/snapshot domain errors; $RPC_METHOD_PAYLOAD_COUNT reached signed-payload/transaction validation; failures=$RPC_METHOD_FAILURES."
+summary_append "Probed $RPC_METHOD_COUNT declared methods: $RPC_METHOD_RESULT_COUNT returned results; failures=$RPC_METHOD_FAILURES. Domain errors and malformed/replayed payload rejection do not count as functional PASS."
 [ "$RPC_METHOD_FAILURES" -eq 0 ] || fail "$RPC_METHOD_FAILURES declared JSON-RPC methods failed method-aware probes"
 [ "$RPC_FUNCTIONAL_FAILURES" -eq 0 ] || fail "$RPC_FUNCTIONAL_FAILURES strict JSON-RPC probes failed"
 fi
