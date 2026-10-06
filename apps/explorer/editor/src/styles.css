@@ -1,3 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-aeko-dark: #052E2B;
+  --color-aeko-light: #073d39;
+  --color-aeko-accent: #5FB51F;
+  --color-aeko-purple: #7000ff;
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "Fira Code", monospace;
+}
+
 :root {
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
