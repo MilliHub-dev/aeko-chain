@@ -1,10 +1,5 @@
-interface EditorTabsProps { paths: string[]; activePath: string; dirtyPaths: ReadonlySet<string>; onOpen: (path: string) => void; onClose: (path: string) => void | Promise<void> }
-export default function EditorTabs({ paths, activePath, dirtyPaths, onOpen, onClose }: EditorTabsProps) {
-  return <div className="editor-tabs" role="tablist" aria-label="Open files">{paths.map((path) => {
-    const name = path.split('/').pop() || path
-    return <div key={path} role="tab" aria-selected={path === activePath} className={`editor-tab ${path === activePath ? 'active' : ''}`}>
-      <button type="button" className="tab-open" onClick={() => onOpen(path)}><span>{name}</span></button>
-      {dirtyPaths.has(path) ? <span className="dirty-dot" aria-label="Unsaved">●</span> : <button type="button" className="tab-close" aria-label={`Close ${name}`} onClick={() => void onClose(path)}>×</button>}
-    </div>
-  })}</div>
-}
+import { Circle, X } from 'lucide-react'
+import { Button } from './ui/button'
+import { cn } from '../lib/utils'
+interface Props{paths:string[];activePath:string;dirtyPaths:ReadonlySet<string>;onOpen:(path:string)=>void;onClose:(path:string)=>void|Promise<void>}
+export default function EditorTabs({paths,activePath,dirtyPaths,onOpen,onClose}:Props){return <div className="flex h-10 shrink-0 overflow-x-auto border-b border-border bg-background" role="tablist" aria-label="Open files">{paths.map(path=>{const name=path.split('/').pop()||path;const active=path===activePath;return <div key={path} role="tab" aria-selected={active} className={cn('flex min-w-32 max-w-52 items-center border-r border-border text-xs text-muted-foreground',active&&'bg-card text-foreground')}><button type="button" className="h-full min-w-0 flex-1 cursor-pointer truncate px-3 text-left" onClick={()=>onOpen(path)}>{name}</button>{dirtyPaths.has(path)?<Circle className="mr-2 size-2 fill-current" aria-label="Unsaved"/>:<Button variant="ghost" size="icon" className="mr-1 size-7" aria-label={'Close '+name} onClick={()=>void onClose(path)}><X/></Button>}</div>})}</div>}
