@@ -1,65 +1,24 @@
-import Terminal from '../ide/Terminal'
-import type { PanelTab } from '../lib/session'
+import StudioConsole from '../ide/StudioConsole'
 
 interface BottomPanelProps {
   workspaceId: string
-  activeTab: PanelTab
-  onTabChange: (tab: PanelTab) => void
   collapsed: boolean
-  maximized: boolean
   onToggleCollapsed: () => void
-  onToggleMaximized: () => void
 }
 
-const TABS: readonly PanelTab[] = ['TERMINAL', 'OUTPUT', 'PROBLEMS']
-
-export default function BottomPanel({
-  workspaceId,
-  activeTab,
-  onTabChange,
-  collapsed,
-  maximized,
-  onToggleCollapsed,
-  onToggleMaximized,
-}: BottomPanelProps) {
+export default function BottomPanel({ workspaceId, collapsed, onToggleCollapsed }: BottomPanelProps) {
   return (
     <section className={`bottom-panel ${collapsed ? 'collapsed' : ''}`}>
       <header className="panel-tabs">
-        <div>
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              className={activeTab === tab ? 'active' : ''}
-              onClick={() => {
-                onTabChange(tab)
-                if (collapsed) onToggleCollapsed()
-              }}
-            >
-              {tab}
-            </button>
-          ))}
+        <div className="panel-heading">
+          <strong>Console</strong>
+          <span>Build · test · run</span>
         </div>
-        <div className="panel-controls">
-          <button type="button" title={maximized ? 'Restore Panel Size' : 'Maximize Panel Size'} onClick={onToggleMaximized}>
-            <i className={`codicon codicon-${maximized ? 'screen-normal' : 'screen-full'}`} />
-          </button>
-          <button type="button" title={collapsed ? 'Show Panel' : 'Hide Panel'} onClick={onToggleCollapsed}>
-            <i className={`codicon codicon-${collapsed ? 'chevron-up' : 'chevron-down'}`} />
-          </button>
-        </div>
+        <button type="button" className="panel-toggle" onClick={onToggleCollapsed}>
+          {collapsed ? 'Show' : 'Hide'}
+        </button>
       </header>
-      {!collapsed ? (
-        <div className="panel-body">
-          {activeTab === 'TERMINAL' ? <Terminal workspaceId={workspaceId} /> : null}
-          {activeTab === 'OUTPUT' ? (
-            <pre className="panel-placeholder">Task output will appear here when commands run through the terminal.</pre>
-          ) : null}
-          {activeTab === 'PROBLEMS' ? (
-            <pre className="panel-placeholder">Monaco diagnostics appear inline in the editor.</pre>
-          ) : null}
-        </div>
-      ) : null}
+      {!collapsed ? <div className="panel-body"><StudioConsole workspaceId={workspaceId} /></div> : null}
     </section>
   )
 }
