@@ -193,7 +193,7 @@ app.delete('/api/workspaces/:workspaceId', auth, asyncRoute(async (request, resp
   const key = terminals.key(session.id, request.params.workspaceId)
   const terminal = terminals.terminals.get(key)
   if (terminal) {
-    try { terminal.terminal.kill() } catch {}
+    try { terminal.terminal.kill() } catch { /* Best-effort terminal cleanup. */ }
     terminals.terminals.delete(key)
   }
   await workspaces.removeWorkspace(session, request.params.workspaceId)

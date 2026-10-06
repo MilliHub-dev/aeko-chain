@@ -144,7 +144,7 @@ export class TerminalManager {
   closeSession(sessionId: string): void {
     for (const [key, record] of this.terminals) {
       if (record.sessionId !== sessionId) continue
-      try { record.terminal.kill() } catch {}
+      try { record.terminal.kill() } catch { /* Best-effort terminal cleanup. */ }
       this.terminals.delete(key)
     }
   }
@@ -153,7 +153,7 @@ export class TerminalManager {
     const now = Date.now()
     for (const [key, record] of this.terminals) {
       if (now - record.lastUsedAt <= maxIdleMs) continue
-      try { record.terminal.kill() } catch {}
+      try { record.terminal.kill() } catch { /* Best-effort terminal cleanup. */ }
       this.terminals.delete(key)
     }
   }
