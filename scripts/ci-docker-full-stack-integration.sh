@@ -449,7 +449,8 @@ rpc_probe_spec() {
       params="$(jq -cn --argjson slot "$PROBE_SLOT" '[$slot]')"
       ;;
     getTokenAccountBalance|getTokenSupply|getTokenLargestAccounts|getStakeActivation)
-      # A funded system account is not a valid token/stake fixture.\n      return 2
+      # A funded system account is not a valid token/stake fixture.
+      return 2
       ;;
     getTokenAccountsByOwner|getTokenAccountsByDelegate)
       params="$(jq -cn --arg a "$PROBE_ADDRESS" --arg p "$PROBE_TOKEN_PROGRAM" '[$a,{programId:$p},{encoding:"base64",commitment:"confirmed"}]')"
@@ -458,7 +459,8 @@ rpc_probe_spec() {
       params='["11111111111111111111111111111111",{"encoding":"base64","commitment":"confirmed"}]'
       ;;
     getInflationReward)
-      # A completed reward epoch is required for functional coverage.\n      return 2
+      # A completed reward epoch is required for functional coverage.
+      return 2
       ;;
     getSignatureStatuses)
       params="$(jq -cn --arg s "$PROBE_SIGNATURE" '[[ $s ],{searchTransactionHistory:true}]')"
@@ -470,7 +472,8 @@ rpc_probe_spec() {
       params="$(jq -cn --arg a "$RPC_FUNDING_ADDRESS" --arg key "$AEKO_FUNDING_AUTHORIZATION_KEY" '[$a,1000000,{fundingAuthorization:$key,commitment:"confirmed"}]')"
       ;;
     sendTransaction)
-      # Replaying the confirmed airdrop is rejection coverage, not sendTransaction success.\n      return 2
+      # Replaying the confirmed airdrop is rejection coverage, not sendTransaction success.
+      return 2
       ;;
     simulateTransaction)
       params="$(jq -cn --arg tx "$PROBE_TX_BASE64" '[$tx,{encoding:"base64",sigVerify:false,commitment:"confirmed"}]')"
@@ -506,7 +509,8 @@ rpc_probe_spec() {
       params="$(jq -cn --arg h "$PROBE_BLOCKHASH" '[$h,{commitment:"confirmed"}]')"
       ;;
     getFeeForMessage)
-      # Malformed input is decoder coverage, not getFeeForMessage success.\n      return 2
+      # Malformed input is decoder coverage, not getFeeForMessage success.
+      return 2
       ;;
     getPostAnchor)
       params="$(jq -cn --arg id "$PROBE_ADDRESS" '[$id,{commitment:"confirmed"}]')"
@@ -521,7 +525,8 @@ rpc_probe_spec() {
       params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,{commitment:"confirmed"}]')"
       ;;
     submitEngagementProof|stakeBehindCreator|unstakeBehindCreator|claimSocialStakeYield)
-      # SocialFi writes require instruction-specific signed transactions.\n      return 2
+      # SocialFi writes require instruction-specific signed transactions.
+      return 2
       ;;
     *)
       return 2
@@ -607,7 +612,10 @@ while IFS= read -r method; do
               classification="unexpected-inflation-reward-error"
             fi
             ;;
-          resource|payload|transaction)\n            outcome="FAIL"\n            classification="functional-probe-returned-domain-error"\n            ;;
+          resource|payload|transaction)
+            outcome="FAIL"
+            classification="functional-probe-returned-domain-error"
+            ;;
           *)
             outcome="FAIL"
             classification="unknown-expectation"
