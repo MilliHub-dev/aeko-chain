@@ -102,9 +102,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: 5.1.1
         version: 5.1.1(vite@7.2.4(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15))
-      '@vscode/esbuild-plugin-esm-url':
-        specifier: 1.0.1-17
-        version: 1.0.1-17(esbuild@0.28.2)
+      '@vscode/rollup-plugin-esm-url':
+        specifier: 1.0.1-1
+        version: 1.0.1-1(rollup@4.64.0)
       autoprefixer:
         specifier: ^10.4.23
         version: 10.6.1(postcss@8.5.29)
@@ -1304,10 +1304,10 @@ packages:
   '@vscode/diff@0.0.2-7':
     resolution: {integrity: sha512-zGPIPeUAmQs79u7g6FTLmhlXFIocUTtuHYmCV5lRZf6vlDk7SWEOpBlYY6SsShC3TB/lm2KxXMj9tP32YOPrhg==}
 
-  '@vscode/esbuild-plugin-esm-url@1.0.1-17':
-    resolution: {integrity: sha512-HapEwvzJaN8+AwsluTAcOI9a2kp/5q7eEMbNGVNegMKjwUKVbq1CXuPESvBtXYDa1C3o9FQi7OWtWkGqsa6k6w==}
+  '@vscode/rollup-plugin-esm-url@1.0.1-1':
+    resolution: {integrity: sha512-vNmIR3ZyiwACUi8qnXhKNukoXaFkOM9skiqVOVHNKJTBb7kJS+evtyadrBc/fMm1y303WQWBNA90E7fCCsE2Sw==}
     peerDependencies:
-      esbuild: ^0.17.0 || ^0.18.0 || ^0.19.0 || ^0.20.0 || ^0.21.0 || ^0.22.0 || ^0.23.0 || ^0.24.0 || ^0.25.0 || ^0.26.0 || ^0.27.0 || ^0.28.0
+      rollup: ^3.0.0 || ^4.0.0
 
   '@vscode/iconv-lite-umd@0.7.1':
     resolution: {integrity: sha512-tK6k0DXFHW7q5+GGuGZO+phpAqpxO4WXl+BLc/8/uOk3RsM2ssAL3CQUQDb1TGfwltjsauhN6S4ghYZzs4sPFw==}
@@ -3292,9 +3292,9 @@ snapshots:
 
   '@vscode/diff@0.0.2-7': {}
 
-  '@vscode/esbuild-plugin-esm-url@1.0.1-17(esbuild@0.28.2)':
+  '@vscode/rollup-plugin-esm-url@1.0.1-1(rollup@4.64.0)':
     dependencies:
-      esbuild: 0.28.2
+      rollup: 4.64.0
 
   '@vscode/iconv-lite-umd@0.7.1': {}
 

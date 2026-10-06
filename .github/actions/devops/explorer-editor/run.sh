@@ -116,6 +116,30 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
   dev_config_json="$(http_request "GET /api/config" http://127.0.0.1:4100/api/config)"
   assert_json "development configuration must disable shared-token auth" '.data.authRequired == false' "$dev_config_json"
 
+  browser_bin=""
+  if [ -n "${CHROME_BIN:-}" ] && [ -x "${CHROME_BIN}" ]; then
+    browser_bin="${CHROME_BIN}"
+  else
+    for candidate in google-chrome-stable google-chrome chromium-browser chromium; do
+      if command -v "$candidate" >/dev/null 2>&1; then
+        browser_bin="$(command -v "$candidate")"
+        break
+      fi
+    done
+  fi
+  if [ -z "$browser_bin" ]; then
+    echo "Contract Studio browser smoke requires Chrome or Chromium on the CI runner." >&2
+    cat "$dev_log" >&2
+    exit 1
+  fi
+  if ! AEKO_STUDIO_SMOKE_URL=http://127.0.0.1:4100/ \
+    AEKO_BROWSER_EXECUTABLE="$browser_bin" \
+    npm run smoke:browser; then
+    echo "Contract Studio browser smoke failed." >&2
+    cat "$dev_log" >&2
+    exit 1
+  fi
+
   optimizer_failed=false
   for _ in $(seq 1 15); do
     if grep -Fq "Error during dependency optimization:" "$dev_log"; then

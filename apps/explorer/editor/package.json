@@ -12,6 +12,7 @@
     "build": "npm run typecheck && npm run build:server && vite build",
     "lint": "NODE_OPTIONS=--experimental-strip-types eslint --flag unstable_native_nodejs_ts_config .",
     "test": "tsx --test server/*.test.ts",
+    "smoke:browser": "node scripts/browser-smoke.mjs",
     "start": "NODE_ENV=production node dist-server/server/index.js"
   },
   "dependencies": {
@@ -58,7 +59,7 @@
     "tsx": "4.23.15",
     "typescript-eslint": "8.70.1",
     "vite": "7.2.4",
-    "@vscode/esbuild-plugin-esm-url": "1.0.1-17"
+    "@vscode/rollup-plugin-esm-url": "1.0.1-1"
   },
   "engines": {
     "node": ">=22 <23"
