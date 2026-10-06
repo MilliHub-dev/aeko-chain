@@ -22,17 +22,26 @@ interface CommandRecord {
 
 const COMMANDS: Record<ProjectTemplate, Partial<Record<StudioCommand, CommandSpec>>> = {
   'rust-program': {
+    check: { executable: 'cargo', args: ['check'], label: 'Check Rust program' },
+    lint: { executable: 'cargo', args: ['clippy', '--all-targets', '--', '-D', 'warnings'], label: 'Clippy' },
+    format: { executable: 'cargo', args: ['fmt', '--all'], label: 'Format Rust' },
     build: { executable: 'cargo-build-sbf', args: ['--manifest-path', 'Cargo.toml', '--sbf-out-dir', 'out'], label: 'Build SBF program' },
     test: { executable: 'cargo', args: ['test', '--offline'], label: 'Run Rust tests' },
     clean: { executable: 'cargo', args: ['clean'], label: 'Clean Rust build artifacts' },
   },
   'typescript-client': {
-    build: { executable: 'tsc', args: ['--noEmit', '-p', 'tsconfig.json'], label: 'Type-check client' },
+    build: { executable: 'tsc', args: ['--noEmit', '-p', 'tsconfig.json'], label: 'Build/type-check client' },
+    typecheck: { executable: 'tsc', args: ['--noEmit', '-p', 'tsconfig.json'], label: 'Type-check client' },
+    lint: { executable: 'biome', args: ['check', '.'], label: 'Biome check' },
+    format: { executable: 'biome', args: ['format', '--write', '.'], label: 'Biome format' },
     test: { executable: 'node', args: ['--experimental-strip-types', '--test'], label: 'Run client tests' },
     run: { executable: 'node', args: ['--experimental-strip-types', 'src/index.ts'], label: 'Run client' },
   },
   'typescript-dapp': {
     build: { executable: 'npm', args: ['run', 'build'], label: 'Build DApp' },
+    typecheck: { executable: 'npm', args: ['run', 'typecheck'], label: 'Type-check DApp' },
+    lint: { executable: 'biome', args: ['check', '.'], label: 'Biome check' },
+    format: { executable: 'biome', args: ['format', '--write', '.'], label: 'Biome format' },
     test: { executable: 'npm', args: ['run', 'typecheck'], label: 'Type-check DApp' },
     run: { executable: 'npm', args: ['run', 'dev', '--', '--host', '0.0.0.0'], label: 'Start DApp dev server' },
     clean: { executable: 'npm', args: ['run', 'clean'], label: 'Clean DApp build output' },
