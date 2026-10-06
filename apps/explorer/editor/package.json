@@ -35,7 +35,6 @@
     "vscode": "npm:@codingame/monaco-vscode-extension-api@36.2.7"
   },
   "devDependencies": {
-    "@vscode/esbuild-plugin-esm-url": "1.0.1-0",
     "@eslint/js": "9.39.1",
     "@types/express": "5.0.6",
     "@types/node": "22.20.5",
