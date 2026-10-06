@@ -23,12 +23,6 @@ importers:
       '@codingame/monaco-vscode-standalone-typescript-language-features':
         specifier: 36.2.7
         version: 36.2.7
-      '@codingame/monaco-vscode-theme-defaults-default-extension':
-        specifier: 36.2.7
-        version: 36.2.7
-      '@codingame/monaco-vscode-theme-service-override':
-        specifier: 36.2.7
-        version: 36.2.7
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.3.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -322,12 +316,6 @@ packages:
     resolution: {integrity: sha512-6YCNvxLr+tgbrrd3m3bWoWyDpCnRsWp+/PF5MfBQQvp1k3pHO3l4h67xe5qHzQaIRsbme5zgC8yFtYXC9hqSFw==}
 
   '@codingame/monaco-vscode-standalone-typescript-language-features@36.2.7': {}
-
-  '@codingame/monaco-vscode-theme-defaults-default-extension@36.2.7':
-    resolution: {integrity: sha512-ev5Bws/cs8/b5sWS82S7UKjZ1WC4Om6CxwYXL1X26ASCBe/j77fn5e43ozF3VMG0YbQy4i/fKcWRGOjdYwNPDw==}
-
-  '@codingame/monaco-vscode-theme-service-override@36.2.7':
-    resolution: {integrity: sha512-iVGRtzrP78RRamkwhe/nO6jw9jD/1CIK+wpynIolgOB6cVcJiU7Srt//WhjPv3rBrhr053EwnBrgsKZN4ATTpg==}
 
   '@esbuild/aix-ppc64@0.25.12':
     resolution: {integrity: sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==}
@@ -2524,15 +2512,6 @@ snapshots:
   '@codingame/monaco-vscode-standalone-typescript-language-features@36.2.7':
     dependencies:
       monaco-editor: '@codingame/monaco-vscode-editor-api@36.2.7'
-
-  '@codingame/monaco-vscode-theme-defaults-default-extension@36.2.7':
-    dependencies:
-      '@codingame/monaco-vscode-api': 36.2.7
-
-  '@codingame/monaco-vscode-theme-service-override@36.2.7':
-    dependencies:
-      '@codingame/monaco-vscode-api': 36.2.7
-      '@codingame/monaco-vscode-files-service-override': 36.2.7
 
   '@esbuild/aix-ppc64@0.25.12':
     optional: true

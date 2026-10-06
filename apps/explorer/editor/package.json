@@ -36,8 +36,6 @@
     "@codingame/monaco-vscode-configuration-service-override": "36.2.7",
     "@codingame/monaco-vscode-keybindings-service-override": "36.2.7",
     "@codingame/monaco-vscode-standalone-typescript-language-features": "36.2.7",
-    "@codingame/monaco-vscode-theme-defaults-default-extension": "36.2.7",
-    "@codingame/monaco-vscode-theme-service-override": "36.2.7",
     "@vscode/codicons": "0.0.46-24",
     "vscode": "npm:@codingame/monaco-vscode-extension-api@36.2.7",
     "@vscode/diff": "0.0.2-7"

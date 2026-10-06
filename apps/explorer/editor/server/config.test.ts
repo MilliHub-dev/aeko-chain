@@ -61,3 +61,40 @@ test('production ignores the local development flag and still requires an access
     )
   })
 })
+
+
+test('local development defaults to readable text logs', () => {
+  withEnvironment({
+    NODE_ENV: 'development',
+    AEKO_EDITOR_ACCESS_TOKEN: undefined,
+    AEKO_EDITOR_ALLOW_INSECURE_LOCAL: undefined,
+    AEKO_LOG_FORMAT: undefined,
+  }, () => {
+    const config = loadConfig({ localDevelopment: true })
+    assert.equal(config.logFormat, 'text')
+  })
+})
+
+test('production defaults to structured JSON logs', () => {
+  withEnvironment({
+    NODE_ENV: 'production',
+    AEKO_EDITOR_PUBLIC_ORIGIN: 'https://editor.aeko.online',
+    AEKO_EDITOR_ACCESS_TOKEN: '0123456789abcdef0123456789abcdef',
+    AEKO_LOG_FORMAT: undefined,
+  }, () => {
+    const config = loadConfig()
+    assert.equal(config.logFormat, 'json')
+  })
+})
+
+test('explicit log format overrides the environment default', () => {
+  withEnvironment({
+    NODE_ENV: 'development',
+    AEKO_EDITOR_ACCESS_TOKEN: undefined,
+    AEKO_EDITOR_ALLOW_INSECURE_LOCAL: undefined,
+    AEKO_LOG_FORMAT: 'json',
+  }, () => {
+    const config = loadConfig({ localDevelopment: true })
+    assert.equal(config.logFormat, 'json')
+  })
+})

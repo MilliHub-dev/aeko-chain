@@ -72,6 +72,12 @@ npm run dev
 
 In non-production mode, workspaces default to `.aeko-workspaces/` inside the editor app rather than the production-only `/workspaces` path. The server runs the Vite middleware and API/Socket.IO endpoint together on port 4100, so the local workflow exercises the same HTTP and WebSocket origin.
 
+### Development logs
+
+Local development defaults to the human-readable `text` logger. Interactive terminals receive ANSI level colors and compact request lines, while stack traces are printed on indented continuation lines. Set `AEKO_LOG_LEVEL=debug` to include request-start events.
+
+`AEKO_LOG_FORMAT=json` remains available locally when machine-readable output is needed. Production defaults to JSON, and the Coolify example pins `AEKO_LOG_FORMAT=json` so collectors retain structured fields and full request IDs.
+
 ## Workspace templates
 
 ### Rust · SBF Program

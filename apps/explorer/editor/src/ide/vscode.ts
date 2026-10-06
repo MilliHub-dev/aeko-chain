@@ -4,14 +4,8 @@ import getConfigurationServiceOverride, { updateUserConfiguration } from '@codin
 import getKeybindingsServiceOverride from '@codingame/monaco-vscode-keybindings-service-override'
 import {
   javascriptDefaults,
-  JsxEmit,
-  ModuleKind,
-  ModuleResolutionKind,
-  ScriptTarget,
   typescriptDefaults,
 } from '@codingame/monaco-vscode-standalone-typescript-language-features'
-import getThemeServiceOverride from '@codingame/monaco-vscode-theme-service-override'
-import '@codingame/monaco-vscode-theme-defaults-default-extension'
 import 'monaco-editor/esm/vs/basic-languages/monaco.contribution'
 
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
@@ -25,6 +19,16 @@ interface MonacoEnvironmentContract {
 }
 
 type MonacoGlobal = typeof globalThis & { MonacoEnvironment?: MonacoEnvironmentContract }
+type TypeScriptCompilerOptions = Parameters<typeof typescriptDefaults.setCompilerOptions>[0]
+
+// The standalone package exposes the defaults/worker but not these enum objects at runtime.
+// Keep their pinned TypeScript numeric values here so Vite never requests non-existent exports.
+const TS_COMPILER = {
+  scriptTargetLatest: 99,
+  moduleEsNext: 99,
+  moduleResolutionNodeJs: 2,
+  jsxReactJsx: 4,
+} as const
 
 let initialized = false
 
@@ -44,14 +48,13 @@ export async function initializeVscode(): Promise<typeof monaco> {
   await initialize({
     ...getConfigurationServiceOverride(),
     ...getKeybindingsServiceOverride(),
-    ...getThemeServiceOverride(),
   })
 
-  const compilerOptions = {
-    target: ScriptTarget.Latest,
-    module: ModuleKind.ESNext,
-    moduleResolution: ModuleResolutionKind.NodeJs,
-    jsx: JsxEmit.ReactJSX,
+  const compilerOptions: TypeScriptCompilerOptions = {
+    target: TS_COMPILER.scriptTargetLatest,
+    module: TS_COMPILER.moduleEsNext,
+    moduleResolution: TS_COMPILER.moduleResolutionNodeJs,
+    jsx: TS_COMPILER.jsxReactJsx,
     allowJs: true,
     checkJs: true,
     allowNonTsExtensions: true,
@@ -86,7 +89,6 @@ export async function initializeVscode(): Promise<typeof monaco> {
     'editor.wordWrap': 'off',
     'files.autoSave': 'afterDelay',
     'files.autoSaveDelay': 900,
-    'workbench.colorTheme': 'Default Dark Modern',
   }))
 
   initialized = true
