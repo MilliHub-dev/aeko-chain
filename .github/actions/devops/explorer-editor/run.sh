@@ -63,6 +63,21 @@ assert_json() {
 
 if [ "${VALIDATE_SOURCE}" = "true" ]; then
   pushd "$app_dir" >/dev/null
+
+  # The editor publishes a pnpm lockfile for local development. Exercise it
+  # with the exact package-manager version pinned in package.json before the
+  # npm-based build path so Windows/local installs cannot silently rot.
+  command -v corepack >/dev/null 2>&1 || {
+    echo "Contract Studio lockfile validation requires Corepack." >&2
+    exit 1
+  }
+  test "$(corepack pnpm --version)" = "10.34.6" || {
+    echo "Contract Studio did not resolve the pinned pnpm 10.34.6 toolchain." >&2
+    exit 1
+  }
+  corepack pnpm install --frozen-lockfile --ignore-scripts
+  rm -rf node_modules
+
   npm install --no-audit --no-fund
   npm run lint
   npm test

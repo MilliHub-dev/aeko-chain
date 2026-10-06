@@ -12,7 +12,7 @@ class Sink {
 
 const fixedNow = () => new Date('2026-10-06T20:45:17.391Z')
 
-test('text logger renders compact HTTP success lines instead of JSON dumps', () => {
+test('text logger renders compact API success lines instead of JSON dumps', () => {
   const stdout = new Sink()
   const stderr = new Sink()
   const logger = createStudioLogger(
@@ -23,16 +23,67 @@ test('text logger renders compact HTTP success lines instead of JSON dumps', () 
   logger.requestCompleted({
     request_id: '7e2d14dc-2171-4201-8dbb-aa80f60526e1',
     method: 'GET',
-    path: '/src/main.tsx',
+    path: '/api/config',
     status: 200,
     latency_ms: 12,
   })
 
   assert.match(stdout.value, /20:45:17\.391\s+SUCCESS\s+HTTP/)
-  assert.match(stdout.value, /GET\s+\/src\/main\.tsx\s+200\s+12ms/)
+  assert.match(stdout.value, /GET\s+\/api\/config\s+200\s+12ms/)
   assert.match(stdout.value, /req=7e2d14dc/)
   assert.doesNotMatch(stdout.value, /^\{/)
   assert.equal(stderr.value, '')
+})
+
+test('successful Vite and static asset requests are debug-only in text mode', () => {
+  const normal = new Sink()
+  const normalLogger = createStudioLogger(
+    { logLevel: 'info', logFormat: 'text', network: 'testnet' },
+    { stdout: normal, stderr: new Sink(), color: false, now: fixedNow },
+  )
+  normalLogger.requestCompleted({
+    request_id: 'static123',
+    method: 'GET',
+    path: '/src/main.tsx',
+    status: 200,
+    latency_ms: 12,
+  })
+  assert.equal(normal.value, '')
+
+  const debug = new Sink()
+  const debugLogger = createStudioLogger(
+    { logLevel: 'debug', logFormat: 'text', network: 'testnet' },
+    { stdout: debug, stderr: new Sink(), color: false, now: fixedNow },
+  )
+  debugLogger.requestCompleted({
+    request_id: 'static123',
+    method: 'GET',
+    path: '/node_modules/.vite/deps/react.js',
+    status: 200,
+    latency_ms: 4,
+  })
+  assert.match(debug.value, /DEBUG\s+HTTP/)
+  assert.match(debug.value, /\/node_modules\/\.vite\/deps\/react\.js\s+200\s+4ms/)
+})
+
+test('structured JSON keeps successful static requests at info level', () => {
+  const stdout = new Sink()
+  const logger = createStudioLogger(
+    { logLevel: 'info', logFormat: 'json', network: 'testnet' },
+    { stdout, stderr: new Sink(), color: false, now: fixedNow },
+  )
+  logger.requestCompleted({
+    request_id: 'static-json',
+    method: 'GET',
+    path: '/src/main.tsx',
+    status: 200,
+    latency_ms: 3,
+  })
+
+  const record = JSON.parse(stdout.value)
+  assert.equal(record.level, 'info')
+  assert.equal(record.event, 'http_request_completed')
+  assert.equal(record.path, '/src/main.tsx')
 })
 
 test('warnings and errors are routed to stderr with readable stack lines', () => {

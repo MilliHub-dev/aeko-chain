@@ -2,6 +2,7 @@
   "name": "aeko-contract-studio",
   "private": true,
   "version": "0.2.0",
+  "packageManager": "pnpm@10.34.6",
   "type": "module",
   "scripts": {
     "dev": "tsx server/index.ts --dev",

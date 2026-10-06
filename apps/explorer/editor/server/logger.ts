@@ -105,6 +105,11 @@ function requestId(value: unknown): string {
   return text.length > 8 ? text.slice(0, 8) : text
 }
 
+function isApplicationRequest(fields: Pick<HttpLogFields, 'method' | 'path'>): boolean {
+  if (!['GET', 'HEAD'].includes(fields.method.toUpperCase())) return true
+  return fields.path.startsWith('/api/')
+}
+
 function formatGenericFields(fields: Record<string, unknown>): string {
   const ignored = new Set(['error_name', 'error_message', 'error_stack'])
   return Object.entries(fields)
@@ -218,7 +223,11 @@ export function createStudioLogger(config: LoggerConfig, options: LoggerOptions 
     requestCompleted(fields: HttpLogFields) {
       if (fields.status >= 500) log('error', 'http_request_completed', fields)
       else if (fields.status >= 400) log('warn', 'http_request_completed', fields)
-      else log('success', 'http_request_completed', fields)
+      else if (config.logFormat === 'json' || isApplicationRequest(fields)) {
+        log('success', 'http_request_completed', fields)
+      } else {
+        log('debug', 'http_request_completed', fields)
+      }
     },
   }
 }
