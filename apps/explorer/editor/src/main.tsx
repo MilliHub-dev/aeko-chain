@@ -5,7 +5,7 @@ import '@vscode/codicons/dist/codicon.css'
 import '@xterm/xterm/css/xterm.css'
 import './styles.css'
 
-function StartingStudio() {
+export function StartingStudio() {
   return (
     <main className="grid min-h-dvh place-items-center bg-background p-6 text-foreground" role="status" aria-live="polite">
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
@@ -18,7 +18,7 @@ function StartingStudio() {
   )
 }
 
-function StartupFailure({ cause }: { cause: unknown }) {
+export function StartupFailure({ cause }: { cause: unknown }) {
   const detail = cause instanceof Error
     ? cause.stack || cause.message
     : String(cause || 'Unknown editor initialization error.')
