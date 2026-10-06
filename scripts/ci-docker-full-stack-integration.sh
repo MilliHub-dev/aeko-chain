@@ -590,7 +590,10 @@ while IFS= read -r method; do
   expectation="${spec%%$'\t'*}"
   params="${spec#*$'\t'}"
   if [ "$expectation" = "preverified" ]; then
-    response='{"jsonrpc":"2.0","id":1,"result":"preverified-by-release-cli"}'
+    RPC_METHOD_RESULT_COUNT=$((RPC_METHOD_RESULT_COUNT+1))
+    jq -cn --arg method "$method" --arg signature "$RPC_SEND_SIGNATURE" '{method:$method,outcome:"PASS",coverage:"success-path",classification:"release-cli-submission-confirmed",rpcCode:null,evidence:{signature:$signature}}' >> "$RPC_METHOD_RESULTS"
+    summary_append "| $method | PASS | success-path | release-cli-submission-confirmed | - |"
+    continue
   elif [ "$expectation" = "fixture-unavailable" ]; then
     RPC_METHOD_SKIP_COUNT=$((RPC_METHOD_SKIP_COUNT+1))
     jq -cn --arg method "$method" '{method:$method,outcome:"SKIP",coverage:"fixture-unavailable",classification:"success-fixture-not-provisioned",rpcCode:null}' >> "$RPC_METHOD_RESULTS"
