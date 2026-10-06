@@ -23,11 +23,13 @@ export default function StudioConsole({ workspaceId }: StudioConsoleProps) {
   useEffect(() => {
     const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io({
       path: '/socket.io',
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      upgrade: true,
       withCredentials: true,
     })
     socketRef.current = socket
-    socket.on('connect', () => socket.emit('console:attach', { workspaceId }))
+    let disposed = false
+    socket.on('connect', () => { if (!disposed) socket.emit('console:attach', { workspaceId }) })
     socket.on('console:ready', (event) => {
       setHistory(event.history)
       setAvailable(event.available)
@@ -42,8 +44,10 @@ export default function StudioConsole({ workspaceId }: StudioConsoleProps) {
     })
     socket.on('console:error', setError)
     return () => {
-      socketRef.current = null
-      socket.disconnect()
+      disposed = true
+      if (socketRef.current === socket) socketRef.current = null
+      socket.removeAllListeners()
+      if (socket.connected) socket.disconnect()
     }
   }, [workspaceId])
 
