@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { Stats } from 'node:fs'
 import {
   chmod,
   chown,
@@ -47,7 +48,7 @@ interface PathRecord {
 }
 
 interface ExistingPathRecord extends PathRecord {
-  info: Awaited<ReturnType<typeof lstat>>
+  info: Stats
 }
 
 interface WorkspaceLimits {
