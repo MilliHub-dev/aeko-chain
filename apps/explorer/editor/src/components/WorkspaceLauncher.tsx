@@ -7,7 +7,7 @@ import type {
 
 interface TemplateCard {
   id: ProjectTemplate
-  icon: string
+  mark: string
   title: string
   description: string
 }
@@ -23,20 +23,20 @@ interface WorkspaceLauncherProps {
 const TEMPLATES: readonly TemplateCard[] = [
   {
     id: 'rust-program',
-    icon: 'symbol-structure',
-    title: 'AEKO Rust Program',
+    mark: 'SBF',
+    title: 'Smart Contract',
     description: 'Native SBF program with Cargo manifest, entrypoint, and smoke test.',
   },
   {
     id: 'typescript-client',
-    icon: 'symbol-interface',
-    title: 'TypeScript Client',
+    mark: 'TS',
+    title: 'DApp Client',
     description: 'Node 22 TypeScript project with AEKO JSON-RPC client and tests.',
   },
   {
     id: 'python-client',
-    icon: 'symbol-method',
-    title: 'Python Client',
+    mark: 'PY',
+    title: 'Automation Client',
     description: 'Python 3 project with an AEKO RPC client example and unittest suite.',
   },
 ]
@@ -58,8 +58,8 @@ export default function WorkspaceLauncher({
           <div className="brand-mark large">A</div>
           <div>
             <p className="eyebrow">AEKO CONTRACT STUDIO</p>
-            <h1>Build on AEKO in the browser</h1>
-            <p>Monaco editing, isolated project files, and a real per-project terminal.</p>
+            <h1>Build contracts and DApps for AEKO</h1>
+            <p>A focused blockchain workspace for source, testing, builds, artifacts, and chain workflows.</p>
           </div>
         </header>
 
@@ -82,7 +82,7 @@ export default function WorkspaceLauncher({
                   className={`template-card ${template === item.id ? 'selected' : ''}`}
                   onClick={() => setTemplate(item.id)}
                 >
-                  <i className={`codicon codicon-${item.icon}`} aria-hidden="true" />
+                  <span className="template-mark">{item.mark}</span>
                   <strong>{item.title}</strong>
                   <span>{item.description}</span>
                 </button>
@@ -104,12 +104,12 @@ export default function WorkspaceLauncher({
               {workspaces.length ? workspaces.map((workspace) => (
                 <div className="recent-item" key={workspace.id}>
                   <button type="button" className="recent-open" onClick={() => onOpen(workspace.id)}>
-                    <i className="codicon codicon-folder-opened" aria-hidden="true" />
+                    <span className="project-dot" aria-hidden="true" />
                     <span>
                       <strong>{workspace.name}</strong>
                       <small>{workspace.templateLabel} · {new Date(workspace.updatedAt).toLocaleString()}</small>
                     </span>
-                    <i className="codicon codicon-chevron-right" aria-hidden="true" />
+                    <span aria-hidden="true">→</span>
                   </button>
                   <button
                     type="button"
@@ -118,7 +118,7 @@ export default function WorkspaceLauncher({
                     title="Delete project"
                     onClick={() => void onDelete(workspace)}
                   >
-                    <i className="codicon codicon-trash" aria-hidden="true" />
+                    ×
                   </button>
                 </div>
               )) : (
