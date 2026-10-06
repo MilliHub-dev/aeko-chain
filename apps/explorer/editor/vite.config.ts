@@ -1,4 +1,4 @@
-import importMetaUrlPlugin from '@codingame/esbuild-import-meta-url-plugin'
+import { esmUrlPlugin } from '@vscode/esbuild-plugin-esm-url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
@@ -13,7 +13,7 @@ export default defineConfig({
   },
   optimizeDeps: {
     esbuildOptions: {
-      plugins: [importMetaUrlPlugin],
+      plugins: [esmUrlPlugin()],
     },
   },
   worker: {

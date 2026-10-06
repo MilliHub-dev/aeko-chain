@@ -96,8 +96,28 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
   fi
 
   http_request "GET /" http://127.0.0.1:4100/ >/dev/null
+  http_request "GET /src/main.tsx" http://127.0.0.1:4100/src/main.tsx >/dev/null
+  http_request "GET /src/ide/vscode.ts" http://127.0.0.1:4100/src/ide/vscode.ts >/dev/null
   dev_config_json="$(http_request "GET /api/config" http://127.0.0.1:4100/api/config)"
   assert_json "development configuration must disable shared-token auth" '.data.authRequired == false' "$dev_config_json"
+
+  optimizer_failed=false
+  for _ in $(seq 1 15); do
+    if grep -Fq "Error during dependency optimization:" "$dev_log"; then
+      optimizer_failed=true
+      break
+    fi
+    if ! kill -0 "$dev_pid" 2>/dev/null; then
+      optimizer_failed=true
+      break
+    fi
+    sleep 1
+  done
+  if [ "$optimizer_failed" = "true" ]; then
+    echo "Contract Studio Vite dependency optimization failed." >&2
+    cat "$dev_log" >&2
+    exit 1
+  fi
 
   cleanup_dev
   trap - EXIT HUP INT TERM
