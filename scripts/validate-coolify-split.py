@@ -435,6 +435,7 @@ def main() -> int:
         "cap_drop:",
         "- ALL",
         "- CHOWN",
+        "- DAC_OVERRIDE",
         "- SETUID",
         "- SETGID",
         "no-new-privileges:true",

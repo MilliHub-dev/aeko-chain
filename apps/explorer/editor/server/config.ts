@@ -35,9 +35,17 @@ function logFormat(value: string): EditorServerConfig['logFormat'] {
   throw new Error('AEKO_LOG_FORMAT must be json or text.')
 }
 
-export function loadConfig(): Readonly<EditorServerConfig> {
+export interface LoadConfigOptions {
+  localDevelopment?: boolean
+}
+
+export function loadConfig(
+  { localDevelopment = false }: LoadConfigOptions = {},
+): Readonly<EditorServerConfig> {
   const production = process.env.NODE_ENV === 'production'
-  const allowInsecureLocal = process.env.AEKO_EDITOR_ALLOW_INSECURE_LOCAL === '1'
+  const allowInsecureLocal = !production && (
+    localDevelopment || process.env.AEKO_EDITOR_ALLOW_INSECURE_LOCAL === '1'
+  )
   const accessToken = String(process.env.AEKO_EDITOR_ACCESS_TOKEN || '')
   const publicOrigin = String(
     process.env.AEKO_EDITOR_PUBLIC_ORIGIN
@@ -47,7 +55,7 @@ export function loadConfig(): Readonly<EditorServerConfig> {
   if (production && !publicOrigin) {
     throw new Error('AEKO_EDITOR_PUBLIC_ORIGIN is required in production.')
   }
-  if (!accessToken && !(allowInsecureLocal && !production)) {
+  if (!accessToken && !allowInsecureLocal) {
     throw new Error('AEKO_EDITOR_ACCESS_TOKEN is required unless explicit insecure local mode is enabled.')
   }
   if (production && accessToken.length < 32) {

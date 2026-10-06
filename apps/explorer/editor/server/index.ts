@@ -16,7 +16,7 @@ import { TerminalManager } from './terminal.js'
 import { editorRequestId, requireEditorSession, setEditorRequestId } from './types.js'
 import { WorkspaceManager } from './workspaces.js'
 
-const config = loadConfig()
+const config = loadConfig({ localDevelopment: process.argv.includes('--dev') })
 const sessions = new SessionStore(config)
 const workspaces = await new WorkspaceManager(config).init()
 const app = express()

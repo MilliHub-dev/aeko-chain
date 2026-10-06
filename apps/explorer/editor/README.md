@@ -45,7 +45,7 @@ The browser never receives the server access token after login. A successful log
 
 Production isolation rules:
 
-- Node control plane runs as container root with all Linux capabilities dropped except `CHOWN`, `SETUID`, and `SETGID`.
+- Node control plane runs as container root with all Linux capabilities dropped except `CHOWN`, `DAC_OVERRIDE`, `SETUID`, and `SETGID`. `DAC_OVERRIDE` is retained by the trusted control plane so HTTP workspace operations can traverse files owned by sandbox identities; PTYs drop to their session UID/GID before the shell starts.
 - Each authenticated session receives a distinct unprivileged UID/GID.
 - Every PTY drops to that session identity.
 - PTY environment variables are allowlisted and do not inherit the Node process environment.
@@ -66,8 +66,10 @@ Node 22 is the supported local runtime.
 ```bash
 cd apps/explorer/editor
 npm install
-AEKO_EDITOR_ALLOW_INSECURE_LOCAL=1 npm run dev
+npm run dev
 ```
+
+`npm run dev` passes an explicit local-development flag, so no shared access token is required for that command. Production still requires `AEKO_EDITOR_ACCESS_TOKEN`, and custom non-production launch commands remain fail-closed unless `AEKO_EDITOR_ALLOW_INSECURE_LOCAL=1` is explicitly set.
 
 In non-production mode, workspaces default to `.aeko-workspaces/` inside the editor app rather than the production-only `/workspaces` path. The server runs the Vite middleware and API/Socket.IO endpoint together on port 4100, so the local workflow exercises the same HTTP and WebSocket origin.
 

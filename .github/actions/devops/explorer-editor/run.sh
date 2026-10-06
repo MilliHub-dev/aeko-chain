@@ -4,6 +4,63 @@ set -euo pipefail
 app_dir="apps/explorer/editor"
 image="aeko-ci/aeko-editor-web:${SHA_TAG}"
 
+
+http_request() {
+  local label="$1"
+  shift
+  local result rc status body
+  if result="$(curl --silent --show-error --write-out $'\n%{http_code}' "$@" 2>&1)"; then
+    rc=0
+  else
+    rc=$?
+  fi
+  status="${result##*$'\n'}"
+  body="${result%$'\n'*}"
+  if [ "$rc" -eq 0 ] && [[ "$status" =~ ^2[0-9][0-9]$ ]]; then
+    printf '%s' "$body"
+    return 0
+  fi
+  echo "Contract Studio HTTP assertion failed: ${label} (HTTP ${status:-unknown}, curl exit ${rc})." >&2
+  printf '%s\n' "$body" >&2
+  if [ "$rc" -ne 0 ]; then return "$rc"; fi
+  return 22
+}
+
+container_http_request() {
+  local label="$1"
+  shift
+  local result rc status body
+  if result="$(docker exec "$cid" curl --silent --show-error --write-out $'\n%{http_code}' "$@" 2>&1)"; then
+    rc=0
+  else
+    rc=$?
+  fi
+  status="${result##*$'\n'}"
+  body="${result%$'\n'*}"
+  if [ "$rc" -eq 0 ] && [[ "$status" =~ ^2[0-9][0-9]$ ]]; then
+    printf '%s' "$body"
+    return 0
+  fi
+  echo "Contract Studio container HTTP assertion failed: ${label} (HTTP ${status:-unknown}, curl exit ${rc})." >&2
+  printf '%s\n' "$body" >&2
+  echo "Contract Studio container logs:" >&2
+  docker logs "$cid" >&2 || true
+  if [ "$rc" -ne 0 ]; then return "$rc"; fi
+  return 22
+}
+
+assert_json() {
+  local label="$1"
+  local expression="$2"
+  local payload="$3"
+  if printf '%s' "$payload" | jq -e "$expression" >/dev/null; then
+    return 0
+  fi
+  echo "Contract Studio JSON assertion failed: ${label}." >&2
+  printf '%s\n' "$payload" >&2
+  return 1
+}
+
 if [ "${VALIDATE_SOURCE}" = "true" ]; then
   pushd "$app_dir" >/dev/null
   npm install --no-audit --no-fund
@@ -12,7 +69,7 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
   npm run build
 
   dev_log="$(mktemp)"
-  AEKO_EDITOR_ALLOW_INSECURE_LOCAL=1 npm run dev >"$dev_log" 2>&1 &
+  npm run dev >"$dev_log" 2>&1 &
   dev_pid=$!
   cleanup_dev() {
     kill "$dev_pid" >/dev/null 2>&1 || true
@@ -38,9 +95,9 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
     exit 1
   fi
 
-  curl --fail --silent http://127.0.0.1:4100/ >/dev/null
-  curl --fail --silent http://127.0.0.1:4100/api/config \
-    | jq -e '.data.authRequired == false' >/dev/null
+  http_request "GET /" http://127.0.0.1:4100/ >/dev/null
+  dev_config_json="$(http_request "GET /api/config" http://127.0.0.1:4100/api/config)"
+  assert_json "development configuration must disable shared-token auth" '.data.authRequired == false' "$dev_config_json"
 
   cleanup_dev
   trap - EXIT HUP INT TERM
@@ -62,6 +119,7 @@ if [ "${BUILD_IMAGE}" = "true" ]; then
       --tmpfs /tmp:rw,nosuid,nodev,noexec,size=32m,mode=1777 \
       --cap-drop ALL \
       --cap-add CHOWN \
+      --cap-add DAC_OVERRIDE \
       --cap-add SETUID \
       --cap-add SETGID \
       --security-opt no-new-privileges:true \
@@ -96,34 +154,39 @@ if [ "${BUILD_IMAGE}" = "true" ]; then
     exit 1
   fi
 
-  docker exec "$cid" curl --fail --silent \
+  login_json="$(container_http_request \
+    "POST /api/session" \
     -c /tmp/studio-ci-cookie \
     -H "Origin: http://127.0.0.1:4100" \
     -H "Content-Type: application/json" \
     -d "{\"accessToken\":\"$ci_token\"}" \
-    http://127.0.0.1:4100/api/session >/dev/null
+    http://127.0.0.1:4100/api/session)"
+  assert_json "POST /api/session" '.data.authenticated == true' "$login_json"
 
-  workspace_json="$(
-    docker exec "$cid" curl --fail --silent \
-      -b /tmp/studio-ci-cookie \
-      -H "Origin: http://127.0.0.1:4100" \
-      -H "Content-Type: application/json" \
-      -d '{"name":"ci-smoke","template":"python-client"}' \
-      http://127.0.0.1:4100/api/workspaces
-  )"
+  workspace_json="$(container_http_request \
+    "POST /api/workspaces" \
+    -b /tmp/studio-ci-cookie \
+    -H "Origin: http://127.0.0.1:4100" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"ci-smoke","template":"python-client"}' \
+    http://127.0.0.1:4100/api/workspaces)"
   workspace_id="$(printf '%s' "$workspace_json" | jq -er '.data.id')"
 
-  docker exec "$cid" curl --fail --silent \
+  tree_json="$(container_http_request \
+    "GET /api/workspaces/:workspaceId/tree" \
     -b /tmp/studio-ci-cookie \
-    "http://127.0.0.1:4100/api/workspaces/$workspace_id/tree" \
-    | jq -e '.data.files | any(.path == "src/main.py" and .type == "file")' >/dev/null
+    "http://127.0.0.1:4100/api/workspaces/$workspace_id/tree")"
+  assert_json "workspace tree contains the Python entrypoint" \
+    '.data.files | any(.path == "src/main.py" and .type == "file")' \
+    "$tree_json"
 
-  docker exec "$cid" curl --fail --silent \
+  delete_json="$(container_http_request \
+    "DELETE /api/workspaces/:workspaceId" \
     -X DELETE \
     -b /tmp/studio-ci-cookie \
     -H "Origin: http://127.0.0.1:4100" \
-    "http://127.0.0.1:4100/api/workspaces/$workspace_id" \
-    | jq -e '.data.deleted == true' >/dev/null
+    "http://127.0.0.1:4100/api/workspaces/$workspace_id")"
+  assert_json "workspace deletion" '.data.deleted == true' "$delete_json"
 
   cleanup
   trap - EXIT HUP INT TERM
