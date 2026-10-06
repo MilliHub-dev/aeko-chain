@@ -9,7 +9,9 @@ export default defineConfig({
     dedupe: ['vscode', 'monaco-editor', 'react', 'react-dom'],
   },
   server: { port: 5174, strictPort: true },
-  optimizeDeps: {\n    esbuildOptions: { plugins: [esmUrlPlugin()] },\n  },
+  optimizeDeps: {
+    esbuildOptions: { plugins: [esmUrlPlugin()] },
+  },
   worker: { format: 'es' },
   build: { target: 'es2022', sourcemap: false, chunkSizeWarningLimit: 2500 },
 })
