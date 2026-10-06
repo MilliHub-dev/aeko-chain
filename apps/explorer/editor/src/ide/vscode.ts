@@ -39,6 +39,35 @@ export async function initializeVscode(): Promise<typeof monaco> {
     ...getThemeServiceOverride(),
   })
 
+  const ts = monaco.languages.typescript
+  const compilerOptions = {
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeJs,
+    jsx: ts.JsxEmit.ReactJSX,
+    allowJs: true,
+    checkJs: true,
+    allowNonTsExtensions: true,
+    esModuleInterop: true,
+    allowSyntheticDefaultImports: true,
+    strict: true,
+    noEmit: true,
+  } satisfies monaco.languages.typescript.CompilerOptions
+  ts.typescriptDefaults.setCompilerOptions(compilerOptions)
+  ts.javascriptDefaults.setCompilerOptions(compilerOptions)
+  ts.typescriptDefaults.setDiagnosticsOptions({
+    noSemanticValidation: false,
+    noSyntaxValidation: false,
+    noSuggestionDiagnostics: false,
+  })
+  ts.javascriptDefaults.setDiagnosticsOptions({
+    noSemanticValidation: false,
+    noSyntaxValidation: false,
+    noSuggestionDiagnostics: false,
+  })
+  ts.typescriptDefaults.setEagerModelSync(true)
+  ts.javascriptDefaults.setEagerModelSync(true)
+
   await updateUserConfiguration(JSON.stringify({
     'editor.fontFamily': "'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace",
     'editor.fontSize': 13,
