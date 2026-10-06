@@ -1,2 +1,4 @@
-import { useState, type ReactNode } from 'react'
-export function Tooltip({children,label}:{children:ReactNode;label:string}){const [open,setOpen]=useState(false);return <span className="relative inline-flex" onMouseEnter={()=>setOpen(true)} onMouseLeave={()=>setOpen(false)} onFocus={()=>setOpen(true)} onBlur={()=>setOpen(false)}>{children}{open?<span role="tooltip" className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md">{label}</span>:null}</span>}
+import * as TooltipPrimitive from '@radix-ui/react-tooltip'
+import type { ReactNode } from 'react'
+export function TooltipProvider({children}:{children:ReactNode}){return <TooltipPrimitive.Provider delayDuration={250}>{children}</TooltipPrimitive.Provider>}
+export function Tooltip({children,label}:{children:ReactNode;label:string}){return <TooltipPrimitive.Root><TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger><TooltipPrimitive.Portal><TooltipPrimitive.Content side="right" sideOffset={8} className="rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md">{label}<TooltipPrimitive.Arrow className="fill-popover"/></TooltipPrimitive.Content></TooltipPrimitive.Portal></TooltipPrimitive.Root>}
