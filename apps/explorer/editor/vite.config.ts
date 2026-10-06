@@ -4,7 +4,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    dedupe: ['vscode', 'monaco-editor', 'react', 'react-dom'],
+    dedupe: ['monaco-editor', 'react', 'react-dom'],
   },
   server: {
     port: 5174,
