@@ -1,36 +1,29 @@
-interface ActivityBarProps {
-  onHome: () => void
-  onLogout: () => void
-}
+interface ActivityBarProps { onHome: () => void; onLogout: () => void }
 
 const ITEMS = [
-  ['files', 'Explorer', true],
-  ['search', 'Search', false],
-  ['source-control', 'Source Control', false],
-  ['debug-alt', 'Run and Debug', false],
-  ['extensions', 'Extensions', false],
+  ['CO', 'Code', true],
+  ['CT', 'Contracts', false],
+  ['DP', 'Deployments', false],
+  ['IN', 'Interact', false],
+  ['AC', 'Accounts', false],
+  ['TX', 'Transactions', false],
 ] as const
 
 export default function ActivityBar({ onHome, onLogout }: ActivityBarProps) {
   return (
-    <nav className="activity-bar" aria-label="IDE activity">
-      <div>
-        {ITEMS.map(([icon, label, enabled], index) => (
-          <button
-            key={label}
-            type="button"
-            className={index === 0 ? 'active' : ''}
-            title={enabled ? label : `${label} is not enabled in this Studio release`}
-            aria-label={label}
-            disabled={!enabled}
-          >
-            <i className={`codicon codicon-${icon}`} />
+    <nav className="activity-bar" aria-label="AEKO Studio">
+      <div className="activity-brand" aria-label="AEKO">A</div>
+      <div className="activity-items">
+        {ITEMS.map(([mark, label, enabled], index) => (
+          <button key={label} type="button" className={index === 0 ? 'active' : ''} disabled={!enabled}
+            title={enabled ? label : `${label} requires chain/wallet integration`}>
+            <span className="rail-mark">{mark}</span><span className="rail-label">{label}</span>
           </button>
         ))}
       </div>
-      <div>
-        <button type="button" title="Projects" aria-label="Projects" onClick={onHome}><i className="codicon codicon-account" /></button>
-        <button type="button" title="Sign out" aria-label="Sign out" onClick={onLogout}><i className="codicon codicon-sign-out" /></button>
+      <div className="activity-footer">
+        <button type="button" onClick={onHome}><span className="rail-mark">PR</span><span className="rail-label">Projects</span></button>
+        <button type="button" onClick={onLogout}><span className="rail-mark">EX</span><span className="rail-label">Sign out</span></button>
       </div>
     </nav>
   )
