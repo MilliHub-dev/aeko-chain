@@ -1,4 +1,4 @@
-import * as monaco from 'monaco-editor'
+import { monaco } from './monaco'
 import { useEffect, useRef } from 'react'
 import { languageForPath } from '../lib/language'
 
@@ -35,6 +35,7 @@ export default function MonacoEditor({ workspaceId, file, onChange, onSave }: Mo
       if (model.getValue() !== initialContentRef.current) model.setValue(initialContentRef.current)
     }
 
+    host.replaceChildren()
     const instance = monaco.editor.create(host, {
       model,
       theme: 'aeko-dark',
@@ -76,6 +77,7 @@ export default function MonacoEditor({ workspaceId, file, onChange, onSave }: Mo
       observer.disconnect()
       subscription.dispose()
       instance.dispose()
+      host.replaceChildren()
     }
   }, [filePath, workspaceId])
 
