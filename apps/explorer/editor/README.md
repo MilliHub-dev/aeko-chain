@@ -60,17 +60,25 @@ AEKO Studio does not expose a general-purpose operating-system shell. Build, tes
 
 ## Development
 
-Node 22 is the supported local runtime.
+Node 22 is the supported local runtime. The project pins pnpm 10.34.6 so Corepack and local development use the same patched package-manager version.
 
 ```bash
 cd apps/explorer/editor
-npm install
-npm run dev
+corepack enable
+pnpm --version
+pnpm install
+pnpm dev
 ```
 
-`npm run dev` passes an explicit local-development flag, so no shared access token is required for that command. Production still requires `AEKO_EDITOR_ACCESS_TOKEN`, and custom non-production launch commands remain fail-closed unless `AEKO_EDITOR_ALLOW_INSECURE_LOCAL=1` is explicitly set.
+`pnpm dev` passes an explicit local-development flag, so no shared access token is required for that command. Production still requires `AEKO_EDITOR_ACCESS_TOKEN`, and custom non-production launch commands remain fail-closed unless `AEKO_EDITOR_ALLOW_INSECURE_LOCAL=1` is explicitly set.
 
 In non-production mode, workspaces default to `.aeko-workspaces/` inside the editor app rather than the production-only `/workspaces` path. The server runs the Vite middleware and API/Socket.IO endpoint together on port 4100, so the local workflow exercises the same HTTP and WebSocket origin.
+
+### Development logs
+
+Local development defaults to the human-readable `text` logger. Interactive terminals receive ANSI level colors and compact request lines, while stack traces are printed on indented continuation lines. Successful API operations remain visible at the default `info` level; successful Vite modules, source files, assets, health checks, and other GET/HEAD traffic are reduced to `debug`. Set `AEKO_LOG_LEVEL=debug` when you need the complete request stream and request-start events.
+
+`AEKO_LOG_FORMAT=json` remains available locally when machine-readable output is needed. Production defaults to JSON, and the Coolify example pins `AEKO_LOG_FORMAT=json` so collectors retain structured fields and full request IDs.
 
 ## Workspace templates
 

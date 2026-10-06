@@ -36,6 +36,7 @@ def main() -> int:
     admin_telemetry = read("apps/admin/src/app/api/telemetry/client/route.ts")
     editor_server = read("apps/explorer/editor/server/index.ts")
     editor_config = read("apps/explorer/editor/server/config.ts")
+    editor_logger = read("apps/explorer/editor/server/logger.ts")
 
     require(
         backend_main.index("observability::init()") < backend_main.index("ExplorerBackendConfig::from_env()"),
@@ -93,13 +94,21 @@ def main() -> int:
     for expected in ("AEKO_LOG_LEVEL", "AEKO_LOG_FORMAT"):
         require(expected in editor_config, f"Contract Studio logging config missing {expected}")
     for expected in (
-        "aeko-contract-studio",
-        "http_request_completed",
         "x-request-id",
         "process_uncaught_exception",
         "process_unhandled_rejection",
+        "logger.requestStarted",
+        "logger.requestCompleted",
     ):
-        require(expected in editor_server, f"Contract Studio structured logging missing {expected}")
+        require(expected in editor_server, f"Contract Studio logging integration missing {expected}")
+    for expected in (
+        "aeko-contract-studio",
+        "http_request_completed",
+        "success",
+        "SENSITIVE_KEY",
+        "[REDACTED]",
+    ):
+        require(expected in editor_logger, f"Contract Studio logger missing {expected}")
 
     app_envs = (
         "apps/explorer/backend/.env.coolify.example",

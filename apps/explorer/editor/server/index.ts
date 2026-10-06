@@ -13,11 +13,13 @@ import { errorCode, errorMessage, errorStatus } from '../shared/errors/editor-er
 import { SessionStore, socketSession } from './auth.js'
 import { loadConfig } from './config.js'
 import { CommandManager } from './commands.js'
+import { createStudioLogger, errorFields } from './logger.js'
 import { TerminalManager } from './terminal.js'
 import { editorRequestId, requireEditorSession, setEditorRequestId } from './types.js'
 import { WorkspaceManager } from './workspaces.js'
 
 const config = loadConfig({ localDevelopment: process.argv.includes('--dev') })
+const logger = createStudioLogger(config)
 const sessions = new SessionStore(config)
 const workspaces = await new WorkspaceManager(config).init()
 const app = express()
@@ -43,40 +45,6 @@ const commands = new CommandManager(config, io, workspaces)
 const terminals = new TerminalManager(config, io, workspaces)
 const auth = sessions.middleware()
 const dist = resolve(process.cwd(), 'dist')
-const LOG_LEVELS = { debug: 10, info: 20, warn: 30, error: 40 } as const
-
-type LogLevel = keyof typeof LOG_LEVELS
-
-function truncate(value: unknown, max = 1200): string {
-  const text = String(value ?? '')
-  return text.length > max ? text.slice(0, max) + '…' : text
-}
-
-function log(level: LogLevel, event: string, fields: Record<string, unknown> = {}): void {
-  if (LOG_LEVELS[level] < LOG_LEVELS[config.logLevel]) return
-  const record = {
-    timestamp: new Date().toISOString(),
-    level,
-    service: 'aeko-contract-studio',
-    network: config.network,
-    event,
-    ...fields,
-  }
-  const line = config.logFormat === 'json'
-    ? JSON.stringify(record)
-    : `${record.timestamp} ${level.toUpperCase()} aeko-contract-studio ${event} ${JSON.stringify(fields)}`
-  const target = level === 'warn' || level === 'error' ? process.stderr : process.stdout
-  target.write(line + '\n')
-}
-
-function errorFields(error: unknown): Record<string, string> {
-  if (!(error instanceof Error)) return { error_message: truncate(error || 'unknown error') }
-  return {
-    error_name: truncate(error.name, 120),
-    error_message: truncate(error.message),
-    error_stack: truncate(error.stack || '', 6000),
-  }
-}
 
 function requestId(request: Request): string {
   const incoming = String(request.headers['x-request-id'] || '').trim()
@@ -112,9 +80,13 @@ app.use((request, response, next) => {
   const startedAt = performance.now()
   setEditorRequestId(request, id)
   response.setHeader('x-request-id', id)
+  logger.requestStarted({
+    request_id: id,
+    method: request.method,
+    path: request.path,
+  })
   response.once('finish', () => {
-    const level: LogLevel = response.statusCode >= 500 ? 'error' : response.statusCode >= 400 ? 'warn' : 'info'
-    log(level, 'http_request_completed', {
+    logger.requestCompleted({
       request_id: id,
       method: request.method,
       path: request.path,
@@ -317,7 +289,7 @@ app.use((error: unknown, request: Request, response: Response, _next: NextFuncti
   const status = explicitStatus ?? (errorCode(error) === 'ENOENT' ? 404 : 400)
   const safeStatus = status >= 400 && status < 600 ? status : 500
   if (safeStatus >= 500) {
-    log('error', 'studio_request_failed', {
+    logger.error('studio_request_failed', {
       request_id: editorRequestId(request),
       ...errorFields(error),
     })
@@ -348,19 +320,19 @@ const interval = setInterval(async () => {
   commands.sweep(config.workspaceTtlMs)
   terminals.sweep(config.workspaceTtlMs)
   const active = new Set([...sessions.sessions.values()].map((session) => session.id))
-  await workspaces.sweep(active).catch((error: unknown) => log('error', 'workspace_sweep_failed', errorFields(error)))
+  await workspaces.sweep(active).catch((error: unknown) => logger.error('workspace_sweep_failed', errorFields(error)))
 }, 60_000)
 interval.unref()
 
 process.on('uncaughtExceptionMonitor', (error) => {
-  log('error', 'process_uncaught_exception', errorFields(error))
+  logger.error('process_uncaught_exception', errorFields(error))
 })
 process.on('unhandledRejection', (reason) => {
-  log('error', 'process_unhandled_rejection', errorFields(reason))
+  logger.error('process_unhandled_rejection', errorFields(reason))
 })
 
 server.listen(config.port, '0.0.0.0', () => {
-  log('info', 'service_started', {
+  logger.success('service_started', {
     bind: `0.0.0.0:${config.port}`,
     public_origin: config.publicOrigin,
     log_format: config.logFormat,

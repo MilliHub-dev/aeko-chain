@@ -65,7 +65,9 @@ export function loadConfig(
   return Object.freeze({
     production,
     logLevel: logLevel(String(process.env.AEKO_LOG_LEVEL || 'info').trim().toLowerCase()),
-    logFormat: logFormat(String(process.env.AEKO_LOG_FORMAT || 'json').trim().toLowerCase()),
+    logFormat: logFormat(String(
+      process.env.AEKO_LOG_FORMAT || (production ? 'json' : 'text'),
+    ).trim().toLowerCase()),
     port: positiveInteger('PORT', 4100, { max: 65535 }),
     publicOrigin,
     accessToken,

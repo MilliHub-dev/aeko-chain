@@ -428,7 +428,7 @@ RPC_STAKE_ACCOUNT="$("$CLI_DIR/aeko-keygen" pubkey "$RPC_STAKE_ACCOUNT_FILE")"
 rpc_result requestAirdrop "$(jq -cn --arg a "$CLI_SENDER_ADDRESS" '[$a,3000000000,{commitment:"confirmed"}]')" >/dev/null
 wait_balance_at_least "$CLI_SENDER_ADDRESS" 3000000000 "RPC method CLI sender funded"
 
-PROBE_MESSAGE_JSON="$("$CLI_DIR/aeko" --url "$RPC_URL" --keypair "$SMOKE_KEYS/cli-sender.json" --output json-compact transfer --allow-unfunded-recipient "$RPC_FIXTURE_RECIPIENT" 0.01 --sign-only --dump-transaction-message)"
+PROBE_MESSAGE_JSON="$("$CLI_DIR/aeko" --url "$RPC_URL" --keypair "$SMOKE_KEYS/cli-sender.json" --output json-compact transfer --allow-unfunded-recipient "$RPC_FIXTURE_RECIPIENT" 0.01 --blockhash "$PROBE_BLOCKHASH" --sign-only --dump-transaction-message)"
 PROBE_MESSAGE_BASE64="$(jq -er '.message' <<<"$PROBE_MESSAGE_JSON")"
 test -n "$PROBE_MESSAGE_BASE64" || fail "release CLI did not emit a serialized transaction message"
 rpc_result getFeeForMessage "$(jq -cn --arg m "$PROBE_MESSAGE_BASE64" '[$m,{commitment:"confirmed"}]')" >"$ARTIFACT_DIR/rpc-getFeeForMessage.json"

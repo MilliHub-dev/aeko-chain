@@ -2,6 +2,7 @@
   "name": "aeko-contract-studio",
   "private": true,
   "version": "0.2.0",
+  "packageManager": "pnpm@10.34.6",
   "type": "module",
   "scripts": {
     "dev": "tsx server/index.ts --dev",
@@ -12,6 +13,7 @@
     "build": "npm run typecheck && npm run build:server && vite build",
     "lint": "NODE_OPTIONS=--experimental-strip-types eslint --flag unstable_native_nodejs_ts_config .",
     "test": "tsx --test server/*.test.ts",
+    "smoke:browser": "node scripts/browser-smoke.mjs",
     "start": "NODE_ENV=production node dist-server/server/index.js"
   },
   "dependencies": {
@@ -34,10 +36,10 @@
     "@codingame/monaco-vscode-api": "36.2.7",
     "@codingame/monaco-vscode-configuration-service-override": "36.2.7",
     "@codingame/monaco-vscode-keybindings-service-override": "36.2.7",
-    "@codingame/monaco-vscode-theme-defaults-default-extension": "36.2.7",
-    "@codingame/monaco-vscode-theme-service-override": "36.2.7",
+    "@codingame/monaco-vscode-standalone-typescript-language-features": "36.2.7",
     "@vscode/codicons": "0.0.46-24",
-    "vscode": "npm:@codingame/monaco-vscode-extension-api@36.2.7"
+    "vscode": "npm:@codingame/monaco-vscode-extension-api@36.2.7",
+    "@vscode/diff": "0.0.2-7"
   },
   "devDependencies": {
     "@eslint/js": "9.39.1",
@@ -56,7 +58,8 @@
     "tailwindcss": "^4.1.18",
     "tsx": "4.23.15",
     "typescript-eslint": "8.70.1",
-    "vite": "7.2.4"
+    "vite": "7.2.4",
+    "@vscode/rollup-plugin-esm-url": "1.0.1-1"
   },
   "engines": {
     "node": ">=22 <23"

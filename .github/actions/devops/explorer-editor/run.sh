@@ -63,6 +63,21 @@ assert_json() {
 
 if [ "${VALIDATE_SOURCE}" = "true" ]; then
   pushd "$app_dir" >/dev/null
+
+  # The editor publishes a pnpm lockfile for local development. Exercise it
+  # with the exact package-manager version pinned in package.json before the
+  # npm-based build path so Windows/local installs cannot silently rot.
+  command -v corepack >/dev/null 2>&1 || {
+    echo "Contract Studio lockfile validation requires Corepack." >&2
+    exit 1
+  }
+  test "$(corepack pnpm --version)" = "10.34.6" || {
+    echo "Contract Studio did not resolve the pinned pnpm 10.34.6 toolchain." >&2
+    exit 1
+  }
+  corepack pnpm install --frozen-lockfile --ignore-scripts
+  rm -rf node_modules
+
   npm install --no-audit --no-fund
   npm run lint
   npm test
@@ -98,8 +113,47 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
   http_request "GET /" http://127.0.0.1:4100/ >/dev/null
   http_request "GET /src/main.tsx" http://127.0.0.1:4100/src/main.tsx >/dev/null
   http_request "GET /src/ide/monaco.ts" http://127.0.0.1:4100/src/ide/monaco.ts >/dev/null
+  vscode_entry="$(http_request "GET /src/ide/vscode.ts" http://127.0.0.1:4100/src/ide/vscode.ts)"
+  if ! grep -Fq "monaco-editor" <<<"$vscode_entry" || ! grep -Fq "monaco-vscode" <<<"$vscode_entry"; then
+    echo "Contract Studio VS Code service entrypoint was not transformed as expected." >&2
+    cat "$dev_log" >&2
+    exit 1
+  fi
+  # Give Vite time to optimize and transform lazy Monaco/VS Code dependencies.
+  # The browser-visible @vscode/diff failure previously appeared only after
+  # startup, while the HTTP health endpoint remained green.
+  sleep 3
+  if grep -Eq "Failed to resolve import|Internal server error|Error during dependency optimization:" "$dev_log"; then
+    echo "Contract Studio Vite dependency graph failed during development smoke." >&2
+    cat "$dev_log" >&2
+    exit 1
+  fi
   dev_config_json="$(http_request "GET /api/config" http://127.0.0.1:4100/api/config)"
   assert_json "development configuration must disable shared-token auth" '.data.authRequired == false' "$dev_config_json"
+
+  browser_bin=""
+  if [ -n "${CHROME_BIN:-}" ] && [ -x "${CHROME_BIN}" ]; then
+    browser_bin="${CHROME_BIN}"
+  else
+    for candidate in google-chrome-stable google-chrome chromium-browser chromium; do
+      if command -v "$candidate" >/dev/null 2>&1; then
+        browser_bin="$(command -v "$candidate")"
+        break
+      fi
+    done
+  fi
+  if [ -z "$browser_bin" ]; then
+    echo "Contract Studio browser smoke requires Chrome or Chromium on the CI runner." >&2
+    cat "$dev_log" >&2
+    exit 1
+  fi
+  if ! AEKO_STUDIO_SMOKE_URL=http://127.0.0.1:4100/ \
+    AEKO_BROWSER_EXECUTABLE="$browser_bin" \
+    npm run smoke:browser; then
+    echo "Contract Studio browser smoke failed." >&2
+    cat "$dev_log" >&2
+    exit 1
+  fi
 
   optimizer_failed=false
   for _ in $(seq 1 15); do
