@@ -68,6 +68,23 @@ export async function initializeVscode(): Promise<typeof monaco> {
   ts.typescriptDefaults.setEagerModelSync(true)
   ts.javascriptDefaults.setEagerModelSync(true)
 
+  monaco.editor.defineTheme('aeko-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [],
+    colors: {
+      'editor.background': '#052E2B',
+      'editor.foreground': '#f4f4f5',
+      'editorLineNumber.foreground': '#55736f',
+      'editorLineNumber.activeForeground': '#d4d4d8',
+      'editorCursor.foreground': '#5FB51F',
+      'editor.selectionBackground': '#24544f',
+      'editor.inactiveSelectionBackground': '#183f3b',
+      'editorIndentGuide.background1': '#17433f',
+      'editorIndentGuide.activeBackground1': '#35655f',
+    },
+  })
+
   await updateUserConfiguration(JSON.stringify({
     'editor.fontFamily': "'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace",
     'editor.fontSize': 13,
