@@ -34,7 +34,7 @@ export interface LoggerOptions {
   now?: () => Date
 }
 
-export interface HttpLogFields {
+export interface HttpLogFields extends Record<string, unknown> {
   request_id: string
   method: string
   path: string
