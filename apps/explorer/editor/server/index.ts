@@ -98,6 +98,12 @@ function bodyValue(request: Request, key: string): unknown {
   return (request.body as Record<string, unknown>)[key]
 }
 
+function routeParam(request: Request, key: string): string {
+  const value = request.params[key]
+  if (Array.isArray(value)) return value[0] ?? ''
+  return value ?? ''
+}
+
 app.disable('x-powered-by')
 app.use((request, response, next) => {
   const id = requestId(request)
@@ -190,31 +196,31 @@ app.post('/api/workspaces', auth, asyncRoute(async (request, response) => {
 
 app.delete('/api/workspaces/:workspaceId', auth, asyncRoute(async (request, response) => {
   const session = requireEditorSession(request)
-  const key = terminals.key(session.id, request.params.workspaceId)
+  const key = terminals.key(session.id, routeParam(request, 'workspaceId'))
   const terminal = terminals.terminals.get(key)
   if (terminal) {
     try { terminal.terminal.kill() } catch { /* Best-effort terminal cleanup. */ }
     terminals.terminals.delete(key)
   }
-  await workspaces.removeWorkspace(session, request.params.workspaceId)
+  await workspaces.removeWorkspace(session, routeParam(request, 'workspaceId'))
   data(response, { deleted: true as const })
 }))
 
 app.get('/api/workspaces/:workspaceId/tree', auth, asyncRoute(async (request, response) => {
   const session = requireEditorSession(request)
-  data(response, { files: await workspaces.tree(session, request.params.workspaceId) })
+  data(response, { files: await workspaces.tree(session, routeParam(request, 'workspaceId')) })
 }))
 
 app.get('/api/workspaces/:workspaceId/file', auth, asyncRoute(async (request, response) => {
   const session = requireEditorSession(request)
-  data(response, await workspaces.read(session, request.params.workspaceId, request.query.path))
+  data(response, await workspaces.read(session, routeParam(request, 'workspaceId'), request.query.path))
 }))
 
 app.put('/api/workspaces/:workspaceId/file', auth, asyncRoute(async (request, response) => {
   const session = requireEditorSession(request)
   data(response, await workspaces.write(
     session,
-    request.params.workspaceId,
+    routeParam(request, 'workspaceId'),
     bodyValue(request, 'path'),
     bodyValue(request, 'content'),
   ))
@@ -224,7 +230,7 @@ app.post('/api/workspaces/:workspaceId/file', auth, asyncRoute(async (request, r
   const session = requireEditorSession(request)
   data(response, await workspaces.write(
     session,
-    request.params.workspaceId,
+    routeParam(request, 'workspaceId'),
     bodyValue(request, 'path'),
     bodyValue(request, 'content'),
     { createOnly: true },
@@ -235,7 +241,7 @@ app.post('/api/workspaces/:workspaceId/directory', auth, asyncRoute(async (reque
   const session = requireEditorSession(request)
   data(response, await workspaces.createDirectory(
     session,
-    request.params.workspaceId,
+    routeParam(request, 'workspaceId'),
     bodyValue(request, 'path'),
   ), 201)
 }))
@@ -244,7 +250,7 @@ app.post('/api/workspaces/:workspaceId/rename', auth, asyncRoute(async (request,
   const session = requireEditorSession(request)
   data(response, await workspaces.renamePath(
     session,
-    request.params.workspaceId,
+    routeParam(request, 'workspaceId'),
     bodyValue(request, 'from'),
     bodyValue(request, 'to'),
   ))
@@ -254,7 +260,7 @@ app.delete('/api/workspaces/:workspaceId/path', auth, asyncRoute(async (request,
   const session = requireEditorSession(request)
   data(response, await workspaces.removePath(
     session,
-    request.params.workspaceId,
+    routeParam(request, 'workspaceId'),
     request.query.path,
   ))
 }))
