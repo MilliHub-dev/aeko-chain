@@ -37,7 +37,7 @@ const COMMANDS: Record<ProjectTemplate, Partial<Record<StudioCommand, CommandSpe
   },
 }
 
-function available(template: ProjectTemplate): StudioCommand[] {
+export function availableCommands(template: ProjectTemplate): StudioCommand[] {
   return (Object.keys(COMMANDS[template]) as StudioCommand[])
 }
 
@@ -66,7 +66,7 @@ export class CommandManager {
       ready: {
         history: record?.history ?? '',
         running: record?.running ?? null,
-        available: available(metadata.template),
+        available: availableCommands(metadata.template),
       },
     }
   }
