@@ -8,6 +8,7 @@ PUBLISH_ADMIN="${PUBLISH_ADMIN:-false}"
 PUBLISH_CLI="${PUBLISH_CLI:-false}"
 PUBLISH_EXPLORER_BACKEND="${PUBLISH_EXPLORER_BACKEND:-false}"
 PUBLISH_EXPLORER_WEB="${PUBLISH_EXPLORER_WEB:-false}"
+PUBLISH_EDITOR="${PUBLISH_EDITOR:-false}"
 PUBLISH_NETWORK="${PUBLISH_NETWORK:-false}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-artifacts/release}"
 
@@ -64,6 +65,11 @@ fi
 if [ "$PUBLISH_EXPLORER_WEB" = true ]; then
   load_image_set "$ARTIFACT_ROOT/explorer-ui" aeko-explorer-ui-image.tar.gz
   push_image aeko-explorer-ui aeko-explorer-ui
+fi
+
+if [ "$PUBLISH_EDITOR" = true ]; then
+  load_image_set "$ARTIFACT_ROOT/editor-web" aeko-editor-web-image.tar.gz
+  push_image aeko-editor-web aeko-editor-web
 fi
 
 if [ "$PUBLISH_ADMIN" = true ]; then

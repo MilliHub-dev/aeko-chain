@@ -10,6 +10,7 @@
 #   tools            aeko CLI + aeko-keygen operator utilities
 #   explorer-api     Rust explorer indexer / REST API
 #   explorer-ui      Vite explorer frontend
+#   editor-web       standalone Monaco/xterm Contract Studio + isolated PTY runtime
 #   operations-web   Next.js Funding Gateway + operator Admin Console
 
 # Keep the container release builds on the same compiler selected by
@@ -161,6 +162,51 @@ CMD ["node", "/app/explorer-ui-server.mjs"]
 
 # Operations Web is an independent off-chain application. Its target has no dependency
 # on any Rust/network builder, so an operations-web-only change cannot compile the chain.
+# Standalone AEKO Contract Studio: Monaco/xterm frontend plus isolated Node PTY runtime.
+FROM node:22-bookworm AS editor-web-builder
+WORKDIR /editor
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential python3 \
+    && rm -rf /var/lib/apt/lists/*
+COPY apps/explorer/editor/package.json ./
+RUN npm install --no-audit --no-fund
+COPY apps/explorer/editor/ ./
+RUN npm run build
+
+FROM rust:1.85-bookworm AS editor-web
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       bash build-essential ca-certificates curl git libudev-dev pkg-config protobuf-compiler python3 tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 10001 sandbox \
+    && useradd --uid 10001 --gid 10001 --create-home --shell /bin/bash sandbox
+
+WORKDIR /opt/aeko
+COPY . .
+RUN chmod -R a-w /opt/aeko \
+    && mkdir -p /workspaces \
+    && chown root:root /workspaces \
+    && chmod 0711 /workspaces
+
+COPY --from=editor-web-builder /usr/local /usr/local
+WORKDIR /app
+COPY --from=editor-web-builder /editor/package.json /app/package.json
+COPY --from=editor-web-builder /editor/node_modules /app/node_modules
+COPY --from=editor-web-builder /editor/dist /app/dist
+COPY apps/explorer/editor/server /app/server
+COPY --from=tools-builder /binaries/aeko /usr/local/bin/aeko
+COPY --from=tools-builder /binaries/aeko-keygen /usr/local/bin/aeko-keygen
+RUN chmod 0755 /usr/local/bin/aeko /usr/local/bin/aeko-keygen
+
+ENV NODE_ENV=production \
+    PORT=4100 \
+    AEKO_EDITOR_WORKSPACE_ROOT=/workspaces \
+    AEKO_EDITOR_SANDBOX_UID_START=20000
+
+EXPOSE 4100/tcp
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["node", "/app/server/index.mjs"]
+
 FROM node:22-alpine AS operations-web-builder
 WORKDIR /operations-web
 ENV NEXT_TELEMETRY_DISABLED=1
