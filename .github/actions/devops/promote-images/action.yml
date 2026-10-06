@@ -28,6 +28,10 @@ inputs:
     description: Promote the Explorer UI image.
     required: false
     default: "false"
+  editor:
+    description: Promote the Contract Studio image.
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -42,6 +46,7 @@ runs:
         PROMOTE_CLI: ${{ inputs.cli }}
         PROMOTE_EXPLORER_BACKEND: ${{ inputs.explorer-backend }}
         PROMOTE_EXPLORER_WEB: ${{ inputs.explorer-web }}
+        PROMOTE_EDITOR: ${{ inputs.editor }}
       run: |
         set -euo pipefail
         if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
@@ -79,4 +84,7 @@ runs:
         fi
         if [ "$PROMOTE_EXPLORER_WEB" = "true" ]; then
           promote aeko-explorer-ui
+        fi
+        if [ "$PROMOTE_EDITOR" = "true" ]; then
+          promote aeko-editor-web
         fi

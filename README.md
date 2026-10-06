@@ -80,6 +80,7 @@ Consumers, wallets and dApps use **RPC/WS**, never gossip. Index-heavy reads can
 | Protocol bootstrap | `surdma/aeko-protocol-bootstrap` | always participates in the default network lifecycle; verifies/initializes canonical token/security protocol state and writes the protocol registry |
 | Explorer API | `surdma/aeko-explorer-api` | chain indexer, REST API and SocialFi registry/read endpoints |
 | Explorer UI | `surdma/aeko-explorer-ui` | browser block/social explorer and test console |
+| Contract Studio | `surdma/aeko-editor-web` | standalone Monaco/xterm browser IDE with an isolated per-session PTY workspace |
 | Wallet/operator tools | `surdma/aeko-tools` | `aeko` CLI and `aeko-keygen`; wallets are signers, not a network daemon |
 
 A **WebSocket node is not a separate daemon**. PubSub/WebSocket is served by the validator/RPC process on port `8900`. Likewise, there is no permanent **wallet node**: wallet identity/signing belongs to a client, wallet adapter, HSM/custody service or application backend. `aeko-tools` supplies CLI/key generation.
@@ -93,6 +94,7 @@ A **WebSocket node is not a separate daemon**. PubSub/WebSocket is served by the
 | Explorer API | `https://api.aeko.online` | Explorer API `:8088`; public browser API plus private server-side Admin upstream |
 | Bootstrap registry | `https://registry.aeko.online` | read-only registry `:8089`; exposes generated Social/Protocol registry files only |
 | Explorer UI | `https://scan.aeko.online` | static Explorer UI `:4000`; browser data calls go directly to the selected Explorer API |
+| Contract Studio | `https://editor.aeko.online` | standalone editor runtime `:4100`; Monaco client plus isolated workspace/PTTY server |
 | Operations Web | `https://admin.aeko.online` | Operations Web `:3001` |
 | Faucet TCP | `faucet.aeko.online:9900` | Faucet daemon raw TCP; firewall to Validator sources |
 | Validator gossip | `gossip.aeko.online:8001` | validator gossip entrypoint |
@@ -112,6 +114,7 @@ The public validator publishes the public TCP+UDP transport range `8000-8050`; g
 | `8088` | HTTP | Explorer/indexer REST API | `api.aeko.online` via Coolify domain |
 | `8089` | HTTP | read-only bootstrap registry | `registry.aeko.online` via Coolify domain |
 | `4000` | HTTP | Explorer UI | `scan.aeko.online` |
+| `4100` | HTTP/WebSocket | Contract Studio | `editor.aeko.online` |
 | `3001` | HTTP | Operations/Admin UI | `admin.aeko.online` |
 | `4101` | HTTP/Socket.IO | separate Aeko application backend | separate deployment |
 | `5432` | PostgreSQL | durable storage where configured | internal only |
@@ -228,6 +231,7 @@ docker build -f docker/Dockerfile --target protocol-bootstrap -t surdma/aeko-pro
 docker build -f docker/Dockerfile --target tools -t surdma/aeko-tools:latest .
 docker build -f docker/Dockerfile --target explorer-api -t surdma/aeko-explorer-api:latest .
 docker build -f docker/Dockerfile --target explorer-ui -t surdma/aeko-explorer-ui:latest .
+docker build -f docker/Dockerfile --target editor-web -t surdma/aeko-editor-web:latest .
 ```
 
 `.github/workflows/build-images.yml` validates the deployment contracts and builds every target on pull requests. On `main`, it publishes both `latest` and a 12-character commit tag. Compatibility aliases remain temporarily available for `aeko-node` and `aeko-explorer-backend`.
@@ -345,7 +349,7 @@ Coolify supports independent resource deployments under
 validator, Explorer API, Explorer UI and Operations Web can be updated without
 recreating one another.
 
-The preferred topology has six Coolify resources. Stateful infrastructure
+The preferred topology has seven Coolify resources. Stateful infrastructure
 keeps its deployment files under `docker/coolify/**`; deployable applications
 own `compose.coolify.yml` and `.env.coolify.example` beside their source:
 
@@ -355,6 +359,7 @@ docker/coolify/faucet-tools/compose.yml
 docker/coolify/validator/compose.yml
 apps/explorer/backend/compose.coolify.yml
 apps/explorer/web/compose.coolify.yml
+apps/explorer/editor/compose.coolify.yml
 apps/admin/compose.coolify.yml
 ```
 
@@ -396,6 +401,7 @@ ws.aeko.online        -> validator:8900
 registry.aeko.online  -> registry:8089
 api.aeko.online       -> explorer-api:8088
 scan.aeko.online      -> explorer-ui:4000
+editor.aeko.online    -> editor-web:4100
 admin.aeko.online     -> operations-web:3001
 ```
 
@@ -573,6 +579,7 @@ RPC          https://rpc.aeko.online
 WebSocket    wss://ws.aeko.online
 Explorer API https://api.aeko.online
 Explorer UI  https://scan.aeko.online
+Contract IDE https://editor.aeko.online
 Funding      https://api.aeko.online/funding/*
 ```
 

@@ -12,12 +12,14 @@ CORE="${CORE:-false}"
 PACKAGING="${PACKAGING:-false}"
 EXPLORER_BACKEND="${EXPLORER_BACKEND:-false}"
 EXPLORER_WEB="${EXPLORER_WEB:-false}"
+EDITOR="${EDITOR:-false}"
 
 publish=false
 publish_admin=false
 publish_cli=false
 publish_explorer_backend=false
 publish_explorer_web=false
+publish_editor=false
 publish_network=false
 
 # Image publication follows the product/image domains that actually changed.
@@ -32,12 +34,18 @@ if [ "$GITHUB_REF" = "refs/heads/main" ] \
   publish_cli="$CLI"
   publish_explorer_backend="$EXPLORER_BACKEND"
   publish_explorer_web="$EXPLORER_WEB"
+  publish_editor="$EDITOR"
   publish_network="$CORE"
 
   if [ "$CORE" = "true" ]; then
     publish_cli=true
     publish_explorer_backend=true
+    publish_editor=true
     publish_network=true
+  fi
+
+  if [ "$CLI" = "true" ]; then
+    publish_editor=true
   fi
 
   if [ "$PACKAGING" = "true" ]; then
@@ -45,6 +53,7 @@ if [ "$GITHUB_REF" = "refs/heads/main" ] \
     publish_cli=true
     publish_explorer_backend=true
     publish_explorer_web=true
+    publish_editor=true
     publish_network=true
   fi
 fi
@@ -55,10 +64,11 @@ fi
   echo "publish_cli=$publish_cli"
   echo "publish_explorer_backend=$publish_explorer_backend"
   echo "publish_explorer_web=$publish_explorer_web"
+  echo "publish_editor=$publish_editor"
   echo "publish_network=$publish_network"
   echo "sha_tag=${GITHUB_SHA::12}"
 } >> "$GITHUB_OUTPUT"
 
-printf 'Release mode: publish=%s admin=%s cli=%s backend=%s web=%s network=%s internal-pr=%s dockerized=%s ci-pipeline=%s sha=%s\n' \
-  "$publish" "$publish_admin" "$publish_cli" "$publish_explorer_backend" "$publish_explorer_web" "$publish_network" \
+printf 'Release mode: publish=%s admin=%s cli=%s backend=%s web=%s editor=%s network=%s internal-pr=%s dockerized=%s ci-pipeline=%s sha=%s\n' \
+  "$publish" "$publish_admin" "$publish_cli" "$publish_explorer_backend" "$publish_explorer_web" "$publish_editor" "$publish_network" \
   "$INTERNAL_PR" "$DOCKERIZED" "$CI_PIPELINE" "${GITHUB_SHA::12}"

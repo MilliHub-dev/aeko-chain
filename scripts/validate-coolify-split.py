@@ -37,6 +37,11 @@ RESOURCES = {
         ROOT / "apps" / "explorer" / "web" / ".env.coolify.example",
         ["explorer-ui"],
     ),
+    "editor-web": (
+        ROOT / "apps" / "explorer" / "editor" / "compose.coolify.yml",
+        ROOT / "apps" / "explorer" / "editor" / ".env.coolify.example",
+        ["editor-web"],
+    ),
     "operations-web": (
         ROOT / "apps" / "admin" / "compose.coolify.yml",
         ROOT / "apps" / "admin" / ".env.coolify.example",
@@ -152,7 +157,7 @@ def main() -> int:
         loaded[label] = compose
         envs[label] = env_example
 
-    for retired in ("explorer-api", "explorer-ui", "operations-web"):
+    for retired in ("explorer-api", "explorer-ui", "editor-web", "operations-web"):
         require(
             not (COOLIFY / retired / "compose.yml").exists()
             and not (COOLIFY / retired / ".env.example").exists(),
@@ -165,7 +170,7 @@ def main() -> int:
             f"{label} must require an explicit immutable AEKO image tag",
         )
 
-    for label in ("explorer-api", "explorer-ui", "operations-web"):
+    for label in ("explorer-api", "explorer-ui", "editor-web", "operations-web"):
         require(
             "${AEKO_IMAGE_TAG:-latest}" in loaded[label],
             f"{label} must support post-promotion latest-tag application deploys",
@@ -456,6 +461,35 @@ def main() -> int:
             private_prefix not in explorer_ui and private_prefix not in envs["explorer-ui"],
             f"public Scan must not expose {private_prefix} deployment variables",
         )
+
+    editor = loaded["editor-web"]
+    require("depends_on:" not in editor, "Contract Studio must remain independently deployable")
+    require(
+        "aeko-editor-web:${AEKO_IMAGE_TAG:-latest}" in editor,
+        "Contract Studio split resource must consume the promoted aeko-editor-web image",
+    )
+    for expected in (
+        "AEKO_EDITOR_PUBLIC_ORIGIN: ${AEKO_EDITOR_PUBLIC_ORIGIN:-https://editor.aeko.online}",
+        "AEKO_EDITOR_ACCESS_TOKEN:",
+        "read_only: true",
+        "cap_drop:",
+        "- ALL",
+        "- CHOWN",
+        "- DAC_OVERRIDE",
+        "- SETUID",
+        "- SETGID",
+        "no-new-privileges:true",
+        "/workspaces:rw,nosuid,nodev",
+        "http://127.0.0.1:4100/healthz",
+    ):
+        require(expected in editor, f"Contract Studio missing isolation/deployment contract: {expected}")
+    for forbidden in (
+        "/var/run/docker.sock",
+        "EXPLORER_DATABASE_URL",
+        "AEKO_KEYS_DIR",
+        "/data/aeko/keys",
+    ):
+        require(forbidden not in editor, f"Contract Studio must not expose privileged host/runtime state: {forbidden}")
 
     operations = loaded["operations-web"]
     admin_middleware = read(ROOT / "apps" / "admin" / "src" / "middleware.ts")

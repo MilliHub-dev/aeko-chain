@@ -39,7 +39,7 @@ established-chain storage safeguards.
 ## Auto-deploy isolation
 
 Creating separate Coolify applications is only half of validator isolation.
-The GitHub release workflow now deploys five resources independently after
+The GitHub release workflow now deploys six resources independently after
 validated image promotion; there is no monolithic deployment-mode switch.
 
 Configure these repository secrets:
@@ -48,12 +48,13 @@ Configure these repository secrets:
 WEBHOOK_AEKO_ADMIN=<Aeko Admin webhook>
 WEBHOOK_EXPLORER_API=<Explorer API webhook>
 WEBHOOK_EXPLORER_UI=<Explorer UI webhook>
+WEBHOOK_EXPLORER_EDITOR=<Contract Studio webhook>
 WEBHOOK_FAUCET=<Faucet webhook>
 WEBHOOK_VALIDATOR=<Validator webhook>
 WEBHOOK_API_KEY=<shared Coolify API token>
 ```
 
-Disable Coolify Git Auto Deploy for all five webhook-managed resources so a
+Disable Coolify Git Auto Deploy for all six webhook-managed resources so a
 repository push cannot race ahead of Docker image validation/promotion. Set
 `AEKO_IMAGE_TAG=latest` on those resources; the webhook then pulls the image
 family CI just promoted. The immutable SHA tag remains available for rollback.
@@ -94,9 +95,9 @@ AEKO_LOG_MAX_FILES=3
 ~~~
 
 Keep Validator/bootstrap/faucet-tools on an immutable validated image tag.
-Explorer API/UI, Operations Web, Faucet, and Validator use the promoted
-`latest` tag when their independent deployment webhook runs after image
-promotion. Bootstrap remains an explicit operator-controlled release.
+Explorer API/UI, Contract Studio, Operations Web, Faucet, and Validator use the
+promoted `latest` tag when their independent deployment webhook runs after
+image promotion. Bootstrap remains an explicit operator-controlled release.
 
 Each chain deployment has one active network, but public client endpoints are
 not reused for backend-to-backend traffic. Aeko Scan publishes the active
@@ -119,6 +120,12 @@ AEKO_WS_URL=wss://<private-or-dns-only-validator-ws-origin>
 AEKO_REGISTRY_URL=https://<private-or-dns-only-registry-origin>
 AEKO_EXPLORER_CORS_ORIGINS=https://scan.aeko.online
 
+# Contract Studio resource
+AEKO_EDITOR_PUBLIC_ORIGIN=https://editor.aeko.online
+AEKO_EDITOR_ACCESS_TOKEN=<long-random-secret>
+AEKO_RPC_URL=https://rpc.aeko.online
+AEKO_EXPLORER_URL=https://scan.aeko.online
+
 # Operations Web resource
 AEKO_RPC_URL=https://<private-or-dns-only-validator-rpc-origin>
 AEKO_EXPLORER_API_URL=https://<private-or-dns-only-explorer-api-origin>
@@ -139,8 +146,11 @@ Testnet only. Devnet and Localnet remain explicit development environments and
 are configured outside the public Scan deployment contract.
 
 Explorer API additionally owns `EXPLORER_DATABASE_URL` and the Explorer
-settings token. Operations Web owns its admin credentials. Bootstrap and
-Validator tunables remain local to their corresponding resources.
+settings token. Contract Studio owns its editor access token and isolated
+workspace/session limits; it does not receive Explorer PostgreSQL credentials,
+validator keys, or Docker host access. Operations Web owns its admin
+credentials. Bootstrap and Validator tunables remain local to their
+corresponding resources.
 
 Coolify values should be entered without shell quotes. The split contracts do
 not use `env_file:`, so an uncommitted `.env` file is never a runtime
@@ -231,6 +241,7 @@ Configure these Coolify domains against the listed services/container ports:
 | `https://registry.aeko.online` | `registry` in Bootstrap | `8089` |
 | `https://api.aeko.online` | `explorer-api` | `8088` |
 | `https://scan.aeko.online` | `explorer-ui` | `4000` |
+| `https://editor.aeko.online` | `editor-web` | `4100` |
 | `https://admin.aeko.online` | `operations-web` | `3001` |
 
 For the Operations Web resource, set Coolify's HTTP health-check path to
@@ -306,14 +317,15 @@ A split deployment is not accepted if Docker reports only
 
 ## First deployment
 
-For the split topology, create six separate Coolify applications:
+For the split topology, create seven separate Coolify applications:
 
 1. `docker/coolify/bootstrap/compose.yml`
 2. `docker/coolify/faucet-tools/compose.yml`
 3. `docker/coolify/validator/compose.yml`
 4. `apps/explorer/backend/compose.coolify.yml`
 5. `apps/explorer/web/compose.coolify.yml`
-6. `apps/admin/compose.coolify.yml`
+6. `apps/explorer/editor/compose.coolify.yml`
+7. `apps/admin/compose.coolify.yml`
 
 `wallet-tools` is already inside `faucet-tools` under the `ops` profile, so
 it does not need another Coolify application.

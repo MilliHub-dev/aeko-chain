@@ -38,6 +38,10 @@ SPLIT_RESOURCES = {
         ROOT / "apps" / "explorer" / "web" / "compose.coolify.yml",
         ROOT / "apps" / "explorer" / "web" / ".env.coolify.example",
     ),
+    "editor-web": (
+        ROOT / "apps" / "explorer" / "editor" / "compose.coolify.yml",
+        ROOT / "apps" / "explorer" / "editor" / ".env.coolify.example",
+    ),
     "operations-web": (
         ROOT / "apps" / "admin" / "compose.coolify.yml",
         ROOT / "apps" / "admin" / ".env.coolify.example",
@@ -105,6 +109,8 @@ def main() -> int:
             "8089/tcp",
             "https://scan.aeko.online",
             "4000/tcp",
+            "https://editor.aeko.online",
+            "4100/tcp",
             "https://admin.aeko.online",
             "3001/tcp",
             "faucet.aeko.online:9900",
@@ -258,6 +264,18 @@ def main() -> int:
             '- "4000"',
         ),
     )
+    require_contains_all(
+        "split Contract Studio",
+        split["editor-web"],
+        (
+            "AEKO_EDITOR_PUBLIC_ORIGIN: ${AEKO_EDITOR_PUBLIC_ORIGIN:-https://editor.aeko.online}",
+            "AEKO_EDITOR_ACCESS_TOKEN:",
+            "AEKO_RPC_URL: ${AEKO_RPC_URL:-https://rpc.aeko.online}",
+            '- "4100"',
+        ),
+    )
+    require("ports:" not in split["editor-web"], "split Contract Studio must use Coolify domain routing, not a host HTTP port")
+
     require_contains_all(
         "split Operations Web",
         split["operations-web"],

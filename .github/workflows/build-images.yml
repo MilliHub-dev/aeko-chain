@@ -35,6 +35,8 @@ jobs:
       smart_contracts: ${{ steps.changes.outputs.smart_contracts }}
       explorer_backend: ${{ steps.changes.outputs.explorer_backend }}
       explorer_web: ${{ steps.changes.outputs.explorer_web }}
+      editor: ${{ steps.changes.outputs.editor }}
+      coolify_editor: ${{ steps.changes.outputs.coolify_editor }}
       coolify_bootstrap: ${{ steps.changes.outputs.coolify_bootstrap }}
       coolify_faucet_tools: ${{ steps.changes.outputs.coolify_faucet_tools }}
       coolify_validator: ${{ steps.changes.outputs.coolify_validator }}
@@ -56,12 +58,14 @@ jobs:
       publish_cli: ${{ steps.release.outputs.publish_cli }}
       publish_explorer_backend: ${{ steps.release.outputs.publish_explorer_backend }}
       publish_explorer_web: ${{ steps.release.outputs.publish_explorer_web }}
+      publish_editor: ${{ steps.release.outputs.publish_editor }}
       publish_network: ${{ steps.release.outputs.publish_network }}
       sha_tag: ${{ steps.release.outputs.sha_tag }}
       run_admin: ${{ steps.plan.outputs.run_admin }}
       run_cli: ${{ steps.plan.outputs.run_cli }}
       run_explorer_backend: ${{ steps.plan.outputs.run_explorer_backend }}
       run_explorer_web: ${{ steps.plan.outputs.run_explorer_web }}
+      run_editor: ${{ steps.plan.outputs.run_editor }}
       run_network: ${{ steps.plan.outputs.run_network }}
       run_sdk_non_rust: ${{ steps.plan.outputs.run_sdk_non_rust }}
       run_sdk_rust: ${{ steps.plan.outputs.run_sdk_rust }}
@@ -69,6 +73,7 @@ jobs:
       build_tools: ${{ steps.plan.outputs.build_tools }}
       build_explorer_backend: ${{ steps.plan.outputs.build_explorer_backend }}
       build_explorer_web: ${{ steps.plan.outputs.build_explorer_web }}
+      build_editor: ${{ steps.plan.outputs.build_editor }}
       build_network: ${{ steps.plan.outputs.build_network }}
       run_ci_contract: ${{ steps.plan.outputs.run_ci_contract }}
       run_runtime_contract: ${{ steps.plan.outputs.run_runtime_contract }}
@@ -104,6 +109,7 @@ jobs:
           PACKAGING: ${{ steps.changes.outputs.packaging }}
           EXPLORER_BACKEND: ${{ steps.changes.outputs.explorer_backend }}
           EXPLORER_WEB: ${{ steps.changes.outputs.explorer_web }}
+          EDITOR: ${{ steps.changes.outputs.editor }}
         run: bash .github/actions/devops/pipeline/resolve-release.sh
 
       - name: Plan independent domain jobs
@@ -116,6 +122,8 @@ jobs:
           PACKAGING: ${{ steps.changes.outputs.packaging }}
           EXPLORER_BACKEND: ${{ steps.changes.outputs.explorer_backend }}
           EXPLORER_WEB: ${{ steps.changes.outputs.explorer_web }}
+          EDITOR: ${{ steps.changes.outputs.editor }}
+          COOLIFY_EDITOR: ${{ steps.changes.outputs.coolify_editor }}
           COOLIFY_BOOTSTRAP: ${{ steps.changes.outputs.coolify_bootstrap }}
           COOLIFY_FAUCET_TOOLS: ${{ steps.changes.outputs.coolify_faucet_tools }}
           COOLIFY_VALIDATOR: ${{ steps.changes.outputs.coolify_validator }}
@@ -151,13 +159,17 @@ jobs:
       needs.classify.outputs.run_admin == 'true' ||
       needs.classify.outputs.build_admin == 'true' ||
       needs.classify.outputs.run_explorer_web == 'true' ||
-      needs.classify.outputs.build_explorer_web == 'true'
+      needs.classify.outputs.build_explorer_web == 'true' ||
+      needs.classify.outputs.run_editor == 'true' ||
+      needs.classify.outputs.build_editor == 'true'
     uses: ./.github/workflows/devops-web-ui.yml
     with:
       validate_admin: ${{ needs.classify.outputs.run_admin }}
       build_admin: ${{ needs.classify.outputs.build_admin }}
       validate_explorer_web: ${{ needs.classify.outputs.run_explorer_web }}
       build_explorer_web: ${{ needs.classify.outputs.build_explorer_web }}
+      validate_editor: ${{ needs.classify.outputs.run_editor }}
+      build_editor: ${{ needs.classify.outputs.build_editor }}
       sha_tag: ${{ needs.classify.outputs.sha_tag }}
 
   cli:
@@ -551,7 +563,7 @@ jobs:
           CLASSIFY_RESULT: ${{ needs.classify.result }}
           EXPECT_CI_CONTRACT: ${{ needs.classify.outputs.run_ci_contract }}
           CI_CONTRACT_RESULT: ${{ needs.ci_contract.result }}
-          EXPECT_WEB_UI: ${{ needs.classify.outputs.run_admin == 'true' || needs.classify.outputs.build_admin == 'true' || needs.classify.outputs.run_explorer_web == 'true' || needs.classify.outputs.build_explorer_web == 'true' }}
+          EXPECT_WEB_UI: ${{ needs.classify.outputs.run_admin == 'true' || needs.classify.outputs.build_admin == 'true' || needs.classify.outputs.run_explorer_web == 'true' || needs.classify.outputs.build_explorer_web == 'true' || needs.classify.outputs.run_editor == 'true' || needs.classify.outputs.build_editor == 'true' }}
           WEB_UI_RESULT: ${{ needs.web_ui.result }}
           EXPECT_CLI: ${{ needs.classify.outputs.run_cli }}
           CLI_RESULT: ${{ needs.cli.result }}
@@ -826,6 +838,13 @@ jobs:
           name: aeko-runtime-operations-web
           path: artifacts/release/operations-web
 
+      - name: Download Contract Studio release artifact
+        if: needs.classify.outputs.publish_editor == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: aeko-runtime-editor-web
+          path: artifacts/release/editor-web
+
       - name: Publish validated immutable Docker images
         shell: bash
         env:
@@ -835,6 +854,7 @@ jobs:
           PUBLISH_CLI: ${{ needs.classify.outputs.publish_cli }}
           PUBLISH_EXPLORER_BACKEND: ${{ needs.classify.outputs.publish_explorer_backend }}
           PUBLISH_EXPLORER_WEB: ${{ needs.classify.outputs.publish_explorer_web }}
+          PUBLISH_EDITOR: ${{ needs.classify.outputs.publish_editor }}
           PUBLISH_NETWORK: ${{ needs.classify.outputs.publish_network }}
         run: bash .github/actions/devops/pipeline/publish-runtime-images.sh
 
@@ -848,6 +868,7 @@ jobs:
           cli: ${{ needs.classify.outputs.publish_cli }}
           explorer-backend: ${{ needs.classify.outputs.publish_explorer_backend }}
           explorer-web: ${{ needs.classify.outputs.publish_explorer_web }}
+          editor: ${{ needs.classify.outputs.publish_editor }}
 
   deploy_faucet:
     name: Deploy / Faucet
@@ -923,6 +944,25 @@ jobs:
         env:
           COOLIFY_RESOURCE: Explorer UI
           DEPLOY_ENDPOINT: ${{ secrets.WEBHOOK_EXPLORER_UI }}
+          WEBHOOK_API_KEY: ${{ secrets.WEBHOOK_API_KEY }}
+        run: bash .github/actions/devops/pipeline/deploy-coolify-split.sh
+
+  deploy_editor:
+    name: Deploy / Contract Studio
+    needs:
+      - classify
+      - release
+    if: ${{ always() && needs.release.result == 'success' && needs.classify.outputs.publish_editor == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+      - name: Trigger Contract Studio Coolify deployment
+        shell: bash
+        env:
+          COOLIFY_RESOURCE: Contract Studio
+          DEPLOY_ENDPOINT: ${{ secrets.WEBHOOK_EXPLORER_EDITOR }}
           WEBHOOK_API_KEY: ${{ secrets.WEBHOOK_API_KEY }}
         run: bash .github/actions/devops/pipeline/deploy-coolify-split.sh
 

@@ -1,0 +1,55 @@
+{
+  "name": "aeko-contract-studio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx server/index.ts --dev",
+    "client:dev": "vite --host 0.0.0.0 --port 5174",
+    "server:dev": "tsx watch server/index.ts --dev",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
+    "build:server": "tsc -p tsconfig.server.build.json",
+    "build": "npm run typecheck && npm run build:server && vite build",
+    "lint": "NODE_OPTIONS=--experimental-strip-types eslint --flag unstable_native_nodejs_ts_config .",
+    "test": "tsx --test server/*.test.ts",
+    "start": "NODE_ENV=production node dist-server/server/index.js"
+  },
+  "dependencies": {
+    "@codingame/monaco-vscode-api": "36.2.7",
+    "@codingame/monaco-vscode-configuration-service-override": "36.2.7",
+    "@codingame/monaco-vscode-keybindings-service-override": "36.2.7",
+    "@codingame/monaco-vscode-theme-defaults-default-extension": "36.2.7",
+    "@codingame/monaco-vscode-theme-service-override": "36.2.7",
+    "@vscode/codicons": "0.0.46-24",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
+    "express": "5.2.1",
+    "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@36.2.7",
+    "node-pty": "1.1.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "socket.io": "4.8.4",
+    "socket.io-client": "4.8.4",
+    "split.js": "1.6.5",
+    "typescript": "5.9.3",
+    "vscode": "npm:@codingame/monaco-vscode-extension-api@36.2.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.1",
+    "@types/express": "5.0.6",
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "5.1.1",
+    "eslint": "9.39.1",
+    "eslint-plugin-react-hooks": "7.0.1",
+    "eslint-plugin-react-refresh": "0.4.24",
+    "globals": "16.5.0",
+    "tsx": "4.23.15",
+    "typescript-eslint": "8.70.1",
+    "vite": "7.2.4"
+  },
+  "engines": {
+    "node": ">=22 <23"
+  }
+}
