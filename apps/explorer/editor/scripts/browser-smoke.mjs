@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import { access, mkdtemp, rm } from 'node:fs/promises'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -7,6 +8,28 @@ const baseUrl = process.env.AEKO_STUDIO_SMOKE_URL || 'http://127.0.0.1:4100/'
 const executable = process.env.AEKO_BROWSER_EXECUTABLE
 if (!executable) throw new Error('AEKO_BROWSER_EXECUTABLE is required for the Contract Studio browser smoke.')
 await access(executable)
+
+async function availableDebugPort() {
+  return await new Promise((resolve, reject) => {
+    const server = createServer()
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      if (!address || typeof address === 'string') {
+        server.close()
+        reject(new Error('Could not allocate a Chromium DevTools port.'))
+        return
+      }
+      server.close((error) => error ? reject(error) : resolve(address.port))
+    })
+  })
+}
+
+const configuredDebugPort = Number(process.env.AEKO_BROWSER_DEBUG_PORT || 0)
+if (!Number.isInteger(configuredDebugPort) || configuredDebugPort < 0 || configuredDebugPort > 65535) {
+  throw new Error('AEKO_BROWSER_DEBUG_PORT must be a valid TCP port.')
+}
+const debugPort = configuredDebugPort || await availableDebugPort()
 
 const profile = await mkdtemp(join(tmpdir(), 'aeko-studio-browser-'))
 const child = spawn(executable, [
@@ -16,7 +39,8 @@ const child = spawn(executable, [
   '--disable-dev-shm-usage',
   '--no-first-run',
   '--no-default-browser-check',
-  '--remote-debugging-port=0',
+  '--remote-debugging-address=127.0.0.1',
+  `--remote-debugging-port=${debugPort}`,
   `--user-data-dir=${profile}`,
   'about:blank',
 ], { stdio: ['ignore', 'ignore', 'pipe'] })
@@ -36,25 +60,40 @@ function stopBrowser() {
 process.once('SIGINT', stopBrowser)
 process.once('SIGTERM', stopBrowser)
 
-try {
-  const browserWebSocketUrl = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`Chromium DevTools endpoint did not start.\n${browserStderr}`))
-    }, 15_000)
+child.stderr.setEncoding('utf8')
+child.stderr.on('data', (chunk) => {
+  browserStderr += chunk
+})
 
-    child.stderr.setEncoding('utf8')
-    child.stderr.on('data', (chunk) => {
-      browserStderr += chunk
-      const match = browserStderr.match(/DevTools listening on (ws:\/\/[^\s]+)/)
-      if (!match) return
-      clearTimeout(timer)
-      resolve(match[1])
-    })
-    child.once('exit', (code) => {
-      clearTimeout(timer)
-      reject(new Error(`Chromium exited before the smoke test started (exit ${code}).\n${browserStderr}`))
-    })
-  })
+try {
+  const devtoolsUrl = `http://127.0.0.1:${debugPort}/json/version`
+  const deadline = Date.now() + 20_000
+  let browserWebSocketUrl = ''
+
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) {
+      throw new Error(`Chromium exited before the smoke test started (exit ${child.exitCode}).\n${browserStderr}`)
+    }
+
+    try {
+      const response = await fetch(devtoolsUrl)
+      if (response.ok) {
+        const payload = await response.json()
+        if (typeof payload.webSocketDebuggerUrl === 'string' && payload.webSocketDebuggerUrl) {
+          browserWebSocketUrl = payload.webSocketDebuggerUrl
+          break
+        }
+      }
+    } catch {
+      // Chromium may take a few seconds to bind the DevTools endpoint on CI.
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 200))
+  }
+
+  if (!browserWebSocketUrl) {
+    throw new Error(`Chromium DevTools endpoint did not start at ${devtoolsUrl}.\n${browserStderr}`)
+  }
 
   socket = new WebSocket(browserWebSocketUrl)
   await new Promise((resolve, reject) => {
