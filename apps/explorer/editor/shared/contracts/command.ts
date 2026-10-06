@@ -1,6 +1,6 @@
 import type { WorkspaceId } from './workspace.js'
 
-export type StudioCommand = 'build' | 'test' | 'run' | 'clean'
+export type StudioCommand = 'build' | 'check' | 'lint' | 'typecheck' | 'format' | 'test' | 'run' | 'clean'
 
 export interface ConsoleAttachRequest { workspaceId: WorkspaceId }
 export interface ConsoleRunRequest { workspaceId: WorkspaceId; command: StudioCommand }
