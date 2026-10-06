@@ -15,7 +15,7 @@ export default function MonacoEditor({ workspaceId, file, onChange, onSave }: Mo
   const onChangeRef = useRef(onChange)
   const onSaveRef = useRef(onSave)
   const filePath = file?.path || ''
-  const content = file?.content ?? ''
+  const initialContentRef = useRef(file?.content ?? '')
 
   useEffect(() => {
     onChangeRef.current = onChange
@@ -29,10 +29,10 @@ export default function MonacoEditor({ workspaceId, file, onChange, onSave }: Mo
     const uri = monaco.Uri.parse(`file:///workspaces/${workspaceId}/${filePath}`)
     const language = languageForPath(filePath)
     let model = monaco.editor.getModel(uri)
-    if (!model) model = monaco.editor.createModel(content, language, uri)
+    if (!model) model = monaco.editor.createModel(initialContentRef.current, language, uri)
     else {
       monaco.editor.setModelLanguage(model, language)
-      if (model.getValue() !== content) model.setValue(content)
+      if (model.getValue() !== initialContentRef.current) model.setValue(initialContentRef.current)
     }
 
     const instance = monaco.editor.create(host, {
@@ -77,7 +77,7 @@ export default function MonacoEditor({ workspaceId, file, onChange, onSave }: Mo
       subscription.dispose()
       instance.dispose()
     }
-  }, [content, filePath, workspaceId])
+  }, [filePath, workspaceId])
 
   if (!filePath) return <div className="editor-empty"><div className="editor-empty-mark">AEKO</div><p>Select a source file to begin.</p></div>
   return <div ref={hostRef} className="monaco-editor-host" aria-label={`Editor for ${filePath}`} />
