@@ -44,7 +44,7 @@ The browser never receives the server access token after login. A successful log
 
 Production isolation rules:
 
-- Node control plane runs as container root with all Linux capabilities dropped except `CHOWN`, `DAC_OVERRIDE`, `SETUID`, and `SETGID`. `DAC_OVERRIDE` is retained by the trusted control plane so HTTP workspace operations can traverse files owned by sandbox identities; PTYs drop to their session UID/GID before the shell starts.
+- Node control plane runs as container root with all Linux capabilities dropped except `CHOWN`, `DAC_OVERRIDE`, `SETUID`, and `SETGID`. `DAC_OVERRIDE` is retained by the trusted control plane so HTTP workspace operations can traverse files owned by sandbox identities; project commands drop to their session UID/GID before execution.
 - Each authenticated session receives a distinct unprivileged UID/GID.
 - Every project command drops to that session identity on Linux.
 - Command environment variables are allowlisted; no interactive PowerShell or Bash session is exposed.
