@@ -16,7 +16,7 @@ export default function ActivityBar({ onHome, onLogout }: ActivityBarProps) {
       <div className="activity-items">
         {ITEMS.map(([mark, label, enabled], index) => (
           <button key={label} type="button" className={index === 0 ? 'active' : ''} disabled={!enabled}
-            title={enabled ? label : `${label} requires chain/wallet integration`}>
+            title={enabled ? label : `${label} requires chain or wallet integration`}>
             <span className="rail-mark">{mark}</span><span className="rail-label">{label}</span>
           </button>
         ))}
