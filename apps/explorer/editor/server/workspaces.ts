@@ -145,10 +145,13 @@ async function ensureDirectory(
     } catch (error) {
       if (!isErrnoException(error) || error.code !== 'ENOENT') throw error
       await mkdir(next, { mode: 0o770 })
+      // Apply the final mode before handing ownership to the sandbox identity.
+      // The hardened runtime intentionally does not grant CAP_FOWNER, so chmod
+      // after chown would fail once root is no longer the inode owner.
+      await chmod(next, 0o770)
       if (typeof process.getuid === 'function' && process.getuid() === 0) {
         await chown(next, uid, gid)
       }
-      await chmod(next, 0o770)
     }
     current = await realpath(next)
     if (!isInside(root, current)) throw new Error('Workspace directory escapes the project root.')
@@ -207,11 +210,16 @@ async function setOwnership(
   production: boolean,
 ): Promise<void> {
   if (typeof process.getuid === 'function' && process.getuid() === 0) {
+    // chmod must happen while the control plane still owns the inode. Production
+    // drops CAP_FOWNER by design, so transferring ownership first would make the
+    // subsequent chmod fail with EPERM.
+    await chmod(path, mode)
     await chown(path, uid, gid)
   } else if (production) {
     throw new Error('Production Contract Studio must run its control plane as root so PTYs can drop privileges.')
+  } else {
+    await chmod(path, mode)
   }
-  await chmod(path, mode)
 }
 
 async function applySandboxOwnership(
