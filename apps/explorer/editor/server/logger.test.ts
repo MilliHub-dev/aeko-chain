@@ -102,7 +102,7 @@ test('text logger emits ANSI level colors when color is enabled', () => {
     log_level: 'info',
   })
 
-  assert.match(stdout.value, /\u001b\[/)
+  assert.equal(stdout.value.includes('\u001b['), true)
   assert.match(stdout.value, /AEKO Contract Studio ready/)
 })
 
