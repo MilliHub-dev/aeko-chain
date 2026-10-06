@@ -193,7 +193,7 @@ WORKDIR /app
 COPY --from=editor-web-builder /editor/package.json /app/package.json
 COPY --from=editor-web-builder /editor/node_modules /app/node_modules
 COPY --from=editor-web-builder /editor/dist /app/dist
-COPY apps/explorer/editor/server /app/server
+COPY --from=editor-web-builder /editor/dist-server /app/dist-server
 COPY --from=tools-builder /binaries/aeko /usr/local/bin/aeko
 COPY --from=tools-builder /binaries/aeko-keygen /usr/local/bin/aeko-keygen
 RUN chmod 0755 /usr/local/bin/aeko /usr/local/bin/aeko-keygen
@@ -205,7 +205,7 @@ ENV NODE_ENV=production \
 
 EXPOSE 4100/tcp
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["node", "/app/server/index.mjs"]
+CMD ["node", "/app/dist-server/server/index.js"]
 
 FROM node:22-alpine AS operations-web-builder
 WORKDIR /operations-web

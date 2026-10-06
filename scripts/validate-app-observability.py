@@ -34,8 +34,8 @@ def main() -> int:
     admin_logger = read("apps/admin/src/lib/logger.ts")
     admin_middleware = read("apps/admin/src/middleware.ts")
     admin_telemetry = read("apps/admin/src/app/api/telemetry/client/route.ts")
-    editor_server = read("apps/explorer/editor/server/index.mjs")
-    editor_config = read("apps/explorer/editor/server/config.mjs")
+    editor_server = read("apps/explorer/editor/server/index.ts")
+    editor_config = read("apps/explorer/editor/server/config.ts")
 
     require(
         backend_main.index("observability::init()") < backend_main.index("ExplorerBackendConfig::from_env()"),

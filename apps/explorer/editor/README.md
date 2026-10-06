@@ -4,17 +4,32 @@ Standalone browser IDE for AEKO development.
 
 **Production route:** `https://editor.aeko.online`
 
-This application is intentionally independent from Aeko Scan and from the legacy `/docs/editor` route. It owns its own Vite frontend, Node control plane, filesystem workspace boundary, Socket.IO transport, and PTY lifecycle.
+This application is intentionally independent from Aeko Scan and from the older `/docs/editor` route. It owns its own Vite frontend, TypeScript Node control plane, filesystem workspace boundary, Socket.IO transport, and PTY lifecycle.
 
 ## Product stack
 
-- React 19 + Vite
-- Monaco Editor through `@monaco-editor/react`
-- `@codingame/monaco-vscode-api` service overrides for VS Code configuration, keybindings, and theme behavior
+- React 19 + TypeScript + Vite
+- Monaco Editor with `monaco-vscode-api` service overrides for VS Code configuration, keybindings, theme behavior, and language workers
 - xterm.js terminal rendering
 - Split.js resizable Explorer/editor/terminal panes
-- Express + Socket.IO
+- TypeScript + Express + Socket.IO control plane
 - node-pty running a real shell inside the dedicated editor container
+- shared TypeScript contracts for browser/server API, workspace, filesystem, session, and terminal events
+
+## Type safety
+
+Browser and server code are compiled with strict TypeScript. The project enables `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, and `noFallthroughCasesInSwitch`.
+
+Run the complete source checks with:
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
+
+The production server is compiled to `dist-server/`; the container runs the emitted JavaScript rather than executing TypeScript at runtime.
 
 ## Runtime model
 
@@ -85,4 +100,4 @@ Port: 4100
 
 Set `AEKO_EDITOR_ACCESS_TOKEN` to a long random secret stored only in Coolify. The deployment must not mount the Docker socket, validator keys, Explorer database credentials, or host source directories into the Studio container.
 
-The canonical `AEKO DevOps (single runner)` workflow treats Contract Studio as its own editor domain. Pull requests validate the Studio source and image through the self-contained `explorer-editor` action; eligible `main` changes publish and promote `aeko-editor-web`, then trigger the resource-scoped `WEBHOOK_EXPLORER_EDITOR` deployment hook.
+The repository `AEKO DevOps (single runner)` workflow treats Contract Studio as its own editor domain. Pull requests validate the Studio source and image through the self-contained `explorer-editor` action; eligible `main` changes publish and promote `aeko-editor-web`, then trigger the resource-scoped `WEBHOOK_EXPLORER_EDITOR` deployment hook.
