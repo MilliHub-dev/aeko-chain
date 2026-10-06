@@ -1,5 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from 'node:child_process'
 import os from 'node:os'
+import { delimiter, resolve } from 'node:path'
 import type { Server } from 'socket.io'
 import type { StudioCommand } from '../shared/contracts/command.js'
 import type { ProjectTemplate } from '../shared/contracts/workspace.js'
@@ -94,9 +95,11 @@ export class CommandManager {
     const env: NodeJS.ProcessEnv = {
       HOME: root,
       LANG: 'C.UTF-8',
-      PATH: process.platform === 'win32'
-        ? String(process.env.PATH || '')
-        : '/app/node_modules/.bin:/opt/aeko:/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin',
+      PATH: [
+        resolve(process.cwd(), 'node_modules/.bin'),
+        ...(process.platform === 'win32' ? [] : ['/opt/aeko', '/usr/local/cargo/bin', '/usr/local/bin', '/usr/bin', '/bin']),
+        String(process.env.PATH || ''),
+      ].filter(Boolean).join(delimiter),
       CARGO_HOME: `${root}/.cargo`,
       RUSTUP_HOME: process.platform === 'win32' ? String(process.env.RUSTUP_HOME || '') : '/usr/local/rustup',
       CARGO_NET_OFFLINE: 'false',
