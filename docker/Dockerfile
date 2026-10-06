@@ -162,18 +162,17 @@ CMD ["node", "/app/explorer-ui-server.mjs"]
 
 # Operations Web is an independent off-chain application. Its target has no dependency
 # on any Rust/network builder, so an operations-web-only change cannot compile the chain.
-# Standalone AEKO Contract Studio: Monaco/xterm frontend plus isolated Node PTY runtime.
+# Standalone AEKO Studio: Monaco frontend plus isolated project command runtime.
 FROM node:22-bookworm AS editor-web-builder
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential python3 && rm -rf /var/lib/apt/lists/*
 WORKDIR /editor
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential python3 \
-    && rm -rf /var/lib/apt/lists/*
 COPY apps/explorer/editor/package.json ./
 RUN npm install --no-audit --no-fund
 COPY apps/explorer/editor/ ./
 RUN npm run build
 
 FROM rust:1.85-bookworm AS editor-web
+RUN rustup component add rust-analyzer rustfmt clippy
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        bash build-essential ca-certificates curl git libudev-dev pkg-config protobuf-compiler python3 tini \

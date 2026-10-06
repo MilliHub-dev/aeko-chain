@@ -12,6 +12,7 @@ import type {
 import { errorCode, errorMessage, errorStatus } from '../shared/errors/editor-errors.js'
 import { SessionStore, socketSession } from './auth.js'
 import { loadConfig } from './config.js'
+import { CommandManager } from './commands.js'
 import { TerminalManager } from './terminal.js'
 import { editorRequestId, requireEditorSession, setEditorRequestId } from './types.js'
 import { WorkspaceManager } from './workspaces.js'
@@ -38,6 +39,7 @@ const io = new SocketServer<
   },
   maxHttpBufferSize: 128 * 1024,
 })
+const commands = new CommandManager(config, io, workspaces)
 const terminals = new TerminalManager(config, io, workspaces)
 const auth = sessions.middleware()
 const dist = resolve(process.cwd(), 'dist')
@@ -177,7 +179,7 @@ app.post('/api/session', (request, response) => {
 
 app.delete('/api/session', (request, response) => {
   const session = sessions.fromRequest(request)
-  if (session) terminals.closeSession(session.id)
+  if (session) { commands.closeSession(session.id); terminals.closeSession(session.id) }
   sessions.destroy(request)
   response.setHeader('set-cookie', sessions.clearCookie())
   data(response, { authenticated: false })
@@ -196,13 +198,10 @@ app.post('/api/workspaces', auth, asyncRoute(async (request, response) => {
 
 app.delete('/api/workspaces/:workspaceId', auth, asyncRoute(async (request, response) => {
   const session = requireEditorSession(request)
-  const key = terminals.key(session.id, routeParam(request, 'workspaceId'))
-  const terminal = terminals.terminals.get(key)
-  if (terminal) {
-    try { terminal.terminal.kill() } catch { /* Best-effort terminal cleanup. */ }
-    terminals.terminals.delete(key)
-  }
-  await workspaces.removeWorkspace(session, routeParam(request, 'workspaceId'))
+  const workspaceId = routeParam(request, 'workspaceId')
+  commands.closeWorkspace(session.id, workspaceId)
+  terminals.closeWorkspace(session.id, workspaceId)
+  await workspaces.removeWorkspace(session, workspaceId)
   data(response, { deleted: true as const })
 }))
 
@@ -279,29 +278,35 @@ io.on('connection', (socket) => {
   const session = socket.data.editorSession
 
   socket.on('terminal:start', async (payload) => {
+    try { const workspaceId=String(payload.workspaceId||''); const record=await terminals.start(session,workspaceId,payload); await socket.join(record.room); socket.emit('terminal:ready',{history:record.history}) } catch(error) { socket.emit('terminal:error',errorMessage(error,'Terminal failed to start.')) }
+  })
+  socket.on('terminal:input', (payload) => { try { terminals.input(session,String(payload.workspaceId||''),payload.data) } catch(error) { socket.emit('terminal:error',errorMessage(error,'Terminal input failed.')) } })
+  socket.on('terminal:resize', (payload) => { try { terminals.resize(session,String(payload.workspaceId||''),payload.cols,payload.rows) } catch(error) { socket.emit('terminal:error',errorMessage(error,'Terminal resize failed.')) } })
+
+  socket.on('console:attach', async (payload) => {
     try {
       const workspaceId = String(payload.workspaceId || '')
-      const record = await terminals.start(session, workspaceId, payload)
-      await socket.join(record.room)
-      socket.emit('terminal:ready', { history: record.history })
+      const snapshot = await commands.snapshot(session, workspaceId)
+      await socket.join(snapshot.room)
+      socket.emit('console:ready', snapshot.ready)
     } catch (error) {
-      socket.emit('terminal:error', errorMessage(error, 'Terminal failed to start.'))
+      socket.emit('console:error', errorMessage(error, 'AEKO Console failed to attach.'))
     }
   })
 
-  socket.on('terminal:input', (payload) => {
+  socket.on('console:run', async (payload) => {
     try {
-      terminals.input(session, String(payload.workspaceId || ''), payload.data)
+      await commands.run(session, String(payload.workspaceId || ''), payload.command)
     } catch (error) {
-      socket.emit('terminal:error', errorMessage(error, 'Terminal input failed.'))
+      socket.emit('console:error', errorMessage(error, 'AEKO command failed to start.'))
     }
   })
 
-  socket.on('terminal:resize', (payload) => {
+  socket.on('console:cancel', (payload) => {
     try {
-      terminals.resize(session, String(payload.workspaceId || ''), payload.cols, payload.rows)
+      commands.cancel(session, String(payload.workspaceId || ''))
     } catch (error) {
-      socket.emit('terminal:error', errorMessage(error, 'Terminal resize failed.'))
+      socket.emit('console:error', errorMessage(error, 'AEKO command could not be cancelled.'))
     }
   })
 })
@@ -340,6 +345,7 @@ if (config.production) {
 
 const interval = setInterval(async () => {
   sessions.sweep()
+  commands.sweep(config.workspaceTtlMs)
   terminals.sweep(config.workspaceTtlMs)
   const active = new Set([...sessions.sessions.values()].map((session) => session.id))
   await workspaces.sweep(active).catch((error: unknown) => log('error', 'workspace_sweep_failed', errorFields(error)))

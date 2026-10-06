@@ -1,70 +1,11 @@
 import { useState, type FormEvent } from 'react'
+import { KeyRound, LoaderCircle } from 'lucide-react'
 import type { StudioConfig } from '../../shared/contracts/session.js'
 import { errorMessage } from '../../shared/errors/editor-errors.js'
 import { api } from '../lib/api'
-
-interface LoginGateProps {
-  onAuthenticated: () => void | Promise<void>
-  config: StudioConfig | null
-}
-
-export default function LoginGate({ onAuthenticated, config }: LoginGateProps) {
-  const [token, setToken] = useState('')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  const submit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault()
-    setBusy(true)
-    setError('')
-    try {
-      await api.login(token)
-      setToken('')
-      await onAuthenticated()
-    } catch (cause) {
-      setError(errorMessage(cause, 'Authentication failed.'))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <main className="login-shell">
-      <section className="login-card" aria-labelledby="login-title">
-        <div className="brand-mark">A</div>
-        <div>
-          <p className="eyebrow">AEKO DEVELOPER TOOLS</p>
-          <h1 id="login-title">Contract Studio</h1>
-          <p className="login-copy">
-            An isolated browser IDE with a real AEKO workspace and terminal.
-          </p>
-        </div>
-        <form onSubmit={(event) => void submit(event)}>
-          {config?.authRequired ? (
-            <>
-              <label htmlFor="studio-access-token">Studio access token</label>
-              <input
-                id="studio-access-token"
-                type="password"
-                value={token}
-                onChange={(event) => setToken(event.target.value)}
-                autoComplete="current-password"
-                autoFocus
-                required
-              />
-            </>
-          ) : (
-            <p className="local-dev-note">Local insecure mode is enabled. No access token is required.</p>
-          )}
-          {error ? <p className="form-error" role="alert">{error}</p> : null}
-          <button className="primary-button" type="submit" disabled={busy || Boolean(config?.authRequired && !token)}>
-            {busy ? 'Opening studio…' : 'Open Contract Studio'}
-          </button>
-        </form>
-        <p className="login-meta">
-          {config?.network ? `Connected environment: ${config.network}` : 'Dedicated editor runtime'}
-        </p>
-      </section>
-    </main>
-  )
-}
+import { Alert, AlertDescription } from './ui/alert'
+import { Button } from './ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
+import { Input } from './ui/input'
+interface Props{onAuthenticated:()=>void|Promise<void>;config:StudioConfig|null}
+export default function LoginGate({onAuthenticated,config}:Props){const[token,setToken]=useState('');const[error,setError]=useState('');const[busy,setBusy]=useState(false);const submit=async(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();setBusy(true);setError('');try{await api.login(token);setToken('');await onAuthenticated()}catch(cause){setError(errorMessage(cause,'Authentication failed.'))}finally{setBusy(false)}};return <main className="grid min-h-dvh place-items-center overflow-auto bg-background p-6"><Card className="w-full max-w-md"><CardHeader><div className="mb-3 grid size-10 place-items-center rounded-lg bg-primary font-black text-primary-foreground">A</div><p className="text-xs font-semibold tracking-[0.18em] text-primary">AEKO DEVELOPER TOOLS</p><CardTitle className="text-2xl">Contract Studio</CardTitle><CardDescription>Focused AEKO contract and DApp development in an isolated workspace.</CardDescription></CardHeader><CardContent><form className="flex flex-col gap-4" onSubmit={event=>void submit(event)}>{config?.authRequired?<label className="flex flex-col gap-2 text-sm font-medium" htmlFor="studio-access-token">Studio access token<Input id="studio-access-token" type="password" value={token} onChange={event=>setToken(event.target.value)} autoComplete="current-password" autoFocus required/></label>:<Alert><AlertDescription>Local insecure mode is enabled. No access token is required.</AlertDescription></Alert>}{error?<Alert className="border-destructive"><AlertDescription className="text-destructive">{error}</AlertDescription></Alert>:null}<Button type="submit" disabled={busy||Boolean(config?.authRequired&&!token)}>{busy?<LoaderCircle className="animate-spin"/>:<KeyRound/>}{busy?'Opening studio…':'Open Contract Studio'}</Button></form><p className="mt-4 text-xs text-muted-foreground">{config?.network?'Connected environment: '+config.network:'Dedicated editor runtime'}</p></CardContent></Card></main>}

@@ -130,6 +130,75 @@ No package install is required for this starter; TypeScript is provided by the s
 `,
     },
   },
+  'typescript-dapp': {
+    label: 'React + TypeScript · AEKO DApp',
+    defaultNewFile: 'src/components/Feature.tsx',
+    files: {
+      'package.json': `{
+  "name": "aeko-studio-dapp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "clean": "node -e \\"require('node:fs').rmSync('dist',{recursive:true,force:true})\\""
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.1.1",
+    "vite": "^7.2.4",
+    "typescript": "^5.9.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
+  },
+  "devDependencies": {}
+}
+`,
+      'biome.json': `{
+  "formatter": { "enabled": true, "indentStyle": "space" },
+  "linter": { "enabled": true, "rules": { "recommended": true } },
+  "javascript": { "formatter": { "quoteStyle": "single" } }
+}
+`,
+      'index.html': `<!doctype html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>AEKO DApp</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>
+`,
+      'vite.config.ts': `import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
+export default defineConfig({ plugins: [react()] })
+`,
+      'tsconfig.json': `{"compilerOptions":{"target":"ES2022","lib":["ES2022","DOM","DOM.Iterable"],"module":"ESNext","moduleResolution":"Bundler","jsx":"react-jsx","strict":true,"noEmit":true,"skipLibCheck":true},"include":["src","vite.config.ts"]}
+`,
+      'src/main.tsx': `import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App'
+import './style.css'
+createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)
+`,
+      'src/App.tsx': `import { useState } from 'react'
+const rpcUrl = import.meta.env.VITE_AEKO_RPC_URL || 'https://rpc.aeko.online'
+async function rpc(method: string, params: unknown[] = []) {
+  const response = await fetch(rpcUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})})
+  const payload = await response.json()
+  if (payload.error) throw new Error(payload.error.message)
+  return payload.result
+}
+export default function App(){const[status,setStatus]=useState('Not checked');return <main><p>AEKO DApp</p><h1>Build against the live AEKO RPC.</h1><button onClick={async()=>setStatus(String(await rpc('getHealth')))}>Check network</button><pre>{status}</pre></main>}
+`,
+      'src/style.css': `:root{font-family:system-ui;color:#fff;background:#052E2B}body{margin:0}main{max-width:720px;margin:10vh auto;padding:2rem}button{background:#5FB51F;color:#052E2B;border:0;padding:.75rem 1rem;border-radius:.6rem;font-weight:700}
+`,
+      '.env.example': `VITE_AEKO_RPC_URL=https://rpc.aeko.online
+`,
+      'README.md': `# AEKO React + TypeScript DApp
+
+Run \`npm install\` once in the integrated Bash terminal, then \`npm run dev\`.
+The project dependencies live in this workspace, not in the Studio browser bundle.
+Use \`VITE_AEKO_RPC_URL\` to select the RPC endpoint.
+`,
+    },
+  },
   'python-client': {
     label: 'Python · AEKO Client',
     defaultNewFile: 'src/module.py',

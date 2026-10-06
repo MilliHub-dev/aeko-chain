@@ -1,65 +1,9 @@
+import { ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react'
+import { useState } from 'react'
+import StudioConsole from '../ide/StudioConsole'
 import Terminal from '../ide/Terminal'
-import type { PanelTab } from '../lib/session'
-
-interface BottomPanelProps {
-  workspaceId: string
-  activeTab: PanelTab
-  onTabChange: (tab: PanelTab) => void
-  collapsed: boolean
-  maximized: boolean
-  onToggleCollapsed: () => void
-  onToggleMaximized: () => void
-}
-
-const TABS: readonly PanelTab[] = ['TERMINAL', 'OUTPUT', 'PROBLEMS']
-
-export default function BottomPanel({
-  workspaceId,
-  activeTab,
-  onTabChange,
-  collapsed,
-  maximized,
-  onToggleCollapsed,
-  onToggleMaximized,
-}: BottomPanelProps) {
-  return (
-    <section className={`bottom-panel ${collapsed ? 'collapsed' : ''}`}>
-      <header className="panel-tabs">
-        <div>
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              className={activeTab === tab ? 'active' : ''}
-              onClick={() => {
-                onTabChange(tab)
-                if (collapsed) onToggleCollapsed()
-              }}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-        <div className="panel-controls">
-          <button type="button" title={maximized ? 'Restore Panel Size' : 'Maximize Panel Size'} onClick={onToggleMaximized}>
-            <i className={`codicon codicon-${maximized ? 'screen-normal' : 'screen-full'}`} />
-          </button>
-          <button type="button" title={collapsed ? 'Show Panel' : 'Hide Panel'} onClick={onToggleCollapsed}>
-            <i className={`codicon codicon-${collapsed ? 'chevron-up' : 'chevron-down'}`} />
-          </button>
-        </div>
-      </header>
-      {!collapsed ? (
-        <div className="panel-body">
-          {activeTab === 'TERMINAL' ? <Terminal workspaceId={workspaceId} /> : null}
-          {activeTab === 'OUTPUT' ? (
-            <pre className="panel-placeholder">Task output will appear here when commands run through the terminal.</pre>
-          ) : null}
-          {activeTab === 'PROBLEMS' ? (
-            <pre className="panel-placeholder">Monaco diagnostics appear inline in the editor.</pre>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
-  )
-}
+import { Button } from './ui/button'
+import { cn } from '../lib/utils'
+type Tab='TERMINAL'|'TASKS'
+interface Props{workspaceId:string;collapsed:boolean;onToggleCollapsed:()=>void;maximized?:boolean;onToggleMaximized?:()=>void}
+export default function BottomPanel({workspaceId,collapsed,onToggleCollapsed,maximized=false,onToggleMaximized}:Props){const[tab,setTab]=useState<Tab>('TERMINAL');return <section className="flex size-full min-h-0 flex-col border-t border-border bg-background"><header className="flex h-10 shrink-0 items-center justify-between px-2"><div className="flex h-full items-center gap-1">{(['TERMINAL','TASKS'] as const).map(item=><button key={item} type="button" className={cn('h-full cursor-pointer border-b-2 border-transparent px-3 text-xs font-medium text-muted-foreground hover:text-foreground',tab===item&&'border-primary text-foreground')} onClick={()=>{setTab(item);if(collapsed)onToggleCollapsed()}}>{item==='TERMINAL'?'BASH / AEKO CLI':'BUILD & RUN'}</button>)}</div><div className="flex items-center gap-1">{onToggleMaximized?<Button variant="ghost" size="icon" className="size-8" aria-label={maximized?'Restore panel':'Maximize panel'} onClick={onToggleMaximized}>{maximized?<Minimize2/>:<Maximize2/>}</Button>:null}<Button variant="ghost" size="icon" className="size-8" aria-label={collapsed?'Show panel':'Hide panel'} onClick={onToggleCollapsed}>{collapsed?<ChevronUp/>:<ChevronDown/>}</Button></div></header>{!collapsed?<div className="min-h-0 flex-1">{tab==='TERMINAL'?<Terminal workspaceId={workspaceId}/>:<StudioConsole workspaceId={workspaceId}/>}</div>:null}</section>}
