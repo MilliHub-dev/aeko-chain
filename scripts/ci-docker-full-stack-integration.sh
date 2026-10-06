@@ -452,7 +452,7 @@ rpc_probe_spec() {
       params='[]'
       ;;
     getHighestSnapshotSlot|getSnapshotSlot)
-      expectation="state-dependent"
+      expectation="snapshot-state"
       params='[]'
       ;;
     getBalance)
@@ -477,8 +477,8 @@ rpc_probe_spec() {
       params="$(jq -cn --arg a "$RPC_STAKE_ACCOUNT" '[$a,{commitment:"confirmed"}]')"
       ;;
     getTokenAccountBalance|getTokenSupply|getTokenLargestAccounts)
-      expectation="fixture-unavailable"
-      params='[]'
+      expectation="resource-fixture"
+      params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,{commitment:"confirmed"}]')"
       ;;
     getTokenAccountsByOwner|getTokenAccountsByDelegate)
       params="$(jq -cn --arg a "$PROBE_ADDRESS" --arg p "$PROBE_TOKEN_PROGRAM" '[$a,{programId:$p},{encoding:"base64",commitment:"confirmed"}]')"
@@ -487,7 +487,7 @@ rpc_probe_spec() {
       params='["11111111111111111111111111111111",{"encoding":"base64","commitment":"confirmed"}]'
       ;;
     getInflationReward)
-      expectation="state-dependent"
+      expectation="reward-state"
       params="$(jq -cn --arg a "$PROBE_ADDRESS" --argjson epoch "$PROBE_EPOCH" '[[ $a ],{epoch:$epoch,commitment:"confirmed"}]')"
       ;;
     getSignatureStatuses)
@@ -552,8 +552,8 @@ rpc_probe_spec() {
       params="$(jq -cn --arg a "$PROBE_ADDRESS" '[$a,{commitment:"confirmed"}]')"
       ;;
     submitEngagementProof|stakeBehindCreator|unstakeBehindCreator|claimSocialStakeYield)
-      expectation="fixture-unavailable"
-      params='[]'
+      expectation="social-fixture"
+      params="$(jq -cn --arg tx "$PROBE_TX_BASE64" '[$tx,{encoding:"base64"}]')"
       ;;
     *)
       return 2
@@ -568,8 +568,6 @@ RPC_METHOD_RESULTS="$ARTIFACT_DIR/rpc-method-results.jsonl"
 RPC_METHOD_COUNT=0
 RPC_METHOD_FAILURES=0
 RPC_METHOD_RESULT_COUNT=0
-RPC_METHOD_DOMAIN_COUNT=0
-RPC_METHOD_PAYLOAD_COUNT=0
 RPC_METHOD_SKIP_COUNT=0
 
 summary_append "## Declared JSON-RPC surface"
@@ -593,11 +591,6 @@ while IFS= read -r method; do
     RPC_METHOD_RESULT_COUNT=$((RPC_METHOD_RESULT_COUNT+1))
     jq -cn --arg method "$method" --arg signature "$RPC_SEND_SIGNATURE" '{method:$method,outcome:"PASS",coverage:"success-path",classification:"release-cli-submission-confirmed",rpcCode:null,evidence:{signature:$signature}}' >> "$RPC_METHOD_RESULTS"
     summary_append "| $method | PASS | success-path | release-cli-submission-confirmed | - |"
-    continue
-  elif [ "$expectation" = "fixture-unavailable" ]; then
-    RPC_METHOD_SKIP_COUNT=$((RPC_METHOD_SKIP_COUNT+1))
-    jq -cn --arg method "$method" '{method:$method,outcome:"SKIP",coverage:"fixture-unavailable",classification:"success-fixture-not-provisioned",rpcCode:null}' >> "$RPC_METHOD_RESULTS"
-    summary_append "| $method | SKIP | fixture-unavailable | success-fixture-not-provisioned | - |"
     continue
   else
     response="$(rpc_call "$method" "$params" 2>/dev/null || true)"
@@ -634,10 +627,35 @@ while IFS= read -r method; do
             outcome="FAIL"
             classification="unexpected-rpc-error"
             ;;
-          snapshot|state-dependent)
-            outcome="SKIP"
-            classification="runtime-state-prerequisite-unavailable"
-            RPC_METHOD_SKIP_COUNT=$((RPC_METHOD_SKIP_COUNT+1))
+          snapshot-state)
+            if [ "$code" = "-32008" ]; then
+              outcome="SKIP"
+              classification="snapshot-not-yet-generated"
+              RPC_METHOD_SKIP_COUNT=$((RPC_METHOD_SKIP_COUNT+1))
+            else
+              outcome="FAIL"
+              classification="unexpected-snapshot-error"
+            fi
+            ;;
+          reward-state)
+            if [ "$code" = "-32004" ] && [[ "$message" == "Block not available for slot "* ]]; then
+              outcome="SKIP"
+              classification="reward-epoch-not-yet-complete"
+              RPC_METHOD_SKIP_COUNT=$((RPC_METHOD_SKIP_COUNT+1))
+            else
+              outcome="FAIL"
+              classification="unexpected-inflation-reward-error"
+            fi
+            ;;
+          resource-fixture|social-fixture)
+            if [ "$code" = "-32602" ]; then
+              outcome="SKIP"
+              classification="method-reachable-success-fixture-not-provisioned"
+              RPC_METHOD_SKIP_COUNT=$((RPC_METHOD_SKIP_COUNT+1))
+            else
+              outcome="FAIL"
+              classification="unexpected-fixture-error"
+            fi
             ;;
           resource|payload|transaction)
             outcome="FAIL"
