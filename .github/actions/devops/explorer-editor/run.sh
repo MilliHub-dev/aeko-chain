@@ -98,6 +98,14 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
   http_request "GET /" http://127.0.0.1:4100/ >/dev/null
   http_request "GET /src/main.tsx" http://127.0.0.1:4100/src/main.tsx >/dev/null
   http_request "GET /src/ide/monaco.ts" http://127.0.0.1:4100/src/ide/monaco.ts >/dev/null
+  # Force Vite to transform the full Monaco editor dependency graph. A plain
+  # source fetch does not catch unresolved lazy editor dependencies such as
+  # @vscode/diff, which previously failed only when a browser loaded Monaco.
+  monaco_entry="$(http_request "GET /src/ide/monaco.ts" http://127.0.0.1:4100/src/ide/monaco.ts)"
+  if ! grep -Fq "monaco-editor" <<<"$monaco_entry"; then
+    echo "Contract Studio Monaco entrypoint was not transformed as expected." >&2
+    exit 1
+  fi
   dev_config_json="$(http_request "GET /api/config" http://127.0.0.1:4100/api/config)"
   assert_json "development configuration must disable shared-token auth" '.data.authRequired == false' "$dev_config_json"
 
