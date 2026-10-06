@@ -98,6 +98,21 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
   http_request "GET /" http://127.0.0.1:4100/ >/dev/null
   http_request "GET /src/main.tsx" http://127.0.0.1:4100/src/main.tsx >/dev/null
   http_request "GET /src/ide/monaco.ts" http://127.0.0.1:4100/src/ide/monaco.ts >/dev/null
+  vscode_entry="$(http_request "GET /src/ide/vscode.ts" http://127.0.0.1:4100/src/ide/vscode.ts)"
+  if ! grep -Fq "monaco-editor" <<<"$vscode_entry" || ! grep -Fq "monaco-vscode" <<<"$vscode_entry"; then
+    echo "Contract Studio VS Code service entrypoint was not transformed as expected." >&2
+    cat "$dev_log" >&2
+    exit 1
+  fi
+  # Give Vite time to optimize and transform lazy Monaco/VS Code dependencies.
+  # The browser-visible @vscode/diff failure previously appeared only after
+  # startup, while the HTTP health endpoint remained green.
+  sleep 3
+  if grep -Eq "Failed to resolve import|Internal server error|Error during dependency optimization:" "$dev_log"; then
+    echo "Contract Studio Vite dependency graph failed during development smoke." >&2
+    cat "$dev_log" >&2
+    exit 1
+  fi
   dev_config_json="$(http_request "GET /api/config" http://127.0.0.1:4100/api/config)"
   assert_json "development configuration must disable shared-token auth" '.data.authRequired == false' "$dev_config_json"
 
