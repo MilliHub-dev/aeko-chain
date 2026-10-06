@@ -6,22 +6,7 @@ export default defineConfig({
   resolve: {
     dedupe: ['react', 'react-dom'],
     alias: {
-      'monaco-editor
-  },
-  server: {
-    port: 5174,
-    strictPort: true,
-  },
-  worker: {
-    format: 'es',
-  },
-  build: {
-    target: 'es2022',
-    sourcemap: false,
-    chunkSizeWarningLimit: 2500,
-  },
-})
-: 'monaco-editor/esm/vs/editor/editor.api',
+      'monaco-editor': 'monaco-editor/esm/vs/editor/editor.api',
     },
   },
   server: {
