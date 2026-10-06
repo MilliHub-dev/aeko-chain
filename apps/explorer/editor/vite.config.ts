@@ -5,9 +5,6 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     dedupe: ['react', 'react-dom'],
-    alias: {
-      'monaco-editor': 'monaco-editor/esm/vs/editor/editor.api',
-    },
   },
   server: {
     port: 5174,
