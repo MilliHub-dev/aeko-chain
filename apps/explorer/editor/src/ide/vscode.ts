@@ -2,9 +2,6 @@ import * as monaco from 'monaco-editor'
 import { initialize } from '@codingame/monaco-vscode-api'
 import getConfigurationServiceOverride, { updateUserConfiguration } from '@codingame/monaco-vscode-configuration-service-override'
 import getKeybindingsServiceOverride from '@codingame/monaco-vscode-keybindings-service-override'
-import getThemeServiceOverride from '@codingame/monaco-vscode-theme-service-override'
-import '@codingame/monaco-vscode-theme-defaults-default-extension'
-import 'monaco-editor/esm/vs/basic-languages/monaco.contribution'
 import {
   javascriptDefaults,
   JsxEmit,
@@ -12,14 +9,16 @@ import {
   ModuleResolutionKind,
   ScriptTarget,
   typescriptDefaults,
-  type CompilerOptions,
-} from 'monaco-editor/esm/vs/language/typescript/monaco.contribution'
+} from '@codingame/monaco-vscode-standalone-typescript-language-features'
+import getThemeServiceOverride from '@codingame/monaco-vscode-theme-service-override'
+import '@codingame/monaco-vscode-theme-defaults-default-extension'
+import 'monaco-editor/esm/vs/basic-languages/monaco.contribution'
 
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 import CssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
 import HtmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
-import TsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
+import TsWorker from '@codingame/monaco-vscode-standalone-typescript-language-features/worker?worker'
 
 interface MonacoEnvironmentContract {
   getWorker: (moduleId: string, label: string) => Worker
@@ -48,8 +47,8 @@ export async function initializeVscode(): Promise<typeof monaco> {
     ...getThemeServiceOverride(),
   })
 
-  const compilerOptions: CompilerOptions = {
-    target: ScriptTarget.Latest,
+  const compilerOptions = {
+    target: ScriptTarget.ES2022,
     module: ModuleKind.ESNext,
     moduleResolution: ModuleResolutionKind.NodeJs,
     jsx: JsxEmit.ReactJSX,

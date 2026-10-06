@@ -20,6 +20,9 @@ importers:
       '@codingame/monaco-vscode-keybindings-service-override':
         specifier: 36.2.7
         version: 36.2.7
+      '@codingame/monaco-vscode-standalone-typescript-language-features':
+        specifier: 36.2.7
+        version: 36.2.7
       '@codingame/monaco-vscode-theme-defaults-default-extension':
         specifier: 36.2.7
         version: 36.2.7
@@ -317,6 +320,8 @@ packages:
 
   '@codingame/monaco-vscode-quickaccess-service-override@36.2.7':
     resolution: {integrity: sha512-6YCNvxLr+tgbrrd3m3bWoWyDpCnRsWp+/PF5MfBQQvp1k3pHO3l4h67xe5qHzQaIRsbme5zgC8yFtYXC9hqSFw==}
+
+  '@codingame/monaco-vscode-standalone-typescript-language-features@36.2.7': {}
 
   '@codingame/monaco-vscode-theme-defaults-default-extension@36.2.7':
     resolution: {integrity: sha512-ev5Bws/cs8/b5sWS82S7UKjZ1WC4Om6CxwYXL1X26ASCBe/j77fn5e43ozF3VMG0YbQy4i/fKcWRGOjdYwNPDw==}
@@ -2515,6 +2520,10 @@ snapshots:
   '@codingame/monaco-vscode-quickaccess-service-override@36.2.7':
     dependencies:
       '@codingame/monaco-vscode-api': 36.2.7
+
+  '@codingame/monaco-vscode-standalone-typescript-language-features@36.2.7':
+    dependencies:
+      monaco-editor: '@codingame/monaco-vscode-editor-api@36.2.7'
 
   '@codingame/monaco-vscode-theme-defaults-default-extension@36.2.7':
     dependencies:
