@@ -164,6 +164,7 @@ CMD ["node", "/app/explorer-ui-server.mjs"]
 # on any Rust/network builder, so an operations-web-only change cannot compile the chain.
 # Standalone AEKO Studio: Monaco frontend plus isolated project command runtime.
 FROM node:22-bookworm AS editor-web-builder
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential python3 && rm -rf /var/lib/apt/lists/*
 WORKDIR /editor
 COPY apps/explorer/editor/package.json ./
 RUN npm install --no-audit --no-fund

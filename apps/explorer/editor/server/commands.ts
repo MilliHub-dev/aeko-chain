@@ -31,6 +31,12 @@ const COMMANDS: Record<ProjectTemplate, Partial<Record<StudioCommand, CommandSpe
     test: { executable: 'node', args: ['--experimental-strip-types', '--test'], label: 'Run client tests' },
     run: { executable: 'node', args: ['--experimental-strip-types', 'src/index.ts'], label: 'Run client' },
   },
+  'typescript-dapp': {
+    build: { executable: 'npm', args: ['run', 'build'], label: 'Build DApp' },
+    test: { executable: 'npm', args: ['run', 'typecheck'], label: 'Type-check DApp' },
+    run: { executable: 'npm', args: ['run', 'dev', '--', '--host', '0.0.0.0'], label: 'Start DApp dev server' },
+    clean: { executable: 'npm', args: ['run', 'clean'], label: 'Clean DApp build output' },
+  },
   'python-client': {
     test: { executable: os.platform() === 'win32' ? 'python' : 'python3', args: ['-m', 'unittest', 'discover', '-s', 'tests'], label: 'Run Python tests' },
     run: { executable: os.platform() === 'win32' ? 'python' : 'python3', args: ['src/main.py'], label: 'Run client' },

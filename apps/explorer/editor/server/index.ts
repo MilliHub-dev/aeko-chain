@@ -13,6 +13,7 @@ import { errorCode, errorMessage, errorStatus } from '../shared/errors/editor-er
 import { SessionStore, socketSession } from './auth.js'
 import { loadConfig } from './config.js'
 import { CommandManager } from './commands.js'
+import { TerminalManager } from './terminal.js'
 import { editorRequestId, requireEditorSession, setEditorRequestId } from './types.js'
 import { WorkspaceManager } from './workspaces.js'
 
@@ -39,6 +40,7 @@ const io = new SocketServer<
   maxHttpBufferSize: 128 * 1024,
 })
 const commands = new CommandManager(config, io, workspaces)
+const terminals = new TerminalManager(config, io, workspaces)
 const auth = sessions.middleware()
 const dist = resolve(process.cwd(), 'dist')
 const LOG_LEVELS = { debug: 10, info: 20, warn: 30, error: 40 } as const
@@ -177,7 +179,7 @@ app.post('/api/session', (request, response) => {
 
 app.delete('/api/session', (request, response) => {
   const session = sessions.fromRequest(request)
-  if (session) commands.closeSession(session.id)
+  if (session) { commands.closeSession(session.id); terminals.closeSession(session.id) }
   sessions.destroy(request)
   response.setHeader('set-cookie', sessions.clearCookie())
   data(response, { authenticated: false })
@@ -198,6 +200,7 @@ app.delete('/api/workspaces/:workspaceId', auth, asyncRoute(async (request, resp
   const session = requireEditorSession(request)
   const workspaceId = routeParam(request, 'workspaceId')
   commands.closeWorkspace(session.id, workspaceId)
+  terminals.closeWorkspace(session.id, workspaceId)
   await workspaces.removeWorkspace(session, workspaceId)
   data(response, { deleted: true as const })
 }))
@@ -274,6 +277,12 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   const session = socket.data.editorSession
 
+  socket.on('terminal:start', async (payload) => {
+    try { const workspaceId=String(payload.workspaceId||''); const record=await terminals.start(session,workspaceId,payload); await socket.join(record.room); socket.emit('terminal:ready',{history:record.history}) } catch(error) { socket.emit('terminal:error',errorMessage(error,'Terminal failed to start.')) }
+  })
+  socket.on('terminal:input', (payload) => { try { terminals.input(session,String(payload.workspaceId||''),payload.data) } catch(error) { socket.emit('terminal:error',errorMessage(error,'Terminal input failed.')) } })
+  socket.on('terminal:resize', (payload) => { try { terminals.resize(session,String(payload.workspaceId||''),payload.cols,payload.rows) } catch(error) { socket.emit('terminal:error',errorMessage(error,'Terminal resize failed.')) } })
+
   socket.on('console:attach', async (payload) => {
     try {
       const workspaceId = String(payload.workspaceId || '')
@@ -337,6 +346,7 @@ if (config.production) {
 const interval = setInterval(async () => {
   sessions.sweep()
   commands.sweep(config.workspaceTtlMs)
+  terminals.sweep(config.workspaceTtlMs)
   const active = new Set([...sessions.sessions.values()].map((session) => session.id))
   await workspaces.sweep(active).catch((error: unknown) => log('error', 'workspace_sweep_failed', errorFields(error)))
 }, 60_000)
