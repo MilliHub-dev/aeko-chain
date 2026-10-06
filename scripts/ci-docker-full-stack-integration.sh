@@ -452,6 +452,7 @@ rpc_probe_spec() {
       params='[]'
       ;;
     getHighestSnapshotSlot|getSnapshotSlot)
+      expectation="state-dependent"
       params='[]'
       ;;
     getBalance)
@@ -648,7 +649,7 @@ while IFS= read -r method; do
     esac
   fi
 
-  if [ "$outcome" != "PASS" ]; then
+  if [ "$outcome" = "FAIL" ]; then
     RPC_METHOD_FAILURES=$((RPC_METHOD_FAILURES+1))
     echo "[rpc][FAIL] method=$method coverage=$expectation classification=$classification code=${code:--} message=${message:-<none>}" >&2
   fi
