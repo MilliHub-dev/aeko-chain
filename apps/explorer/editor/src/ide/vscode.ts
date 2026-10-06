@@ -48,7 +48,7 @@ export async function initializeVscode(): Promise<typeof monaco> {
   })
 
   const compilerOptions = {
-    target: ScriptTarget.ES2022,
+    target: ScriptTarget.Latest,
     module: ModuleKind.ESNext,
     moduleResolution: ModuleResolutionKind.NodeJs,
     jsx: JsxEmit.ReactJSX,
