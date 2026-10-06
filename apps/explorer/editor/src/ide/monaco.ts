@@ -1,4 +1,4 @@
-import * as monaco from 'monaco-editor'
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 import TsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
@@ -16,6 +16,8 @@ type MonacoGlobal = typeof globalThis & { MonacoEnvironment?: MonacoEnvironmentC
     return new EditorWorker()
   },
 }
+
+export { monaco }
 
 monaco.editor.defineTheme('aeko-dark', {
   base: 'vs-dark',
