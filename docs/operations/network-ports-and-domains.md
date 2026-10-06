@@ -14,6 +14,7 @@ port `4101` is listed for context but is not deployed by these Compose files.
 | Bootstrap registry | `https://registry.aeko.online` | `registry` | `8089/tcp` | HTTPS domain -> `8089` |
 | Aeko Scan UI | `https://scan.aeko.online` | `explorer-ui` | `4000/tcp` | HTTPS domain -> `4000` |
 | Operations / Admin | `https://admin.aeko.online` | `operations-web` | `3001/tcp` | HTTPS domain -> `3001` |
+| Contract Studio | `https://editor.aeko.online` | `editor-web` | `4100/tcp` | HTTPS/WebSocket domain -> `4100` |
 | Faucet signer | `faucet.aeko.online:9900` | `faucet` | `9900/tcp` | **raw TCP**, not an HTTP domain |
 | Validator gossip | `gossip.aeko.online:8001` | `validator` | `8001/tcp+udp` | direct DNS to Validator host |
 | Validator dynamic transport | `gossip.aeko.online` host | `validator` | `8000-8050/tcp+udp` | direct host firewall/NAT |

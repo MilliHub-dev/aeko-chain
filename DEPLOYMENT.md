@@ -31,6 +31,7 @@ protocol-bootstrap -> aeko-protocol-bootstrap
 tools            -> aeko-tools
 explorer-api     -> aeko-explorer-api
 explorer-ui      -> aeko-explorer-ui
+editor-web        -> aeko-editor-web
 operations-web   -> aeko-operations-web
 ```
 
@@ -57,9 +58,10 @@ Bootstrap host                                             |
 registry.aeko.online <--- social-registry.env              +--> registry.aeko.online
                      <--- protocol-registry.env
 
-scan.aeko.online  -> explorer-ui :4000
-browser            -> api.aeko.online for indexed reads + public funding
-admin.aeko.online -> operations-web :3001 -> private Explorer API + validator RPC
+scan.aeko.online   -> explorer-ui :4000
+browser             -> api.aeko.online for indexed reads + public funding
+editor.aeko.online -> editor-web :4100 -> isolated browser IDE + PTY runtime
+admin.aeko.online  -> operations-web :3001 -> private Explorer API + validator RPC
 
 gossip.aeko.online:8001 -> validator gossip entrypoint
 validator host TCP+UDP 8000-8050 -> public validator transport range
@@ -324,6 +326,7 @@ Dokploy's native Domains feature is preferred. Route:
 | `ws.aeko.online` | `validator` | `8900` |
 | `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
+| `editor.aeko.online` | `editor-web` | `4100` |
 | `admin.aeko.online` | `operations-web` | `3001` |
 
 Do not route `gossip.aeko.online` through Traefik. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record directly at the Validator host. Gossip starts on `8001`, and the Compose publishes the full validator TCP+UDP `8000-8050` transport range with same-port host mappings so advertised peer addresses stay reachable.
@@ -360,6 +363,7 @@ Configure domains to the same internal services:
 | `ws.aeko.online` | `validator` | `8900` |
 | `api.aeko.online` | `explorer-api` | `8088` |
 | `scan.aeko.online` | `explorer-ui` | `4000` |
+| `editor.aeko.online` | `editor-web` | `4100` |
 | `admin.aeko.online` | `operations-web` | `3001` |
 
 Keep `gossip.aeko.online` outside the HTTP proxy. Set `AEKO_GOSSIP_HOST=gossip.aeko.online` and point that DNS record directly to the Validator host and allow inbound TCP+UDP `8000-8050`.
@@ -388,13 +392,14 @@ families to `latest`, and then deploys the currently operated split Coolify
 resources through independent webhooks.
 
 Production deployment automation no longer targets the legacy all-in-one
-`WEBHOOK_URL` contract and does not target Dokploy. The five webhook-managed
+`WEBHOOK_URL` contract and does not target Dokploy. The six webhook-managed
 Coolify resources use these repository secrets:
 
 ```text
 WEBHOOK_AEKO_ADMIN=<Aeko Admin / Operations Web Coolify webhook>
 WEBHOOK_EXPLORER_API=<Explorer API Coolify webhook>
 WEBHOOK_EXPLORER_UI=<Explorer UI / Scan Coolify webhook>
+WEBHOOK_EXPLORER_EDITOR=<Contract Studio Coolify webhook>
 WEBHOOK_FAUCET=<Faucet + tools Coolify webhook>
 WEBHOOK_VALIDATOR=<Validator Coolify webhook>
 WEBHOOK_API_KEY=<shared Coolify API token used to authorize the webhook calls>
@@ -413,6 +418,7 @@ The mapping is:
 | Operations Web | `WEBHOOK_AEKO_ADMIN` |
 | Explorer API/backend | `WEBHOOK_EXPLORER_API` |
 | Explorer UI | `WEBHOOK_EXPLORER_UI` |
+| Contract Studio | `WEBHOOK_EXPLORER_EDITOR` |
 | Network Faucet | `WEBHOOK_FAUCET` |
 | Network Validator | `WEBHOOK_VALIDATOR` |
 
@@ -434,6 +440,7 @@ point at its own split Compose definition:
 - Validator: `docker/coolify/validator/compose.yml`
 - Explorer API: `apps/explorer/backend/compose.coolify.yml`
 - Explorer UI: `apps/explorer/web/compose.coolify.yml`
+- Contract Studio: `apps/explorer/editor/compose.coolify.yml`
 - Aeko Admin: `apps/admin/compose.coolify.yml`
 - Bootstrap (manual): `docker/coolify/bootstrap/compose.yml`
 

@@ -50,7 +50,7 @@ assert_targeted_docker_publication_contract() {
   local release_mode="$PIPELINE_DIR/resolve-release.sh"
   local publisher="$PIPELINE_DIR/publish-runtime-images.sh"
 
-  for output in publish_admin publish_cli publish_explorer_backend publish_explorer_web publish_network; do
+  for output in publish_admin publish_cli publish_explorer_backend publish_explorer_web publish_editor publish_network; do
     grep -Fq "$output:" "$workflow"
     grep -Fq "echo \"$output=" "$release_mode"
   done
@@ -65,6 +65,7 @@ assert_targeted_docker_publication_contract() {
   grep -Fq 'PUBLISH_NETWORK' "$publisher"
   grep -Fq 'push_image aeko-validator aeko-validator aeko-node' "$publisher"
   grep -Fq 'push_image aeko-explorer-api aeko-explorer-api aeko-explorer-backend' "$publisher"
+  grep -Fq 'push_image aeko-editor-web aeko-editor-web' "$publisher"
 
   echo "[ok] Docker publication is post-gate, selective, and owns one registry login"
 }
@@ -112,7 +113,7 @@ assert_full_validation_workflow_contract() {
   local sdk_workflow="$PIPELINE_DIR/../../../workflows/devops-sdk-validation.yml"
   local planner="$PIPELINE_DIR/plan.sh"
 
-  for selector in validate_admin: build_admin: validate_explorer_web: build_explorer_web:; do
+  for selector in validate_admin: build_admin: validate_explorer_web: build_explorer_web: validate_editor: build_editor:; do
     grep -Fq "$selector" "$web_workflow"
   done
   for selector in validate_explorer_backend: build_explorer_backend: validate_network: build_network:; do
@@ -123,12 +124,16 @@ assert_full_validation_workflow_contract() {
   grep -Fq 'name: Explorer API / Image' "$runtime_workflow"
   grep -Fq 'name: Blockchain network / Quality' "$runtime_workflow"
   grep -Fq 'name: Blockchain network / Images' "$runtime_workflow"
+  grep -Fq 'name: Contract Studio' "$web_workflow"
+  grep -Fq 'uses: ./.github/actions/devops/explorer-editor' "$web_workflow"
+  grep -Fq 'aeko-runtime-editor-web' "$web_workflow"
 
   for required in \
     'run_admin=true' \
     'run_cli=true' \
     'run_explorer_backend=true' \
     'run_explorer_web=true' \
+    'run_editor=true' \
     'run_network=true' \
     'run_sdk_non_rust=true' \
     'run_sdk_rust=true' \
@@ -136,6 +141,7 @@ assert_full_validation_workflow_contract() {
     'build_tools=true' \
     'build_explorer_backend=true' \
     'build_explorer_web=true' \
+    'build_editor=true' \
     'build_network=true' \
     'run_runtime_contract=true' \
     'runtime_contract_mode=exact'; do
@@ -340,15 +346,16 @@ assert_split_coolify_workflow_contract() {
     "docker/coolify/validator/*" \
     "apps/explorer/backend/compose.coolify.yml|apps/explorer/backend/.env.coolify.example)" \
     "apps/explorer/web/compose.coolify.yml|apps/explorer/web/.env.coolify.example)" \
+    "apps/explorer/editor/compose.coolify.yml|apps/explorer/editor/.env.coolify.example)" \
     "apps/admin/compose.coolify.yml|apps/admin/.env.coolify.example)"; do
     grep -Fq "$path" "$classifier"
   done
 
-  for job in deploy_faucet deploy_validator deploy_explorer_api deploy_explorer_ui deploy_admin; do
+  for job in deploy_faucet deploy_validator deploy_explorer_api deploy_explorer_ui deploy_editor deploy_admin; do
     grep -Eq "^  ${job}:$" "$workflow"
   done
 
-  for secret in WEBHOOK_AEKO_ADMIN WEBHOOK_EXPLORER_API WEBHOOK_EXPLORER_UI WEBHOOK_FAUCET WEBHOOK_VALIDATOR; do
+  for secret in WEBHOOK_AEKO_ADMIN WEBHOOK_EXPLORER_API WEBHOOK_EXPLORER_UI WEBHOOK_EXPLORER_EDITOR WEBHOOK_FAUCET WEBHOOK_VALIDATOR; do
     grep -Fq "secrets.${secret}" "$workflow"
   done
   grep -Fq 'secrets.WEBHOOK_API_KEY' "$workflow"
@@ -368,7 +375,7 @@ assert_split_coolify_workflow_contract() {
     fi
   done
 
-  echo "[ok] promotion fans out to the five current resource-scoped Coolify webhooks"
+  echo "[ok] promotion fans out to the six current resource-scoped Coolify webhooks"
 }
 
 assert_runtime_artifact_handoff_contract() {
@@ -512,6 +519,7 @@ assert_devops_workflow_always_enters_pipeline() {
     'run_cli=true' \
     'run_explorer_backend=true' \
     'run_explorer_web=true' \
+    'run_editor=true' \
     'run_network=true' \
     'run_sdk_non_rust=true' \
     'run_sdk_rust=true' \
@@ -519,6 +527,7 @@ assert_devops_workflow_always_enters_pipeline() {
     'build_tools=true' \
     'build_explorer_backend=true' \
     'build_explorer_web=true' \
+    'build_editor=true' \
     'build_network=true' \
     'run_runtime_contract=true' \
     'runtime_contract_mode=exact'; do
@@ -542,41 +551,46 @@ assert_cli_release_after_main_contract
 test_runtime_contract_is_part_of_required_gate
 
 run_plan_case "Pull request always runs the full validation and build graph" \
-  $'run_admin=true\nrun_cli=true\nrun_explorer_backend=true\nrun_explorer_web=true\nrun_network=true\nrun_sdk_non_rust=true\nrun_sdk_rust=true\nbuild_admin=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_explorer_web=true\nbuild_network=true\nrun_ci_contract=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
-  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
+  $'run_admin=true\nrun_cli=true\nrun_explorer_backend=true\nrun_explorer_web=true\nrun_editor=true\nrun_network=true\nrun_sdk_non_rust=true\nrun_sdk_rust=true\nbuild_admin=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_explorer_web=true\nbuild_editor=true\nbuild_network=true\nrun_ci_contract=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
+  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false EDITOR=false \
   SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=true
 
 run_plan_case "Main push always runs the full validation and build graph" \
-  $'run_admin=true\nrun_cli=true\nrun_explorer_backend=true\nrun_explorer_web=true\nrun_network=true\nrun_sdk_non_rust=true\nrun_sdk_rust=true\nbuild_admin=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_explorer_web=true\nbuild_network=true\nrun_ci_contract=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
-  GITHUB_EVENT_NAME=push ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false \
+  $'run_admin=true\nrun_cli=true\nrun_explorer_backend=true\nrun_explorer_web=true\nrun_editor=true\nrun_network=true\nrun_sdk_non_rust=true\nrun_sdk_rust=true\nbuild_admin=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_explorer_web=true\nbuild_editor=true\nbuild_network=true\nrun_ci_contract=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
+  GITHUB_EVENT_NAME=push ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false EDITOR=false \
   SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=true
 
 run_plan_case "Product ownership does not suppress any PR validation lane" \
-  $'run_admin=true\nrun_cli=true\nrun_explorer_backend=true\nrun_explorer_web=true\nrun_network=true\nrun_sdk_non_rust=true\nrun_sdk_rust=true\nbuild_admin=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_explorer_web=true\nbuild_network=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
-  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=true EXPLORER_WEB=false \
+  $'run_admin=true\nrun_cli=true\nrun_explorer_backend=true\nrun_explorer_web=true\nrun_editor=true\nrun_network=true\nrun_sdk_non_rust=true\nrun_sdk_rust=true\nbuild_admin=true\nbuild_tools=true\nbuild_explorer_backend=true\nbuild_explorer_web=true\nbuild_editor=true\nbuild_network=true\nrun_runtime_contract=true\nruntime_contract_mode=exact' \
+  GITHUB_EVENT_NAME=pull_request ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=true EXPLORER_WEB=false EDITOR=false \
   SDK_JS=false SDK_NODE=false SDK_PYTHON=false SDK_RUST=false CI_PIPELINE=false
 
 test_split_deploy_trigger
 
 run_release_case "CI-only main push publishes no Docker images" \
-  $'publish=false\npublish_admin=false\npublish_cli=false\npublish_explorer_backend=false\npublish_explorer_web=false\npublish_network=false' \
+  $'publish=false\npublish_admin=false\npublish_cli=false\npublish_explorer_backend=false\npublish_explorer_web=false\npublish_editor=false\npublish_network=false' \
   GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main DOCKERIZED=false CI_PIPELINE=true \
-  ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false
+  ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false EDITOR=false
 
 run_release_case "Explorer backend main push publishes only Explorer API aliases" \
-  $'publish=true\npublish_admin=false\npublish_cli=false\npublish_explorer_backend=true\npublish_explorer_web=false\npublish_network=false' \
+  $'publish=true\npublish_admin=false\npublish_cli=false\npublish_explorer_backend=true\npublish_explorer_web=false\npublish_editor=false\npublish_network=false' \
   GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main DOCKERIZED=true \
-  ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=true EXPLORER_WEB=false
+  ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=true EXPLORER_WEB=false EDITOR=false
+
+run_release_case "Contract Studio main push publishes only Contract Studio" \
+  $'publish=true\npublish_admin=false\npublish_cli=false\npublish_explorer_backend=false\npublish_explorer_web=false\npublish_editor=true\npublish_network=false' \
+  GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main DOCKERIZED=true \
+  ADMIN=false CLI=false CORE=false PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false EDITOR=true
 
 run_release_case "Core main push publishes core-backed runtime images" \
-  $'publish=true\npublish_admin=false\npublish_cli=true\npublish_explorer_backend=true\npublish_explorer_web=false\npublish_network=true' \
+  $'publish=true\npublish_admin=false\npublish_cli=true\npublish_explorer_backend=true\npublish_explorer_web=false\npublish_editor=true\npublish_network=true' \
   GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main DOCKERIZED=true \
-  ADMIN=false CLI=false CORE=true PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false
+  ADMIN=false CLI=false CORE=true PACKAGING=false EXPLORER_BACKEND=false EXPLORER_WEB=false EDITOR=false
 
 run_release_case "Packaging main push publishes every image target" \
-  $'publish=true\npublish_admin=true\npublish_cli=true\npublish_explorer_backend=true\npublish_explorer_web=true\npublish_network=true' \
+  $'publish=true\npublish_admin=true\npublish_cli=true\npublish_explorer_backend=true\npublish_explorer_web=true\npublish_editor=true\npublish_network=true' \
   GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main DOCKERIZED=true \
-  ADMIN=false CLI=false CORE=false PACKAGING=true EXPLORER_BACKEND=false EXPLORER_WEB=false
+  ADMIN=false CLI=false CORE=false PACKAGING=true EXPLORER_BACKEND=false EXPLORER_WEB=false EDITOR=false
 
 GITHUB_WORKSPACE="$PWD" PUBLISH_JS=true BEST_EFFORT=true NPM_TOKEN="" \
   bash "$SDK_PUBLISH_DIR/publish-selected.sh"

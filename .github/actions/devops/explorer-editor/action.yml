@@ -1,0 +1,26 @@
+name: AEKO Contract Studio
+description: Validate and build the standalone AEKO Contract Studio application.
+
+inputs:
+  validate-source:
+    description: Run editor source validation.
+    required: false
+    default: "true"
+  build-image:
+    description: Build the editor runtime image.
+    required: false
+    default: "false"
+  sha-tag:
+    description: Docker image tag for CI.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Validate and build Contract Studio
+      shell: bash
+      env:
+        VALIDATE_SOURCE: ${{ inputs.validate-source }}
+        BUILD_IMAGE: ${{ inputs.build-image }}
+        SHA_TAG: ${{ inputs.sha-tag }}
+      run: bash .github/actions/devops/explorer-editor/run.sh
