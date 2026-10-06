@@ -1,4 +1,4 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from 'node:child_process'
 import os from 'node:os'
 import type { Server } from 'socket.io'
 import type { StudioCommand } from '../shared/contracts/command.js'
@@ -26,9 +26,9 @@ const COMMANDS: Record<ProjectTemplate, Partial<Record<StudioCommand, CommandSpe
     clean: { executable: 'cargo', args: ['clean'], label: 'Clean Rust build artifacts' },
   },
   'typescript-client': {
-    build: { executable: os.platform() === 'win32' ? 'npm.cmd' : 'npm', args: ['run', 'build'], label: 'Type-check client' },
-    test: { executable: os.platform() === 'win32' ? 'npm.cmd' : 'npm', args: ['test'], label: 'Run client tests' },
-    run: { executable: os.platform() === 'win32' ? 'npm.cmd' : 'npm', args: ['start'], label: 'Run client' },
+    build: { executable: 'tsc', args: ['--noEmit', '-p', 'tsconfig.json'], label: 'Type-check client' },
+    test: { executable: 'node', args: ['--experimental-strip-types', '--test'], label: 'Run client tests' },
+    run: { executable: 'node', args: ['--experimental-strip-types', 'src/index.ts'], label: 'Run client' },
   },
   'python-client': {
     test: { executable: os.platform() === 'win32' ? 'python' : 'python3', args: ['-m', 'unittest', 'discover', '-s', 'tests'], label: 'Run Python tests' },
@@ -105,7 +105,7 @@ export class CommandManager {
       AEKO_RPC_URL: this.config.rpcUrl,
       AEKO_EXPLORER_URL: this.config.explorerUrl,
     }
-    const options: Parameters<typeof spawn>[2] = { cwd: root, env, stdio: 'pipe', shell: false }
+    const options: SpawnOptionsWithoutStdio = { cwd: root, env, shell: false }
     if (process.platform !== 'win32' && process.getuid?.() === 0) {
       options.uid = session.uid
       options.gid = session.gid
