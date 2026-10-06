@@ -26,7 +26,7 @@ export class TerminalManager{
  }
  input(session:EditorSession,workspaceId:string,data:unknown){const record=this.terminals.get(this.key(session.id,workspaceId));if(!record||record.exited)throw new Error('Terminal is not running.');const value=String(data||'');if(Buffer.byteLength(value)>8192)throw new Error('Terminal input chunk is too large.');record.lastUsedAt=Date.now();record.terminal.write(value)}
  resize(session:EditorSession,workspaceId:string,cols:unknown,rows:unknown){const record=this.terminals.get(this.key(session.id,workspaceId));if(!record||record.exited)return;record.lastUsedAt=Date.now();record.terminal.resize(bounded(cols,100,500),bounded(rows,30,200))}
- closeWorkspace(sessionId:string,workspaceId:string){const key=this.key(sessionId,workspaceId);const record=this.terminals.get(key);try{record?.terminal.kill()}catch{}this.terminals.delete(key)}
- closeSession(sessionId:string){for(const[key,record]of this.terminals){if(record.sessionId!==sessionId)continue;try{record.terminal.kill()}catch{}this.terminals.delete(key)}}
- sweep(maxIdleMs:number){const now=Date.now();for(const[key,record]of this.terminals){if(now-record.lastUsedAt<=maxIdleMs)continue;try{record.terminal.kill()}catch{}this.terminals.delete(key)}}
+ closeWorkspace(sessionId:string,workspaceId:string){const key=this.key(sessionId,workspaceId);const record=this.terminals.get(key);try{record?.terminal.kill()}catch { /* terminal may already be closed */ }this.terminals.delete(key)}
+ closeSession(sessionId:string){for(const[key,record]of this.terminals){if(record.sessionId!==sessionId)continue;try{record.terminal.kill()}catch { /* terminal may already be closed */ }this.terminals.delete(key)}}
+ sweep(maxIdleMs:number){const now=Date.now();for(const[key,record]of this.terminals){if(now-record.lastUsedAt<=maxIdleMs)continue;try{record.terminal.kill()}catch { /* terminal may already be closed */ }this.terminals.delete(key)}}
 }
