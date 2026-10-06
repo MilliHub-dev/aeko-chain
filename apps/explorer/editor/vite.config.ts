@@ -5,9 +5,10 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
-    dedupe: ['react', 'react-dom'],
+    dedupe: ['vscode', 'monaco-editor', 'react', 'react-dom'],
   },
   server: { port: 5174, strictPort: true },
+  optimizeDeps: { exclude: ['@vscode/diff'] },
   worker: { format: 'es' },
   build: { target: 'es2022', sourcemap: false, chunkSizeWarningLimit: 2500 },
 })
