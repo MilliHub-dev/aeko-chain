@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto'
-import type { Stats } from 'node:fs'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { createReadStream, type Stats } from 'node:fs'
 import {
   chmod,
   chown,
@@ -11,6 +11,7 @@ import {
   rename,
   rm,
   stat,
+  symlink,
   writeFile,
 } from 'node:fs/promises'
 import { dirname, join, relative, resolve, sep } from 'node:path'
@@ -22,7 +23,9 @@ import type {
   FileWriteResult,
   RenamePathResult,
 } from '../shared/contracts/filesystem.js'
+import type { ProgramArtifactStatus } from '../shared/contracts/artifact.js'
 import type { EditorSession } from '../shared/contracts/session.js'
+import type { PreviewStatus } from '../shared/contracts/preview.js'
 import type {
   CreateWorkspaceRequest,
   Workspace,
@@ -54,6 +57,14 @@ interface ExistingPathRecord extends PathRecord {
 interface WorkspaceLimits {
   maxFiles: number
   maxBytes: number
+}
+
+interface PreviewCapability {
+  token: string
+  sessionId: string
+  workspaceId: string
+  root: string
+  expiresAt: number
 }
 
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
@@ -183,7 +194,7 @@ async function directoryStats(root: string, limits: WorkspaceLimits): Promise<{ 
 
   const visit = async (directory: string): Promise<void> => {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
-      if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === 'target' || entry.name === 'out') continue
+      if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === 'target' || entry.name === 'out' || entry.name === 'dist') continue
       const path = join(directory, entry.name)
       if (entry.isSymbolicLink()) continue
       if (entry.isDirectory()) {
@@ -246,7 +257,30 @@ async function writeTemplate(root: string, files: Readonly<Record<string, string
   }
 }
 
+async function linkDappRuntimeDependencies(root: string): Promise<void> {
+  const runtimeDependencies = await realpath(resolve(process.cwd(), 'node_modules'))
+  await symlink(runtimeDependencies, join(root, 'node_modules'), 'dir')
+}
+
+async function sha256File(path: string): Promise<string> {
+  const hash = createHash('sha256')
+  const stream = createReadStream(path)
+  for await (const chunk of stream) hash.update(chunk)
+  return hash.digest('hex')
+}
+
+function emptyArtifactStatus(supported: boolean): ProgramArtifactStatus {
+  return { supported, available: false, fileName: null, byteLength: null, sha256: null, builtAt: null }
+}
+
+function conflict(message: string): Error {
+  return Object.assign(new Error(message), { status: 409 })
+}
+
 export class WorkspaceManager {
+  readonly previewCapabilities = new Map<string, PreviewCapability>()
+  readonly previewCapabilityKeys = new Map<string, string>()
+
   constructor(private readonly config: Readonly<WorkspaceConfig>) {}
 
   async init(): Promise<this> {
@@ -344,6 +378,7 @@ export class WorkspaceManager {
     await mkdir(root, { mode: 0o770 })
     try {
       await writeTemplate(root, template.files)
+      if (request.template === 'typescript-dapp') await linkDappRuntimeDependencies(root)
       await applySandboxOwnership(root, session.uid, session.gid, this.config.production)
       await this.writeMetadata(session, id, metadata)
     } catch (error) {
@@ -378,7 +413,7 @@ export class WorkspaceManager {
       })
 
       for (const entry of children) {
-        if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === 'target' || entry.name === 'out') continue
+        if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === 'target' || entry.name === 'out' || entry.name === 'dist') continue
         const path = join(directory, entry.name)
         if (entry.isSymbolicLink()) continue
         const relativePath = relative(root, path).split(sep).join('/')
@@ -403,6 +438,131 @@ export class WorkspaceManager {
       throw Object.assign(new Error('File is too large to open in the browser editor.'), { status: 413 })
     }
     return { path: target.relativePath, content: await readFile(target.path, 'utf8') }
+  }
+
+  async artifactStatus(session: EditorSession, workspaceId: string): Promise<ProgramArtifactStatus> {
+    const { root, metadata } = await this.assertOwned(session, workspaceId)
+    if (metadata.template !== 'rust-program') return emptyArtifactStatus(false)
+
+    try {
+      const output = await containedExisting(root, 'out')
+      if (!output.info.isDirectory()) throw conflict('SBF output path is not a regular directory.')
+
+      const candidates: Array<{ name: string; target: ExistingPathRecord }> = []
+      for (const entry of await readdir(output.path, { withFileTypes: true })) {
+        if (!entry.isFile() || !entry.name.endsWith('.so')) continue
+        const target = await containedExisting(root, `out/${entry.name}`)
+        if (target.info.isFile()) candidates.push({ name: entry.name, target })
+      }
+      candidates.sort((left, right) => (
+        right.target.info.mtimeMs - left.target.info.mtimeMs || left.name.localeCompare(right.name)
+      ))
+      const selected = candidates[0]
+      if (!selected) return emptyArtifactStatus(true)
+
+      return {
+        supported: true,
+        available: true,
+        fileName: selected.name,
+        byteLength: selected.target.info.size,
+        sha256: await sha256File(selected.target.path),
+        builtAt: selected.target.info.mtime.toISOString(),
+      }
+    } catch (error) {
+      if (isErrnoException(error) && error.code === 'ENOENT') return emptyArtifactStatus(true)
+      throw error
+    }
+  }
+
+  previewCapabilityKey(sessionId: string, workspaceId: string): string {
+    return `${sessionId}:${workspaceId}`
+  }
+
+  revokePreview(sessionId: string, workspaceId: string): void {
+    const key = this.previewCapabilityKey(sessionId, workspaceId)
+    const token = this.previewCapabilityKeys.get(key)
+    if (token) this.previewCapabilities.delete(token)
+    this.previewCapabilityKeys.delete(key)
+  }
+
+  issuePreviewCapability(session: EditorSession, workspaceId: string, root: string): string {
+    const key = this.previewCapabilityKey(session.id, workspaceId)
+    const existingToken = this.previewCapabilityKeys.get(key)
+    const existing = existingToken ? this.previewCapabilities.get(existingToken) : undefined
+    if (
+      existing
+      && existing.workspaceId === workspaceId
+      && existing.root === root
+      && existing.expiresAt > Date.now()
+    ) {
+      existing.expiresAt = Date.now() + this.config.workspaceTtlMs
+      return existing.token
+    }
+
+    this.revokePreview(session.id, workspaceId)
+    const token = randomBytes(24).toString('base64url')
+    this.previewCapabilities.set(token, {
+      token,
+      sessionId: session.id,
+      workspaceId,
+      root,
+      expiresAt: Date.now() + this.config.workspaceTtlMs,
+    })
+    this.previewCapabilityKeys.set(key, token)
+    return token
+  }
+
+  async previewStatus(session: EditorSession, workspaceId: string): Promise<PreviewStatus> {
+    const { root, metadata } = await this.assertOwned(session, workspaceId)
+    if (metadata.template !== 'typescript-dapp') {
+      return { supported: false, available: false, url: null, builtAt: null }
+    }
+    try {
+      const target = await containedExisting(root, 'dist/index.html')
+      if (!target.info.isFile()) throw conflict('DApp preview index is not a regular file.')
+      const token = this.issuePreviewCapability(session, workspaceId, root)
+      return {
+        supported: true,
+        available: true,
+        url: `/preview/${workspaceId}/${token}/`,
+        builtAt: target.info.mtime.toISOString(),
+      }
+    } catch (error) {
+      if (isErrnoException(error) && error.code === 'ENOENT') {
+        this.revokePreview(session.id, workspaceId)
+        return { supported: true, available: false, url: null, builtAt: null }
+      }
+      throw error
+    }
+  }
+
+  async previewAsset(
+    workspaceId: string,
+    token: string,
+    rawPath: unknown,
+  ): Promise<{ path: string; root: string; relativePath: string }> {
+    const capability = this.previewCapabilities.get(token)
+    const expired = Boolean(capability && capability.expiresAt <= Date.now())
+    if (!capability || capability.workspaceId !== workspaceId || expired) {
+      if (capability && expired) {
+        this.previewCapabilities.delete(token)
+        this.previewCapabilityKeys.delete(
+          this.previewCapabilityKey(capability.sessionId, capability.workspaceId),
+        )
+      }
+      throw Object.assign(new Error('DApp preview link is invalid or expired.'), { status: 404 })
+    }
+
+    const workspaceRoot = await realpath(capability.root)
+    const previewRoot = await containedExisting(workspaceRoot, 'dist')
+    if (!previewRoot.info.isDirectory()) throw new Error('DApp preview root is not a regular directory.')
+
+    const relativePath = String(rawPath || '').trim()
+      ? normalizeWorkspacePath(rawPath)
+      : 'index.html'
+    const target = await containedExisting(previewRoot.path, relativePath)
+    if (!target.info.isFile()) throw new Error('Only regular DApp preview files can be served.')
+    return { path: target.path, root: previewRoot.path, relativePath }
   }
 
   async createDirectory(
@@ -510,8 +670,17 @@ export class WorkspaceManager {
 
   async removeWorkspace(session: EditorSession, workspaceId: string): Promise<void> {
     const { root } = await this.assertOwned(session, workspaceId)
+    this.revokePreview(session.id, workspaceId)
     await rm(root, { recursive: true, force: true })
     await rm(this.metadataPath(session, workspaceId), { force: true })
+  }
+
+  closeSession(sessionId: string): void {
+    for (const [token, capability] of this.previewCapabilities) {
+      if (capability.sessionId !== sessionId) continue
+      this.previewCapabilities.delete(token)
+      this.previewCapabilityKeys.delete(this.previewCapabilityKey(sessionId, capability.workspaceId))
+    }
   }
 
   async touch(session: EditorSession, workspaceId: string, metadata: WorkspaceMetadata): Promise<void> {
@@ -523,12 +692,18 @@ export class WorkspaceManager {
 
   async sweep(activeSessionIds: ReadonlySet<string> = new Set()): Promise<void> {
     const now = Date.now()
+    for (const [token, capability] of this.previewCapabilities) {
+      if (capability.expiresAt > now) continue
+      this.previewCapabilities.delete(token)
+      this.previewCapabilityKeys.delete(this.previewCapabilityKey(capability.sessionId, capability.workspaceId))
+    }
     const sessions = await readdir(this.config.workspaceRoot, { withFileTypes: true })
     for (const session of sessions) {
       if (!session.isDirectory() || activeSessionIds.has(session.name)) continue
       const root = join(this.config.workspaceRoot, session.name)
       const info = await stat(root)
       if (now - info.mtimeMs > this.config.workspaceTtlMs) {
+        this.closeSession(session.name)
         await rm(root, { recursive: true, force: true })
       }
     }

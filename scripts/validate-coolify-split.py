@@ -431,6 +431,8 @@ def main() -> int:
     for expected in (
         "AEKO_EDITOR_PUBLIC_ORIGIN: ${AEKO_EDITOR_PUBLIC_ORIGIN:-https://editor.aeko.online}",
         "AEKO_EDITOR_ACCESS_TOKEN:",
+        "AEKO_RPC_URL: ${AEKO_RPC_URL:-https://rpc.aeko.online}",
+        "AEKO_WS_URL: ${AEKO_WS_URL:-wss://ws.aeko.online}",
         "read_only: true",
         "cap_drop:",
         "- ALL",

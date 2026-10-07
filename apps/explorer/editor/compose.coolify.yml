@@ -19,6 +19,7 @@ services:
       AEKO_LOG_LEVEL: ${AEKO_LOG_LEVEL:-info}
       AEKO_NETWORK: ${AEKO_NETWORK:-testnet}
       AEKO_RPC_URL: ${AEKO_RPC_URL:-https://rpc.aeko.online}
+      AEKO_WS_URL: ${AEKO_WS_URL:-wss://ws.aeko.online}
       AEKO_EXPLORER_URL: ${AEKO_EXPLORER_URL:-https://scan.aeko.online}
       AEKO_EDITOR_WORKSPACE_ROOT: /workspaces
       AEKO_EDITOR_SANDBOX_UID_START: ${AEKO_EDITOR_SANDBOX_UID_START:-20000}

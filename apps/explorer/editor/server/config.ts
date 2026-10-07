@@ -73,6 +73,7 @@ export function loadConfig(
     accessToken,
     network: String(process.env.AEKO_NETWORK || 'testnet').trim().toLowerCase(),
     rpcUrl: endpoint('AEKO_RPC_URL', production ? '' : 'http://127.0.0.1:8899'),
+    websocketUrl: endpoint('AEKO_WS_URL', production ? '' : 'ws://127.0.0.1:8900'),
     explorerUrl: endpoint('AEKO_EXPLORER_URL', production ? '' : 'http://127.0.0.1:4000'),
     workspaceRoot: resolve(
       process.env.AEKO_EDITOR_WORKSPACE_ROOT

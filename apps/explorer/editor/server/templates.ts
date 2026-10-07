@@ -169,7 +169,7 @@ No package install is required for this starter; TypeScript is provided by the s
 import { defineConfig } from 'vite'
 export default defineConfig({ plugins: [react()] })
 `,
-      'tsconfig.json': `{"compilerOptions":{"target":"ES2022","lib":["ES2022","DOM","DOM.Iterable"],"module":"ESNext","moduleResolution":"Bundler","jsx":"react-jsx","strict":true,"noEmit":true,"skipLibCheck":true},"include":["src","vite.config.ts"]}
+      'tsconfig.json': `{"compilerOptions":{"target":"ES2022","lib":["ES2022","DOM","DOM.Iterable"],"module":"ESNext","moduleResolution":"Bundler","jsx":"react-jsx","strict":true,"noEmit":true,"skipLibCheck":true,"types":["vite/client"]},"include":["src","vite.config.ts"]}
 `,
       'src/main.tsx': `import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -190,12 +190,11 @@ export default function App(){const[status,setStatus]=useState('Not checked');re
       'src/style.css': `:root{font-family:system-ui;color:#fff;background:#052E2B}body{margin:0}main{max-width:720px;margin:10vh auto;padding:2rem}button{background:#5FB51F;color:#052E2B;border:0;padding:.75rem 1rem;border-radius:.6rem;font-weight:700}
 `,
       '.env.example': `VITE_AEKO_RPC_URL=https://rpc.aeko.online
+VITE_AEKO_WS_URL=wss://ws.aeko.online
 `,
       'README.md': `# AEKO React + TypeScript DApp
 
-Run \`npm install\` once in the integrated Bash terminal, then \`npm run dev\`.
-The project dependencies live in this workspace, not in the Studio browser bundle.
-Use \`VITE_AEKO_RPC_URL\` to select the RPC endpoint.
+The Studio provides the pinned React, TypeScript, and Vite runtime used by this starter, so no package-install step is required.\n\nOpen **Interact** to build and render the DApp as the Studio canvas, or run \`npm run dev\` in Bash when you specifically need the raw Vite development server. Use \`VITE_AEKO_RPC_URL\` and \`VITE_AEKO_WS_URL\` for direct AEKO RPC and PubSub connections.
 `,
     },
   },
