@@ -211,17 +211,17 @@ try {
 
   await evaluate(`(() => {
     const template = [...document.querySelectorAll('button')]
-      .find((element) => element.textContent?.includes('DApp Client'))
-    if (!template) throw new Error('DApp Client template button was not found.')
+      .find((element) => element.textContent?.includes('React DApp'))
+    if (!template) throw new Error('React DApp template button was not found.')
     template.click()
     return true
   })()`)
 
   await waitFor(
     `[...document.querySelectorAll('button')].some((element) =>
-      element.textContent?.includes('DApp Client') && element.getAttribute('aria-pressed') === 'true'
+      element.textContent?.includes('React DApp') && element.getAttribute('aria-pressed') === 'true'
     )`,
-    'DApp Client template selection',
+    'React DApp template selection',
   )
 
   await evaluate(`(() => {
