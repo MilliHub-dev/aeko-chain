@@ -1,5 +1,5 @@
-import { randomBytes, randomUUID } from 'node:crypto'
-import type { Stats } from 'node:fs'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { createReadStream, type Stats } from 'node:fs'
 import {
   chmod,
   chown,
@@ -23,6 +23,7 @@ import type {
   FileWriteResult,
   RenamePathResult,
 } from '../shared/contracts/filesystem.js'
+import type { ProgramArtifactStatus } from '../shared/contracts/artifact.js'
 import type { EditorSession } from '../shared/contracts/session.js'
 import type { PreviewStatus } from '../shared/contracts/preview.js'
 import type {
@@ -261,6 +262,17 @@ async function linkDappRuntimeDependencies(root: string): Promise<void> {
   await symlink(runtimeDependencies, join(root, 'node_modules'), 'dir')
 }
 
+async function sha256File(path: string): Promise<string> {
+  const hash = createHash('sha256')
+  const stream = createReadStream(path)
+  for await (const chunk of stream) hash.update(chunk)
+  return hash.digest('hex')
+}
+
+function emptyArtifactStatus(supported: boolean): ProgramArtifactStatus {
+  return { supported, available: false, fileName: null, byteLength: null, sha256: null, builtAt: null }
+}
+
 function conflict(message: string): Error {
   return Object.assign(new Error(message), { status: 409 })
 }
@@ -426,6 +438,40 @@ export class WorkspaceManager {
       throw Object.assign(new Error('File is too large to open in the browser editor.'), { status: 413 })
     }
     return { path: target.relativePath, content: await readFile(target.path, 'utf8') }
+  }
+
+  async artifactStatus(session: EditorSession, workspaceId: string): Promise<ProgramArtifactStatus> {
+    const { root, metadata } = await this.assertOwned(session, workspaceId)
+    if (metadata.template !== 'rust-program') return emptyArtifactStatus(false)
+
+    try {
+      const output = await containedExisting(root, 'out')
+      if (!output.info.isDirectory()) throw conflict('SBF output path is not a regular directory.')
+
+      const candidates: Array<{ name: string; target: ExistingPathRecord }> = []
+      for (const entry of await readdir(output.path, { withFileTypes: true })) {
+        if (!entry.isFile() || !entry.name.endsWith('.so')) continue
+        const target = await containedExisting(root, `out/${entry.name}`)
+        if (target.info.isFile()) candidates.push({ name: entry.name, target })
+      }
+      candidates.sort((left, right) => (
+        right.target.info.mtimeMs - left.target.info.mtimeMs || left.name.localeCompare(right.name)
+      ))
+      const selected = candidates[0]
+      if (!selected) return emptyArtifactStatus(true)
+
+      return {
+        supported: true,
+        available: true,
+        fileName: selected.name,
+        byteLength: selected.target.info.size,
+        sha256: await sha256File(selected.target.path),
+        builtAt: selected.target.info.mtime.toISOString(),
+      }
+    } catch (error) {
+      if (isErrnoException(error) && error.code === 'ENOENT') return emptyArtifactStatus(true)
+      throw error
+    }
   }
 
   previewCapabilityKey(sessionId: string, workspaceId: string): string {

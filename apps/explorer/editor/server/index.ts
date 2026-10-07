@@ -266,6 +266,11 @@ app.delete('/api/workspaces/:workspaceId/path', auth, asyncRoute(async (request,
   ))
 }))
 
+app.get('/api/workspaces/:workspaceId/artifact', auth, asyncRoute(async (request, response) => {
+  const session = requireEditorSession(request)
+  data(response, await workspaces.artifactStatus(session, routeParam(request, 'workspaceId')))
+}))
+
 app.get('/api/workspaces/:workspaceId/preview', auth, asyncRoute(async (request, response) => {
   const session = requireEditorSession(request)
   data(response, await workspaces.previewStatus(session, routeParam(request, 'workspaceId')))

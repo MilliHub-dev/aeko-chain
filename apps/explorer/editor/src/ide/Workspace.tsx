@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Hammer, MonitorPlay, Play, Rocket, ShieldCheck, Square, TestTube2, WalletCards, X } from 'lucide-react'
+import { Hammer, MonitorPlay, Play, Rocket, Square, TestTube2, WalletCards, X } from 'lucide-react'
+import type { ProgramArtifactStatus } from '../../shared/contracts/artifact.js'
 import type { StudioCommand } from '../../shared/contracts/command.js'
 import type { FileEntry } from '../../shared/contracts/filesystem.js'
 import type { StudioConfig } from '../../shared/contracts/session.js'
@@ -10,7 +11,7 @@ import BottomPanel, { type BottomPanelTab } from '../components/BottomPanel'
 import EditorTabs from '../components/EditorTabs'
 import ExplorerPane from '../components/ExplorerPane'
 import StatusBar from '../components/StatusBar'
-import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert'
+import { Alert, AlertDescription } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { getBalance } from '../aeko/rpc'
@@ -22,6 +23,7 @@ import {
   shortAddress,
   type DevelopmentWallet,
 } from '../aeko/wallet'
+import RuntimePanel from '../components/RuntimePanel'
 import WalletPanel from '../components/WalletPanel'
 import { api } from '../lib/api'
 import { languageForPath } from '../lib/language'
@@ -60,6 +62,8 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewPending, setPreviewPending] = useState(false)
   const [previewRevision, setPreviewRevision] = useState(0)
+  const [artifact, setArtifact] = useState<ProgramArtifactStatus | null>(null)
+  const [runtimeOpen, setRuntimeOpen] = useState(false)
   const saveTimers = useRef<Map<string, number>>(new Map())
   const tasks = useStudioTasks(workspace.id)
   const selectedWallet = wallets.find((wallet) => wallet.id === walletId) ?? wallets[0] ?? null
@@ -136,6 +140,14 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
     (cause: unknown) => setError(errorMessage(cause, 'Workspace operation failed.')),
     [],
   )
+
+  const refreshArtifact = useCallback(async () => {
+    if (workspace.template !== 'rust-program') {
+      setArtifact(null)
+      return
+    }
+    setArtifact(await api.artifactStatus(workspace.id))
+  }, [workspace.id, workspace.template])
 
   useEffect(() => {
     const timers = saveTimers.current
@@ -218,6 +230,7 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
 
   const changeFile = (content: string) => {
     if (!activePath) return
+    setArtifact(null)
     setBuffers((current) => new Map(current).set(activePath, content))
     setDirtyPaths((current) => new Set(current).add(activePath))
     const existing = saveTimers.current.get(activePath)
@@ -246,6 +259,7 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
     if (!path) return
     try {
       await api.createFile(workspace.id, path, '')
+      setArtifact(null)
       await refreshTree()
       await openFile(path)
     } catch (cause) {
@@ -277,6 +291,7 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
       setOpenFiles((current) => current.map((path) => remap(path, result.from, result.to)))
       setDirtyPaths((current) => new Set([...current].map((path) => remap(path, result.from, result.to))))
       setActivePath((path) => remap(path, result.from, result.to))
+      setArtifact(null)
       await refreshTree()
     } catch (cause) {
       report(cause)
@@ -296,6 +311,7 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
       })
       setDirtyPaths((current) => new Set([...current].filter((path) => !affected(path))))
       if (affected(activePath)) setActivePath('')
+      setArtifact(null)
       await refreshTree()
     } catch (cause) {
       report(cause)
@@ -367,6 +383,18 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
     setPreviewPending(false)
     setError(tasks.error)
   }, [previewPending, tasks.error])
+
+  useEffect(() => {
+    const state = tasks.lastState
+    if (!state || state.status === 'running' || workspace.template !== 'rust-program') return
+    if (state.command === 'clean' || (state.command === 'build' && state.status !== 'succeeded')) {
+      setArtifact(null)
+      return
+    }
+    if (state.command === 'build' && state.status === 'succeeded') {
+      void refreshArtifact().catch(report)
+    }
+  }, [refreshArtifact, report, tasks.lastState, workspace.template])
 
   return (
     <div className="flex size-full flex-col bg-background text-foreground">
@@ -458,6 +486,15 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
             <span className="text-muted-foreground">{walletBalance === null ? '—' : `${(walletBalance / 1_000_000_000).toLocaleString('en-US', { maximumFractionDigits: 4 })} AEKO`}</span>
           </Button>
         ) : null}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          aria-label="Open runtime panel"
+          onClick={() => setRuntimeOpen(true)}
+        >
+          <WalletCards />
+        </Button>
         <Badge className="shrink-0">
           <span className="mr-1 size-2 rounded-full bg-primary" />
           {config.network}
@@ -614,44 +651,71 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
           </div>
         </main>
 
-        <aside className="hidden w-72 shrink-0 border-l border-border bg-background p-4 xl:block">
-          <p className="text-xs font-semibold tracking-[0.16em] text-primary">PROJECT CONTEXT</p>
-          <h2 className="mt-2 truncate text-lg font-semibold">{workspace.name}</h2>
-          <dl className="mt-5 flex flex-col gap-4 text-xs">
-            <div>
-              <dt className="text-muted-foreground">Type</dt>
-              <dd className="mt-1">{workspace.templateLabel}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Network</dt>
-              <dd className="mt-1">{config.network}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Source</dt>
-              <dd className="mt-1 break-all">{activePath || 'Select a file'}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Task runner</dt>
-              <dd className="mt-1">{tasks.running ? `${tasks.running} running` : tasks.connected ? 'Ready' : 'Connecting'}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Wallet</dt>
-              <dd className="mt-1 break-all">{selectedWallet ? shortAddress(selectedWallet.address) : 'Not selected'}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Program ID</dt>
-              <dd className="mt-1">Not deployed</dd>
-            </div>
-          </dl>
-          <Alert className="mt-6">
-            <ShieldCheck className="mb-2 size-4 text-primary" />
-            <AlertTitle>Deployment signing</AlertTitle>
-            <AlertDescription>
-              Deploy and Interact remain unavailable until AEKO Studio has a wallet-backed signing contract. Validator and server keys stay isolated.
-            </AlertDescription>
-          </Alert>
-        </aside>
+        <div className="hidden w-[280px] min-h-0 shrink-0 border-l border-white/10 lg:block">
+          <RuntimePanel
+            config={config}
+            runnerReady={tasks.connected}
+            wallet={selectedWallet}
+            wallets={wallets}
+            walletId={selectedWallet?.id ?? ''}
+            onSelectWallet={setWalletId}
+            onCreateWallet={() => createWallet(`Editor wallet ${wallets.length + 1}`)}
+            balance={walletBalance}
+            balanceBusy={walletBalanceBusy}
+            onRefreshBalance={refreshWalletBalance}
+            artifact={artifact}
+            artifactSupported={workspace.template === 'rust-program'}
+            deployment={null}
+            recoverableBuffer={null}
+          />
+        </div>
       </div>
+
+      {runtimeOpen ? (
+        <div
+          className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm lg:hidden"
+          role="presentation"
+          onMouseDown={() => setRuntimeOpen(false)}
+        >
+          <div
+            className="absolute inset-y-0 right-0 flex w-[min(92vw,360px)] flex-col border-l border-white/10 bg-[#0b0b10] pt-14 shadow-2xl shadow-black"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Runtime"
+            onMouseDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setRuntimeOpen(false)
+            }}
+          >
+            <button
+              type="button"
+              autoFocus
+              onClick={() => setRuntimeOpen(false)}
+              aria-label="Close runtime panel"
+              className="absolute right-3 top-2 z-10 rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aeko-accent"
+            >
+              <X className="size-4" />
+            </button>
+            <RuntimePanel
+              config={config}
+              runnerReady={tasks.connected}
+              wallet={selectedWallet}
+              wallets={wallets}
+              walletId={selectedWallet?.id ?? ''}
+              onSelectWallet={setWalletId}
+              onCreateWallet={() => createWallet(`Editor wallet ${wallets.length + 1}`)}
+              balance={walletBalance}
+              balanceBusy={walletBalanceBusy}
+              onRefreshBalance={refreshWalletBalance}
+              artifact={artifact}
+              artifactSupported={workspace.template === 'rust-program'}
+              deployment={null}
+              recoverableBuffer={null}
+              controlId="editor-wallet-mobile"
+            />
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="fixed bottom-10 left-20 right-4 z-40 md:right-auto md:w-[28rem]">

@@ -257,6 +257,31 @@ try {
     throw new Error(`Browser smoke did not exercise a TypeScript editor: ${editorState.label}`)
   }
 
+  const runtimePanelState = await evaluate(`(() => {
+    const panel = document.querySelector('[data-aeko-runtime-panel]')
+    if (!(panel instanceof HTMLElement)) return null
+    const rect = panel.getBoundingClientRect()
+    const text = panel.innerText || ''
+    return {
+      width: Math.round(rect.width),
+      text,
+      oldSidebarPresent: document.body?.innerText.includes('PROJECT CONTEXT') || false,
+    }
+  })()`)
+  if (
+    !runtimePanelState
+    || runtimePanelState.width < 278
+    || runtimePanelState.width > 282
+    || !runtimePanelState.text.includes('Runtime')
+    || !runtimePanelState.text.includes('Network')
+    || !runtimePanelState.text.includes('Development wallet')
+    || !runtimePanelState.text.includes('Artifact')
+    || !runtimePanelState.text.includes('Latest deployment')
+    || runtimePanelState.oldSidebarPresent
+  ) {
+    throw new Error(`PR #109 Runtime sidebar parity failed: ${JSON.stringify(runtimePanelState)}`)
+  }
+
   await waitFor(
     `[...document.querySelectorAll('button')].some((element) =>
       element.textContent?.trim() === 'Preview'

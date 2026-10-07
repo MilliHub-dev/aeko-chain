@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import assert from 'node:assert/strict'
 import { lstat, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -207,4 +208,66 @@ test('DApp workspaces use pinned runtime dependencies and preview only contained
 
   manager.closeSession(owner.id)
   await assert.rejects(manager.previewAsset(workspace.id, previewToken, 'index.html'), /invalid or expired/)
+})
+
+
+test('Rust artifact status reports only contained SBF output with real metadata', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'aeko-studio-test-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+
+  const manager = await new WorkspaceManager(config(root)).init()
+  const owner = session('session-artifact')
+  const rust = await manager.create(owner, {
+    name: 'artifact-test',
+    template: 'rust-program',
+  })
+
+  assert.deepEqual(await manager.artifactStatus(owner, rust.id), {
+    supported: true,
+    available: false,
+    fileName: null,
+    byteLength: null,
+    sha256: null,
+    builtAt: null,
+  })
+
+  const bytes = 'compiled-sbf-program'
+  await manager.write(owner, rust.id, 'out/artifact_test.so', bytes)
+  const status = await manager.artifactStatus(owner, rust.id)
+  assert.equal(status.supported, true)
+  assert.equal(status.available, true)
+  assert.equal(status.fileName, 'artifact_test.so')
+  assert.equal(status.byteLength, Buffer.byteLength(bytes))
+  assert.equal(status.sha256, createHash('sha256').update(bytes).digest('hex'))
+  assert.ok(status.builtAt)
+
+  const client = await manager.create(owner, {
+    name: 'not-rust',
+    template: 'typescript-client',
+  })
+  assert.deepEqual(await manager.artifactStatus(owner, client.id), {
+    supported: false,
+    available: false,
+    fileName: null,
+    byteLength: null,
+    sha256: null,
+    builtAt: null,
+  })
+
+  const symlinkOnly = await manager.create(owner, {
+    name: 'artifact-symlink',
+    template: 'rust-program',
+  })
+  await manager.createDirectory(owner, symlinkOnly.id, 'out')
+  const outside = join(root, 'outside-artifact.so')
+  await writeFile(outside, 'outside', 'utf8')
+  await symlink(outside, join(manager.workspaceRoot(owner, symlinkOnly.id), 'out', 'escape.so'))
+  assert.deepEqual(await manager.artifactStatus(owner, symlinkOnly.id), {
+    supported: true,
+    available: false,
+    fileName: null,
+    byteLength: null,
+    sha256: null,
+    builtAt: null,
+  })
 })
