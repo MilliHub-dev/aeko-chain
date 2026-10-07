@@ -169,7 +169,7 @@ No package install is required for this starter; TypeScript is provided by the s
 import { defineConfig } from 'vite'
 export default defineConfig({ plugins: [react()] })
 `,
-      'tsconfig.json': `{"compilerOptions":{"target":"ES2022","lib":["ES2022","DOM","DOM.Iterable"],"module":"ESNext","moduleResolution":"Bundler","jsx":"react-jsx","strict":true,"noEmit":true,"skipLibCheck":true},"include":["src","vite.config.ts"]}
+      'tsconfig.json': `{"compilerOptions":{"target":"ES2022","lib":["ES2022","DOM","DOM.Iterable"],"module":"ESNext","moduleResolution":"Bundler","jsx":"react-jsx","strict":true,"noEmit":true,"skipLibCheck":true,"types":["vite/client"]},"include":["src","vite.config.ts"]}
 `,
       'src/main.tsx': `import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
