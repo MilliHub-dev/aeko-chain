@@ -278,7 +278,7 @@ try {
   })()`)
 
   await waitFor(
-    `document.body?.innerText.includes('Selected wallet')`,
+    `Boolean(document.querySelector('button[aria-label="Refresh wallet balance"]'))`,
     'browser-local development wallet',
     15_000,
   )
