@@ -542,12 +542,14 @@ export class WorkspaceManager {
     rawPath: unknown,
   ): Promise<{ path: string; relativePath: string }> {
     const capability = this.previewCapabilities.get(token)
-    if (
-      !capability
-      || capability.workspaceId !== workspaceId
-      || capability.expiresAt <= Date.now()
-    ) {
-      if (capability) this.previewCapabilities.delete(token)
+    const expired = Boolean(capability && capability.expiresAt <= Date.now())
+    if (!capability || capability.workspaceId !== workspaceId || expired) {
+      if (capability && expired) {
+        this.previewCapabilities.delete(token)
+        this.previewCapabilityKeys.delete(
+          this.previewCapabilityKey(capability.sessionId, capability.workspaceId),
+        )
+      }
       throw Object.assign(new Error('DApp preview link is invalid or expired.'), { status: 404 })
     }
 
