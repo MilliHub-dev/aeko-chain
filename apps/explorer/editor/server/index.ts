@@ -284,7 +284,7 @@ app.get('/preview/:workspaceId/:previewToken/', asyncRoute(async (request, respo
     '',
   )
   setPreviewHeaders(response)
-  response.sendFile(asset.path)
+  response.sendFile(asset.relativePath, { root: asset.root, dotfiles: 'deny' })
 }))
 
 app.get('/preview/:workspaceId/:previewToken/{*assetPath}', asyncRoute(async (request, response) => {
@@ -294,7 +294,7 @@ app.get('/preview/:workspaceId/:previewToken/{*assetPath}', asyncRoute(async (re
     wildcardParam(request, 'assetPath'),
   )
   setPreviewHeaders(response)
-  response.sendFile(asset.path)
+  response.sendFile(asset.relativePath, { root: asset.root, dotfiles: 'deny' })
 }))
 
 io.use((socket, next) => {

@@ -540,7 +540,7 @@ export class WorkspaceManager {
     workspaceId: string,
     token: string,
     rawPath: unknown,
-  ): Promise<{ path: string; relativePath: string }> {
+  ): Promise<{ path: string; root: string; relativePath: string }> {
     const capability = this.previewCapabilities.get(token)
     const expired = Boolean(capability && capability.expiresAt <= Date.now())
     if (!capability || capability.workspaceId !== workspaceId || expired) {
@@ -553,13 +553,16 @@ export class WorkspaceManager {
       throw Object.assign(new Error('DApp preview link is invalid or expired.'), { status: 404 })
     }
 
-    const root = await realpath(capability.root)
+    const workspaceRoot = await realpath(capability.root)
+    const previewRoot = await containedExisting(workspaceRoot, 'dist')
+    if (!previewRoot.info.isDirectory()) throw new Error('DApp preview root is not a regular directory.')
+
     const relativePath = String(rawPath || '').trim()
       ? normalizeWorkspacePath(rawPath)
       : 'index.html'
-    const target = await containedExisting(root, `dist/${relativePath}`)
+    const target = await containedExisting(previewRoot.path, relativePath)
     if (!target.info.isFile()) throw new Error('Only regular DApp preview files can be served.')
-    return { path: target.path, relativePath }
+    return { path: target.path, root: previewRoot.path, relativePath }
   }
 
   async createDirectory(
