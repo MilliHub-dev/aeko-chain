@@ -277,6 +277,16 @@ app.get('/api/workspaces/:workspaceId/preview', auth, asyncRoute(async (request,
   data(response, await workspaces.previewStatus(session, routeParam(request, 'workspaceId')))
 }))
 
+app.get('/preview/:workspaceId/:previewToken/', asyncRoute(async (request, response) => {
+  const asset = await workspaces.previewAsset(
+    routeParam(request, 'workspaceId'),
+    routeParam(request, 'previewToken'),
+    '',
+  )
+  setPreviewHeaders(response)
+  response.sendFile(asset.path)
+}))
+
 app.get('/preview/:workspaceId/:previewToken/{*assetPath}', asyncRoute(async (request, response) => {
   const asset = await workspaces.previewAsset(
     routeParam(request, 'workspaceId'),
