@@ -1,12 +1,88 @@
-import { io, type Socket } from 'socket.io-client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Braces, CheckCheck, Hammer, Play, RotateCcw, Sparkles, Square, TestTube2 } from 'lucide-react'
 import type { StudioCommand } from '../../shared/contracts/command.js'
-import type { ClientToServerEvents, ServerToClientEvents } from '../../shared/contracts/socket.js'
 import { Alert, AlertDescription } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
-interface Props{workspaceId:string}
-const LABELS:Record<StudioCommand,string>={build:'Build',check:'Check',lint:'Lint',typecheck:'Typecheck',format:'Format',test:'Test',run:'Run',clean:'Clean'}
-const ICONS:Record<StudioCommand,typeof Hammer>={build:Hammer,check:CheckCheck,lint:Sparkles,typecheck:Braces,format:Sparkles,test:TestTube2,run:Play,clean:RotateCcw}
-export default function StudioConsole({workspaceId}:Props){const[history,setHistory]=useState('');const[available,setAvailable]=useState<StudioCommand[]>([]);const[running,setRunning]=useState<StudioCommand|null>(null);const[error,setError]=useState('');const socketRef=useRef<Socket<ServerToClientEvents,ClientToServerEvents>|null>(null);const outputRef=useRef<HTMLPreElement>(null);useEffect(()=>{const socket:Socket<ServerToClientEvents,ClientToServerEvents>=io({path:'/socket.io',transports:['polling','websocket'],upgrade:true,withCredentials:true});socketRef.current=socket;let disposed=false;socket.on('connect',()=>{if(!disposed)socket.emit('console:attach',{workspaceId})});socket.on('console:ready',event=>{setHistory(event.history);setAvailable(event.available);setRunning(event.running)});socket.on('console:output',event=>{if(event.workspaceId===workspaceId)setHistory(current=>current+event.data)});socket.on('console:state',event=>{if(event.workspaceId===workspaceId)setRunning(event.status==='running'?event.command:null)});socket.on('console:error',setError);return()=>{disposed=true;if(socketRef.current===socket)socketRef.current=null;socket.removeAllListeners();if(socket.connected)socket.disconnect()}},[workspaceId]);useEffect(()=>{const node=outputRef.current;if(node)node.scrollTop=node.scrollHeight},[history]);const run=(command:StudioCommand)=>{setError('');socketRef.current?.emit('console:run',{workspaceId,command})};return <section className="flex size-full min-h-0 flex-col" aria-label="AEKO Console"><header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2"><div className="flex items-center gap-2"><strong className="text-xs">AEKO Console</strong><Badge>{running?LABELS[running]+' running':'Ready'}</Badge></div><div className="flex flex-wrap items-center gap-1">{available.map(command=>{const Icon=ICONS[command];return <Button key={command} variant="ghost" size="sm" disabled={running!==null} onClick={()=>run(command)}><Icon/>{LABELS[command]}</Button>})}{running?<Button variant="destructive" size="sm" onClick={()=>socketRef.current?.emit('console:cancel',{workspaceId})}><Square/>Stop</Button>:null}</div></header>{error?<Alert className="m-2 w-auto border-destructive"><AlertDescription className="text-destructive">{error}</AlertDescription></Alert>:null}<pre ref={outputRef} className="min-h-0 flex-1 overflow-auto bg-card/40 p-3 font-mono text-xs leading-5 text-muted-foreground">{history||'Choose Build, Check, Lint, Typecheck, Format, Test, Run, or Clean. AEKO Studio executes only project-scoped commands.\n'}</pre></section>}
+import type { StudioTasksController } from './useStudioTasks'
+
+interface Props {
+  tasks: StudioTasksController
+  onRun: (command: StudioCommand) => void | Promise<void>
+}
+
+const LABELS: Record<StudioCommand, string> = {
+  build: 'Build',
+  check: 'Check',
+  lint: 'Lint',
+  typecheck: 'Typecheck',
+  format: 'Format',
+  test: 'Test',
+  run: 'Run',
+  clean: 'Clean',
+}
+
+const ICONS: Record<StudioCommand, typeof Hammer> = {
+  build: Hammer,
+  check: CheckCheck,
+  lint: Sparkles,
+  typecheck: Braces,
+  format: Sparkles,
+  test: TestTube2,
+  run: Play,
+  clean: RotateCcw,
+}
+
+export default function StudioConsole({ tasks, onRun }: Props) {
+  const outputRef = useRef<HTMLPreElement>(null)
+
+  useEffect(() => {
+    const node = outputRef.current
+    if (node) node.scrollTop = node.scrollHeight
+  }, [tasks.history])
+
+  return (
+    <section className="flex size-full min-h-0 flex-col" aria-label="AEKO Console">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
+        <div className="flex items-center gap-2">
+          <strong className="text-xs">AEKO Console</strong>
+          <Badge>{tasks.running ? `${LABELS[tasks.running]} running` : tasks.connected ? 'Ready' : 'Connecting'}</Badge>
+        </div>
+        <div className="flex flex-wrap items-center gap-1">
+          {tasks.available.map((command) => {
+            const Icon = ICONS[command]
+            return (
+              <Button
+                key={command}
+                variant="ghost"
+                size="sm"
+                disabled={tasks.running !== null || !tasks.connected}
+                onClick={() => void onRun(command)}
+              >
+                <Icon />
+                {LABELS[command]}
+              </Button>
+            )
+          })}
+          {tasks.running ? (
+            <Button variant="destructive" size="sm" onClick={tasks.cancel}>
+              <Square />
+              Stop
+            </Button>
+          ) : null}
+        </div>
+      </header>
+      {tasks.error ? (
+        <Alert className="m-2 w-auto border-destructive">
+          <AlertDescription className="text-destructive">{tasks.error}</AlertDescription>
+        </Alert>
+      ) : null}
+      <pre
+        ref={outputRef}
+        className="min-h-0 flex-1 overflow-auto bg-card/40 p-3 font-mono text-xs leading-5 text-muted-foreground"
+      >
+        {tasks.history || 'Choose Build, Check, Lint, Typecheck, Format, Test, Run, or Clean. AEKO Studio executes only project-scoped commands.\n'}
+      </pre>
+    </section>
+  )
+}
