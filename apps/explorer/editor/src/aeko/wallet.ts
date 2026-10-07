@@ -113,16 +113,20 @@ export async function importDevelopmentWallet(name: string, secretKeyB64: string
   }
 }
 
+function webCryptoBytes(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  return Uint8Array.from(bytes)
+}
+
 export async function signMessage(wallet: DevelopmentWallet, message: Uint8Array): Promise<Uint8Array> {
   const subtle = assertEd25519Support()
   const privateKey = await subtle.importKey(
     'pkcs8',
-    base64ToBytes(wallet.privateKeyPkcs8B64),
+    webCryptoBytes(base64ToBytes(wallet.privateKeyPkcs8B64)),
     { name: 'Ed25519' },
     false,
     ['sign'],
   )
-  return new Uint8Array(await subtle.sign('Ed25519', privateKey, message))
+  return new Uint8Array(await subtle.sign('Ed25519', privateKey, webCryptoBytes(message)))
 }
 
 function isWallet(value: unknown): value is DevelopmentWallet {

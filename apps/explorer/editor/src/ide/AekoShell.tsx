@@ -15,7 +15,7 @@ export default function AekoShell({
 }: {
   config: StudioConfig
   wallet: DevelopmentWallet | null
-  onTransactionConfirmed?: () => void | Promise<void>
+  onTransactionConfirmed?: (() => void | Promise<void>) | undefined
 }) {
   const [input, setInput] = useState('')
   const [lines, setLines] = useState<OutputLine[]>([
