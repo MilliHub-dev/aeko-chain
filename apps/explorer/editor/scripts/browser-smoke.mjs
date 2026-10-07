@@ -341,6 +341,9 @@ try {
       width: Math.round(rect.width),
       height: Math.round(rect.height),
       status: response.status,
+      contentType: response.headers.get('content-type') || '',
+      requestId: response.headers.get('x-request-id') || '',
+      bodySnippet: body.slice(0, 240),
       builtHtml: body.includes('id="root"'),
       taskPanelVisible: document.body?.innerText.includes('BASH / AEKO CLI') || false,
     }
