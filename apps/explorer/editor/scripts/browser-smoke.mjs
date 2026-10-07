@@ -146,6 +146,12 @@ try {
   const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true })
   await send('Runtime.enable', {}, sessionId)
   await send('Page.enable', {}, sessionId)
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 1440,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  }, sessionId)
   await send('Page.navigate', { url: baseUrl }, sessionId)
 
   async function evaluate(expression) {
@@ -250,6 +256,68 @@ try {
   if (!/\.tsx?$/.test(editorState.label)) {
     throw new Error(`Browser smoke did not exercise a TypeScript editor: ${editorState.label}`)
   }
+  await evaluate(`(() => {
+    const button = document.querySelector('button[aria-label="Accounts"]')
+    if (!(button instanceof HTMLButtonElement)) throw new Error('Accounts activity button was not found.')
+    button.click()
+    return true
+  })()`)
+
+  await waitFor(
+    `document.body?.innerText.includes('Development wallets')
+      && [...document.querySelectorAll('button')].some((element) => element.textContent?.includes('Create development wallet'))`,
+    'development wallet panel',
+  )
+
+  await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')]
+      .find((element) => element.textContent?.includes('Create development wallet'))
+    if (!(button instanceof HTMLButtonElement)) throw new Error('Create development wallet button was not found.')
+    button.click()
+    return true
+  })()`)
+
+  await waitFor(
+    `document.body?.innerText.includes('Selected wallet')`,
+    'browser-local development wallet',
+    15_000,
+  )
+
+  await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')]
+      .find((element) => element.textContent?.trim() === 'AEKO SHELL')
+    if (!(button instanceof HTMLButtonElement)) throw new Error('AEKO Shell tab was not found.')
+    button.click()
+    return true
+  })()`)
+
+  await waitFor(
+    `Boolean(document.querySelector('input[aria-label="AEKO Shell command"]'))`,
+    'structured AEKO shell',
+  )
+
+  await evaluate(`(() => {
+    const input = document.querySelector('input[aria-label="AEKO Shell command"]')
+    if (!(input instanceof HTMLInputElement)) throw new Error('AEKO Shell command input was not found.')
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+    if (!setter) throw new Error('HTML input value setter was unavailable.')
+    setter.call(input, 'whoami')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    return true
+  })()`)
+  await evaluate(`new Promise((resolve) => requestAnimationFrame(() => resolve(true)))`)
+  await evaluate(`(() => {
+    const input = document.querySelector('input[aria-label="AEKO Shell command"]')
+    if (!(input instanceof HTMLInputElement)) throw new Error('AEKO Shell command input disappeared.')
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }))
+    return true
+  })()`)
+
+  await waitFor(
+    `document.body?.innerText.includes('Development wallet:')`,
+    'AEKO shell wallet identity',
+  )
+
   if (runtimeErrors.length) {
     throw new Error(`Browser runtime reported critical errors:\n${runtimeErrors.join('\n\n')}`)
   }
@@ -262,5 +330,5 @@ try {
 } finally {
   stopBrowser()
   await childExit.catch(() => undefined)
-  await rm(profile, { recursive: true, force: true })
+  await rm(profile, { recursive: true, force: true, maxRetries: 8, retryDelay: 125 })
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Hammer, Play, Rocket, ShieldCheck, Square, TestTube2, X } from 'lucide-react'
+import { Hammer, Play, Rocket, ShieldCheck, Square, TestTube2, WalletCards, X } from 'lucide-react'
 import type { StudioCommand } from '../../shared/contracts/command.js'
 import type { FileEntry } from '../../shared/contracts/filesystem.js'
 import type { StudioConfig } from '../../shared/contracts/session.js'
@@ -13,6 +13,16 @@ import StatusBar from '../components/StatusBar'
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
+import { getBalance } from '../aeko/rpc'
+import {
+  generateDevelopmentWallet,
+  importDevelopmentWallet,
+  loadDevelopmentWallets,
+  saveDevelopmentWallets,
+  shortAddress,
+  type DevelopmentWallet,
+} from '../aeko/wallet'
+import WalletPanel from '../components/WalletPanel'
 import { api } from '../lib/api'
 import { languageForPath } from '../lib/language'
 import MonacoEditor from './MonacoEditor'
@@ -41,8 +51,77 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
   const [consoleCollapsed, setConsoleCollapsed] = useState(false)
   const [bottomTab, setBottomTab] = useState<BottomPanelTab>('TERMINAL')
   const [workbenchView, setWorkbenchView] = useState<WorkbenchView>('code')
+  const [wallets, setWallets] = useState<DevelopmentWallet[]>(() => loadDevelopmentWallets())
+  const [walletId, setWalletId] = useState('')
+  const [walletBalance, setWalletBalance] = useState<number | null>(null)
+  const [walletBalanceBusy, setWalletBalanceBusy] = useState(false)
+  const [walletError, setWalletError] = useState('')
   const saveTimers = useRef<Map<string, number>>(new Map())
   const tasks = useStudioTasks(workspace.id)
+  const selectedWallet = wallets.find((wallet) => wallet.id === walletId) ?? wallets[0] ?? null
+
+  useEffect(() => {
+    if (!walletId && wallets[0]) setWalletId(wallets[0].id)
+    if (walletId && !wallets.some((wallet) => wallet.id === walletId)) setWalletId(wallets[0]?.id ?? '')
+  }, [walletId, wallets])
+
+  const replaceWallets = useCallback((next: DevelopmentWallet[]) => {
+    setWallets(next)
+    saveDevelopmentWallets(next)
+  }, [])
+
+  const refreshWalletBalance = useCallback(async () => {
+    if (!selectedWallet || !config.rpcUrl) {
+      setWalletBalance(null)
+      return
+    }
+    setWalletBalanceBusy(true)
+    setWalletError('')
+    try {
+      setWalletBalance(await getBalance(config.rpcUrl, selectedWallet.address))
+    } catch (cause) {
+      setWalletBalance(null)
+      setWalletError(errorMessage(cause, 'Wallet balance could not be loaded.'))
+    } finally {
+      setWalletBalanceBusy(false)
+    }
+  }, [config.rpcUrl, selectedWallet])
+
+  useEffect(() => {
+    void refreshWalletBalance()
+  }, [refreshWalletBalance])
+
+  const createWallet = async (name: string) => {
+    try {
+      const wallet = await generateDevelopmentWallet(name)
+      replaceWallets([...wallets, wallet])
+      setWalletId(wallet.id)
+      setWalletError('')
+    } catch (cause) {
+      setWalletError(errorMessage(cause, 'Development wallet could not be created.'))
+      throw cause
+    }
+  }
+
+  const importWallet = async (name: string, secretKeyB64: string) => {
+    try {
+      const wallet = await importDevelopmentWallet(name, secretKeyB64)
+      replaceWallets([...wallets.filter((item) => item.id !== wallet.id), wallet])
+      setWalletId(wallet.id)
+      setWalletError('')
+    } catch (cause) {
+      setWalletError(errorMessage(cause, 'Development wallet could not be imported.'))
+      throw cause
+    }
+  }
+
+  const deleteWallet = (wallet: DevelopmentWallet) => {
+    if (!window.confirm(`Delete ${wallet.name} from this browser? This cannot be undone.`)) return
+    const next = wallets.filter((item) => item.id !== wallet.id)
+    replaceWallets(next)
+    if (walletId === wallet.id) setWalletId(next[0]?.id ?? '')
+    setWalletBalance(null)
+  }
 
   const refreshTree = useCallback(async () => {
     const next = await api.tree(workspace.id)
@@ -301,6 +380,19 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
           </Button>
         </div>
 
+        {selectedWallet ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="hidden max-w-56 gap-2 lg:inline-flex"
+            onClick={() => setWorkbenchView('accounts')}
+            title={selectedWallet.address}
+          >
+            <WalletCards />
+            <span className="truncate">{shortAddress(selectedWallet.address)}</span>
+            <span className="text-muted-foreground">{walletBalance === null ? '—' : `${(walletBalance / 1_000_000_000).toLocaleString('en-US', { maximumFractionDigits: 4 })} AEKO`}</span>
+          </Button>
+        ) : null}
         <Badge className="shrink-0">
           <span className="mr-1 size-2 rounded-full bg-primary" />
           {config.network}
@@ -328,6 +420,22 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
               onDelete={deleteEntry}
               onRefresh={() => void refreshTree().catch(report)}
             />
+          ) : workbenchView === 'accounts' ? (
+            <div className="size-full">
+              <WalletPanel
+                config={config}
+                wallets={wallets}
+                selectedId={selectedWallet?.id ?? ''}
+                balance={walletBalance}
+                balanceBusy={walletBalanceBusy}
+                error={walletError}
+                onSelect={setWalletId}
+                onCreate={createWallet}
+                onImport={importWallet}
+                onDelete={deleteWallet}
+                onRefreshBalance={refreshWalletBalance}
+              />
+            </div>
           ) : (
             <section className="flex h-full flex-col p-3">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{workbenchView}</p>
@@ -374,13 +482,6 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
                     </p>
                   </>
                 ) : null}
-                {workbenchView === 'accounts' ? (
-                  <>
-                    <p>Account operations are available through the integrated AEKO CLI without exposing validator keys.</p>
-                    <code className="block rounded-md bg-card p-2 font-mono text-foreground">aeko-keygen --help</code>
-                    <code className="block rounded-md bg-card p-2 font-mono text-foreground">aeko --help</code>
-                  </>
-                ) : null}
                 {workbenchView === 'transactions' ? (
                   <>
                     <p>Transactions target the configured {config.network} network.</p>
@@ -423,10 +524,13 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
           <div className={consoleCollapsed ? 'h-10 shrink-0' : 'h-60 shrink-0'}>
             <BottomPanel
               workspaceId={workspace.id}
+              config={config}
+              wallet={selectedWallet}
               tasks={tasks}
               tab={bottomTab}
               onTabChange={setBottomTab}
               onRunTask={runTask}
+              onTransactionConfirmed={refreshWalletBalance}
               collapsed={consoleCollapsed}
               onToggleCollapsed={() => setConsoleCollapsed((value) => !value)}
             />
@@ -452,6 +556,10 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
             <div>
               <dt className="text-muted-foreground">Task runner</dt>
               <dd className="mt-1">{tasks.running ? `${tasks.running} running` : tasks.connected ? 'Ready' : 'Connecting'}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Wallet</dt>
+              <dd className="mt-1 break-all">{selectedWallet ? shortAddress(selectedWallet.address) : 'Not selected'}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Program ID</dt>
