@@ -26,11 +26,12 @@ export default function PreviewPanel({
 
   useEffect(() => {
     let disposed = false
-    setLoading(true)
-    setError('')
     void api.previewStatus(workspaceId)
       .then((next) => {
-        if (!disposed) setStatus(next)
+        if (!disposed) {
+          setStatus(next)
+          setError('')
+        }
       })
       .catch((cause) => {
         if (!disposed) setError(errorMessage(cause, 'DApp preview status could not be loaded.'))
