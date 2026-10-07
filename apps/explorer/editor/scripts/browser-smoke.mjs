@@ -261,7 +261,7 @@ try {
     const panel = document.querySelector('[data-aeko-runtime-panel]')
     if (!(panel instanceof HTMLElement)) return null
     const rect = panel.getBoundingClientRect()
-    const text = panel.innerText || ''
+    const text = (panel.innerText || '').toUpperCase()
     return {
       width: Math.round(rect.width),
       text,
@@ -272,11 +272,11 @@ try {
     !runtimePanelState
     || runtimePanelState.width < 278
     || runtimePanelState.width > 282
-    || !runtimePanelState.text.includes('Runtime')
-    || !runtimePanelState.text.includes('Network')
-    || !runtimePanelState.text.includes('Development wallet')
-    || !runtimePanelState.text.includes('Artifact')
-    || !runtimePanelState.text.includes('Latest deployment')
+    || !runtimePanelState.text.includes('RUNTIME')
+    || !runtimePanelState.text.includes('NETWORK')
+    || !runtimePanelState.text.includes('DEVELOPMENT WALLET')
+    || !runtimePanelState.text.includes('ARTIFACT')
+    || !runtimePanelState.text.includes('LATEST DEPLOYMENT')
     || runtimePanelState.oldSidebarPresent
   ) {
     throw new Error(`PR #109 Runtime sidebar parity failed: ${JSON.stringify(runtimePanelState)}`)
