@@ -1,4 +1,41 @@
-import { CLOCK_SYSVAR_ID, RENT_SYSVAR_ID, SYSTEM_PROGRAM_ID, concatBytes, decodeBase58 } from './transaction'
+const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+const SYSTEM_PROGRAM_ID = '11111111111111111111111111111111'
+const RENT_SYSVAR_ID = 'SysvarRent111111111111111111111111111111111'
+const CLOCK_SYSVAR_ID = 'SysvarC1ock11111111111111111111111111111111'
+
+function concatBytes(...parts: Uint8Array[]): Uint8Array {
+  const output = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0))
+  let offset = 0
+  for (const part of parts) {
+    output.set(part, offset)
+    offset += part.length
+  }
+  return output
+}
+
+function decodeBase58(value: string): Uint8Array {
+  const input = value.trim()
+  if (!input) throw new Error('Missing base58 value.')
+  const bytes: number[] = []
+  for (const character of input) {
+    const index = BASE58_ALPHABET.indexOf(character)
+    if (index < 0) throw new Error('Invalid base58 character "' + character + '".')
+    let carry = index
+    for (let offset = 0; offset < bytes.length; offset += 1) {
+      const next = (bytes[offset] ?? 0) * 58 + carry
+      bytes[offset] = next & 0xff
+      carry = next >> 8
+    }
+    while (carry > 0) {
+      bytes.push(carry & 0xff)
+      carry >>= 8
+    }
+  }
+  for (let index = 0; index < input.length && input[index] === '1'; index += 1) bytes.push(0)
+  const decoded = Uint8Array.from(bytes.reverse())
+  if (decoded.length !== 32) throw new Error('Expected a 32-byte public key, got ' + String(decoded.length) + '.')
+  return decoded
+}
 
 export type InteractionCategory = 'create' | 'read' | 'update' | 'delete' | 'action'
 export type InteractionFieldKind = 'string' | 'bool' | 'integer' | 'pubkey' | 'bytes' | 'unsupported'
