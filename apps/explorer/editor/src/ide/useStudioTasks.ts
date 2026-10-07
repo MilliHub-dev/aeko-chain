@@ -1,6 +1,6 @@
 import { io, type Socket } from 'socket.io-client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { StudioCommand } from '../../shared/contracts/command.js'
+import type { ConsoleStateEvent, StudioCommand } from '../../shared/contracts/command.js'
 import type { ClientToServerEvents, ServerToClientEvents } from '../../shared/contracts/socket.js'
 
 export interface StudioTasksController {
@@ -9,6 +9,7 @@ export interface StudioTasksController {
   running: StudioCommand | null
   error: string
   connected: boolean
+  lastState: ConsoleStateEvent | null
   run: (command: StudioCommand) => void
   cancel: () => void
 }
@@ -19,6 +20,7 @@ export function useStudioTasks(workspaceId: string): StudioTasksController {
   const [running, setRunning] = useState<StudioCommand | null>(null)
   const [error, setError] = useState('')
   const [connected, setConnected] = useState(false)
+  const [lastState, setLastState] = useState<ConsoleStateEvent | null>(null)
   const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null)
 
   useEffect(() => {
@@ -59,6 +61,7 @@ export function useStudioTasks(workspaceId: string): StudioTasksController {
     })
     socket.on('console:state', (event) => {
       if (!disposed && event.workspaceId === workspaceId) {
+        setLastState(event)
         setRunning(event.status === 'running' ? event.command : null)
       }
     })
@@ -76,6 +79,7 @@ export function useStudioTasks(workspaceId: string): StudioTasksController {
 
   const run = useCallback((command: StudioCommand) => {
     setError('')
+    setLastState(null)
     socketRef.current?.emit('console:run', { workspaceId, command })
   }, [workspaceId])
 
@@ -84,5 +88,5 @@ export function useStudioTasks(workspaceId: string): StudioTasksController {
     socketRef.current?.emit('console:cancel', { workspaceId })
   }, [workspaceId])
 
-  return { history, available, running, error, connected, run, cancel }
+  return { history, available, running, error, connected, lastState, run, cancel }
 }

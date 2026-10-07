@@ -74,6 +74,32 @@ function routeParam(request: Request, key: string): string {
   return value ?? ''
 }
 
+function wildcardParam(request: Request, key: string): string {
+  const value = request.params[key]
+  return Array.isArray(value) ? value.join('/') : value ?? ''
+}
+
+function setPreviewHeaders(response: Response): void {
+  response.setHeader('cache-control', 'no-store')
+  response.setHeader('referrer-policy', 'no-referrer')
+  response.setHeader('permissions-policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()')
+  response.setHeader(
+    'content-security-policy',
+    [
+      "default-src 'self' data: blob:",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data: https:",
+      "connect-src http: https: ws: wss:",
+      "worker-src 'self' blob:",
+      "object-src 'none'",
+      "base-uri 'none'",
+      "frame-ancestors 'self'",
+    ].join('; '),
+  )
+}
+
 app.disable('x-powered-by')
 app.use((request, response, next) => {
   const id = requestId(request)
@@ -151,7 +177,11 @@ app.post('/api/session', (request, response) => {
 
 app.delete('/api/session', (request, response) => {
   const session = sessions.fromRequest(request)
-  if (session) { commands.closeSession(session.id); terminals.closeSession(session.id) }
+  if (session) {
+    commands.closeSession(session.id)
+    terminals.closeSession(session.id)
+    workspaces.closeSession(session.id)
+  }
   sessions.destroy(request)
   response.setHeader('set-cookie', sessions.clearCookie())
   data(response, { authenticated: false })
@@ -234,6 +264,21 @@ app.delete('/api/workspaces/:workspaceId/path', auth, asyncRoute(async (request,
     routeParam(request, 'workspaceId'),
     request.query.path,
   ))
+}))
+
+app.get('/api/workspaces/:workspaceId/preview', auth, asyncRoute(async (request, response) => {
+  const session = requireEditorSession(request)
+  data(response, await workspaces.previewStatus(session, routeParam(request, 'workspaceId')))
+}))
+
+app.get('/preview/:workspaceId/:previewToken/{*assetPath}', asyncRoute(async (request, response) => {
+  const asset = await workspaces.previewAsset(
+    routeParam(request, 'workspaceId'),
+    routeParam(request, 'previewToken'),
+    wildcardParam(request, 'assetPath'),
+  )
+  setPreviewHeaders(response)
+  response.sendFile(asset.path)
 }))
 
 io.use((socket, next) => {

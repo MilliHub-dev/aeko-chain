@@ -262,6 +262,31 @@ if [ "${BUILD_IMAGE}" = "true" ]; then
     "http://127.0.0.1:4100/api/workspaces/$workspace_id")"
   assert_json "workspace deletion" '.data.deleted == true' "$delete_json"
 
+  dapp_json="$(container_http_request \
+    "POST /api/workspaces (DApp)" \
+    -b /tmp/studio-ci-cookie \
+    -H "Origin: http://127.0.0.1:4100" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"ci-dapp-preview","template":"typescript-dapp"}' \
+    http://127.0.0.1:4100/api/workspaces)"
+  dapp_id="$(printf '%s' "$dapp_json" | jq -er '.data.id')"
+
+  preview_json="$(container_http_request \
+    "GET /api/workspaces/:workspaceId/preview" \
+    -b /tmp/studio-ci-cookie \
+    "http://127.0.0.1:4100/api/workspaces/$dapp_id/preview")"
+  assert_json "fresh DApp preview is supported but not built" \
+    '.data.supported == true and .data.available == false and .data.url == null' \
+    "$preview_json"
+
+  dapp_delete_json="$(container_http_request \
+    "DELETE /api/workspaces/:workspaceId (DApp)" \
+    -X DELETE \
+    -b /tmp/studio-ci-cookie \
+    -H "Origin: http://127.0.0.1:4100" \
+    "http://127.0.0.1:4100/api/workspaces/$dapp_id")"
+  assert_json "DApp workspace deletion" '.data.deleted == true' "$dapp_delete_json"
+
   cleanup
   trap - EXIT HUP INT TERM
 fi

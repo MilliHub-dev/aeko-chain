@@ -256,6 +256,55 @@ try {
   if (!/\.tsx?$/.test(editorState.label)) {
     throw new Error(`Browser smoke did not exercise a TypeScript editor: ${editorState.label}`)
   }
+
+  await waitFor(
+    `[...document.querySelectorAll('button')].some((element) =>
+      element.textContent?.trim() === 'Preview'
+      && element instanceof HTMLButtonElement
+      && !element.disabled
+    )`,
+    'DApp preview task readiness',
+  )
+
+  await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')]
+      .find((element) => element.textContent?.trim() === 'Preview')
+    if (!(button instanceof HTMLButtonElement)) throw new Error('DApp Preview button was not found.')
+    button.click()
+    return true
+  })()`)
+
+  await waitFor(
+    `Boolean(document.querySelector('iframe[data-aeko-preview]'))`,
+    'isolated DApp preview',
+    90_000,
+  )
+
+  const previewState = await evaluate(`(async () => {
+    const frame = document.querySelector('iframe[data-aeko-preview]')
+    if (!(frame instanceof HTMLIFrameElement)) return null
+    const sandbox = frame.getAttribute('sandbox') || ''
+    const src = frame.getAttribute('src') || ''
+    const response = await fetch(src, { credentials: 'same-origin' })
+    const body = await response.text()
+    return {
+      sandbox,
+      src,
+      status: response.status,
+      builtHtml: body.includes('id="root"'),
+    }
+  })()`)
+  if (
+    !previewState
+    || previewState.status !== 200
+    || !previewState.builtHtml
+    || !previewState.src.startsWith('/preview/')
+    || !previewState.sandbox.includes('allow-scripts')
+    || previewState.sandbox.includes('allow-same-origin')
+  ) {
+    throw new Error(`DApp preview isolation contract failed: ${JSON.stringify(previewState)}`)
+  }
+
   await evaluate(`(() => {
     const button = document.querySelector('button[aria-label="Accounts"]')
     if (!(button instanceof HTMLButtonElement)) throw new Error('Accounts activity button was not found.')

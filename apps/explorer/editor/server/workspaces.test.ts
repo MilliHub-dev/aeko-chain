@@ -143,3 +143,68 @@ test('new API-created files use the authenticated session identity inputs', asyn
     'answer = 42\n',
   )
 })
+
+
+test('DApp workspaces use pinned runtime dependencies and preview only contained build output', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'aeko-studio-test-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+
+  const manager = await new WorkspaceManager(config(root)).init()
+  const owner = session('session-preview')
+  const workspace = await manager.create(owner, {
+    name: 'preview-test',
+    template: 'typescript-dapp',
+  })
+  const projectRoot = manager.workspaceRoot(owner, workspace.id)
+
+  assert.equal((await lstat(join(projectRoot, 'node_modules'))).isSymbolicLink(), true)
+  assert.deepEqual(await manager.previewStatus(owner, workspace.id), {
+    supported: true,
+    available: false,
+    url: null,
+    builtAt: null,
+  })
+
+  await manager.write(owner, workspace.id, 'dist/index.html', '<!doctype html><h1>Preview</h1>')
+  await manager.write(owner, workspace.id, 'dist/assets/app.js', 'console.log("preview")')
+
+  const status = await manager.previewStatus(owner, workspace.id)
+  assert.equal(status.supported, true)
+  assert.equal(status.available, true)
+  assert.ok(status.url)
+  assert.ok(status.url.startsWith(`/preview/${workspace.id}/`))
+  assert.ok(status.url.endsWith('/'))
+  assert.ok(status.builtAt)
+
+  const repeatedStatus = await manager.previewStatus(owner, workspace.id)
+  assert.equal(repeatedStatus.url, status.url)
+
+  const previewToken = status.url.split('/')[3] || ''
+  assert.ok(/^[A-Za-z0-9_-]+$/.test(previewToken))
+
+  const index = await manager.previewAsset(workspace.id, previewToken, '')
+  assert.equal(await readFile(index.path, 'utf8'), '<!doctype html><h1>Preview</h1>')
+  const asset = await manager.previewAsset(workspace.id, previewToken, 'assets/app.js')
+  assert.equal(await readFile(asset.path, 'utf8'), 'console.log("preview")')
+  await assert.rejects(manager.previewAsset(workspace.id, 'wrong-token', 'index.html'), /invalid or expired/)
+
+  const other = await manager.create(owner, {
+    name: 'other-preview',
+    template: 'typescript-dapp',
+  })
+  await manager.write(owner, other.id, 'dist/index.html', '<!doctype html><h1>Other</h1>')
+  await assert.rejects(manager.previewAsset(other.id, previewToken, 'index.html'), /invalid or expired/)
+
+  const tree = await manager.tree(owner, workspace.id)
+  assert.equal(tree.some((entry) => entry.path === 'node_modules' || entry.path.startsWith('node_modules/')), false)
+  assert.equal(tree.some((entry) => entry.path === 'dist' || entry.path.startsWith('dist/')), false)
+
+  const outside = join(root, 'outside-preview.js')
+  await writeFile(outside, 'secret', 'utf8')
+  await symlink(outside, join(projectRoot, 'dist', 'escape.js'))
+  await assert.rejects(manager.previewAsset(workspace.id, previewToken, 'escape.js'), /symlinks|escapes/)
+  await assert.rejects(manager.previewAsset(workspace.id, previewToken, '../outside-preview.js'))
+
+  manager.closeSession(owner.id)
+  await assert.rejects(manager.previewAsset(workspace.id, previewToken, 'index.html'), /invalid or expired/)
+})

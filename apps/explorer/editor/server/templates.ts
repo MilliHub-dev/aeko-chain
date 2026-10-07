@@ -193,9 +193,7 @@ export default function App(){const[status,setStatus]=useState('Not checked');re
 `,
       'README.md': `# AEKO React + TypeScript DApp
 
-Run \`npm install\` once in the integrated Bash terminal, then \`npm run dev\`.
-The project dependencies live in this workspace, not in the Studio browser bundle.
-Use \`VITE_AEKO_RPC_URL\` to select the RPC endpoint.
+The Studio provides the pinned React, TypeScript, and Vite runtime used by this starter, so no package-install step is required.\n\nUse **Preview** to build an isolated static preview, or run \`npm run dev\` in Bash when you specifically need the raw Vite development server. Use \`VITE_AEKO_RPC_URL\` to select the RPC endpoint.
 `,
     },
   },

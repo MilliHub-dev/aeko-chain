@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Hammer, Play, Rocket, ShieldCheck, Square, TestTube2, WalletCards, X } from 'lucide-react'
+import { Hammer, MonitorPlay, Play, Rocket, ShieldCheck, Square, TestTube2, WalletCards, X } from 'lucide-react'
 import type { StudioCommand } from '../../shared/contracts/command.js'
 import type { FileEntry } from '../../shared/contracts/filesystem.js'
 import type { StudioConfig } from '../../shared/contracts/session.js'
@@ -26,6 +26,7 @@ import WalletPanel from '../components/WalletPanel'
 import { api } from '../lib/api'
 import { languageForPath } from '../lib/language'
 import MonacoEditor from './MonacoEditor'
+import PreviewPanel from './PreviewPanel'
 import { ensureWorkspaceModel, hasWorkspaceModel } from './monaco'
 import { useStudioTasks } from './useStudioTasks'
 
@@ -56,6 +57,9 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
   const [walletBalanceBusy, setWalletBalanceBusy] = useState(false)
   const [walletError, setWalletError] = useState('')
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewPending, setPreviewPending] = useState(false)
+  const [previewRevision, setPreviewRevision] = useState(0)
   const saveTimers = useRef<Map<string, number>>(new Map())
   const tasks = useStudioTasks(workspace.id)
   const selectedWallet = wallets.find((wallet) => wallet.id === walletId) ?? wallets[0] ?? null
@@ -327,6 +331,43 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
     tasks.running !== null || !tasks.connected || !tasks.available.includes(command)
   )
 
+  const buildPreview = async () => {
+    if (
+      workspace.template !== 'typescript-dapp'
+      || tasks.running
+      || !tasks.connected
+      || !tasks.available.includes('build')
+    ) return
+    try {
+      await flushDirty()
+      setBottomTab('TASKS')
+      setConsoleCollapsed(false)
+      setPreviewPending(true)
+      tasks.run('build')
+    } catch (cause) {
+      setPreviewPending(false)
+      report(cause)
+    }
+  }
+
+  useEffect(() => {
+    const state = tasks.lastState
+    if (!previewPending || !state || state.command !== 'build' || state.status === 'running') return
+    setPreviewPending(false)
+    if (state.status === 'succeeded') {
+      setPreviewRevision((value) => value + 1)
+      setPreviewOpen(true)
+      return
+    }
+    setError(`DApp preview build ${state.status}. Open Build & Run for the command output.`)
+  }, [previewPending, tasks.lastState])
+
+  useEffect(() => {
+    if (!previewPending || !tasks.error) return
+    setPreviewPending(false)
+    setError(tasks.error)
+  }, [previewPending, tasks.error])
+
   return (
     <div className="flex size-full flex-col bg-background text-foreground">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-3 sm:px-4">
@@ -357,6 +398,17 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
             <TestTube2 />
             Test
           </Button>
+          {workspace.template === 'typescript-dapp' ? (
+            <Button
+              variant={previewOpen ? 'default' : 'secondary'}
+              size="sm"
+              disabled={previewPending || taskDisabled('build')}
+              onClick={() => void buildPreview()}
+            >
+              <MonitorPlay />
+              {previewPending ? 'Building…' : 'Preview'}
+            </Button>
+          ) : null}
           {tasks.available.includes('run') ? (
             <Button
               variant="secondary"
@@ -379,6 +431,19 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
             Deploy
           </Button>
         </div>
+
+        {workspace.template === 'typescript-dapp' ? (
+          <Button
+            variant={previewOpen ? 'default' : 'ghost'}
+            size="icon"
+            className="md:hidden"
+            aria-label="Preview DApp"
+            disabled={previewPending || taskDisabled('build')}
+            onClick={() => void buildPreview()}
+          >
+            <MonitorPlay />
+          </Button>
+        ) : null}
 
         {selectedWallet ? (
           <Button
@@ -504,22 +569,34 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
 
         <main className="flex min-w-0 flex-1 flex-col bg-card/20">
           <div className="flex min-h-0 flex-1 flex-col">
-            <EditorTabs
-              paths={openFiles}
-              activePath={activePath}
-              dirtyPaths={dirtyPaths}
-              onOpen={setActivePath}
-              onClose={closeFile}
-            />
-            <div className="relative min-h-0 flex-1">
-              <MonacoEditor
-                key={`${workspace.id}:${activePath}`}
+            {previewOpen ? (
+              <PreviewPanel
                 workspaceId={workspace.id}
-                file={activeFile}
-                onChange={changeFile}
-                onSave={(content) => saveFile(activePath, content)}
+                revision={previewRevision}
+                buildBusy={previewPending}
+                onBack={() => setPreviewOpen(false)}
+                onRebuild={buildPreview}
               />
-            </div>
+            ) : (
+              <>
+                <EditorTabs
+                  paths={openFiles}
+                  activePath={activePath}
+                  dirtyPaths={dirtyPaths}
+                  onOpen={setActivePath}
+                  onClose={closeFile}
+                />
+                <div className="relative min-h-0 flex-1">
+                  <MonacoEditor
+                    key={`${workspace.id}:${activePath}`}
+                    workspaceId={workspace.id}
+                    file={activeFile}
+                    onChange={changeFile}
+                    onSave={(content) => saveFile(activePath, content)}
+                  />
+                </div>
+              </>
+            )}
           </div>
           <div className={consoleCollapsed ? 'h-10 shrink-0' : 'h-60 shrink-0'}>
             <BottomPanel
