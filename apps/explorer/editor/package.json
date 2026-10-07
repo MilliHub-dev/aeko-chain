@@ -5,16 +5,16 @@
   "packageManager": "pnpm@10.34.6",
   "type": "module",
   "scripts": {
-    "dev": "tsx server/index.ts --dev",
+    "dev": "node init && tsx server/index.ts --dev",
     "client:dev": "vite --host 0.0.0.0 --port 5174",
     "server:dev": "tsx watch server/index.ts --dev",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
-    "build:server": "tsc -p tsconfig.server.build.json",
-    "build": "npm run typecheck && npm run build:server && vite build",
+    "build:server": "node init && tsc -p tsconfig.server.build.json",
+    "build": "node init && npm run typecheck && npm run build:server && vite build",
     "lint": "NODE_OPTIONS=--experimental-strip-types eslint --flag unstable_native_nodejs_ts_config .",
     "test": "tsx --test server/*.test.ts",
     "smoke:browser": "node scripts/browser-smoke.mjs",
-    "start": "NODE_ENV=production node dist-server/server/index.js"
+    "start": "node init && NODE_ENV=production node dist-server/server/index.js"
   },
   "dependencies": {
     "clsx": "^2.1.1",

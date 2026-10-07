@@ -130,6 +130,7 @@ if [ "${VALIDATE_SOURCE}" = "true" ]; then
   fi
   dev_config_json="$(http_request "GET /api/config" http://127.0.0.1:4100/api/config)"
   assert_json "development configuration must disable shared-token auth" '.data.authRequired == false' "$dev_config_json"
+  assert_json "development configuration exposes direct RPC and WebSocket endpoints" '.data.rpcUrl != "" and .data.websocketUrl != ""' "$dev_config_json"
 
   browser_bin=""
   if [ -n "${CHROME_BIN:-}" ] && [ -x "${CHROME_BIN}" ]; then
@@ -201,6 +202,7 @@ if [ "${BUILD_IMAGE}" = "true" ]; then
       -e AEKO_EDITOR_ACCESS_TOKEN="$ci_token" \
       -e AEKO_NETWORK=testnet \
       -e AEKO_RPC_URL=https://rpc.aeko.online \
+      -e AEKO_WS_URL=wss://ws.aeko.online \
       -e AEKO_EXPLORER_URL=https://scan.aeko.online \
       "$image"
   )"
@@ -261,6 +263,31 @@ if [ "${BUILD_IMAGE}" = "true" ]; then
     -H "Origin: http://127.0.0.1:4100" \
     "http://127.0.0.1:4100/api/workspaces/$workspace_id")"
   assert_json "workspace deletion" '.data.deleted == true' "$delete_json"
+
+  dapp_json="$(container_http_request \
+    "POST /api/workspaces (DApp)" \
+    -b /tmp/studio-ci-cookie \
+    -H "Origin: http://127.0.0.1:4100" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"ci-dapp-preview","template":"typescript-dapp"}' \
+    http://127.0.0.1:4100/api/workspaces)"
+  dapp_id="$(printf '%s' "$dapp_json" | jq -er '.data.id')"
+
+  preview_json="$(container_http_request \
+    "GET /api/workspaces/:workspaceId/preview" \
+    -b /tmp/studio-ci-cookie \
+    "http://127.0.0.1:4100/api/workspaces/$dapp_id/preview")"
+  assert_json "fresh DApp preview is supported but not built" \
+    '.data.supported == true and .data.available == false and .data.url == null' \
+    "$preview_json"
+
+  dapp_delete_json="$(container_http_request \
+    "DELETE /api/workspaces/:workspaceId (DApp)" \
+    -X DELETE \
+    -b /tmp/studio-ci-cookie \
+    -H "Origin: http://127.0.0.1:4100" \
+    "http://127.0.0.1:4100/api/workspaces/$dapp_id")"
+  assert_json "DApp workspace deletion" '.data.deleted == true' "$dapp_delete_json"
 
   cleanup
   trap - EXIT HUP INT TERM

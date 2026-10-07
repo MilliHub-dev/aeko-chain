@@ -1,3 +1,4 @@
+import type { ProgramArtifactStatus } from '../../shared/contracts/artifact.js'
 import type { ApiFailure, ApiSuccess } from '../../shared/contracts/api.js'
 import type {
   DeletePathResult,
@@ -8,6 +9,7 @@ import type {
   FileWriteResult,
   RenamePathResult,
 } from '../../shared/contracts/filesystem.js'
+import type { PreviewStatus } from '../../shared/contracts/preview.js'
 import type { LoginRequest, SessionStatus, StudioConfig } from '../../shared/contracts/session.js'
 import type { CreateWorkspaceRequest, Workspace, WorkspaceList } from '../../shared/contracts/workspace.js'
 import { EditorRequestError } from '../../shared/errors/editor-errors.js'
@@ -99,5 +101,11 @@ export const api = {
   deletePath: (workspaceId: string, path: string): Promise<DeletePathResult> => request(
     `/api/workspaces/${workspaceId}/path?path=${encodeURIComponent(path)}`,
     { method: 'DELETE' },
+  ),
+  artifactStatus: (workspaceId: string): Promise<ProgramArtifactStatus> => request(
+    `/api/workspaces/${workspaceId}/artifact`,
+  ),
+  previewStatus: (workspaceId: string): Promise<PreviewStatus> => request(
+    `/api/workspaces/${workspaceId}/preview`,
   ),
 }

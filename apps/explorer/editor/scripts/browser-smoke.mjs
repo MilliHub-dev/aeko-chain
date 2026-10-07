@@ -146,6 +146,12 @@ try {
   const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true })
   await send('Runtime.enable', {}, sessionId)
   await send('Page.enable', {}, sessionId)
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 1440,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  }, sessionId)
   await send('Page.navigate', { url: baseUrl }, sessionId)
 
   async function evaluate(expression) {
@@ -205,17 +211,17 @@ try {
 
   await evaluate(`(() => {
     const template = [...document.querySelectorAll('button')]
-      .find((element) => element.textContent?.includes('DApp Client'))
-    if (!template) throw new Error('DApp Client template button was not found.')
+      .find((element) => element.textContent?.includes('React DApp'))
+    if (!template) throw new Error('React DApp template button was not found.')
     template.click()
     return true
   })()`)
 
   await waitFor(
     `[...document.querySelectorAll('button')].some((element) =>
-      element.textContent?.includes('DApp Client') && element.getAttribute('aria-pressed') === 'true'
+      element.textContent?.includes('React DApp') && element.getAttribute('aria-pressed') === 'true'
     )`,
-    'DApp Client template selection',
+    'React DApp template selection',
   )
 
   await evaluate(`(() => {
@@ -250,6 +256,174 @@ try {
   if (!/\.tsx?$/.test(editorState.label)) {
     throw new Error(`Browser smoke did not exercise a TypeScript editor: ${editorState.label}`)
   }
+
+  const runtimePanelState = await evaluate(`(() => {
+    const panel = document.querySelector('[data-aeko-runtime-panel]')
+    if (!(panel instanceof HTMLElement)) return null
+    const rect = panel.getBoundingClientRect()
+    const text = (panel.innerText || '').toUpperCase()
+    const networkButtons = [...panel.querySelectorAll('button')]
+      .map((button) => button.textContent?.trim())
+      .filter((label) => label === 'Mainnet' || label === 'Testnet')
+    return {
+      width: Math.round(rect.width),
+      text,
+      networkButtons,
+      oldSidebarPresent: document.body?.innerText.includes('PROJECT CONTEXT') || false,
+    }
+  })()`)
+  if (
+    !runtimePanelState
+    || runtimePanelState.width < 278
+    || runtimePanelState.width > 282
+    || !runtimePanelState.text.includes('RUNTIME')
+    || !runtimePanelState.text.includes('NETWORK')
+    || !runtimePanelState.text.includes('DEVELOPMENT WALLET')
+    || !runtimePanelState.text.includes('ARTIFACT')
+    || !runtimePanelState.text.includes('LATEST DEPLOYMENT')
+    || JSON.stringify(runtimePanelState.networkButtons) !== JSON.stringify(['Mainnet', 'Testnet'])
+    || runtimePanelState.oldSidebarPresent
+  ) {
+    throw new Error(`PR #109 Runtime sidebar parity failed: ${JSON.stringify(runtimePanelState)}`)
+  }
+
+  const topLevelPreviewPresent = await evaluate(`(() => {
+    const tasks = document.querySelector('[aria-label="Project tasks"]')
+    return [...(tasks?.querySelectorAll('button') || [])].some((button) => button.textContent?.trim() === 'Preview')
+  })()`)
+  if (topLevelPreviewPresent) {
+    throw new Error('DApp Preview must live under Interact, not in the top-level task bar.')
+  }
+
+  await evaluate(`(() => {
+    const button = document.querySelector('button[aria-label="Interact"]')
+    if (!(button instanceof HTMLButtonElement)) throw new Error('Interact activity button was not found.')
+    button.click()
+    return true
+  })()`)
+
+  await waitFor(
+    `Boolean(document.querySelector('[data-aeko-interact-sidebar]'))
+      && document.body?.innerText.includes('DApp Preview')
+      && [...document.querySelectorAll('button')].some((button) =>
+        button.textContent?.includes('Build / refresh preview')
+        && button instanceof HTMLButtonElement
+        && !button.disabled
+      )`,
+    'DApp Interact preview controls',
+  )
+
+  await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')]
+      .find((element) => element.textContent?.includes('Build / refresh preview'))
+    if (!(button instanceof HTMLButtonElement)) throw new Error('Interact preview build button was not found.')
+    button.click()
+    return true
+  })()`)
+
+  await waitFor(
+    `Boolean(document.querySelector('iframe[data-aeko-preview]'))`,
+    'isolated DApp preview inside Interact',
+    90_000,
+  )
+
+  const previewState = await evaluate(`(async () => {
+    const frame = document.querySelector('iframe[data-aeko-preview]')
+    if (!(frame instanceof HTMLIFrameElement)) return null
+    const sandbox = frame.getAttribute('sandbox') || ''
+    const src = frame.getAttribute('src') || ''
+    const rect = frame.getBoundingClientRect()
+    const response = await fetch(src, { credentials: 'same-origin' })
+    const body = await response.text()
+    return {
+      sandbox,
+      src,
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+      status: response.status,
+      contentType: response.headers.get('content-type') || '',
+      requestId: response.headers.get('x-request-id') || '',
+      bodySnippet: body.slice(0, 240),
+      builtHtml: body.includes('id="root"'),
+      taskPanelVisible: document.body?.innerText.includes('BASH / AEKO CLI') || false,
+    }
+  })()`)
+  if (
+    !previewState
+    || previewState.status !== 200
+    || !previewState.builtHtml
+    || !previewState.src.startsWith('/preview/')
+    || previewState.width < 500
+    || previewState.height < 500
+    || previewState.taskPanelVisible
+    || !previewState.sandbox.includes('allow-scripts')
+    || previewState.sandbox.includes('allow-same-origin')
+  ) {
+    throw new Error(`DApp Interact preview contract failed: ${JSON.stringify(previewState)}`)
+  }
+
+  await evaluate(`(() => {
+    const button = document.querySelector('button[aria-label="Accounts"]')
+    if (!(button instanceof HTMLButtonElement)) throw new Error('Accounts activity button was not found.')
+    button.click()
+    return true
+  })()`)
+
+  await waitFor(
+    `document.body?.innerText.includes('Development wallets')
+      && [...document.querySelectorAll('button')].some((element) => element.textContent?.includes('Create development wallet'))`,
+    'development wallet panel',
+  )
+
+  await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')]
+      .find((element) => element.textContent?.includes('Create development wallet'))
+    if (!(button instanceof HTMLButtonElement)) throw new Error('Create development wallet button was not found.')
+    button.click()
+    return true
+  })()`)
+
+  await waitFor(
+    `Boolean(document.querySelector('button[aria-label="Refresh wallet balance"]'))`,
+    'browser-local development wallet',
+    15_000,
+  )
+
+  await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')]
+      .find((element) => element.textContent?.trim() === 'AEKO SHELL')
+    if (!(button instanceof HTMLButtonElement)) throw new Error('AEKO Shell tab was not found.')
+    button.click()
+    return true
+  })()`)
+
+  await waitFor(
+    `Boolean(document.querySelector('input[aria-label="AEKO Shell command"]'))`,
+    'structured AEKO shell',
+  )
+
+  await evaluate(`(() => {
+    const input = document.querySelector('input[aria-label="AEKO Shell command"]')
+    if (!(input instanceof HTMLInputElement)) throw new Error('AEKO Shell command input was not found.')
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+    if (!setter) throw new Error('HTML input value setter was unavailable.')
+    setter.call(input, 'whoami')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    return true
+  })()`)
+  await evaluate(`new Promise((resolve) => requestAnimationFrame(() => resolve(true)))`)
+  await evaluate(`(() => {
+    const input = document.querySelector('input[aria-label="AEKO Shell command"]')
+    if (!(input instanceof HTMLInputElement)) throw new Error('AEKO Shell command input disappeared.')
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }))
+    return true
+  })()`)
+
+  await waitFor(
+    `document.body?.innerText.includes('Development wallet:')`,
+    'AEKO shell wallet identity',
+  )
+
   if (runtimeErrors.length) {
     throw new Error(`Browser runtime reported critical errors:\n${runtimeErrors.join('\n\n')}`)
   }
@@ -262,5 +436,5 @@ try {
 } finally {
   stopBrowser()
   await childExit.catch(() => undefined)
-  await rm(profile, { recursive: true, force: true })
+  await rm(profile, { recursive: true, force: true, maxRetries: 8, retryDelay: 125 })
 }

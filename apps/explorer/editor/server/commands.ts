@@ -38,12 +38,11 @@ const COMMANDS: Record<ProjectTemplate, Partial<Record<StudioCommand, CommandSpe
     run: { executable: 'node', args: ['--experimental-strip-types', 'src/index.ts'], label: 'Run client' },
   },
   'typescript-dapp': {
-    build: { executable: 'npm', args: ['run', 'build'], label: 'Build DApp' },
+    build: { executable: 'npm', args: ['run', 'build', '--', '--base', './'], label: 'Build DApp preview' },
     typecheck: { executable: 'npm', args: ['run', 'typecheck'], label: 'Type-check DApp' },
     lint: { executable: 'biome', args: ['check', '.'], label: 'Biome check' },
     format: { executable: 'biome', args: ['format', '--write', '.'], label: 'Biome format' },
     test: { executable: 'npm', args: ['run', 'typecheck'], label: 'Type-check DApp' },
-    run: { executable: 'npm', args: ['run', 'dev', '--', '--host', '0.0.0.0'], label: 'Start DApp dev server' },
     clean: { executable: 'npm', args: ['run', 'clean'], label: 'Clean DApp build output' },
   },
   'python-client': {
@@ -121,6 +120,9 @@ export class CommandManager {
       RUSTC_WRAPPER: '',
       AEKO_NETWORK: this.config.network,
       AEKO_RPC_URL: this.config.rpcUrl,
+      AEKO_WS_URL: this.config.websocketUrl,
+      VITE_AEKO_RPC_URL: this.config.rpcUrl,
+      VITE_AEKO_WS_URL: this.config.websocketUrl,
       AEKO_EXPLORER_URL: this.config.explorerUrl,
     }
     const options: SpawnOptionsWithoutStdio = { cwd: root, env, shell: false }

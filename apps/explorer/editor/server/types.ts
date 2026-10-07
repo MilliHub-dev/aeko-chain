@@ -10,6 +10,7 @@ export interface EditorServerConfig {
   accessToken: string
   network: string
   rpcUrl: string
+  websocketUrl: string
   explorerUrl: string
   workspaceRoot: string
   sandboxUidStart: number

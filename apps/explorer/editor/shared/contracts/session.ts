@@ -1,6 +1,7 @@
 export interface StudioConfig {
   network: string
   rpcUrl: string
+  websocketUrl: string
   explorerUrl: string
   authRequired: boolean
 }
