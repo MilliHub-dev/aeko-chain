@@ -262,9 +262,13 @@ try {
     if (!(panel instanceof HTMLElement)) return null
     const rect = panel.getBoundingClientRect()
     const text = (panel.innerText || '').toUpperCase()
+    const networkButtons = [...panel.querySelectorAll('button')]
+      .map((button) => button.textContent?.trim())
+      .filter((label) => label === 'Mainnet' || label === 'Testnet')
     return {
       width: Math.round(rect.width),
       text,
+      networkButtons,
       oldSidebarPresent: document.body?.innerText.includes('PROJECT CONTEXT') || false,
     }
   })()`)
@@ -277,31 +281,49 @@ try {
     || !runtimePanelState.text.includes('DEVELOPMENT WALLET')
     || !runtimePanelState.text.includes('ARTIFACT')
     || !runtimePanelState.text.includes('LATEST DEPLOYMENT')
+    || JSON.stringify(runtimePanelState.networkButtons) !== JSON.stringify(['Mainnet', 'Testnet'])
     || runtimePanelState.oldSidebarPresent
   ) {
     throw new Error(`PR #109 Runtime sidebar parity failed: ${JSON.stringify(runtimePanelState)}`)
   }
 
+  const topLevelPreviewPresent = await evaluate(`(() => {
+    const tasks = document.querySelector('[aria-label="Project tasks"]')
+    return [...(tasks?.querySelectorAll('button') || [])].some((button) => button.textContent?.trim() === 'Preview')
+  })()`)
+  if (topLevelPreviewPresent) {
+    throw new Error('DApp Preview must live under Interact, not in the top-level task bar.')
+  }
+
+  await evaluate(`(() => {
+    const button = document.querySelector('button[aria-label="Interact"]')
+    if (!(button instanceof HTMLButtonElement)) throw new Error('Interact activity button was not found.')
+    button.click()
+    return true
+  })()`)
+
   await waitFor(
-    `[...document.querySelectorAll('button')].some((element) =>
-      element.textContent?.trim() === 'Preview'
-      && element instanceof HTMLButtonElement
-      && !element.disabled
-    )`,
-    'DApp preview task readiness',
+    `Boolean(document.querySelector('[data-aeko-interact-sidebar]'))
+      && document.body?.innerText.includes('DApp Preview')
+      && [...document.querySelectorAll('button')].some((button) =>
+        button.textContent?.includes('Build / refresh preview')
+        && button instanceof HTMLButtonElement
+        && !button.disabled
+      )`,
+    'DApp Interact preview controls',
   )
 
   await evaluate(`(() => {
     const button = [...document.querySelectorAll('button')]
-      .find((element) => element.textContent?.trim() === 'Preview')
-    if (!(button instanceof HTMLButtonElement)) throw new Error('DApp Preview button was not found.')
+      .find((element) => element.textContent?.includes('Build / refresh preview'))
+    if (!(button instanceof HTMLButtonElement)) throw new Error('Interact preview build button was not found.')
     button.click()
     return true
   })()`)
 
   await waitFor(
     `Boolean(document.querySelector('iframe[data-aeko-preview]'))`,
-    'isolated DApp preview',
+    'isolated DApp preview inside Interact',
     90_000,
   )
 
@@ -310,13 +332,17 @@ try {
     if (!(frame instanceof HTMLIFrameElement)) return null
     const sandbox = frame.getAttribute('sandbox') || ''
     const src = frame.getAttribute('src') || ''
+    const rect = frame.getBoundingClientRect()
     const response = await fetch(src, { credentials: 'same-origin' })
     const body = await response.text()
     return {
       sandbox,
       src,
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
       status: response.status,
       builtHtml: body.includes('id="root"'),
+      taskPanelVisible: document.body?.innerText.includes('BASH / AEKO CLI') || false,
     }
   })()`)
   if (
@@ -324,10 +350,13 @@ try {
     || previewState.status !== 200
     || !previewState.builtHtml
     || !previewState.src.startsWith('/preview/')
+    || previewState.width < 500
+    || previewState.height < 500
+    || previewState.taskPanelVisible
     || !previewState.sandbox.includes('allow-scripts')
     || previewState.sandbox.includes('allow-same-origin')
   ) {
-    throw new Error(`DApp preview isolation contract failed: ${JSON.stringify(previewState)}`)
+    throw new Error(`DApp Interact preview contract failed: ${JSON.stringify(previewState)}`)
   }
 
   await evaluate(`(() => {

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Hammer, MonitorPlay, Play, Rocket, Square, TestTube2, WalletCards, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Hammer, Play, Rocket, Square, TestTube2, WalletCards, X } from 'lucide-react'
 import type { ProgramArtifactStatus } from '../../shared/contracts/artifact.js'
 import type { StudioCommand } from '../../shared/contracts/command.js'
 import type { FileEntry } from '../../shared/contracts/filesystem.js'
@@ -8,6 +8,8 @@ import type { Workspace as WorkspaceContract } from '../../shared/contracts/work
 import { errorMessage } from '../../shared/errors/editor-errors.js'
 import ActivityBar, { type WorkbenchView } from '../components/ActivityBar'
 import BottomPanel, { type BottomPanelTab } from '../components/BottomPanel'
+import InteractSidebar from '../components/InteractSidebar'
+import ProgramInteractPanel from '../components/ProgramInteractPanel'
 import EditorTabs from '../components/EditorTabs'
 import ExplorerPane from '../components/ExplorerPane'
 import StatusBar from '../components/StatusBar'
@@ -15,6 +17,7 @@ import { Alert, AlertDescription } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { getBalance } from '../aeko/rpc'
+import { parseRustProgramInterface } from '../aeko/rust-interface'
 import {
   generateDevelopmentWallet,
   importDevelopmentWallet,
@@ -59,14 +62,20 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
   const [walletBalanceBusy, setWalletBalanceBusy] = useState(false)
   const [walletError, setWalletError] = useState('')
-  const [previewOpen, setPreviewOpen] = useState(false)
   const [previewPending, setPreviewPending] = useState(false)
   const [previewRevision, setPreviewRevision] = useState(0)
+  const [selectedInteraction, setSelectedInteraction] = useState('raw')
   const [artifact, setArtifact] = useState<ProgramArtifactStatus | null>(null)
   const [runtimeOpen, setRuntimeOpen] = useState(false)
   const saveTimers = useRef<Map<string, number>>(new Map())
   const tasks = useStudioTasks(workspace.id)
   const selectedWallet = wallets.find((wallet) => wallet.id === walletId) ?? wallets[0] ?? null
+  const rustInterface = useMemo(() => parseRustProgramInterface(
+    entries
+      .filter((entry) => entry.type === 'file' && entry.path.endsWith('.rs'))
+      .map((entry) => ({ path: entry.path, content: buffers.get(entry.path) ?? '' }))
+      .filter((source) => source.content !== ''),
+  ), [buffers, entries])
 
   useEffect(() => {
     if (!walletId && wallets[0]) setWalletId(wallets[0].id)
@@ -178,6 +187,23 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
     const first = entries.find((entry) => entry.type === 'file')
     if (!activePath && first) void openFile(first.path)
   }, [activePath, entries, openFile])
+
+  useEffect(() => {
+    if (workbenchView !== 'interact' || workspace.template !== 'rust-program') return
+    let cancelled = false
+    const missing = entries.filter(
+      (entry) => entry.type === 'file' && entry.path.endsWith('.rs') && !buffers.has(entry.path),
+    )
+    void Promise.all(missing.map(async (entry) => {
+      const result = await api.readFile(workspace.id, entry.path)
+      if (!cancelled) {
+        setBuffers((current) => current.has(entry.path) ? current : new Map(current).set(entry.path, result.content))
+      }
+    })).catch((cause) => {
+      if (!cancelled) report(cause)
+    })
+    return () => { cancelled = true }
+  }, [buffers, entries, report, workbenchView, workspace.id, workspace.template])
 
   useEffect(() => {
     let cancelled = false
@@ -356,8 +382,7 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
     ) return
     try {
       await flushDirty()
-      setBottomTab('TASKS')
-      setConsoleCollapsed(false)
+      setWorkbenchView('interact')
       setPreviewPending(true)
       tasks.run('build')
     } catch (cause) {
@@ -372,7 +397,7 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
     setPreviewPending(false)
     if (state.status === 'succeeded') {
       setPreviewRevision((value) => value + 1)
-      setPreviewOpen(true)
+      setWorkbenchView('interact')
       return
     }
     setError(`DApp preview build ${state.status}. Open Build & Run for the command output.`)
@@ -426,17 +451,6 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
             <TestTube2 />
             Test
           </Button>
-          {workspace.template === 'typescript-dapp' ? (
-            <Button
-              variant={previewOpen ? 'default' : 'secondary'}
-              size="sm"
-              disabled={previewPending || taskDisabled('build')}
-              onClick={() => void buildPreview()}
-            >
-              <MonitorPlay />
-              {previewPending ? 'Building…' : 'Preview'}
-            </Button>
-          ) : null}
           {tasks.available.includes('run') ? (
             <Button
               variant="secondary"
@@ -459,19 +473,6 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
             Deploy
           </Button>
         </div>
-
-        {workspace.template === 'typescript-dapp' ? (
-          <Button
-            variant={previewOpen ? 'default' : 'ghost'}
-            size="icon"
-            className="md:hidden"
-            aria-label="Preview DApp"
-            disabled={previewPending || taskDisabled('build')}
-            onClick={() => void buildPreview()}
-          >
-            <MonitorPlay />
-          </Button>
-        ) : null}
 
         {selectedWallet ? (
           <Button
@@ -521,6 +522,15 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
               onRename={renameEntry}
               onDelete={deleteEntry}
               onRefresh={() => void refreshTree().catch(report)}
+            />
+          ) : workbenchView === 'interact' ? (
+            <InteractSidebar
+              template={workspace.template}
+              programInterface={rustInterface}
+              selectedOperationId={selectedInteraction}
+              onSelectOperation={setSelectedInteraction}
+              onBuildPreview={buildPreview}
+              previewBusy={previewPending}
             />
           ) : workbenchView === 'accounts' ? (
             <div className="size-full">
@@ -576,14 +586,6 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
                     </p>
                   </>
                 ) : null}
-                {workbenchView === 'interact' ? (
-                  <>
-                    <p>Program interaction uses the configured {config.network} RPC.</p>
-                    <p className="rounded-md border border-border p-2">
-                      Open the Bash / AEKO CLI panel to invoke deployed programs. Wallet-backed signing is required for state-changing calls.
-                    </p>
-                  </>
-                ) : null}
                 {workbenchView === 'transactions' ? (
                   <>
                     <p>Transactions target the configured {config.network} network.</p>
@@ -606,13 +608,22 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
 
         <main className="flex min-w-0 flex-1 flex-col bg-card/20">
           <div className="flex min-h-0 flex-1 flex-col">
-            {previewOpen ? (
+            {workbenchView === 'interact' && workspace.template === 'typescript-dapp' ? (
               <PreviewPanel
                 workspaceId={workspace.id}
                 revision={previewRevision}
                 buildBusy={previewPending}
-                onBack={() => setPreviewOpen(false)}
                 onRebuild={buildPreview}
+              />
+            ) : workbenchView === 'interact' && workspace.template === 'rust-program' ? (
+              <ProgramInteractPanel
+                key={selectedInteraction + ':' + (selectedWallet?.address ?? 'no-wallet')}
+                workspaceId={workspace.id}
+                config={config}
+                wallet={selectedWallet}
+                programInterface={rustInterface}
+                selectedOperationId={selectedInteraction}
+                onTransactionConfirmed={refreshWalletBalance}
               />
             ) : (
               <>
@@ -635,20 +646,22 @@ export default function Workspace({ workspace, config, onHome, onLogout }: Props
               </>
             )}
           </div>
-          <div className={consoleCollapsed ? 'h-10 shrink-0' : 'h-60 shrink-0'}>
-            <BottomPanel
-              workspaceId={workspace.id}
-              config={config}
-              wallet={selectedWallet}
-              tasks={tasks}
-              tab={bottomTab}
-              onTabChange={setBottomTab}
-              onRunTask={runTask}
-              onTransactionConfirmed={refreshWalletBalance}
-              collapsed={consoleCollapsed}
-              onToggleCollapsed={() => setConsoleCollapsed((value) => !value)}
-            />
-          </div>
+          {workbenchView !== 'interact' ? (
+            <div className={consoleCollapsed ? 'h-10 shrink-0' : 'h-60 shrink-0'}>
+              <BottomPanel
+                workspaceId={workspace.id}
+                config={config}
+                wallet={selectedWallet}
+                tasks={tasks}
+                tab={bottomTab}
+                onTabChange={setBottomTab}
+                onRunTask={runTask}
+                onTransactionConfirmed={refreshWalletBalance}
+                collapsed={consoleCollapsed}
+                onToggleCollapsed={() => setConsoleCollapsed((value) => !value)}
+              />
+            </div>
+          ) : null}
         </main>
 
         <div className="hidden w-[280px] min-h-0 shrink-0 border-l border-white/10 lg:block">

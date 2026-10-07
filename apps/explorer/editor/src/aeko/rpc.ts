@@ -77,6 +77,18 @@ export async function getAccountInfo(rpcUrl: string, address: string): Promise<R
   ])
   return result.value ?? null
 }
+
+export interface RpcProgramAccount {
+  pubkey: string
+  account: RpcAccountInfo
+}
+
+export async function getProgramAccounts(rpcUrl: string, programId: string): Promise<RpcProgramAccount[]> {
+  return rpc<RpcProgramAccount[]>(rpcUrl, 'getProgramAccounts', [
+    programId,
+    { commitment: 'confirmed', encoding: 'base64' },
+  ])
+}
 export async function getFeeForMessage(rpcUrl: string, messageBase64: string): Promise<number> {
   const result = await rpc<number | { value?: number }>(rpcUrl, 'getFeeForMessage', [
     messageBase64,

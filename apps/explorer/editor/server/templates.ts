@@ -190,10 +190,11 @@ export default function App(){const[status,setStatus]=useState('Not checked');re
       'src/style.css': `:root{font-family:system-ui;color:#fff;background:#052E2B}body{margin:0}main{max-width:720px;margin:10vh auto;padding:2rem}button{background:#5FB51F;color:#052E2B;border:0;padding:.75rem 1rem;border-radius:.6rem;font-weight:700}
 `,
       '.env.example': `VITE_AEKO_RPC_URL=https://rpc.aeko.online
+VITE_AEKO_WS_URL=wss://ws.aeko.online
 `,
       'README.md': `# AEKO React + TypeScript DApp
 
-The Studio provides the pinned React, TypeScript, and Vite runtime used by this starter, so no package-install step is required.\n\nUse **Preview** to build an isolated static preview, or run \`npm run dev\` in Bash when you specifically need the raw Vite development server. Use \`VITE_AEKO_RPC_URL\` to select the RPC endpoint.
+The Studio provides the pinned React, TypeScript, and Vite runtime used by this starter, so no package-install step is required.\n\nOpen **Interact** to build and render the DApp as the Studio canvas, or run \`npm run dev\` in Bash when you specifically need the raw Vite development server. Use \`VITE_AEKO_RPC_URL\` and \`VITE_AEKO_WS_URL\` for direct AEKO RPC and PubSub connections.
 `,
     },
   },

@@ -120,7 +120,9 @@ export class CommandManager {
       RUSTC_WRAPPER: '',
       AEKO_NETWORK: this.config.network,
       AEKO_RPC_URL: this.config.rpcUrl,
+      AEKO_WS_URL: this.config.websocketUrl,
       VITE_AEKO_RPC_URL: this.config.rpcUrl,
+      VITE_AEKO_WS_URL: this.config.websocketUrl,
       AEKO_EXPLORER_URL: this.config.explorerUrl,
     }
     const options: SpawnOptionsWithoutStdio = { cwd: root, env, shell: false }

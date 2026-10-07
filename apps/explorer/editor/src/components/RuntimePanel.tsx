@@ -13,7 +13,6 @@ function networkLabel(network: string): string {
   const normalized = network.trim().toLowerCase()
   if (normalized === 'mainnet') return 'Mainnet'
   if (normalized === 'testnet') return 'Testnet'
-  if (normalized === 'localnet') return 'Local development'
   return network || 'AEKO network'
 }
 
@@ -110,7 +109,7 @@ export default function RuntimePanel({
           </div>
           {network === 'mainnet' ? (
             <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] p-3 text-xs leading-5 text-amber-200">
-              Mainnet deployment is disabled. You can still edit code, but deploy from the browser only on Testnet or local development.
+              Mainnet deployment is disabled. Browser deployment actions are available only when the Studio is configured for Testnet.
             </div>
           ) : null}
         </section>

@@ -154,6 +154,7 @@ app.get('/api/config', (_request, response) => {
   data(response, {
     network: config.network,
     rpcUrl: config.rpcUrl,
+    websocketUrl: config.websocketUrl,
     explorerUrl: config.explorerUrl,
     authRequired: Boolean(config.accessToken),
   })

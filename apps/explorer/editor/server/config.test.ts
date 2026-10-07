@@ -98,3 +98,18 @@ test('explicit log format overrides the environment default', () => {
     assert.equal(config.logFormat, 'json')
   })
 })
+
+
+test('Studio exposes one direct WebSocket endpoint alongside the active RPC endpoint', () => {
+  withEnvironment({
+    NODE_ENV: 'development',
+    AEKO_EDITOR_ACCESS_TOKEN: undefined,
+    AEKO_EDITOR_ALLOW_INSECURE_LOCAL: undefined,
+    AEKO_RPC_URL: 'https://rpc.example.test',
+    AEKO_WS_URL: 'wss://ws.example.test',
+  }, () => {
+    const config = loadConfig({ localDevelopment: true })
+    assert.equal(config.rpcUrl, 'https://rpc.example.test')
+    assert.equal(config.websocketUrl, 'wss://ws.example.test')
+  })
+})

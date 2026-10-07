@@ -3,6 +3,8 @@ import { encodeBase58, signMessage } from './wallet'
 
 const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 export const SYSTEM_PROGRAM_ID = '11111111111111111111111111111111'
+export const RENT_SYSVAR_ID = 'SysvarRent111111111111111111111111111111111'
+export const CLOCK_SYSVAR_ID = 'SysvarC1ock11111111111111111111111111111111'
 
 export interface TransactionAccountMeta {
   address: string
