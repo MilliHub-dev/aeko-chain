@@ -88,9 +88,14 @@ jobs:
           out="${RUNNER_TEMP}/aeko-runtime-explorer-api"
           rm -rf "$out"
           mkdir -p "$out"
-          image="aeko-ci/aeko-explorer-api:$SHA_TAG"
-          docker image inspect "$image" >/dev/null
-          docker save "$image" | gzip -1 > "$out/aeko-explorer-api-image.tar.gz"
+          images=(
+            "aeko-ci/aeko-explorer-api:$SHA_TAG"
+            "aeko-ci/aeko-editor-runner:$SHA_TAG"
+          )
+          for image in "${images[@]}"; do
+            docker image inspect "$image" >/dev/null
+          done
+          docker save "${images[@]}" | gzip -1 > "$out/aeko-explorer-backend-images.tar.gz"
           printf '%s\n' "$GITHUB_SHA" > "$out/ci-source-sha.txt"
 
       - name: Upload Explorer API runtime artifact

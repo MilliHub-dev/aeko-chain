@@ -43,6 +43,7 @@ export default defineConfig([
     files: [
       'src/components/social/NetworkSocialModal.jsx',
       'src/pages/SocialTestV2.jsx',
+      'src/pages/SmartContractEditor.jsx',
     ],
     rules: {
       'no-unused-vars': ['error', {

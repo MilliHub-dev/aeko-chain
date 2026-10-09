@@ -230,6 +230,10 @@ runs:
                 core=true
                 cli=true
                 ;;
+              apps/editor-runner/*)
+                packaging=true
+                explorer_backend=true
+                ;;
               apps/explorer/backend/*)
                 explorer_backend=true
                 ;;

@@ -53,14 +53,51 @@ export async function getGenesisHash(rpcUrl) {
   return rpc(rpcUrl, 'getGenesisHash', []);
 }
 
+export async function getVersion(rpcUrl) {
+  return rpc(rpcUrl, 'getVersion', []);
+}
+
+export async function getSupply(rpcUrl) {
+  return rpc(rpcUrl, 'getSupply', [{ commitment: 'confirmed' }]);
+}
+
+export async function getVoteAccounts(rpcUrl) {
+  return rpc(rpcUrl, 'getVoteAccounts', [{ commitment: 'confirmed' }]);
+}
+
 export async function getLatestBlockhash(rpcUrl) {
   const r = await rpc(rpcUrl, 'getLatestBlockhash', [{ commitment: 'confirmed' }]);
   return r?.value?.blockhash || r?.blockhash;
 }
 
+export async function getFeeForMessage(rpcUrl, messageBase64) {
+  const message = String(messageBase64 || '').trim();
+  if (!message) throw new Error('A serialized transaction message is required for fee estimation.');
+  const result = await rpc(rpcUrl, 'getFeeForMessage', [
+    message,
+    { commitment: 'confirmed' },
+  ]);
+  const value = typeof result === 'number' ? result : result?.value;
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error('RPC did not return a valid transaction fee estimate.');
+  }
+  return value;
+}
+
 export async function getBalance(rpcUrl, address) {
   const r = await rpc(rpcUrl, 'getBalance', [address, { commitment: 'confirmed' }]);
   return typeof r === 'number' ? r : r?.value ?? 0;
+}
+
+export async function getMinimumBalanceForRentExemption(rpcUrl, space) {
+  const value = await rpc(rpcUrl, 'getMinimumBalanceForRentExemption', [
+    Number(space),
+    { commitment: 'confirmed' },
+  ]);
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error('RPC did not return a valid rent-exemption balance.');
+  }
+  return value;
 }
 
 export async function requestAirdrop(rpcUrl, address, lamports) {

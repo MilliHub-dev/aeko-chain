@@ -5,6 +5,7 @@ use {crate::state::SharedState, axum::Router};
 
 pub mod accounts;
 pub mod assets;
+pub mod editor;
 pub mod funding;
 pub mod health;
 pub mod ledger;
@@ -30,6 +31,8 @@ pub fn router() -> Router<SharedState> {
         .merge(registry::router())
         .merge(accounts::router())
         .merge(assets::router())
+        // Editor routes are composed separately in http::build_router so
+        // long-running build/test requests do not inherit the standard timeout.
         .merge(funding::router())
         .merge(social::router())
         .merge(social_feed::router())

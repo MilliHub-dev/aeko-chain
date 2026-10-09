@@ -156,6 +156,74 @@ impl FundingControlConfig {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EditorControlConfig {
+    pub runner_url: Option<String>,
+    pub max_files: usize,
+    pub max_source_bytes: usize,
+    pub request_timeout: Duration,
+}
+
+impl EditorControlConfig {
+    pub fn from_env() -> Result<Self> {
+        let runner_url = optional_env("AEKO_EDITOR_RUNNER_URL")
+            .map(|value| validate_editor_runner_url(&value))
+            .transpose()?;
+        let max_files = optional_parse_env::<usize>("AEKO_EDITOR_MAX_FILES")?.unwrap_or(48);
+        let max_source_bytes =
+            optional_parse_env::<usize>("AEKO_EDITOR_MAX_SOURCE_BYTES")?.unwrap_or(786_432);
+        let request_timeout_seconds =
+            optional_parse_env::<u64>("AEKO_EDITOR_REQUEST_TIMEOUT_SECS")?.unwrap_or(150);
+
+        if max_files == 0 {
+            return Err(anyhow!("AEKO_EDITOR_MAX_FILES must be greater than zero"));
+        }
+        if max_source_bytes == 0 {
+            return Err(anyhow!(
+                "AEKO_EDITOR_MAX_SOURCE_BYTES must be greater than zero"
+            ));
+        }
+        if request_timeout_seconds == 0 {
+            return Err(anyhow!(
+                "AEKO_EDITOR_REQUEST_TIMEOUT_SECS must be greater than zero"
+            ));
+        }
+
+        Ok(Self {
+            runner_url,
+            max_files,
+            max_source_bytes,
+            request_timeout: Duration::from_secs(request_timeout_seconds),
+        })
+    }
+
+    pub fn disabled() -> Self {
+        Self {
+            runner_url: None,
+            max_files: 48,
+            max_source_bytes: 786_432,
+            request_timeout: Duration::from_secs(150),
+        }
+    }
+}
+
+fn validate_editor_runner_url(value: &str) -> Result<String> {
+    let parsed = Url::parse(value)
+        .with_context(|| format!("AEKO_EDITOR_RUNNER_URL={value:?} is not a valid URL"))?;
+    if !matches!(parsed.scheme(), "http" | "https")
+        || parsed.host_str().is_none()
+        || parsed.username() != ""
+        || parsed.password().is_some()
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+    {
+        return Err(anyhow!(
+            "AEKO_EDITOR_RUNNER_URL must be an http(s) service URL without credentials, query, or fragment"
+        ));
+    }
+    Ok(value.trim_end_matches('/').to_string())
+}
+
 pub struct SettingsControlConfig {
     pub admin_token: String,
 }
