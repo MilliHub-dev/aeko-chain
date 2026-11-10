@@ -99,9 +99,14 @@ export default function Developers() {
               <li>Write-your-first-program docs for the AEKO program model and build flow.</li>
               <li>Deploy-and-invoke guide for a first live contract interaction.</li>
             </ul>
-            <Link to="/docs" className="inline-flex items-center gap-2 mt-6 text-aeko-accent hover:text-white transition-colors">
-              Open Smart Contract Guides <ArrowRight size={16} />
-            </Link>
+            <div className="mt-6 flex flex-wrap gap-4">
+              <Link to="/docs/editor" className="inline-flex items-center gap-2 text-aeko-accent hover:text-white transition-colors">
+                Open Browser Editor <ArrowRight size={16} />
+              </Link>
+              <Link to="/docs" className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                Smart Contract Guides <ArrowRight size={16} />
+              </Link>
+            </div>
           </div>
 
           <div className="bg-white/5 border border-white/10 rounded-2xl p-8">

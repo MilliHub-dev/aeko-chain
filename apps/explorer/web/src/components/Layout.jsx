@@ -204,11 +204,16 @@ const Footer = () => {
 };
 
 export default function Layout({ children }) {
+  const location = useLocation();
+  const isEditor = location.pathname === '/docs/editor';
+
   return (
-    <div className="min-h-screen flex flex-col bg-aeko-dark text-white font-sans selection:bg-aeko-accent selection:text-black">
+    <div className={`${isEditor ? 'h-screen overflow-hidden' : 'min-h-screen'} flex flex-col bg-aeko-dark text-white font-sans selection:bg-aeko-accent selection:text-black`}>
       <Navbar />
-      <main className="flex-grow pt-16">{children}</main>
-      <Footer />
+      <main className={isEditor ? 'min-h-0 flex-1 overflow-hidden pt-20 lg:pt-24' : 'flex-grow pt-16'}>
+        {children}
+      </main>
+      {isEditor ? null : <Footer />}
     </div>
   );
 }

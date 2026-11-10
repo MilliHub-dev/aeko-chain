@@ -345,6 +345,7 @@ assert_split_coolify_workflow_contract() {
     "docker/coolify/faucet-tools/*" \
     "docker/coolify/validator/*" \
     "apps/explorer/backend/compose.coolify.yml|apps/explorer/backend/.env.coolify.example)" \
+    "apps/editor-runner/*)" \
     "apps/explorer/web/compose.coolify.yml|apps/explorer/web/.env.coolify.example)" \
     "apps/explorer/editor/compose.coolify.yml|apps/explorer/editor/.env.coolify.example)" \
     "apps/admin/compose.coolify.yml|apps/admin/.env.coolify.example)"; do

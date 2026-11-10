@@ -63,13 +63,17 @@ pub fn build_router(state: SharedState, server: &ServerConfig) -> Router {
     // SetRequestIdLayer stays outside TraceLayer so the generated/incoming ID
     // is present when the request span is created. Propagation adds the same ID
     // to the response for end-to-end correlation through Scan/Admin proxies.
-    features::router()
+    let standard_routes = features::router().layer(TimeoutLayer::new(server.request_timeout));
+    let editor_routes = features::editor::router();
+
+    Router::new()
+        .merge(standard_routes)
+        .merge(editor_routes)
         .with_state(state)
         .layer(PropagateRequestIdLayer::new(request_id_header.clone()))
         .layer(trace)
         .layer(SetRequestIdLayer::new(request_id_header, MakeRequestUuid))
         .layer(CompressionLayer::new())
-        .layer(TimeoutLayer::new(server.request_timeout))
         .layer(RequestBodyLimitLayer::new(server.max_body_bytes))
         .layer(cors)
 }

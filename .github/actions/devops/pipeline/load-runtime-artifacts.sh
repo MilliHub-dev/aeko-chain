@@ -30,7 +30,7 @@ explorer_sha="$(read_provenance artifacts/runtime-explorer-api/ci-source-sha.txt
 
 gzip -dc artifacts/runtime-tools/aeko-tools-image.tar.gz | docker load
 gzip -dc artifacts/runtime-network/aeko-network-images.tar.gz | docker load
-gzip -dc artifacts/runtime-explorer-api/aeko-explorer-api-image.tar.gz | docker load
+gzip -dc artifacts/runtime-explorer-api/aeko-explorer-backend-images.tar.gz | docker load
 
 runtime_tag="${RUNTIME_TAG_SHA:0:12}"
 
@@ -50,6 +50,7 @@ for image in aeko-validator aeko-faucet aeko-social-bootstrap aeko-protocol-boot
   retag "$network_sha" "$image"
 done
 retag "$explorer_sha" aeko-explorer-api
+retag "$explorer_sha" aeko-editor-runner
 
 {
   echo "build_sha=$RUNTIME_TAG_SHA"

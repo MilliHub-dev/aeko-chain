@@ -1,5 +1,8 @@
 use {
-    crate::infrastructure::{chain::RpcChainClient, persistence::PostgresRepository},
+    crate::{
+        config::EditorControlConfig,
+        infrastructure::{chain::RpcChainClient, persistence::PostgresRepository},
+    },
     std::sync::Arc,
 };
 
@@ -16,6 +19,7 @@ pub struct AppState {
     pub funding_authorization_key: Option<String>,
     pub funding_requests_per_10_min: u32,
     pub faucet_per_request_cap_aeko: f64,
+    pub editor: EditorControlConfig,
 }
 
 impl AppState {
@@ -43,7 +47,13 @@ impl AppState {
             funding_authorization_key,
             funding_requests_per_10_min,
             faucet_per_request_cap_aeko,
+            editor: EditorControlConfig::disabled(),
         }
+    }
+
+    pub fn with_editor_config(mut self, editor: EditorControlConfig) -> Self {
+        self.editor = editor;
+        self
     }
 
     pub fn shared(self) -> SharedState {
